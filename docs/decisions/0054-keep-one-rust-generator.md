@@ -1,7 +1,12 @@
 # Keep one Rust generator — decided against; a Ruby-free toolchain is required
 
 **Status:** Decided (status quo) — the maintainer confirmed a Ruby-free build
-toolchain is a product requirement, so `rust/codegen` stays.
+toolchain is a product requirement, so `rust/codegen` stays. DECISION
+SUPERSEDED IN PART by
+[0054a](0054a-make-hecks-codegen-the-only-rust-generator.md): option 2
+(keep `rust/codegen`, retire `rust/project`) is now adopted, on the parity
+bug data recorded there. This document's rejection of option 1 and its
+Ruby-free-toolchain premise still stand.
 
 ## Context
 

@@ -36,9 +36,9 @@ module Hecks
       # census is measured over. Promoted generated domains are included:
       # their shapes are already swept too.
       def corpus_paths(root)
-        %w[qa/stress_domains/* examples/*].flat_map { |glob| Dir[File.join(root, glob)] }
-                                          .select { |path| File.directory?(path) && FormCensus.bluebook_files(path) }
-                                          .sort
+        Hecks::Corpus.members(:stress, :example, root: root).map(&:path)
+                     .select { |path| Hecks::Corpus.bluebook_files(path) }
+                     .sort
       end
 
       # The last `limit` bug commit subjects on this branch — cheap, needs

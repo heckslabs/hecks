@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+
+# Projects the language's Vocabulary tables into the Rust kernel —
+# rust/src/kernel/vocab/*.rs, one exhaustive enum per table (refusal
+# templates, query comparators, field hints, aggregate/entity dispatch
+# orders). The projection itself is Projections::RustVocabulary; this asks
+# the registry for it and writes each file atomically, removing any stale
+# file under vocab/ the projection no longer emits.
+#
+# Replaces bin/project_refusal_wording (now a shim onto this script).
+# spec/rust_vocabulary_spec.rb re-projects in memory and refuses a diff,
+# and CI's checks_codegen_drift job regenerates and fails on drift.
+#
+#   bin/project_rust_vocabulary
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "fileutils"
+require "tempfile"
+
+KERNEL = File.expand_path("../rust/src/kernel", __dir__)
+
+def write_atomically(target, content)
+  FileUtils.mkdir_p(File.dirname(target))
+  Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|
+    tmp.write(content)
+    tmp.flush
+    File.rename(tmp.path, target)
+  end
+  puts "wrote #{target}"
+end
+
+chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+files   = Hecks::Projector.call(:rust_vocabulary, bluebook: chapter)
+
+files.each { |relative, content| write_atomically(File.join(KERNEL, relative), content) }
+
+emitted = files.keys.map { |relative| File.join(KERNEL, relative) }
+(Dir.glob(File.join(KERNEL, "vocab", "*.rs")) - emitted).each do |stale|
+  File.delete(stale)
+  puts "removed #{stale}"
+end

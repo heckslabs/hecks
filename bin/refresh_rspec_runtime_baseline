@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Regenerates `.github/rspec_runtime_baseline.log` — per-file runtimes for
+# exactly the spec set the `rspec` CI job runs (`--tag ~io --tag ~fuzzing`),
+# the grouping input `rspec_shard` falls back on whenever no runtime-log
+# cache restores: every brand-new PR branch and every merge-queue ref (see
+# the merge step in `.github/workflows/ci-rspec.yml` for why that is every
+# first run, not an edge case).
+#
+# The seconds are THIS machine's, not a GitHub runner's. Only proportions
+# matter to a runtime split, so that is fine; rerun this when a spec file
+# gets much slower or faster, or a large one is added. Refuses to write a
+# baseline from a red run. Sorted and rounded so a refresh diffs readably.
+#
+# Usage:
+#   bin/refresh_rspec_runtime_baseline [workers]   # default 6
+
+require "fileutils"
+
+ROOT     = File.expand_path("..", __dir__)
+BASELINE = ".github/rspec_runtime_baseline.log"
+RAW      = "tmp/rspec_runtime_baseline.raw.log"
+
+workers = ARGV.fetch(0, "6")
+FileUtils.mkdir_p(File.join(ROOT, "tmp"))
+FileUtils.rm_f(File.join(ROOT, RAW))
+
+formatters = "--tag ~io --tag ~fuzzing --format progress --format ParallelTests::RSpec::RuntimeLogger --out #{RAW}"
+green = system("bundle", "exec", "parallel_rspec", "spec", "-n", workers, "-o", formatters, chdir: ROOT)
+abort "bin/refresh_rspec_runtime_baseline: the spec run failed — not writing a baseline from a red suite" unless green
+
+# ONLY `spec/…_spec.rb:<seconds>` LINES — RSpec also writes its own
+# "Run options: exclude {…}" line into the formatter's --out file, once per
+# worker, and `parallel_tests`' reader would merely skip it; this refuses to
+# copy it into a committed file.
+# Seconds can arrive in exponent form (`9.69e-05` for a near-instant file).
+RUNTIME_LINE = %r{\A(?<file>spec/\S+_spec\.rb):(?<seconds>\d+(?:\.\d+)?(?:e-?\d+)?)\z}
+
+lines = File.readlines(File.join(ROOT, RAW)).filter_map do |line|
+  match = RUNTIME_LINE.match(line.strip) or next
+  format("%<file>s:%<seconds>.2f", file: match[:file], seconds: Float(match[:seconds]))
+end.uniq.sort
+
+File.write(File.join(ROOT, BASELINE), "#{lines.join("\n")}\n")
+puts "wrote #{BASELINE}: #{lines.size} spec files"

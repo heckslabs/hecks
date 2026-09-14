@@ -42,5 +42,34 @@ jobs:
           name: host
           crate-root: rust/host
 
+      # rust/host's own `cargo test` dispatches against two compiled
+      # domains: rust/dist/banking.wasm (dispatch.rs) and
+      # rust/dist/checkout_fixture.wasm (web.rs's checkout routes, from
+      # spec/fixtures/rust_host/checkout_fixture). rust/dist is
+      # gitignored, so build both here.
+      - uses: ./.github/actions/wasm-toolchain
+
+      - name: Build banking + checkout_fixture wasm
+        run: |
+          bundle exec bin/project_wasm examples/banking
+          bundle exec bin/project_wasm spec/fixtures/rust_host/checkout_fixture
+          # bin/project_wasm regenerates tracked rust/src/generated +
+          # rust/Cargo.toml as a side effect; put them back.
+          git checkout -- rust/src/generated rust/Cargo.toml
+          git clean -fdq rust/src/generated
+
+      # rust/host's Postgres tests connect with tokio_postgres, which
+      # ignores libpq's PG* env vars and logs in as the OS user (a
+      # superuser on a dev machine). Give the runner user the same role;
+      # the action already trusts loopback TCP, so no password needed.
+      - name: Create a superuser role for the runner user
+        run: sudo -u postgres psql -c "CREATE ROLE \"$(whoami)\" SUPERUSER LOGIN"
+
+      # `bundle exec` so the lineage tests' Ruby mint fixtures
+      # (tests/fixtures/*.rb, spawned as plain `ruby`) inherit
+      # RUBYOPT=-rbundler/setup and can load `pg`.
+      - name: "cargo test (rust/host)"
+        run: cd rust/host && bundle exec cargo test
+
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb

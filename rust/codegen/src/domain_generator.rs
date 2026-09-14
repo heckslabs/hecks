@@ -29,7 +29,7 @@ use crate::json::Json;
 use crate::manifest::{ruby_inspect, Manifest};
 use crate::registry::{
     AggregateEntry, CommandEntry, EntityCommandEntry, EntityIdentityEntry, NestedEntityCommandEntry, PortEntry,
-    ReferenceCheck,
+    ReferenceCheck, TenantBoundaryCheck,
 };
 use crate::{commands, json_codec, mutations, ports, queries, reactions, read_models, types};
 use std::collections::HashMap;
@@ -238,6 +238,71 @@ fn state_reference_check_accessor(source_attr: &Json, value_objects_by_name: &Ha
     }
 
     Some(format!("{name}.{}", crate::naming::rust_ident_field(crate::attr::name(&vo_attrs[0]))))
+}
+
+/// Port of `rust/project/domain_generator.rb#tenant_field_for` — an
+/// aggregate's own tenant field is whichever field one of its OWN queries
+/// names in `authorize policy, tenant: :field`. `None` for an aggregate
+/// declaring no tenant-scoping query.
+fn tenant_field_for(aggregate: &Json) -> Option<String> {
+    aggregate.get("queries").map(Json::each).unwrap_or(&[]).iter().find_map(|q| {
+        let tenant = q.get("authorization")?.get("tenant")?;
+        if matches!(tenant, Json::Null) {
+            return None;
+        }
+        Some(tenant.to_s())
+    })
+}
+
+/// Port of `rust/project/domain_generator.rb#tenant_boundary_checks`
+/// (ANGLE-8's write-side tenant boundary, PR #595; BUG#130) — see that
+/// method's own header for the full argument. Fires only when BOTH the
+/// command's own aggregate and a referenced target declare a tenant field,
+/// each reachable through `state_reference_check_accessor`'s narrow shape;
+/// every other shape bails to "no check", never a wrong answer.
+fn tenant_boundary_checks(
+    aggregate: &Json,
+    command: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+    unsupported_names: &[String],
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<TenantBoundaryCheck> {
+    let Some(own_tenant_field) = tenant_field_for(aggregate) else {
+        return Vec::new();
+    };
+    let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let Some(own_tenant_attr) = cmd_attrs.iter().find(|a| crate::attr::name(a) == own_tenant_field) else {
+        return Vec::new();
+    };
+    let Some(own_accessor) = state_reference_check_accessor(own_tenant_attr, value_objects_by_name) else {
+        return Vec::new();
+    };
+    let aggregate_name = node_name(aggregate).to_string();
+
+    cmd_attrs
+        .iter()
+        .filter_map(|attr| {
+            let target_name = crate::naming::reference_target(crate::attr::type_name(attr))?;
+            let target = aggregates_by_name.get(target_name)?;
+            if unsupported_names.iter().any(|n| n == target_name) {
+                return None;
+            }
+            let target_tenant_field = tenant_field_for(target)?;
+            let target_attrs = target.get("attributes").map(Json::each).unwrap_or(&[]);
+            let target_tenant_attr = target_attrs.iter().find(|a| crate::attr::name(a) == target_tenant_field)?;
+            let target_accessor = state_reference_check_accessor(target_tenant_attr, value_objects_by_name)?;
+            Some(TenantBoundaryCheck {
+                reference_field: crate::attr::name(attr).to_string(),
+                target_mod: node_name(target).to_lowercase(),
+                target_name: node_name(target).to_string(),
+                aggregate_name: aggregate_name.clone(),
+                own_tenant_field: own_tenant_field.clone(),
+                own_accessor: own_accessor.clone(),
+                target_tenant_field,
+                target_accessor,
+            })
+        })
+        .collect()
 }
 
 pub fn generate(
@@ -1064,6 +1129,14 @@ pub fn generate(
                     checks.extend(state_reference_checks(aggregate, command, &aggregates_by_name, &unsupported_names, &value_objects_by_name));
                     checks
                 },
+                // ANGLE-8 / BUG#130 — `tenant_boundary_checks`'s own header.
+                tenant_boundary_checks: tenant_boundary_checks(
+                    aggregate,
+                    command,
+                    &aggregates_by_name,
+                    &unsupported_names,
+                    &value_objects_by_name,
+                ),
                 reference_specs: crate::reference_specs::reference_specs(domain_name, cmd_attrs),
                 attributes: cmd_attrs
                     .iter()

@@ -24,12 +24,11 @@ module Hecks
 
       attr_reader :registry
 
-      # THE DECLARED ORDER, HAND-TYPED — mirrors Vocabulary::AggregateDispatchOrder
-      # (language/bluebook/vocabulary.bluebook:188-205), held equal to it by
-      # spec/vocabulary_conformance_spec.rb the same way every other vocabulary
-      # in that file is (RefusalWording::TEMPLATES, CommandRules::MUTATION_OPS,
-      # ...) rather than read live off the meta-domain at every dispatch —
-      # Runtime::RefusalWording's own doc comment gives the same reason.
+      # THE DECLARED ORDER — Vocabulary::AggregateDispatchOrder
+      # (language/bluebook/vocabulary.bluebook), read off the generated table
+      # (lib/hecks/vocabulary.rb) rather than typed here. spec/vocabulary_
+      # conformance_spec.rb holds every step to a real `step_<name>` handler,
+      # both directions.
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("AggregateDispatchOrder")
 
       # A LAST-RESORT SAFETY VALVE, NOT THE NORMAL OUTCOME PATH — see
@@ -91,6 +90,16 @@ module Hecks
       end
 
       private
+
+      # A NO-OP, AND UNTRACED — Vocabulary::AggregateDispatchOrder's
+      # decode_arguments. Routing (`Runtime::Routing`) has already handed
+      # `call` a decoded argument hash by the time any step runs, so there is
+      # nothing left to decode here yet; like a conditional step that does
+      # not fire, it records nothing in `trace`. Declared so the Rust
+      # kernel's generated step enum carries the step its generated decoder
+      # will move into (roadmap D2), and so a typed Invocation (I2) has a
+      # step to be consumed at.
+      def step_decode_arguments(_ctx); end
 
       def step_refuse_unknown_arguments(ctx)
         step(:refuse_unknown_arguments) { refuse_unknown_arguments(ctx.domain, ctx.aggregate, ctx.command, ctx.args) }

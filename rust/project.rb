@@ -125,9 +125,10 @@
 # only spelling a Rust-produced `ir.json` could ever hand this generator.
 #
 # THIRTEENTH SLICE — the refusal-wording table itself, GENERATED rather than
-# hand-typed per call site: `bin/project_refusal_wording` reads `Hecks
-# ::Runtime::RefusalWording::TEMPLATES` directly and writes `rust/src/
-# kernel/refusal_wording.rs` (`RefusalSite`, one variant per (class, site)
+# hand-typed per call site: `bin/project_rust_vocabulary` (formerly
+# `bin/project_refusal_wording`) reads `Vocabulary::RefusalTemplate` off
+# vocabulary.bluebook and writes `rust/src/kernel/vocab/refusal_template.rs`,
+# re-exported as `kernel::refusal_wording` (`RefusalSite`, one variant per (class, site)
 # pair, all 39 entries — the full table, not just the ones a real Rust call
 # site raises today). Closes every gap the ELEVENTH SLICE's own note named:
 # `LifecycleRefused`'s `transition_blocked`, `one_of` closed-set membership

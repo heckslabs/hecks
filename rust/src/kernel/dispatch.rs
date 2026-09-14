@@ -20,8 +20,22 @@
 // generic by construction: nothing here needs to change per command shape
 // for either check to already be enforced.
 
+//
+// THE ORDER ITSELF IS NOT WRITTEN IN THIS FILE. `dispatch`,
+// `apply_entity_command` and `dispatch_entity` each loop over the language's
+// own declared step order — `AggregateStep::ORDER`/`EntityStep::ORDER`
+// (kernel/vocab/, projected from vocabulary.bluebook's
+// AggregateDispatchOrder/EntityDispatchOrder by bin/project_rust_vocabulary)
+// — and `match` every step exhaustively, with no wildcard arm, so a step the
+// language gains fails to compile here (E0004) until it is given an arm.
+// Steps generated router code still performs before `dispatch` is entered
+// (argument decoding and gating, role, references) are explicit no-op arms;
+// `aggregate_step_site`/`entity_step_site`, at the bottom of this file, name
+// where each one actually runs today.
+
 use super::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent};
 use super::refusal_wording::RefusalSite;
+use super::vocab::{AggregateStep, EntityStep};
 use super::{Event, Json, MutationRecord, Refusal, Repository, SetProjectedField, ToJson};
 
 pub struct GivenSpec {
@@ -283,11 +297,147 @@ where
     R: Repository<T>,
 {
     // Set only by a state-independent `Hydrate::Create` (see that variant's
-    // own comment) — checked right before `repo.save`, below, mirroring
-    // `persist_instance`'s own ATOMIC_PUT branch position exactly.
+    // own comment) — checked in the `Save` arm, right before `repo.save`,
+    // mirroring `persist_instance`'s own ATOMIC_PUT branch position exactly.
     let mut defer_existence_check = false;
 
-    let (id, mut record) = match hydrate {
+    // Every owned or `FnOnce` input is consumed by exactly one arm; `take()`
+    // is how the loop hands it over. The const assertions at the bottom of
+    // this file prove every arm reading `hydrated` comes after `Hydrate` in
+    // the declared order, so the `expect`s below cannot fire.
+    let mut hydrate = Some(hydrate);
+    let mut apply_mutations = Some(apply_mutations);
+    let mut tenant_boundary_check = Some(tenant_boundary_check);
+    let mut seed_projections = Some(seed_projections);
+    let mut hydrated: Option<(String, T)> = None;
+    let mut old_snapshot: Option<T> = None;
+    let mut events: Vec<Event> = Vec::new();
+
+    for step in AggregateStep::ORDER {
+        #[deny(clippy::wildcard_enum_match_arm)]
+        match step {
+            // Performed by the GENERATED router (`registry.rb`/`registry.rs`)
+            // before this function is entered — `CommandInvocation::from_json`,
+            // the standalone `structural_precheck`, `<Args>::from_json`,
+            // `invariant_check_lines`, `check_role`, `check_reference`. Their
+            // position cannot move into this loop until a generated
+            // `decode_arguments` exists (roadmap D2). See `aggregate_step_site`.
+            AggregateStep::DecodeArguments
+            | AggregateStep::RefuseUnknownArguments
+            | AggregateStep::RefuseAbsentArguments
+            | AggregateStep::NormalizeArgs
+            | AggregateStep::RefuseRoleMismatch
+            | AggregateStep::ResolveReferences => {}
+            AggregateStep::Hydrate => {
+                let hydrate = hydrate.take().expect(ONCE);
+                hydrated = Some(hydrate_record(
+                    repo,
+                    hydrate,
+                    command_name,
+                    aggregate_name,
+                    identity_reading,
+                    &mut defer_existence_check,
+                )?);
+            }
+            AggregateStep::EnforceGivens => {
+                let (id, record) = hydrated.as_ref().expect(HYDRATED);
+                enforce_givens(record, args, givens, command_name, aggregate_qualified_name, id)?;
+            }
+            AggregateStep::AdmissibleTransition => {
+                let (_, record) = hydrated.as_ref().expect(HYDRATED);
+                admissible_transition(record, transition.as_ref(), command_name)?;
+            }
+            // Folded into `Hydrate::Create.build` (generated): the record
+            // `enforce_givens` already evaluated against IS the built one.
+            AggregateStep::AssignCreationAttributes => {}
+            AggregateStep::ApplyMutations => {
+                let (_, record) = hydrated.as_mut().expect(HYDRATED);
+                // THE STATE AS THE GIVENS SAW IT — `old` inside an `ensures`,
+                // taken right before the mutation that makes it differ from
+                // what follows. Only cloned when a real `ensures` needs it,
+                // the same guard Ruby's own `step_apply_mutations` uses
+                // (`unless ctx.command.ensures.empty?`).
+                old_snapshot = if ensures.is_empty() { None } else { Some(record.clone()) };
+                (apply_mutations.take().expect(ONCE))(record)?;
+            }
+            // Written by the generated `apply_mutations` closure itself, as
+            // its last line — see `TransitionCheck`'s own comment.
+            AggregateStep::AdvanceLifecycle => {}
+            // Performed inside the generated `apply_mutations` closure
+            // (`delegation_of`, rust/project/commands.rb), which calls
+            // `apply_entity_command` on the record in hand.
+            AggregateStep::DelegateToEntity => {}
+            AggregateStep::EnforceEnsures => {
+                let (_, record) = hydrated.as_ref().expect(HYDRATED);
+                if let Some(old) = &old_snapshot {
+                    enforce_ensures(record, old, args, ensures, command_name)?;
+                }
+            }
+            AggregateStep::EnforceInvariants => {
+                let (_, record) = hydrated.as_ref().expect(HYDRATED);
+                enforce_invariants(record, aggregate_name, invariants)?;
+            }
+            AggregateStep::Save => {
+                let (id, record) = hydrated.as_mut().expect(HYDRATED);
+                // BUG#139'S OWN FIX — see this function's own header comment
+                // on the `tenant_boundary_check` parameter for the full
+                // reasoning. First thing in `Save`: the exact position
+                // `step_save`'s own `resolve_state_references` call occupies
+                // relative to `seed_projected_fields`/`persist_instance` in
+                // Ruby — after every OTHER dispatch step has already had its
+                // say, strictly before the write half of save begins.
+                tenant_boundary_check.take().expect(ONCE)?;
+
+                for (field, value) in seed_projections.take().expect(ONCE) {
+                    record.set_projected_field(field, value);
+                }
+
+                // BUG#28's DEFERRED HALF — `persist_instance`'s own
+                // ATOMIC_PUT branch, read directly: "a second creation is not
+                // a fresh one," checked here, now, rather than eagerly at
+                // hydration — AFTER givens/transition/mutations/ensures/
+                // invariants, the identical position `repository.atomic_put
+                // (insert_only: true)` occupies relative to Ruby's own
+                // `step_save`. Only ever set by a state-independent
+                // `Hydrate::Create` (see that variant's own comment); every
+                // other dispatch reaches this a plain no-op.
+                if defer_existence_check && repo.find(id.as_str()).is_some() {
+                    return Err(Refusal::AlreadyExists(RefusalSite::AlreadyExistsCreatingDuplicate.render(&[
+                        ("command", command_name),
+                        ("aggregate", aggregate_name),
+                        ("identity", identity_reading),
+                        ("offered", &format!("{id:?}")),
+                    ])));
+                }
+
+                persist(repo, id, record, aggregate_qualified_name, mutations);
+            }
+            AggregateStep::Emit => {
+                let (id, _) = hydrated.as_ref().expect(HYDRATED);
+                events = emitted(emits, aggregate_qualified_name, id, &payload);
+            }
+        }
+    }
+
+    let (_, record) = hydrated.expect(HYDRATED);
+    Ok((record, events))
+}
+
+/// `hydrate` — how this dispatch obtains its starting record (see
+/// `Hydrate`'s own comment for the branch it takes).
+fn hydrate_record<T, R>(
+    repo: &R,
+    hydrate: Hydrate<'_, T>,
+    command_name: &'static str,
+    aggregate_name: &'static str,
+    identity_reading: &'static str,
+    defer_existence_check: &mut bool,
+) -> Result<(String, T), Refusal>
+where
+    T: Clone,
+    R: Repository<T>,
+{
+    match hydrate {
         Hydrate::Create { id, build, state_independent } => {
             // `NotFound`/`creating_no_identity` — `Identity.of`
             // (identity.rb), read directly: "A BLANK PART NAMES NOTHING,
@@ -319,9 +469,9 @@ where
             }
             // BUG#28 — a state-independent creating command (see
             // `Hydrate::Create`'s own comment) skips this eager check
-            // entirely; it runs again, deferred, right before `repo.save`.
+            // entirely; it runs again, deferred, in `dispatch`'s `Save` arm.
             if state_independent {
-                defer_existence_check = true;
+                *defer_existence_check = true;
             } else if repo.find(&id).is_some() {
                 // `AlreadyExists`/`creating_duplicate` — `CommandInterpreter
                 // #hydrate`'s own second guard, read directly: "a second
@@ -333,7 +483,7 @@ where
                     ("offered", &format!("{id:?}")),
                 ])));
             }
-            (id, build())
+            Ok((id, build()))
         }
         Hydrate::Act { id } => {
             // `NotFound`/`record_missing` — `CommandInterpreter#hydrate`'s
@@ -349,12 +499,22 @@ where
                     ("offered", &format!("{id:?}")),
                 ]))
             })?;
-            (id, record)
+            Ok((id, record))
         }
-    };
+    }
+}
 
+/// `enforce_givens` on an aggregate record.
+fn enforce_givens(
+    record: &dyn Fielded,
+    args: &dyn Fielded,
+    givens: &[GivenSpec],
+    command_name: &str,
+    aggregate_qualified_name: &str,
+    id: &str,
+) -> Result<(), Refusal> {
     for given in givens {
-        let ctx = EvalContext { args, instance: &record };
+        let ctx = EvalContext { args, instance: record };
         if !interpret(&given.expr, &ctx)?.truthy() {
             // `corrects` — `CommandRules::Admissibility
             // #enforce_correction_target`'s own dynamic message, read
@@ -362,7 +522,7 @@ where
             // #{event_name}, but #{event_key} ##{instance.id} has never
             // emitted it"` — `event_key` is `"#{domain}::#{aggregate}"`,
             // exactly what `aggregate_qualified_name` already is
-            // (this function's own header comment on that field).
+            // (`dispatch`'s own header comment on that field).
             if let Some(event_name) = given.corrects_event {
                 // ITS OWN CLASS (C8.2/C9.2, spec/corpus/semantics/
                 // correction_needs_prior_emission.json): Ruby raises
@@ -378,119 +538,99 @@ where
             return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
         }
     }
+    Ok(())
+}
 
-    if let Some(check) = &transition {
-        match record.field(check.field) {
-            Some(Field::Value(Value::Str(current))) => {
-                if !check.from_states.contains(&current.as_str()) {
-                    // `LifecycleRefused`/`transition_blocked` —
-                    // `admissible_transition` (command_rules/admissibility.rb),
-                    // read directly. `allowed` there is `candidates.flat_map
-                    // { |t| Array(t.from) }.uniq` restricted to THIS
-                    // command's own transitions — exactly what `from_states`
-                    // already is here (`lifecycle_transition_for`,
-                    // mutations.rb: `rows.map { |r| r[:from_state] }.uniq`
-                    // over rows already filtered to this command). Each
-                    // state is `.inspect`-quoted and joined with " or ",
-                    // never Rust's own `{:?}` slice-debug rendering.
-                    let allowed = check.from_states.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>().join(" or ");
-                    return Err(Refusal::LifecycleRefused(RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
-                        ("command", command_name),
-                        ("field", check.field),
-                        ("current", &format!("{current:?}")),
-                        ("allowed", &allowed),
-                    ])));
-                }
+/// `admissible_transition` — shared by the aggregate record and an entity
+/// element, which check it identically.
+fn admissible_transition(instance: &dyn Fielded, transition: Option<&TransitionCheck>, command_name: &str) -> Result<(), Refusal> {
+    let Some(check) = transition else { return Ok(()) };
+    match instance.field(check.field) {
+        Some(Field::Value(Value::Str(current))) => {
+            if !check.from_states.contains(&current.as_str()) {
+                // `LifecycleRefused`/`transition_blocked` —
+                // `admissible_transition` (command_rules/admissibility.rb),
+                // read directly. `allowed` there is `candidates.flat_map
+                // { |t| Array(t.from) }.uniq` restricted to THIS
+                // command's own transitions — exactly what `from_states`
+                // already is here (`lifecycle_transition_for`,
+                // mutations.rb: `rows.map { |r| r[:from_state] }.uniq`
+                // over rows already filtered to this command). Each
+                // state is `.inspect`-quoted and joined with " or ",
+                // never Rust's own `{:?}` slice-debug rendering.
+                let allowed = check.from_states.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>().join(" or ");
+                return Err(Refusal::LifecycleRefused(RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
+                    ("command", command_name),
+                    ("field", check.field),
+                    ("current", &format!("{current:?}")),
+                    ("allowed", &allowed),
+                ])));
             }
-            // Not a codegen-emitted mismatch a real dispatch should ever hit —
-            // the lifecycle field is always a plain string on every generated
-            // record. Surfaced as TypeMismatch, the same way an expression
-            // evaluation bug is (see expr.rs's own `eval_error`), because
-            // reaching this means the GENERATOR is wrong, not that the
-            // command was refused for a real business reason. Deliberately
-            // NOT one of `RefusalSite`'s templates — Ruby has no equivalent
-            // message to match because Ruby's own dynamically-typed record
-            // can never reach this branch at all.
-            _ => {
-                return Err(Refusal::TypeMismatch(format!(
-                    "{command_name}: lifecycle field {:?} missing or not a string — a codegen bug",
-                    check.field
-                )))
-            }
+            Ok(())
+        }
+        // Not a codegen-emitted mismatch a real dispatch should ever hit —
+        // the lifecycle field is always a plain string on every generated
+        // record. Surfaced as TypeMismatch, the same way an expression
+        // evaluation bug is (see expr.rs's own `eval_error`), because
+        // reaching this means the GENERATOR is wrong, not that the
+        // command was refused for a real business reason. Deliberately
+        // NOT one of `RefusalSite`'s templates — Ruby has no equivalent
+        // message to match because Ruby's own dynamically-typed record
+        // can never reach this branch at all.
+        _ => Err(Refusal::TypeMismatch(format!(
+            "{command_name}: lifecycle field {:?} missing or not a string — a codegen bug",
+            check.field
+        ))),
+    }
+}
+
+/// `enforce_ensures` against the settled record (or element), `old` merged
+/// into the args it reads.
+fn enforce_ensures(
+    settled: &dyn Fielded,
+    old: &dyn Fielded,
+    args: &dyn Fielded,
+    ensures: &[EnsuresSpec],
+    command_name: &str,
+) -> Result<(), Refusal> {
+    // C2.3 — the settled state first; see `StateFirst`.
+    let state_first = StateFirst { args, settled };
+    let with_old = WithOld { args: &state_first, old };
+    for rule in ensures {
+        let ctx = EvalContext { args: &with_old, instance: settled };
+        if !interpret(&rule.expr, &ctx)?.truthy() {
+            // Same prefix, same source: `CommandRules::Admissibility
+            // #enforce_ensures` — `"#{command.hecks_name} refused —
+            // #{rule.description}"`.
+            return Err(Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)));
         }
     }
+    Ok(())
+}
 
-    // THE STATE AS THE GIVENS SAW IT — `old` inside an `ensures`, taken
-    // right before the mutation that makes it differ from what follows.
-    // Only cloned when a real `ensures` needs it, the same guard Ruby's
-    // own `step_apply_mutations` uses (`unless ctx.command.ensures.empty?`).
-    let old_snapshot = if ensures.is_empty() { None } else { Some(record.clone()) };
-
-    apply_mutations(&mut record)?;
-
-    if let Some(old) = &old_snapshot {
-        // C2.3 — the settled state first; see `StateFirst`.
-        let state_first = StateFirst { args, settled: &record };
-        let with_old = WithOld { args: &state_first, old };
-        for rule in ensures {
-            let ctx = EvalContext { args: &with_old, instance: &record };
-            if !interpret(&rule.expr, &ctx)?.truthy() {
-                // Same prefix, same source: `CommandRules::Admissibility
-                // #enforce_ensures` — `"#{command.hecks_name} refused —
-                // #{rule.description}"`.
-                return Err(Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)));
-            }
-        }
-    }
-
-    enforce_invariants(&record, aggregate_name, invariants)?;
-
-    // BUG#139'S OWN FIX — see this function's own header comment on the
-    // `tenant_boundary_check` parameter for the full reasoning. Placed
-    // HERE, not earlier (not alongside `hydrate`'s route-vs-derived-
-    // identity check, not before `apply_mutations`) and not later (not
-    // folded into the deferred-existence-check block below): this is the
-    // exact position `step_save`'s own `resolve_state_references` call
-    // occupies relative to `seed_projected_fields`/`persist_instance` in
-    // Ruby — after every OTHER dispatch step has already had its say,
-    // strictly before the write half of save begins.
-    tenant_boundary_check?;
-
-    for (field, value) in seed_projections {
-        record.set_projected_field(field, value);
-    }
-
-    // BUG#28's DEFERRED HALF — `persist_instance`'s own ATOMIC_PUT branch,
-    // read directly: "a second creation is not a fresh one," checked here,
-    // now, rather than eagerly at hydration — AFTER givens/transition/
-    // mutations/ensures/invariants, the identical position
-    // `repository.atomic_put(insert_only: true)` occupies relative to
-    // Ruby's own `step_save`. Only ever set by a state-independent
-    // `Hydrate::Create` (see that variant's own comment); every other
-    // dispatch reaches this a plain no-op, exactly as before this fix.
-    if defer_existence_check && repo.find(&id).is_some() {
-        return Err(Refusal::AlreadyExists(RefusalSite::AlreadyExistsCreatingDuplicate.render(&[
-            ("command", command_name),
-            ("aggregate", aggregate_name),
-            ("identity", identity_reading),
-            ("offered", &format!("{id:?}")),
-        ])));
-    }
-
-    repo.save(&id, record.clone());
+/// The write half of `save`: the repository write and its mutation record.
+fn persist<T, R>(repo: &mut R, id: &str, record: &T, aggregate_qualified_name: &str, mutations: &mut Vec<MutationRecord>)
+where
+    T: Clone + ToJson,
+    R: Repository<T>,
+{
+    repo.save(id, record.clone());
     mutations.push(MutationRecord {
         aggregate: aggregate_qualified_name.to_string(),
-        id: id.clone(),
+        id: id.to_string(),
         operation: "save",
         state: record.to_json(),
     });
+}
 
-    let events = emits
+/// `emit` — the declared events, in declared order.
+fn emitted(emits: &[&'static str], aggregate_qualified_name: &str, id: &str, payload: &Json) -> Vec<Event> {
+    emits
         .iter()
         .map(|name| Event {
             name: name.to_string(),
             aggregate: aggregate_qualified_name.to_string(),
-            id: id.clone(),
+            id: id.to_string(),
             payload: payload.clone(),
             // Stamped later, if at all — `orchestrate`'s own job (mod.rs's
             // `occurred_at`/`correlation` field docs), never this
@@ -499,9 +639,7 @@ where
             occurred_at: None,
             correlation: None,
         })
-        .collect();
-
-    Ok((record, events))
+        .collect()
 }
 
 /// A direct port of `EntityInterpreter#call` walking its own, SHORTER
@@ -593,50 +731,151 @@ where
     T: Fielded + Clone,
     E: Fielded + Clone,
 {
-    let position = get_list(record).iter().position(|el| matches(el)).ok_or_else(|| {
-        Refusal::NotFound(RefusalSite::NotFoundEntityElementMissing.render(&[
-            ("entity", entity_name),
-            ("identity", entity_identity_reading),
-            ("wants", wants),
-            ("aggregate", aggregate_name),
-            ("parent_id", &format!("{parent_id:?}")),
-        ]))
-    })?;
-    let mut element = get_list(record)[position].clone();
+    let mut element = ElementHalf {
+        parent_id,
+        get_list,
+        get_list_mut: Some(get_list_mut),
+        matches,
+        command_name,
+        aggregate_qualified_name,
+        aggregate_name,
+        entity_name,
+        entity_identity_reading,
+        wants,
+        args,
+        givens,
+        transition,
+        apply_mutations: Some(apply_mutations),
+        ensures,
+        parent_in_args,
+        position: None,
+        element: None,
+        parent_before: None,
+        old_snapshot: None,
+    };
+    for step in EntityStep::ORDER {
+        element.run(step, record)?;
+    }
+    Ok(())
+}
 
-    let parent_before = record.clone();
+/// THE ELEMENT HALF'S STATE, carried across `EntityStep::ORDER` — what
+/// `apply_entity_command` and `dispatch_entity` both drive, one step at a
+/// time, so a refusal reads identically through either caller.
+struct ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply> {
+    parent_id: &'s str,
+    get_list: GetList,
+    get_list_mut: Option<GetListMut>,
+    matches: Matches,
+    command_name: &'static str,
+    aggregate_qualified_name: &'static str,
+    aggregate_name: &'static str,
+    entity_name: &'static str,
+    entity_identity_reading: &'static str,
+    wants: &'s str,
+    args: &'a dyn Fielded,
+    givens: &'s [GivenSpec],
+    transition: Option<TransitionCheck>,
+    apply_mutations: Option<Apply>,
+    ensures: &'s [EnsuresSpec],
+    parent_in_args: bool,
+    position: Option<usize>,
+    element: Option<E>,
+    parent_before: Option<T>,
+    old_snapshot: Option<E>,
+}
 
-    // BUG#31 — entity-level `corrects` ADMISSIBILITY, checked against the
-    // PARENT record/ROOT aggregate — never the entity's own element —
-    // mirroring `EntityInterpreter#step_enforce_givens`'s own BUG#30 fix
-    // (`lib/hecks/runtime/entity_interpreter.rb`) exactly: an entity has
-    // no event stream of its own, so `enforce_correction_target` has to
-    // be asked in the SAME terms `CommandRules::Emission#emit` always
-    // stamps an entity command's emitted event with — the ROOT
-    // aggregate's own qualified name and the PARENT record's own id,
-    // never the entity's. Run AFTER the element lookup above (a missing
-    // element still answers `NotFound` first — the same order Ruby's own
-    // `step_locate_element` -> `step_enforce_givens` already runs in) but
-    // BEFORE the entity's own declared `given`s just below (same
-    // structural-before-declared ordering `step_enforce_givens` uses).
-    // One consequence, same as the aggregate-level check: this only
-    // proves "the PARENT record has emitted the named event at some
-    // point," never narrowed to this one entity element — a Ledger with
-    // three Entries all satisfy the same check.
-    for given in givens {
-        let Some(event_name) = given.corrects_event else { continue };
-        let ctx = EvalContext { args, instance: &parent_before };
-        if !interpret(&given.expr, &ctx)?.truthy() {
-            return Err(Refusal::NothingToCorrect(format!(
-                "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{parent_id} has never emitted it"
-            )));
+impl<'a, 's, T, E, GetList, GetListMut, Matches, Apply> ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply>
+where
+    T: Fielded + Clone,
+    E: Fielded + Clone,
+    GetList: Fn(&T) -> &Vec<E>,
+    GetListMut: FnOnce(&mut T) -> &mut Vec<E>,
+    Matches: Fn(&E) -> bool,
+    Apply: FnOnce(&mut E) -> Result<(), Refusal>,
+{
+    /// One declared entity step against the parent `record` already in hand.
+    fn run(&mut self, step: EntityStep, record: &mut T) -> Result<(), Refusal> {
+        #[deny(clippy::wildcard_enum_match_arm)]
+        match step {
+            // Performed by the GENERATED router before any kernel function
+            // is entered — see `entity_step_site`; roadmap D2.
+            EntityStep::DecodeArguments
+            | EntityStep::RefuseUnknownArguments
+            | EntityStep::RefuseAbsentArguments
+            | EntityStep::NormalizeArgs
+            | EntityStep::RefuseRoleMismatch
+            | EntityStep::ResolveReferences => Ok(()),
+            // THE PARENT HALF — `dispatch_entity`'s own arms, or, behind a
+            // delegating door, the delegating aggregate command's own
+            // `dispatch` (which hydrates, checks invariants on, saves, and
+            // emits for the parent record this element lives in).
+            EntityStep::HydrateParent | EntityStep::EnforceInvariants | EntityStep::Save | EntityStep::Emit => Ok(()),
+            EntityStep::LocateElement => self.locate_element(record),
+            EntityStep::EnforceGivens => self.enforce_givens(),
+            EntityStep::AdmissibleTransition => {
+                admissible_transition(self.element.as_ref().expect(LOCATED), self.transition.as_ref(), self.command_name)
+            }
+            EntityStep::ApplyMutations => self.apply_mutations(record),
+            // Written by the generated `apply_mutations` closure itself —
+            // THE ENTITY's own lifecycle (`lifecycle_transition_for(command,
+            // entity)`, rust/project/commands.rb).
+            EntityStep::AdvanceLifecycle => Ok(()),
+            EntityStep::EnforceEnsures => self.enforce_ensures(record),
         }
     }
 
-    {
-        let with_parent = WithParent { args, parent: &parent_before };
-        let given_args: &dyn Fielded = if parent_in_args { &with_parent } else { args };
-        for given in givens {
+    fn locate_element(&mut self, record: &T) -> Result<(), Refusal> {
+        let position = (self.get_list)(record).iter().position(|el| (self.matches)(el)).ok_or_else(|| {
+            Refusal::NotFound(RefusalSite::NotFoundEntityElementMissing.render(&[
+                ("entity", self.entity_name),
+                ("identity", self.entity_identity_reading),
+                ("wants", self.wants),
+                ("aggregate", self.aggregate_name),
+                ("parent_id", &format!("{:?}", self.parent_id)),
+            ]))
+        })?;
+        self.element = Some((self.get_list)(record)[position].clone());
+        self.position = Some(position);
+        self.parent_before = Some(record.clone());
+        Ok(())
+    }
+
+    fn enforce_givens(&self) -> Result<(), Refusal> {
+        let parent_before = self.parent_before.as_ref().expect(LOCATED);
+        let element = self.element.as_ref().expect(LOCATED);
+
+        // BUG#31 — entity-level `corrects` ADMISSIBILITY, checked against the
+        // PARENT record/ROOT aggregate — never the entity's own element —
+        // mirroring `EntityInterpreter#step_enforce_givens`'s own BUG#30 fix
+        // (`lib/hecks/runtime/entity_interpreter.rb`) exactly: an entity has
+        // no event stream of its own, so `enforce_correction_target` has to
+        // be asked in the SAME terms `CommandRules::Emission#emit` always
+        // stamps an entity command's emitted event with — the ROOT
+        // aggregate's own qualified name and the PARENT record's own id,
+        // never the entity's. Run AFTER the element lookup (a missing
+        // element still answers `NotFound` first — the same order Ruby's own
+        // `step_locate_element` -> `step_enforce_givens` already runs in) but
+        // BEFORE the entity's own declared `given`s just below (same
+        // structural-before-declared ordering `step_enforce_givens` uses).
+        // One consequence, same as the aggregate-level check: this only
+        // proves "the PARENT record has emitted the named event at some
+        // point," never narrowed to this one entity element — a Ledger with
+        // three Entries all satisfy the same check.
+        for given in self.givens {
+            let Some(event_name) = given.corrects_event else { continue };
+            let ctx = EvalContext { args: self.args, instance: parent_before };
+            if !interpret(&given.expr, &ctx)?.truthy() {
+                return Err(Refusal::NothingToCorrect(format!(
+                    "{} refused — corrects {event_name}, but {} #{} has never emitted it",
+                    self.command_name, self.aggregate_qualified_name, self.parent_id
+                )));
+            }
+        }
+
+        let with_parent = WithParent { args: self.args, parent: parent_before };
+        let given_args: &dyn Fielded = if self.parent_in_args { &with_parent } else { self.args };
+        for given in self.givens {
             // Handled above, against the PARENT record — evaluating it
             // again here, against `element`, would look up a flag field
             // that exists on the parent record's own struct, not on the
@@ -645,55 +884,32 @@ where
             if given.corrects_event.is_some() {
                 continue;
             }
-            let ctx = EvalContext { args: given_args, instance: &element };
+            let ctx = EvalContext { args: given_args, instance: element };
             if !interpret(&given.expr, &ctx)?.truthy() {
-                return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
+                return Err(Refusal::GivenNotMet(format!("{} refused — {}", self.command_name, given.description)));
             }
         }
+        Ok(())
     }
 
-    if let Some(check) = &transition {
-        match element.field(check.field) {
-            Some(Field::Value(Value::Str(current))) => {
-                if !check.from_states.contains(&current.as_str()) {
-                    let allowed = check.from_states.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>().join(" or ");
-                    return Err(Refusal::LifecycleRefused(RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
-                        ("command", command_name),
-                        ("field", check.field),
-                        ("current", &format!("{current:?}")),
-                        ("allowed", &allowed),
-                    ])));
-                }
-            }
-            _ => {
-                return Err(Refusal::TypeMismatch(format!(
-                    "{command_name}: lifecycle field {:?} missing or not a string — a codegen bug",
-                    check.field
-                )))
-            }
-        }
+    fn apply_mutations(&mut self, record: &mut T) -> Result<(), Refusal> {
+        let position = self.position.expect(LOCATED);
+        let mut element = self.element.take().expect(LOCATED);
+        self.old_snapshot = if self.ensures.is_empty() { None } else { Some(element.clone()) };
+        (self.apply_mutations.take().expect(ONCE))(&mut element)?;
+        (self.get_list_mut.take().expect(ONCE))(record)[position] = element;
+        Ok(())
     }
 
-    let old_snapshot = if ensures.is_empty() { None } else { Some(element.clone()) };
-    apply_mutations(&mut element)?;
-    get_list_mut(record)[position] = element;
-
-    if let Some(old) = &old_snapshot {
+    fn enforce_ensures(&self, record: &T) -> Result<(), Refusal> {
+        let Some(old) = &self.old_snapshot else { return Ok(()) };
+        let position = self.position.expect(LOCATED);
         let parent_after = record.clone();
-        let with_parent = WithParent { args, parent: &parent_after };
-        let ensures_args: &dyn Fielded = if parent_in_args { &with_parent } else { args };
-        let settled = &get_list(record)[position];
-        // C2.3 — the settled element first; see `StateFirst`.
-        let state_first = StateFirst { args: ensures_args, settled };
-        let with_old = WithOld { args: &state_first, old };
-        for rule in ensures {
-            let ctx = EvalContext { args: &with_old, instance: settled };
-            if !interpret(&rule.expr, &ctx)?.truthy() {
-                return Err(Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)));
-            }
-        }
+        let with_parent = WithParent { args: self.args, parent: &parent_after };
+        let ensures_args: &dyn Fielded = if self.parent_in_args { &with_parent } else { self.args };
+        let settled = &(self.get_list)(record)[position];
+        enforce_ensures(settled, old, ensures_args, self.ensures, self.command_name)
     }
-    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -731,21 +947,10 @@ where
     E: Fielded + Clone,
     R: Repository<T>,
 {
-    // Same `record_missing` site `EntityInterpreter#parent` raises —
-    // see `dispatch` above for the aggregate-level twin.
-    let mut record = repo.find(parent_id).ok_or_else(|| {
-        Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
-            ("aggregate", aggregate_name),
-            ("identity", parent_identity_reading),
-            ("offered", &format!("{parent_id:?}")),
-        ]))
-    })?;
-
-    apply_entity_command(
-        &mut record,
+    let mut element = ElementHalf {
         parent_id,
         get_list,
-        get_list_mut,
+        get_list_mut: Some(get_list_mut),
         matches,
         command_name,
         aggregate_qualified_name,
@@ -756,37 +961,296 @@ where
         args,
         givens,
         transition,
-        apply_mutations,
+        apply_mutations: Some(apply_mutations),
         ensures,
         // BUG#137 — see `apply_entity_command`'s own header on
         // `parent_in_args` for why a direct dispatch needs `true` here
         // too now, not just a delegating door.
-        true,
-    )?;
+        parent_in_args: true,
+        position: None,
+        element: None,
+        parent_before: None,
+        old_snapshot: None,
+    };
+    let mut seed_projections = Some(seed_projections);
+    let mut hydrated: Option<T> = None;
+    let mut events: Vec<Event> = Vec::new();
 
-    enforce_invariants(&record, aggregate_name, invariants)?;
-
-    for (field, value) in seed_projections {
-        record.set_projected_field(field, value);
+    for step in EntityStep::ORDER {
+        #[deny(clippy::wildcard_enum_match_arm)]
+        match step {
+            // Performed by the GENERATED router before this function is
+            // entered — see `entity_step_site`; roadmap D2.
+            EntityStep::DecodeArguments
+            | EntityStep::RefuseUnknownArguments
+            | EntityStep::RefuseAbsentArguments
+            | EntityStep::NormalizeArgs
+            | EntityStep::RefuseRoleMismatch
+            | EntityStep::ResolveReferences => {}
+            EntityStep::HydrateParent => {
+                // Same `record_missing` site `EntityInterpreter#parent` raises —
+                // see `hydrate_record` above for the aggregate-level twin.
+                hydrated = Some(repo.find(parent_id).ok_or_else(|| {
+                    Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
+                        ("aggregate", aggregate_name),
+                        ("identity", parent_identity_reading),
+                        ("offered", &format!("{parent_id:?}")),
+                    ]))
+                })?);
+            }
+            // THE ELEMENT HALF — the same per-step body `apply_entity_command`
+            // runs, so a direct dispatch and a delegating door agree.
+            EntityStep::LocateElement
+            | EntityStep::EnforceGivens
+            | EntityStep::AdmissibleTransition
+            | EntityStep::ApplyMutations
+            | EntityStep::AdvanceLifecycle
+            | EntityStep::EnforceEnsures => {
+                element.run(step, hydrated.as_mut().expect(HYDRATED))?;
+            }
+            EntityStep::EnforceInvariants => {
+                enforce_invariants(hydrated.as_ref().expect(HYDRATED), aggregate_name, invariants)?;
+            }
+            EntityStep::Save => {
+                let record = hydrated.as_mut().expect(HYDRATED);
+                for (field, value) in seed_projections.take().expect(ONCE) {
+                    record.set_projected_field(field, value);
+                }
+                persist(repo, parent_id, record, aggregate_qualified_name, mutations);
+            }
+            EntityStep::Emit => {
+                events = emitted(emits, aggregate_qualified_name, parent_id, &payload);
+            }
+        }
     }
 
-    repo.save(parent_id, record.clone());
-    mutations.push(MutationRecord {
-        aggregate: aggregate_qualified_name.to_string(),
-        id: parent_id.to_string(),
-        operation: "save",
-        state: record.to_json(),
-    });
-    let events = emits
-        .iter()
-        .map(|name| Event {
-            name: name.to_string(),
-            aggregate: aggregate_qualified_name.to_string(),
-            id: parent_id.to_string(),
-            payload: payload.clone(),
-            occurred_at: None,
-            correlation: None,
-        })
-        .collect();
-    Ok((record, events))
+    Ok((hydrated.expect(HYDRATED), events))
+}
+
+const HYDRATED: &str = "the declared order hydrates before any step that reads the record (const-asserted in this file)";
+const LOCATED: &str = "the declared order locates the element before any step that reads it (const-asserted in this file)";
+const ONCE: &str = "each declared step appears exactly once in its ORDER";
+
+/// A step's index in `AggregateStep::ORDER`, usable in a const context.
+const fn aggregate_position(step: AggregateStep) -> usize {
+    let mut index = 0;
+    while index < AggregateStep::ORDER.len() {
+        if AggregateStep::ORDER[index] as usize == step as usize {
+            return index;
+        }
+        index += 1;
+    }
+    panic!("step missing from AggregateStep::ORDER")
+}
+
+/// A step's index in `EntityStep::ORDER`, usable in a const context.
+const fn entity_position(step: EntityStep) -> usize {
+    let mut index = 0;
+    while index < EntityStep::ORDER.len() {
+        if EntityStep::ORDER[index] as usize == step as usize {
+            return index;
+        }
+        index += 1;
+    }
+    panic!("step missing from EntityStep::ORDER")
+}
+
+// THE ORDERINGS THIS FILE'S ARMS READ STATE ACROSS — checked when the crate
+// compiles, not when a command runs. The vocabulary is free to reorder any
+// other pair (that is a semantic change, and the conformance corpus judges
+// it); these are the pairs where an arm consumes what an earlier arm produced,
+// so reordering them in vocabulary.bluebook refuses to build rather than
+// panicking (`expect`) or silently skipping `ensures` at dispatch time.
+const _: () = {
+    use AggregateStep as A;
+    let hydrate = aggregate_position(A::Hydrate);
+    assert!(hydrate < aggregate_position(A::EnforceGivens));
+    assert!(hydrate < aggregate_position(A::AdmissibleTransition));
+    assert!(hydrate < aggregate_position(A::ApplyMutations));
+    assert!(hydrate < aggregate_position(A::EnforceEnsures));
+    assert!(hydrate < aggregate_position(A::EnforceInvariants));
+    assert!(hydrate < aggregate_position(A::Save));
+    assert!(hydrate < aggregate_position(A::Emit));
+    // `old_snapshot` is taken in ApplyMutations; an EnforceEnsures before it
+    // would see none and skip every ensures.
+    assert!(aggregate_position(A::ApplyMutations) < aggregate_position(A::EnforceEnsures));
+
+    use EntityStep as E;
+    let hydrate_parent = entity_position(E::HydrateParent);
+    assert!(hydrate_parent < entity_position(E::LocateElement));
+    assert!(hydrate_parent < entity_position(E::EnforceInvariants));
+    assert!(hydrate_parent < entity_position(E::Save));
+    let locate = entity_position(E::LocateElement);
+    assert!(locate < entity_position(E::EnforceGivens));
+    assert!(locate < entity_position(E::AdmissibleTransition));
+    assert!(locate < entity_position(E::ApplyMutations));
+    // ApplyMutations moves the element back into the parent's list.
+    assert!(entity_position(E::EnforceGivens) < entity_position(E::ApplyMutations));
+    assert!(entity_position(E::AdmissibleTransition) < entity_position(E::ApplyMutations));
+    assert!(entity_position(E::ApplyMutations) < entity_position(E::EnforceEnsures));
+};
+
+/// Where a declared dispatch step is actually performed in the Rust port
+/// today. The dispatch loops above follow this mapping; every
+/// `GeneratedRouter` step is roadmap D2's scope (a generated
+/// `decode_arguments` that the kernel's loop calls in declared position).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepSite {
+    /// An arm of the kernel's own dispatch loop does the work.
+    Kernel,
+    /// Generated router code (`rust/project/registry.rb`,
+    /// `rust/codegen/src/registry.rs`, and the `from_json` it calls —
+    /// `rust/project/json_codec.rb`, `rust/codegen/src/json_codec.rs`) does
+    /// it before the kernel is entered. The loop's arm is a no-op.
+    GeneratedRouter,
+    /// Folded into a generated closure the kernel already calls in another
+    /// step's arm (named here). The loop's own arm is a no-op.
+    FoldedInto(AggregateStepOrEntityStep),
+}
+
+/// The step a `StepSite::FoldedInto` step rides inside.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AggregateStepOrEntityStep {
+    Aggregate(AggregateStep),
+    Entity(EntityStep),
+}
+
+/// See `StepSite`. Exhaustive, no wildcard — a step the vocabulary gains
+/// must be placed here before the crate compiles.
+#[deny(clippy::wildcard_enum_match_arm)]
+pub const fn aggregate_step_site(step: AggregateStep) -> StepSite {
+    use AggregateStep as A;
+    match step {
+        // `CommandInvocation::from_json` + `<Args>::from_json`.
+        A::DecodeArguments => StepSite::GeneratedRouter,
+        // Standalone `structural_precheck` (acting commands, before `id_line`)
+        // and again inside `<Args>::from_json`'s unknown/absent-key check.
+        A::RefuseUnknownArguments | A::RefuseAbsentArguments => StepSite::GeneratedRouter,
+        // `<Args>::from_json`'s coercion + `invariant_check_lines`.
+        A::NormalizeArgs => StepSite::GeneratedRouter,
+        // `role_line` → `kernel::check_role`.
+        A::RefuseRoleMismatch => StepSite::GeneratedRouter,
+        // `reference_lines` → `kernel::check_reference`; the tenant boundary
+        // is computed there too but APPLIED in the kernel's `Save` arm.
+        A::ResolveReferences => StepSite::GeneratedRouter,
+        A::Hydrate => StepSite::Kernel,
+        A::EnforceGivens => StepSite::Kernel,
+        A::AdmissibleTransition => StepSite::Kernel,
+        // `Hydrate::Create.build`.
+        A::AssignCreationAttributes => StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::Hydrate)),
+        A::ApplyMutations => StepSite::Kernel,
+        // The generated `apply_mutations` closure's last line.
+        A::AdvanceLifecycle => StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::ApplyMutations)),
+        // The generated `apply_mutations` closure → `apply_entity_command`.
+        A::DelegateToEntity => StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::ApplyMutations)),
+        A::EnforceEnsures => StepSite::Kernel,
+        A::EnforceInvariants => StepSite::Kernel,
+        A::Save => StepSite::Kernel,
+        A::Emit => StepSite::Kernel,
+    }
+}
+
+/// See `StepSite`. Exhaustive, no wildcard.
+#[deny(clippy::wildcard_enum_match_arm)]
+pub const fn entity_step_site(step: EntityStep) -> StepSite {
+    use EntityStep as E;
+    match step {
+        // `CommandInvocation::from_json` + `<EntityArgs>::from_json`.
+        E::DecodeArguments => StepSite::GeneratedRouter,
+        // Route-less `None` arm's standalone `structural_precheck` (BUG#38),
+        // before `extract_id`, and again inside `<EntityArgs>::from_json`.
+        E::RefuseUnknownArguments | E::RefuseAbsentArguments => StepSite::GeneratedRouter,
+        E::NormalizeArgs => StepSite::GeneratedRouter,
+        E::RefuseRoleMismatch => StepSite::GeneratedRouter,
+        E::ResolveReferences => StepSite::GeneratedRouter,
+        E::HydrateParent => StepSite::Kernel,
+        E::LocateElement => StepSite::Kernel,
+        E::EnforceGivens => StepSite::Kernel,
+        E::AdmissibleTransition => StepSite::Kernel,
+        E::ApplyMutations => StepSite::Kernel,
+        E::AdvanceLifecycle => StepSite::FoldedInto(AggregateStepOrEntityStep::Entity(E::ApplyMutations)),
+        E::EnforceEnsures => StepSite::Kernel,
+        E::EnforceInvariants => StepSite::Kernel,
+        E::Save => StepSite::Kernel,
+        E::Emit => StepSite::Kernel,
+    }
+}
+
+// HOW A MISSING ARM FAILS TO BUILD. `AggregateStep`/`EntityStep` are
+// generated from vocabulary.bluebook; adding a step there and re-running
+// bin/project_rust_vocabulary adds a variant, and every `match step` in this
+// file — `dispatch`, `ElementHalf::run`, `dispatch_entity`,
+// `aggregate_step_site`, `entity_step_site` — has no wildcard arm, so rustc
+// refuses the crate with E0004 (non-exhaustive patterns) naming the new
+// variant. The `#[deny(clippy::wildcard_enum_match_arm)]` on each keeps a
+// later `_ =>` from quietly defeating that under clippy. The tests below pin
+// the mapping's current shape so a step silently moving between the kernel
+// and generated code is a reviewed diff, not a drift.
+#[cfg(test)]
+mod step_order_tests {
+    use super::*;
+
+    #[test]
+    fn decode_arguments_leads_both_orders() {
+        assert_eq!(AggregateStep::ORDER[0], AggregateStep::DecodeArguments);
+        assert_eq!(EntityStep::ORDER[0], EntityStep::DecodeArguments);
+    }
+
+    #[test]
+    fn const_positions_agree_with_the_generated_ones() {
+        for step in AggregateStep::ORDER {
+            assert_eq!(aggregate_position(step), step.position());
+        }
+        for step in EntityStep::ORDER {
+            assert_eq!(entity_position(step), step.position());
+        }
+    }
+
+    #[test]
+    fn the_kernel_performs_exactly_these_aggregate_steps() {
+        let kernel: Vec<&str> =
+            AggregateStep::ORDER.iter().filter(|s| aggregate_step_site(**s) == StepSite::Kernel).map(|s| s.step()).collect();
+        assert_eq!(
+            kernel,
+            ["hydrate", "enforce_givens", "admissible_transition", "apply_mutations", "enforce_ensures", "enforce_invariants", "save", "emit"]
+        );
+    }
+
+    #[test]
+    fn the_kernel_performs_exactly_these_entity_steps() {
+        let kernel: Vec<&str> =
+            EntityStep::ORDER.iter().filter(|s| entity_step_site(**s) == StepSite::Kernel).map(|s| s.step()).collect();
+        assert_eq!(
+            kernel,
+            [
+                "hydrate_parent",
+                "locate_element",
+                "enforce_givens",
+                "admissible_transition",
+                "apply_mutations",
+                "enforce_ensures",
+                "enforce_invariants",
+                "save",
+                "emit"
+            ]
+        );
+    }
+
+    #[test]
+    fn generated_router_steps_all_precede_the_first_kernel_step() {
+        // D2's premise: everything still in generated code runs before the
+        // kernel is entered, so it all sits ahead of the first kernel step.
+        let first_kernel = AggregateStep::ORDER.iter().position(|s| aggregate_step_site(*s) == StepSite::Kernel).unwrap();
+        for step in AggregateStep::ORDER {
+            if aggregate_step_site(step) == StepSite::GeneratedRouter {
+                assert!(step.position() < first_kernel, "{} runs in generated code but is declared after hydrate", step.step());
+            }
+        }
+        let first_kernel = EntityStep::ORDER.iter().position(|s| entity_step_site(*s) == StepSite::Kernel).unwrap();
+        for step in EntityStep::ORDER {
+            if entity_step_site(step) == StepSite::GeneratedRouter {
+                assert!(step.position() < first_kernel, "{} runs in generated code but is declared after hydrate_parent", step.step());
+            }
+        }
+    }
 }

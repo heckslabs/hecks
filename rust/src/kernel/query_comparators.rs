@@ -1,145 +1,53 @@
-// HAND-MAINTAINED — GRADUATED OUT OF bin/project_kernel_capabilities'S
-// GENERATED-GAP-ENUM TREATMENT.
+// THE MATCHING LOGIC FOR THE GENERATED `QueryComparator` ENUM.
 //
-// Until this change, this file's own header (and bin/project_kernel_
-// capabilities's own, matching header) said plainly: "QueryComparator has
-// NO [dispatch] site... this enum is generated and NOTHING in this crate
-// matches over it... Add a real dispatch site against this enum the day
-// that day comes, and it will already refuse to compile non-exhaustively."
-// This is that day — for exactly ONE real slice of the query engine, not
-// the whole of it. `rust/src/kernel/cli.rs`'s own header explains the
-// two shapes a "query" step can take on the wire and which one actually
-// dispatches here.
-//
-// Because a real dispatch site now exists, `bin/project_kernel_
-// capabilities` no longer regenerates this file (see its own header,
-// where that decision is made and explained). The variant NAMES are
-// still exactly `Hecks::QuerySpecification::Common::COMPARATORS`
-// (lib/hecks/query_specification/common/comparators.rb) — the same
-// set `Vocabulary::QueryComparator` (language/bluebook/vocabulary.bluebook)
-// declares and spec/vocabulary_conformance_spec holds the runtime to. NINE
-// now, not eight — `NoneInState` (item #9, whole-project table-
-// unification survey) closed the gap this header used to describe: for a
-// long stretch, `Vocabulary::QueryComparator` had already grown a ninth
-// name (`none_in_state`, "a vendored addition" per vocabulary.bluebook's
-// own comment) that this enum simply never caught up to. That ground
-// truth didn't change; only who's responsible for keeping this file in
-// sync with it did — a human, now, the same way every OTHER hand-written
-// interpretation file under rust/src/kernel/ already is.
+// The enum itself — variants, `ALL`, `name`, `from_name` — is
+// `vocab::QueryComparator`, projected from `Vocabulary::QueryComparator`
+// (language/bluebook/vocabulary.bluebook) by bin/project_rust_vocabulary
+// and diffed by CI's checks_codegen_drift. It is re-exported here so every
+// existing `kernel::query_comparators::QueryComparator` path (the
+// generated domain registries, named_query.rs, read_model.rs, cli.rs)
+// keeps compiling. A name the language gains is a new variant, and
+// `matches` below stops compiling until it handles it — no hand-kept
+// variant list, `ALL`, or `parse` table is left to drift.
 //
 // GROUND TRUTH FOR THE MATCHING LOGIC ITSELF, read directly rather than
-// guessed at: `Ports::Query::InMemory#holds?` (lib/hecks/ports/
-// query/in_memory.rb) — the engine that actually answers a memory-backed
-// aggregate's query in Ruby, and the same shape `QueryInterpreter#holds?`
-// (lib/hecks/runtime/query_interpreter.rb) deliberately duplicates
-// byte-for-byte for entity/sub-list queries and the fuzzer's own
-// reference oracle (that file's own comment: kept identical on purpose).
-// Proven against REAL, adversarially-picked cases, not merely read:
-// spec/query_comparators_spec.rb exercises all eight comparators against
-// the real banking bluebook (its own header: gt/gte/lt/lte/ne/in/contains
-// were once silently treated as `eq` in both engines until a fixture
-// caught it), and spec/adapters/query_agreement_spec.rb cross-checks
-// Memory, Sqlite, Postgres, and (when reachable) D1 against independently
-// hand-computed expected id lists for the same comparator family.
+// guessed at: `QuerySpecification::Common::Comparison#holds?`
+// (lib/hecks/query_specification/common/comparison.rb), the one comparator
+// table both Ruby query engines share. Proven against real cases by
+// spec/query_comparators_spec.rb (the banking bluebook) and
+// spec/adapters/query_agreement_spec.rb (Memory, Sqlite, Postgres, D1).
 //
 // WHAT DISPATCHES HERE, TODAY: `kernel/cli.rs`'s ad hoc, single-clause
 // "query" step — the OBJECT form, `{"aggregate", "field", "op", "value"}`
-// — via `repository.rs`'s `filter_entries`. ALSO, as of `rust/project/
-// queries.rb`/`kernel/named_query.rs`: a NAMED/declared bluebook
-// `query "X" do ... end` ask — the STRING form of the same "query" step —
-// for the subset expressible as one or more field-comparator conditions
-// against a single aggregate's OWN attributes, via the exact same
-// `QueryComparator`/`filter_entries` this file and repository.rs already
-// implement, just with the query's own conditions baked in by a generator
-// instead of supplied ad hoc over the wire. `order_by`/`limit`/`offset` on
-// a declared aggregate query or a read model's own eligible many-side head
-// are real, generated capabilities as of 2026-08-11/Phase 10
-// (equivalence-gap plan) — see named_query.rs/read_model.rs's own headers.
-// The one remaining structural gap is a where clause that HOPS THROUGH A
-// REFERENCE to a field on a different aggregate than the one being
-// filtered (`customer.status`) — a type-unrecoverable literal comparator
-// value is the other, narrower remaining gap. `rust/project/queries.rb`'s
-// own header has the full argument for why the reference-hop case
-// specifically stays ungenerated rather than forced.
-// `NoneInState` is a NINTH remaining gap, of a different shape — its own
-// enum variant, `parse`, and matching logic (`none_in_state_matches`,
-// below) all exist and are proven correct, but `rust/project/queries.rb`
-// still deliberately never generates a `none_in_state` condition (that
-// file's own comment on `QUERY_COMPARATOR_VARIANTS` has the real reason:
-// no generated call site can hand it the cross-domain search list it
-// needs yet, so generating one today would silently answer every row
-// `true` rather than a real anti-join).
+// — via `repository.rs`'s `filter_entries`; and a NAMED/declared bluebook
+// `query "X" do ... end` ask (`rust/project/queries.rb`/
+// `kernel/named_query.rs`) for the subset expressible as field-comparator
+// conditions against one aggregate's own attributes. A where clause that
+// HOPS THROUGH A REFERENCE (`customer.status`) stays ungenerated —
+// `rust/project/queries.rb`'s own header has the argument. `NoneInState`
+// has real matching logic (`none_in_state_matches`, below) but is never
+// generated as a condition: no generated call site can hand it the
+// cross-domain search list it needs yet.
 
 use super::Json;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QueryComparator {
-    Eq,
-    Ne,
-    Gt,
-    Gte,
-    Lt,
-    Lte,
-    In,
-    Contains,
-    /// THE NINTH, LATE-ADDED comparator — `Vocabulary::QueryComparator`
-    /// declared it long before this enum caught up (item #9, whole-
-    /// project table-unification survey). A CROSS-AGGREGATE ANTI-JOIN,
-    /// not a plain value comparison — `held`/`want` alone can never
-    /// answer it, so it is deliberately NOT wired into `matches` below
-    /// the way the other eight are; see `none_in_state_matches` and
-    /// `repository.rs`'s `filter_entries_cross_domain`.
-    NoneInState,
-}
+pub use super::vocab::QueryComparator;
 
 impl QueryComparator {
-    pub const ALL: &'static [QueryComparator] = &[
-        QueryComparator::Eq,
-        QueryComparator::Ne,
-        QueryComparator::Gt,
-        QueryComparator::Gte,
-        QueryComparator::Lt,
-        QueryComparator::Lte,
-        QueryComparator::In,
-        QueryComparator::Contains,
-        QueryComparator::NoneInState,
-    ];
-
     /// The wire's `op` string, read against the closed set — `None` for
-    /// anything else. Ruby's own `holds?` has no equivalent gate: its
-    /// `case clause.op.to_s ... else held == want` end can only ever see
-    /// one of the eight names in real use, because a declared
-    /// where-clause's `op:` is validated at BLUEBOOK DECLARE TIME
-    /// (`admits: "Vocabulary::QueryComparator"`) long before any record
-    /// is ever asked about — that `else` arm is dead code for a real
-    /// declared query, reachable only by a bug in the interpreter itself.
-    /// This wire protocol has no declare-time gate at all (a caller can
-    /// put any string in `"op"`), so unlike Ruby's own fallback, an
-    /// unrecognized comparator here REFUSES (`kernel/cli.rs` turns
-    /// `None` into `Refusal::TypeMismatch`) rather than silently
-    /// defaulting to `eq` — a case Ruby's own `else` exists to be
-    /// unreachable FOR, not one this looser protocol should let a typo
-    /// pass through silently.
+    /// anything else. Ruby validates a declared where-clause's `op:` at
+    /// BLUEBOOK DECLARE TIME (`admits: "Vocabulary::QueryComparator"`);
+    /// this wire protocol has no declare-time gate (a caller can put any
+    /// string in `"op"`), so an unrecognized comparator REFUSES
+    /// (`kernel/cli.rs` turns `None` into `Refusal::TypeMismatch`) rather
+    /// than defaulting to `eq`. The generated `from_name` is the lookup.
     pub fn parse(op: &str) -> Option<Self> {
-        match op {
-            "eq" => Some(QueryComparator::Eq),
-            "ne" => Some(QueryComparator::Ne),
-            "gt" => Some(QueryComparator::Gt),
-            "gte" => Some(QueryComparator::Gte),
-            "lt" => Some(QueryComparator::Lt),
-            "lte" => Some(QueryComparator::Lte),
-            "in" => Some(QueryComparator::In),
-            "contains" => Some(QueryComparator::Contains),
-            "none_in_state" => Some(QueryComparator::NoneInState),
-            _ => None,
-        }
+        QueryComparator::from_name(op)
     }
 
-    /// `Ports::Query::InMemory#holds?`, ported directly. `held`/`want`
-    /// arrive ALREADY reduced through `comparable` (below) — matching
-    /// Ruby's own contract exactly: `holds?(clause, held, args)` never
-    /// re-digs a field or re-resolves an argument itself, its caller
-    /// does that once, up front (`repository.rs`'s `filter_entries`).
+    /// `Comparison#holds?`, ported directly. `held`/`want` arrive ALREADY
+    /// reduced through `comparable` (below) — its caller does that once,
+    /// up front (`repository.rs`'s `filter_entries`).
     pub fn matches(self, held: &Json, want: &Json) -> bool {
         match self {
             QueryComparator::Eq => held == want,
@@ -151,18 +59,14 @@ impl QueryComparator {
             QueryComparator::In => members(want).iter().any(|member| member == &to_s(held)),
             QueryComparator::Contains => contains(held, want),
             // `held`/`want` alone can never answer this — it needs a
-            // REPOSITORY (possibly another domain's own), which this
-            // total, side-channel-free function has no way to receive.
+            // REPOSITORY (possibly another domain's own).
             // `repository.rs`'s `filter_entries_cross_domain` special-
             // cases `NoneInState` and calls `none_in_state_matches`
             // BEFORE ever reaching here — this arm exists only so the
-            // match stays exhaustive, and its answer is the SAME safe
-            // default `none_in_state_matches` itself falls back to with
-            // no repository access (Ruby's own `return true unless
-            // registry` — "not excluded" rather than a wrong answer or a
-            // panic), for the one caller that could ever reach it: a
-            // future direct `.matches()` call that bypasses the cross-
-            // domain-aware path this comparator actually needs.
+            // match stays exhaustive, and answers the same safe "not
+            // excluded" default `none_in_state_matches` falls back to
+            // with no repository access (Ruby's `return true unless
+            // registry`).
             QueryComparator::NoneInState => true,
         }
     }

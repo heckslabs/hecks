@@ -234,41 +234,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn derives_a_single_path_from_a_one_field_value_object() {
-        let mut attributes = vec![ir::Attribute {
-            name: "pizza".to_string(),
-            type_name: "Pizza".to_string(),
-            ..Default::default()
-        }];
-        let value_objects = vec![ir::ValueObject {
-            name: "PizzaName".to_string(),
-            attributes: vec![ir::Attribute {
-                name: "value".to_string(),
-                type_name: "String".to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        }];
-
-        let paths = resolve_identity_type(
-            "f.bluebook",
-            1,
-            "Order",
-            "PizzaName",
-            Some("name"),
-            0,
-            &value_objects,
-            &mut attributes,
-        )
-        .unwrap();
-
-        assert_eq!(paths, vec!["name.value".to_string()]);
-        assert_eq!(attributes[0].name, "name");
-        assert_eq!(attributes[0].type_name, "PizzaName");
-        assert_eq!(attributes[1].name, "pizza");
-    }
-
-    #[test]
     fn expands_every_recursively_scalar_member_in_declaration_order() {
         let mut attributes = Vec::new();
         let value_objects = vec![

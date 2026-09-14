@@ -13,8 +13,8 @@ use std::sync::LazyLock;
 /// Email hint, resolving to `html_type` on a match —
 /// Vocabulary::FieldHint's own declared pattern, unmodified (the
 /// same text `Regexp#source` reads off FieldShape's own
-/// EMAIL_HINT — spec/field_hint_conformance_spec.rb
-/// holds the two equal). `(?i)` up front is this crate's spelling
+/// EMAIL_HINT, which is built from this same row).
+/// `(?i)` up front is this crate's spelling
 /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
 /// on both sides, never partially.
 pub static EMAIL_HINT: LazyLock<Regex> =
@@ -23,8 +23,8 @@ pub static EMAIL_HINT: LazyLock<Regex> =
 /// Url hint, resolving to `html_type` on a match —
 /// Vocabulary::FieldHint's own declared pattern, unmodified (the
 /// same text `Regexp#source` reads off FieldShape's own
-/// URL_HINT — spec/field_hint_conformance_spec.rb
-/// holds the two equal). `(?i)` up front is this crate's spelling
+/// URL_HINT, which is built from this same row).
+/// `(?i)` up front is this crate's spelling
 /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
 /// on both sides, never partially.
 pub static URL_HINT: LazyLock<Regex> =
@@ -33,8 +33,8 @@ pub static URL_HINT: LazyLock<Regex> =
 /// Tel hint, resolving to `html_type` on a match —
 /// Vocabulary::FieldHint's own declared pattern, unmodified (the
 /// same text `Regexp#source` reads off FieldShape's own
-/// TEL_HINT — spec/field_hint_conformance_spec.rb
-/// holds the two equal). `(?i)` up front is this crate's spelling
+/// TEL_HINT, which is built from this same row).
+/// `(?i)` up front is this crate's spelling
 /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
 /// on both sides, never partially.
 pub static TEL_HINT: LazyLock<Regex> =
@@ -43,8 +43,8 @@ pub static TEL_HINT: LazyLock<Regex> =
 /// Textarea hint, resolving to `kind` on a match —
 /// Vocabulary::FieldHint's own declared pattern, unmodified (the
 /// same text `Regexp#source` reads off FieldShape's own
-/// TEXTAREA_HINT — spec/field_hint_conformance_spec.rb
-/// holds the two equal). `(?i)` up front is this crate's spelling
+/// TEXTAREA_HINT, which is built from this same row).
+/// `(?i)` up front is this crate's spelling
 /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
 /// on both sides, never partially.
 pub static TEXTAREA_HINT: LazyLock<Regex> =

@@ -2,8 +2,11 @@ Hecks.bluebook "Bluebook" do
   aggregate "Vocabulary" do
     # These are DECLARATIONS, not runtime state — a language's admitted sets are
     # fixed when the language is defined, which is what one_of means. They carry
-    # no commands on purpose : nothing dispatches a vocabulary, the conformance
-    # check READS them from the IR and holds the runtime's hand-typed tables to them.
+    # no commands on purpose : nothing dispatches a vocabulary. They are READ
+    # from the IR and projected — bin/project_vocabulary writes the Ruby tables
+    # (lib/hecks/vocabulary.rb) the runtime's constants read, and
+    # bin/project_rust_vocabulary writes rust/src/kernel/vocab/ — so the
+    # runtimes carry no hand-typed copies to drift.
     #
     # Every one of these is a set the runtime must agree with, and every one has
     # already drifted or leaked at least once :
@@ -171,9 +174,17 @@ Hecks.bluebook "Bluebook" do
     # fires for a creating command, advance_lifecycle only when a transition
     # applies — so this is the order a command that does both follows,
     # confirmed by tracing a real dispatch, not read off the source.
+    #
+    # decode_arguments leads both dispatch orders: turning the caller's raw
+    # facts into a command's declared arguments, before any argument gate
+    # judges them. A no-op in Ruby today (routing already hands the
+    # interpreter a decoded hash) and in the Rust kernel's dispatch loop
+    # (generated `from_json` still decodes and gates in one pass) — declared
+    # now so the Rust kernel's step enum has a place for a generated decoder
+    # to move into, rather than the order being implied by generated code.
     value_object "AggregateDispatchOrder" do
       attribute :step, String,
-                one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
+                one_of: ["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
                          "refuse_role_mismatch", "resolve_references", "hydrate", "enforce_givens",
                          "admissible_transition", "assign_creation_attributes", "apply_mutations",
                          "advance_lifecycle", "delegate_to_entity", "enforce_ensures", "enforce_invariants",
@@ -197,7 +208,7 @@ Hecks.bluebook "Bluebook" do
     # both interpreters), even though nothing in the real corpus does yet.
     value_object "EntityDispatchOrder" do
       attribute :step, String,
-                one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
+                one_of: ["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
                          "refuse_role_mismatch", "resolve_references", "hydrate_parent",
                          "locate_element", "enforce_givens", "admissible_transition", "apply_mutations",
                          "advance_lifecycle", "enforce_ensures", "enforce_invariants", "save", "emit"]
@@ -219,11 +230,10 @@ Hecks.bluebook "Bluebook" do
     # declared them. Everything here is different in kind: a LANGUAGE-LEVEL
     # refusal, the same wording for every domain, not authored per-bluebook —
     # closer to Comparison/SignTest beside it than to a given. So it follows
-    # THEIR pattern, not given's: declared here for a human to read and a
-    # conformance spec to hold equal, and a hand-typed table
-    # (RefusalWording) is what a dispatch
-    # actually reads — the same reason Evaluator::SIGN_TEST_OPERATORS is
-    # hand-typed rather than read live off this very chapter at every call.
+    # THEIR pattern, not given's: declared here, and projected into the
+    # generated tables a dispatch actually reads (Runtime::RefusalWording in
+    # Ruby, kernel::vocab::RefusalSite in Rust) rather than read live off
+    # this very chapter at every call.
     #
     # `{name}` markers are placeholders — plain text substitution, not
     # expression syntax ; a template is read, never evaluated. Two call
@@ -373,10 +383,9 @@ Hecks.bluebook "Bluebook" do
     # rendering convention, the same guess for every domain, not
     # authored per-bluebook — closer to Comparison/SignTest than to a
     # given. `pattern` is the regex SOURCE, no delimiters or flags
-    # (Ruby's own `Regexp#source`) — spec/field_hint_conformance_spec.rb
-    # holds FieldShape's four hand-typed constants equal to this, both
-    # directions, the same conformance shape refusal_wording_
-    # conformance_spec.rb already holds RefusalTemplate to.
+    # (Ruby's own `Regexp#source`) — FieldShape builds its four constants
+    # off these rows, and bin/project_field_hints writes the Rust host's
+    # copy from them, so neither side is typed by hand.
     #
     # `resolves_to` names WHICH Field attribute a match sets — `html_type`
     # for email/url/tel (three candidates, only one wins, checked in that

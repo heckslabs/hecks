@@ -33,13 +33,17 @@ RSpec.describe "bin/project_rust default (hecks-build) vs the Ruby generator", :
   PROJECT_RUST = File.join(InMemoryDomain::ROOT, "bin/project_rust")
 
   # [domain, dirs THIS domain's own run touches] — the target itself,
-  # `meta` (every run regenerates it), plus any framework chapter it
-  # attaches (`banking` pulls in `governance`/`identity` via
-  # `uses_framework`; `pizzas` attaches none).
+  # `meta` (every run regenerates it — both paths' own header explains
+  # why), plus any framework chapter it attaches (`banking` alone pulls
+  # in `governance`/`identity` via `uses_framework`; `pizzas` attaches
+  # none; `compliance` pulls in `governance`; `roster` attaches none).
+  # `roster` is the one member whose policy carries a real `where`
+  # (`OnSeatAssignedHonorFront`), so it pins `where_ast` end to end.
   PARITY_DOMAINS = {
-    "examples/pizzas"  => %w[pizzas meta],
-    "examples/banking" => %w[banking governance identity meta],
-    "examples/roster"  => %w[roster meta]
+    "examples/pizzas"     => %w[pizzas meta],
+    "examples/banking"    => %w[banking governance identity meta],
+    "examples/roster"     => %w[roster meta],
+    "examples/compliance" => %w[compliance governance meta]
   }.freeze
 
   before(:context) do

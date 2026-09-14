@@ -5,7 +5,7 @@ same shape of problem (big hand-written files with real internal seams, organize
 `foo/mod.rs` way) across the rest of the hand-written Rust surface — `rust/parser/`, `rust/src/`,
 `rust/host/`, `rust/codegen/`, `rust/build/`. This plan covers all of it. Generated files
 (`rust/src/generated/**`, `rust/parser/src/keywords.rs`, `rust/host/src/field_hints.rs`,
-`rust/src/kernel/{attribute_shapes,expression_operators}/mod.rs`, `rust/src/kernel/refusal_wording.rs`)
+`rust/src/kernel/{attribute_shapes,expression_operators}/mod.rs`, `rust/src/kernel/vocab/*.rs`)
 are **out of scope** — they're regenerated from the bluebook grammar, not hand-refactored.
 `rust/parser/src/build/` is also out of scope — it already mirrors the Ruby DSL builders 1:1,
 which is what this refactor is trying to achieve elsewhere.
