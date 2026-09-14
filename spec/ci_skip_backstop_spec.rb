@@ -48,13 +48,21 @@ RSpec.describe CiSkipBackstop do
   end
 
   it "fails a pending example whose reason no table accounts for, and passes one that is accounted for" do
-    result = Struct.new(:status, :pending_message)
+    result = Struct.new(:status, :pending_message, :pending_exception)
     example = Struct.new(:execution_result, :location, :full_description)
-    stray = example.new(result.new(:pending, "x"), "./spec/x_spec.rb:1", "x")
-    known = example.new(result.new(:pending, described_class::UNROUTED_BUGS.first.literal), "./spec/y_spec.rb:1", "y")
-    passed = example.new(result.new(:passed, nil), "./spec/z_spec.rb:1", "z")
+    stray = example.new(result.new(:pending, "x", nil), "./spec/x_spec.rb:1", "x")
+    known = example.new(result.new(:pending, described_class::UNROUTED_BUGS.first.literal, nil), "./spec/y_spec.rb:1", "y")
+    passed = example.new(result.new(:passed, nil, nil), "./spec/z_spec.rb:1", "z")
 
     expect(described_class.offenders([stray, known, passed]).size).to eq(1)
     expect(described_class.offenders([stray]).first).to include("./spec/x_spec.rb:1", "skipped: x")
+  end
+
+  it "passes a `pending` example that ran and failed as expected — a shrink-only pending table entry is a live check" do
+    result = Struct.new(:status, :pending_message, :pending_exception)
+    example = Struct.new(:execution_result, :location, :full_description)
+    ran = example.new(result.new(:pending, "BUG#32: not ported yet", RuntimeError.new("expected")), "./spec/p_spec.rb:1", "p")
+
+    expect(described_class.offenders([ran])).to be_empty
   end
 end

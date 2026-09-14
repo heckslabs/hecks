@@ -58,6 +58,11 @@ module CiSkipBackstop
     examples.filter_map do |example|
       result = example.execution_result
       next unless result.status == :pending
+      # A `pending` example RAN and failed the way its shrink-only table
+      # says it should (e.g. RUST_FUZZ_PENDING, CODEGEN_PENDING_MEMBERS);
+      # it turns into a failure the moment it passes. That is a live check,
+      # not a skip — only an example that never ran carries no exception.
+      next if result.pending_exception
 
       message = result.pending_message.to_s
       next if accounted_for?(message)
