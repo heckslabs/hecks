@@ -179,6 +179,24 @@ idempotency, value-object round trip), and Memory vs a real PostgresEra
 boot (`--persistence-parity`, single-target) — so "the engines agree" is
 never the whole answer.
 
+## Discovering external domains (opt-in, occasional)
+
+Only when a person asks for it ("look for new domains", "what's out
+there in ~/Projects"): `bin/qa_discover_external_domains
+[--projects-dir <path>] [--max-depth N]`. It walks sibling repos under
+`~/Projects` (never this repo — already fully covered) for a directory
+shaped `<name>/bluebook/<name>.bluebook`, confirmed against the
+project's own `Gemfile`/`Gemfile.lock` for a real `hecks` gem
+dependency, cross-referenced against `Target.All` so an already-
+identified domain is never re-reported. **Report only** — it never
+calls `identify` itself; it prints the exact `bin/run qa/bluebook
+identify reference=… path=…` command for a person to review and run.
+`bin/qa_tick` never runs it and no `qa/settings.yml` dial turns it on,
+same as `bin/qa_mine_combinations` above. Before enrolling a real find,
+read its own header for a live limitation: `bin/qa_sweep` resolves
+every `Target.path` relative to THIS repo's root, so sweeping a target
+whose real location is outside it needs that gap closed first.
+
 ## What this will never do
 
 - File a GitHub issue, or merge by hand (`bin/qa_open_pr` queues
