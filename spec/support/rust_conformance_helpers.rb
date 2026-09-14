@@ -174,82 +174,14 @@ module RustConformanceHelpers
     rust_output.fetch("cross_domain_reactions").flatten.to_set { |r| r["policy"] }
   end
 
-  # RE-EXAMINED 2026-09-11 (ANGLE-4) AND FOUND STALE — REMOVED, not just
-  # quieted, the same discipline model_check.rb's own ALLOWED_FINDINGS
-  # comment already documents for its own removed entries. This used to
-  # read:
-  #
-  #   reaction["policy"] == "FreezeAccountsOnSuspension" &&
-  #     reaction["trigger"] == "Banking::Account.FreezeAccount" &&
-  #     reaction["delivered"] == false
-  #
-  # — rust_conformance_spec.rb's own comment (above the fixture loop)
-  # names the original gap: an argument-check-ordering difference (which
-  # check runs first, unrecognized keys or identity-field absence) that
-  # made Ruby's and Rust's refusal DIAGNOSIS differ for a malformed-
-  # payload shape across three fixtures (entities_policies_sagas.json,
-  # query_filters.json, named_queries_order_limit.json). Re-verified live
-  # by forcing this predicate to `false` unconditionally and re-running
-  # the full fixed corpus (`spec/rust_conformance_spec.rb --tag io`,
-  # cargo binaries rebuilt fresh): all 30 fixtures, including the three
-  # that used to need this exemption, pass with reactions matching
-  # byte-for-byte — the ordering gap it was written for no longer
-  # reproduces (closed by an unrelated fix somewhere in the argument-
-  # gate/identity-check path since this predicate was last needed; not
-  # tracked down further, since there is no longer a live divergence to
-  # attribute). Kept as a named no-op (not deleted outright) so a call
-  # site never breaks and the next real, narrow reaction-shaped gap has
-  # an obvious place to be named by hand, the same as
-  # `KNOWN_REFUSAL_GAP_VERBS`'s own empty-but-kept precedent just below.
-  def known_reaction_gap?(_reaction)
-    false
-  end
+  # WHICH REFUSALS MAY DIFFER is no longer decided here. The hand-kept
+  # `KNOWN_REFUSAL_GAP_VERBS` list (empty), the always-false
+  # `known_reaction_gap?`, and the "is not generated for this domain"
+  # substring match are gone: a query or read-model verb is tolerated only
+  # when the binary's own manifest.json declares it `generated: false`
+  # (`Hecks::Fuzzing::RustGapManifest`, applied by `Hecks::Fuzzing::
+  # Differential.manifest_partition`).
 
-  # THE FIXED CORPUS'S OWN NARROW LIST — found and named by hand against a
-  # small, curated set of fixtures. Two entries used to live here, both
-  # closed by Phase 10 (equivalence-gap plan) porting a declared `offset`
-  # for real, in each case confirmed by re-running `bin/project_rust
-  # examples/banking` and re-checking the exact same fixture RED-before/
-  # GREEN-after: `Banking::ATMCard.ByFee` (a declared AGGREGATE query's own
-  # `offset` — spec/corpus/rust_conformance/named_queries_order_limit.json)
-  # and `Banking.ComplianceDashboard` (a declared READ MODEL's own
-  # `offset` — spec/corpus/rust_conformance/read_models.json). Empty for
-  # now — kept, not deleted, as the place the NEXT real, narrow, curated-
-  # corpus gap gets named by hand, the same way these two were.
-  KNOWN_REFUSAL_GAP_VERBS = [].freeze
-
-  def known_refusal_gap?(entry)
-    KNOWN_REFUSAL_GAP_VERBS.include?(entry.key?("verb") ? entry["verb"] : entry["query"])
-  end
-
-  # THE GENERALIZED FORM — PRD 04's own reason this can't just reuse
-  # `known_refusal_gap?`'s fixed list: a RANDOMLY generated sequence can
-  # reach any structurally-unsupported query/read-model verb the domain
-  # declares, not only the two the fixed, hand-picked corpus happens to
-  # exercise (`rust/project/queries.rb`'s and `read_models.rb`'s own
-  # documented refusal boundary — offset/cursor/group_by/count/median/
-  # cross-reference wheres, the whole Phase 10 backlog). Matched by
-  # Rust's own EXACT refusal wording for this boundary
-  # (`"is not generated for this domain"` — codegen's own literal string,
-  # `rust/project/queries.rb`/`read_models.rb`), never by verb name: a
-  # verb-name list would need to grow forever as the fuzzer explores
-  # further; this message is the one honest signal codegen itself already
-  # emits for "I cannot execute this construct at all," matching
-  # rust_conformance_spec.rb's own "a named/declared query step whose
-  # shape this generator doesn't cover still refuses cleanly" example
-  # verbatim.
-  STRUCTURAL_REFUSAL_MARKER = "is not generated for this domain".freeze
-
-  def structural_refusal_gap?(entry)
-    (entry["error"] || "").include?(STRUCTURAL_REFUSAL_MARKER)
-  end
-
-  # THE SAME BOUNDARY, SEEN FROM RUBY'S QUERY LOG — when Rust refuses a
-  # named query as "not generated", Ruby answered it for real and logged
-  # an ordinary (error-free) query entry, so `structural_refusal_gap?`
-  # never matches it. Rust's own structural refusals are the ground truth
-  # for which verbs to drop, the same way `cross_domain_policy_names`
-  # reads Rust's own `cross_domain_reactions` rather than re-deriving.
   # THE WIRE FORMAT'S OWN LOSS, NOT A BEHAVIORAL DIVERGENCE. `Json::Num`
   # (rust/src/kernel/json.rs) is a plain `f64` end to end — every integer
   # this kernel's own JSON parser reads, including a query's own echoed
@@ -271,9 +203,5 @@ module RustConformanceHelpers
     when Array   then value.map { |v| reduce_to_wire_precision(v) }
     else value
     end
-  end
-
-  def structurally_refused_verbs(rust_output)
-    rust_output.fetch("refusals").select { |r| structural_refusal_gap?(r) }.to_set { |r| r["verb"] }
   end
 end

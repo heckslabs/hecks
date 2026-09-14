@@ -77,25 +77,12 @@ generated_domains_per_tick: 2
 generated_domains_rust: true
 generated_domain_seeds: 5
 
+# Construct families (manifest.json `construct`, written by rust/project's
+# generator) a sweep may skip without surprise. SHRINK-ONLY:
+# spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is not
+# declared `generated: false` by any committed manifest. Re-adding one
+# requires a committed domain that really hits it.
 structural_refusal_boundary:
-  - cursor
-  - consistency
-  - freshness
-  - inspection
-  - index_hints
-  - authorization
-  - null_semantics
-  - scope_to
-  - order_by
-  - limit
-  - offset
-  - no_wheres
+  - entity_query
   - reference_hop_where
-  - where_nested_field
-  - where_none_in_state
-  - where_literal
-  - wheres
-  - group_by
-  - count
-  - median_field
   - rootless

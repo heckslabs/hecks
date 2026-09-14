@@ -112,10 +112,10 @@ RSpec.describe "Rust conformance (native binary)", :io do
   #      same case is covered by the same rule instead of silently
   #      becoming a mismatched test.
   #
-  # `cross_domain_policy_names`/`known_reaction_gap?` are
-  # `RustConformanceHelpers` methods now (shared with
-  # spec/rust_conformance_fuzz_spec.rb, PRD 04) — this comment describes
-  # both, kept here since this is where each gap was first found.
+  # `cross_domain_policy_names` is a `RustConformanceHelpers` method now
+  # (shared with spec/rust_conformance_fuzz_spec.rb, PRD 04). The
+  # reaction-ordering gap described above is closed; its always-false
+  # `known_reaction_gap?` predicate was deleted in Phase 4.
 
   # THE READ_MODEL/QUERY-CODEGEN BOUNDARY'S OWN REFUSAL, one level up
   # from the single-step example below — the SAME gap
@@ -141,13 +141,12 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # its own queries log simply has no matching entry — exempted the same
   # way, checking either key a step's own log entry uses.
   #
-  # `KNOWN_REFUSAL_GAP_VERBS`/`known_refusal_gap?` are
-  # `RustConformanceHelpers` constants/methods now — this fixed corpus's
-  # own narrow, hand-verified list, unchanged. PRD 04's generated-sequence
-  # bridge (spec/rust_conformance_fuzz_spec.rb) uses a DIFFERENT,
-  # message-pattern-based version of this same judgment instead
-  # (`structural_refusal_gap?`) — see that helper's own comment for why a
-  # fixed verb list doesn't scale to a randomly generated sequence.
+  # Both verbs this used to exempt were closed by Phase 10, so the fixed
+  # corpus compares refusals and queries with no tolerance. PRD 04's
+  # generated-sequence bridge (spec/rust_conformance_fuzz_spec.rb) can
+  # reach verbs Rust never generated; it tolerates exactly the ones the
+  # binary's manifest.json declares `generated: false`
+  # (`Hecks::Fuzzing::Differential.manifest_partition`), never by wording.
 
   RUST_CONFORMANCE_FIXTURES.each do |fixture_path|
     # A real cargo-built binary compared field-by-field (instances,
@@ -191,18 +190,17 @@ RSpec.describe "Rust conformance (native binary)", :io do
       expect(rust_output["events"]).to eq(ruby_events)
       # Kinds compared on every row, ad-hoc filter steps included — C8.3
       # settled: a malformed ask is a `Fault` on both sides.
-      expect(rust_output["refusals"].reject { |r| known_refusal_gap?(r) })
-        .to eq(ruby_refusals.reject { |r| known_refusal_gap?(r) })
-      expect(rust_output["queries"].reject { |q| known_refusal_gap?(q) })
-        .to eq(ruby_queries.reject { |q| known_refusal_gap?(q) })
+      # No tolerance at all here: this hand-authored corpus never asks a
+      # verb its domain's manifest.json declares not generated.
+      expect(rust_output["refusals"]).to eq(ruby_refusals)
+      expect(rust_output["queries"]).to eq(ruby_queries)
       expect(rust_output["sagas"]).to eq(ruby_sagas)
       expect(rust_output["dry_runs"]).to eq(JSON.parse(JSON.generate(ruby_result[:dry_runs])))
 
       cross_domain = cross_domain_policy_names(rust_output)
       ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
-                           .reject { |r| cross_domain.include?(r["policy"]) || known_reaction_gap?(r) }
-      rust_reactions = rust_output.fetch("reactions").reject { |r| known_reaction_gap?(r) }
-      expect(rust_reactions).to eq(ruby_reactions)
+                           .reject { |r| cross_domain.include?(r["policy"]) }
+      expect(rust_output.fetch("reactions")).to eq(ruby_reactions)
     end
   end
 
@@ -241,6 +239,11 @@ RSpec.describe "Rust conformance (native binary)", :io do
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
     rust_output = JSON.parse(stdout)
+    # The refusal is DECLARED, not merely observed: the generator recorded
+    # this exact verb as a per-instance reference-hop gap.
+    declared = Hecks::Fuzzing::RustGapManifest.for_binary(binary)
+                                              .not_generated("Banking::Account.OpenForSuspendedCustomers")
+    expect(declared).to include("gap_class" => "per_instance", "construct" => "reference_hop_where")
     expect(rust_output["refusals"].size).to eq(1)
     expect(rust_output["refusals"][0]["verb"]).to eq("Banking::Account.OpenForSuspendedCustomers")
     expect(rust_output["refusals"][0]["error"])

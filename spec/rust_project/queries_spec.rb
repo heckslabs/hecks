@@ -40,6 +40,15 @@ RSpec.describe RustProjection::Projector do
 
       expect(reason).to include("kind: string")
       expect(reason).not_to include("Json::Num-vs-Json::Str") # the stale reason this fix retired
+      # The manifest's machine-readable half, set by the same branch.
+      expect(reason.construct).to eq("where_literal")
+    end
+
+    it "names a hop through a reference as reference_hop_where, whatever the reason text says" do
+      where = { field: "customer/status", op: "eq", value: "\"suspended\"" }
+
+      expect(described_class.query_where_skip_reason(where, STRING_ATTR_AGGREGATE, {}).construct)
+        .to eq("reference_hop_where")
     end
 
     it "a numeric eq/ne literal is also no longer refused (the same fix closes both)" do

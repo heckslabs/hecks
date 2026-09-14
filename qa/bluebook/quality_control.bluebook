@@ -433,19 +433,16 @@ unless defined?(QualityControlDials)
     # HOW MANY GENERATED SEQUENCES EACH GENERATED DOMAIN GETS.
     GENERATED_DOMAIN_SEEDS = settings.generated_domain_seeds
 
-    # THE CONSTRUCT FAMILIES A "NOT GENERATED FOR THIS DOMAIN" REFUSAL IS
-    # ALLOWED TO HIDE. `Hecks::Fuzzing::StructuralSkips` attributes every
-    # named query/read model the compiled Rust binary structurally refused
-    # (and the differential comparison therefore dropped from BOTH sides)
-    # to the constructs its own Ruby declaration carries; a skipped verb
-    # whose constructs are all in this list is the documented codegen
-    # boundary (rust/project/queries.rb, read_models.rb), logged Held with
-    # the list on the record. A skipped verb declaring NOTHING here — a
-    # wheres-only query on plain fields, a rooted read model with only
-    # heads, a verb Ruby never declared — is Surprised: either codegen
-    # regressed or the generated tree is stale. Narrow this list as
-    # codegen grows; each name removed turns one more silent skip into a
-    # finding.
+    # THE CONSTRUCT FAMILIES A SKIPPED QUERY VERB MAY BELONG TO. The
+    # differential comparison drops a named query/read model only when the
+    # binary's manifest.json declares it `generated: false`
+    # (`Hecks::Fuzzing::RustGapManifest`); `Hecks::Fuzzing::StructuralSkips`
+    # then names each skipped verb's `construct` from that same entry. A
+    # skip whose construct is in this list is logged Held with the list on
+    # the record; one outside it is Surprised. The list is shrink-only:
+    # spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is
+    # declared by no committed manifest, so each gap codegen closes takes
+    # its family out and turns the next such skip into a finding.
     STRUCTURAL_REFUSAL_BOUNDARY = settings.structural_refusal_boundary
   end
 end

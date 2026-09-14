@@ -1,3 +1,5 @@
+require_relative "skip_reason"
+
 module RustProjection
   module Projector
     module_function
@@ -35,8 +37,8 @@ module RustProjection
 
         value_objects_by_name.key?(attr[:type])
       end
-      return "attribute type(s) #{unresolved.map { |a| a[:type] }.uniq.join(', ')} not generated yet " \
-             "(a value object this aggregate's own attributes never resolved a Rust type for)" if unresolved.any?
+      return skip("port_attribute_type", "attribute type(s) #{unresolved.map { |a| a[:type] }.uniq.join(', ')} not generated yet " \
+                                         "(a value object this aggregate's own attributes never resolved a Rust type for)") if unresolved.any?
 
       nil
     end

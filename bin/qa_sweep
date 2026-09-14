@@ -515,12 +515,12 @@ end
 # `spec/rust_conformance_fuzz_spec.rb` calls on `self` are called here on
 # an instance instead.
 #
-# `structural_skips` — every verb the compiled binary answered "is not
-# generated for this domain" across THIS sweep's seeds, accumulated by
-# `diff_ruby_vs_rust` (the helpers drop those verbs from the comparison
-# silently; the `[structural_skip_report]` check after the seed loop is
-# where they finally get said out loud — see the detection plan's item 4
-# and `Hecks::Fuzzing::StructuralSkips`).
+# `structural_skips` — every verb this sweep's seeds reached that the
+# binary's manifest.json declares `generated: false`, accumulated by
+# `diff_ruby_vs_rust` (`Hecks::Fuzzing::Differential.manifest_partition`
+# drops those verbs from the comparison; the `[structural_skip_report]`
+# check after the seed loop is where they get said out loud — see the
+# detection plan's item 4 and `Hecks::Fuzzing::StructuralSkips`).
 class Differ
   include RustConformanceHelpers
 
@@ -1742,25 +1742,25 @@ def plan_arguments(plan)
 end
 
 # ITEM 4 OF THE DETECTION PLAN — THE ONCE-PER-SWEEP STRUCTURAL-SKIP
-# CHECK. `differ.structural_skips` is every verb the binary refused as
-# "not generated" over this sweep's seeds; `Hecks::Fuzzing::StructuralSkips`
-# names what each one declares, and the dial says which construct
-# families are the documented codegen boundary. Held with the full list
-# on the record (so "agreed across all steps" can no longer hide how
-# much was never compared); Surprised if any skipped verb declares
-# nothing the boundary admits — a codegen regression, or a stale
-# generated tree, either way not a boundary anybody documented.
-def structural_skip_check(differ, domain_path, boundary)
+# CHECK. `differ.structural_skips` is every verb this sweep's seeds reached
+# that the binary's manifest.json declares `generated: false` (and so was
+# dropped from the comparison); `Hecks::Fuzzing::StructuralSkips` names each
+# one's construct from that same manifest entry, and the dial says which
+# construct families are the documented codegen boundary. Held with the
+# full list on the record (so "agreed across all steps" can no longer hide
+# how much was never compared); Surprised if any skipped verb's construct
+# is outside the boundary.
+def structural_skip_check(differ, binary, boundary)
   skipped    = differ.structural_skips.to_a.sort
-  bluebooks  = skipped.empty? ? {} : Hecks::Fuzzing::Replay.call(domain_path, [])[:bluebooks]
-  attributed = Hecks::Fuzzing::StructuralSkips.attribute(bluebooks, skipped)
+  gaps       = Hecks::Fuzzing::RustGapManifest.for_binary(binary)
+  attributed = Hecks::Fuzzing::StructuralSkips.attribute(gaps, skipped)
   outside    = Hecks::Fuzzing::StructuralSkips.outside_boundary(attributed, boundary)
   listing    = attributed.map { |e| "#{e[:verb]} [#{e[:constructs].join(',')}]" }.join("; ")
   divergences = outside.map do |e|
     declares = e[:constructs].empty? ? "nothing" : e[:constructs].join(",")
     { field: "structural_skip", verb: e[:verb], constructs: e[:constructs],
-      detail: "Rust refused #{e[:verb]} as not generated, but it declares #{declares} outside " \
-              "STRUCTURAL_REFUSAL_BOUNDARY — a codegen regression or a stale generated tree, not a documented boundary" }
+      detail: "#{e[:verb]} was skipped as not generated (construct: #{declares}), outside " \
+              "STRUCTURAL_REFUSAL_BOUNDARY — a codegen regression or a new gap, not a documented boundary" }
   end
   observation = if divergences.empty?
                   "all #{skipped.size} inside the documented boundary"
@@ -1769,8 +1769,8 @@ def structural_skip_check(differ, domain_path, boundary)
                 end
   { mode: :structural_skip_report,
     subject: "[structural_skip_report] structurally skipped #{skipped.size} verb(s): [#{listing}]",
-    expectation: "every named query/read model the compiled binary refused as 'not generated for this domain' " \
-                 "declares a construct inside QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY",
+    expectation: "every named query/read model skipped because manifest.json declares it not generated " \
+                 "names a construct inside QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY",
     divergences: divergences, clean: divergences.empty?, observation: observation }
 end
 
@@ -2085,7 +2085,7 @@ begin
   # loop that ran clean to the end (a sweep already stopped on a
   # surprise has its finding; this one is about what "agreed" was hiding).
   if surprise.nil? && mode == :differential && active_modes.include?(:structural_skip_report)
-    check    = structural_skip_check(differ, domain_path, structural_boundary)
+    check    = structural_skip_check(differ, binary, structural_boundary)
     sweep    = log_check!(sweep, subject: check[:subject], expectation: check[:expectation])
     sequence = sweep.checks.last[:sequence][:value]
     if check[:clean]

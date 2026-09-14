@@ -304,6 +304,7 @@ module RustProjection
 end
 
 require_relative "project/write_if_changed"
+require_relative "project/skip_reason"
 require_relative "project/exemplar"
 require_relative "project/expr_emitter"
 require_relative "project/naming"
