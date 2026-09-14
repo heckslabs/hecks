@@ -404,5 +404,25 @@ pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), cr
 }
 
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
+crate::kernel::read_model::ReadModelDef {
+    verb: "Corrections.FlaggedTrailCount",
+    reference_name: None,
+    heads: &[
+        crate::kernel::read_model::ReadModelHead { aggregate: "Corrections::AuditTrail", as_name: "audit_trails", many: true, is_root: false, reference_fields: &[] },
+    ],
+    filtered_head: Some("audit_trails"),
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("flagged") },
+    ],
+    reference_hop_conditions: &[
 
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+    group_by: None,
+    count: true,
+    median_field: None,
+},
 ];
