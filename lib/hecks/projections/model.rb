@@ -108,8 +108,8 @@ module Hecks
       # the same tables, which is the point of the tables being in lib.
       def emitted_fields(bluebook, name)
         bluebook.aggregate(name).attributes.map(&:name)
-                .reject { |f| Deviations::PARENT_REF.call(f) } -
-          Deviations::JUDGE_ONLY -
+                .reject { |f| Deviations.parent_ref?(f) } -
+          Deviations.judge_only(name) -
           Deviations.off_the_wire(name) -
           Deviations.dynamic_tail(name) -
           Deviations.folded(name).values.flatten -

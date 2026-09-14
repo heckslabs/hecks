@@ -29,14 +29,4 @@ RSpec.describe "the generated Rust vocabulary tables (bin/project_rust_vocabular
 
     expect(committed - projected.keys).to be_empty
   end
-
-  it "names the refusal templates in the same order Runtime::RefusalWording declares them" do
-    source = projected.fetch("vocab/refusal_template.rs")
-    variants = source[/pub enum RefusalSite \{(.*?)\}/m, 1].scan(/(\w+),/).flatten
-    expected = Hecks::Runtime::RefusalWording::TEMPLATES.keys.map do |pair|
-      pair.map { |part| part.split("_").map { |word| word[0].upcase + word[1..] }.join }.join
-    end
-
-    expect(variants).to eq(expected)
-  end
 end

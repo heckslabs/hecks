@@ -11,7 +11,7 @@ module Hecks
 
           File.readlines(@journal_path, chomp: true).reject(&:empty?).map do |line|
             value = JSON.parse(line)
-            state = value["state"]&.transform_keys(&:to_sym)
+            state = Ports::Persistence::StateCodec.decode(@aggregate, value["state"])
             Ports::Persistence::Entry.new(operation: value.fetch("operation"), id: value.fetch("id"), state: state,
                                           mirrors: value["mirrors"])
           end
@@ -95,7 +95,8 @@ module Hecks
         end
 
         def append_entry(operation, id, state)
-          line = "#{JSON.generate(operation: operation, id: id.to_s, state: state, mirrors: @entry_mirrors)}\n"
+          encoded = Ports::Persistence::StateCodec.encode(@aggregate, state)
+          line = "#{JSON.generate(operation: operation, id: id.to_s, state: encoded, mirrors: @entry_mirrors)}\n"
 
           # One write, not JSON-then-newline as two: two concurrent
           # appends can only interleave *between* writes, never inside

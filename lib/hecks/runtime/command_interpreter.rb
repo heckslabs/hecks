@@ -24,12 +24,11 @@ module Hecks
 
       attr_reader :registry
 
-      # THE DECLARED ORDER, HAND-TYPED — mirrors Vocabulary::AggregateDispatchOrder
-      # (language/bluebook/vocabulary.bluebook:188-205), held equal to it by
-      # spec/vocabulary_conformance_spec.rb the same way every other vocabulary
-      # in that file is (RefusalWording::TEMPLATES, CommandRules::MUTATION_OPS,
-      # ...) rather than read live off the meta-domain at every dispatch —
-      # Runtime::RefusalWording's own doc comment gives the same reason.
+      # THE DECLARED ORDER — Vocabulary::AggregateDispatchOrder
+      # (language/bluebook/vocabulary.bluebook), read off the generated table
+      # (lib/hecks/vocabulary.rb) rather than typed here. spec/vocabulary_
+      # conformance_spec.rb holds every step to a real `step_<name>` handler,
+      # both directions.
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("AggregateDispatchOrder")
 
       # A LAST-RESORT SAFETY VALVE, NOT THE NORMAL OUTCOME PATH — see
@@ -48,7 +47,7 @@ module Hecks
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
-                           :dry_run, :correction_bindings, :outbox_rows)
+                           :dry_run, :correction_bindings, :outbox_rows, :invocation)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -66,10 +65,17 @@ module Hecks
       # went stale. See `MAX_STALE_WRITE_RETRIES`/`Runtime::StaleWrite`
       # for why exhaustion is a pathological-contention signal, not the
       # expected shape of a two-writer race.
-      def call(domain, aggregate, command, args, correlation = nil, route: nil, dry_run: false)
+      #
+      # `invocation` — the `Runtime::Invocation` `Dispatcher` built for this
+      # call. `ctx.args` is `invocation.to_args` (the same Hash routing
+      # always handed this method), `ctx.route` its `target`.
+      def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false)
+        args    = invocation.to_args
+        route   = invocation.target
         attempt = 0
         begin
           ctx = Context.new(domain, aggregate, command, args)
+          ctx.invocation = invocation
           ctx.correlation = correlation
           ctx.route = route
           ctx.dry_run = dry_run

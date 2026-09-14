@@ -43,21 +43,28 @@ module Hecks
         Ports::Query::InMemory.execute(all, specification, args, registry: context[:registry])
       end
 
+      # THROUGH THE STATE CODEC, like every durable adapter (PR A3): the
+      # journal holds `StateCodec.copy` — exactly what an encode-to-JSON
+      # then decode would hand back — never the caller's own live state
+      # objects, so an entry read back here has the same deep-symbol,
+      # plain-Hash shape a Heki/Sqlite/Postgres entry has.
       def append(entry)
-        @entries << entry
+        copied = Ports::Persistence::Entry.new(operation: entry.operation, id: entry.id,
+                                               state: copy(entry.state), mirrors: entry.mirrors)
+        @entries << copied
         entry
       end
 
       def project(entry)
         if entry.save?
-          @records[entry.id] = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state.dup)
+          @records[entry.id] = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: copy(entry.state))
         else
           @records.delete(entry.id)
         end
       end
 
       def save(instance)
-        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: copy(instance.state))
         append(entry)
         project(entry)
       end
@@ -143,6 +150,10 @@ module Hecks
         rows = status ? @outbox.select { |row| row.status == status.to_s } : @outbox
         rows.map(&:dup)
       end
+
+      private
+
+      def copy(state) = Ports::Persistence::StateCodec.copy(@aggregate, state)
     end
   end
 end
