@@ -249,26 +249,29 @@ jobs:
       # and `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s track
       # whichever domain ran LAST, period. banking, compliance, pizzas,
       # roster, ledger_ordering, nested_pieces, referral_chain,
-      # has_many_fixture, lease_clock, waybill is the one order that
-      # reproduces the committed tree byte-for-byte today (verified by
-      # hand before this step was extended to the qa/stress_domains
-      # trio, again when referral_chain joined, then again for
-      # `has_many_fixture` — BUG#25 — and again for `lease_clock`);
-      # change it and re-verify locally (`git diff --stat rust/` after
-      # running every `bin/project_rust` line below against a clean
-      # checkout) rather than guessing. `referral_chain`,
-      # `has_many_fixture`, and `lease_clock` are each slotted BEFORE
-      # `waybill`, not last, specifically so `waybill` stays the
-      # committed tree's own `default` feature — unrelated to any of the
-      # three additions, unchanged by any of them.
+      # has_many_fixture, lease_clock, corrections, chess, waybill is the
+      # one order that reproduces the committed tree byte-for-byte today
+      # (verified by hand before this step was extended to the
+      # qa/stress_domains trio, again when referral_chain joined, then
+      # again for `has_many_fixture` — BUG#25 — again for `lease_clock`,
+      # again for `corrections` — BUG#126 — and again for `chess` —
+      # BUG#138); change it and re-verify locally (`git diff --stat rust/`
+      # after running every `bin/project_rust` line below against a clean
+      # checkout) rather than guessing. `referral_chain`, `has_many_
+      # fixture`, `lease_clock`, `corrections`, and `chess` are each
+      # slotted BEFORE `waybill`, not last, specifically so `waybill`
+      # stays the committed tree's own `default` feature — unrelated to
+      # any of these additions, unchanged by any of them.
       #
       # `tenant_ledger` is NOT in this list despite having real,
       # committed `rust/src/generated/` output — a pre-existing gap
       # outside this change's own scope (the PR that added it did not
-      # extend this step), the same class as the `chess`/`embryonaut`
-      # exclusions below: this step simply never regenerates it, so a
-      # future edit to its bluebook would not be caught here. Left alone
-      # rather than silently "fixed" as a drive-by in an unrelated PR.
+      # extend this step), the same class `chess` was in before BUG#138
+      # added it below (and the same class embryonaut's own exclusion
+      # is, structurally, below): this step simply never regenerates it,
+      # so a future edit to its bluebook would not be caught here. Left
+      # alone rather than silently "fixed" as a drive-by in an unrelated
+      # PR.
       #
       # qa/stress_domains/{ledger_ordering,nested_pieces,waybill} were
       # added here after this exact gap caused a real false positive: a
@@ -308,15 +311,35 @@ jobs:
       # (verified locally: `git diff --stat rust/` after running every
       # line below against a clean checkout touches only `rust/src/
       # generated/corrections/{registry,merged}.rs`, nothing else).
-      # embryonaut's own exclusion reasoning above applies identically to
-      # `chess`
-      # (examples/chess): it is NOT in this step's regen list either, a
-      # separate pre-existing gap outside this change's own scope — see
-      # whichever domain under qa/stress_domains/ (or spec/fixtures/
-      # rust_project/) has no rust/src/generated/<name>/ directory at
-      # all for the same rule; a stress domain or fixture authored
-      # Ruby-only, with no Rust projection yet, stays out of this list
-      # until one exists.
+      #
+      # `examples/chess` (BUG#138 — the identical class of false positive
+      # corrections/nested_pieces already caused, this time for an
+      # in-repo `examples/` domain rather than a `qa/stress_domains/`
+      # one): BUG#136's entity route-less dispatch precheck landed in
+      # `rust/project/registry.rb` and `rust/codegen/src/registry.rs`,
+      # but `chess` was never in this step's own regen list (the
+      # embryonaut-style exclusion this comment block used to carry —
+      # left alone once, deliberately, rather than silently "fixed" as a
+      # drive-by in an unrelated PR — the same caution `tenant_ledger`'s
+      # own note above still applies), so its committed Rust output
+      # stayed several already-fixed-bugs behind and a later differential
+      # fuzz sweep replaying that exact BUG#136 shape (`id:` mutated into
+      # a route-shaped `{aggregate:, entities: [...]}` value) found what
+      # looked like a fresh divergence on `Chess::Game.Piece.Move` — Ruby
+      # refusing `UnknownArgument` before Rust's stale `extract_id`-
+      # before-argument-check ordering could refuse `TypeMismatch` — but
+      # was actually the same already-fixed bug, just never regenerated.
+      # Added here for the identical reason `corrections` was: real,
+      # committed Rust output, so it follows the same "only regenerate a
+      # domain that already has committed Rust output" rule. `chess` is
+      # slotted BEFORE `waybill`, not last, for the same reason
+      # `corrections` is (verified locally: `git diff --stat rust/` after
+      # running every line below against a clean checkout touches only
+      # `rust/src/generated/chess/{registry,merged}.rs`, nothing else).
+      # `tenant_ledger` remains excluded — its own note above still
+      # applies unchanged; embryonaut remains excluded for the separate,
+      # structural reason given above (no Bluebook source in this
+      # checkout at all).
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: |
           bundle exec bin/project_rust examples/banking
@@ -329,6 +352,7 @@ jobs:
           bundle exec bin/project_rust spec/fixtures/rust_project/has_many_fixture
           bundle exec bin/project_rust qa/stress_domains/lease_clock
           bundle exec bin/project_rust qa/stress_domains/corrections
+          bundle exec bin/project_rust examples/chess
           bundle exec bin/project_rust qa/stress_domains/waybill
           git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
 
