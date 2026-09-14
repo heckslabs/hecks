@@ -121,16 +121,6 @@ RSpec.describe "the Rust parser's own coverage", :io do
       %w[formerly_known_as Bluebook], %w[has_many Aggregate], %w[has_one Aggregate],
       %w[provenance Command], %w[reference_to Entity], %w[reference_to Query]
     ]],
-    # A parse arm exists — `parse::policy` matches `where` and `for_each`,
-    # `parse::process_manager` matches `transition` — but the Rust list does
-    # not say so: `where`/`for_each` are simply unlisted, and `transition`
-    # is listed only as `state`/`on`, words the grammar does not declare in
-    # that context (see REPORTED_UNDECLARED). The same bookkeeping gap Stage
-    # 6 closed for `list_of`/`one_of` `Type`; closing it means confirming
-    # parity and fixing `main.rs::COVERED_PAIRS`, not editing this table.
-    ["parsed, but not listed on rust/parser/src/main.rs::COVERED_PAIRS", [
-      %w[for_each Policy], %w[transition ProcessManager], %w[where Policy]
-    ]],
     # Nobody has recorded why these are unbuilt. Listing them keeps the
     # debt visible instead of absorbed; the next coverage audit either
     # builds each one or moves it under a real reason above.
@@ -143,18 +133,6 @@ RSpec.describe "the Rust parser's own coverage", :io do
   ].freeze
 
   PENDING = PENDING_PAIRS.flat_map { |_reason, pairs| pairs }.freeze
-
-  # Pairs `hecks-parse coverage` reports that the grammar does not declare
-  # live. Named so the reported set can be held to the declared one at all;
-  # each entry fails the moment the parser stops reporting it.
-  RETIRED_PROCESS_MANAGER_SPELLING =
-    "syntax.bluebook's ProcessManager rows declare `transition` (parse::process_manager's `transition` arm) " \
-    "and no `state`/`on`; main.rs::COVERED_PAIRS still lists these two instead".freeze
-
-  REPORTED_UNDECLARED = {
-    %w[on ProcessManager]    => RETIRED_PROCESS_MANAGER_SPELLING,
-    %w[state ProcessManager] => RETIRED_PROCESS_MANAGER_SPELLING
-  }.freeze
 
   it "declares at least one (word, context) pair to hold the parser to" do
     expect(DECLARED_PAIRS).not_to be_empty
@@ -183,12 +161,16 @@ RSpec.describe "the Rust parser's own coverage", :io do
     expect(stale).to be_empty, "PENDING_PAIRS names pairs syntax.bluebook no longer declares live: #{stale.inspect}"
   end
 
-  it "reports nothing the grammar does not declare, bar what is named" do
+  # The other direction of the same partition: a pair the parser reports
+  # that the grammar no longer declares live is a retired spelling still
+  # listed on main.rs::COVERED_PAIRS (ProcessManager's `state`/`on`, before
+  # `transition` replaced them, was exactly this).
+  it "reports nothing the grammar does not declare" do
     undeclared = reported_coverage - DECLARED_PAIRS
 
-    expect(undeclared.sort).to eq(REPORTED_UNDECLARED.keys.sort),
-                               "hecks-parse coverage reports pairs the grammar does not declare live " \
-                               "(REPORTED_UNDECLARED names the known ones): #{undeclared.inspect}"
+    expect(undeclared).to be_empty,
+                          "hecks-parse coverage reports pairs syntax.bluebook does not declare live — drop them " \
+                          "from rust/parser/src/main.rs::COVERED_PAIRS: #{undeclared.inspect}"
   end
 
   it "keeps the allowlist itself sorted and duplicate-free (a real, reviewable list)" do

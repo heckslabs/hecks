@@ -269,11 +269,12 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("on", "Policy"),
     ("trigger", "Policy"),
     ("across", "Policy"),                // STAGE 4
+    ("where", "Policy"),                 // chess, roster
+    ("for_each", "Policy"),              // banking
     ("correlates_by", "ProcessManager"), // STAGE 4
     ("starts_on", "ProcessManager"),     // STAGE 4
     ("ends_on", "ProcessManager"),       // STAGE 4
-    ("state", "ProcessManager"),         // STAGE 4
-    ("on", "ProcessManager"),            // STAGE 4
+    ("transition", "ProcessManager"),    // banking, settlement (was `state`/`on`)
     ("dispatch", "Handler"),             // STAGE 4
     ("port", "Hecksagon"),
     ("operation", "DomainPort"),
