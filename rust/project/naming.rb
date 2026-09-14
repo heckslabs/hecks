@@ -167,9 +167,21 @@ module RustProjection
     # ANY run of non-alphanumeric characters instead, so every character that
     # isn't a valid identifier constituent is a word boundary, not preserved
     # text.
+    #
+    # `Self` IS THE ONE CAPITALIZED RUST KEYWORD, so it is the one variant
+    # capitalizing can produce that Rust refuses — and both `self` and `Self`
+    # capitalize to it, which also collided (vocabulary.bluebook's
+    # `RustReservedWord` lists both, and `meta` stopped compiling). A member
+    # that lands on `Self` is named by its own spelling instead: `SelfType`
+    # when it was written capitalized, `SelfValue` when it wasn't. Every
+    # other member's variant is unchanged; the wire text is always the raw
+    # value, never the variant.
     def closed_set_variant(row)
       _, value = row.first
-      value.to_s.split(/[^A-Za-z0-9]+/).reject(&:empty?).map(&:capitalize).join
+      variant = value.to_s.split(/[^A-Za-z0-9]+/).reject(&:empty?).map(&:capitalize).join
+      return variant unless variant == "Self"
+
+      value.to_s.start_with?("S") ? "SelfType" : "SelfValue"
     end
 
     def screaming_snake(name)

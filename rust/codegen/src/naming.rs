@@ -136,13 +136,20 @@ pub fn rust_ident_field(name: &str) -> String {
 /// identifier — split on ANY run of non-alphanumeric characters (see
 /// naming.rb's own header on why plain `_`/whitespace splitting broke on
 /// glob-shaped members like `"*.port"`).
+///
+/// `Self` — the one capitalized Rust keyword — is renamed by spelling:
+/// `SelfType` / `SelfValue` (naming.rb's own `closed_set_variant` header).
 pub fn closed_set_variant(value: &str) -> String {
-    value
+    let variant = value
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|s| !s.is_empty())
         .map(capitalize)
         .collect::<Vec<_>>()
-        .join("")
+        .join("");
+    if variant != "Self" {
+        return variant;
+    }
+    if value.starts_with('S') { "SelfType".to_string() } else { "SelfValue".to_string() }
 }
 
 fn capitalize(word: &str) -> String {
