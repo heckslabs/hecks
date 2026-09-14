@@ -154,6 +154,23 @@ RSpec.describe "a graph assembled from declarations" do
                          "the language declares #{missing.join(', ')} and the table has no contract for it"
     end
 
+    # PARENT_POINTERS IS A LIST THAT MUST REMAIN, SO IT IS PINNED. It cannot
+    # be computed in lib without going circular — `owner` is known only by
+    # Entity's own `:parent` claim, and a `:parent` claim is what this list
+    # checks — so it is derived HERE from the two independent facts it
+    # restates, both directions: every `parent_key` `Plan` reads off the
+    # language, plus every bare word a contract claims `:parent`. A stale
+    # member (the `shape`/`handler` it carried after S17 removed both
+    # fields) or a missing one fails.
+    it "names exactly the parent pointers the language and the contracts state" do
+      structural = plan.names.filter_map { |category| plan.category(category).parent_key&.to_sym }
+      claimed    = Hecks::Bluebook::Assembly::CONTRACTS.values.flat_map do |contract|
+        contract.derived.select { |field, kind| kind == :parent && !field.to_s.end_with?("_id") }.keys
+      end
+
+      expect(Hecks::Bluebook::Assembly::PARENT_POINTERS.sort).to eq((structural + claimed).uniq.sort)
+    end
+
     # EVERY `derived:` CLAIM IS CHECKED, and this is the hole it closes.
     #
     # `derived:` used to be a list of names, which the coverage example above
@@ -184,12 +201,10 @@ RSpec.describe "a graph assembled from declarations" do
     # language declares (:parent, :children, :elsewhere, :walk, an Array
     # pair) — one place naming what each kind must justify, matching
     # `fault_in_pair`'s own `case shape` just below for the Array kind.
-    # rubocop:disable-next Metrics/CyclomaticComplexity
     def fault_in(category, contract, field, kind, keys)
       case kind
       when :parent
-        return nil if field.to_s.end_with?("_id")
-        return nil if Hecks::Bluebook::Assembly::PARENT_POINTERS.include?(field)
+        return nil if Hecks::Bluebook::Assembly.parent_pointer?(field)
 
         "no parent names it — a pointer is a *_id or one of #{Hecks::Bluebook::Assembly::PARENT_POINTERS.inspect}"
       when :children
