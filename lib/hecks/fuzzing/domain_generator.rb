@@ -424,16 +424,26 @@ module Hecks
           types = { "sequence" => "#{name}Sequence", "batch" => "#{name}Batch" }
 
           aggregate["attributes"] << { "name" => list, "type" => name, "list" => true, "requires" => ["entity:#{owner}.#{name}"] }
+          # Event names are qualified by the OWNER aggregate, not just the
+          # entity type — `ENTITY_NAMES` is a small pool (`Line`, `Stamp`)
+          # shared across every aggregate in a domain, and `extras` can pick
+          # the same entity name on a different aggregate than a form forced
+          # it onto (composite there, plain here, or vice versa). Aggregate
+          # names are always unique within one generated domain, so this is
+          # the same qualification ordinary commands already get by default
+          # (`"#{aggregate['name']}#{past(name)}"`) — without it, two
+          # aggregates can both emit a bare "LineAdded" with different
+          # shapes, which `validate_event_shapes!` correctly refuses.
           piece = { "name" => name, "identity" => parts, "requires" => [],
                     "attributes" => parts.map { |part| { "name" => part, "type" => types[part] } } +
                                     [{ "name" => "label", "type" => "#{name}Label", "optional" => true }],
                     "lifecycle" => nil,
                     "commands" => [{ "name" => "Label", "creates" => false, "references" => [],
                                      "args" => [{ "name" => "label", "type" => "#{name}Label" }], "givens" => [],
-                                     "sets" => [{ "target" => "label" }], "emits" => ["#{name}Labeled"] }] }
+                                     "sets" => [{ "target" => "label" }], "emits" => ["#{owner}#{name}Labeled"] }] }
           if lifecycle || chance?(0.2)
             piece["commands"] << { "name" => "Settle", "creates" => false, "references" => [], "args" => [], "givens" => [],
-                                   "sets" => [], "emits" => ["#{name}Settled"] }
+                                   "sets" => [], "emits" => ["#{owner}#{name}Settled"] }
             piece["lifecycle"] = { "field" => "state", "default" => "pending",
                                    "transitions" => [{ "command" => "Settle", "to" => "settled", "from" => ["pending"],
                                                        "requires" => ["command:#{owner}.#{name}.Settle"] }] }
@@ -443,7 +453,7 @@ module Hecks
                   args:  parts.map { |part| { "name" => part, "type" => types[part] } },
                   sets:  [{ "target" => list, "append" => parts.to_h { |part| [part, part] },
                            "requires" => ["attribute:#{owner}.#{list}", "entity:#{owner}.#{name}"] }],
-                  emits: ["#{name}Added"])
+                  emits: ["#{owner}#{name}Added"])
         end
 
         def lifecycle(aggregate)

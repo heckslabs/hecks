@@ -49,6 +49,34 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
     end
   end
 
+  # Regression for the generator finding hecks_qa's stress-domain sweep hit
+  # at seed 357307 (`has_query` + `composite_piece`): `extras` can pick the
+  # same entity name (`ENTITY_NAMES` is a small pool shared by every
+  # aggregate) on a different aggregate than a form forced it onto, one
+  # composite and one not — and an unqualified "LineAdded" collided across
+  # aggregates with different shapes, which `validate_event_shapes!`
+  # correctly refused. Every event name a generated domain can emit must be
+  # unique to its shape, the same way `Hecks::Fuzzing::GeneratedDomainCheck`
+  # actually boots one: an event name reused with a different shape is a
+  # generator defect, never a legitimate finding.
+  it "never lets two aggregates emit the same event name with a different shape" do
+    (1..3000).each do |seed|
+      blueprint = described_class.generate(seed: seed)
+      shapes_by_event = Hash.new { |hash, key| hash[key] = [] }
+
+      commands_of = ->(owner) { owner["commands"] + owner.fetch("entities", []).flat_map { |entity| entity["commands"] } }
+      blueprint["aggregates"].each do |aggregate|
+        commands_of.call(aggregate).each do |command|
+          shape = command["args"].map { |arg| [arg["name"], arg["type"]] }
+          command["emits"].each { |event| shapes_by_event[event] << shape }
+        end
+      end
+
+      colliding = shapes_by_event.select { |_event, shapes| shapes.uniq.size > 1 }
+      expect(colliding).to be_empty, "seed #{seed}: #{colliding.keys.join(', ')} emitted with more than one shape"
+    end
+  end
+
   describe "domain-level shrinking" do
     let(:blueprint) { described_class.generate(seed: 2, forms: %w[multi_hop_where closed_set]) }
 
