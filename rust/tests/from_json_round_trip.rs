@@ -28,7 +28,7 @@ fn register_customer(store: &mut Store, reference: &str) {
         ("email", Json::obj(vec![("address", Json::str("ada@example.com"))])),
     ]);
     let mut mutations: Vec<MutationRecord> = Vec::new();
-    dispatch_by_name(store, "Banking::Customer.Register", &args, None, &mut mutations)
+    dispatch_by_name(store, "Banking::Customer.Register", &args, None, None, &mut mutations)
         .expect("registering a fresh customer should succeed");
 }
 
@@ -65,7 +65,7 @@ fn an_unset_optional_field_round_trips_as_none_not_a_refusal() {
         ("daily_limit", Json::obj(vec![("cents", Json::int(50000))])),
     ]);
     let mut mutations: Vec<MutationRecord> = Vec::new();
-    dispatch_by_name(&mut store, "Banking::Account.Open", &args, None, &mut mutations)
+    dispatch_by_name(&mut store, "Banking::Account.Open", &args, None, None, &mut mutations)
         .expect("opening a fresh account should succeed");
 
     let original = store.account.find("acct-rt-1").expect("just-opened account should be findable");
@@ -95,7 +95,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
         ("size", Json::obj(vec![("value", Json::str("medium"))])),
     ]);
     let mut mutations: Vec<MutationRecord> = Vec::new();
-    dispatch_by_name(&mut store, "Banking::SafeDepositBox.Rent", &rent_args, None, &mut mutations)
+    dispatch_by_name(&mut store, "Banking::SafeDepositBox.Rent", &rent_args, None, None, &mut mutations)
         .expect("renting a fresh box should succeed");
 
     let visit_with_note = Json::obj(vec![
@@ -105,7 +105,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
         ("sequence", Json::obj(vec![("value", Json::int(1))])),
         ("note", Json::obj(vec![("text", Json::str("routine"))])),
     ]);
-    dispatch_by_name(&mut store, "Banking::SafeDepositBox.LogVisit", &visit_with_note, None, &mut mutations)
+    dispatch_by_name(&mut store, "Banking::SafeDepositBox.LogVisit", &visit_with_note, None, None, &mut mutations)
         .expect("logging a visit with a note should succeed");
 
     // note LEFT UNSET — the entity-level version of the same proof
@@ -116,7 +116,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
         ("date", Json::obj(vec![("value", Json::str("2026-08-08"))])),
         ("sequence", Json::obj(vec![("value", Json::int(2))])),
     ]);
-    dispatch_by_name(&mut store, "Banking::SafeDepositBox.LogVisit", &visit_without_note, None, &mut mutations)
+    dispatch_by_name(&mut store, "Banking::SafeDepositBox.LogVisit", &visit_without_note, None, None, &mut mutations)
         .expect("logging a visit without a note should succeed");
 
     let original = store.safedepositbox.find("downtown:12").expect("just-rented box should be findable");
@@ -146,7 +146,7 @@ fn a_seeded_store_matches_the_store_it_was_seeded_from() {
         ("daily_limit", Json::obj(vec![("cents", Json::int(10000))])),
     ]);
     let mut mutations: Vec<MutationRecord> = Vec::new();
-    dispatch_by_name(&mut original_store, "Banking::Account.Open", &open_args, None, &mut mutations)
+    dispatch_by_name(&mut original_store, "Banking::Account.Open", &open_args, None, None, &mut mutations)
         .expect("opening a fresh account should succeed");
 
     let dump = Json::Object(original_store.instances());
@@ -169,6 +169,6 @@ fn a_seeded_store_matches_the_store_it_was_seeded_from() {
     ]);
     let mut seeded_store = seeded_store;
     let outcome: Result<_, Refusal> =
-        dispatch_by_name(&mut seeded_store, "Banking::Account.Credit", &credit_args, None, &mut mutations);
+        dispatch_by_name(&mut seeded_store, "Banking::Account.Credit", &credit_args, None, None, &mut mutations);
     assert!(outcome.is_ok(), "a command against seeded state should dispatch normally: {outcome:?}");
 }
