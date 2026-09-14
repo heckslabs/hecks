@@ -78,30 +78,52 @@ module Hecks
                            :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows,
                            :correction_bindings, :invocation)
 
-      # A dotted entity verb resolved against its aggregate — see #resolve.
-      Resolution = Data.define(:entity_names, :chain, :command_name, :command)
+      # A DOTTED ENTITY VERB RESOLVED against its aggregate. `Resolution.of`
+      # lives here rather than as a second public verb on the interpreter
+      # (spec/runtime/command_rules_spec.rb holds each interpreter to one),
+      # so `Dispatcher` can resolve it at the point `Invocation.from_call`
+      # reads the declaring command — after `to:` is parsed, before the
+      # facts are.
+      Resolution = Data.define(:entity_names, :chain, :command_name, :command) do
+        # Refuses UnknownVerb for an unknown entity or command.
+        def self.of(aggregate, dotted)
+          *entity_names, command_name = dotted.to_s.split(".")
+          if entity_names.empty?
+            raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
+                                                     aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
+          end
+
+          chain = walk(aggregate, entity_names)
+          command = chain.last.command(command_name) ||
+                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
+                                                             entity: chain.last.hecks_name, command: command_name.inspect))
+          new(entity_names: entity_names, chain: chain, command_name: command_name, command: command)
+        end
+
+        # ONE HOP PER DOTTED SEGMENT — `ProcessManager.Handler.Dispatch.Bind`
+        # (once the dispatcher has already stripped "Domain::Aggregate.")
+        # walks Handler off the aggregate, then Dispatch off Handler, each
+        # step reading `.entities` exactly the way the single-level case
+        # always did — a nested entity is "structurally interchangeable
+        # with an aggregate" (Entity's own header) for precisely this
+        # reason. Two levels is what Handler/Dispatch need today ; nothing
+        # here assumes it stops at two.
+        def self.walk(aggregate, entity_names)
+          owner = aggregate
+          entity_names.map do |name|
+            found = owner.entities.find { |piece| piece.hecks_name == name } ||
+                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
+                                                             aggregate: owner.hecks_name, entity: name.inspect))
+            owner = found
+            found
+          end
+        end
+        private_class_method :walk
+      end
 
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
-      end
-
-      # WALKS THE DOTTED VERB to its entity command, refusing UnknownVerb for
-      # an unknown entity or command. Separate from #call so `Dispatcher` can
-      # resolve it at the point `Invocation.from_call` reads the declaring
-      # command — after `to:` is parsed, before the facts are.
-      def resolve(aggregate, dotted)
-        *entity_names, command_name = dotted.to_s.split(".")
-        if entity_names.empty?
-          raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                   aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
-        end
-
-        chain = walk_entity_chain(aggregate, entity_names)
-        command = chain.last.command(command_name) ||
-                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
-                                                           entity: chain.last.hecks_name, command: command_name.inspect))
-        Resolution.new(entity_names: entity_names, chain: chain, command_name: command_name, command: command)
       end
 
       # `dry_run:` — CommandInterpreter#call's own twin, see that method's
@@ -152,25 +174,6 @@ module Hecks
       end
 
       private
-
-      # ONE HOP PER DOTTED SEGMENT — `ProcessManager.Handler.Dispatch.Bind`
-      # (once the dispatcher has already stripped "Domain::Aggregate.")
-      # walks Handler off the aggregate, then Dispatch off Handler, each
-      # step reading `.entities` exactly the way the single-level case
-      # always did — a nested entity is "structurally interchangeable
-      # with an aggregate" (Entity's own header) for precisely this
-      # reason. Two levels is what Handler/Dispatch need today ; nothing
-      # here assumes it stops at two.
-      def walk_entity_chain(aggregate, entity_names)
-        owner = aggregate
-        entity_names.map do |name|
-          found = owner.entities.find { |piece| piece.hecks_name == name } ||
-                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                           aggregate: owner.hecks_name, entity: name.inspect))
-          owner = found
-          found
-        end
-      end
 
       # A NO-OP, AND UNTRACED — Vocabulary::EntityDispatchOrder's
       # decode_arguments. See CommandInterpreter#step_decode_arguments.

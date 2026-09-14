@@ -108,7 +108,7 @@ module Hecks
               resolution = nil
               invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args,
                                                       receiver: :entity, entity_depth: command_name.count(".")) do
-                (resolution = @entities.resolve(aggregate, command_name)).command
+                (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
               end
               @entities.call(domain, aggregate, resolution, invocation)
             end
@@ -190,7 +190,7 @@ module Hecks
           # either is an ordinary fact here (BUG#131), so both go in as nil.
           resolution = nil
           invocation = Invocation.from_call(verb, to: nil, with: nil, legacy: args, receiver: :entity) do
-            (resolution = @entities.resolve(aggregate, command_name)).command
+            (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
           end
           @entities.call(domain, aggregate, resolution, invocation, dry_run: true)
         else
