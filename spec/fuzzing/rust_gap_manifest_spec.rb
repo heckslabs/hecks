@@ -52,11 +52,17 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
   end
 
   describe ".for_binary" do
+    # A synthetic crate, not a real domain's: every in-repo gap this example
+    # used to sample has since been generated, and a fixture that tracks
+    # real gaps goes stale each time one closes.
     it "reads the rust dir and feature off a pinned conformance binary path" do
-      gaps = described_class.for_binary(File.join(GAP_RUST_DIR, "target/debug/rust-banking"))
-      expect(gaps.feature).to eq("banking")
-      expect(gaps.not_generated("Banking::Account.LedgerEntry.Reversed"))
-        .to include("gap_class" => "whole_kind", "construct" => "entity_query")
+      Dir.mktmpdir do |root|
+        write_module(root, "shop", [gap("query", "Shop::Order.LineItem.Recent", "entity_query")])
+        gaps = described_class.for_binary(File.join(root, "target/debug/rust-shop"))
+
+        expect(gaps.feature).to eq("shop")
+        expect(gaps.not_generated("Shop::Order.LineItem.Recent")).to include("construct" => "entity_query")
+      end
     end
 
     it "refuses a path that isn't a pinned binary rather than guess a manifest" do
