@@ -65,12 +65,25 @@ module Hecks
 
       attr_reader(*EXPECTED_TYPES.keys)
 
+      # THE REAL FILE, ALWAYS — resolved off THIS file's own `__dir__`
+      # (lib/hecks/fuzzing/), never off the caller's. `QualityControlDials`
+      # is defined inside `qa/bluebook/quality_control.bluebook`, and that
+      # exact directory gets COPIED to a tmpdir for every isolated/replayed
+      # boot (`Hecks::Fuzzing::IsolatedBoot#copy_dereferencing` copies only
+      # `qa/bluebook`'s own contents, never its parent `qa/`) — a path
+      # resolved from the bluebook's own `__dir__` would silently point at
+      # a copy with no `settings.yml` beside it at all. `qa/settings.yml`
+      # is read-only, human-edited data with no lifecycle (see this class's
+      # own header) — there is no isolation reason to ever read a COPY of
+      # it, real boot or fuzzed one, so every caller gets the one real file
+      # by default. `qa_settings_spec.rb` passes its own fixture paths
+      # explicitly instead, the same way every other test in this practice
+      # that needs a non-default dial passes one in rather than mutating
+      # global state.
+      DEFAULT_PATH = File.expand_path("../../../qa/settings.yml", __dir__)
+
       class << self
-        # `path` is resolved by the CALLER (the bluebook, via `__dir__`)
-        # — this class never guesses a working directory, the same
-        # discipline `bin/qa_sweep`'s own `ROOT`-relative paths already
-        # keep.
-        def load(path)
+        def load(path = DEFAULT_PATH)
           raise ArgumentError, "qa settings file not found: #{path}" unless File.file?(path)
 
           raw = begin

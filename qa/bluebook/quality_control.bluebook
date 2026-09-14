@@ -78,7 +78,18 @@
 # second-and-later load a no-op instead of a warning generator — which
 # also means `settings.yml` itself is parsed and validated exactly once
 # per boot, not once per dial and not once per reload.
-require_relative "../../lib/hecks/fuzzing/qa_settings"
+#
+# A PLAIN `require`, NOT `require_relative` — THIS FILE ITSELF GETS
+# COPIED. Every fuzz/replay boot (`Hecks::Fuzzing::IsolatedBoot`) copies
+# `qa/bluebook`'s own contents to a tmpdir and `Kernel.load`s the COPY,
+# so a `require_relative` here would resolve against THAT copy's own
+# location — which has no `lib/` beside it at all, only whatever
+# `qa/bluebook` itself contained. `require "hecks/fuzzing/qa_settings"`
+# resolves off `$LOAD_PATH` instead, set up once for the whole process
+# by whatever booted first (`bin/run`, `bin/qa_sweep`, `spec_helper`),
+# so it finds the one real file regardless of where THIS file is
+# currently being read from. Idempotent either way, like every `require`.
+require "hecks/fuzzing/qa_settings"
 
 unless defined?(QualityControlDials)
   module QualityControlDials
@@ -87,7 +98,13 @@ unless defined?(QualityControlDials)
     # existing `QualityControlDials::X` callsite in this repository keeps
     # reading exactly as it always did. `QaSettings.load` is what refuses
     # a missing, extra, or malformed key (see that class's own header).
-    settings = Hecks::Fuzzing::QaSettings.load(File.expand_path("../settings.yml", __dir__))
+    # NO PATH ARGUMENT, ON PURPOSE — `QaSettings::DEFAULT_PATH` resolves
+    # off ITS OWN file location, never off this bluebook's `__dir__`,
+    # because THIS directory gets copied to a tmpdir for every isolated
+    # fuzz/replay boot while `settings.yml` (a sibling one level up) does
+    # not — see `QaSettings::DEFAULT_PATH`'s own comment for the failure
+    # that would otherwise be.
+    settings = Hecks::Fuzzing::QaSettings.load
 
     # HOW LONG `hecks_qa`'s OWN LOOP WAITS AFTER A TICK CONCLUDES BEFORE
     # STARTING THE NEXT ONE. Zero means immediately: the loop restarts the
