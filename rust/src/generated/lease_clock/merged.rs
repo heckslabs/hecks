@@ -323,6 +323,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("held") },
         crate::kernel::QueryCondition { field: "expires_at.value", comparator: crate::kernel::query_comparators::QueryComparator::Lte, value: crate::kernel::QueryConditionValue::Arg("now") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "key", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,

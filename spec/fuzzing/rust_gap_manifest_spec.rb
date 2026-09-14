@@ -55,8 +55,8 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
     it "reads the rust dir and feature off a pinned conformance binary path" do
       gaps = described_class.for_binary(File.join(GAP_RUST_DIR, "target/debug/rust-banking"))
       expect(gaps.feature).to eq("banking")
-      expect(gaps.not_generated("Banking::Account.OpenForSuspendedCustomers"))
-        .to include("gap_class" => "per_instance", "construct" => "reference_hop_where")
+      expect(gaps.not_generated("Banking::Account.LedgerEntry.Reversed"))
+        .to include("gap_class" => "whole_kind", "construct" => "entity_query")
     end
 
     it "refuses a path that isn't a pinned binary rather than guess a manifest" do

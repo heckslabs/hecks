@@ -2365,6 +2365,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -2375,6 +2378,9 @@ crate::kernel::QueryDef {
     aggregate: "Bluebook::Bluebook",
     conditions: &[
         crate::kernel::QueryCondition { field: "name", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("name") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: None,
     offset: None,
@@ -2387,6 +2393,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -2397,6 +2406,9 @@ crate::kernel::QueryDef {
     aggregate: "Bluebook::Entity",
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -2409,6 +2421,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -2419,6 +2434,9 @@ crate::kernel::QueryDef {
     aggregate: "Bluebook::ProcessManager",
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -2431,6 +2449,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -2442,6 +2463,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -2452,6 +2476,9 @@ crate::kernel::QueryDef {
     aggregate: "Bluebook::ValueObject",
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
