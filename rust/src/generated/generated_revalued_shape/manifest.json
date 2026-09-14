@@ -18,6 +18,12 @@
   },
   {
     "kind": "command",
+    "id": "GeneratedRevaluedShape::Hangar.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "GeneratedRevaluedShape::Hangar.Reopen",
     "generated": true,
     "routed": true

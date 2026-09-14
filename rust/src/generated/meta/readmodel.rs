@@ -761,6 +761,200 @@ fn readmodel_invariants() -> crate::kernel::InvariantSet {
     }
 }
 
+impl crate::kernel::Fielded for DeclareArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "bluebook" => Some(Field::Value(Value::Str(self.bluebook.clone()))),
+            "name" => Some(Field::Nested(&self.name)),
+            "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "query_name" => Some(Field::Nested(&self.query_name)),
+            "reference_name" => self.reference_name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "reference_target" => self.reference_target.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DeclareArgs {
+    pub bluebook: String,
+    pub name: ReadModelName,
+    pub description: Option<ProjectionPurpose>,
+    pub query_name: ReadModelText,
+    pub reference_name: Option<ReadModelText>,
+    pub reference_target: Option<ReadModelText>,
+    pub position: Option<Position>,
+}
+
+pub fn dispatch_declare(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        args.name.check_invariants()?;
+        if let Some(v) = &args.description { v.check_invariants()?; }
+        args.query_name.check_invariants()?;
+        if let Some(v) = &args.reference_name { v.check_invariants()?; }
+        if let Some(v) = &args.reference_target { v.check_invariants()?; }
+        if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string());
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Declare routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
+        crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| ReadModel {
+            bluebook: Some(args.bluebook.clone()),
+            name: Some(args.name.clone()),
+            description: args.description.clone(),
+            query_name: Some(args.query_name.clone()),
+            reference_name: args.reference_name.clone(),
+            reference_target: args.reference_target.clone(),
+            aggregate_heads: vec![],
+            options: vec![],
+            group_by: vec![],
+            count: None,
+            median_field: None,
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| ReadModel {
+            bluebook: Some(args.bluebook.clone()),
+            name: Some(args.name.clone()),
+            description: args.description.clone(),
+            query_name: Some(args.query_name.clone()),
+            reference_name: args.reference_name.clone(),
+            reference_target: args.reference_target.clone(),
+            aggregate_heads: vec![],
+            options: vec![],
+            group_by: vec![],
+            count: None,
+            median_field: None,
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    } }
+    },
+        "Declare",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.bluebook = Some(args.bluebook.clone());
+        record.name = Some(args.name.clone());
+        record.description = args.description.clone();
+        record.query_name = Some(args.query_name.clone());
+        record.reference_name = args.reference_name.clone();
+        record.reference_target = args.reference_target.clone();
+        record.position = args.position.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &readmodel_invariants(),
+        &["ProjectionDeclared"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("bluebook".to_string(), crate::kernel::Json::Str(self.bluebook.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("query_name".to_string(), self.query_name.to_json()),
+        ("reference_name".to_string(), self.reference_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("reference_target".to_string(), self.reference_target.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["bluebook", "name", "description", "query_name", "reference_name", "reference_target", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Declare does not declare {} — it takes bluebook, name, description, query_name, reference_name, reference_target, position",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["bluebook", "name", "query_name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Declare"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "bluebook, name, description, query_name, reference_name, reference_target, position"),
+    ])));
+}
+        let bluebook = { let x = v.get("bluebook").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs.bluebook expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()) })? };
+        let name = ReadModelName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects ReadModelName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let description = match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ProjectionPurpose::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &description { v.check_invariants()?; }
+        let query_name = ReadModelText::from_json(&(match v.get("query_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.query_name expects ReadModelText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        query_name.check_invariants()?;
+        let reference_name = match v.get("reference_name") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &reference_name { v.check_invariants()?; }
+        let reference_target = match v.get("reference_target") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &reference_target { v.check_invariants()?; }
+        let position = match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &position { v.check_invariants()?; }
+        Ok(Self {
+        bluebook,
+        name,
+        description,
+        query_name,
+        reference_name,
+        reference_target,
+        position,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for GatherArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;

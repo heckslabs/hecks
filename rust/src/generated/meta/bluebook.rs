@@ -981,6 +981,178 @@ fn bluebook_invariants() -> crate::kernel::InvariantSet {
     }
 }
 
+impl crate::kernel::Fielded for DeclareArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "name" => Some(Field::Nested(&self.name)),
+            "vision" => self.vision.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "classification" => self.classification.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "version" => self.version.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "formerly_known_as" => self.formerly_known_as.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DeclareArgs {
+    pub name: BluebookName,
+    pub vision: Option<Vision>,
+    pub classification: Option<Classification>,
+    pub version: Option<Version>,
+    pub formerly_known_as: Option<FormerlyKnownAs>,
+}
+
+pub fn dispatch_declare(
+    repo: &mut impl crate::kernel::Repository<Bluebook>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Bluebook> {
+        args.name.check_invariants()?;
+        if let Some(v) = &args.vision { v.check_invariants()?; }
+        if let Some(v) = &args.classification { v.check_invariants()?; }
+        if let Some(v) = &args.version { v.check_invariants()?; }
+        if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, BLUEBOOK_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.name.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Declare routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
+        crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Bluebook {
+            name: Some(args.name.clone()),
+            vision: args.vision.clone(),
+            classification: args.classification.clone(),
+            version: args.version.clone(),
+            formerly_known_as: args.formerly_known_as.clone(),
+            normalisations: vec![],
+            attaches_to: vec![],
+            provides: vec![],
+        }),
+        state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.name.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Bluebook {
+            name: Some(args.name.clone()),
+            vision: args.vision.clone(),
+            classification: args.classification.clone(),
+            version: args.version.clone(),
+            formerly_known_as: args.formerly_known_as.clone(),
+            normalisations: vec![],
+            attaches_to: vec![],
+            provides: vec![],
+        }),
+        state_independent: true,
+    } }
+    },
+        "Declare",
+        "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.name = Some(args.name.clone());
+        record.vision = args.vision.clone();
+        record.classification = args.classification.clone();
+        record.version = args.version.clone();
+        record.formerly_known_as = args.formerly_known_as.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &bluebook_invariants(),
+        &["ChapterDeclared"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),
+        ("vision".to_string(), self.vision.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("classification".to_string(), self.classification.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("formerly_known_as".to_string(), self.formerly_known_as.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "vision", "classification", "version", "formerly_known_as", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Declare does not declare {} — it takes name, vision, classification, version, formerly_known_as",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Declare"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name, vision, classification, version, formerly_known_as"),
+    ])));
+}
+        let name = BluebookName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects BluebookName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let vision = match v.get("vision") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Vision::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &vision { v.check_invariants()?; }
+        let classification = match v.get("classification") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Classification::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &classification { v.check_invariants()?; }
+        let version = match v.get("version") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &version { v.check_invariants()?; }
+        let formerly_known_as = match v.get("formerly_known_as") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &formerly_known_as { v.check_invariants()?; }
+        Ok(Self {
+        name,
+        vision,
+        classification,
+        version,
+        formerly_known_as,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for AttachArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;

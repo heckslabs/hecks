@@ -5,6 +5,7 @@
   ],
   "canonical": "middle_name.presence",
   "ruby_only": true,
+  "ruby_only_reason": "catalogued as KNOWN GAP G11 (docs/semantics/bluebook-grammar.md: hecks-parse had no production for Presence (`.presence`)), but verified 2026-09-14 that hecks-parse now parses it to Ruby's exact tree — the ruby_only report in spec/grammar_corpus_spec.rb says NOW MATCHES. The flag and the G11 entry are owed a follow-up that removes both.",
   "note": "KNOWN GAP (G11): same shape as matches_regex_gap — Presence{receiver} has no hecks-parse production, falls to Lookup.",
   "expect_ast": {
     "op": "lookup",

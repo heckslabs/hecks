@@ -133,6 +133,18 @@ module Hecks
       ROUTES.find { |route| route.pattern.match?(relative_path) }
     end
 
+    # WHAT bin/model_check AND spec/model_check_spec.rb WALK — every kind,
+    # less the language (examined as one judged chapter, not file by file)
+    # and deploy chapters (the SAM projector's own inputs), and less any
+    # member a ROUTE already sends to a destination of its own: the
+    # broken-on-purpose model_check fixtures must produce their findings
+    # THERE, so a clean-corpus gate here would be the wrong check for them.
+    MODEL_CHECK_KINDS = %i[example grammar framework qa stress fixture].freeze
+
+    def model_check_members(root: ROOT)
+      members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
+    end
+
     # EVERY BOOTABLE DOMAIN IN THE PROJECT, not a hand-kept list — any
     # directory holding a `.bluebook` no ROUTE sends elsewhere, a
     # `bluebook/` folder standing for the domain directory around it.
@@ -195,10 +207,7 @@ module Hecks
     # GAP for. `bin/corpus --rust-coverage` requires each of these to
     # still FAIL, so an entry that starts passing breaks the build until
     # it is deleted here.
-    RUST_COVERAGE_PENDING = {
-      "corrections" => "read_model FlaggedTrailCount declares reference_to without including its aggregate head; " \
-                       "rust/project/read_models.rb refuses a root-less per-instance read model that Ruby accepts"
-    }.freeze
+    RUST_COVERAGE_PENDING = {}.freeze
 
     def cargo_features_table(root: ROOT)
       File.read(File.join(root, "rust/Cargo.toml"))[Fuzzing::TargetCapabilities::FEATURES_TABLE] || ""

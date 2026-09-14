@@ -36,10 +36,17 @@ pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<St
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     let reference_target = read_model.get("reference_target").map(Json::to_s).unwrap_or_default();
     let root = heads.iter().find(|h| h.get("aggregate").map(Json::to_s).unwrap_or_default() == reference_target);
-    if root.is_none() {
+    // Rootless (no `reference_to`) is generated — `read_models.rb`'s own
+    // comment on this check.
+    if root.is_none() && !reference_target.is_empty() {
         return Some(format!(
-            "declares reference_to {reference_target}, but includes no matching aggregate head — nothing for this generator's own root fetch to key off (every real corpus read model includes its own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)"
+            "declares reference_to {reference_target}, but includes no matching aggregate head — nothing for this generator's own root fetch to key off"
         ));
+    }
+
+    let root_name = root.and_then(|h| h.get("aggregate")).map(Json::to_s).unwrap_or_default();
+    if !aggregates_by_name.contains_key(&root_name) && nested_entity_names(aggregates_by_name).contains(&root_name) {
+        return Some(entity_head_skip_reason(&root_name, "root", "fetch by id"));
     }
 
     for head in heads {
@@ -111,7 +118,9 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     let head = heads.iter().find(|h| h.get("as").map(Json::to_s).unwrap_or_default() == eligible_as)?;
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
-    let aggregate = aggregates_by_name.get(&aggregate_name)?;
+    let Some(aggregate) = aggregates_by_name.get(&aggregate_name) else {
+        return Some(entity_head_skip_reason(&aggregate_name, "filtered head", "filter, order or authorize"));
+    };
     let vos = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
     let value_objects_by_name: HashMap<String, &Json> = vos.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
 
@@ -151,7 +160,9 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     let target = heads.iter().find(|h| h.get("many").map(Json::as_bool).unwrap_or(false))?;
     let aggregate_name = target.get("aggregate").map(Json::to_s).unwrap_or_default();
-    let aggregate = aggregates_by_name.get(&aggregate_name)?;
+    let Some(aggregate) = aggregates_by_name.get(&aggregate_name) else {
+        return Some(entity_head_skip_reason(&aggregate_name, "median target", "take a median of"));
+    };
     let vos = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
     let value_objects_by_name: HashMap<String, &Json> = vos.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
 
@@ -193,7 +204,9 @@ fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, 
     }
 
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
-    let aggregate = aggregates_by_name[&aggregate_name];
+    let Some(aggregate) = aggregates_by_name.get(&aggregate_name) else {
+        return Some(entity_head_skip_reason(&aggregate_name, "group_by head", "group"));
+    };
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
     for row in read_model.get("group_by").map(Json::each).unwrap_or(&[]) {
@@ -207,9 +220,36 @@ fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, 
     None
 }
 
+/// Port of `read_models.rb#nested_entity_names` — every entity name nested
+/// at any depth under a declared aggregate (that file's own header on why
+/// an `include` naming one is generated).
+fn nested_entity_names(aggregates_by_name: &HashMap<String, &Json>) -> Vec<String> {
+    fn collect(owner: &Json, out: &mut Vec<String>) {
+        for entity in owner.get("entities").map(Json::each).unwrap_or(&[]) {
+            out.push(entity.get("name").map(Json::to_s).unwrap_or_default());
+            collect(entity, out);
+        }
+    }
+    let mut out = Vec::new();
+    for aggregate in aggregates_by_name.values() {
+        collect(aggregate, &mut out);
+    }
+    out
+}
+
+/// Port of `read_models.rb#entity_head_skip_reason`.
+fn entity_head_skip_reason(aggregate_name: &str, role: &str, purpose: &str) -> String {
+    format!(
+        "includes {aggregate_name}, a nested entity, as the {role} — an entity has no rows of its own (ReadModelInterpreter#records reads it as empty), so there is nothing to {purpose} — not generated yet"
+    )
+}
+
 fn read_model_head_skip_reason(head: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<String> {
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
     if !aggregates_by_name.contains_key(&aggregate_name) {
+        if nested_entity_names(aggregates_by_name).contains(&aggregate_name) {
+            return None;
+        }
         return Some(format!("includes {aggregate_name}, which this domain never declares"));
     }
     if unsupported_names.contains(&aggregate_name) {

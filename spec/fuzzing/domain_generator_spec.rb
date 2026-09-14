@@ -106,6 +106,19 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
         .not_to include(a_string_starting_with("ThroughOpen"))
     end
 
+    # qa/stress_domains/generated_revalued_shape was promoted with
+    # `Reopen from closed` and no `Close`: the removal dropped Close's
+    # transition, and pruning only asked whether Reopen's COMMAND still
+    # existed, never whether its from-state could still be reached.
+    it "drops a transition whose from-state a removal left unreachable" do
+      lifecycled = described_class.generate(seed: 0, forms: %w[lifecycle closed_set])
+      close = lifecycled["aggregates"].first["commands"].index { |command| command["name"] == "Close" }
+      pruned = described_class.prune(described_class.remove_at(lifecycled, ["aggregates", 0, "commands", close]))
+
+      transitions = pruned["aggregates"].first.dig("lifecycle", "transitions") || []
+      expect(transitions.map { |transition| transition["command"] }).not_to include("Reopen")
+    end
+
     it "shrinks greedily to what a finding needs and no further" do
       needs_hop_query = lambda do |candidate|
         candidate["aggregates"].first["queries"].any? { |query| query["name"].start_with?("ThroughOpen") }

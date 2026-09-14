@@ -37,6 +37,16 @@ generated domain that surprised; `QaGenerated` was renamed to
         "default": "open",
         "transitions": [
           {
+            "command": "Close",
+            "to": "closed",
+            "from": [
+              "open"
+            ],
+            "requires": [
+              "command:Hangar.Close"
+            ]
+          },
+          {
             "command": "Reopen",
             "to": "open",
             "from": [
@@ -110,6 +120,25 @@ generated domain that surprised; `QaGenerated` was renamed to
           ],
           "emits": [
             "HangarRepointed"
+          ]
+        },
+        {
+          "name": "Close",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "HangarClosed"
           ]
         },
         {

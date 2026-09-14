@@ -9,6 +9,7 @@ if ENV["COVERAGE"]
 end
 
 require "hecks"
+require_relative "support/ci_skip_backstop"
 
 module InMemoryDomain
   ROOT             = File.expand_path("..", __dir__)
@@ -111,4 +112,9 @@ RSpec.configure do |config|
   # CI. Run on demand with `bundle exec rspec spec/fuzzing --tag fuzzing`.
   config.define_derived_metadata(file_path: %r{/spec/fuzzing/}) { |metadata| metadata[:fuzzing] = true }
   config.filter_run_excluding fuzzing: true unless ENV["CI"]
+
+  # Under CI, an example that ends skipped fails the run unless
+  # spec/support/ci_skip_backstop.rb accounts for its reason — see that
+  # file. Locally (no CI) skips stay skips.
+  CiSkipBackstop.install(config)
 end

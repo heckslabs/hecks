@@ -149,6 +149,7 @@ if !absent.is_empty() {
               let args = crate::generated::has_many_fixture::circle::AdmitArgs::from_json(facts_json)?;
                       for item in &args.members { item.check_invariants()?; }
               crate::kernel::check_role(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES)?;
+              for item in &args.members { crate::kernel::check_reference(&store.member, &item.value, "Member", "handle")?; }
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "HasManyFixture::Circle", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

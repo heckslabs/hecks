@@ -80,6 +80,11 @@ Hecks.bluebook "HopChain" do
       emits "Sent"
     end
 
+    command "Accept" do
+      reference_to Proposal
+      emits "Accepted"
+    end
+
     query "AwaitingReplyFromActiveClients" do
       where status: "sent"
       where :"engagement/client/status" => "active"

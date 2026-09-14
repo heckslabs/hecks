@@ -1,6 +1,7 @@
 {
   "domain": "spec/corpus/semantics/domains/meter",
   "ruby_only": true,
+  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/meter has no `meter` feature in rust/Cargo.toml, so bin/project_rust has never generated it (marked ruby_only when the domain was added, #472). #472 says both Rust generators bind `let pre = record.clone()` for state sources (C4.2); unverified end to end.",
   "spec": [
     "C4.2"
   ],
