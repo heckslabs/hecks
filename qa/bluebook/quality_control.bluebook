@@ -1816,6 +1816,25 @@ Hecks.bluebook "QualityControl" do
       order_by :sequence
     end
 
+    # THE OTHER SIDE OF `Untriaged`. That query is every live bug nobody has
+    # judged YET; this is every open bug someone already judged too big to
+    # fix on the spot — the pile still owed the bigger call, not a fresh
+    # triage. Before this existed, getting this answer meant dispatching
+    # `bug.all` (every bug ever logged) and filtering client-side for
+    # `disposition.value == "bigger"` and status not `verified`/`withdrawn`
+    # — wasteful, and error-prone the moment a new status is added and the
+    # client-side filter is not updated to match. `fixed` counts as still
+    # owed here on purpose: a fix landing does not retroactively answer
+    # the bigger judgment call that was made about it, and the bug is not
+    # RESOLVED (this query's own opposite) until `Verify` or `Withdraw`
+    # says so.
+    query "NeedsJudgment" do
+      description "Open bugs triaged bigger and not yet resolved — the pile still owed a human or agent judgment call, not one anybody can just fix off the queue."
+      where(:"disposition.value" => "bigger")
+      where(status: { in: "logged,investigating,fixed,paused" })
+      order_by :sequence
+    end
+
     # THE OTHER WAY TO GET WORK. Sweeping finds new bugs; this is the pile of
     # ones already found and not yet in anybody's hands, oldest first — which
     # is what an agent that is not sweeping picks from.
