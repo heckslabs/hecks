@@ -3,6 +3,12 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
+# DEPRECATED (ADR 0054a, B3): `bin/project_rust` no longer reaches this
+# file — its default is `hecks-build`, and `HECKS_PARSER`/`HECKS_CODEGEN`
+# are no-ops. Kept only as `spec/hecks_build_pipeline_spec.rb`'s reference
+# for the Ruby-free parse path; deleted in B5. The header below describes
+# how it was selected before B3.
+#
 # STAGE 8 (`/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`)
 # — the OPT-IN, all-Rust equivalent of `bin/project_rust`'s own default
 # body: `hecks-parse resolve`/`hecks-parse chapter` for parsing,

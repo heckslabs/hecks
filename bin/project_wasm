@@ -20,30 +20,18 @@ domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
 root = File.expand_path("..", __dir__)
 target_mod_name = File.basename(domain)
 
-# SAME PAIRED OPT-IN bin/project_rust already honors — `HECKS_PARSER=rust
-# HECKS_CODEGEN=rust` means "compile entirely in Rust," and until now this
-# script never checked for it: it always shelled out to `bin/project_rust`
-# with no env override, so the .wasm a `make deploy`-generated Makefile
-# ships to Lambda went through the Ruby generator even on a domain built
-# end-to-end via `hecks-build` everywhere else. `rust/build`'s own
-# `build_wasm` (`build_artifact.rs`) is a verbatim port of the exact steps
-# below — same toolchain check, same `rustup run stable cargo build`
-# invocation, same `rust/dist/<domain>.{wasm,ir.json}` output paths — so
-# delegating to it here changes nothing about what gets produced, only
-# which process produces it.
-if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
-  hecks_build_dir = File.join(root, "rust", "build")
-  hecks_build_bin = File.join(hecks_build_dir, "target", "debug", "hecks-build")
+# SAME GENERATOR AS bin/project_rust (ADR 0054a, B3) — regeneration goes
+# through `bin/project_rust`, whose default is now `hecks-build`, so the
+# .wasm a `make deploy`-generated Makefile ships is built from exactly
+# what the codegen drift check holds the committed tree to.
+# `HECKS_RUBY_CODEGEN=1` passes through to it (temporary, until B5).
+# `HECKS_PARSER`/`HECKS_CODEGEN` are deprecated no-ops here too; the
+# Ruby-free equivalent is `hecks-build <domain> --wasm` (rust/build's
+# `build_wasm` runs the same cross-compile steps as below).
+%w[HECKS_PARSER HECKS_CODEGEN].each do |var|
+  next unless ENV.key?(var)
 
-  puts "== cargo build (hecks-build) =="
-  system("cargo", "build", chdir: hecks_build_dir, out: $stdout, err: $stderr, exception: true)
-
-  puts "== hecks-build #{domain} --wasm =="
-  # No chdir here — `domain` resolves relative to the CURRENT directory,
-  # same as the Ruby path below (`bin/project_rust` isn't chdir'd either);
-  # `hecks-build`'s own `root::find` walks up from wherever it runs.
-  system(hecks_build_bin, domain, "--wasm", out: $stdout, err: $stderr, exception: true)
-  exit 0
+  warn "bin/project_wasm: #{var} is deprecated and ignored — hecks-build is now the default generator (ADR 0054a)"
 end
 
 unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-wasip1")

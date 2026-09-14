@@ -70,15 +70,15 @@ jobs:
           name: main
           crate-root: rust
 
-      # project_rust_pipeline_spec.rb below (opt-in HECKS_PARSER=rust
-      # HECKS_CODEGEN=rust bin/project_rust) builds these two crates for
-      # real — previously UNCACHED here even though rspec_rust_parser/
-      # rspec_rust_codegen already cache the exact same crates under the
-      # exact same key. actions/cache restores by key across jobs in the
-      # same workflow (from a PREVIOUS completed run, not the one running
-      # concurrently right now), so this lets that build reuse whatever
-      # those two jobs already populated last time instead of a
-      # guaranteed-cold `cargo build` on every single run.
+      # bin/project_rust (below, and in project_rust_pipeline_spec.rb)
+      # generates through hecks-build (rust/build), which builds and runs
+      # hecks-codegen (rust/codegen) — ADR 0054a, B3. Cached under the same
+      # keys their own jobs use. actions/cache restores by key across jobs
+      # in the same workflow (from a PREVIOUS completed run, not the one
+      # running concurrently right now), so these builds reuse whatever
+      # those jobs populated last time instead of a guaranteed-cold
+      # `cargo build` on every run. rust/parser stays cached for the specs
+      # below that still build it.
       - uses: ./.github/actions/cargo-cache
         with:
           name: parser
@@ -88,6 +88,12 @@ jobs:
         with:
           name: codegen
           crate-root: rust/codegen
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: build
+          crate-root: rust/build
+          include-registry: "false"
 
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
