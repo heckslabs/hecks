@@ -422,6 +422,56 @@ module Hecks
 
         def trusting_stored_state? = Thread.current[TRUSTED_LOAD_KEY] == true
 
+        # QualityControl BUG#125 — the ONE narrow door `check_scalar_shapes`
+        # keeps open, now that a non-string scalar is otherwise refused for a
+        # String-typed field. `MetaValidator::Judge#send_to` — the single
+        # choke point every one of the language's own self-hosted dispatches
+        # goes through while walking a bluebook's declarations into the
+        # "Bluebook" meta-domain — wraps itself in this, and nothing else
+        # does. `Judge#appends`' generic `POSITION` handling
+        # (judge.rb#appends) keys purely off a field being NAMED "position",
+        # the convention every other append list actually uses it for
+        # (ValueObject::Member, ProcessManager::Handler, ... — all really
+        # `Position`/Integer-typed); `Normalise`'s own `NormalisationRule`
+        # happens to ALSO name its own domain field "position"
+        # (bluebook.bluebook), but declares it `RuleText` (String) — so the
+        # same walk-index substitution (`Judge#v(index)`) hands it a raw
+        # Integer too, on every domain's very first boot (the language
+        # self-judges its own grammar via `MetaValidator.fresh_runtime`'s
+        # fixpoint). Confirmed (QualityControl BUG#125 investigation): the
+        # resulting value is never read back — `normalisations` is an
+        # `ELSEWHERE`/`derived` field spliced straight from
+        # `Expression::CanonicalForm.table` (assembly/contracts.rb), so the
+        # judged record holding the Integer is discarded whole — this is a
+        # walk-index/domain-field NAME COLLISION inside `Judge#appends`, not
+        # a genuine semantic need for `position` to arrive numeric. Fixing
+        # THAT collision at its own root is a separate, larger change to
+        # self-hosted bootstrap mechanics that every domain's boot depends
+        # on; this flag only ever loosens scalar-shape checking for the
+        # META-grammar's OWN value objects (RuleText, BluebookName, Position,
+        # …) that Judge itself constructs while walking a bluebook's
+        # declarations — never for a REAL domain's own declared value
+        # objects (PieceId, Money, …), which Judge never dispatches commands
+        # against. `offer` (judge.rb) already converts a `TypeMismatch` here
+        # into a recorded refusal rather than letting it propagate, but
+        # `MetaValidator.call` raises the instant `refusals` is non-empty
+        # (meta_validator.rb) — so, unexempted, this would fail EVERY
+        # domain's boot, not just the language's own bootstrap. Composite
+        # shapes (Array/Hash) stay refused unconditionally, bootstrap or not
+        # — nothing Judge does ever legitimately needs those for a scalar
+        # field.
+        BOOTSTRAP_KEY = :hecks_judge_bootstrapping
+
+        def judge_bootstrapping
+          previous = Thread.current[BOOTSTRAP_KEY]
+          Thread.current[BOOTSTRAP_KEY] = true
+          yield
+        ensure
+          Thread.current[BOOTSTRAP_KEY] = previous
+        end
+
+        def judge_bootstrapping? = Thread.current[BOOTSTRAP_KEY] == true
+
         # `Value.identifier` used to live here: hand it a one-field value object
         # and it opened it, so `identified_by :number` could pass for an identity
         # and the runtime would guess which field was meant. THAT GUESS IS GONE.
@@ -611,14 +661,17 @@ module Hecks
         #
         # C3.8 — the boundary check for an attribute whose type is a bare
         # primitive rather than a value object: `Integer`/`Float` by exact
-        # numeric class (`NUMERIC`), `String`/booleans by rejecting a
-        # composite shape (`COMPOSITE_SHAPES`) — identical to what
-        # `check_numeric_fields`/`check_scalar_shapes` hold a value
-        # object's own fields to, worded by the same template with the
-        # owning construct as `type`. A `String` field still admits any
-        # other scalar (the self-hosted grammar's own bootstrap relies on
-        # it — see `check_scalar_shapes`' comment); the Rust boundary is
-        # stricter there, recorded in the clause.
+        # numeric class (`NUMERIC`), `String`/booleans by rejecting only a
+        # composite shape (`COMPOSITE_SHAPES`) — NOT the same as
+        # `check_scalar_shapes` holds a value object's own `String` field to
+        # any more (QualityControl BUG#125 tightened that one to also refuse
+        # a non-string scalar; a BARE `String` argument here still admits
+        # any other scalar, left exactly as it was — a bare-primitive
+        # attribute was never part of BUG#125's own investigation or fix,
+        # and whether it needs the same tightening, and against what real
+        # Judge dependency if any, is still open); worded by the same
+        # template with the owning construct as `type`. The Rust boundary is
+        # stricter there too, recorded in the clause.
         private def check_bare_primitive(owner, attribute, value)
           type = attribute.type.to_s
           expected = NUMERIC[type]
@@ -775,32 +828,47 @@ module Hecks
 
         # A field declared `String` (or a boolean) must not arrive as a
         # COMPOSITE — an Array or a Hash (or a nested Value) standing in for
-        # what has to be a leaf scalar.
+        # what has to be a leaf scalar. A `String` field, further, must not
+        # arrive as any OTHER non-composite scalar either (Integer, Float,
+        # true/false) — QualityControl BUG#125, matching Rust's generated
+        # `from_json`, which requires a JSON string node for a String-typed
+        # field unconditionally and refuses anything else, including a JSON
+        # number or boolean. Ruby used to tolerate exactly that (found live:
+        # `Chess::Piece.Capture`'s `PieceId`, String-typed, offered a bignum
+        # `id` — Ruby let it pass and failed later on an unrelated field,
+        # Rust refused on `id` itself, immediately) — no longer, EXCEPT
+        # inside `judge_bootstrapping?` (above), the one caller genuinely
+        # relying on the old leniency; see that flag's own comment for why.
         #
-        # Deliberately laxer than `check_numeric_fields` above : it does not
-        # enforce the exact Ruby class, only that the shape isn't a collection.
-        # `Judge#v` — the language's own self-hosted grammar validation —
-        # hands a String-typed field (`Normalise`'s `position`, a `RuleText`)
-        # a raw Integer walk-index on purpose, on every boot, and that has
-        # always been tolerated ; a full String-vs-Integer check here would
-        # refuse the runtime's own bootstrap. But no scalar field, of any
-        # declared type, can ever legitimately be handed an Array or a Hash —
-        # that shape is always wrong, and always was: `InvalidValueGenerator#
-        # array_for_scalar`'s own corruption is deliberately built to be
-        # REFUSED (see that file's header), and until this check existed it
-        # sailed straight through for a String/boolean field the way it never
-        # could for an Integer/Float one (`check_numeric_fields` above already
-        # catches an Array offered for those). Found live via bin/fuzz, seed
-        # 17 on the fixtures domain : an Array standing in for a single-field
-        # identity's declared `String`, `.to_s`'d into a record id downstream.
+        # `TrueClass`/`FalseClass` stay laxer than `check_numeric_fields`
+        # above: for those two, this still only enforces that the shape
+        # isn't a collection, not the exact Ruby class — narrower than the
+        # `String` case above because BUG#125 investigated and fixed String
+        # specifically; a boolean field's own scalar-shape tolerance is a
+        # separate, uninvestigated question left exactly as it was. No
+        # scalar field, of any declared type, can ever legitimately be
+        # handed an Array or a Hash — that shape is always wrong, and always
+        # was: `InvalidValueGenerator#array_for_scalar`'s own corruption is
+        # deliberately built to be REFUSED (see that file's header), and
+        # until this check existed it sailed straight through for a
+        # String/boolean field the way it never could for an Integer/Float
+        # one (`check_numeric_fields` above already catches an Array offered
+        # for those). Found live via bin/fuzz, seed 17 on the fixtures
+        # domain : an Array standing in for a single-field identity's
+        # declared `String`, `.to_s`'d into a record id downstream.
         COMPOSITE_SHAPES = [Array, ::Hash].freeze
         NON_NUMERIC_SCALARS = %w[String TrueClass FalseClass].freeze
         private def check_scalar_shapes(value_object, fields)
           value_object.attributes.each do |attribute|
-            next unless NON_NUMERIC_SCALARS.include?(attribute.type.to_s)
+            type = attribute.type.to_s
+            next unless NON_NUMERIC_SCALARS.include?(type)
 
             given = fields[attribute.name]
-            next if given.nil? || COMPOSITE_SHAPES.none? { |shape| given.is_a?(shape) }
+            next if given.nil?
+
+            composite = COMPOSITE_SHAPES.any? { |shape| given.is_a?(shape) }
+            non_string_scalar = type == "String" && !composite && !given.is_a?(String) && !judge_bootstrapping?
+            next unless composite || non_string_scalar
 
             raise TypeMismatch,
                   RefusalWording.render("TypeMismatch", "numeric_field",
