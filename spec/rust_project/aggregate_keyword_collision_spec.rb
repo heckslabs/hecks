@@ -21,11 +21,15 @@ require "tmpdir"
 # reads rust/Cargo.toml, so a bare empty tmp dir is enough to prove it
 # never gets that far.
 RSpec.describe "bin/project_rust refuses a keyword-colliding aggregate name (BUG#124)" do
-  ROOT = File.expand_path("../..", __dir__)
-  STRESS_DOMAIN = File.join(ROOT, "qa/stress_domains/generated_keyword_aggregate")
+  # `ROOT`/`STRESS_DOMAIN` are deliberately instance methods, not top-level
+  # constants -- spec/load_hygiene_spec.rb refuses any two spec files that
+  # disagree about a top-level constant's own value, and `ROOT` is already
+  # a well-trodden name across this suite (see oidc_manifest_spec.rb).
+  def root = File.expand_path("../..", __dir__)
+  def stress_domain = File.join(root, "qa/stress_domains/generated_keyword_aggregate")
 
   it "declares an aggregate literally named Crate -- the exact BUG#124 shape" do
-    bluebook = File.read(File.join(STRESS_DOMAIN, "bluebook/generated_keyword_aggregate.bluebook"))
+    bluebook = File.read(File.join(stress_domain, "bluebook/generated_keyword_aggregate.bluebook"))
     expect(bluebook).to match(/aggregate\s+"Crate"/)
   end
 
@@ -33,8 +37,8 @@ RSpec.describe "bin/project_rust refuses a keyword-colliding aggregate name (BUG
     Dir.mktmpdir("bug124-project-rust-spec") do |scratch_rust_dir|
       stdout, status = Open3.capture2e(
         { "HECKS_RUST_DIR" => scratch_rust_dir },
-        "bundle", "exec", "ruby", File.join(ROOT, "bin/project_rust"), STRESS_DOMAIN,
-        chdir: ROOT
+        "bundle", "exec", "ruby", File.join(root, "bin/project_rust"), stress_domain,
+        chdir: root
       )
 
       expect(status.success?).to be(false),
