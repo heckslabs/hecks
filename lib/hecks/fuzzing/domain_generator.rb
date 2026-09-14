@@ -72,13 +72,24 @@ module Hecks
       # `<root>/qa_generated/bluebook/qa_generated.bluebook`, plus the
       # blueprint beside the domain directory (never inside it — a stray
       # file under `bluebook/` would be loaded as a chapter).
+      #
+      # A blueprint carrying `"source"` is bluebook text someone else wrote
+      # (`bin/qa_mine_combinations`' agent): it is adopted, not rendered,
+      # and its empty `aggregates`/`policies` leave nothing to shrink.
       def write(blueprint, root)
         domain = File.join(root, DIRECTORY)
         FileUtils.rm_rf(domain)
         FileUtils.mkdir_p(File.join(domain, "bluebook"))
-        File.write(File.join(domain, "bluebook", "#{DIRECTORY}.bluebook"), render(blueprint))
+        text = blueprint["source"] ? adopt(blueprint["source"]) : render(blueprint)
+        File.write(File.join(domain, "bluebook", "#{DIRECTORY}.bluebook"), text)
         File.write(File.join(root, "blueprint.json"), JSON.pretty_generate(blueprint))
         domain
+      end
+
+      # Renames an outside bluebook's own chapter to `QaGenerated`, the one
+      # name the scratch crate and child processes are built around.
+      def adopt(source)
+        source.sub(/Hecks\.bluebook\s*\(?\s*(["'])[^"']+\1/) { "Hecks.bluebook #{DOMAIN_NAME.inspect}" }
       end
 
       # ── rendering ───────────────────────────────────────────────────

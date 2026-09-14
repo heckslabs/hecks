@@ -5,6 +5,7 @@
 #   bin/qa_generated_domains [--domains N] [--start SEED] [--forms a,b] [--seeds K] [--steps M]
 #                            [--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget D]
 #   bin/qa_generated_domains --blueprint <blueprint.json> [--rust] …   (re-check one saved blueprint)
+#   bin/qa_generated_domains --source <file.bluebook> [--source …] [--rust] …   (check bluebooks written elsewhere)
 #   bin/qa_generated_domains --promote <finding-dir> --name <stress_domain_name>
 #
 # Every stress domain in `qa/stress_domains/` was written by hand, and the
@@ -45,6 +46,13 @@
 # identify` — after which the rotation sweeps it and the usual
 # `bin/qa_log_bug` flow applies.
 #
+# `--source FILE` — A BLUEBOOK NOBODY GENERATED EITHER. Each file (one
+# chapter; `bin/qa_mine_combinations`' agent writes them) is adopted
+# under the `QaGenerated` name and checked, built and step-shrunk exactly
+# like a generated domain. It has no blueprint to remove elements from,
+# so domain-level shrinking is skipped; a `HYPOTHESIS.md` beside the file
+# rides along into the blueprint and, on `--promote`, into NOTES.md.
+#
 # A DOMAIN THAT DOES NOT BOOT is `invalid`: a generator defect, counted
 # and printed, never a finding.
 #
@@ -69,13 +77,14 @@ EXIT_FOUND    = 2
 RESULT_MARKER = "QA_GENERATED_RESULT ".freeze
 USAGE = "usage: bin/qa_generated_domains [--domains N] [--start SEED] [--forms a,b] [--seeds K] [--steps M] " \
         "[--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget D]\n       " \
+        "bin/qa_generated_domains --source <file.bluebook> [--source …] [--rust] …\n       " \
         "bin/qa_generated_domains --promote <finding-dir> --name <stress_domain_name>".freeze
 
 Generator = Hecks::Fuzzing::DomainGenerator
 
 options = { domains: 3, start: nil, forms: nil, seeds: 5, steps: 25, adversarial: 0.3, rust: false,
             shrink_budget: 200, domain_shrink_budget: 40, check: nil, binary: nil, match: nil,
-            promote: nil, name: nil }
+            promote: nil, name: nil, sources: [] }
 until ARGV.empty?
   case (arg = ARGV.shift)
   when "-h", "--help"
@@ -97,6 +106,7 @@ until ARGV.empty?
   when "--name"                 then options[:name] = ARGV.shift
   when "--from-dials"           then options[:from_dials] = true
   when "--blueprint"            then options[:blueprint] = ARGV.shift
+  when "--source"               then options[:sources] << ARGV.shift
   else abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
   end
 end
@@ -145,18 +155,20 @@ if options[:promote]
   File.write(File.join(target, "bluebook", "#{name}.bluebook"), text)
   blueprint = File.join(options[:promote], "blueprint.json")
   finding   = File.join(options[:promote], "finding.json")
+  recorded  = File.exist?(blueprint) ? JSON.parse(File.read(blueprint)) : nil
+  hypothesis = recorded&.dig("hypothesis")
   File.write(File.join(target, "NOTES.md"), <<~NOTES)
     # #{name}
 
-    Promoted from a `bin/qa_generated_domains` finding — generated, not
-    hand-written. The bluebook is the domain-shrunk minimal form of the
-    generated domain that surprised; `QaGenerated` was renamed to
-    `#{camelize(name)}` and nothing else changed.
-
+    Promoted from a `bin/qa_generated_domains` finding — #{recorded&.key?('source') ? 'written by `bin/qa_mine_combinations`\' agent' : 'generated'}, not
+    hand-written. The bluebook is the minimal form of the domain that
+    surprised; `QaGenerated` was renamed to `#{camelize(name)}` and nothing
+    else changed.
+    #{"\n## Hypothesis\n\n#{hypothesis.strip}\n" if hypothesis}
     ## Blueprint
 
     ```json
-    #{File.exist?(blueprint) ? File.read(blueprint).strip : '(not recorded)'}
+    #{recorded ? JSON.pretty_generate(recorded.except('source', 'hypothesis')) : '(not recorded)'}
     ```
 
     ## Finding
@@ -357,6 +369,16 @@ blueprints =
   if options[:blueprint]
     saved = JSON.parse(File.read(options[:blueprint]))
     { saved.fetch("seed", start) => saved }
+  elsif options[:sources].any?
+    options[:sources].each_with_index.to_h do |file, index|
+      abort "no bluebook at #{file}" unless File.file?(file)
+
+      hypothesis = File.join(File.dirname(file), "HYPOTHESIS.md")
+      [start + index, { "seed" => start + index, "forms" => ["source:#{File.basename(File.dirname(file))}"],
+                        "origin" => File.expand_path(file), "source" => File.read(file),
+                        "hypothesis" => (File.read(hypothesis) if File.exist?(hypothesis)),
+                        "aggregates" => [], "policies" => [] }.compact]
+    end
   else
     (start...(start + options[:domains])).to_h { |seed| [seed, Generator.generate(seed: seed, forms: options[:forms])] }
   end
@@ -364,7 +386,8 @@ blueprints =
 blueprints.each do |domain_seed, blueprint|
   root = File.join(run_dir, domain_seed.to_s)
   result = evaluate(blueprint, root, options, scratch)
-  label = "domain #{domain_seed} [#{blueprint['forms'].join('+')}] #{blueprint['aggregates'].size} aggregate(s)"
+  label = "domain #{domain_seed} [#{blueprint['forms'].join('+')}]"
+  label += " #{blueprint['aggregates'].size} aggregate(s)" unless blueprint["source"]
 
   case result["status"]
   when "clean"
