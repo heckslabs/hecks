@@ -101,10 +101,11 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::generated_route_append::hangar::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::hangar::dispatch_open(&mut store.hangar, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::hangar::dispatch_open(&mut store.hangar, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Hangar.Retag" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -132,10 +133,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retag acts on an existing Hangar — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::hangar::RetagArgs::from_json(facts_json)?;
                       for item in &args.tags { item.check_invariants()?; }
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::hangar::dispatch_retag(&mut store.hangar, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::hangar::dispatch_retag(&mut store.hangar, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Hangar.Prioritize" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -162,10 +164,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Prioritize acts on an existing Hangar — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::hangar::PrioritizeArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::hangar::dispatch_prioritize(&mut store.hangar, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::hangar::dispatch_prioritize(&mut store.hangar, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Hangar.Rescore" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -193,10 +196,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Rescore acts on an existing Hangar — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::hangar::RescoreArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::hangar::dispatch_rescore(&mut store.hangar, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::hangar::dispatch_rescore(&mut store.hangar, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Kiosk.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -205,10 +209,11 @@ if !absent.is_empty() {
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::generated_route_append::kiosk::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::kiosk::dispatch_open(&mut store.kiosk, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::kiosk::dispatch_open(&mut store.kiosk, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Kiosk.Close" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -220,17 +225,18 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "kiosk", "code"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes ",
+        "Close does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing Kiosk — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::kiosk::CloseArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::kiosk::dispatch_close(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::kiosk::dispatch_close(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Kiosk.Reopen" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -242,17 +248,18 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "kiosk", "code"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reopen does not declare {} — it takes ",
+        "Reopen does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reopen acts on an existing Kiosk — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::kiosk::ReopenArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::kiosk::dispatch_reopen(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::kiosk::dispatch_reopen(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Kiosk.Prioritize" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -280,10 +287,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Prioritize acts on an existing Kiosk — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::kiosk::PrioritizeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Clerk"), "Prioritize", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::kiosk::dispatch_prioritize(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::kiosk::dispatch_prioritize(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Kiosk.Rescore" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -312,10 +320,11 @@ if !absent.is_empty() {
               let args = crate::generated::generated_route_append::kiosk::RescoreArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Manager"), "Rescore", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::kiosk::dispatch_rescore(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::kiosk::dispatch_rescore(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Kiosk.AddLine" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -344,10 +353,11 @@ if !absent.is_empty() {
               let args = crate::generated::generated_route_append::kiosk::AddLineArgs::from_json(facts_json)?;
                       args.sequence.check_invariants()?;
               crate::kernel::check_role(Some("Manager"), "AddLine", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_route_append::kiosk::dispatch_add_line(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_route_append::kiosk::dispatch_add_line(&mut store.kiosk, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRouteAppend::Kiosk.Line.Label" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -371,7 +381,7 @@ if !absent.is_empty() {
         ("declared", "label"),
     ])));
 }
- } let parent_id = crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json)?; let element_id = crate::generated::generated_route_append::kiosk::Line::extract_id(facts_json)?; let element_wants = crate::generated::generated_route_append::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::generated_route_append::kiosk::LineLabelEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on a Kiosk's Line — pass code.value:".to_string()))?; let element_id = crate::generated::generated_route_append::kiosk::Line::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on one Line — pass sequence.value:".to_string()))?; let element_wants = crate::generated::generated_route_append::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::generated_route_append::kiosk::LineLabelEntityArgs::from_json(facts_json)?;
                       args.label.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &parent_id);
