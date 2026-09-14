@@ -505,6 +505,44 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(result).to include("AddCard").and include("append")
     end
 
+    # `:set` — item #ANGLE (Ruby self-correctness track, docs/decisions/
+    # 0056). `NestedPieces::Workspace.Board.Label` (`sets :label`, no
+    # `append:`/`remove:`/`multiply:`/`clamp:`) is the real corpus site:
+    # an entity-owned PLAIN set, coerced through `EntityElement#apply_to_
+    # element`'s `:set` branch (entity_element.rb), the SAME shape a
+    # generated sequence against `qa/stress_domains/nested_pieces`
+    # already exercises via "the standard battery, over real generated
+    # sequences" above (seed 2's own mutation trace is exactly this
+    # shape — `bin/rspec` need not construct it by hand to prove it
+    # fires against a real domain, only to prove it fires and passes
+    # here in isolation).
+    it "mutations_match_recompute names a plain entity-owned set whose after-state disagrees with the " \
+       "recomputed value" do
+      history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
+                  mutation_traces: [
+                    { verb:   "NestedPieces::Workspace.Board.Label",
+                      before: { number: { value: 1 }, label: nil, cards: [] },
+                      after:  { number: { value: 1 }, label: { value: "wrong" }, cards: [] },
+                      args:   { label: "right" } }
+                  ] }
+
+      result = Hecks::Fuzzing::Properties.mutations_match_recompute(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Label").and include("set")
+    end
+
+    it "mutations_match_recompute passes a plain entity-owned set correctly recomputed" do
+      history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
+                  mutation_traces: [
+                    { verb:   "NestedPieces::Workspace.Board.Label",
+                      before: { number: { value: 1 }, label: nil, cards: [] },
+                      after:  { number: { value: 1 }, label: { value: "right" }, cards: [] },
+                      args:   { label: "right" } }
+                  ] }
+
+      expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
+    end
+
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
