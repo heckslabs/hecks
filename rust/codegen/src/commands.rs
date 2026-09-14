@@ -95,6 +95,26 @@ fn deref_params() -> [&'static str; 2] {
     ["owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>", "command_deref: Vec<(&'static str, crate::kernel::DerefNode)>"]
 }
 
+/// BUG#139 — port of `rust/project/commands.rb::TENANT_BOUNDARY_PARAM`.
+/// The AGGREGATE-COMMAND-ONLY counterpart to `deref_params`, above:
+/// `kernel/dispatch.rs`'s own `dispatch()` (never `dispatch_entity`/
+/// `apply_entity_command` — write-side tenant boundary checks are wired
+/// for aggregate commands only) now takes an already-computed
+/// `Result<(), Refusal>`, deferred to the exact position Ruby's own
+/// `step_save` checks it (see `dispatch()`'s own header comment on the
+/// parameter for the full reasoning). This pipeline has no `tenant_
+/// boundary_checks`-equivalent source data of its own yet (this crate
+/// works purely from `ir.json`, which carries no such field — see
+/// `registry.rs`'s own header on the one command shape this affects in
+/// the real corpus), so `emit_command` always threads this parameter
+/// through and the router always passes `Ok(())` for it — correct today
+/// because no domain built through THIS pipeline declares a write-side
+/// tenant boundary (`tenant_ledger`, the one domain that does, is
+/// generated exclusively through the Ruby-hosted pipeline), and safe if
+/// that ever changes, because an unconditional `Ok(())` is exactly a
+/// no-op check.
+const TENANT_BOUNDARY_PARAM: &str = "tenant_boundary_check: Result<(), crate::kernel::Refusal>";
+
 /// Port of `rust/project/commands.rb#with_references_binding`.
 fn with_references_binding() -> String {
     "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };".to_string()
@@ -649,6 +669,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
         sig_parts.push(format!("args: {cmd}Args"));
         sig_parts.push("mutations: &mut Vec<crate::kernel::MutationRecord>".to_string());
         sig_parts.extend(deref_params().iter().map(|s| s.to_string()));
+        sig_parts.push(TENANT_BOUNDARY_PARAM.to_string());
         fn_signature = sig_parts.join(", ");
     } else {
         let mut sig_parts = vec![
@@ -658,6 +679,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             "mutations: &mut Vec<crate::kernel::MutationRecord>".to_string(),
         ];
         sig_parts.extend(deref_params().iter().map(|s| s.to_string()));
+        sig_parts.push(TENANT_BOUNDARY_PARAM.to_string());
         hydrate = "crate::kernel::Hydrate::Act { id: id.to_string() }".to_string();
         fn_signature = sig_parts.join(", ");
     }
@@ -670,7 +692,10 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     let dispatch_fn = exemplar.render(
         "dispatch_fn",
         &[
-            ("repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>", fn_signature),
+            (
+                "repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, tenant_boundary_check: Result<(), crate::kernel::Refusal>",
+                fn_signature,
+            ),
             ("dispatch_tmpl", format!("dispatch_{}", naming::dispatch_fn_name(&cmd))),
             ("TmplRecord", record),
             ("tmpl_invariant_check_placeholder()?;", invariant_checks.join("\n")),

@@ -796,7 +796,7 @@ pub struct GatherArgs {
 }
 
 pub fn dispatch_gather(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GatherArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GatherArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.aggregate.check_invariants()?;
         args.r#as.check_invariants()?;
@@ -828,6 +828,7 @@ pub fn dispatch_gather(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -909,7 +910,7 @@ pub struct GroupByArgs {
 }
 
 pub fn dispatch_group_by(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GroupByArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GroupByArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.field.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -939,6 +940,7 @@ pub fn dispatch_group_by(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1012,7 +1014,7 @@ pub struct CountArgs {
 }
 
 pub fn dispatch_count(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: CountArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: CountArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         if let Some(v) = &args.count { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1042,6 +1044,7 @@ pub fn dispatch_count(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1107,7 +1110,7 @@ pub struct MedianArgs {
 }
 
 pub fn dispatch_median(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: MedianArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: MedianArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         if let Some(v) = &args.median_field { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1137,6 +1140,7 @@ pub fn dispatch_median(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1208,7 +1212,7 @@ pub struct OptionArgs {
 }
 
 pub fn dispatch_option(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: OptionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: OptionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.option.check_invariants()?;
         args.key.check_invariants()?;
@@ -1241,6 +1245,7 @@ pub fn dispatch_option(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

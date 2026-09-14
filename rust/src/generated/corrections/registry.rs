@@ -102,10 +102,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::corrections::ledger::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::ledger::dispatch_open(&mut store.ledger, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::ledger::dispatch_open(&mut store.ledger, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::Ledger.Record" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -134,10 +135,11 @@ if !absent.is_empty() {
               let args = crate::generated::corrections::ledger::RecordArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Record", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Corrections::Ledger", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::ledger::dispatch_record(&mut store.ledger, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::ledger::dispatch_record(&mut store.ledger, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::Ledger.Void" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -166,10 +168,11 @@ if !absent.is_empty() {
               let args = crate::generated::corrections::ledger::VoidArgs::from_json(facts_json)?;
                       args.sequence.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Void", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Corrections::Ledger", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::ledger::dispatch_void(&mut store.ledger, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::ledger::dispatch_void(&mut store.ledger, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::Ledger.ReplaceEntries" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -197,10 +200,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::corrections::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("ReplaceEntries acts on an existing Ledger — pass reference.value:".to_string()))?, };
               let args = crate::generated::corrections::ledger::ReplaceEntriesArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Clerk"), "ReplaceEntries", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Corrections::Ledger", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::ledger::dispatch_replace_entries(&mut store.ledger, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::ledger::dispatch_replace_entries(&mut store.ledger, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::AuditTrail.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -210,10 +214,11 @@ if !absent.is_empty() {
               let args = crate::generated::corrections::audittrail::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::audittrail::dispatch_open(&mut store.audittrail, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::audittrail::dispatch_open(&mut store.audittrail, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::AuditTrail.Flag" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -233,10 +238,11 @@ if !unknown.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::corrections::audittrail::AuditTrail::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Flag acts on an existing AuditTrail — pass reference.value:".to_string()))?, };
               let args = crate::generated::corrections::audittrail::FlagArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Flag", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Corrections::AuditTrail", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::audittrail::dispatch_flag(&mut store.audittrail, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::audittrail::dispatch_flag(&mut store.audittrail, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::Ledger.Entry.Amend" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

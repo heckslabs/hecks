@@ -348,8 +348,17 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // after `repo`), so it can decide create-vs-find from
             // whether one was actually given, instead of purely from its
             // own static `creates:` flag.
+            // BUG#139 — `tenant_boundary_check` trails `command_deref`
+            // here, the same "computed eagerly at router level, applied
+            // deferred inside `dispatch()`" split `owner_deref`/`command_
+            // deref` themselves already use. This pipeline has no `tenant_
+            // boundary_checks`-equivalent source data (see the bound
+            // local's own comment, below), so it is always `Ok(())` —
+            // zero behavior change, the parameter exists purely so this
+            // pipeline's own generated code keeps compiling against
+            // `dispatch()`'s now-wider signature.
             let dispatch_call = format!(
-                "{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations, owner_deref, command_deref)",
+                "{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations, owner_deref, command_deref, tenant_boundary_check)",
                 c.fn_name,
                 a.module_name,
                 if c.creates { format!("route, {extra_pass}") } else { "&id, ".to_string() }
@@ -582,6 +591,22 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(|check| emit_reference_check(exemplar, check))
                 .collect();
 
+            // BUG#139 — the ANGLE-8 write-side tenant boundary (PR #595,
+            // `rust/project/registry.rb`'s own `tenant_boundary_checks`
+            // header) has no port in THIS pipeline yet: it works purely
+            // from `ir.json`, which carries no `tenant_boundary_checks`-
+            // equivalent field, and the one real-corpus domain that
+            // declares one (`tenant_ledger`) is generated exclusively
+            // through the Ruby-hosted pipeline (not one of this crate's
+            // own `PARITY_DOMAINS`). `dispatch()`'s signature now always
+            // takes this parameter regardless (`kernel/dispatch.rs`'s own
+            // header comment on it), so every command generated here
+            // passes an unconditional `Ok(())` — a genuine no-op check,
+            // not a placeholder standing in for real logic this pipeline
+            // is missing.
+            let tenant_boundary_check_line =
+                "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());".to_string();
+
             // `owner_deref`/`command_deref` — see `reference_lookup.rs`'s
             // own header and `rust/project/registry.rb`'s identical
             // comment: resolved HERE, before the `&mut store.<mod>`
@@ -630,6 +655,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 }
             }
             body.extend(reference_lines.into_iter().filter(|l| !l.is_empty()));
+            body.push(tenant_boundary_check_line);
             body.extend(deref_lines);
             body.push(
                 "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());"

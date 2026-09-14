@@ -91,10 +91,11 @@ pub fn dispatch_by_name(
                       args.name.check_invariants()?;
                       args.pizza.check_invariants()?;
               crate::kernel::check_role(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_create_pizza(&mut store.order, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::pizzas::order::dispatch_create_pizza(&mut store.order, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.AddTopping" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -124,10 +125,11 @@ if !absent.is_empty() {
                       args.topping.check_invariants()?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_add_topping(&mut store.order, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::pizzas::order::dispatch_add_topping(&mut store.order, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.Purchase" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -157,10 +159,11 @@ if !absent.is_empty() {
                       args.amount.check_invariants()?;
                       if let Some(v) = &args.customer_name { v.check_invariants()?; }
               crate::kernel::check_role(Some("Customer"), "Purchase", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_purchase(&mut store.order, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::pizzas::order::dispatch_purchase(&mut store.order, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.PaymentGateway.Receive" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

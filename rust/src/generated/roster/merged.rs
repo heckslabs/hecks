@@ -89,10 +89,11 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::roster::roster::OpenArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_open(&mut store.roster, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_open(&mut store.roster, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.Mark" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -120,10 +121,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Mark acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::MarkArgs::from_json(facts_json)?;
                       args.to.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_mark(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_mark(&mut store.roster, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.Notice" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -143,10 +145,11 @@ if !unknown.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Notice acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::NoticeArgs::from_json(facts_json)?;
                       if let Some(v) = &args.to { v.check_invariants()?; }
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_notice(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_notice(&mut store.roster, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.Honor" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -173,10 +176,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Honor acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::HonorArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_honor(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_honor(&mut store.roster, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.AddSeat" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -204,10 +208,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSeat acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::AddSeatArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_add_seat(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_add_seat(&mut store.roster, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.Enlist" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -236,10 +241,11 @@ if !absent.is_empty() {
               let args = crate::generated::roster::roster::EnlistArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.age.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_enlist(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_enlist(&mut store.roster, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.Assign" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -268,10 +274,11 @@ if !absent.is_empty() {
               let args = crate::generated::roster::roster::AssignArgs::from_json(facts_json)?;
                       args.member.check_invariants()?;
                       args.number.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_assign(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_assign(&mut store.roster, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.Retire" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -299,10 +306,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::RetireArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::roster::roster::dispatch_retire(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::roster::roster::dispatch_retire(&mut store.roster, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Roster::Roster.Member.Retire" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

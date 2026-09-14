@@ -90,10 +90,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::lease_clock::lease::RegisterArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
               crate::kernel::check_role(Some("Operator"), "Register", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::lease_clock::lease::dispatch_register(&mut store.lease, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::lease_clock::lease::dispatch_register(&mut store.lease, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LeaseClock::Lease.Acquire" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -124,10 +125,11 @@ if !absent.is_empty() {
                       args.now.check_invariants()?;
                       args.expiry.check_invariants()?;
               crate::kernel::check_role(Some("Client"), "Acquire", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::lease_clock::lease::dispatch_acquire(&mut store.lease, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::lease_clock::lease::dispatch_acquire(&mut store.lease, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LeaseClock::Lease.Renew" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -157,10 +159,11 @@ if !absent.is_empty() {
                       args.now.check_invariants()?;
                       args.expiry.check_invariants()?;
               crate::kernel::check_role(Some("Client"), "Renew", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::lease_clock::lease::dispatch_renew(&mut store.lease, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::lease_clock::lease::dispatch_renew(&mut store.lease, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LeaseClock::Lease.Release" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -180,10 +183,11 @@ if !unknown.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Release acts on an existing Lease — pass key.value:".to_string()))?, };
               let args = crate::generated::lease_clock::lease::ReleaseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Client"), "Release", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::lease_clock::lease::dispatch_release(&mut store.lease, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::lease_clock::lease::dispatch_release(&mut store.lease, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LeaseClock::Lease.Reap" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -212,10 +216,11 @@ if !absent.is_empty() {
               let args = crate::generated::lease_clock::lease::ReapArgs::from_json(facts_json)?;
                       args.now.check_invariants()?;
               crate::kernel::check_role(Some("Operator"), "Reap", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::lease_clock::lease::dispatch_reap(&mut store.lease, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::lease_clock::lease::dispatch_reap(&mut store.lease, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

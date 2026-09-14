@@ -374,7 +374,7 @@ pub struct RequestArgs {
 }
 
 pub fn dispatch_request(
-    repo: &mut impl crate::kernel::Repository<Transfer>, route: Option<&crate::kernel::RoutingEnvelope>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Transfer>, route: Option<&crate::kernel::RoutingEnvelope>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Transfer> {
         args.reference.check_invariants()?;
         args.region.check_invariants()?;
@@ -437,6 +437,7 @@ pub fn dispatch_request(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

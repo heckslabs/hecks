@@ -201,7 +201,7 @@ pub struct JoinArgs {
 }
 
 pub fn dispatch_join(
-    repo: &mut impl crate::kernel::Repository<Member>, route: Option<&crate::kernel::RoutingEnvelope>, args: JoinArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Member>, route: Option<&crate::kernel::RoutingEnvelope>, args: JoinArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Member> {
         args.handle.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -253,6 +253,7 @@ pub fn dispatch_join(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

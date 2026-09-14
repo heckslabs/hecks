@@ -118,7 +118,7 @@ fn tmpl_seed_projections_placeholder() -> Vec<(&'static str, Option<String>)> {
 
 // TMPL:dispatch_fn BEGIN
 pub fn dispatch_tmpl(
-    repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<TmplRecord> {
 tmpl_invariant_check_placeholder()?;
     let tmpl_eval_fielded = tmpl_with_references_placeholder();
@@ -148,6 +148,7 @@ tmpl_ensures_spec_placeholder(),
         args.to_json(),
         mutations,
         tmpl_seed_projections,
+        tenant_boundary_check,
     )
 }
 // TMPL:dispatch_fn END

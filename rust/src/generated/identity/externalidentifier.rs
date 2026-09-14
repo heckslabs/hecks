@@ -372,7 +372,7 @@ pub struct LinkArgs {
 }
 
 pub fn dispatch_link(
-    repo: &mut impl crate::kernel::Repository<ExternalIdentifier>, route: Option<&crate::kernel::RoutingEnvelope>, args: LinkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ExternalIdentifier>, route: Option<&crate::kernel::RoutingEnvelope>, args: LinkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ExternalIdentifier> {
         args.key.check_invariants()?;
         args.issuer.check_invariants()?;
@@ -419,6 +419,7 @@ pub fn dispatch_link(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

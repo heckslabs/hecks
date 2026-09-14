@@ -246,6 +246,37 @@ pub fn dispatch<'a, T, R>(
     // aggregate that declares no `projects` field — no-op, not a
     // conditional branch, so this parameter costs nothing when unused.
     seed_projections: Vec<(&'static str, Option<String>)>,
+    // BUG#139 — `CommandRules::References#enforce_tenant_boundary`
+    // (ANGLE-8's write-side tenant boundary, PR #595), DEFERRED to this
+    // exact point rather than checked eagerly at the router. Ruby's own
+    // `CommandInterpreter#step_save`, read directly: `resolve_state_
+    // references` (which calls `enforce_tenant_boundary`) runs FIRST,
+    // unconditionally, THEN — only for a real (non-dry-run) dispatch —
+    // `seed_projected_fields`/`persist_instance`. So this is checked
+    // HERE, right after `enforce_invariants`, strictly BEFORE
+    // `seed_projections` below and BEFORE the deferred existence check
+    // (BUG#28's own) that follows it — mirroring `step_save`'s real
+    // order exactly: hydrate/givens/mutations/ensures/invariants have
+    // ALL already had their say by this point, the same as Ruby's own
+    // `enforce_tenant_boundary` running well after `step_hydrate`'s own
+    // route-vs-derived-identity check (BUG#37/PR#606), never before it.
+    //
+    // The ROUTER (`registry.rb`/`registry.rs`'s generated code) computes
+    // this value EAGERLY — it needs `store` (every OTHER aggregate's own
+    // repo, to look up the referenced record's tenant field), which only
+    // exists at that level, the same reason `resolve_references`/`check_
+    // role` themselves are computed there rather than in this generic,
+    // one-aggregate-repo-only function (this file's own top-of-file
+    // comment). But computing the CHECK early and RAISING it early are
+    // two different things — this parameter is the already-computed
+    // `Result` (`Ok(())` for every command with no tenant boundary to
+    // check — the overwhelming majority — or the FIRST violation found,
+    // matching Ruby's own `.each { ... raise ... }` short-circuit), and
+    // this function is the one place both codegen pipelines' generated
+    // `dispatch_*` functions converge through, so this is where its
+    // APPLICATION defers to, exactly like BUG#28's own existence-check
+    // flag below.
+    tenant_boundary_check: Result<(), Refusal>,
 ) -> Result<(T, Vec<Event>), Refusal>
 where
     T: Fielded + Clone + ToJson + SetProjectedField,
@@ -413,6 +444,17 @@ where
     }
 
     enforce_invariants(&record, aggregate_name, invariants)?;
+
+    // BUG#139'S OWN FIX — see this function's own header comment on the
+    // `tenant_boundary_check` parameter for the full reasoning. Placed
+    // HERE, not earlier (not alongside `hydrate`'s route-vs-derived-
+    // identity check, not before `apply_mutations`) and not later (not
+    // folded into the deferred-existence-check block below): this is the
+    // exact position `step_save`'s own `resolve_state_references` call
+    // occupies relative to `seed_projected_fields`/`persist_instance` in
+    // Ruby — after every OTHER dispatch step has already had its say,
+    // strictly before the write half of save begins.
+    tenant_boundary_check?;
 
     for (field, value) in seed_projections {
         record.set_projected_field(field, value);

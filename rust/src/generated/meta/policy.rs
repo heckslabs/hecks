@@ -540,7 +540,7 @@ pub struct BindArgs {
 }
 
 pub fn dispatch_bind(
-    repo: &mut impl crate::kernel::Repository<Policy>, id: &str, args: BindArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Policy>, id: &str, args: BindArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Policy> {
         args.key.check_invariants()?;
         args.value.check_invariants()?;
@@ -571,6 +571,7 @@ pub fn dispatch_bind(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

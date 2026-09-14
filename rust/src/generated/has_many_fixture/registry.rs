@@ -102,10 +102,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::has_many_fixture::member::JoinArgs::from_json(facts_json)?;
                       args.handle.check_invariants()?;
               crate::kernel::check_role(Some("Person"), "Join", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::has_many_fixture::member::dispatch_join(&mut store.member, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::has_many_fixture::member::dispatch_join(&mut store.member, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "HasManyFixture::Circle.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -115,10 +116,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::has_many_fixture::circle::OpenArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
               crate::kernel::check_role(Some("Organizer"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::has_many_fixture::circle::dispatch_open(&mut store.circle, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::has_many_fixture::circle::dispatch_open(&mut store.circle, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "HasManyFixture::Circle.Admit" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -147,10 +149,11 @@ if !absent.is_empty() {
               let args = crate::generated::has_many_fixture::circle::AdmitArgs::from_json(facts_json)?;
                       for item in &args.members { item.check_invariants()?; }
               crate::kernel::check_role(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "HasManyFixture::Circle", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::has_many_fixture::circle::dispatch_admit(&mut store.circle, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::has_many_fixture::circle::dispatch_admit(&mut store.circle, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
