@@ -36,9 +36,11 @@ pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<St
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     let reference_target = read_model.get("reference_target").map(Json::to_s).unwrap_or_default();
     let root = heads.iter().find(|h| h.get("aggregate").map(Json::to_s).unwrap_or_default() == reference_target);
-    if root.is_none() {
+    // Rootless (no `reference_to`) is generated — `read_models.rb`'s own
+    // comment on this check.
+    if root.is_none() && !reference_target.is_empty() {
         return Some(format!(
-            "declares reference_to {reference_target}, but includes no matching aggregate head — nothing for this generator's own root fetch to key off (every real corpus read model includes its own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)"
+            "declares reference_to {reference_target}, but includes no matching aggregate head — nothing for this generator's own root fetch to key off"
         ));
     }
 

@@ -85,4 +85,3 @@ generated_domain_seeds: 5
 structural_refusal_boundary:
   - entity_query
   - reference_hop_where
-  - rootless

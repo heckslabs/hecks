@@ -181,14 +181,15 @@ module RustProjection
 
       heads = read_model[:aggregate_heads]
       root = heads.find { |head| head[:aggregate].to_s == read_model[:reference_target].to_s }
-      unless root
-        # `rootless` when nothing was named at all (a count/median-only
-        # report like `Corrections::FlaggedTrailCount`); otherwise the
-        # named target simply isn't among the included heads.
-        construct = read_model[:reference_target].to_s.empty? ? "rootless" : "missing_root_head"
-        return skip(construct, "declares reference_to #{read_model[:reference_target]}, but includes no matching aggregate head — " \
-                               "nothing for this generator's own root fetch to key off (every real corpus read model includes its " \
-                               "own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)")
+      # ROOTLESS IS GENERATED — no `reference_to` at all (a count/median
+      # report like `Corrections::FlaggedTrailCount`) means every head reads
+      # its own whole table, `ReadModelInterpreter#project`'s own `rootless`
+      # branch, which `kernel/read_model.rs#run` already ports for the
+      # `group_by` case (`reference_name: None`). Only a NAMED target with
+      # no matching head is refused: there, a root fetch has nothing to key off.
+      if !root && !read_model[:reference_target].to_s.empty?
+        return skip("missing_root_head", "declares reference_to #{read_model[:reference_target]}, but includes no matching aggregate head — " \
+                                         "nothing for this generator's own root fetch to key off")
       end
 
       if !aggregates_by_name[root[:aggregate]] && nested_entity_names(aggregates_by_name).include?(root[:aggregate].to_s)
