@@ -40,9 +40,10 @@ print a usage line on a missing argument).
 | `bin/project_model` | Projects the model's holding half from the language that declares it. Behaviour::X is hand-written and untouched; `settle` is the seam. b... |
 | `bin/project_oidc` | Projects every domain's OIDC client/scope manifest into `<domain>/oidc.json` — the artifact half of §11, `Hecks::Projections::OIDC`, made... |
 | `bin/project_parser_table` | Projects the chapter's own Syntax aggregate into the Rust parser's keyword table — the parser's grammar knowledge DERIVED from hecks's se... |
-| `bin/project_refusal_wording` | Generates rust/src/kernel/refusal_wording.rs from `Hecks::Runtime:: RefusalWording::TEMPLATES` (lib/hecks/runtime/refusal_wording.rb) — t... |
+| `bin/project_refusal_wording` | Kept for muscle memory only: rust/src/kernel/refusal_wording.rs is now rust/src/kernel/vocab/refusal_template.rs, generated with every o... |
 | `bin/project_reserved_names` | Generates rust/codegen/src/reserved_names.rs from the `RustReservedWord` and `CargoReservedName` vocabularies (lib/hecks/language/bluebook/ vo... |
 | `bin/project_rust` | Generates Rust source for one domain into rust/src/generated/ — the driver for `RustProjection` (rust/project.rb, alongside the Rust crat... |
+| `bin/project_rust_vocabulary` | Projects the language's Vocabulary tables into the Rust kernel — rust/src/kernel/vocab/*.rs, one exhaustive enum per table (refusal temp... |
 | `bin/project_tenant` | THE TENANT PROVISIONER — same split bin/project_deploy already draws between VALIDATING a declared shape (lib/hecks/deploy's own Tenant.D... |
 | `bin/project_vocabulary` | Projects the language's own closed sets into lib/hecks/vocabulary.rb. A one-line wrapper over the projector registry, deliberately — the ... |
 | `bin/project_wasm` | The WASM projector — wraps THE SAME Rust binary bin/project_rust already generates, rather than a second, WASM-specific implementation (d... |

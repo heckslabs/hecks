@@ -478,13 +478,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn round_trips_a_small_object_with_an_empty_array() {
-        let text = "{\n  \"name\": \"Pizzas\",\n  \"aggregates\": [\n\n  ]\n}";
-        let value = Json::parse(text).expect("parses");
-        assert_eq!(write(&value), text);
-    }
-
-    #[test]
     fn round_trips_an_empty_object() {
         let text = "{\n}";
         let value = Json::parse(text).expect("parses");

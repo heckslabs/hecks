@@ -110,7 +110,7 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
     "bin/project_kernel_capabilities" =>
         "the same kind of language-level constant-table mirror, for the Rust kernel's own capability enums",
     "bin/project_refusal_wording"     =>
-        "the same kind of language-level constant-table mirror, for RefusalWording::TEMPLATES",
+        "a shim onto bin/project_rust_vocabulary, which asks the registry for :rust_vocabulary",
     "bin/project_reserved_names"      =>
         "the same kind of language-level constant-table mirror, for the RustReservedWord/CargoReservedName vocabularies"
   }.freeze
