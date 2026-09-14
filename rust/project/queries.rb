@@ -277,7 +277,7 @@ module RustProjection
     # now, and content-checking order_by/limit LAST, means the reason this
     # function returns for a still-excluded query is always the REAL
     # remaining one, never a stale one order_by/limit merely used to mask.
-    def query_skip_reason(query, aggregate, value_objects_by_name)
+    def query_skip_reason(query, aggregate, value_objects_by_name, aggregates_by_name = {})
       extras = %i[cursor consistency freshness inspection].select { |k| query[k] }
       return skip(extras.first, "declares #{extras.join(', ')} — out of scope for this generator (rust/project/queries.rb's own " \
                                 "header has the full argument)") if extras.any?
@@ -295,7 +295,21 @@ module RustProjection
       declared_tenant = query[:authorization] && query[:authorization][:tenant]
       return skip("no_wheres", "declares no where clauses at all — nothing for filter_entries to bake in") if Array(query[:wheres]).empty? && !declared_tenant
 
+      # A SINGLE hop through a reference (`customer/status`) is generated —
+      # folded by `kernel::read_model::apply_reference_hops`, the same code a
+      # read model's eligible head uses. Its inner clause gets the ordinary
+      # check against the hop's target aggregate. A chain of more than one
+      # hop still falls through to `reference_hop_where`.
       query[:wheres].each do |where|
+        hop = query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name)
+        if hop
+          target_value_objects_by_name = hop[:target][:value_objects].to_h { |vo| [vo[:name], vo] }
+          reason = query_where_skip_reason(where.merge(field: hop[:inner_field]), hop[:target], target_value_objects_by_name)
+          return reskip(reason, "hop through #{hop[:via_field]} to #{hop[:target_aggregate]}'s own #{reason}") if reason
+
+          next
+        end
+
         reason = query_where_skip_reason(where, aggregate, value_objects_by_name)
         return reason if reason
       end
@@ -503,6 +517,17 @@ module RustProjection
       query_conditions(query) << { field: tenant.to_s, op: "eq", arg: tenant.to_s, literal: nil }
     end
 
+    # A declared query's where clauses, SPLIT — local ones (plus the tenant
+    # clause) as ordinary `QueryCondition`s, single-hop ones as
+    # `ReferenceHopCondition`s (`read_models.rb#read_model_hop_conditions`,
+    # reused). `query_skip_reason` already confirmed every clause is one or
+    # the other.
+    def query_conditions_and_hops(domain_name, query, aggregate, aggregates_by_name)
+      local, hops = Array(query[:wheres]).partition { |where| query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name).nil? }
+      [query_conditions_with_authorization(query.merge(wheres: local)),
+       read_model_hop_conditions(domain_name, hops, aggregate, aggregates_by_name)]
+    end
+
     # `TenantAuth`'s own compiled form — `nil` unless a real tenant is
     # declared (an `authorize policy` with no `tenant:` is a genuine no-op,
     # per `declared_authorization_skip_reason`'s own comment; nothing to
@@ -579,6 +604,7 @@ module RustProjection
     # Phase 10 of the equivalence-gap plan).
     def emit_query_def(query_def)
       conditions = query_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
+      reference_hop_conditions = Array(query_def[:reference_hop_conditions]).map { |h| "        #{emit_reference_hop_condition(h)}" }.join("\n")
       order_by = query_def[:order_by] ? "Some(#{query_def[:order_by]})" : "None"
       offset = query_def[:offset] ? "Some(#{query_def[:offset]})" : "None"
       limit = query_def[:limit] ? "Some(#{query_def[:limit]})" : "None"
@@ -590,6 +616,9 @@ module RustProjection
             aggregate: #{query_def[:aggregate].inspect},
             conditions: &[
         #{conditions}
+            ],
+            reference_hop_conditions: &[
+        #{reference_hop_conditions}
             ],
             order_by: #{order_by},
             offset: #{offset},
@@ -612,6 +641,15 @@ module RustProjection
                   field: "tmpl_field",
                   comparator: crate::kernel::query_comparators::QueryComparator::Eq,
                   value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
+              },
+          ],
+          reference_hop_conditions: &[
+              crate::kernel::read_model::ReferenceHopCondition {
+                  via_field: "tmpl_via_field",
+                  target_aggregate: "tmpl_target_aggregate",
+                  inner_field: "tmpl_inner_field",
+                  inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                  inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
               },
           ],
           order_by: Some(crate::kernel::query_ordering::OrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
