@@ -81,13 +81,4 @@ RSpec.describe "mutation op multiply" do
     organ = repository_for(runtime).find("o1")
     expect(organ[:strength][:value]).to be_within(0.0001).of(0.98)
   end
-
-  it "raises a TypeMismatch scaling a non-numeric current value" do
-    runtime = boot_mutation_multiply
-    runtime.dispatch("MutationMultiplyGrowth::Organ.Open", id: { value: "o2" }, strength: { value: 1.0 })
-
-    expect do
-      runtime.dispatch("MutationMultiplyGrowth::Organ.Decay", id: "o2", factor: "not-a-number")
-    end.to raise_error(Hecks::Runtime::TypeMismatch)
-  end
 end

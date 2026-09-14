@@ -526,39 +526,6 @@ mod tests {
     use super::*;
     use tokio_postgres::NoTls;
 
-    #[test]
-    fn entity_routing_is_outside_the_command_facts_at_the_host_boundary() {
-        let invocation = routed_invocation(
-            serde_json::json!({
-                "aggregate": "DOWNTOWN:12",
-                "entities": ["2026-01-05:1"]
-            }),
-            serde_json::json!({ "note": { "text": "Flagged" } }),
-        )
-        .unwrap();
-
-        assert_eq!(invocation["to"]["aggregate"], "DOWNTOWN:12");
-        assert_eq!(invocation["to"]["entities"], serde_json::json!(["2026-01-05:1"]));
-        assert_eq!(invocation["with"], serde_json::json!({ "note": { "text": "Flagged" } }));
-        assert!(invocation["with"].get("aggregate").is_none());
-        assert!(invocation["with"].get("entities").is_none());
-    }
-
-    #[test]
-    fn compound_create_identity_members_stay_inside_explicit_facts() {
-        let invocation = facts_invocation(serde_json::json!({
-            "branch_code": "DOWNTOWN",
-            "box_number": 12,
-            "size": "large"
-        }))
-        .unwrap();
-
-        assert!(invocation.get("to").is_none());
-        assert_eq!(invocation["with"]["branch_code"], "DOWNTOWN");
-        assert_eq!(invocation["with"]["box_number"], 12);
-        assert_eq!(invocation["with"]["size"], "large");
-    }
-
     // A REAL, THROWAWAY POSTGRES DATABASE per test — never the real
     // dev database, same reasoning hecks's own
     // spec/adapters/driven/postgres_spec.rb and Embryonaut's

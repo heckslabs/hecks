@@ -17,6 +17,12 @@ require "spec_helper"
 # chapter loads alone, so a second chapter beside expression.bluebook is a corpus
 # member in its own right, not a file the `head -1` of an earlier walk
 # silently skipped.
+#
+# The per-member LOAD itself is proven by spec/model_check_spec.rb's
+# "the real corpus" walk, which boots a superset of these members (plus
+# qa/bluebook) and raises on a member that fails to load or registers no
+# bluebook. This file keeps what that walk does not check: that the
+# derived member list is non-empty and every member has a corpus script.
 RSpec.describe "The corpus" do
   # Example domains are loaded by folder, so adding or regrouping a concept
   # file never requires a corpus catalog change.
@@ -58,31 +64,6 @@ RSpec.describe "The corpus" do
     CORPUS_MEMBERS.each do |stem, bluebook|
       script = File.join(InMemoryDomain::ROOT, "spec", "corpus", "#{stem}.json")
       expect(File).to exist(script), "no corpus script for #{bluebook} — expected #{script}"
-    end
-  end
-
-  # CORPUS_MEMBERS is an Array of [stem, bluebook] pairs (see its own
-  # definition above), not a Hash — Style/HashEachMethods' `.each_value`
-  # rewrite assumed otherwise from the `|_stem, bluebook|` block shape
-  # alone and raised NoMethodError at load time. False positive.
-  # rubocop:disable-next Style/HashEachMethods
-  CORPUS_MEMBERS.each do |_stem, bluebook|
-    next unless bluebook
-
-    it "loads #{File.basename(bluebook)}" do
-      registry = Hecks::Runtime::Registry.new
-
-      expect do
-        Hecks.with_registry(registry) do
-          Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-          Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-          load_bluebook_files(bluebook)
-        end
-      end.not_to raise_error
-
-      expect(registry.bluebooks).not_to be_empty
     end
   end
 end

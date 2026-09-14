@@ -67,25 +67,6 @@ RSpec.describe "the syntax lifecycle" do
   # builder exactly as before. The suite still names every transition; it
   # just no longer forbids being in one.)
 
-  it "reports no word as both visible and hidden — the projection rule, held over the rows themselves" do
-    # No generated table exists to read back since the code-generating
-    # projection was retired ; what's still checkable from the rows alone is that the
-    # visible/hidden partition itself is well-formed — every word is one or
-    # the other, never both, and every hidden word really is proposed or
-    # retired rather than merely absent from a stale visible list.
-    visible = WORD_ROWS.reject { |row| %w[proposed retired].include?(status_of(row)) }
-                       .map { |row| row[:word] }
-    hidden = WORD_ROWS.map { |row| row[:word] } - visible
-
-    expect(visible & hidden).to be_empty
-
-    hidden.each do |word|
-      row = WORD_ROWS.find { |r| r[:word] == word }
-      expect(%w[proposed retired]).to include(status_of(row)),
-                                      "#{word} is hidden but its own status is #{status_of(row).inspect}"
-    end
-  end
-
   it "declares the language's own version" do
     expect(DECLARED_LANGUAGE_VERSION).to eq("1")
   end

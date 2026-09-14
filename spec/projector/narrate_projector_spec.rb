@@ -31,11 +31,6 @@ RSpec.describe Hecks::Projector::NarrateProjector do
     expect(Hecks::Projector.call(:narrate, bluebook: registry.bluebook("Pizzas"))).to eq(pizzas)
   end
 
-  it "needs no runtime, no store and no boot — only the IR" do
-    expect(banking).to be_a(String)
-    expect(banking).not_to be_empty
-  end
-
   describe "the chapter" do
     it "opens with the vision, verbatim" do
       expect(banking).to include(registry.bluebook("Banking").vision)

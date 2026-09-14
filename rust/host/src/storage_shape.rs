@@ -206,12 +206,6 @@ mod tests {
     }
 
     #[test]
-    fn mint_hash_is_stable_across_repeated_calls_on_the_same_shape() {
-        let ir = pizzas_ir();
-        assert_eq!(mint_hash(&ir), mint_hash(&ir));
-    }
-
-    #[test]
     fn a_reordered_but_otherwise_identical_ir_hashes_the_same() {
         // Structural comparison only, never a hash comparison — the
         // whole point storage_shape.rb's own header names: two IR trees

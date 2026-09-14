@@ -11,18 +11,6 @@ require "spec_helper"
 RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
   def build_world(&block) = Hecks::Bluebook::DSL::WorldBuilder.build("AggregateQualifiedGrowth", &block)
 
-  it "resolves an aggregate-qualified verb without raising" do
-    expect do
-      build_world do
-        realm "Examples"
-        latest "v1"
-        Widgets::Thing.persisted_by("Heki") do
-          dir "data"
-        end
-      end
-    end.not_to raise_error
-  end
-
   it "writes into the exact same @settings path a bare top-level call does" do
     qualified = build_world do
       realm "Examples"

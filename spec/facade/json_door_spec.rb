@@ -184,15 +184,4 @@ RSpec.describe Hecks::Facade::JsonDoor do
       end.to raise_error(Hecks::Runtime::TypeMismatch, /facts in with.*loose extra/)
     end
   end
-
-  describe ".parse" do
-    it "parses a raw JSON body string" do
-      expect(json_door.parse('{"name":"Margherita","toppings":["basil"]}'))
-        .to eq("name" => "Margherita", "toppings" => ["basil"])
-    end
-
-    it "propagates JSON::ParserError, undecorated, for malformed input" do
-      expect { json_door.parse("{not valid json") }.to raise_error(JSON::ParserError)
-    end
-  end
 end

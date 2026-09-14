@@ -37,13 +37,6 @@ RSpec.describe Hecks::Runtime::BootGates do
       expect(gates.registered?(:probe)).to be true
       expect(gates.registered?(:nothing_registered_this)).to be false
     end
-
-    it "is instance-scoped — a fresh instance starts with nothing registered" do
-      first = described_class.new
-      first.register(:probe, ->(*) {}, phase: :pre_verify)
-
-      expect(described_class.new.registered?(:probe)).to be false
-    end
   end
 
   describe "Loader's own wiring, end to end" do

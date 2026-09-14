@@ -50,8 +50,11 @@ RSpec.describe "every refusal the corpus provokes" do
       script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/#{name}.json")))
       Dir.mktmpdir do |tmp|
         domain = File.join(tmp, name)
-        FileUtils.cp_r(File.join(InMemoryDomain::ROOT, path), domain)
-        FileUtils.rm_rf(File.join(domain, "data"))
+        # Never copy data/: parallel workers boot the same example in place,
+        # and Heki's atomic snapshot write renames its .tmp file mid-copy.
+        source = File.join(InMemoryDomain::ROOT, path)
+        FileUtils.mkdir_p(domain)
+        (Dir.children(source) - ["data"]).each { |child| FileUtils.cp_r(File.join(source, child), domain) }
         runtime = Hecks.boot(domain)
 
         faults = []

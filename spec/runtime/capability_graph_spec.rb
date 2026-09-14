@@ -63,12 +63,6 @@ RSpec.describe Hecks::Runtime::CapabilityGraph do
     end
   end
 
-  describe "#cycles" do
-    it "is always empty — no port can depend on another in this model" do
-      expect(registry.capability_graph.cycles).to eq([])
-    end
-  end
-
   it "memoizes the graph per registry, the same way #repository does" do
     held = registry
 

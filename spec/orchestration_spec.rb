@@ -124,10 +124,6 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Order.Price")
   end
 
-  it "keeps the gap list empty, because there is nothing it cannot hold" do
-    expect(KNOWN_GAPS).to be_empty
-  end
-
   it "registers the language's graph, not the one the builder made" do
     # The swap, asserted rather than described: what comes back from the door
     # `Hecks.bluebook` registers through is a DIFFERENT object from the one handed

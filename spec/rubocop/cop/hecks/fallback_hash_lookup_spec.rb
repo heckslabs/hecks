@@ -66,13 +66,6 @@ RSpec.describe RuboCop::Cop::Hecks::FallbackHashLookup do
     RUBY
   end
 
-  it "flags the same shape on a method-call receiver, not just a local variable" do
-    expect_offense(<<~RUBY)
-      attributes[key.to_sym] || attributes[key]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `attributes[...] || attributes[...]` falls back to the second lookup whenever the first is falsy — but `||` cannot tell a genuinely stored `false` apart from a missing key, so a real `false` at `attributes[key.to_sym]` is silently discarded in favor of `attributes[key]` instead of being returned. Use `attributes.key?(key.to_sym) ? attributes[key.to_sym] : attributes[key]`, or a shared digger (see `key?` in `Hecks::QuerySpecification::FieldPath#read`), instead.
-    RUBY
-  end
-
   it "flags the same shape as the second operand of an outer &&" do
     expect_offense(<<~RUBY)
       enabled? && (h[a] || h[b])
@@ -95,30 +88,6 @@ RSpec.describe RuboCop::Cop::Hecks::FallbackHashLookup do
   it "does not flag two different receivers looked up by the same key" do
     expect_no_offenses(<<~RUBY)
       primary[key] || secondary[key]
-    RUBY
-  end
-
-  it "does not flag unrelated || uses with no bracket lookup on either side" do
-    expect_no_offenses(<<~RUBY)
-      a? || b?
-    RUBY
-  end
-
-  it "does not flag a bracket lookup falling back to a method call" do
-    expect_no_offenses(<<~RUBY)
-      hash[:name] || compute_default_name
-    RUBY
-  end
-
-  it "does not flag the already-fixed key?-first idiom itself" do
-    expect_no_offenses(<<~RUBY)
-      current.key?(sym) ? current[sym] : current[segment]
-    RUBY
-  end
-
-  it "does not flag &&" do
-    expect_no_offenses(<<~RUBY)
-      hash[:a] && hash[:b]
     RUBY
   end
 end

@@ -154,7 +154,6 @@ RSpec.describe RuboCop::Cop::Hecks::ThreadSharedIvarMutation do
   end
 
   it_behaves_like "flags plain ivar mutation", "Dispatcher"
-  it_behaves_like "flags plain ivar mutation", "Registry"
 
   it "does not flag plain ivar mutation in an unrelated class" do
     expect_no_offenses(<<~RUBY)

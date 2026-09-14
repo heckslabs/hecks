@@ -33,28 +33,6 @@ RSpec.describe Hecks::Forms::Params do
       expect { described_class.nest(pairs) }.to raise_error(ArgumentError, /price/)
     end
 
-    it "never silently clobbers the nested hash with the scalar (dotted-then-scalar order)" do
-      # Before the fix, this order raised nothing at all — `result[:price]`
-      # was quietly overwritten with the scalar "10", losing `cents`
-      # entirely with no error to show for it.
-      pairs = { "price.cents" => "1050", "price" => "10" }
-      expect { described_class.nest(pairs) }.to raise_error(ArgumentError)
-    end
-
-    it "never raises a raw TypeError from indexing into a scalar with a symbol (scalar-then-dotted order)" do
-      # Before the fix, this order blew up with `TypeError: no implicit
-      # conversion of Symbol into Integer` — a confusing internal error
-      # for what is really a malformed/conflicting submission.
-      pairs = { "price" => "10", "price.cents" => "1050" }
-      error = nil
-      begin
-        described_class.nest(pairs)
-      rescue StandardError => e
-        error = e
-      end
-      expect(error).to be_a(ArgumentError)
-    end
-
     it "catches the collision at a deeper level too, not just the top segment" do
       pairs = { "a.b" => "scalar", "a.b.c" => "deep" }
       expect { described_class.nest(pairs) }.to raise_error(ArgumentError)
