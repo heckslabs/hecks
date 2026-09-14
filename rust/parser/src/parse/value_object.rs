@@ -238,9 +238,16 @@ fn install_inline_closed_set(
     }
 
     vo.closed_set = true;
+    // UNMARKED, exactly like a bare `member` row (`push_member`, below):
+    // Ruby's `install_inline_closed_set` writes the same member rows, and
+    // the round trip through `Marks#member` unmarks every one of them, so
+    // `one_of: ["as", "false", "true"]` exports `false`/`true` as JSON
+    // booleans, not strings. Found via parser_parity_spec's
+    // bluebook_language member once RustReservedWord (vocabulary.bluebook)
+    // listed the Rust keywords `true`/`false` as closed-set values.
     vo.members = values
         .iter()
-        .map(|value| vec![(field.to_string(), ruby_value::Value::Str(value.clone()))])
+        .map(|value| vec![(field.to_string(), unmark_scalar(value))])
         .collect();
     Ok(())
 }

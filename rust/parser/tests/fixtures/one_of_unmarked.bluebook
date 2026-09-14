@@ -1,0 +1,11 @@
+# `one_of:` values are member rows, so they unmark exactly like a bare
+# `member` row does (Marks#unmark_scalar): quoted "true"/"false" export as
+# JSON booleans and "0" as an integer — the shape Ruby's own IR carries,
+# first hit by vocabulary.bluebook's RustReservedWord (`true`/`false`).
+Hecks.bluebook "FixtureOneOfUnmarked" do
+  aggregate "Widget" do
+    value_object "Word" do
+      attribute :word, String, one_of: ["as", "false", "true", "0"]
+    end
+  end
+end

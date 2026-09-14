@@ -1,3 +1,5 @@
+require "hecks/vocabulary"
+
 module Hecks
   module Bluebook
     # Lightweight formal methods over the IR — the same family as TLA+/
@@ -115,7 +117,11 @@ module Hecks
       # target; see `cross_domain_policy_findings`'s own comment for why
       # this can only ever be a corpus-scoped heuristic, never a general
       # correctness guarantee.
-      def call(bluebook, hecksagon: nil, known_domains: nil)
+      #
+      # `rust_target:`/`strict:` — both default false, both only change the
+      # SEVERITY of `rust_reserved_name` findings (see
+      # `rust_reserved_name_findings`); every other finding is unaffected.
+      def call(bluebook, hecksagon: nil, known_domains: nil, rust_target: false, strict: false)
         findings = []
         bluebook.aggregates.each do |aggregate|
           findings.concat(lifecycle_findings(aggregate, aggregate))
@@ -123,8 +129,66 @@ module Hecks
         end
         bluebook.process_managers.each { |process_manager| findings.concat(saga_findings(bluebook, process_manager)) }
         bluebook.policies.each { |policy| findings.concat(policy_findings(bluebook, policy, hecksagon, known_domains)) }
+        findings.concat(rust_reserved_name_findings(domain_name: bluebook.name,
+                                                    aggregate_names: bluebook.aggregates.map(&:hecks_name),
+                                                    rust_target: rust_target, strict: strict))
         findings
       end
+
+      # ── Rust reserved names ───────────────────────────────────────────
+      #
+      # A name that becomes a bare Rust MODULE identifier with no `r#`
+      # escape hatch: an aggregate (`pub mod <name.downcase>;` plus its
+      # `<name.downcase>.rs` file) and a domain (`pub mod <name>;` AND a
+      # Cargo `[features]` key). Field names are not checked — both
+      # generators already raw-escape those (`rust_ident_field`).
+      #
+      # The words come from the `RustReservedWord`/`CargoReservedName`
+      # vocabularies, the same tables `rust/project/naming.rb` and
+      # hecks-codegen's generated `reserved_names.rs` read. Both Rust
+      # generators refuse through this check (`Projector.
+      # reserved_name_refusal`, and its hecks-codegen port in `naming.rs`).
+      #
+      # SEVERITY: a domain that only ever runs in Ruby is fine with an
+      # aggregate named `Match`, so this WARNS by default. It is an ERROR
+      # when the caller says the domain has a Rust target (`rust_target:` —
+      # `bin/model_check` reads it off the domain's Cargo feature, the
+      # generators always pass it) or asks for strictness (`strict:`,
+      # `bin/model_check --strict`).
+      #
+      # The module-name transform is `downcase`, the one both generators
+      # apply to an aggregate name and to an attached chapter's name.
+      def rust_reserved_name_findings(domain_name: nil, aggregate_names: [], rust_target: false, strict: false)
+        severity = rust_target || strict ? :error : :warning
+        keywords = Hecks::Vocabulary.fetch("RustReservedWord")
+
+        findings = aggregate_names.filter_map do |name|
+          module_name = rust_module_name(name)
+          next unless keywords.include?(module_name)
+
+          Finding.new(kind: :rust_reserved_name, severity: severity, subject: name.to_s,
+                      message: "the aggregate's Rust module `#{module_name}` is a Rust keyword (RustReservedWord) — " \
+                               "`pub mod #{module_name};` has no raw-identifier escape; rename the aggregate")
+        end
+        findings.concat(domain_reserved_name_findings(domain_name, keywords, severity)) if domain_name
+        findings
+      end
+
+      def domain_reserved_name_findings(domain_name, keywords, severity)
+        module_name = rust_module_name(domain_name)
+        table = if keywords.include?(module_name)
+                  "a Rust keyword (RustReservedWord)"
+                elsif Hecks::Vocabulary.fetch("CargoReservedName").include?(module_name)
+                  "a reserved Cargo.toml key (CargoReservedName)"
+                end
+        return [] unless table
+
+        [Finding.new(kind: :rust_reserved_name, severity: severity, subject: domain_name.to_s,
+                     message: "the domain's Rust module and Cargo feature `#{module_name}` is #{table} — " \
+                              "rename the domain")]
+      end
+
+      def rust_module_name(name) = name.to_s.downcase
 
       # ── lifecycles (aggregate AND entity — a piece may declare one too) ──
 

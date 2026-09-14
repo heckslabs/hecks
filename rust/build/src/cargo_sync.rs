@@ -7,41 +7,12 @@
 
 use std::path::Path;
 
-/// Same list `rust/project/naming.rb`'s `RustProjection::Projector::
-/// RUST_KEYWORDS` declares — a domain name becomes a bare Rust module
-/// identifier (`pub mod <name>;`), and module names get no raw-identifier
-/// escape hatch the way struct fields do.
-const RUST_KEYWORDS: &[&str] = &[
-    "as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn", "for", "if", "impl",
-    "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "Self", "static", "struct",
-    "super", "trait", "true", "type", "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final",
-    "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
-];
-
-/// Same list `rust/project/naming.rb`'s `CARGO_RESERVED_DOMAIN_NAMES`
-/// declares — every key that already appears elsewhere in
-/// `rust/Cargo.toml` outside `[features]` (`[package]`'s
-/// `name`/`version`/`edition`/etc., `[lib]`/`[[bin]]`'s `name`/`path`)
-/// plus `default`, which Cargo itself reserves for the auto-enabled
-/// feature set.
-const CARGO_RESERVED_DOMAIN_NAMES: &[&str] = &[
-    "name",
-    "version",
-    "edition",
-    "path",
-    "authors",
-    "license",
-    "description",
-    "default",
-    "features",
-    "package",
-    "lib",
-    "bin",
-    "dependencies",
-    "dev-dependencies",
-    "build-dependencies",
-    "workspace",
-];
+/// Both tables are generated from the `RustReservedWord`/`CargoReservedName`
+/// vocabularies by `bin/project_reserved_names` — the same words
+/// `rust/project/naming.rb` and hecks-codegen check. A domain name becomes a
+/// bare Rust module identifier (`pub mod <name>;`, no raw-identifier escape
+/// hatch) and a Cargo `[features]` key.
+use crate::reserved_names::{CARGO_RESERVED_DOMAIN_NAMES, RUST_KEYWORDS};
 
 /// R5 — a domain's own name has to double as a directory name, a bare
 /// Rust module identifier, and a Cargo `[features]` key at once. Ported

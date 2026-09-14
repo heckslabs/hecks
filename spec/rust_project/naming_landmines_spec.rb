@@ -11,29 +11,17 @@ require_relative "../../rust/project/naming"
 # prove the STRING-LEVEL fix is right -- the io-tagged spec alongside
 # this one, domain_feature_exclusivity_spec.rb, additionally proves
 # the real end-to-end build).
+#
+# Reserved-word collisions (a domain or aggregate module name that is a
+# Rust keyword or a reserved Cargo.toml key, BUG#124) are the shared
+# `Hecks::Bluebook::ModelCheck.rust_reserved_name_findings` check now, and
+# are pinned by spec/model_check_spec.rb's "Rust reserved names" table.
+# This file keeps only the identifier-SHAPE and escaping rules.
 RSpec.describe RustProjection::Projector do
   describe ".valid_domain_mod_name?" do
     it "accepts ordinary lowercase domain names" do
       %w[banking pizzas roster my_domain a].each do |name|
         expect(described_class.valid_domain_mod_name?(name)).to be(true), "expected #{name.inspect} to be valid"
-      end
-    end
-
-    # THE R5 LANDMINE ITSELF -- a domain literally named one of these
-    # would have its Cargo.toml feature entry silently skipped by
-    # bin/project_rust's (now [features]-scoped) sync regex, since each
-    # one is also a real key elsewhere in rust/Cargo.toml ([package]'s
-    # version/edition/name, [lib]/[[bin]]'s path) or Cargo's own
-    # reserved feature-list name (default).
-    it "rejects domain names that collide with a reserved Cargo.toml key" do
-      %w[version edition path default name lib bin package].each do |name|
-        expect(described_class.valid_domain_mod_name?(name)).to be(false), "expected #{name.inspect} to be rejected"
-      end
-    end
-
-    it "rejects domain names that are Rust keywords (would break `pub mod <name>;`)" do
-      %w[type self mod crate move fn].each do |name|
-        expect(described_class.valid_domain_mod_name?(name)).to be(false), "expected #{name.inspect} to be rejected"
       end
     end
 
@@ -44,43 +32,17 @@ RSpec.describe RustProjection::Projector do
     end
   end
 
-  # BUG#124 -- an aggregate's own name has the same landmine class 2 as a
-  # domain name's `pub mod #{name};` above, at a different site
-  # (domain_generator.rb's per-aggregate file + `pub mod
-  # #{a[:name].downcase};` in the domain's own mod.rs), keyed off the
-  # DOWNCASED form since an aggregate is conventionally declared
-  # PascalCase ("Crate") and it's the lowercase module identifier that
-  # collides.
-  describe ".valid_aggregate_mod_name?" do
+  describe ".legal_aggregate_mod_identifier?" do
     it "accepts ordinary PascalCase aggregate names" do
       %w[Roster Pizza MyAggregate A].each do |name|
-        expect(described_class.valid_aggregate_mod_name?(name)).to be(true), "expected #{name.inspect} to be valid"
-      end
-    end
-
-    # THE BUG#124 LANDMINE ITSELF -- downcased, each of these becomes a
-    # Rust keyword as a bare module identifier (`pub mod crate;`),
-    # exactly the shape `bin/qa_generated_domains --rust` found live
-    # against qa/stress_domains/generated_keyword_aggregate.
-    it "rejects aggregate names that downcase to a Rust keyword (would break `pub mod <name>;`)" do
-      %w[Crate Self Type Move Fn Mod Self].each do |name|
-        expect(described_class.valid_aggregate_mod_name?(name)).to be(false), "expected #{name.inspect} to be rejected"
+        expect(described_class.legal_aggregate_mod_identifier?(name)).to be(true), "expected #{name.inspect} to be valid"
       end
     end
 
     it "rejects aggregate names that aren't a legal bare Rust identifier once downcased" do
       ["2Crate", "My-App", ""].each do |name|
-        expect(described_class.valid_aggregate_mod_name?(name)).to be(false), "expected #{name.inspect} to be rejected"
-      end
-    end
-
-    # UNLIKE a domain name, an aggregate name never doubles as a Cargo
-    # feature key -- only the DOMAIN'S OWN directory name does
-    # (CARGO_RESERVED_DOMAIN_NAMES's own header). "version"/"default"/etc
-    # are perfectly fine aggregate names.
-    it "accepts aggregate names that collide with a Cargo.toml key (no feature-name role to collide with)" do
-      %w[Version Default Package].each do |name|
-        expect(described_class.valid_aggregate_mod_name?(name)).to be(true), "expected #{name.inspect} to be accepted"
+        expect(described_class.legal_aggregate_mod_identifier?(name)).to be(false),
+                                                                         "expected #{name.inspect} to be rejected"
       end
     end
   end

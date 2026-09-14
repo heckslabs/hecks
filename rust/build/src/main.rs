@@ -64,6 +64,7 @@ mod json;
 mod lineage_pass;
 mod optional_pass;
 mod pipeline;
+mod reserved_names;
 mod resolve;
 mod root;
 mod sidecars;

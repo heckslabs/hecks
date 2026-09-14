@@ -316,6 +316,18 @@ jobs:
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: bundle exec bin/regen_codegen_domains --check
 
+      # The reserved-name tables (RustReservedWord/CargoReservedName in
+      # vocabulary.bluebook) are read by rust/project/naming.rb through
+      # lib/hecks/vocabulary.rb and by hecks-codegen/hecks-build through the
+      # generated rust/codegen/src/reserved_names.rs and
+      # rust/build/src/reserved_names.rs. Regenerate all three and refuse a
+      # diff, so no generator can escape or refuse different words.
+      - name: "vocabulary: regenerate reserved-name tables, fail on drift"
+        run: |
+          bundle exec bin/project_vocabulary
+          bundle exec bin/project_reserved_names
+          git diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs
+
       # THE COVERAGE CHECKER, PER DOMAIN — a different question than
       # `rspec_rust_io`'s "Build the Rust conformance binary" and rspec
       # steps ask. Those check "did Ruby and Rust agree on this script";
