@@ -636,7 +636,7 @@ pub fn dispatch_entity_board_card_annotate(
                 &[
 
                 ],
-                false,
+                true,
             )
         },
         &[],

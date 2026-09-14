@@ -1202,6 +1202,14 @@ pub fn emit_nested_entity_command(
     // aggregate, so a correction check evaluated there would check the
     // wrong thing — left open, unexercised, same as BUG#30's own explicit
     // scope boundary).
+    //
+    // BUG#137 — the hop-2 `apply_entity_command` call's own trailing
+    // `parent_in_args` literal, below, is `true` now, not `false` —
+    // mirrors `rust/project/commands.rb`'s own identical fix byte for
+    // byte (`spec/project_rust_pipeline_spec.rb`'s own whole-file
+    // comparison catches a drift here); see that call site's comment,
+    // and `kernel/dispatch.rs`'s own `apply_entity_command`/`dispatch_
+    // entity` header, for the full reasoning.
     let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
     let emits_expr = emits.iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", ");
     let fn_name = format!(
@@ -1258,7 +1266,7 @@ pub fn emit_nested_entity_command(
                         }},\n                \
                         &[\n{ensures_specs}\n                \
                         ],\n                \
-                        false,\n            \
+                        true,\n            \
                     )\n        \
                 }},\n        \
                 &[],\n        \
