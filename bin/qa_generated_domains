@@ -212,7 +212,10 @@ end
 # ── the parent: generate, check, shrink, report ──────────────────────
 
 start   = options[:start] || (Time.now.to_i % 1_000_000)
-run_dir = File.join(ROOT, "tmp/qa-generated/run-#{start}")
+# `-<pid>`: `start` defaults to the clock's second, so two runs started in
+# the same second (parallel spec workers) would otherwise write the same
+# domain directories under each other.
+run_dir = File.join(ROOT, "tmp/qa-generated/run-#{start}-#{Process.pid}")
 scratch = File.join(ROOT, "tmp/qa-generated/rust")
 
 def child_check(dir, options, binary: nil, match: nil, shrink_budget: 0)

@@ -118,7 +118,10 @@ def boot_error(candidate, boot_root)
   result["status"] == "invalid" ? result["error"] : nil
 end
 
-stamp     = Time.now.strftime("%Y%m%d-%H%M%S")
+# The pid makes the run directory unique per process: two runs started in
+# the same second (the three miner spec files on parallel workers) used to
+# share it and read each other's candidates — PR #675's queue run.
+stamp     = "#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}"
 run_dir   = File.join(ROOT, "tmp/qa-mined/run-#{stamp}")
 out_dir   = options[:from] || File.join(run_dir, "candidates")
 agent_log = File.join(run_dir, "agent.log")
