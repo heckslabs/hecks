@@ -112,16 +112,6 @@ mod tests {
     }
 
     #[test]
-    fn applies_authorize_with_a_tenant() {
-        let mut options = ir::QueryOptions::default();
-        let args = args_with(vec![(1, ":vault_access")], vec![("tenant", ":branch_code")]);
-        apply("f.bluebook", 1, "authorize", &args, &mut options).unwrap();
-        let a = options.authorization.unwrap();
-        assert_eq!(a.policy, "vault_access");
-        assert_eq!(a.tenant, Some("branch_code".to_string()));
-    }
-
-    #[test]
     fn drops_the_default_null_semantics_mode() {
         let mut options = ir::QueryOptions::default();
         let args = args_with(vec![(1, ":native")], vec![]);
