@@ -1,0 +1,44 @@
+{
+  "account": {
+    "journal": [
+      {
+        "ordinal": "1",
+        "era": "1",
+        "aggregate": "account",
+        "aggregate_id": "ACC-1",
+        "operation": "save",
+        "state": "{\"kind\": {\"name\": \"current\"}, \"ledger\": [{\"state\": \"posted\", \"amount\": {\"cents\": 1000, \"currency\": \"USD\"}, \"sequence\": {\"value\": 1}, \"direction\": {\"value\": \"credit\"}, \"narrative\": {\"text\": \"opening\"}}, {\"state\": \"reversed\", \"amount\": {\"cents\": 250, \"currency\": \"USD\"}, \"sequence\": {\"value\": 2}, \"direction\": {\"value\": \"credit\"}, \"narrative\": {\"text\": \"top up\"}}], \"number\": {\"value\": \"ACC-1\"}, \"status\": \"open\", \"balance\": {\"cents\": 1250, \"currency\": \"USD\"}, \"customer\": \"CUST-1\", \"fees_cents\": {\"cents\": 0, \"currency\": \"USD\"}, \"daily_limit\": {\"cents\": 500}, \"interest_cents\": {\"cents\": 0, \"currency\": \"USD\"}, \"customer_status\": \"active\"}",
+        "mirrors": null
+      }
+    ],
+    "head_snapshot": [
+      {
+        "id": "ACC-1",
+        "ordinal": "1",
+        "operation": "save",
+        "state": "{\"kind\": {\"name\": \"current\"}, \"ledger\": [{\"state\": \"posted\", \"amount\": {\"cents\": 1000, \"currency\": \"USD\"}, \"sequence\": {\"value\": 1}, \"direction\": {\"value\": \"credit\"}, \"narrative\": {\"text\": \"opening\"}}, {\"state\": \"reversed\", \"amount\": {\"cents\": 250, \"currency\": \"USD\"}, \"sequence\": {\"value\": 2}, \"direction\": {\"value\": \"credit\"}, \"narrative\": {\"text\": \"top up\"}}], \"number\": {\"value\": \"ACC-1\"}, \"status\": \"open\", \"balance\": {\"cents\": 1250, \"currency\": \"USD\"}, \"customer\": \"CUST-1\", \"fees_cents\": {\"cents\": 0, \"currency\": \"USD\"}, \"daily_limit\": {\"cents\": 500}, \"interest_cents\": {\"cents\": 0, \"currency\": \"USD\"}, \"customer_status\": \"active\"}"
+      }
+    ]
+  },
+  "card_payment": {
+    "journal": [
+      {
+        "ordinal": "2",
+        "era": "1",
+        "aggregate": "card_payment",
+        "aggregate_id": "AUTH-1",
+        "operation": "save",
+        "state": "{\"tags\": [{\"value\": \"food\"}, {\"value\": \"travel\"}], \"amount\": {\"cents\": 300}, \"status\": \"authorized\", \"account\": \"ACC-1\", \"merchant\": {\"value\": \"Cafe\"}, \"disputed_by\": null, \"authorisation\": {\"value\": \"AUTH-1\"}, \"account_status\": \"open\"}",
+        "mirrors": null
+      }
+    ],
+    "head_snapshot": [
+      {
+        "id": "AUTH-1",
+        "ordinal": "2",
+        "operation": "save",
+        "state": "{\"tags\": [{\"value\": \"food\"}, {\"value\": \"travel\"}], \"amount\": {\"cents\": 300}, \"status\": \"authorized\", \"account\": \"ACC-1\", \"merchant\": {\"value\": \"Cafe\"}, \"disputed_by\": null, \"authorisation\": {\"value\": \"AUTH-1\"}, \"account_status\": \"open\"}"
+      }
+    ]
+  }
+}
