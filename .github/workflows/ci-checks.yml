@@ -74,7 +74,10 @@ jobs:
   checks_fuzz:
     runs-on: ubuntu-latest
 
-    if: github.event_name != 'push'
+    # Skips cache-warming `push` AND a plain pull_request — the light PR
+    # set, see the comment above `on:` in ci.yml (a called workflow sees
+    # its caller's `github` context, labels included).
+    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
     steps:
       - uses: actions/checkout@v4
@@ -206,7 +209,8 @@ jobs:
   checks_codegen_drift:
     runs-on: ubuntu-latest
 
-    if: github.event_name != 'push'
+    # Light PR set, same as `checks_fuzz` above.
+    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
     steps:
       - uses: actions/checkout@v4
