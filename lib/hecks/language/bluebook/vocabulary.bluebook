@@ -171,9 +171,17 @@ Hecks.bluebook "Bluebook" do
     # fires for a creating command, advance_lifecycle only when a transition
     # applies — so this is the order a command that does both follows,
     # confirmed by tracing a real dispatch, not read off the source.
+    #
+    # decode_arguments leads both dispatch orders: turning the caller's raw
+    # facts into a command's declared arguments, before any argument gate
+    # judges them. A no-op in Ruby today (routing already hands the
+    # interpreter a decoded hash) and in the Rust kernel's dispatch loop
+    # (generated `from_json` still decodes and gates in one pass) — declared
+    # now so the Rust kernel's step enum has a place for a generated decoder
+    # to move into, rather than the order being implied by generated code.
     value_object "AggregateDispatchOrder" do
       attribute :step, String,
-                one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
+                one_of: ["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
                          "refuse_role_mismatch", "resolve_references", "hydrate", "enforce_givens",
                          "admissible_transition", "assign_creation_attributes", "apply_mutations",
                          "advance_lifecycle", "delegate_to_entity", "enforce_ensures", "enforce_invariants",
@@ -197,7 +205,7 @@ Hecks.bluebook "Bluebook" do
     # both interpreters), even though nothing in the real corpus does yet.
     value_object "EntityDispatchOrder" do
       attribute :step, String,
-                one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
+                one_of: ["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
                          "refuse_role_mismatch", "resolve_references", "hydrate_parent",
                          "locate_element", "enforce_givens", "admissible_transition", "apply_mutations",
                          "advance_lifecycle", "enforce_ensures", "enforce_invariants", "save", "emit"]
