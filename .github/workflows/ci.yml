@@ -511,6 +511,11 @@ jobs:
       - name: "rspec: hecks-build (Rust-native orchestrator) pipeline parity"
         run: bundle exec rspec --tag io spec/hecks_build_pipeline_spec.rb
 
+      # The crate's own unit tests — never ran in CI before (only
+      # `cargo test --lib` in rust/ did).
+      - name: "cargo test: rust/build (hecks-build)"
+        run: cd rust/build && cargo test
+
   # SPLIT OUT OF rspec_rust_io ABOVE (see its own header comment) —
   # measured locally as the second-heaviest of the original 9 (70.61s,
   # warm cache). spec/project_deploy_parity_gate_spec.rb's own

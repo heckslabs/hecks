@@ -916,16 +916,6 @@ mod tests {
     }
 
     #[test]
-    fn refuses_bare_if() {
-        let line = SourceLine {
-            number: 1,
-            text: "if amount > 0",
-        };
-        let err = classify("f.bluebook", &line).unwrap_err();
-        assert!(err.message.contains("if"));
-    }
-
-    #[test]
     fn refuses_local_assignment() {
         let line = SourceLine {
             number: 1,

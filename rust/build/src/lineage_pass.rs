@@ -250,21 +250,8 @@ fn split_camel_boundaries(text: &str) -> String {
 mod tests {
     use super::*;
 
-    #[test]
-    fn snake_cases_a_plain_pascal_name() {
-        assert_eq!(snake_case("Order"), "order");
-    }
-
-    #[test]
-    fn snake_cases_a_multi_word_name_with_no_acronym() {
-        assert_eq!(snake_case("SafeDepositBox"), "safe_deposit_box");
-    }
-
-    #[test]
-    fn snake_cases_a_leading_acronym_followed_by_a_word() {
-        assert_eq!(snake_case("ATMCard"), "atm_card");
-    }
-
+    // Covers the plain-Pascal ("Order"), multi-word ("SafeDepositBox") and
+    // leading-acronym ("ATMCard") shapes in one table.
     #[test]
     fn snake_cases_every_real_corpus_aggregate_name() {
         let cases = [
