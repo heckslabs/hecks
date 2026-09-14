@@ -313,6 +313,21 @@ jobs:
       # auto-discovered now — #664 attempted a manual list-edit for it in
       # parallel with this structural fix; this supersedes that edit
       # entirely rather than layering on top of it.
+      #
+      # bin/project_rust generates through hecks-build (rust/build), which
+      # builds and runs hecks-codegen (rust/codegen) — ADR 0054a, B3. Both
+      # crates are cached so the regeneration below doesn't cold-build them.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: build
+          crate-root: rust/build
+          include-registry: "false"
+
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: bundle exec bin/regen_codegen_domains --check
 
@@ -368,6 +383,29 @@ jobs:
       # one still held.
       - name: "rust coverage: meta"
         run: bundle exec bin/rust_coverage meta
+
+      # THE SAME SIX, AGAINST hecks-codegen's MANIFEST (ADR 0054a, B2).
+      # `--codegen=rust` regenerates each domain's manifest.json with
+      # rust/codegen from the same committed ir.json into a scratch dir,
+      # then runs the identical analysis and the identical, unchanged
+      # ALLOWLIST. Since B3 the committed manifests come from hecks-codegen
+      # too (bin/project_rust's default); both modes stay gated until B5
+      # deletes the Ruby generator. embryonaut has no committed
+      # manifest (fallback mode), so it reads the committed snapshot in
+      # both modes — see bin/rust_coverage's own header.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
+      - name: "rust coverage (hecks-codegen): pizzas, embryonaut, governance, identity, banking, meta"
+        run: |
+          bundle exec bin/rust_coverage pizzas --codegen=rust
+          bundle exec bin/rust_coverage embryonaut --codegen=rust
+          bundle exec bin/rust_coverage governance --codegen=rust
+          bundle exec bin/rust_coverage identity --codegen=rust
+          bundle exec bin/rust_coverage banking --codegen=rust
+          bundle exec bin/rust_coverage meta --codegen=rust
 
       # THE KERNEL HALF of the same guarantee. bin/project_kernel_
       # capabilities' own enums (AttributeShape/OperatorCategory) already

@@ -70,15 +70,15 @@ jobs:
           name: main
           crate-root: rust
 
-      # project_rust_pipeline_spec.rb below (opt-in HECKS_PARSER=rust
-      # HECKS_CODEGEN=rust bin/project_rust) builds these two crates for
-      # real — previously UNCACHED here even though rspec_rust_parser/
-      # rspec_rust_codegen already cache the exact same crates under the
-      # exact same key. actions/cache restores by key across jobs in the
-      # same workflow (from a PREVIOUS completed run, not the one running
-      # concurrently right now), so this lets that build reuse whatever
-      # those two jobs already populated last time instead of a
-      # guaranteed-cold `cargo build` on every single run.
+      # bin/project_rust (below, and in the conformance specs' builds)
+      # generates through hecks-build (rust/build), which builds and runs
+      # hecks-codegen (rust/codegen) — ADR 0054a, B3. Cached under the same
+      # keys their own jobs use. actions/cache restores by key across jobs
+      # in the same workflow (from a PREVIOUS completed run, not the one
+      # running concurrently right now), so these builds reuse whatever
+      # those jobs populated last time instead of a guaranteed-cold
+      # `cargo build` on every run. rust/parser stays cached for the specs
+      # below that still build it.
       - uses: ./.github/actions/cargo-cache
         with:
           name: parser
@@ -88,6 +88,12 @@ jobs:
         with:
           name: codegen
           crate-root: rust/codegen
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: build
+          crate-root: rust/build
+          include-registry: "false"
 
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
@@ -189,11 +195,9 @@ jobs:
           crate-root: rust/codegen
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # THE 7 REMAINING `io: true` SPECS THAT TOUCH THE SHARED `rust/`
-      # CRATE — via before(:context)/after(:context) backup-and-restore
-      # of rust/src/generated/+Cargo.toml (project_rust_pipeline_spec.rb)
-      # or a read-only `cargo build --features <domain>` against the
-      # already-committed tree (rust_conformance_spec.rb,
+      # THE REMAINING `io: true` SPECS THAT TOUCH THE SHARED `rust/`
+      # CRATE — via a read-only `cargo build --features <domain>` against
+      # the already-committed tree (rust_conformance_spec.rb,
       # rust_conformance_fuzz_spec.rb, rust_numeric_coercion_spec.rb,
       # domain_feature_exclusivity_spec.rb, naming_landmines_spec.rb).
       # semantics_corpus_spec.rb's own :io block joins them for the same
@@ -201,9 +205,9 @@ jobs:
       # project_deploy_parity_gate_spec.rb stay in their own jobs in
       # ci.yml — measured the heaviest two of the original 9 (103.66s/
       # 70.61s locally) and the only two needing wasm32-wasip1/wasmtime.
-      # parser_parity_spec.rb, parser_coverage_spec.rb, codegen_parity_
-      # spec.rb, and rust_host_lineage_conformance_spec.rb build a
-      # SEPARATE crate each (rust/parser/, rust/codegen/, rust/host/) and
+      # parser_parity_spec.rb, parser_coverage_spec.rb, and
+      # rust_host_lineage_conformance_spec.rb build a
+      # SEPARATE crate each (rust/parser/, rust/host/) and
       # never touch this tree — verified by grep, not assumed — so they
       # run in their own reusable-workflow files instead of here. Listed
       # explicitly rather than by directory: spec/rust_project/ also
@@ -213,10 +217,12 @@ jobs:
       # mutation discipline the old serial step already used — cargo
       # builds writing into this checkout's own rust/ tree would race a
       # second worker doing the same.
-      - name: "rspec: Rust conformance + numeric coercion + pipeline parity (serial — shared-file mutation)"
+      # spec/project_rust_pipeline_spec.rb (default path vs the Ruby
+      # generator) left this list in ADR 0054a's B4: it is tagged
+      # `ruby_codegen_parity` and runs on demand only (spec_helper.rb).
+      - name: "rspec: Rust conformance + numeric coercion (serial — shared-file mutation)"
         run: |
           bundle exec rspec --tag io \
-            spec/project_rust_pipeline_spec.rb \
             spec/rust_conformance_spec.rb \
             spec/rust_conformance_fuzz_spec.rb \
             spec/semantics_corpus_spec.rb \

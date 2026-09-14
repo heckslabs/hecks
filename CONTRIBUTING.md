@@ -150,14 +150,15 @@ fences, `bundle exec rspec spec/guides_spec.rb` either passes or tells
 you the prose lied.
 
 **Rust.** `rust/` is a second dispatch runtime, generated from the same
-canonical IR and checked against Ruby continuously
-(`spec/codegen_parity_spec.rb`, `spec/rust_conformance_spec.rb`). You
+canonical IR by `hecks-codegen` (`rust/codegen`) and checked against
+Ruby continuously (`spec/rust_conformance_spec.rb`, plus CI's
+codegen-drift check). You
 don't need a Rust toolchain to contribute Ruby-only changes — the merge
 queue builds and runs the conformance suite before anything lands. (A
 pull request's own CI runs only the core spec shards and static checks;
 add the `full-ci` label to a PR to get the Rust, Postgres-io, fuzzing
 and codegen-drift jobs on it too.) If you do touch anything
-that changes what gets generated (`rust/project/*.rb`,
+that changes what gets generated (`rust/codegen/`, `rust/build/`,
 `bin/project_rust`, the kernel's hand-written half under
 `rust/src/kernel/`), and you have `cargo` installed, run it yourself
 before you find out from CI:

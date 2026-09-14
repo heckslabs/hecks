@@ -19,6 +19,61 @@ pub struct ReferenceCheck {
     pub heads: String,
 }
 
+/// Port of the plain Hash `rust/project/domain_generator.rb#tenant_
+/// boundary_checks` builds (ANGLE-8's write-side tenant boundary, PR #595;
+/// BUG#130) — see that method's own header for the full argument, and
+/// `emit_tenant_boundary_check` below for how it renders.
+/// Port of `rust/project/registry.rb#emit_tenant_boundary_check` — see that
+/// method's own header (hand-built rather than an Exemplar shape: the
+/// target accessor's expression differs for a single-attribute value
+/// object vs a bare scalar). Output is byte-identical to Ruby's.
+fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
+    let ref_ident = naming::rust_ident_field(&check.reference_field);
+    let own_expr = format!("args.{}.clone()", naming::rust_ident_field(&check.own_accessor));
+    let target_expr = match check.target_accessor.split_once('.') {
+        Some((head, inner)) => format!(
+            "record.{}.as_ref().map(|v| v.{}.clone())",
+            naming::rust_ident_field(head),
+            naming::rust_ident_field(inner)
+        ),
+        None => format!("record.{}.clone()", naming::rust_ident_field(&check.target_accessor)),
+    };
+    format!(
+        "if let Some(record) = store.{}.find(&args.{ref_ident}) {{ \
+         if let Some(target_tenant) = {target_expr} {{ \
+         let own_tenant = {own_expr}; \
+         if target_tenant != own_tenant {{ \
+         return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[\
+         (\"aggregate\", {}), \
+         (\"field\", {}), \
+         (\"tenant\", &format!(\"{{:?}}\", own_tenant)), \
+         (\"attribute\", {}), \
+         (\"target\", {}), \
+         (\"target_field\", {}), \
+         (\"other\", &format!(\"{{:?}}\", target_tenant))\
+         ]))); \
+         }} }} }}",
+        check.target_mod,
+        naming::ruby_inspect_string(&check.aggregate_name),
+        naming::ruby_inspect_string(&check.own_tenant_field),
+        naming::ruby_inspect_string(&check.reference_field),
+        naming::ruby_inspect_string(&check.target_name),
+        naming::ruby_inspect_string(&check.target_tenant_field),
+    )
+}
+
+#[derive(Clone)]
+pub struct TenantBoundaryCheck {
+    pub reference_field: String,
+    pub target_mod: String,
+    pub target_name: String,
+    pub aggregate_name: String,
+    pub own_tenant_field: String,
+    pub own_accessor: String,
+    pub target_tenant_field: String,
+    pub target_accessor: String,
+}
+
 pub struct CommandEntry {
     pub verb: String,
     pub name: String,
@@ -27,6 +82,12 @@ pub struct CommandEntry {
     pub creates: bool,
     pub identity_extra_params: Vec<String>,
     pub reference_checks: Vec<ReferenceCheck>,
+    /// ANGLE-8 / BUG#130 — the cross-tenant reference checks for THIS
+    /// command (`domain_generator.rs#tenant_boundary_checks`). Empty for
+    /// every command whose aggregate, or whose reference target, declares
+    /// no tenant-scoping query — i.e. everything outside `tenant_ledger`
+    /// in the real corpus today.
+    pub tenant_boundary_checks: Vec<TenantBoundaryCheck>,
     /// This command's OWN reference-typed attributes — `command_deref`'s
     /// own specs (`reference_specs.rb`'s own header).
     pub reference_specs: Vec<ReferenceSpec>,
@@ -591,21 +652,27 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(|check| emit_reference_check(exemplar, check))
                 .collect();
 
-            // BUG#139 — the ANGLE-8 write-side tenant boundary (PR #595,
-            // `rust/project/registry.rb`'s own `tenant_boundary_checks`
-            // header) has no port in THIS pipeline yet: it works purely
-            // from `ir.json`, which carries no `tenant_boundary_checks`-
-            // equivalent field, and the one real-corpus domain that
-            // declares one (`tenant_ledger`) is generated exclusively
-            // through the Ruby-hosted pipeline (not one of this crate's
-            // own `PARITY_DOMAINS`). `dispatch()`'s signature now always
-            // takes this parameter regardless (`kernel/dispatch.rs`'s own
-            // header comment on it), so every command generated here
-            // passes an unconditional `Ok(())` — a genuine no-op check,
-            // not a placeholder standing in for real logic this pipeline
-            // is missing.
-            let tenant_boundary_check_line =
-                "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());".to_string();
+            // BUG#139 / BUG#130 — the ANGLE-8 write-side tenant boundary
+            // (PR #595), mirroring `rust/project/registry.rb`'s own
+            // `tenant_boundary_check_line` exactly: an already-computed
+            // `Result<(), Refusal>` that `dispatch()` applies AFTER the
+            // mutation step (`kernel/dispatch.rs`'s own header). Derived
+            // purely from `ir.json` (`domain_generator.rs#tenant_boundary_
+            // checks` reads each aggregate's own `authorize ..., tenant:`
+            // query declaration), so `tenant_ledger` generates the SAME
+            // enforcement through hecks-codegen that it always got through
+            // the Ruby generator; an unconditional `Ok(())` for every
+            // command with no tenant boundary to enforce.
+            let tenant_boundary_check_bodies: Vec<String> =
+                c.tenant_boundary_checks.iter().map(emit_tenant_boundary_check).collect();
+            let tenant_boundary_check_line = if tenant_boundary_check_bodies.is_empty() {
+                "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());".to_string()
+            } else {
+                format!(
+                    "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = (|| -> Result<(), crate::kernel::Refusal> {{ {} Ok(()) }})();",
+                    tenant_boundary_check_bodies.join(" ")
+                )
+            };
 
             // `owner_deref`/`command_deref` — see `reference_lookup.rs`'s
             // own header and `rust/project/registry.rb`'s identical
@@ -1137,6 +1204,7 @@ mod tests {
                         "box_number".to_string(),
                     ],
                     reference_checks: Vec::new(),
+                    tenant_boundary_checks: Vec::new(),
                     reference_specs: Vec::new(),
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
@@ -1151,6 +1219,7 @@ mod tests {
                     creates: false,
                     identity_extra_params: Vec::new(),
                     reference_checks: Vec::new(),
+                    tenant_boundary_checks: Vec::new(),
                     reference_specs: Vec::new(),
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
@@ -1238,6 +1307,7 @@ mod tests {
                 creates: false,
                 identity_extra_params: Vec::new(),
                 reference_checks: Vec::new(),
+                tenant_boundary_checks: Vec::new(),
                 reference_specs: Vec::new(),
                 attributes: Vec::new(),
                 invariant_check_lines: Vec::new(),

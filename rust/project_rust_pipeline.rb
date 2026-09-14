@@ -3,6 +3,12 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
+# DEPRECATED (ADR 0054a, B3): `bin/project_rust` no longer reaches this
+# file — its default is `hecks-build`, and `HECKS_PARSER`/`HECKS_CODEGEN`
+# are no-ops. Kept only as `spec/hecks_build_pipeline_spec.rb`'s reference
+# for the Ruby-free parse path; deleted in B5. The header below describes
+# how it was selected before B3.
+#
 # STAGE 8 (`/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`)
 # — the OPT-IN, all-Rust equivalent of `bin/project_rust`'s own default
 # body: `hecks-parse resolve`/`hecks-parse chapter` for parsing,
@@ -60,17 +66,10 @@ require "tmpdir"
 # declarations — never hand-listed, so a second capable adapter needs no
 # change here.
 #
-# ALSO NOT WRITTEN — `manifest.json` (the coverage manifest
-# `bin/rust_coverage` reads): bookkeeping ABOUT `domain_generator.rb`'s
-# own per-construct skip decisions, with "no bearing on whether the
-# generated `.rs` source is correct" per that file's own header.
-# Porting its ~15 call sites' worth of skip-reason tracking into
-# `rust/codegen` would duplicate logic `commands.rs`/`queries.rs`/
-# `read_models.rs`/etc. already compute for the REAL decision (whether
-# to generate at all), not add new correctness coverage — judged
-# legitimately Ruby-only debt for this stage, not silently skipped (see
-# the stderr note `call` prints below, and `hecks-codegen full`'s own
-# header in rust/codegen/src/main.rs).
+# `manifest.json` (the coverage manifest `bin/rust_coverage` reads) is
+# written per directory by `hecks-codegen full` itself
+# (rust/codegen/src/manifest.rs), held byte-identical to
+# `domain_generator.rb`'s own by spec/codegen_manifest_parity_spec.rb.
 module RustProjectPipeline
   ROOT = File.expand_path("..", __dir__).freeze
   PARSER_DIR = File.join(ROOT, "rust/parser").freeze
@@ -180,10 +179,6 @@ module RustProjectPipeline
 
     write_sidecars!(File.join(out_root, target_mod_name), target_ir_text, domain)
     chapters.each { |c| write_sidecars!(File.join(out_root, c[:mod_name]), c[:ir_text], c[:source_label]) }
-
-    warn "bin/project_rust (Rust path): manifest.json NOT written for any directory above — " \
-         "coverage bookkeeping only, no bearing on whether the generated .rs source is correct " \
-         "(rust/codegen/src/main.rs's own `run_full` header has the full reasoning)."
 
     sync_mod_and_cargo!(out_root, target_mod_name)
   end

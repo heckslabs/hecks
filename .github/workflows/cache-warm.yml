@@ -104,6 +104,19 @@ jobs:
 
       - uses: ./.github/actions/wasm-toolchain
 
+      # bin/project_wasm regenerates through hecks-build + hecks-codegen
+      # (ADR 0054a, B3) — restored so those two aren't cold-built here.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: build
+          crate-root: rust/build
+          include-registry: "false"
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
       - name: Warm wasm cross-compile builds (banking, pizzas, roster)
         run: |
           ruby bin/project_wasm examples/banking
@@ -165,7 +178,7 @@ jobs:
         run: cd rust/parser && cargo build
 
   # Mirrors rspec_rust_codegen's own cache step. Bare `cargo build` —
-  # the exact command spec/codegen_parity_spec.rb's build_codegen! runs.
+  # the exact command rspec_rust_codegen and hecks-build run.
   warm_codegen_crate:
     runs-on: ubuntu-latest
 

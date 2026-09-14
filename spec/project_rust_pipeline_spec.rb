@@ -4,64 +4,32 @@ require "tmpdir"
 require "open3"
 require "json"
 
-# THE STAGE 8 CAPSTONE — the differential proof that `HECKS_PARSER=rust
-# HECKS_CODEGEN=rust bin/project_rust <domain>`
-# (rust/project_rust_pipeline.rb: `hecks-parse resolve`/`chapter` +
-# `hecks-codegen full`, ZERO `Kernel.load` of any domain bluebook)
-# produces the SAME generated Rust source `bin/project_rust`'s own
-# DEFAULT (Ruby, `Kernel.load`-based) path does — the plan's own
-# original Stage 8 goal ("compile it entirely in rust"), verified
-# end-to-end for real, not asserted once by hand. Modeled directly on
-# `spec/rust_conformance_spec.rb`'s own cargo-build-then-subprocess
-# pattern; `io: true` for the same reason that file is — real `cargo
-# build`s happen inside `bin/project_rust` itself now (both paths), and
-# real filesystem writes land in the SAME shared `rust/src/generated/`
-# tree every other concurrent session's own use of `bin/project_rust`
-# also writes into. `before(:context)`/`after(:context)` snapshot and
-# restore that tree (plus `rust/Cargo.toml`) around this file's own
-# examples, so running it leaves no trace behind for a concurrent
-# session to trip over — no other spec in this repo calls
-# `bin/project_rust` for real, so this is the first that needs to.
+# ADR 0054a, B3 — the differential proof that `bin/project_rust <domain>`'s
+# new default (Ruby builds the IR, `hecks-build --ir-dir` generates:
+# `hecks-codegen full` + sidecars + root mod.rs + Cargo.toml) writes the
+# SAME tree the Ruby generator it replaced does
+# (`HECKS_RUBY_CODEGEN=1 bin/project_rust <domain>`, the temporary escape
+# hatch kept until B5 deletes `rust/project/`).
 #
-# ONE NAMED, DELIBERATE EXCEPTION to "byte-identical" — explained in
-# full in `rust/project_rust_pipeline.rb`'s own header: `manifest.json`
-# is not written by the opt-in path at all — coverage bookkeeping only
-# (`hecks-codegen full`'s own header in `rust/codegen/src/main.rs`), no
-# bearing on whether the generated `.rs` source is correct.
+# No exemptions: both paths start from the same Ruby-built IR, so every
+# file — every aggregate `.rs`, `registry.rs`, `mod.rs`, `merged.rs`,
+# `manifest.json`, `ir.json`, `metadata.rs`, for the target chapter, every
+# attached framework chapter, AND `meta` — plus `rust/Cargo.toml` and the
+# root `mod.rs` must be byte-identical. (The `HECKS_PARSER=rust
+# HECKS_CODEGEN=rust` opt-in this spec used to compare is a deprecated
+# no-op now; `spec/hecks_build_pipeline_spec.rb` covers the Ruby-free
+# parse path.) The codegen drift check (ci-checks.yml) holds the default
+# path to the committed tree across its whole corpus; this spec keeps the
+# two generators held to each other while both exist.
 #
-# The `lineage` key (a former second exception) is CLOSED —
-# `rust/project_rust_pipeline.rb::derive_lineage` computes it from a
-# narrow, targeted text scan of the domain's own `.hecksagon`
-# `persisted_by` binds (never the full open adapter-bind vocabulary,
-# never `Kernel.load`), verified byte-exact against the default path's
-# own `Exporter.lineage` for both pizzas (a real capable aggregate,
-# Postgres) and banking (real binds, zero capable — Heki/Memory, neither
-# lineage-capable) before this spec's own exception was removed.
+# `io: true` — real `cargo build`s and real writes into the shared
+# `rust/src/generated/` tree, snapshotted and restored around this file.
 #
-# A THIRD, NEW, NAMED EXCEPTION opened alongside `lineage`'s own closing
-# — `ir.json` AND `metadata.rs` (which embeds the same JSON, Rust-string-
-# escaped, as `IR_JSON`), for `Exporter.translations`' new `translations`
-# key (wired into `bin/project_rust`'s default path). The opt-in
-# Rust-native pipeline has no `translation_pass.rs` counterpart to
-# `lineage_pass.rs` yet, so this key (and therefore both files that
-# carry it) is absent from its output entirely — closing this exception
-# means porting the SAME kind of narrow, targeted text scan
-# `derive_lineage` already does, this time over `bluebook/translations/
-# *.bluebook` edge declarations (a materially bigger scan — the full
-# rule-kind grammar, not one line per bind), with its own byte-
-# exactness proof the way `lineage`'s had. Whole-file skip, not a
-# surgical key-strip, on purpose: `metadata.rs` carries the SAME JSON
-# escaped through Rust's OWN string-literal rules rather than Ruby's,
-# so stripping one key from it reliably needs more machinery than this
-# exception is worth building before the real port exists. Broader than
-# ideal — a domain with no translation edges (banking) loses real
-# coverage on these two files for no reason of its own — but honest
-# about the gap rather than hiding it behind a false-positive pass.
-#
-# Every OTHER generated file — every aggregate `.rs`, `registry.rs`,
-# `mod.rs`, `merged.rs`, for the target chapter, every attached
-# framework chapter, AND `meta` — must be genuinely byte-identical.
-RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
+# `ruby_codegen_parity: true` — NOT A CI GATE SINCE ADR 0054a's B4. The
+# drift check still holds the default path to the committed tree; this
+# comparison against the escape hatch runs on demand only (see
+# spec_helper.rb's note) and is deleted with `rust/project/` in B5.
+RSpec.describe "bin/project_rust default (hecks-build) vs the Ruby generator", :io, :ruby_codegen_parity do
   # `InMemoryDomain::ROOT` directly, not aliased to a local `ROOT` — a
   # bare `ROOT` collided with word_coverage_spec.rb's own (see
   # load_hygiene_spec.rb's own top-level-constant check).
@@ -82,15 +50,6 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
     "examples/roster"     => %w[roster meta],
     "examples/compliance" => %w[compliance governance meta]
   }.freeze
-
-  IGNORED_BASENAMES = %w[manifest.json].freeze
-
-  # NOT a file-presence gap like IGNORED_BASENAMES above — `ir.json` and
-  # `metadata.rs` are written by BOTH paths, just with different
-  # content (the `translations` key, see this file's own header). So
-  # these stay in the file-list check (both sides must still write
-  # them) and are exempted only from the per-file BYTE comparison below.
-  CONTENT_EXEMPT_BASENAMES = %w[ir.json metadata.rs].freeze
 
   before(:context) do
     @generated_backup = Dir.mktmpdir("project-rust-pipeline-spec-backup")
@@ -116,34 +75,30 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
   end
 
   PARITY_DOMAINS.each do |domain, dirs|
-    it "#{domain}: the opt-in Rust path's generated output matches the default Ruby path's, file for file " \
-       "(modulo the named manifest.json/ir.json/metadata.rs gaps)" do
-      run_project_rust!(domain, {})
+    it "#{domain}: the hecks-build default writes the Ruby generator's tree, file for file and byte for byte" do
+      run_project_rust!(domain, { "HECKS_RUBY_CODEGEN" => "1" })
 
       ruby_snapshot = Dir.mktmpdir("project-rust-pipeline-spec-ruby")
       dirs.each { |dir| FileUtils.cp_r(File.join(GENERATED_ROOT, dir), File.join(ruby_snapshot, dir)) }
+      ruby_root_mod = File.read(File.join(GENERATED_ROOT, "mod.rs"))
+      ruby_cargo_toml = File.read(CARGO_TOML)
 
-      run_project_rust!(domain, { "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" })
+      run_project_rust!(domain, {})
 
       dirs.each do |dir|
         ruby_dir = File.join(ruby_snapshot, dir)
         rust_dir = File.join(GENERATED_ROOT, dir)
 
-        ruby_files = files_in(ruby_dir)
-        rust_files = files_in(rust_dir)
-        expect(rust_files).to eq(ruby_files - IGNORED_BASENAMES),
-                              "#{dir}: the opt-in path's own file list differs from the default path's " \
-                              "(beyond the named manifest.json gap) — " \
-                              "ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
+        expect(files_in(rust_dir)).to eq(files_in(ruby_dir)), "#{dir}: the file lists differ"
 
-        (ruby_files - IGNORED_BASENAMES - CONTENT_EXEMPT_BASENAMES).each do |basename|
-          ruby_text = File.read(File.join(ruby_dir, basename))
-          rust_text = File.read(File.join(rust_dir, basename))
-
-          expect(rust_text).to eq(ruby_text),
-                               "#{dir}/#{basename}: the opt-in Rust path's output does not byte-match the default Ruby path's"
+        files_in(ruby_dir).each do |basename|
+          ours = File.read(File.join(rust_dir, basename))
+          expect(ours).to eq(File.read(File.join(ruby_dir, basename))),
+                          "#{dir}/#{basename}: hecks-build's output does not byte-match the Ruby generator's"
         end
       end
+      expect(File.read(File.join(GENERATED_ROOT, "mod.rs"))).to eq(ruby_root_mod)
+      expect(File.read(CARGO_TOML)).to eq(ruby_cargo_toml)
     ensure
       FileUtils.remove_entry(ruby_snapshot) if ruby_snapshot
     end

@@ -14,17 +14,30 @@
 //! it owns; this file is the sequencing, matching
 //! `RustProjectPipeline.call`'s own body step for step.
 //!
-//! ONE NAMED, DELIBERATE GAP remains — `manifest.json` (coverage
-//! bookkeeping only, no bearing on whether the generated `.rs` source is
-//! correct). The `lineage` key gap is CLOSED (`lineage_pass`'s own
-//! header has the full reasoning) — see
+//! `manifest.json` is written per directory by `hecks-codegen full` itself
+//! (rust/codegen/src/manifest.rs). The `lineage` key gap is CLOSED
+//! (`lineage_pass`'s own header has the full reasoning) — see
 //! `rust/project_rust_pipeline.rb`'s own header for that fix's own
 //! Ruby-side account, which this crate mirrors rather than re-deriving.
+//!
+//! PREBUILT IR (`Options::ir_dir`, ADR 0054a B3) — the same pipeline from
+//! the codegen step on, fed IR `bin/project_rust` built in Ruby instead of
+//! `hecks-parse` output. Everything after IR building is shared
+//! (`generate`), so the default `bin/project_rust` and a Ruby-free
+//! `hecks-build <domain>` differ only in where the IR came from.
+//!
+//! GENERATE, THEN SYNC — codegen and sidecars write into a scratch tree;
+//! each module directory is then copied into `rust/src/generated/` with
+//! `fsutil::sync_dir` (write-if-changed, prune orphans) instead of the
+//! wipe-then-write this crate used to do. Same end state, but unchanged
+//! files keep their mtimes, matching `bin/project_rust`'s
+//! `WriteIfChanged` discipline (Cargo rebuilds on mtime alone).
 
 use std::path::{Path, PathBuf};
 
 use crate::build_artifact;
 use crate::cargo_sync;
+use crate::fsutil;
 use crate::json::Json;
 use crate::lineage_pass;
 use crate::optional_pass;
@@ -36,6 +49,10 @@ use crate::tmp::TempDir;
 pub struct Options {
     pub build_native: bool,
     pub build_wasm: bool,
+    /// Generate from IR already built elsewhere — see this module's header.
+    pub ir_dir: Option<PathBuf>,
+    /// The crate to project into; `<root>/rust` when unset.
+    pub rust_dir: Option<PathBuf>,
 }
 
 struct Chapter {
@@ -47,12 +64,6 @@ struct Chapter {
 const META_SOURCE_LABEL: &str = "the self-hosted language (lib/hecks/language/bluebook)";
 
 pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
-    let parser_dir = root.join("rust/parser");
-    let codegen_dir = root.join("rust/codegen");
-    ensure_binaries_built(&parser_dir, &codegen_dir)?;
-    let parser_bin = parser_dir.join("target/debug/hecks-parse");
-    let codegen_bin = codegen_dir.join("target/debug/hecks-codegen");
-
     let domain_path = PathBuf::from(domain);
     let target_mod_name = domain_path
         .file_name()
@@ -69,6 +80,35 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
              is a Rust keyword, or collides with a reserved Cargo.toml key. Rename the domain directory."
         ));
     }
+
+    let codegen_dir = root.join("rust/codegen");
+    subprocess::cargo_build_quiet(&codegen_dir)?;
+    let codegen_bin = binary_path(&codegen_dir, "hecks-codegen");
+
+    let (meta_ir_text, target_ir_text, chapters) = match &opts.ir_dir {
+        Some(ir_dir) => read_prebuilt_ir(ir_dir, domain)?,
+        None => parse_ir(root, &domain_path, domain, &target_mod_name)?,
+    };
+
+    let rust_dir = opts.rust_dir.clone().unwrap_or_else(|| root.join("rust"));
+    generate(&codegen_bin, &rust_dir, domain, &target_mod_name, &meta_ir_text, &target_ir_text, &chapters)?;
+
+    if opts.build_native {
+        build_artifact::build_native(&rust_dir)?;
+    }
+    if opts.build_wasm {
+        build_artifact::build_wasm(root, &rust_dir, &target_mod_name)?;
+    }
+
+    Ok(())
+}
+
+/// The Ruby-free half: `hecks-parse` for every chapter, then the optional
+/// and lineage passes — `RustProjectPipeline.call`'s own parse steps.
+fn parse_ir(root: &Path, domain_path: &Path, domain: &str, target_mod_name: &str) -> Result<(String, String, Vec<Chapter>), String> {
+    let parser_dir = root.join("rust/parser");
+    subprocess::cargo_build_quiet(&parser_dir)?;
+    let parser_bin = binary_path(&parser_dir, "hecks-parse");
 
     let bluebook_directory = domain_path.join("bluebook");
     let bluebook_paths = resolve::bluebook_files(&bluebook_directory)?;
@@ -127,11 +167,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             ));
         }
         let fw_ir_text = parse_chapter_with_optionals(&parser_bin, &fw_chapter_name, std::slice::from_ref(&fw_path))?;
-        chapters.push(Chapter {
-            mod_name: fw_name.to_lowercase(),
-            source_label: format!("{domain} (uses_framework {fw_name:?})"),
-            ir_text: fw_ir_text,
-        });
+        chapters.push(chapter(domain, fw_name, fw_ir_text));
     }
 
     // THE SELF-HOSTED LANGUAGE, COMPILED IN TOO — one discovered concept
@@ -139,69 +175,115 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter_with_optionals(&parser_bin, "Bluebook", &grammar_files)?;
 
-    let out_root = root.join("rust/src/generated");
+    Ok((meta_ir_text, target_ir_text, chapters))
+}
+
+/// IR built by someone else (`bin/project_rust`): `meta.json`,
+/// `target.json`, `chapters/*.json`. Each still gets the append-optional
+/// pass, exactly as `rust/project`'s `DomainGenerator.call` applied
+/// `mark_append_optional_fields!` to the IR it was handed before writing
+/// `ir.json` — and nothing else: the target already carries `lineage`.
+fn read_prebuilt_ir(ir_dir: &Path, domain: &str) -> Result<(String, String, Vec<Chapter>), String> {
+    let meta_ir_text = read_with_optionals(&ir_dir.join("meta.json"))?;
+    let target_ir_text = read_with_optionals(&ir_dir.join("target.json"))?;
+
+    let chapters_dir = ir_dir.join("chapters");
+    let mut chapter_paths = Vec::new();
+    if chapters_dir.is_dir() {
+        for entry in std::fs::read_dir(&chapters_dir).map_err(|e| format!("reading {}: {e}", chapters_dir.display()))? {
+            let path = entry.map_err(|e| format!("reading {}: {e}", chapters_dir.display()))?.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("json") {
+                chapter_paths.push(path);
+            }
+        }
+    }
+    chapter_paths.sort();
+
+    let mut chapters = Vec::new();
+    for path in chapter_paths {
+        let ir_text = read_with_optionals(&path)?;
+        let ir = Json::parse(&ir_text).map_err(|e| format!("parsing {}: {e}", path.display()))?;
+        let name = ir.get("name").and_then(Json::as_str).ok_or_else(|| format!("{} has no \"name\"", path.display()))?.to_string();
+        chapters.push(chapter(domain, &name, ir_text));
+    }
+    Ok((meta_ir_text, target_ir_text, chapters))
+}
+
+fn read_with_optionals(path: &Path) -> Result<String, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+    let mut ir = Json::parse(&text).map_err(|e| format!("parsing {}: {e}", path.display()))?;
+    optional_pass::run(&mut ir);
+    Ok(crate::json::write(&ir))
+}
+
+/// An attached chapter's module name and source label —
+/// `chapter_name.downcase` and `"#{domain} (uses_framework #{chapter_name.inspect})"`
+/// in `bin/project_rust`.
+fn chapter(domain: &str, chapter_name: &str, ir_text: String) -> Chapter {
+    Chapter {
+        mod_name: chapter_name.to_lowercase(),
+        source_label: format!("{domain} (uses_framework {chapter_name:?})"),
+        ir_text,
+    }
+}
+
+/// Everything after the IR exists: codegen + sidecars into a scratch tree,
+/// synced into `<rust_dir>/src/generated`, then the root `mod.rs` and
+/// `Cargo.toml` tail.
+fn generate(
+    codegen_bin: &Path,
+    rust_dir: &Path,
+    domain: &str,
+    target_mod_name: &str,
+    meta_ir_text: &str,
+    target_ir_text: &str,
+    chapters: &[Chapter],
+) -> Result<(), String> {
+    let out_root = rust_dir.join("src/generated");
     std::fs::create_dir_all(&out_root).map_err(|e| format!("creating {}: {e}", out_root.display()))?;
 
-    // SCOPED clearing — identical reasoning to both Ruby pipelines'
-    // own: multiple domains coexist on disk, so only THIS run's own
-    // directories are wiped first.
-    remove_dir_if_exists(&out_root.join("meta"))?;
-    remove_dir_if_exists(&out_root.join("active"))?;
-    remove_dir_if_exists(&out_root.join(&target_mod_name))?;
-    for c in &chapters {
-        remove_dir_if_exists(&out_root.join(&c.mod_name))?;
-    }
-
     let tmp = TempDir::new("hecks-build-codegen")?;
+    let scratch_root = tmp.path().join("generated");
+    std::fs::create_dir_all(&scratch_root).map_err(|e| format!("creating {}: {e}", scratch_root.display()))?;
+    let scratch_root_str = scratch_root.to_string_lossy().to_string();
 
     let meta_ir_path = tmp.path().join("meta_ir.json");
-    std::fs::write(&meta_ir_path, &meta_ir_text).map_err(|e| format!("writing {}: {e}", meta_ir_path.display()))?;
-    run_codegen_full(&codegen_bin, &[out_root.to_string_lossy().to_string(), "meta".to_string(), META_SOURCE_LABEL.to_string(), meta_ir_path.to_string_lossy().to_string()])?;
+    std::fs::write(&meta_ir_path, meta_ir_text).map_err(|e| format!("writing {}: {e}", meta_ir_path.display()))?;
+    run_codegen_full(codegen_bin, &[scratch_root_str.clone(), "meta".to_string(), META_SOURCE_LABEL.to_string(), meta_ir_path.to_string_lossy().to_string()])?;
 
     let target_ir_path = tmp.path().join("target_ir.json");
-    std::fs::write(&target_ir_path, &target_ir_text).map_err(|e| format!("writing {}: {e}", target_ir_path.display()))?;
+    std::fs::write(&target_ir_path, target_ir_text).map_err(|e| format!("writing {}: {e}", target_ir_path.display()))?;
 
-    let mut codegen_args = vec![
-        out_root.to_string_lossy().to_string(),
-        target_mod_name.clone(),
-        domain.to_string(),
-        target_ir_path.to_string_lossy().to_string(),
-    ];
-    let mut chapter_ir_paths = Vec::new();
+    let mut codegen_args =
+        vec![scratch_root_str, target_mod_name.to_string(), domain.to_string(), target_ir_path.to_string_lossy().to_string()];
     for (idx, c) in chapters.iter().enumerate() {
         let ir_path = tmp.path().join(format!("chapter_{idx}_ir.json"));
         std::fs::write(&ir_path, &c.ir_text).map_err(|e| format!("writing {}: {e}", ir_path.display()))?;
         codegen_args.push(c.mod_name.clone());
         codegen_args.push(c.source_label.clone());
         codegen_args.push(ir_path.to_string_lossy().to_string());
-        chapter_ir_paths.push(ir_path);
     }
-    run_codegen_full(&codegen_bin, &codegen_args)?;
+    run_codegen_full(codegen_bin, &codegen_args)?;
 
-    sidecars::write(&out_root.join("meta"), &meta_ir_text, META_SOURCE_LABEL)?;
-    sidecars::write(&out_root.join(&target_mod_name), &target_ir_text, domain)?;
-    for c in &chapters {
-        sidecars::write(&out_root.join(&c.mod_name), &c.ir_text, &c.source_label)?;
-    }
-
-    eprintln!(
-        "hecks-build: manifest.json NOT written for any directory above — coverage bookkeeping only, \
-         no bearing on whether the generated .rs source is correct (rust/codegen/src/main.rs's own \
-         `run_full` header has the full reasoning)."
-    );
-
-    let cargo_toml_path = root.join("rust/Cargo.toml");
-    cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;
-
-    let rust_dir = root.join("rust");
-    if opts.build_native {
-        build_artifact::build_native(&rust_dir)?;
-    }
-    if opts.build_wasm {
-        build_artifact::build_wasm(root, &rust_dir, &target_mod_name)?;
+    sidecars::write(&scratch_root.join("meta"), meta_ir_text, META_SOURCE_LABEL)?;
+    sidecars::write(&scratch_root.join(target_mod_name), target_ir_text, domain)?;
+    for c in chapters {
+        sidecars::write(&scratch_root.join(&c.mod_name), &c.ir_text, &c.source_label)?;
     }
 
-    Ok(())
+    // The retired shared `active/` directory — deleted outright, never
+    // tracked, same one-time migration both Ruby pipelines carry.
+    let active = out_root.join("active");
+    if active.exists() {
+        std::fs::remove_dir_all(&active).map_err(|e| format!("removing {}: {e}", active.display()))?;
+    }
+    let mut mod_names = vec!["meta".to_string(), target_mod_name.to_string()];
+    mod_names.extend(chapters.iter().map(|c| c.mod_name.clone()));
+    for mod_name in &mod_names {
+        fsutil::sync_dir(&scratch_root.join(mod_name), &out_root.join(mod_name))?;
+    }
+
+    cargo_sync::run(&out_root, &rust_dir.join("Cargo.toml"), target_mod_name)
 }
 
 /// `hecks-parse chapter --chapter <Name> <files...>`, followed
@@ -229,19 +311,17 @@ fn run_codegen_full(codegen_bin: &Path, args: &[String]) -> Result<(), String> {
     subprocess::run(&codegen_bin_str, &arg_refs)
 }
 
-fn remove_dir_if_exists(path: &Path) -> Result<(), String> {
-    if path.exists() {
-        std::fs::remove_dir_all(path).map_err(|e| format!("removing {}: {e}", path.display()))?;
+/// Where `cargo build` (debug profile) in `crate_dir` puts `name` —
+/// `$CARGO_TARGET_DIR/debug/<name>` when that's set (cargo honors it for
+/// the `cargo_build_quiet` call just made), `<crate_dir>/target/debug/<name>`
+/// otherwise.
+fn binary_path(crate_dir: &Path, name: &str) -> PathBuf {
+    match std::env::var_os("CARGO_TARGET_DIR") {
+        Some(dir) if !dir.is_empty() => {
+            let dir = PathBuf::from(dir);
+            let dir = if dir.is_absolute() { dir } else { crate_dir.join(dir) };
+            dir.join("debug").join(name)
+        }
+        _ => crate_dir.join("target/debug").join(name),
     }
-    Ok(())
-}
-
-/// `ensure_binaries_built!` (Ruby) — a plain `cargo build` (debug
-/// profile, matching `PARSER_BIN`/`CODEGEN_BIN`'s own `target/debug/...`
-/// paths) in each sibling crate directory, output suppressed unless it
-/// fails.
-fn ensure_binaries_built(parser_dir: &Path, codegen_dir: &Path) -> Result<(), String> {
-    subprocess::cargo_build_quiet(parser_dir)?;
-    subprocess::cargo_build_quiet(codegen_dir)?;
-    Ok(())
 }

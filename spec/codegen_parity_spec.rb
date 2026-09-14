@@ -80,7 +80,12 @@ require_relative "support/ruby_codegen_prelude"
 # excluded by the `io: true` filter, so tagging the group alone wasn't
 # enough; the build itself had to move into a `before(:context)` hook,
 # which — unlike plain body code — really is skipped when excluded.
-RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
+#
+# `ruby_codegen_parity: true` — NOT A CI GATE SINCE ADR 0054a's B4.
+# hecks-codegen is the generator (B3); this comparison against the Ruby
+# escape hatch runs on demand only (see spec_helper.rb's note for the
+# command) and is deleted with `rust/project/` in B5.
+RSpec.describe "Rust codegen parity (hecks-codegen)", :io, :ruby_codegen_parity do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   CODEGEN_BINARY = File.join(CODEGEN_DIR, "target", "debug", "hecks-codegen")
 
@@ -170,25 +175,17 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     ["bug28_existence_fixture", lambda {
       fixture_dir = "spec/fixtures/rust_project/bug28_existence_fixture/bluebook/bug28_existence_fixture.bluebook"
       domain_ir(File.join(InMemoryDomain::ROOT, fixture_dir), "Bug28ExistenceFixture")
+    }],
+    # BUG#32 / BUG#31 — the only corpus member with an entity-typed list
+    # `remove:` (`Ledger.Void`, `sets :entries, remove: :sequence`) and
+    # entity-level `corrects`. BUG#32's Rust half (`remove_field_problems`
+    # + the `"remove"` mutation-line arm) was ported to rust/codegen in
+    # ADR 0054a's step B2; before that, hecks-codegen skipped Ledger.Void
+    # and this member couldn't be listed here.
+    ["corrections", lambda {
+      domain_ir(File.join(InMemoryDomain::ROOT, "qa/stress_domains/corrections/bluebook/corrections.bluebook"),
+                "Corrections")
     }]
-    # NOT ADDED HERE: qa/stress_domains/corrections. Its own `Ledger.Void`
-    # (`sets :entries, remove: :sequence`) hits a PRE-EXISTING, separate
-    # gap in THIS pipeline — BUG#32's own Rust half (rust/project/
-    # mutations.rb's/commands.rb's `remove` support) was never ported to
-    # `rust/codegen/src` (confirmed: `command_skip_reason_with`,
-    # commands.rs, still lists only append/set/increment/decrement/
-    # multiply/clamp/delegate/corrects, no `remove`; `hecks-codegen
-    # domain` panics with "unsupported mutation op \"remove\"" the moment
-    # it's asked to generate this exact domain) — unrelated to BUG#31,
-    # not fixed here. BUG#31's own entity-level `corrects` fix (`emit_
-    # entity_command`'s `corrects_given_specs` prepend, `correctable_
-    # event_names`'s entity recursion) IS mirrored in both pipelines —
-    # see `rust/codegen/src/bridging.rs`/`commands.rs`'s own identical
-    # changes — and is proven correct in `rust/codegen/src/mutations.rs`
-    # (the "corrects" mutation-line no-op arm) directly, and end-to-end
-    # for the Ruby-hosted pipeline via `spec/corpus/rust_conformance/
-    # corrections_entity_amend_*.json`. Adding this domain here waits on
-    # BUG#32's own separate follow-up.
   ].freeze
 
   # A REAL, per-member reason — never a placeholder. See this file's own
