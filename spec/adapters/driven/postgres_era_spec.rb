@@ -265,19 +265,6 @@ status: "available"))
 status: "sold"))
     end
 
-    it "compiles equality on the lifecycle field" do
-      declared = Hecks::Bluebook::DSL::AggregateBuilder.new("Pizza").tap do |builder|
-        # seal_query_targets holds a query to fields the aggregate declares,
-        # so the throwaway builder declares the lifecycle the query asks about.
-        builder.lifecycle(:status, default: "available") do
-          transition "Sell" => "sold", from: "available"
-        end
-        builder.query("Available") { where(status: "available") }
-      end.build.queries.first
-
-      expect(adapter.query(declared, {}).map(&:id)).to eq(%w[p1 p2])
-    end
-
     it "refuses an operator it cannot compile, rather than answering from memory" do
       clause = Struct.new(:field, :op, :value).new("status", "between", "a")
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new([clause], nil, nil, nil, nil)
@@ -330,10 +317,6 @@ status: "sold"))
       adapter.query(declared, {}).map(&:id)
     end
 
-    it "compiles ne" do
-      expect(where("status", "ne", "sold")).to eq(%w[p1 p2])
-    end
-
     it "compiles gt/gte/lte through a value object's numeric member" do
       expect(where("pizza.price_cents.cents", "gt", 1200)).to eq(%w[p2])
       expect(where("pizza.price_cents.cents", "gte", 1200)).to eq(%w[p1 p2])
@@ -356,35 +339,11 @@ status: "sold"))
       expect(where("status", "contains", "avail")).to eq(%w[p1 p2])
     end
 
-    it "compiles in as a SQL IN clause, same comma-separated convention as everywhere else" do
-      expect(where("status", "in", "available,sold")).to eq(%w[p1 p2 p3])
-      expect(where("status", "in", "sold")).to eq(%w[p3])
-    end
-
-    # Same reading as the in-memory interpreter's `members(want).include?` —
-    # an empty candidate set matches nothing, not everything.
-    it "an empty in-list matches no rows rather than every row" do
-      expect(where("status", "in", "")).to eq([])
-    end
-
-    it "places nulls per the declared policy, not Postgres's own ASC/DESC default" do
-      adapter.save(instance("p4", name: { value: "Unpurchased" },
-                            pizza: { price_cents: { cents: 500 }, size: { value: "small" } }, status: "available"))
-      adapter.save(instance("p1", name: { value: "Margherita" },
-                            pizza: { price_cents: { cents: 1200 }, size: { value: "small" } },
-                            status: "available", customer_name: { value: "Alex" }))
-
-      first_mode = Struct.new(:mode).new("first")
-      declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
-        [], Struct.new(:field, :direction).new("customer_name", :asc), nil, nil, first_mode
-      )
-      # p2/p3 never had customer_name set at all — null, and NULLS FIRST
-      # puts them ahead of p1's real value regardless of Postgres's own
-      # per-direction default (which would otherwise put nulls LAST on
-      # ASC, disagreeing with the other adapters).
-      expect(adapter.query(declared, {}).map(&:id).first(2)).to contain_exactly("p2", "p3")
-      expect(adapter.query(declared, {}).map(&:id).last).to eq("p1")
-    end
+    # eq / ne / in / empty-in on the lifecycle field and NULLS FIRST/LAST
+    # ordering are proven against PostgresEra alongside every other engine
+    # in spec/adapters/query_agreement_spec.rb ("compiles eq/ne/in on the
+    # lifecycle field", "compiles an empty in-list as matching nothing",
+    # "places nulls first/last when asked") — not repeated here.
 
     # `pizza.price_cents.cents` (the live Pizzas domain's own numeric field)
     # is a value object nested TWO levels deep, and `numeric_field?`

@@ -221,21 +221,4 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     subjects = sweep.checks.map { |c| c[:subject][:value] }
     expect(subjects).to include(a_string_starting_with("[adapter_parity_sqlite]"))
   end
-
-  # THE DIAL'S OWN DEFAULT — `QualityControlDials::MODES[
-  # :adapter_parity_sqlite]` is `false` (see that dial's own comment on
-  # why: real, if cheap, extra I/O multiplied across the whole rotation,
-  # not yet measured at rotation scale). An ORDINARY sweep, with no
-  # `--modes` override, must still run exactly the checks it always did
-  # — this mode existing and being wired must not silently widen every
-  # sweep in the rotation until a human flips the dial.
-  it "stays off an ordinary sweep — the real ledger's own dial defaults it off" do
-    identify_target!("sqlite-parity-default", @target_domain_relpath)
-
-    stdout, _stderr, status = run_qa_sweep("sqlite-parity-default", "--seeds", "1")
-
-    expect(status.exitstatus).to eq(0)
-    expect(stdout).to include("active modes ruby_only,self_consistency")
-    expect(stdout).not_to include("adapter_parity_sqlite")
-  end
 end

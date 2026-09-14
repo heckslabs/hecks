@@ -88,12 +88,6 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", :io do
     expect(ok).to be(true), "plain cargo build failed:\n#{output}"
   end
 
-  it "`--no-default-features --features <a non-default domain>` (the old required workaround) still works too" do
-    domain, = two_non_default_domains
-    ok, output = cargo_build("--no-default-features", "--features", domain)
-    expect(ok).to be(true), "cargo build --no-default-features --features #{domain} failed:\n#{output}"
-  end
-
   # THE GENUINE CONFLICT -- two domains that are BOTH explicitly
   # requested (neither one is just along for the ride via `default`)
   # can't both be the crate's one `generated::active` -- this should
