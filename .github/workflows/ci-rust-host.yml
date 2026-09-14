@@ -58,6 +58,13 @@ jobs:
           git checkout -- rust/src/generated rust/Cargo.toml
           git clean -fdq rust/src/generated
 
+      # rust/host's Postgres tests connect with tokio_postgres, which
+      # ignores libpq's PG* env vars and logs in as the OS user (a
+      # superuser on a dev machine). Give the runner user the same role;
+      # the action already trusts loopback TCP, so no password needed.
+      - name: Create a superuser role for the runner user
+        run: sudo -u postgres psql -c "CREATE ROLE \"$(whoami)\" SUPERUSER LOGIN"
+
       - name: "cargo test (rust/host)"
         run: cd rust/host && cargo test
 
