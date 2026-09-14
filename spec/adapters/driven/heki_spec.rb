@@ -34,10 +34,13 @@ RSpec.describe Hecks::Adapters::Heki do
     end
 
     it "saves and finds" do
-      adapter.save(instance("p1", name: { value: "Margherita" }, price_cents: { cents: 1200 }))
+      # Both fields DECLARED on Order — the state codec symbolizes a declared
+      # value object's members on the way back out; an undeclared field's
+      # nested keys keep the spelling the store holds (StateCodec's header).
+      adapter.save(instance("p1", name: { value: "Margherita" }, customer_name: { value: "Ada" }))
 
       found = adapter.find("p1")
-      expect([found.id, found[:name].to_h, found[:price_cents].to_h]).to eq(["p1", { value: "Margherita" }, { cents: 1200 }])
+      expect([found.id, found[:name].to_h, found[:customer_name].to_h]).to eq(["p1", { value: "Margherita" }, { value: "Ada" }])
     end
 
     it "keeps every write and reads the last entry" do
