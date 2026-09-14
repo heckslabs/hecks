@@ -98,6 +98,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::corrections::ledger::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -205,6 +206,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::corrections::audittrail::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -240,12 +242,30 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::corrections::ledger::Ledger::extract_id(facts_json)?; let element_id = crate::generated::corrections::ledger::Entry::extract_id(facts_json)?; let element_wants = crate::generated::corrections::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("EntryAmendEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["reference", "amount", "id", "sequence"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Amend does not declare {} — it takes reference, amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount", "reference"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Amend"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "reference, amount"),
+    ])));
+}
+ } let parent_id = crate::generated::corrections::ledger::Ledger::extract_id(facts_json)?; let element_id = crate::generated::corrections::ledger::Entry::extract_id(facts_json)?; let element_wants = crate::generated::corrections::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::corrections::ledger::EntryAmendEntityArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Auditor"), "Amend", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Corrections::Ledger", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Corrections::Ledger", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
