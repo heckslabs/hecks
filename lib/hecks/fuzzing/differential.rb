@@ -3,6 +3,7 @@ require "open3"
 require_relative "replay"
 require_relative "properties"
 require_relative "self_consistency"
+require_relative "rust_gap_manifest"
 
 module Hecks
   module Fuzzing
@@ -18,6 +19,8 @@ module Hecks
     # `differ` is anything answering `RustConformanceHelpers`' comparison
     # helpers (spec/support/rust_conformance_helpers.rb) plus a
     # `structural_skips` set — duck-typed, so lib never requires spec/.
+    # Which query verbs may diverge is NOT the differ's call: it is read
+    # off the binary's own manifest.json (`manifest_partition`, below).
     #
     # RETURNS ONE DIVERGENCE LIST PER ACTIVE MODE — `{ differential: [...],
     # self_consistency: [...], properties_in_differential: [...],
@@ -27,6 +30,34 @@ module Hecks
     # the caller's dial, not this module's.
     module Differential
       module_function
+
+      # THE ONE PLACE A RUBY/RUST QUERY DIVERGENCE MAY BE TOLERATED — and
+      # only for a verb `gaps` (a `RustGapManifest`) declares not generated.
+      # Rust refuses such a verb outright while Ruby answers it for real
+      # (or refuses it for its own business reason), so both sides' rows for
+      # that verb leave the comparison. Everything else stays in: a refusal
+      # the manifest doesn't account for — however its message is worded —
+      # is a real divergence.
+      #
+      # `skipped` is every tolerated verb this history actually reached (for
+      # the sweep's structural_skip_report). `stale` is a divergence per
+      # tolerated verb Rust nonetheless ANSWERED with a query row: the
+      # manifest says "not generated" but the binary disagrees, so the
+      # tolerance itself is wrong and must not silently hold.
+      def manifest_partition(gaps, ruby_refusals:, rust_refusals:, ruby_queries:, rust_queries:)
+        verb_of  = ->(row) { row.key?("verb") ? row["verb"] : row["query"] }
+        declared = ->(row) { gaps.not_generated?(verb_of.call(row)) }
+        stale = rust_queries.select(&declared).map do |row|
+          { field: "manifest", verb: row["query"],
+            detail: "#{row['query']} is declared generated: false in manifest.json " \
+                    "(#{gaps.not_generated(row['query']).values_at('gap_class', 'construct').join('/')}), " \
+                    "but the Rust binary answered it — regenerate with bin/project_rust" }
+        end
+        reached = (ruby_refusals + rust_refusals + ruby_queries).select(&declared)
+        { ruby_refusals: ruby_refusals.reject(&declared), rust_refusals: rust_refusals.reject(&declared),
+          ruby_queries: ruby_queries.reject(&declared), rust_queries: rust_queries.reject(&declared),
+          skipped: reached.to_set(&verb_of), stale: stale }
+      end
 
       def property_divergences(history)
         Properties.check(history).reject { |_, result| result == true }
@@ -79,18 +110,21 @@ module Hecks
         divergences << { field: "events", ruby: ruby_events, rust: rust_output["events"] } \
           unless rust_output["events"] == ruby_events
 
+        kept = manifest_partition(RustGapManifest.for_binary(binary),
+                                  ruby_refusals: ruby_refusals, rust_refusals: rust_output["refusals"],
+                                  ruby_queries: ruby_queries, rust_queries: rust_output["queries"])
+        differ.structural_skips.merge(kept[:skipped])
+        divergences.concat(kept[:stale])
+
         by_kind = ->(r) { r.slice("verb", "kind") }
-        gap     = ->(r) { differ.known_refusal_gap?(r) || differ.structural_refusal_gap?(r) }
-        rust_refusals       = rust_output["refusals"].reject(&gap).map(&by_kind)
-        kept_ruby_refusals  = ruby_refusals.reject(&gap).map(&by_kind)
+        rust_refusals      = kept[:rust_refusals].map(&by_kind)
+        kept_ruby_refusals = kept[:ruby_refusals].map(&by_kind)
         divergences << { field: "refusals", ruby: kept_ruby_refusals, rust: rust_refusals } \
           unless rust_refusals == kept_ruby_refusals
 
-        wordless      = ->(row) { differ.reduce_to_wire_precision(row.except("error", "reference_error")) }
-        not_generated = differ.structurally_refused_verbs(rust_output)
-        differ.structural_skips.merge(not_generated)
-        rust_queries      = rust_output["queries"].reject(&gap).map(&wordless)
-        kept_ruby_queries = ruby_queries.reject { |row| gap.call(row) || not_generated.include?(row["query"]) }.map(&wordless)
+        wordless          = ->(row) { differ.reduce_to_wire_precision(row.except("error", "reference_error")) }
+        rust_queries      = kept[:rust_queries].map(&wordless)
+        kept_ruby_queries = kept[:ruby_queries].map(&wordless)
         divergences << { field: "queries", ruby: kept_ruby_queries, rust: rust_queries } \
           unless rust_queries == kept_ruby_queries
 
@@ -99,8 +133,8 @@ module Hecks
 
         cross_domain = differ.cross_domain_policy_names(rust_output)
         kept_ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
-                                  .reject { |r| cross_domain.include?(r["policy"]) || differ.known_reaction_gap?(r) }
-        rust_reactions = rust_output.fetch("reactions").reject { |r| differ.known_reaction_gap?(r) }
+                                  .reject { |r| cross_domain.include?(r["policy"]) }
+        rust_reactions = rust_output.fetch("reactions")
         divergences << { field: "reactions", ruby: kept_ruby_reactions, rust: rust_reactions } \
           unless rust_reactions == kept_ruby_reactions
 

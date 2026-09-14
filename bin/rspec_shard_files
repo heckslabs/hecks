@@ -4,9 +4,11 @@
 # Prints, one per line, the `spec/**/*_spec.rb` files assigned to shard
 # GROUP (1-indexed) of a `--group-by runtime` 2-way split, balanced by
 # recorded runtime where available. Used by `rspec_shard` in
-# `.github/workflows/ci-rspec.yml`, which passes the committed
-# `.github/rspec_runtime_baseline.log` with any restored cache logs
-# layered over it (see that workflow's merge step for why the baseline).
+# `.github/workflows/ci-rspec.yml`, which passes ONLY the committed
+# `.github/rspec_runtime_baseline.log` — every matrix leg must compute the
+# identical grouping from identical inputs, or the legs' file lists stop
+# partitioning the suite (see that workflow's shard-list step for the run
+# where restored caches made them diverge).
 #
 # WHY NOT `parallel_rspec ... --only-group N` (the mechanism
 # `rspec_postgres_io_parallel_shard` already uses) — that flag forces

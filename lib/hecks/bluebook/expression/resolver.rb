@@ -20,14 +20,12 @@ module Hecks
         SIGN_TESTS = Hecks::Vocabulary.fetch("SignTest")
 
         # Which Comparison operator each sign test is sugar for, against the
-        # literal 0 — declared the same way in Vocabulary::SignTest's
-        # compares_via (language/bluebook/vocabulary.bluebook) ; spec/vocabulary_conformance_spec
-        # holds the two tables equal.
-        SIGN_TEST_OPERATORS = {
-          "positive?" => ">",
-          "negative?" => "<",
-          "zero?"     => "=="
-        }.freeze
+        # literal 0 — Vocabulary::SignTest's own compares_via
+        # (language/bluebook/vocabulary.bluebook), read off the generated
+        # table rather than typed a second time.
+        SIGN_TEST_OPERATORS = Hecks::Vocabulary.rows("SignTest")
+                                               .to_h { |row| [row["name"], row["compares_via"]] }
+                                               .freeze
 
         # The leaf grammar an expression's dotted/arithmetic side parses into.
         # Which node a string produces is a pure function of the string, so

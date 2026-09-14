@@ -10,49 +10,17 @@ module Hecks
       # increment/decrement land on an Integer or a one-numeric-field value
       # object.
       module Arithmetic
-        # The ops Runtime::CommandInterpreter applies. Declared the same way in
-        # Vocabulary::MutationOp (language/bluebook/vocabulary.bluebook) —
-        # spec/vocabulary_conformance_spec holds the two tables equal, so
-        # increment/decrement's sign cannot drift from what the language says
-        # each op means. set/append carry no sign — they do no arithmetic.
+        # The ops Runtime::CommandInterpreter applies — Vocabulary::MutationOp
+        # (language/bluebook/vocabulary.bluebook), read off the generated
+        # table, so increment/decrement's sign cannot drift from what the
+        # language says each op means. Every other op (set, append, multiply,
+        # clamp, remove, delegate, corrects) declares an empty sign — it does
+        # no add-or-subtract arithmetic — which reads here as nil.
         MutationOp = Struct.new(:name, :sign, keyword_init: true)
 
-        MUTATION_OPS = [
-          MutationOp.new(name: "set",       sign: nil),
-          MutationOp.new(name: "append",    sign: nil),
-          MutationOp.new(name: "increment", sign: 1),
-          MutationOp.new(name: "decrement", sign: -1),
-          # Vendored addition, not (yet) upstream hecks (migration
-          # plan task 4, i106): multiply/clamp carry no sign -- like
-          # set/append, they do no add-or-subtract arithmetic (multiply
-          # scales, clamp bounds). See #multiply/#clamp below.
-          MutationOp.new(name: "multiply",  sign: nil),
-          MutationOp.new(name: "clamp",     sign: nil),
-          # Vendored addition, not (yet) upstream hecks (migration
-          # plan task 4): remove -- carries no sign, like set/append; it
-          # matches a list element by value rather than doing arithmetic.
-          # Declared here so this table stays exactly what
-          # Vocabulary::MutationOp declares (spec/vocabulary_conformance_spec
-          # holds the two equal) -- MutationApplier's own `when :remove`
-          # branch (mutation_applier.rb) never calls #sign_of, so this was
-          # a declared-vocabulary gap, not a behaviour gap.
-          MutationOp.new(name: "remove",    sign: nil),
-          # Vendored addition, not (yet) upstream hecks —
-          # CommandBuilder#delegates_to's own comment gives the full
-          # reasoning; carries no sign, like set/append/remove — it does
-          # no arithmetic, only a synchronous handoff into one nested
-          # entity command. Declared here so this table stays exactly
-          # what Vocabulary::MutationOp declares — MutationApplier's own
-          # `when :delegate` branch (mutation_applier.rb) never calls
-          # #sign_of either, same as `remove`'s own note above.
-          MutationOp.new(name: "delegate",  sign: nil),
-          # CommandBuilder#corrects_impl's own comment gives the full
-          # reasoning — a command amending a past event rather than
-          # acting fresh. Carries no sign, like delegate: it does no
-          # arithmetic of its own; the record's actual change, if any,
-          # is an ordinary `sets` declared alongside it.
-          MutationOp.new(name: "corrects",  sign: nil)
-        ].freeze
+        MUTATION_OPS = Hecks::Vocabulary.rows("MutationOp").map do |row|
+          MutationOp.new(name: row["name"], sign: row["sign"].empty? ? nil : Integer(row["sign"]))
+        end.freeze
 
         # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and
         # the two are told apart by type : a Symbol is always a name, a String or a

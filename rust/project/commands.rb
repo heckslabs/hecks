@@ -1,3 +1,5 @@
+require_relative "skip_reason"
+
 module RustProjection
   module Projector
     module_function
@@ -139,7 +141,7 @@ module RustProjection
       # corpus command declaring one for THIS generator to prove itself
       # against, so it stays unsupported here, same as before this fix.
       unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement multiply clamp remove delegate corrects].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
-      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/remove/delegate/corrects are)" if unsupported_ops.any?
+      return skip("mutation_op", "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/remove/delegate/corrects are)") if unsupported_ops.any?
 
       corrects = corrects_of(command)
       # `derive_reverses_mutations!` (mutations.rb, called before this
@@ -151,18 +153,18 @@ module RustProjection
       # of the non-invertible ops (append/remove/set/multiply/clamp)
       # Ruby's own authors haven't finished designing a reversal for
       # (ADR 0041) — the real, still-open gap, not this whole construct.
-      return "corrects #{corrects[:target]}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet" \
+      return skip("corrects_reverses", "corrects #{corrects[:target]}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet") \
         if corrects && corrects_reverses?(corrects) && command[:mutations].none? { |m| m[:op].to_s != "corrects" }
 
       delegate_problem = delegate_skip_reason(command, aggregate, value_objects_by_name)
-      return delegate_problem if delegate_problem
+      return skip("delegate", delegate_problem) if delegate_problem
 
       append_problems = append_field_problems(command, aggregate, value_objects_by_name)
-      return "sets append field(s): #{append_problems.join('; ')}" if append_problems.any?
+      return skip("append_field", "sets append field(s): #{append_problems.join('; ')}") if append_problems.any?
       state_problems = state_source_problems(command, aggregate, value_objects_by_name)
-      return "sets state source(s): #{state_problems.join('; ')}" if state_problems.any?
+      return skip("state_source", "sets state source(s): #{state_problems.join('; ')}") if state_problems.any?
       remove_problems = remove_field_problems(command, aggregate, value_objects_by_name)
-      return "sets remove field(s): #{remove_problems.join('; ')}" if remove_problems.any?
+      return skip("remove_field", "sets remove field(s): #{remove_problems.join('; ')}") if remove_problems.any?
 
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       target_type_for = ->(target) { target.to_s == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:type) }
@@ -189,7 +191,7 @@ module RustProjection
 
         !literal_set_bridgeable?(m[:source][:value], target_type_for.call(m[:target]), value_objects_by_name)
       end.map { |m| m[:target] }
-      return "sets to: a literal that doesn't bridge to the target's type (#{literal_set_targets.join(', ')}) — not generated yet" if literal_set_targets.any?
+      return skip("set_literal", "sets to: a literal that doesn't bridge to the target's type (#{literal_set_targets.join(', ')}) — not generated yet") if literal_set_targets.any?
 
       # Ruby's real `apply`, for `:set`, does `Value.for(aggregate, mutation.target,
       # value)` — it coerces whatever arrived into the TARGET attribute's OWN
@@ -223,7 +225,7 @@ module RustProjection
 
         target_list_for.call(m[:target]) != !!source_attr[:list] || !bridgeable_value_types?(source_type, target_type, value_objects_by_name)
       end.map { |m| m[:target] }
-      return "sets :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
+      return skip("set_argument_bridge", "sets :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet") if mismatched_sets.any?
 
       # `:increment`/`:decrement`/`:multiply` — Ruby's real
       # `arithmetic_value_object`/`multiply` (command_rules/arithmetic.rb,
@@ -244,7 +246,7 @@ module RustProjection
         target = arithmetic_target_field(m, aggregate, value_objects_by_name)
         target && arithmetic_amount_expr(m[:source], command, value_objects_by_name, target[1])
       end.map { |m| m[:target] }
-      return "sets :#{unsupported_arithmetic.join(', ')} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
+      return skip("arithmetic", "sets :#{unsupported_arithmetic.join(', ')} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet") if unsupported_arithmetic.any?
 
       # `:clamp` — Ruby's real `Arithmetic#clamp` (read directly): "a
       # genuinely different shape [from #arithmetic/#multiply] -- its
@@ -261,10 +263,10 @@ module RustProjection
       unsupported_clamp = clamp_targets.reject do |m|
         arithmetic_target_field(m, aggregate, value_objects_by_name) && clamp_bounds_ints(m[:source])
       end.map { |m| m[:target] }
-      return "sets :#{unsupported_clamp.join(', ')} clamp target field or bounds isn't bridgeable — not generated yet" if unsupported_clamp.any?
+      return skip("clamp", "sets :#{unsupported_clamp.join(', ')} clamp target field or bounds isn't bridgeable — not generated yet") if unsupported_clamp.any?
 
       optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name, creating_possible: creating_possible)
-      return "optional argument feeds a non-optional target: #{optional_problems.join('; ')} — not generated yet" if optional_problems.any?
+      return skip("optional_source", "optional argument feeds a non-optional target: #{optional_problems.join('; ')} — not generated yet") if optional_problems.any?
 
       nil
     end

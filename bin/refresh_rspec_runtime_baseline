@@ -3,10 +3,10 @@
 
 # Regenerates `.github/rspec_runtime_baseline.log` — per-file runtimes for
 # exactly the spec set the `rspec` CI job runs (`--tag ~io --tag ~fuzzing`),
-# the grouping input `rspec_shard` falls back on whenever no runtime-log
-# cache restores: every brand-new PR branch and every merge-queue ref (see
-# the merge step in `.github/workflows/ci-rspec.yml` for why that is every
-# first run, not an edge case).
+# and the ONLY grouping input `rspec_shard` uses — a committed file every
+# matrix leg checks out identically, so every leg computes the same split
+# (see the shard-list step in `.github/workflows/ci-rspec.yml` for why a
+# restored cache can't be that input).
 #
 # The seconds are THIS machine's, not a GitHub runner's. Only proportions
 # matter to a runtime split, so that is fine; rerun this when a spec file

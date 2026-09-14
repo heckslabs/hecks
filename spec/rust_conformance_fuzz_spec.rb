@@ -1,6 +1,7 @@
 require "json"
 require "open3"
 require "hecks/fuzzing"
+require "hecks/fuzzing/differential"
 require_relative "support/rust_conformance_helpers"
 
 # PRD 04 (rust-conformance-fuzzing) — spec/rust_conformance_spec.rb only
@@ -104,6 +105,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
         binary = build_rust_for(feature)
         skip "rust/Cargo.toml has no #{feature} feature — run bin/project_rust for it first" unless binary
 
+        gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary)
         divergences = []
 
         (1..SEEDS_PER_DOMAIN).each do |seed|
@@ -116,8 +118,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
           # REFUSALS ARE COMPARED BY KIND, NOT WORDING (C8.2, docs/semantics/
           # bluebook-semantics.md: prose is not the contract) — the same
           # rule spec/semantics_corpus_spec.rb holds both kernels to. The
-          # message still rides along until the gap filters (which match
-          # on Rust's own structural wording) have run, then drops.
+          # message rides along into the manifest partition below, then drops.
           ruby_refusals  = ruby_result[:refusals].map do |r|
             { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
           end
@@ -144,23 +145,28 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
                               ruby: ruby_events, rust: rust_output["events"] }
           end
 
+          # TOLERATED ONLY WHERE THE MANIFEST SAYS SO — a query/read-model
+          # verb this binary's manifest.json declares `generated: false`
+          # leaves both sides; any other refusal is compared, whatever its
+          # wording. A tolerated verb Rust answered anyway is its own
+          # divergence (a stale manifest).
+          kept = Hecks::Fuzzing::Differential.manifest_partition(
+            gaps, ruby_refusals: ruby_refusals, rust_refusals: rust_output["refusals"],
+                  ruby_queries: ruby_queries, rust_queries: rust_output["queries"]
+          )
+          kept[:stale].each { |stale| divergences << stale.merge(seed: seed) }
+
           by_kind = ->(r) { r.slice("verb", "kind") }
-          rust_refusals = rust_output["refusals"].reject { |r| known_refusal_gap?(r) || structural_refusal_gap?(r) }
-                                                 .map(&by_kind)
-          kept_ruby_refusals = ruby_refusals.reject { |r| known_refusal_gap?(r) || structural_refusal_gap?(r) }
-                                            .map(&by_kind)
+          rust_refusals = kept[:rust_refusals].map(&by_kind)
+          kept_ruby_refusals = kept[:ruby_refusals].map(&by_kind)
           if rust_refusals != kept_ruby_refusals
             divergences << { seed: seed, field: "refusals",
                               ruby: kept_ruby_refusals, rust: rust_refusals }
           end
 
           wordless = ->(q) { reduce_to_wire_precision(q.except("error", "reference_error")) }
-          not_generated = structurally_refused_verbs(rust_output)
-          rust_queries = rust_output["queries"].reject { |q| known_refusal_gap?(q) || structural_refusal_gap?(q) }
-                                               .map(&wordless)
-          kept_ruby_queries = ruby_queries.reject do |q|
-            known_refusal_gap?(q) || structural_refusal_gap?(q) || not_generated.include?(q["query"])
-          end.map(&wordless)
+          rust_queries = kept[:rust_queries].map(&wordless)
+          kept_ruby_queries = kept[:ruby_queries].map(&wordless)
           if rust_queries != kept_ruby_queries
             divergences << { seed: seed, field: "queries",
                               ruby: kept_ruby_queries, rust: rust_queries }
@@ -173,8 +179,8 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
           cross_domain = cross_domain_policy_names(rust_output)
           kept_ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
-                                    .reject { |r| cross_domain.include?(r["policy"]) || known_reaction_gap?(r) }
-          rust_reactions = rust_output.fetch("reactions").reject { |r| known_reaction_gap?(r) }
+                                    .reject { |r| cross_domain.include?(r["policy"]) }
+          rust_reactions = rust_output.fetch("reactions")
           if rust_reactions != kept_ruby_reactions
             divergences << { seed: seed, field: "reactions",
                               ruby: kept_ruby_reactions, rust: rust_reactions }
