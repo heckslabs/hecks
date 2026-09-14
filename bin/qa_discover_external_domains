@@ -34,6 +34,29 @@
 # as the file inside its `bluebook/` subdirectory, exactly the one file
 # `Hecks.boot` and `bin/project_rust` both treat as the domain's root.
 #
+# TWO SHAPES, ONE CHECK — NESTED AND REPO-ROOT. The name-repetition rule
+# above is applied uniformly at every depth the walk visits, INCLUDING
+# depth 0 (the sibling repo's own root): a repo whose own name is
+# `foo` and that carries `foo/bluebook/foo.bluebook` at its own top
+# matches the identical way `examples/pizzas/bluebook/pizzas.bluebook`
+# does one level down — there is no special-casing needed, and none
+# exists. Verified against two real siblings, not just fixtures:
+# `~/Projects/playaprep` IS one domain at its own root
+# (`playaprep/bluebook/playaprep.bluebook`) and is reported as
+# `playaprep/playaprep`; `~/Projects/embryonautfoundersapp` has the same
+# root shape (`bluebook/embryonautfoundersapp.bluebook`, beside sibling
+# `adapters/`/`translations/` dirs the walk correctly never descends
+# into — the `next if child == "bluebook"` guard below) but is correctly
+# NOT reported, because ITS `Gemfile` depends on `hecksagain` (vendored,
+# aliased `Hecks = Hecksagain` for DSL readability), never on the real
+# `hecks` gem — same exclusion `near_miss_repo` in this script's own
+# fixtures exists to pin, just at depth 0 instead of depth 1
+# (`spec/fixtures/.../near_miss_root_shaped_repo`). If
+# `embryonautfoundersapp`'s in-progress `use-hecks-gem` migration branch
+# (seen live in its own `.claude/worktrees/use-hecks-gem`, not yet on
+# its `main`) ever lands — real `gem "hecks", "~> 1.3"` in its Gemfile —
+# this script starts reporting it with no code change at all.
+#
 # THE SECOND GUARD: DOES THE PROJECT ACTUALLY DEPEND ON `hecks`. A
 # `*.bluebook` file living in some unrelated project that happens to
 # share this naming accident is not a hecks domain. `hecks.gemspec`

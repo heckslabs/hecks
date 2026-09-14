@@ -185,9 +185,15 @@ Only when a person asks for it ("look for new domains", "what's out
 there in ~/Projects"): `bin/qa_discover_external_domains
 [--projects-dir <path>] [--max-depth N]`. It walks sibling repos under
 `~/Projects` (never this repo — already fully covered) for a directory
-shaped `<name>/bluebook/<name>.bluebook`, confirmed against the
-project's own `Gemfile`/`Gemfile.lock` for a real `hecks` gem
-dependency, cross-referenced against `Target.All` so an already-
+shaped `<name>/bluebook/<name>.bluebook` — matched uniformly at every
+depth, so a sibling repo that IS one domain at its own root
+(`<repo>/bluebook/<repo>.bluebook`, e.g. `~/Projects/playaprep`) is
+found the same way a nested one is — confirmed against the project's
+own `Gemfile`/`Gemfile.lock` for a real `hecks` gem dependency (a repo
+depending only on `hecksagain`, e.g. `~/Projects/embryonautfoundersapp`
+today, is correctly excluded even though its bluebook reads
+`Hecks.bluebook` — that gem aliases `Hecks = Hecksagain`, it is not the
+real `hecks` gem), cross-referenced against `Target.All` so an already-
 identified domain is never re-reported. **Report only** — it never
 calls `identify` itself; it prints the exact `bin/run qa/bluebook
 identify reference=… path=…` command for a person to review and run.
