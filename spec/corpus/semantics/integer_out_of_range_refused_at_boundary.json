@@ -1,6 +1,7 @@
 {
   "domain": "spec/corpus/semantics/domains/tally",
   "ruby_only": true,
+  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally has no `tally` feature in rust/Cargo.toml, so bin/project_rust has never generated it (marked ruby_only when the domain was added, #472). unverified: whether generated boundary code refuses a past-i64 argument as TypeMismatch with Ruby's `integer_range` wording.",
   "spec": [
     "C3.3",
     "C3.7"

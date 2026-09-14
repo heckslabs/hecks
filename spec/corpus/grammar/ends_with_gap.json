@@ -5,6 +5,7 @@
   ],
   "canonical": "filename.ends_with?(\".csv\")",
   "ruby_only": true,
+  "ruby_only_reason": "catalogued as KNOWN GAP G11 (docs/semantics/bluebook-grammar.md: hecks-parse had no production for EndsWith (`.ends_with?`)), but verified 2026-09-14 that hecks-parse now parses it to Ruby's exact tree — the ruby_only report in spec/grammar_corpus_spec.rb says NOW MATCHES. The flag and the G11 entry are owed a follow-up that removes both.",
   "note": "KNOWN GAP (G11): EndsWith{receiver, substring} unrecognised by hecks-parse.",
   "expect_ast": {
     "op": "lookup",

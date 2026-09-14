@@ -5,6 +5,7 @@
   ],
   "canonical": "\"a1\".match?(/\\A[a-z]\\d\\z/)",
   "ruby_only": true,
+  "ruby_only_reason": "KNOWN GAP G11 (docs/semantics/bluebook-grammar.md): hecks-parse's expression resolver has no production for MatchesRegex (`.match?`) — the text falls through to the Lookup catch-all, so its ast cannot match Ruby's.",
   "note": "KNOWN GAP (G11, catalogued not fixed): hecks-parse's own expr resolver has no production for .match?(/../) at all — it falls through to the Lookup catch-all instead of MatchesRegex, silently misparsing the whole receiver-plus-pattern text as one bogus dotted path. Marked ruby_only; hecks-parse's own output is NOT compared for this fixture.",
   "expect_ast": {
     "op": "matches_regex",

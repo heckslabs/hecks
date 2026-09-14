@@ -1,6 +1,7 @@
 {
   "domain": "examples/chess",
   "ruby_only": true,
+  "ruby_only_reason": "verified 2026-09-14: examples/chess has a Rust feature, and the chess binary now answers this fixture exactly as written (the ruby_only report in spec/semantics_corpus_spec.rb says NOW PASSES) — #467, which added it, already said the Rust kernel builds events only after save, and recorded no reason for ruby-only. The flag is owed a follow-up that removes it.",
   "spec": [
     "C7.2",
     "C8.1"

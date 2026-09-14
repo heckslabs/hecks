@@ -1,6 +1,7 @@
 {
   "domain": "spec/corpus/semantics/domains/relay",
   "ruby_only": true,
+  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/relay has no `relay` feature in rust/Cargo.toml, so bin/project_rust has never generated it (marked ruby_only when the domain was added, #472). The kernel does implement C10.3 (a leg is found by event AND from_state, orchestrate.rs); unverified end to end.",
   "spec": [
     "C10.3"
   ],

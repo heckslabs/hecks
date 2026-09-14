@@ -1,6 +1,7 @@
 {
   "domain": "spec/corpus/semantics/domains/tally",
   "ruby_only": true,
+  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally has no `tally` feature in rust/Cargo.toml, so bin/project_rust has never generated it (marked ruby_only when the domain was added, #472). unverified: whether the kernel compares a Float field with an Integer literal by value.",
   "spec": [
     "C3.2"
   ],

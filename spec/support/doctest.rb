@@ -51,7 +51,9 @@ module Doctest
   end
 
   Block = Struct.new(:kind, :code, :line, keyword_init: true)
-  Guide = Struct.new(:path, :blocks, :postgres, keyword_init: true)
+  # `skip_fences` counts the ```ruby skip fences parse dropped — shown,
+  # never run. spec/doc_skip_fence_caps_spec.rb caps it per file.
+  Guide = Struct.new(:path, :blocks, :postgres, :skip_fences, keyword_init: true)
 
   # Shared with every other Postgres spec via support/postgres_probe.rb —
   # a real `PG.connect` round trip asking the identical question, not a
@@ -103,6 +105,7 @@ module Doctest
     fence = nil
     buffer = []
     start = nil
+    skip_fences = 0
 
     File.read(path).each_line.with_index(1) do |line, number|
       if fence
@@ -129,9 +132,10 @@ module Doctest
       else next
       end
       start = number + 1
+      skip_fences += 1 if fence == :skip
     end
 
-    Guide.new(path: path, blocks: blocks,
+    Guide.new(path: path, blocks: blocks, skip_fences: skip_fences,
               postgres: File.foreach(path).first(3).any? { |l| l.include?("<!-- doctest: postgres -->") })
   end
 

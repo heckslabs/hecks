@@ -5,6 +5,7 @@
   ],
   "canonical": "toppings.first",
   "ruby_only": true,
+  "ruby_only_reason": "KNOWN GAP G11 (docs/semantics/bluebook-grammar.md): hecks-parse's expression resolver has no production for the bare `.first` accessor — the text falls through to the Lookup catch-all, so its ast cannot match Ruby's.",
   "note": "KNOWN GAP (G11): the bare .first/.last collection accessors are unrecognised by hecks-parse (no production, distinct from the block-opener .find).",
   "expect_ast": {
     "op": "first",
