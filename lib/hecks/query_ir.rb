@@ -54,8 +54,8 @@ module Hecks
       declared = meta_declared(name)
       emitted  = klass.ir_spec.keys
 
-      accounted = declared.reject { |field| Deviations::PARENT_REF.call(field) } -
-                  Deviations::JUDGE_ONLY -
+      accounted = declared.reject { |field| Deviations.parent_ref?(field) } -
+                  Deviations.judge_only(name) -
                   Deviations.folded(name).values.flatten -
                   Deviations.off_the_wire(name) -
                   Deviations.dynamic_tail(name) -

@@ -14,19 +14,6 @@ module Hecks
       # explanation must survive regeneration, and the only way it can is
       # to be emitted rather than typed into the output.
       module Deviations
-        # The grammar is relational — a Command points UP at its
-        # Aggregate — where the model composes. An explicit `as:` still
-        # keeps its `_id` (Command's own `entity_id`, kept as data); the
-        # parent link itself mints bare now (ADR 0025) — `aggregate` or
-        # `bluebook`, whichever this category's creating command declares
-        # first — so both spellings are checked. Entity spells its own
-        # (separate, non-colliding) text twin of the parent link `owner`.
-        PARENT_REF = ->(field) { field.to_s.match?(/_id\z/) || %i[owner aggregate bluebook].include?(field) }
-
-        # The judge's own field, never the model's — contracts.rb already
-        # says so with `derived: { position: :walk }`.
-        JUDGE_ONLY = %i[position].freeze
-
         # What the model holds that the grammar declares elsewhere: the
         # containment edges, stated in syntax.bluebook's Keyword rows as
         # `context` -> `opens`.
@@ -84,6 +71,20 @@ module Hecks
         }.freeze
 
         module_function
+
+        # The grammar is relational — a Command points UP at its
+        # Aggregate — where the model composes. An explicit `as:` still
+        # keeps its `_id` (Command's own `entity_id`, kept as data); the
+        # parent link itself mints bare now (ADR 0025) — `aggregate` or
+        # `bluebook`, whichever this category's creating command declares
+        # first. Entity spells its own (separate, non-colliding) text twin
+        # of the parent link `owner`. Not restated here: the one list is
+        # `Assembly::PARENT_POINTERS`, which the assembly gate reads too.
+        def parent_ref?(field) = Hecks::Bluebook::Assembly.parent_pointer?(field)
+
+        # The judge's own fields, never the model's — read off the
+        # category's contract (`derived: { position: :walk }`), not restated.
+        def judge_only(name) = Hecks::Bluebook::Assembly.contract(name).walked
 
         # The tables that carry a reason answer with names only when the
         # caller wants the set rather than the explanations.

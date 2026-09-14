@@ -45,6 +45,13 @@ module Hecks
 
         def kind_of(field) = derived[field]
 
+        # THE FIELDS THE WALK SUPPLIES — every `derived: { field => :walk }` claim.
+        # The language declares them (`attribute :position, Position`) so the
+        # judge can order siblings, but no constructor takes one. This is the one
+        # place that fact is stated ; `Specializer` and `Model::Deviations` read it
+        # here rather than each keeping their own `%i[position]`.
+        def walked = derived.select { |_field, kind| kind == :walk }.keys
+
         # WHERE A FOLDED FIELD ACTUALLY LIVES, as [object, member].
         #
         # `[:folded, :lifecycle, :field]` says the language's `state_field` is the
@@ -92,10 +99,26 @@ module Hecks
         end
       end
 
-      # The fields that hold a parent's id without being spelled `*_id`. An entity is
-      # declared in an aggregate, a member on a value object, a dispatch inside a
-      # handler, and each names its parent with a word rather than a suffix.
-      PARENT_POINTERS = %i[owner shape handler].freeze
+      # THE FIELDS THAT POINT AT A PARENT WITHOUT BEING SPELLED `*_id` — the one list,
+      # read by the assembly gate (a `:parent` claim), the model generator and
+      # QueryIR (a declared field the model composes instead of storing).
+      #
+      #   aggregate, bluebook   the bare parent link a creating command mints
+      #                         (ADR 0025) — exactly the `parent_key`s `Plan` reads
+      #                         off the language
+      #   owner                 Entity's own text twin of that link, which is why
+      #                         Entity's contract claims `owner: :parent`
+      #
+      # It used to read `%i[owner shape handler]` here while the model's copy read
+      # `owner aggregate bluebook`: `shape` and `handler` were Member's and
+      # Dispatch's parent fields before S17 (ADR 0026) made both nested entities,
+      # and nothing noticed the two lists had stopped agreeing. spec/assembly_spec
+      # now derives this set from `Plan` and the contracts and fails on any drift.
+      PARENT_POINTERS = %i[aggregate bluebook owner].freeze
+
+      def self.parent_pointer?(field)
+        field.to_s.end_with?("_id") || PARENT_POINTERS.include?(field.to_sym)
+      end
 
       # The only fields allowed to claim they describe something other than the
       # construct they hang off, each with the reason spelled out.

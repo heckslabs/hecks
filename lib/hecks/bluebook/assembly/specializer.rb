@@ -21,20 +21,6 @@ module Hecks
       module Specializer
         module_function
 
-        # `position` IS THE FIRST FOLD THIS RUNS INTO, and it is a universal
-        # one : every category declares `attribute :position, Position` — for
-        # the JUDGE's own walk, `order_by :position` on its `DeclaredIn` ask —
-        # but no `*` constructor takes it as an argument. `contracts.rb`
-        # already says so, in the language every other derived field speaks :
-        # `derived: { position: :walk }`. The language says a category HAS a
-        # position ; it does not say a category's OWN constructor is handed
-        # one, and that second fact is exactly what `fields:` needs to answer.
-        # So this is not silently special-cased — it is the one fold named
-        # here because it is the one fold that is not a lucky accident of
-        # Policy or Handler, but a fact true of every category this arc will
-        # ever reach.
-        DERIVED_EVERYWHERE = %i[position].freeze
-
         # S17, ADR 0026 — `Handler` is a genuine entity now, nested under
         # `ProcessManager`, so `.aggregate` alone no longer finds it —
         # it hangs off some aggregate's own `.entities` instead
@@ -55,11 +41,23 @@ module Hecks
           nil
         end
 
+        # `position` IS THE FIRST FOLD THIS RUNS INTO : a category declares
+        # `attribute :position, Position` — for the JUDGE's own walk,
+        # `order_by :position` on its `DeclaredIn` ask — but no `*`
+        # constructor takes it as an argument. `contracts.rb` already says so,
+        # in the language every other derived field speaks :
+        # `derived: { position: :walk }`. The language says a category HAS a
+        # position ; it does not say a category's OWN constructor is handed
+        # one, and that second fact is exactly what `fields:` needs to answer.
+        # So the skip reads the category's own walk claims (`Contract#walked`)
+        # rather than restating `position` here — Handler, which has no
+        # walk-minted position, skips nothing.
         def fields_for(category)
           language = construct_for(MetaValidator.grammar_registry.bluebook("Bluebook"), category.to_s)
+          walked   = Assembly.contract(category).walked
           language.attributes.each_with_object({}) do |attribute, fields|
             next if attribute.list? || attribute.reference?
-            next if DERIVED_EVERYWHERE.include?(attribute.name)
+            next if walked.include?(attribute.name)
 
             fields[attribute.name] = [attribute.name, :plain]
           end

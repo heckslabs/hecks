@@ -45,8 +45,8 @@ RSpec.describe "the model's shape, held to the language" do
       let(:emitted)  { construct.ir_spec.keys }
 
       it "emits every declared field that is not accounted for" do
-        accounted = declared.reject { |field| DEVIATIONS::PARENT_REF.call(field) } -
-                    DEVIATIONS::JUDGE_ONLY -
+        accounted = declared.reject { |field| DEVIATIONS.parent_ref?(field) } -
+                    DEVIATIONS.judge_only(name) -
                     DEVIATIONS.folded(name).values.flatten -
                     DEVIATIONS.off_the_wire(name) -
                     DEVIATIONS.dynamic_tail(name) -
