@@ -1211,7 +1211,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Activate does not declare {} — it takes ",
+        "Activate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1303,7 +1303,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes ",
+        "Retire does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

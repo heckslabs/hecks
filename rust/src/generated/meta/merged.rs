@@ -428,7 +428,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Seal does not declare {} — it takes ",
+        "Seal does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -928,7 +928,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Seal does not declare {} — it takes ",
+        "Seal does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1854,7 +1854,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Deprecate does not declare {} — it takes ",
+        "Deprecate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1877,7 +1877,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes ",
+        "Retire does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1900,7 +1900,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Deprecate does not declare {} — it takes ",
+        "Deprecate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1923,7 +1923,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes ",
+        "Retire does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

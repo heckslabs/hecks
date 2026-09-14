@@ -964,7 +964,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Seal does not declare {} — it takes ",
+        "Seal does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

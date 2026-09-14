@@ -659,7 +659,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Capture does not declare {} — it takes ",
+        "Capture does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -752,7 +752,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Void does not declare {} — it takes ",
+        "Void does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -845,7 +845,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Refund does not declare {} — it takes ",
+        "Refund does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -938,7 +938,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reverse does not declare {} — it takes ",
+        "Reverse does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1135,7 +1135,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Chargeback does not declare {} — it takes ",
+        "Chargeback does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1228,7 +1228,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RejectDispute does not declare {} — it takes ",
+        "RejectDispute does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

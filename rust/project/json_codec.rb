@@ -354,12 +354,24 @@ module RustProjection
       RUST
     end
 
+    # `declared_names.join(', ')` used to be spliced straight into the
+    # template — correct for every command with at least one attribute,
+    # but a command that declares NONE rendered the empty string there,
+    # trailing the sentence off mid-clause: "Close does not declare
+    # parcel — it takes ". `declared_reading`'s own "none" fallback
+    # (argument_gate.rb, quoted on that method) never reached this path
+    # at all, because this check builds its wording directly rather than
+    # through `RefusalSite::UnknownArgumentUnknownArgs.render` the way
+    # `emit_absent_argument_check` (above) already does — found live via
+    # `bin/qa_generated_domains` (BUG#134), a policy trigger whose event
+    # payload named a field the triggered command doesn't declare.
     def emit_unknown_argument_check(command_name, known_keys, declared_names)
+      reading = declared_names.empty? ? "none" : declared_names.join(", ")
       <<~RUST
                 let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
                 if !unknown.is_empty() {
                     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-                        "#{command_name} does not declare {} — it takes #{declared_names.join(', ')}",
+                        "#{command_name} does not declare {} — it takes #{reading}",
                         unknown.join(", ")
                     )));
                 }
