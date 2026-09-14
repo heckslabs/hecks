@@ -779,6 +779,184 @@ fn entity_invariants() -> crate::kernel::InvariantSet {
     }
 }
 
+impl crate::kernel::Fielded for DeclareArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "aggregate" => Some(Field::Value(Value::Str(self.aggregate.clone()))),
+            "owner" => Some(Field::Nested(&self.owner)),
+            "name" => Some(Field::Nested(&self.name)),
+            "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DeclareArgs {
+    pub aggregate: String,
+    pub owner: EntityText,
+    pub name: EntityName,
+    pub description: Option<EntityName>,
+    pub position: Option<Position>,
+}
+
+pub fn dispatch_declare(
+    repo: &mut impl crate::kernel::Repository<Entity>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Entity> {
+        args.owner.check_invariants()?;
+        args.name.check_invariants()?;
+        if let Some(v) = &args.description { v.check_invariants()?; }
+        if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = format!("{}:{}", args.aggregate.to_string(), args.name.value.to_string());
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Declare routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
+        crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Entity {
+            aggregate: Some(args.aggregate.clone()),
+            owner: Some(args.owner.clone()),
+            name: Some(args.name.clone()),
+            description: args.description.clone(),
+            identified_by: vec![],
+            attributes: vec![],
+            preconditions: vec![],
+            invariants: vec![],
+            state_field: None,
+            state_start: None,
+            transitions: vec![],
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}", args.aggregate.to_string(), args.name.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Entity {
+            aggregate: Some(args.aggregate.clone()),
+            owner: Some(args.owner.clone()),
+            name: Some(args.name.clone()),
+            description: args.description.clone(),
+            identified_by: vec![],
+            attributes: vec![],
+            preconditions: vec![],
+            invariants: vec![],
+            state_field: None,
+            state_start: None,
+            transitions: vec![],
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    } }
+    },
+        "Declare",
+        "Bluebook::Entity",
+        "Entity",
+        "aggregate, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.aggregate = Some(args.aggregate.clone());
+        record.owner = Some(args.owner.clone());
+        record.name = Some(args.name.clone());
+        record.description = args.description.clone();
+        record.position = args.position.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &entity_invariants(),
+        &["PieceDeclared"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("aggregate".to_string(), crate::kernel::Json::Str(self.aggregate.clone())),
+        ("owner".to_string(), self.owner.to_json()),
+        ("name".to_string(), self.name.to_json()),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["aggregate", "owner", "name", "description", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Declare does not declare {} — it takes aggregate, owner, name, description, position",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["aggregate", "name", "owner"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Declare"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "aggregate, owner, name, description, position"),
+    ])));
+}
+        let aggregate = { let x = v.get("aggregate").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs.aggregate expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()) })? };
+        let owner = EntityText::from_json(&(match v.get("owner").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.owner expects EntityText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        owner.check_invariants()?;
+        let name = EntityName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects EntityName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let description = match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &description { v.check_invariants()?; }
+        let position = match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &position { v.check_invariants()?; }
+        Ok(Self {
+        aggregate,
+        owner,
+        name,
+        description,
+        position,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for IdentifyArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
