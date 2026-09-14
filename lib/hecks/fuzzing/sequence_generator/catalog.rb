@@ -60,7 +60,7 @@ module Hecks
         # EVERY ENTITY, AT EVERY DEPTH — `Card` nested inside `Board`
         # inside `Workspace` (qa/stress_domains/nested_pieces) walks in
         # as `chain: [Board, Card]`, the exact hop list
-        # `EntityInterpreter#walk_entity_chain` resolves the dotted verb
+        # `EntityInterpreter::Resolution.of` resolves the dotted verb
         # back into. Before this walk existed the catalog only ever read
         # `aggregate.entities` one level down, so a two-hop entity
         # command (BUG#11's whole class) could never be generated at all
