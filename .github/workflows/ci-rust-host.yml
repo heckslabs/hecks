@@ -42,5 +42,24 @@ jobs:
           name: host
           crate-root: rust/host
 
+      # rust/host's own `cargo test` dispatches against two compiled
+      # domains: rust/dist/banking.wasm (dispatch.rs) and
+      # rust/dist/checkout_fixture.wasm (web.rs's checkout routes, from
+      # spec/fixtures/rust_host/checkout_fixture). rust/dist is
+      # gitignored, so build both here.
+      - uses: ./.github/actions/wasm-toolchain
+
+      - name: Build banking + checkout_fixture wasm
+        run: |
+          bundle exec bin/project_wasm examples/banking
+          bundle exec bin/project_wasm spec/fixtures/rust_host/checkout_fixture
+          # bin/project_wasm regenerates tracked rust/src/generated +
+          # rust/Cargo.toml as a side effect; put them back.
+          git checkout -- rust/src/generated rust/Cargo.toml
+          git clean -fdq rust/src/generated
+
+      - name: "cargo test (rust/host)"
+        run: cd rust/host && cargo test
+
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
