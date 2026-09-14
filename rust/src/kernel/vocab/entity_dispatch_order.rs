@@ -5,6 +5,7 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EntityStep {
+    DecodeArguments,
     RefuseUnknownArguments,
     RefuseAbsentArguments,
     NormalizeArgs,
@@ -24,7 +25,8 @@ pub enum EntityStep {
 
 impl EntityStep {
     /// The declared step order, first to last.
-    pub const ORDER: [EntityStep; 15] = [
+    pub const ORDER: [EntityStep; 16] = [
+        EntityStep::DecodeArguments,
         EntityStep::RefuseUnknownArguments,
         EntityStep::RefuseAbsentArguments,
         EntityStep::NormalizeArgs,
@@ -45,6 +47,7 @@ impl EntityStep {
     /// The row's declared `step`.
     pub fn step(&self) -> &'static str {
         match self {
+            EntityStep::DecodeArguments => "decode_arguments",
             EntityStep::RefuseUnknownArguments => "refuse_unknown_arguments",
             EntityStep::RefuseAbsentArguments => "refuse_absent_arguments",
             EntityStep::NormalizeArgs => "normalize_args",
@@ -71,21 +74,22 @@ impl EntityStep {
     /// This step's index in `ORDER`.
     pub fn position(&self) -> usize {
         match self {
-            EntityStep::RefuseUnknownArguments => 0,
-            EntityStep::RefuseAbsentArguments => 1,
-            EntityStep::NormalizeArgs => 2,
-            EntityStep::RefuseRoleMismatch => 3,
-            EntityStep::ResolveReferences => 4,
-            EntityStep::HydrateParent => 5,
-            EntityStep::LocateElement => 6,
-            EntityStep::EnforceGivens => 7,
-            EntityStep::AdmissibleTransition => 8,
-            EntityStep::ApplyMutations => 9,
-            EntityStep::AdvanceLifecycle => 10,
-            EntityStep::EnforceEnsures => 11,
-            EntityStep::EnforceInvariants => 12,
-            EntityStep::Save => 13,
-            EntityStep::Emit => 14,
+            EntityStep::DecodeArguments => 0,
+            EntityStep::RefuseUnknownArguments => 1,
+            EntityStep::RefuseAbsentArguments => 2,
+            EntityStep::NormalizeArgs => 3,
+            EntityStep::RefuseRoleMismatch => 4,
+            EntityStep::ResolveReferences => 5,
+            EntityStep::HydrateParent => 6,
+            EntityStep::LocateElement => 7,
+            EntityStep::EnforceGivens => 8,
+            EntityStep::AdmissibleTransition => 9,
+            EntityStep::ApplyMutations => 10,
+            EntityStep::AdvanceLifecycle => 11,
+            EntityStep::EnforceEnsures => 12,
+            EntityStep::EnforceInvariants => 13,
+            EntityStep::Save => 14,
+            EntityStep::Emit => 15,
         }
     }
 }
