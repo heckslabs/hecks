@@ -1271,6 +1271,22 @@ Hecks.bluebook "QualityControl" do
     # every bug already on file: each hydrates `undecided`, which is
     # exactly true of a bug nobody triaged.
     attribute :disposition,   one_of("undecided", "self_contained", "bigger"), default: { value: "undecided" }
+    # "YES" UNLESS SOMEBODY SAYS OTHERWISE — the same `one_of`-with-
+    # default shape `disposition` (above) uses, and for the identical
+    # reason: `default:` is what makes this ADDITIVE to every one of the
+    # ~56+ bugs already on file, each hydrating `yes`, which is exactly
+    # true of them — `bin/qa_log_bug`'s own absolute rule (this file's
+    # header) has always required a demonstration that actually fails,
+    # so every bug logged before this attribute existed already has a
+    # real, reliably-reproducing one. UNLIKE `name`/`waived_by`, a
+    # genuine default value exists here — it is not "no legitimate value
+    # to backfill with" (their own comments), it is a true fact about
+    # every existing row. Only a NEWLY-logged bug can be `no`: the
+    # escape hatch for a finding an agent is confident is real but
+    # cannot get to reproduce reliably (flaky, environment-sensitive,
+    # timing-dependent) — see `bin/qa_log_bug --reproduced no` and
+    # `Log`'s own `reproduced` argument, below.
+    attribute :reproduced,    one_of("yes", "no"), default: { value: "yes" }
     # A BUG IS WORK, AND WORK GETS CLAIMED.
     #
     # Sweeping is not the only way an agent gets something to do — it can
@@ -1508,6 +1524,18 @@ Hecks.bluebook "QualityControl" do
       # lands there directly (the same way `title`/`demonstration`/
       # `symptom` above need no `sets` either).
       attribute :name,          BugName, optional: true
+      # OPTIONAL, LEFT TO THE AGGREGATE'S OWN DEFAULT WHEN OMITTED —
+      # `yes` unless a caller says otherwise, same reasoning as the
+      # aggregate's own `reproduced` attribute (see its comment) and the
+      # same NO-`sets`-NEEDED shape `name` (above) already uses: omitted
+      # here, `assign_creation_attributes` never touches the field and
+      # the fresh record hydrates straight off `default: { value: "yes"
+      # }`; passed, it lands directly. This is what lets
+      # `bin/qa_log_bug --reproduced no` skip its own must-fail check for
+      # a finding with no reliable pass/fail signal, while every ordinary
+      # `Log` — every caller before this argument existed included —
+      # keeps demanding one.
+      attribute :reproduced,    one_of("yes", "no"), optional: true
 
       emits "BugLogged"
     end

@@ -420,6 +420,10 @@ Fixed and not yet re-run — the queue a full CI pass empties.
 
 Put a bug back when its fix stopped holding. Done by the qa engineer.
 
+### Reproduced
+
+One of yes or no.
+
 ### Revisit
 
 Pick a paused bug back up, investigation intact. Done by the qa engineer.

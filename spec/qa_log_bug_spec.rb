@@ -36,6 +36,10 @@ RSpec.describe "bin/qa_log_bug", :io do
            .map { |row| [row[:reference][:value], row[:sequence][:value], row[:disposition][:value]] }
   end
 
+  def reproduced_values
+    @ledger.boot.query("QualityControl::Bug.All").map { |row| row[:reproduced][:value] }
+  end
+
   it "refuses a demonstration that passes, and logs nothing" do
     a_sweep_on_file
 
@@ -54,8 +58,53 @@ RSpec.describe "bin/qa_log_bug", :io do
 
     expect(status.exitstatus).to eq(0), stdout
     expect(stdout).to include("demonstration failed as required (exit 3)", "expected refusal, got acceptance",
-                              "logged BUG#1 (sequence 1, bigger) against SW-1")
+                              "logged BUG#1 (sequence 1, bigger, reproduced=yes) against SW-1")
     expect(bugs_on_file).to eq([["BUG#1", 1, "bigger"]])
+    expect(reproduced_values).to eq(["yes"])
+  end
+
+  # THE ESCAPE HATCH: A FINDING WITH NO RELIABLE PASS/FAIL SIGNAL. Without
+  # `--reproduced no`, a demonstration that does not reliably fail is
+  # simply refused and the finding is lost — the whole reason this flag
+  # exists. `ruby -e '...'` here would PASS if actually run (exit 0), and
+  # never is: `--reproduced no` skips the must-fail check entirely.
+  it "logs a bug with --reproduced no even though the demonstration does not fail" do
+    a_sweep_on_file
+
+    stdout, _stderr, status = log_bug("ruby -e 'exit 0' # ostensibly reproduces a flaky race, not reliably",
+                                      "--triage", "bigger", "--reproduced", "no")
+
+    expect(status.exitstatus).to eq(0), stdout
+    expect(stdout).to include("reproduced=no — skipping the must-fail check",
+                              "logged BUG#1 (sequence 1, bigger, reproduced=no) against SW-1")
+    expect(bugs_on_file).to eq([["BUG#1", 1, "bigger"]])
+    expect(reproduced_values).to eq(["no"])
+  end
+
+  # STILL REQUIRED, STILL REAL CODE — `--reproduced no` only removes the
+  # must-fail CHECK, not the requirement that `--demonstration` be an
+  # actual reproduction attempt rather than prose describing what
+  # happened.
+  it "refuses --reproduced no when --demonstration reads like prose, not code" do
+    a_sweep_on_file
+
+    stdout, stderr, status = log_bug("The button did not turn red when I clicked it a second time",
+                                     "--triage", "bigger", "--reproduced", "no")
+
+    expect(status.exitstatus).to eq(1)
+    expect(stderr).to include("doesn't look like a runnable script or command")
+    expect(stdout).not_to include("logged BUG#")
+    expect(bugs_on_file).to be_empty
+  end
+
+  it "refuses an unrecognized --reproduced value" do
+    a_sweep_on_file
+
+    _stdout, stderr, status = log_bug("exit 1", "--triage", "bigger", "--reproduced", "maybe")
+
+    expect(status.exitstatus).to eq(1)
+    expect(stderr).to include("--reproduced must be one of yes|no")
+    expect(bugs_on_file).to be_empty
   end
 
   # A REAL BUG#21 WAS ASSIGNED TWICE once — this is the mint that cannot
@@ -74,7 +123,7 @@ RSpec.describe "bin/qa_log_bug", :io do
     expect(status.exitstatus).to eq(0), stdout
     # sequences on file: 2, 3 → next is 4; "BUG#4" is taken → walks to 5,
     # reference and sequence in lockstep (the reference IS the sequence).
-    expect(stdout).to include("logged BUG#5 (sequence 5, self_contained)")
+    expect(stdout).to include("logged BUG#5 (sequence 5, self_contained, reproduced=yes)")
     expect(bugs_on_file.map(&:first)).to contain_exactly("BUG#1", "BUG#4", "BUG#5")
   end
 
