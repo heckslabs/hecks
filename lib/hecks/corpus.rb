@@ -66,12 +66,9 @@ module Hecks
                 "era snapshots a file adapter writes at runtime, never committed"),
       Route.new(%r{\Arust/}, :named_in, "rust/parser/tests/gates.rs", :each_file,
                 "the Rust parser's own fixtures, each loaded by its gate tests"),
-      Route.new(%r{\Aexamples/directory/bluebook/translations/}, :named_in,
-                "spec/adapters/driven/postgres_era/directory_rekey_spec.rb", "bluebook/translations",
-                "directory's rekey edge, applied against a real PostgresEra"),
-      Route.new(%r{/translations/}, :gap, nil, nil,
-                "translation edges: Fuzzing::IsolatedBoot strips them before every sweep, and no gated " \
-                "check loads examples/pizzas's or qa/bluebook's committed edges"),
+      Route.new(%r{/translations/}, :named_in, "spec/translation/committed_edges_spec.rb", "bluebook/translations",
+                "translation edges, not chapters; each must load, chain era to era, and end at the storage " \
+                "shape its bluebook declares today"),
       Route.new(%r{\Alib/hecks/forms/examples/}, :named_in, "spec/forms/app_spec.rb", :each_file,
                 "a Forms presentation config wearing the .bluebook extension"),
       Route.new(%r{\Aspec/fixtures/eras/}, :named_in, "spec/runtime/storage_shape_spec.rb", "fixtures/eras",
