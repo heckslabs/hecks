@@ -423,3 +423,16 @@ jobs:
         with:
           path: tmp/parallel_runtime_rspec.group${{ matrix.group }}.log
           key: postgres-io-parallel-runtime-group${{ matrix.group }}-${{ github.run_id }}
+
+      # THE SAME LOG, ALSO AS AN ARTIFACT — `bin/refresh_rspec_runtime_
+      # baseline --from-run <run-id>` needs all four legs' logs from one
+      # run to write `.github/postgres_io_runtime_baseline.log`, and a cache
+      # entry can't be downloaded. See ci-rspec.yml's upload step.
+      - name: Upload this group's runtime log (for bin/refresh_rspec_runtime_baseline --from-run)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-io-runtime-group-${{ matrix.group }}
+          path: tmp/parallel_runtime_rspec.group${{ matrix.group }}.log
+          retention-days: 14
+          if-no-files-found: ignore

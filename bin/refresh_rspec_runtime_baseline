@@ -1,46 +1,109 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Regenerates `.github/rspec_runtime_baseline.log` — per-file runtimes for
-# exactly the spec set the `rspec` CI job runs (`--tag ~io --tag ~fuzzing`),
-# and the ONLY grouping input `rspec_shard` uses — a committed file every
-# matrix leg checks out identically, so every leg computes the same split
-# (see the shard-list step in `.github/workflows/ci-rspec.yml` for why a
-# restored cache can't be that input).
+# Regenerates the committed runtime baselines the sharded CI jobs group
+# from — the ONLY grouping input, never a restored cache (see the shard-list
+# step in `.github/workflows/ci-rspec.yml` for the run where cached logs
+# made the legs split the suite differently).
 #
-# The seconds are THIS machine's, not a GitHub runner's. Only proportions
-# matter to a runtime split, so that is fine; rerun this when a spec file
-# gets much slower or faster, or a large one is added. Refuses to write a
-# baseline from a red run. Sorted and rounded so a refresh diffs readably.
+#   bin/refresh_rspec_runtime_baseline --from-run <run-id>   # preferred: one CI run's own timings
+#   bin/refresh_rspec_runtime_baseline [workers]             # fallback: this machine, spec shards only
 #
-# Usage:
-#   bin/refresh_rspec_runtime_baseline [workers]   # default 6
+# `--from-run` downloads the per-leg runtime logs that `rspec_shard` and
+# `rspec_postgres_io_parallel_shard` upload as artifacts and writes
+#   .github/rspec_runtime_baseline.log        (from both `rspec-runtime-group-N`)
+#   .github/postgres_io_runtime_baseline.log  (from all four `postgres-io-runtime-group-N`)
+# Runner seconds, not a laptop's: subprocess-heavy specs run ~2.7x slower on
+# a runner, relative to the rest of the suite, than locally (PR #688's run),
+# which a local baseline cannot see. Only a SUCCESSFUL run is read, and a
+# family is written only when EVERY one of its legs uploaded a log — a
+# partial set would give the missing legs' files the average and quietly
+# skew the split. Postgres-io legs run only in the merge queue or on a PR
+# labeled `full-ci`.
+#
+# The local mode runs the `rspec` job's own spec set (`--tag ~io --tag
+# ~fuzzing`) here and refuses to write from a red run. Both modes keep only
+# `spec/…_spec.rb:<seconds>` lines, sorted and rounded so a refresh diffs
+# readably.
 
 require "fileutils"
+require "json"
+require "open3"
 
-ROOT     = File.expand_path("..", __dir__)
-BASELINE = ".github/rspec_runtime_baseline.log"
-RAW      = "tmp/rspec_runtime_baseline.raw.log"
-
-workers = ARGV.fetch(0, "6")
-FileUtils.mkdir_p(File.join(ROOT, "tmp"))
-FileUtils.rm_f(File.join(ROOT, RAW))
-
-formatters = "--tag ~io --tag ~fuzzing --format progress --format ParallelTests::RSpec::RuntimeLogger --out #{RAW}"
-green = system("bundle", "exec", "parallel_rspec", "spec", "-n", workers, "-o", formatters, chdir: ROOT)
-abort "bin/refresh_rspec_runtime_baseline: the spec run failed — not writing a baseline from a red suite" unless green
+ROOT  = File.expand_path("..", __dir__)
+REPO  = "heckslabs/hecks"
+USAGE = "usage: bin/refresh_rspec_runtime_baseline --from-run <run-id> | [workers]"
 
 # ONLY `spec/…_spec.rb:<seconds>` LINES — RSpec also writes its own
 # "Run options: exclude {…}" line into the formatter's --out file, once per
 # worker, and `parallel_tests`' reader would merely skip it; this refuses to
-# copy it into a committed file.
-# Seconds can arrive in exponent form (`9.69e-05` for a near-instant file).
+# copy it into a committed file. Seconds can arrive in exponent form
+# (`9.69e-05` for a near-instant file).
 RUNTIME_LINE = %r{\A(?<file>spec/\S+_spec\.rb):(?<seconds>\d+(?:\.\d+)?(?:e-?\d+)?)\z}
 
-lines = File.readlines(File.join(ROOT, RAW)).filter_map do |line|
-  match = RUNTIME_LINE.match(line.strip) or next
-  format("%<file>s:%<seconds>.2f", file: match[:file], seconds: Float(match[:seconds]))
-end.uniq.sort
+FAMILIES = {
+  "rspec-runtime-group"       => { legs: 2, baseline: ".github/rspec_runtime_baseline.log" },
+  "postgres-io-runtime-group" => { legs: 4, baseline: ".github/postgres_io_runtime_baseline.log" }
+}.freeze
 
-File.write(File.join(ROOT, BASELINE), "#{lines.join("\n")}\n")
-puts "wrote #{BASELINE}: #{lines.size} spec files"
+def baseline_lines(paths)
+  seconds_by_file = paths.flat_map { |path| File.readlines(path) }.filter_map do |line|
+    match = RUNTIME_LINE.match(line.strip) or next
+    [match[:file], Float(match[:seconds])]
+  end.to_h
+  seconds_by_file.map { |file, seconds| format("%<file>s:%<seconds>.2f", file: file, seconds: seconds) }.sort
+end
+
+def write_baseline(relative, lines)
+  File.write(File.join(ROOT, relative), "#{lines.join("\n")}\n")
+  puts "wrote #{relative}: #{lines.size} spec files"
+end
+
+def refuse_unless_successful!(run_id)
+  out, status = Open3.capture2("gh", "run", "view", run_id, "-R", REPO, "--json", "conclusion")
+  abort "bin/refresh_rspec_runtime_baseline: could not read run #{run_id}" unless status.success?
+
+  conclusion = JSON.parse(out)["conclusion"]
+  return if conclusion == "success"
+
+  abort "bin/refresh_rspec_runtime_baseline: run #{run_id} concluded #{conclusion.inspect} — " \
+        "refusing to write a baseline from anything but a successful run"
+end
+
+def from_run(run_id)
+  refuse_unless_successful!(run_id)
+  dir = File.join(ROOT, "tmp/ci-runtime-#{run_id}")
+  FileUtils.rm_rf(dir)
+
+  written = FAMILIES.count do |prefix, family|
+    system("gh", "run", "download", run_id, "-R", REPO, "-p", "#{prefix}-*", "-D", dir, out: File::NULL, err: File::NULL)
+    logs = Dir[File.join(dir, "#{prefix}-*", "*.log")]
+    legs = logs.map { |path| File.basename(File.dirname(path)) }.uniq.size
+    if legs == family[:legs]
+      write_baseline(family[:baseline], baseline_lines(logs))
+      true
+    else
+      warn "skipping #{family[:baseline]}: run #{run_id} has #{legs} of #{family[:legs]} #{prefix}-* artifacts"
+      false
+    end
+  end
+  abort "bin/refresh_rspec_runtime_baseline: run #{run_id} had no complete artifact family — nothing written" if written.zero?
+end
+
+def from_local(workers)
+  raw = "tmp/rspec_runtime_baseline.raw.log"
+  FileUtils.mkdir_p(File.join(ROOT, "tmp"))
+  FileUtils.rm_f(File.join(ROOT, raw))
+
+  formatters = "--tag ~io --tag ~fuzzing --format progress --format ParallelTests::RSpec::RuntimeLogger --out #{raw}"
+  green = system("bundle", "exec", "parallel_rspec", "spec", "-n", workers, "-o", formatters, chdir: ROOT)
+  abort "bin/refresh_rspec_runtime_baseline: the spec run failed — not writing a baseline from a red suite" unless green
+
+  write_baseline(FAMILIES.fetch("rspec-runtime-group")[:baseline], baseline_lines([File.join(ROOT, raw)]))
+end
+
+if ARGV.first == "--from-run"
+  from_run(ARGV.fetch(1) { abort USAGE })
+else
+  from_local(ARGV.fetch(0, "6"))
+end
