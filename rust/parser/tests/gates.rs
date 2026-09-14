@@ -321,8 +321,10 @@ fn a_bare_if_is_refused_by_the_shape_gate() {
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert_eq!(output.status.code(), Some(1));
+    // Match the refusal text itself — a bare `contains("if")` was satisfied
+    // by the temp file's own name (`bare_if.bluebook`) in the stderr path.
     assert!(
-        stderr.contains("if"),
+        stderr.contains("'if' is a bare Ruby control-flow"),
         "expected the shape gate to name the bare 'if', got: {stderr}"
     );
 
