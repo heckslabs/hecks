@@ -118,8 +118,7 @@ their_json =
     builder = Object.new.extend(RustConformanceHelpers)
     feature = File.basename(domain.chomp("/"))
     bin = builder.build_rust_for(feature, File.expand_path("../rust", __dir__)) or
-    abort "no `#{feature}` feature in rust/Cargo.toml, or `cargo build --features #{feature}` failed — " \
-          "run bin/project_rust #{domain} first"
+    abort "no `#{feature}` feature in rust/Cargo.toml — run bin/project_rust #{domain} first"
     run_subprocess([bin], File.read(script))
   when /\.wasm\z/
     abort "#{other}: no such file — run bin/project_wasm #{domain} first" unless File.exist?(other)

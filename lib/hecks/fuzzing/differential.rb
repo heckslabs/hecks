@@ -4,6 +4,7 @@ require_relative "replay"
 require_relative "properties"
 require_relative "self_consistency"
 require_relative "rust_gap_manifest"
+require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
@@ -82,7 +83,7 @@ module Hecks
         ruby_refusals  = ruby_result[:refusals].map do |r|
           { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
         end
-        ruby_queries  = JSON.parse(JSON.generate(ruby_result[:queries].map { |row| row.except(:instances_at) }))
+        ruby_queries  = JSON.parse(JSON.generate(ruby_result[:queries].map { |row| Nondeterministic.strip(row, :query_row) }))
         ruby_sagas    = JSON.parse(JSON.generate(ruby_result[:sagas]))
         ruby_dry_runs = ruby_result[:dry_runs].map { |d| { "verb" => d[:verb].to_s, "ok" => d[:ok] } }
 

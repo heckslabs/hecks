@@ -25,7 +25,7 @@ RSpec.describe "bin/rust_conformance", :io do
 
   let(:binary) do
     Object.new.extend(RustConformanceHelpers).build_rust_for("qa_sweep_all_dry_run_fixture", fixture_crate) or
-      skip "could not build the qa_sweep_all_dry_run_fixture crate — is cargo installed?"
+      skip "the qa_sweep_all_found_fixture_rust crate declares no qa_sweep_all_dry_run_fixture feature"
   end
 
   def run_script(steps, *other)

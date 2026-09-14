@@ -36,8 +36,17 @@
 # real Postgres advisory lock `PostgresEra#with_write_lock` takes for the
 # identical reason, `lib/hecks/runtime/interpreting.rb`'s own comment).
 require "fileutils"
+require "open3"
+require_relative "../../lib/hecks/fuzzing/nondeterministic"
 
 module RustConformanceHelpers
+  # A DECLARED FEATURE THAT DID NOT BUILD — raised, never answered as nil.
+  # `build_rust_for` answers nil for exactly one reason (the crate declares
+  # no such feature, so the caller's own named skip applies); a failed
+  # `cargo build` used to read as that same nil and silently become a skip.
+  # The message carries cargo's own stderr.
+  class BuildFailed < StandardError; end
+
   # PROCESS-WIDE, keyed on [rust_dir, domain_feature] — not per-example
   # and not per-file. `spec_helper.rb`'s `config.order = :random`
   # interleaves examples from every file in a single `rspec` process, so
@@ -67,15 +76,29 @@ module RustConformanceHelpers
   # honored (nothing here trusts an AMBIENT binary left over from a
   # previous rspec run or another process), it's just no longer re-paid
   # on every single call within this one.
+  #
+  # ANSWERS nil ONLY WHEN Cargo.toml declares no such feature. A declared
+  # feature that fails to build RAISES `BuildFailed` (cargo's stderr in the
+  # message) — memoized like a success, so every later request for the same
+  # pair re-raises the same failure instead of re-paying a doomed build.
   def build_rust_for(domain_feature, rust_dir)
     cache = RustConformanceHelpers.build_cache
     cache_key = [rust_dir, domain_feature]
-    return cache[cache_key] if cache.key?(cache_key)
+    if cache.key?(cache_key)
+      raise cache[cache_key] if cache[cache_key].is_a?(BuildFailed)
+
+      return cache[cache_key]
+    end
 
     cargo_toml = File.read(File.join(rust_dir, "Cargo.toml"))
     return cache[cache_key] = nil unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
 
-    cache[cache_key] = build_and_pin(domain_feature, rust_dir)
+    begin
+      cache[cache_key] = build_and_pin(domain_feature, rust_dir)
+    rescue BuildFailed => e
+      cache[cache_key] = e
+      raise
+    end
   end
 
   # THE CROSS-PROCESS CRITICAL SECTION — see the module header for the
@@ -98,12 +121,22 @@ module RustConformanceHelpers
     File.open(lock_path, File::CREAT | File::RDWR) do |lock|
       lock.flock(File::LOCK_EX)
 
-      built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
-                     chdir: rust_dir, out: File::NULL, err: File::NULL)
-      next nil unless built
+      command = ["cargo", "build", "--no-default-features", "--features", domain_feature]
+      begin
+        _stdout, stderr, status = Open3.capture3(*command, chdir: rust_dir)
+      rescue SystemCallError => e
+        raise BuildFailed, "`#{command.join(' ')}` could not run in #{rust_dir}: #{e.message}"
+      end
+      unless status.success?
+        raise BuildFailed, "`#{command.join(' ')}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \
+                           "#{domain_feature} is declared in Cargo.toml, so this is a build failure, " \
+                           "not a missing feature:\n#{stderr}"
+      end
 
       binary = File.join(rust_dir, "target", "debug", "rust")
-      next nil unless File.executable?(binary)
+      unless File.executable?(binary)
+        raise BuildFailed, "`#{command.join(' ')}` succeeded in #{rust_dir} but left no executable at #{binary}:\n#{stderr}"
+      end
 
       # `cargo build` always writes to this SAME path regardless of
       # which feature was requested — copy it out to a per-domain file
@@ -141,23 +174,17 @@ module RustConformanceHelpers
     value
   end
 
-  # `occurred_at` — a real event field on BOTH sides now (`kernel::Event`/
-  # `Runtime::Event`, equivalence-gap plan item 2.5), but a wall clock,
-  # never a comparable fact: Ruby's own comparison side (`Fuzzing::
-  # Replay#call`, replay.rb) never even INCLUDES it in the projected
-  # events this spec's own `ruby_events` is built from — two independent
-  # process runs (this spec's own hand-authored fixtures carry no
-  # `occurred_at` in their own `steps`, so rust/host's real stamping
-  # mechanism never runs here at all) can't byte-match wall clocks
-  # regardless. Stripped from Rust's own side only — the key `rust_output
-  # ["events"]` now carries that `ruby_events` structurally never did —
-  # the identical shape `strip_emitted_flags!`, just above, already
-  # exists for: excluding a real, understood implementation/environment
-  # detail from a check that exists to verify BEHAVIOR, not this.
+  # `Hecks::Fuzzing::Nondeterministic`'s `event` group (`occurred_at`, a
+  # wall clock — its reason is declared there), string-keyed as the Rust
+  # binary's JSON carries it. Ruby's own comparison side (`Fuzzing::
+  # Replay#call`) never includes it in the projected events `ruby_events`
+  # is built from, so it is stripped from Rust's own side only, recursively.
+  NONDETERMINISTIC_EVENT_KEYS = Hecks::Fuzzing::Nondeterministic.names(:event).map(&:to_s).freeze
+
   def strip_occurred_at!(value)
     case value
     when Hash
-      value.reject! { |k, _| k == "occurred_at" }
+      value.reject! { |k, _| NONDETERMINISTIC_EVENT_KEYS.include?(k) }
       value.each_value { |v| strip_occurred_at!(v) }
     when Array
       value.each { |v| strip_occurred_at!(v) }

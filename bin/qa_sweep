@@ -1542,6 +1542,7 @@ feature = File.basename(domain_path).downcase
 # fork/race per seed — `lib/hecks/fuzzing/concurrent_dispatch.rb`'s own
 # header), so it is never folded into the ordinary differential/ruby_only
 # loop the way `adapter_parity_sqlite` is.
+rust_build_failure = nil
 if seeded_modes.empty?
   binary = nil
   mode   = :seedless
@@ -1551,12 +1552,22 @@ elsif active_modes.include?(:persistence_parity)
 elsif active_modes.include?(:concurrency)
   binary = nil
   mode   = :concurrency
-elsif active_modes.include?(:differential) && (binary = differ.build_rust_for(feature, RUST_DIR))
+elsif active_modes.include?(:differential) &&
+      (binary = begin
+        differ.build_rust_for(feature, RUST_DIR)
+      rescue RustConformanceHelpers::BuildFailed => e
+        rust_build_failure = e
+        nil
+      end)
   mode = :differential
 else
   if active_modes.include?(:differential)
-    puts "note: rust/Cargo.toml declares a #{feature} feature but `cargo build --features #{feature}` produced no " \
-         "binary — degrading this sweep to ruby_only. Run bin/project_rust for it and re-sweep."
+    # `build_rust_for` answers nil only for an undeclared feature; a
+    # declared one that fails to build raises, and its cargo stderr is
+    # printed here rather than lost.
+    reason = rust_build_failure ? rust_build_failure.message : "rust/Cargo.toml declares no #{feature} feature"
+    puts "note: no #{feature} Rust binary — degrading this sweep to ruby_only. Run bin/project_rust for it " \
+         "and re-sweep.\n#{reason}"
     active_modes = (active_modes - %i[differential properties_in_differential structural_skip_report]) | [:ruby_only]
   end
   binary = nil

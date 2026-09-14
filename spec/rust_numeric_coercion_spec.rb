@@ -112,11 +112,7 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
 
   it "L22: Rust now refuses the same overflowing addition cleanly instead of panicking or wrapping to a wrong number" do
     binary = build_rust_for_numeric_coercion("banking")
-    unless binary
-      skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature " \
-           "(run bin/project_rust for it first), or `cargo build --features banking` itself failed " \
-           "(check for unrelated concurrent codegen changes under rust/src/generated/)"
-    end
+    skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
 
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => overflow_steps }))
     expect(status).to be_success, "#{binary} exited #{status.exitstatus} (a panic, not a refusal):\n#{stdout}"
@@ -168,11 +164,7 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
 
   it "L21: Rust now refuses the out-of-range daily_limit cleanly instead of silently saturating to i64::MAX" do
     binary = build_rust_for_numeric_coercion("banking")
-    unless binary
-      skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature " \
-           "(run bin/project_rust for it first), or `cargo build --features banking` itself failed " \
-           "(check for unrelated concurrent codegen changes under rust/src/generated/)"
-    end
+    skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
 
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => out_of_range_steps }))
     expect(status).to be_success, "#{binary} exited #{status.exitstatus} (a panic, not a refusal):\n#{stdout}"
