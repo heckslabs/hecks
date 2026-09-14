@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+
+# THE RUST-FACING CORPUS, PRINTED — for callers that aren't Ruby (CI
+# workflow steps) and for a person asking "what does CI walk?".
+# Everything here reads `Hecks::Corpus` (lib/hecks/corpus.rb), so a
+# workflow never hand-lists a domain again.
+#
+#   bin/corpus --rust-domains      feature and path of every in-repo domain with a Cargo feature
+#   bin/corpus --rust-regen-order  paths bin/regen_codegen_domains regenerates, in order
+#   bin/corpus --rust-coverage     run bin/rust_coverage over every generated module; a
+#                                  Corpus::RUST_COVERAGE_PENDING module must still fail,
+#                                  every other one must pass
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "open3"
+require "hecks/corpus"
+
+ROOT = Hecks::Corpus::ROOT
+
+def relative(path) = path.delete_prefix("#{ROOT}/")
+
+# name => [passed?, output] for each module — subprocesses, a few at a
+# time: each is a separate `bundle exec` boot.
+def coverage_results(modules)
+  queue = Queue.new
+  modules.each { |name| queue << name }
+  queue.close
+  results = {}
+  lock = Mutex.new
+  Array.new(4) do
+    Thread.new do
+      while (name = queue.pop)
+        output, status = Open3.capture2e("bundle", "exec", "bin/rust_coverage", name, chdir: ROOT)
+        lock.synchronize { results[name] = [status.success?, output] }
+      end
+    end
+  end.each(&:join)
+  results
+end
+
+def rust_coverage!
+  modules = Hecks::Corpus.generated_modules
+  pending = Hecks::Corpus::RUST_COVERAGE_PENDING
+  unknown = pending.keys - modules
+  abort "bin/corpus: RUST_COVERAGE_PENDING names #{unknown.join(', ')}, which has no generated module" if unknown.any?
+
+  results = coverage_results(modules)
+  problems = modules.filter_map do |name|
+    passed, output = results.fetch(name)
+    if pending.key?(name)
+      puts "#{name}: pending (#{passed ? 'NOW PASSES' : 'still fails'}) — #{pending[name]}"
+      "#{name} passes now — delete it from Hecks::Corpus::RUST_COVERAGE_PENDING" if passed
+    else
+      puts "#{name}: #{passed ? 'ok' : 'FAILED'}"
+      "#{name} failed:\n#{output}" unless passed
+    end
+  end
+
+  return puts("bin/corpus: #{modules.size} generated modules checked") if problems.empty?
+
+  warn problems.join("\n\n")
+  exit 1
+end
+
+case ARGV.first
+when "--rust-domains"
+  Hecks::Corpus.rust_domains.each { |domain| puts "#{domain.feature}\t#{relative(domain.dir)}" }
+when "--rust-regen-order"
+  Hecks::Corpus.rust_regen_order.each { |domain| puts relative(domain.dir) }
+when "--rust-coverage"
+  rust_coverage!
+else
+  abort "usage: bin/corpus --rust-domains | --rust-regen-order | --rust-coverage"
+end
