@@ -601,6 +601,27 @@ mod reference_hop_tests {
         let err = run(&store(), &def, &Json::obj(vec![])).expect_err("scanning an aggregate this store doesn't declare must refuse, not silently answer empty");
         assert!(matches!(err, Refusal::TypeMismatch(_)));
     }
+
+    // AN INCLUDED NESTED ENTITY — `Bluebook::WholeBluebook`'s `include
+    // Member` — has no table of its own, and Ruby's `records` reads it as
+    // `[]`. The head answers an empty array; the sibling head's rows are
+    // untouched.
+    #[test]
+    fn a_head_with_no_table_of_its_own_reads_as_empty_rather_than_refusing() {
+        let mut def = open_for_suspended_customers_def();
+        def.filtered_head = None;
+        def.conditions = &[];
+        def.reference_hop_conditions = &[];
+        def.heads = &[
+            ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[] },
+            ReadModelHead { aggregate: "Banking::LedgerEntry", as_name: "ledger_entries", many: true, is_root: false, reference_fields: &[] },
+        ];
+
+        let result = run(&store(), &def, &Json::obj(vec![])).expect("an entity head must not refuse the read model");
+
+        assert_eq!(result.get("accounts").and_then(|v| v.as_array()).map(|rows| rows.len()), Some(3));
+        assert_eq!(result.get("ledger_entries").and_then(|v| v.as_array()).map(|rows| rows.len()), Some(0));
+    }
 }
 
 /// THE GENERIC INTERPRETER — `Runtime::ReadModelInterpreter#project`,
@@ -682,7 +703,9 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
             // independently — no cross-referencing against `projected`
             // at all (`is_root` is meaningless here; a rootless model
             // declares no reference_to target for any head to equal).
-            store.scan(head.aggregate).ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", head.aggregate)))?
+            // A head with no table of its own (an `include`d nested
+            // entity) reads as empty — `records`' own `aggregate ? ... : []`.
+            store.scan(head.aggregate).unwrap_or_default()
         } else if head.is_root {
             vec![fetch_root(store, head, reference_id.as_deref().unwrap())?]
         } else {
@@ -790,9 +813,15 @@ fn scan_matching(
     head: &ReadModelHead,
     projected: &[(&'static str, Vec<(String, Json)>)],
 ) -> Result<Vec<(String, Json)>, Refusal> {
-    let entries = store
-        .scan(head.aggregate)
-        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", head.aggregate)))?;
+    // NO TABLE, NO ROWS — `ReadModelInterpreter#records`' own `aggregate ?
+    // read_repository(...).all : []`. The generator emits a head whose
+    // aggregate the store has no table for only when it names a nested
+    // entity (rust/project/read_models.rb#nested_entity_names), which Ruby
+    // reads as empty; the root still refuses in `fetch_root`, as Ruby's
+    // own `fetch` does.
+    let Some(entries) = store.scan(head.aggregate) else {
+        return Ok(Vec::new());
+    };
 
     let mut matched: Vec<(String, Json)> = entries.into_iter().filter(|(_, record)| record_matches(record, head, projected)).collect();
     matched.sort_by(|a, b| a.0.cmp(&b.0));
