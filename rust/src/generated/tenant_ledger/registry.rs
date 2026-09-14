@@ -183,7 +183,7 @@ if !absent.is_empty() {
         ("declared", "note"),
     ])));
 }
- } let _args_precheck = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Ledger's Entry — pass code.value:".to_string()))?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Ledger's Entry — pass code.value:".to_string()))?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Auditor"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;

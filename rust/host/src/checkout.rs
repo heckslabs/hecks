@@ -66,19 +66,13 @@
 // whether `Payments::Payment` even DECLARES a command for
 // flagging/expiring a record, let alone its name or payload shape,
 // since (as above) no `.bluebook` source for it exists here at all.
-// Worse than 3.3's own case in one respect: even a route implementing
-// ONLY the detection half would be entirely unverifiable in this
-// checkout — `web.rs`'s own `lifeadelics_wasm_path()` test helper
-// expects `rust/dist/lifeadelics.wasm`, which does not exist (the
-// SAME absence 3.3's own investigation already confirmed), so there
-// is no compiled artifact left to run new Lifeadelics-specific code
-// against at all, not even to prove the read-only half correct.
-// Shipping new, production-facing code with zero verification path in
-// this environment — not "narrower than planned," genuinely untestable
-// — is a different and worse thing than declining outright. The real
-// admin-route stopgap the plan describes remains real, worthwhile,
-// buildable follow-up work — in the repo that actually holds
-// Lifeadelics' own source and can compile/test against it, not here.
+// The routes that DO exist are now verified here against
+// spec/fixtures/rust_host/checkout_fixture (a trimmed copy of the
+// Event/Registration/Payment shape, built to
+// rust/dist/checkout_fixture.wasm), but that fixture only pins what
+// these routes already dispatch; it can't answer what the real
+// Payments package names a flag/expire command. The admin-route
+// stopgap stays follow-up work for the repo holding that source.
 //
 // MOCK BY DEFAULT, REAL STRIPE OPT-IN — mirrors the Ruby app's own
 // choice exactly (MockStripeAdapter unconditionally in every
@@ -88,13 +82,14 @@
 // secret()` decide which side of the line a given deploy is on: an
 // empty `STRIPE_API_KEY` (the World's own blank default, lifeadelics.
 // world's own comment on why) means `mock_checkout_session` below,
-// never a real network call; `STRIPE_WEBHOOK_SECRET` falls back to the
-// SAME fixed, publicly-known, non-secret value adapters/http_server.rb
-// hardcodes (`"whsec_mock_lifeadelics_fixed"`, ALSO what domain/bin/
-// confirm_payment_manually signs against) — so a mock deploy needs zero
-// Lambda environment configuration at all to be fully exercisable,
-// registration through confirmation, matching Ruby's own zero-config
-// mock story.
+// never a real network call; `STRIPE_WEBHOOK_SECRET` falls back to
+// web.rs's fixed, publicly-known, non-secret `MOCK_STRIPE_WEBHOOK_SECRET`
+// — so a mock deploy needs no webhook secret configured to be
+// exercisable, registration through confirmation. (The Ruby app and its
+// confirm_payment_manually script sign against their own fixed string,
+// "whsec_mock_lifeadelics_fixed"; a deploy driven by that tooling sets
+// STRIPE_WEBHOOK_SECRET to it.) Which domain these routes serve at all
+// is `HECKS_CHECKOUT_DOMAIN` (web.rs `render`).
 
 use hmac::{Hmac, Mac};
 use serde_json::Value;

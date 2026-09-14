@@ -67,8 +67,10 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # reason (the target itself, `meta` — every run regenerates it — plus
   # any framework chapter it attaches).
   HB_PARITY_DOMAINS = {
-    "examples/pizzas"  => %w[pizzas meta],
-    "examples/banking" => %w[banking governance identity meta]
+    "examples/pizzas"     => %w[pizzas meta],
+    "examples/banking"    => %w[banking governance identity meta],
+    "examples/roster"     => %w[roster meta],
+    "examples/compliance" => %w[compliance governance meta]
   }.freeze
 
   before(:context) do
