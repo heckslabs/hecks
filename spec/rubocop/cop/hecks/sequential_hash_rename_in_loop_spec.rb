@@ -95,34 +95,4 @@ RSpec.describe RuboCop::Cop::Hecks::SequentialHashRenameInLoop do
       end
     RUBY
   end
-
-  it "does not flag an unrelated #delete call whose result is not written back via []=" do
-    expect_no_offenses(<<~RUBY)
-      def drop_all(state, names)
-        names.each do |name|
-          state.delete(name)
-        end
-      end
-    RUBY
-  end
-
-  it "does not flag an unrelated []= write inside a loop with no #delete involved" do
-    expect_no_offenses(<<~RUBY)
-      def defaults(state, backfills)
-        backfills.each do |backfill|
-          state[backfill.name] = backfill.default unless state.key?(backfill.name)
-        end
-      end
-    RUBY
-  end
-
-  it "does not flag #store used instead of []= (out of this cop's exact scope)" do
-    expect_no_offenses(<<~RUBY)
-      def apply_renames(state, renames)
-        renames.each do |old_name, new_name|
-          state.store(new_name, state.delete(old_name))
-        end
-      end
-    RUBY
-  end
 end

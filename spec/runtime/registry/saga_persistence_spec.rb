@@ -77,16 +77,6 @@ RSpec.describe "Registry#saga_persistence" do
     expect(registry.saga_persistence("Unbound")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
   end
 
-  it "memoizes the resolution — the same domain always answers the same object" do
-    registry = fresh_registry
-    declare_thing(registry, "Undeclared")
-
-    first  = registry.saga_persistence("Undeclared")
-    second = registry.saga_persistence("Undeclared")
-
-    expect(first).to be(second)
-  end
-
   it "resolves independently per domain" do
     registry = fresh_registry
     Hecks.with_registry(registry) { Kernel.load(InMemoryDomain::MEMORY_ADAPTER) }

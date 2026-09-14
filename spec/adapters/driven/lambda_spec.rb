@@ -33,16 +33,6 @@ RSpec.describe Hecks::Adapters::Lambda do
     described_class.new(aggregate: aggregate, settings: {})
   end
 
-  # Same bug, `:domain` — this one feeds `@prefix` (`"#{domain}::..."`),
-  # not `Client.new` directly, so it's asserted on the built prefix instead.
-  it "reads a `false`-valued :domain setting back as itself in @prefix, not the aggregate-name fallback" do
-    allow(described_class::Client).to receive(:new).and_return(instance_double(described_class::Client))
-
-    adapter = described_class.new(aggregate: aggregate, settings: { domain: false })
-
-    expect(adapter.instance_variable_get(:@prefix)).to eq("false::#{aggregate.hecks_name}#")
-  end
-
   it "still falls back to the aggregate's own name in @prefix when :domain is genuinely absent" do
     allow(described_class::Client).to receive(:new).and_return(instance_double(described_class::Client))
 

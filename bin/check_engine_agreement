@@ -127,8 +127,7 @@ end
 # lib/hecks/language/bluebook/vocabulary.bluebook) — the SAME closed set
 # `QuerySpecification::Common::COMPARATORS` reads
 # (`Hecks::Vocabulary.symbols("QueryComparator")`, see comparators.rb),
-# already held equal to it by spec/vocabulary_table_spec.rb and
-# spec/vocabulary_registration_growth_spec.rb. Read directly from
+# already held equal to it by spec/vocabulary_table_spec.rb. Read directly from
 # `Hecks::Vocabulary` here rather than re-parsing the .bluebook file, for
 # the same reason `Common::COMPARATORS` does: one live source, not a
 # second hand-copied list to fall out of step with a THIRD way.
@@ -142,7 +141,7 @@ end
 
 # Self-check: the runtime table this whole file audits should already
 # agree with the language's own declaration (this is exactly what
-# vocabulary_registration_growth_spec.rb pins down for real, in RSpec —
+# vocabulary_table_spec.rb pins down for real, in RSpec —
 # re-asserted here too, so a `bin/check_engine_agreement` run alone,
 # with no test suite in sight, still catches the same drift).
 runtime_comparators = Hecks::QuerySpecification::Common::COMPARATORS.map(&:to_s)

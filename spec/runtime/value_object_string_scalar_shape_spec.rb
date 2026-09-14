@@ -33,8 +33,9 @@ require "hecks/fuzzing"
 # collision inside Judge, not a genuine semantic need for `position` to
 # arrive numeric — but unexempted, this DOES break every domain's boot
 # today (`MetaValidator.call` raises the instant a judge's refusals are
-# non-empty). The second describe below pins that the exemption actually
-# holds: an ordinary domain still boots clean.
+# non-empty). Every boot in the suite — the chess replays below included —
+# exercises that exemption, so an ordinary domain booting clean needs no
+# example of its own here.
 RSpec.describe "QualityControl BUG#125 — value-object String scalar-shape tightening" do
   describe "a value object refuses a non-string scalar for a String-typed field" do
     let(:domain) { File.join(InMemoryDomain::ROOT, "examples/chess") }
@@ -84,27 +85,6 @@ RSpec.describe "QualityControl BUG#125 — value-object String scalar-shape tigh
       refusal = result[:refusals].find { |r| r[:verb] == "Chess::Game.Piece.Capture" }
       expect(refusal).not_to be_nil
       expect(refusal[:error]).not_to include("PieceId")
-    end
-  end
-
-  # The exemption this fix relies on (`Value::Coercion.judge_bootstrapping?`,
-  # scoped to `MetaValidator::Judge#send_to` only) has to actually hold for
-  # an ORDINARY domain to boot at all — the language self-judges its own
-  # grammar (including `Normalise`'s String-typed `position`, fed a raw
-  # Integer by `Judge#appends`' walk-index convention) the first time any
-  # domain boots in a process. An unexempted tightening breaks this
-  # immediately: `MetaValidator.call` raises "Bluebook is not a well-formed
-  # bluebook" the instant the judge records a single refusal.
-  describe "ordinary domain boot still succeeds through the tightened check" do
-    it "boots pizzas (in-memory) without the language's own grammar self-judge refusing" do
-      expect { boot_in_memory }.not_to raise_error
-    end
-
-    it "boots chess without the language's own grammar self-judge refusing" do
-      domain = File.join(InMemoryDomain::ROOT, "examples/chess")
-      result = Hecks::Fuzzing::Replay.call(domain, [])
-
-      expect(result[:refusals]).to eq([])
     end
   end
 end

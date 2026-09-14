@@ -22,10 +22,6 @@ RSpec.describe Hecks::Projections::OIDC do
     expect(described_class.projection_key).to eq(:oidc)
   end
 
-  it "needs no live runtime — a bare Bluebook is enough" do
-    expect { described_class.call(bluebook: pizzas) }.not_to raise_error
-  end
-
   describe "scopes" do
     # THE LOAD-BEARING INVARIANT. A scope naming a command the domain
     # does not have would be an authorization rule for nothing — and

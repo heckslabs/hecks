@@ -305,7 +305,10 @@ jobs:
       # previously `waybill` won both, only because it was hand-placed
       # last. Both are real, intentional consequences of the sort rule,
       # regenerated for real into the committed tree by this same change,
-      # not bugs.
+      # not bugs. `generated_entity_no_identity` (BUG#122) is likewise
+      # auto-discovered now — #664 attempted a manual list-edit for it in
+      # parallel with this structural fix; this supersedes that edit
+      # entirely rather than layering on top of it.
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: bundle exec bin/regen_codegen_domains --check
 

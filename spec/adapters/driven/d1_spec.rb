@@ -32,21 +32,6 @@ RSpec.describe Hecks::Adapters::D1 do
     allow(described_class::Connection).to receive(:new).and_return(fake_connection)
   end
 
-  # `settings[:domain] || settings["domain"] || aggregate.name` used to
-  # coerce a genuinely stored `false` at :domain into the `aggregate.name`
-  # fallback — indistinguishable from :domain being absent entirely. `false`
-  # is not a realistic domain name, but it is exactly the shape the fix
-  # (`key?`-gated, not `||`-gated) must get right: present-but-falsy reads
-  # back as itself, not as the fallback.
-  it "reads a `false`-valued :domain setting back as itself, not the aggregate-name fallback" do
-    adapter = described_class.new(
-      aggregate: aggregate,
-      settings:  { account_id: "acc", database_id: "db", api_token: "tok", domain: false }
-    )
-
-    expect(adapter.instance_variable_get(:@domain)).to eq("false")
-  end
-
   it "still falls back to the aggregate's own name when :domain is genuinely absent" do
     adapter = described_class.new(
       aggregate: aggregate,

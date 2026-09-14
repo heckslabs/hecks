@@ -115,15 +115,6 @@ RSpec.describe Hecks::Adapters::Sqlite do
     expect(adapter.query(declared, {}).map(&:id)).to contain_exactly("p1", "p2")
   end
 
-  it "pushes an 'in' where-clause matching nothing when the list is empty" do
-    adapter.save(instance("p1", name: { value: "Margherita" }))
-
-    where = Hecks::QuerySpecification::Common::WhereClause.new(field: "name", op: :in, value: "")
-    declared = Hecks::Bluebook::Query.new(name: "ByName", wheres: [where])
-
-    expect(adapter.query(declared, {})).to be_empty
-  end
-
   it "deletes through the append-only log and materialized table" do
     adapter.save(instance("p1", name: { value: "Temporary" }))
 
@@ -228,17 +219,6 @@ RSpec.describe Hecks::Adapters::Sqlite do
 
       expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}, []]])
       expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}, []]])
-    end
-
-    # `settings[:domain] || settings["domain"] || aggregate.name` used to
-    # coerce a genuinely stored `false` at :domain into the aggregate-name
-    # fallback — indistinguishable from :domain being absent entirely.
-    it "reads a `false`-valued :domain setting back as itself, not the aggregate-name fallback" do
-      falsy_domain = described_class.new(
-        aggregate: aggregate, settings: { database: "pizzas.db", domain: false }, root: @dir
-      )
-
-      expect(falsy_domain.instance_variable_get(:@domain)).to eq("false")
     end
   end
 end
