@@ -39,11 +39,9 @@ module Hecks
 
       attr_reader :registry
 
-      # THE DECLARED ORDER, HAND-TYPED — mirrors Vocabulary::EntityDispatchOrder
-      # (language/bluebook/vocabulary.bluebook:217-232), held equal to it by
-      # spec/vocabulary_conformance_spec.rb the same way CommandInterpreter's
-      # own DISPATCH_ORDER is; see that constant's doc comment for why this is
-      # hand-typed rather than read live off the meta-domain at every dispatch.
+      # THE DECLARED ORDER — Vocabulary::EntityDispatchOrder
+      # (language/bluebook/vocabulary.bluebook), read off the generated table
+      # the same way CommandInterpreter's own DISPATCH_ORDER is.
       # `refuse_unknown_arguments`/`refuse_absent_arguments` now lead it, same
       # position `AggregateDispatchOrder` holds them at (H1, above) — the only
       # remaining difference from the aggregate order is no

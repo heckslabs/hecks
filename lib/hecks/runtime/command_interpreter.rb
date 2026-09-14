@@ -24,12 +24,11 @@ module Hecks
 
       attr_reader :registry
 
-      # THE DECLARED ORDER, HAND-TYPED — mirrors Vocabulary::AggregateDispatchOrder
-      # (language/bluebook/vocabulary.bluebook:188-205), held equal to it by
-      # spec/vocabulary_conformance_spec.rb the same way every other vocabulary
-      # in that file is (RefusalWording::TEMPLATES, CommandRules::MUTATION_OPS,
-      # ...) rather than read live off the meta-domain at every dispatch —
-      # Runtime::RefusalWording's own doc comment gives the same reason.
+      # THE DECLARED ORDER — Vocabulary::AggregateDispatchOrder
+      # (language/bluebook/vocabulary.bluebook), read off the generated table
+      # (lib/hecks/vocabulary.rb) rather than typed here. spec/vocabulary_
+      # conformance_spec.rb holds every step to a real `step_<name>` handler,
+      # both directions.
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("AggregateDispatchOrder")
 
       # A LAST-RESORT SAFETY VALVE, NOT THE NORMAL OUTCOME PATH — see

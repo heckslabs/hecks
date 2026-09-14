@@ -1026,9 +1026,8 @@ module RustProjection
         # THE IR'S OWN sign FIELD, not re-derived from the op NAME — item
         # #5 of the whole-project table-unification survey.
         # `Bluebook::Mutation.sign_for` (command.rb) computes this once,
-        # off `Vocabulary::MutationOp` (the same table Runtime::
-        # CommandRules::Arithmetic::MUTATION_OPS is held equal to by
-        # spec/vocabulary_conformance_spec.rb) — this used to restate the
+        # off `Vocabulary::MutationOp` (the same generated table Runtime::
+        # CommandRules::Arithmetic::MUTATION_OPS reads) — this used to restate the
         # fact independently via `mutation[:op].to_s == "increment"`.
         sign = mutation[:sign].to_s == "1" ? "+" : "-"
         current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"

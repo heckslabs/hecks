@@ -1,3 +1,4 @@
+require_relative "../vocabulary"
 require_relative "../bluebook/attribute"
 require_relative "../naming"
 require_relative "value_object_shape"
@@ -214,10 +215,17 @@ module Hecks
         end
       end
 
-      EMAIL_HINT = /email/i
-      URL_HINT   = /\b(url|uri|website|link)\b/i
-      TEL_HINT   = /phone|\btel(ephone)?\b/i
-      TEXTAREA_HINT = /\b(text|body|note|notes|description|message|comment)\b/i
+      # Vocabulary::FieldHint (language/bluebook/vocabulary.bluebook), read
+      # off the generated table: `pattern` is the regex source, matched
+      # case-insensitively. bin/project_field_hints writes the Rust host's
+      # copy from the same rows.
+      HINTS = Hecks::Vocabulary.rows("FieldHint")
+                               .to_h { |row| [row["name"], Regexp.new(row["pattern"], Regexp::IGNORECASE)] }
+                               .freeze
+      EMAIL_HINT    = HINTS.fetch("email")
+      URL_HINT      = HINTS.fetch("url")
+      TEL_HINT      = HINTS.fetch("tel")
+      TEXTAREA_HINT = HINTS.fetch("textarea")
 
       def self.text_field(attribute, common)
         name = attribute.name.to_s

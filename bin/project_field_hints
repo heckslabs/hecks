@@ -8,9 +8,8 @@
 # already answered (no `pattern:`, no `admits:`, not a closed set).
 #
 # Ground truth: Vocabulary::FieldHint (language/bluebook/
-# vocabulary.bluebook) — the SAME declared table
-# spec/field_hint_conformance_spec.rb holds FieldShape's four Ruby
-# constants equal to, read here instead of re-typed a third time.
+# vocabulary.bluebook) — the SAME declared table FieldShape's four Ruby
+# constants are built from, read here instead of re-typed a second time.
 # rust/host/src/web.rs's own `text_field` is the consumer — its own
 # header explains why a web UI written in Rust needs the same hint
 # vocabulary Ruby's hecks_on_web/FieldShape already declares.
@@ -65,8 +64,8 @@ consts = hints.map do |hint|
     /// #{hint[:name].capitalize} hint, resolving to `#{hint[:resolves_to]}` on a match —
     /// Vocabulary::FieldHint's own declared pattern, unmodified (the
     /// same text `Regexp#source` reads off FieldShape's own
-    /// #{const_name(hint[:name])} — spec/field_hint_conformance_spec.rb
-    /// holds the two equal). `(?i)` up front is this crate's spelling
+    /// #{const_name(hint[:name])}, which is built from this same row).
+    /// `(?i)` up front is this crate's spelling
     /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
     /// on both sides, never partially.
     pub static #{const_name(hint[:name])}: LazyLock<Regex> =
