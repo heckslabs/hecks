@@ -212,7 +212,7 @@ pub fn dispatch_by_name(
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       if let Some(v) = &args.provenance { v.check_invariants()?; }
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
@@ -613,7 +613,7 @@ if !absent.is_empty() {
                       if let Some(v) = &args.classification { v.check_invariants()?; }
                       if let Some(v) = &args.version { v.check_invariants()?; }
                       if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -738,7 +738,7 @@ if !absent.is_empty() {
                       if let Some(v) = &args.provenance { v.check_invariants()?; }
                       if let Some(v) = &args.from { v.check_invariants()?; }
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.aggregate, &args.aggregate, "Aggregate", "bluebook, name")?;
               if let Some(v) = &args.entity_id { crate::kernel::check_reference(&store.entity, v, "Entity", "aggregate, name")?; }
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
@@ -1009,7 +1009,7 @@ if !absent.is_empty() {
                       args.name.check_invariants()?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.aggregate, &args.aggregate, "Aggregate", "bluebook, name")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
@@ -1338,7 +1338,7 @@ if !absent.is_empty() {
                       if let Some(v) = &args.r#where { v.check_invariants()?; }
                       if let Some(v) = &args.for_each { v.check_invariants()?; }
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
@@ -1391,7 +1391,7 @@ if !absent.is_empty() {
                       args.starts_on.check_invariants()?;
                       if let Some(v) = &args.ends_on { v.check_invariants()?; }
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
@@ -1479,7 +1479,7 @@ if !absent.is_empty() {
                       if let Some(v) = &args.reference_name { v.check_invariants()?; }
                       if let Some(v) = &args.reference_target { v.check_invariants()?; }
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
@@ -1654,7 +1654,7 @@ if !absent.is_empty() {
                       if let Some(v) = &args.order_way { v.check_invariants()?; }
                       if let Some(v) = &args.limit { v.check_invariants()?; }
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.aggregate, &args.aggregate, "Aggregate", "bluebook, name")?;
               if let Some(v) = &args.entity_id { crate::kernel::check_reference(&store.entity, v, "Entity", "aggregate, name")?; }
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
@@ -1783,7 +1783,7 @@ if !absent.is_empty() {
               let args = crate::generated::meta::valueobject::DeclareArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       if let Some(v) = &args.position { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.aggregate, &args.aggregate, "Aggregate", "bluebook, name")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
