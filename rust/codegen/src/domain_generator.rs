@@ -102,6 +102,7 @@ fn reference_checks(
             Some(ReferenceCheck {
                 field: crate::attr::name(attr).to_string(),
                 optional: crate::attr::optional(attr),
+                list_item: None,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -149,17 +150,6 @@ fn state_reference_checks(
         .iter()
         .filter_map(|attr| {
             let target_name = crate::naming::reference_target(crate::attr::type_name(attr))?;
-            // BUG#25/BUG#26 interaction — see `rust/project/domain_
-            // generator.rb#state_reference_checks`'s own matching
-            // comment: this function's own header already documents a
-            // `has_many`/list relationship as "not covered,
-            // deliberately," but nothing here enforced that until now —
-            // a `has_many` field built a `check_reference` call against
-            // `args.<field>.value`, a single-element accessor applied to
-            // the whole `Vec`, which does not compile.
-            if crate::attr::list(attr) {
-                return None;
-            }
             let attr_name = crate::attr::name(attr);
 
             let mutation = cmd_mutations.iter().find(|m| {
@@ -174,7 +164,17 @@ fn state_reference_checks(
                 return None;
             }
 
-            let accessor = state_reference_check_accessor(source_attr, value_objects_by_name)?;
+            // A `has_many` field — see `rust/project/domain_generator.rb
+            // #state_reference_checks`: one `check_reference` per element.
+            let (accessor, list_item) = if crate::attr::list(attr) {
+                let item = list_reference_check_item(source_attr, value_objects_by_name)?;
+                (crate::attr::name(source_attr).to_string(), Some(item))
+            } else {
+                (
+                    state_reference_check_accessor(source_attr, value_objects_by_name)?,
+                    None,
+                )
+            };
 
             let target = aggregates_by_name.get(target_name)?;
             if unsupported_names.iter().any(|n| n == target_name) {
@@ -191,6 +191,7 @@ fn state_reference_checks(
             Some(ReferenceCheck {
                 field: accessor,
                 optional: crate::attr::optional(source_attr),
+                list_item,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -205,6 +206,32 @@ fn state_reference_checks(
             })
         })
         .collect()
+}
+
+/// Port of `rust/project/domain_generator.rb#list_reference_check_item` —
+/// the per-element key expression for a list source argument: bare
+/// `item` for `list_of(String)`, `&item.<field>` for a list of
+/// single-String-attribute value objects, `None` for anything else.
+fn list_reference_check_item(
+    source_attr: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<String> {
+    if !crate::attr::list(source_attr) {
+        return None;
+    }
+    let type_name = crate::attr::type_name(source_attr);
+    if type_name == "String" {
+        return Some("item".to_string());
+    }
+    let vo = value_objects_by_name.get(type_name)?;
+    let vo_attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    if vo_attrs.len() != 1 || crate::attr::type_name(&vo_attrs[0]) != "String" {
+        return None;
+    }
+    Some(format!(
+        "&item.{}",
+        crate::naming::rust_ident_field(crate::attr::name(&vo_attrs[0]))
+    ))
 }
 
 /// Port of `rust/project/domain_generator.rb#state_reference_check_accessor`

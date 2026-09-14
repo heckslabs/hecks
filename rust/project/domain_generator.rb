@@ -193,21 +193,6 @@ module RustProjection
       aggregate[:attributes].filter_map do |attr|
         target_name = Projector.reference_target(attr[:type])
         next unless target_name
-        # BUG#25/BUG#26 interaction — this method's own header already
-        # documents a `has_many`/list relationship as "not covered,
-        # deliberately," but nothing here actually enforced that: a
-        # `has_many` field reached this far and built a `check_reference`
-        # call against `args.<field>.value` — a single-field accessor
-        # applied to the WHOLE Vec (`has_many_fixture`'s own `Circle.
-        # Admit`, `sets :members` from a `list_of(Handle)` argument),
-        # which does not compile (`no field 'value' on type Vec<Handle>`,
-        # found live regenerating this fixture against BUG#26's own
-        # fix). `state_reference_check_accessor` builds an ELEMENT-level
-        # accessor unconditionally; a real list-aware port needs
-        # `check_reference` (kernel/repository.rs) to walk each element,
-        # which nothing in the real corpus needs yet — matching this
-        # header's own already-stated scope, just actually applied now.
-        next if attr[:list]
 
         mutation = command[:mutations].find do |m|
           m[:op].to_s == "set" && m[:target].to_s == attr[:name].to_s && m[:source][:kind] == "argument"
@@ -218,8 +203,22 @@ module RustProjection
         next unless source_attr
         next if Projector.reference_target(source_attr[:type])
 
-        accessor = state_reference_check_accessor(source_attr, value_objects_by_name)
-        next unless accessor
+        # A `has_many` field (`has_many_fixture`'s `Circle.Admit`, `sets
+        # :members` from a `list_of(Handle)` argument) — Ruby's
+        # `validate_reference_values(list: true)` checks EVERY element, so
+        # this emits one `check_reference` per element
+        # (`reference_check_list`) rather than the scalar accessor, which
+        # would dot `.value` into the whole `Vec` and not compile.
+        list_item = nil
+        if attr[:list]
+          list_item = list_reference_check_item(source_attr, value_objects_by_name)
+          next unless list_item
+
+          accessor = source_attr[:name]
+        else
+          accessor = state_reference_check_accessor(source_attr, value_objects_by_name)
+          next unless accessor
+        end
 
         target = aggregates_by_name[target_name]
         next unless target
@@ -228,11 +227,31 @@ module RustProjection
         {
           field: accessor,
           optional: source_attr[:optional],
+          list_item: list_item,
           target_mod: target[:name].downcase,
           target_name: target[:name],
           heads: target[:identified_by].map { |path| path.split(".").first }.join(", "),
         }
       end
+    end
+
+    # `list_reference_check_item(source_attr, value_objects_by_name)` —
+    # the per-element key expression `reference_check_list` checks, for a
+    # LIST source argument: bare `item` for a `list_of(String)`, or
+    # `&item.<field>` for a list of single-String-attribute value objects
+    # (Ruby's `reference_key` unwraps exactly that one field). `nil` for
+    # any other element shape (a non-list source, a multi-attribute value
+    # object, a non-String key) — not checked, same as
+    # `state_reference_check_accessor`'s own uncovered shapes.
+    def list_reference_check_item(source_attr, value_objects_by_name)
+      return nil unless source_attr[:list]
+      return "item" if source_attr[:type].to_s == "String"
+
+      vo = value_objects_by_name[source_attr[:type]]
+      return nil unless vo && vo[:attributes].size == 1
+      return nil unless vo[:attributes].first[:type].to_s == "String"
+
+      "&item.#{Projector.rust_ident_field(vo[:attributes].first[:name])}"
     end
 
     # `state_reference_check_accessor(source_attr, value_objects_by_name)`

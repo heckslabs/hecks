@@ -14,6 +14,9 @@ use crate::reference_specs::{self, ReferenceSpec};
 pub struct ReferenceCheck {
     pub field: String,
     pub optional: bool,
+    /// `Some(element key expression)` for a list (`has_many`) check —
+    /// `rust/project/domain_generator.rb#list_reference_check_item`.
+    pub list_item: Option<String>,
     pub target_mod: String,
     pub target_name: String,
     pub heads: String,
@@ -223,7 +226,21 @@ pub fn emit_role_check(
 
 pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> String {
     let ident = naming::rust_ident_field(&check.field);
-    if check.optional {
+    if let Some(list_item) = &check.list_item {
+        exemplar.render(
+            "reference_check_list",
+            &[
+                (
+                    "\"TmplTarget\"",
+                    naming::ruby_inspect_string(&check.target_name),
+                ),
+                ("\"tmpl_heads\"", naming::ruby_inspect_string(&check.heads)),
+                ("tmpl_target_mod", check.target_mod.clone()),
+                ("tmpl_list_field", ident),
+                ("&item.tmpl_element_field", list_item.clone()),
+            ],
+        )
+    } else if check.optional {
         exemplar.render(
             "reference_check_optional",
             &[

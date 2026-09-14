@@ -56,7 +56,11 @@ module RustProjection
       ident = rust_ident_field(check[:field])
       target_subs = { '"TmplTarget"' => check[:target_name].inspect, '"tmpl_heads"' => check[:heads].inspect }
 
-      if check[:optional]
+      if check[:list_item]
+        list_subs = { "tmpl_target_mod" => check[:target_mod], "tmpl_list_field" => ident,
+                      "&item.tmpl_element_field" => check[:list_item] }
+        Exemplar.render("reference_check_list", target_subs.merge(list_subs))
+      elsif check[:optional]
         Exemplar.render("reference_check_optional", target_subs.merge("tmpl_target_mod" => check[:target_mod], "tmpl_optional_field" => ident))
       else
         Exemplar.render("reference_check_required", target_subs.merge("tmpl_target_mod" => check[:target_mod], "tmpl_field" => ident))
