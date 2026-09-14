@@ -15,6 +15,7 @@ require_relative "persistence/append_only"
 require_relative "persistence/execution"
 require_relative "persistence/remote_runtime"
 require_relative "persistence/null_saga_store"
+require_relative "persistence/state_codec"
 
 module Hecks
   module Ports
