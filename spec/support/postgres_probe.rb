@@ -22,9 +22,11 @@
 # into `skip`, and a skipped Postgres spec is a check that silently left
 # the suite: a CI job whose Postgres failed to come up used to go green
 # having run none of them. CI provisions Postgres for every job that runs
-# a spec reaching this probe (the `rspec_postgres_io*`, `rspec_rust_host`
-# and `stress_concurrency` jobs); the light `rspec` shard runs `--tag ~io`
-# and never reaches it. So under `ENV["CI"]` a `false` answer raises
+# a spec reaching this probe (the `rspec_postgres_io*`, `rspec_rust_host`,
+# `rspec_fuzzing` and `stress_concurrency` jobs); the light `rspec` shard
+# runs `--tag ~io` and never reaches it. `rspec_fuzzing` is the example of
+# why this matters: it had no Postgres, so its two io fuzzing specs skipped
+# there — and every other io job runs `--tag ~fuzzing`, so they ran nowhere. So under `ENV["CI"]` a `false` answer raises
 # instead — the whole group fails, naming the connection error. Locally
 # (no `CI`) it still answers `false` and the spec skips.
 #

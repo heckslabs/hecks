@@ -698,21 +698,37 @@ jobs:
     # need this job. Light PR set — see the comment above `on:`.
     if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
+    # POSTGRES, BECAUSE TWO FUZZING SPECS ARE `io: true` AND NEED IT —
+    # spec/fuzzing/concurrent_dispatch_spec.rb ("with a real, disposable
+    # PostgresEra schema") and spec/fuzzing/era_boundary_spec.rb. Under
+    # `CI` this job's `--tag fuzzing` run includes io examples, and every
+    # other io job runs `--tag ~fuzzing`, so this is the ONLY lane that
+    # runs them. Without Postgres here they used to skip silently, which
+    # meant they ran nowhere in CI; PostgresProbe now raises in CI instead
+    # of skipping, which is how that surfaced. Both create and drop their
+    # own scratch databases, so no `hecks_pizzas` provisioning is needed.
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — same action
+      # every other Postgres job uses; see its own header.
+      - uses: ./.github/actions/postgres
+
       # `spec/fuzzing/**`, tagged by PATH not by hand
       # (`config.define_derived_metadata(file_path: %r{/spec/fuzzing/})`,
-      # spec/spec_helper.rb) — no subprocess, no network, all in-memory,
-      # so unlike the other two `rspec_*_io` jobs this one needs no
-      # service and no Rust toolchain. Slow for a different reason: a
-      # live-generated-history replay against a real domain, dispatched
-      # for real, several seeds deep (spec_helper.rb's own comment: ~8s
-      # for properties_spec.rb's "standard battery" + determinism check
-      # alone, against a suite that's otherwise ~50ms/example) — enough
-      # to be worth its own runner rather than sharing one with either
-      # Postgres or cargo work it doesn't need.
+      # spec/spec_helper.rb). No Rust toolchain. Mostly in-memory and slow
+      # for a different reason: a live-generated-history replay against a
+      # real domain, dispatched for real, several seeds deep
+      # (spec_helper.rb's own comment: ~8s for properties_spec.rb's
+      # "standard battery" + determinism check alone, against a suite
+      # that's otherwise ~50ms/example) — enough to be worth its own
+      # runner. The two Postgres-backed specs above are the exception.
       - name: "rspec: fuzzing (property replay)"
         run: bundle exec rspec spec/fuzzing --tag fuzzing
 
