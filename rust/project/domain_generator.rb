@@ -226,6 +226,92 @@ module RustProjection
       "#{source_attr[:name]}.#{Projector.rust_ident_field(vo[:attributes].first[:name])}"
     end
 
+    # `tenant_field_for(aggregate)` — `CommandRules::References#tenant_
+    # field_for` (references.rb), read directly, at codegen time: an
+    # aggregate's own declared tenant field is whichever field ONE OF ITS
+    # OWN queries names in `authorize policy, tenant: :field` (the exact
+    # declaration `queries.rb`'s own `declared_tenant`/`emit_query_
+    # authorization` already reads off a query for the READ side; reused
+    # here, unchanged, to name a field on the AGGREGATE itself for the
+    # WRITE side). `nil` for a construct that declares no such query — not
+    # every aggregate is tenant-scoped.
+    def tenant_field_for(aggregate)
+      query = Array(aggregate[:queries]).find { |q| q[:authorization] && q[:authorization][:tenant] }
+      query && query[:authorization][:tenant]
+    end
+
+    # `tenant_boundary_checks(aggregate, command, ...)` —
+    # `CommandRules::References#enforce_tenant_boundary` (references.rb),
+    # read directly, at codegen time: ANGLE-8's write-side mirror of
+    # `TenantScope.apply`'s query-side tenant boundary (PR #595). Ruby
+    # hooks this into `resolve_state_references`, walking the SETTLED
+    # aggregate state after `sets` has run; this reuses the exact same
+    # pre-dispatch, args-based shape `reference_checks`/`state_reference_
+    # checks` above already established for the plain existence check —
+    # safe here for the identical reason `state_reference_checks`'s own
+    # header gives: a bare `sets :field` mutation copies its source
+    # argument straight into the settled state, unconditionally, so the
+    # value this needs is already sitting in `args` before dispatch runs.
+    #
+    # Fires only when BOTH sides declare a tenant field (`return []`
+    # otherwise — most commands, most aggregates, have no opinion here)
+    # AND the declaring aggregate's own tenant field is directly reachable
+    # off THIS command's args (a plain, required, scalar-or-single-
+    # attribute-VO attribute of the same name — `state_reference_check_
+    # accessor`'s own established narrow shape, reused unchanged rather
+    # than re-litigated) AND the target's own tenant attribute is the same
+    # narrow shape. Every one of these bails to `[]`/`next`, never raises
+    # — an uncovered shape is silently not checked here, exactly like
+    # `state_reference_checks`'s own "not covered, deliberately" gaps,
+    # never a wrong answer.
+    #
+    # Blast radius (verified by grep, not assumed): the only aggregate-
+    # level `reference_to` anywhere in the real corpus crossing two
+    # independently `tenant:`-declaring aggregates is `TenantLedger::
+    # Transfer`'s own `reference_to Ledger` — every other domain's
+    # `tenant_field_for` returns `nil` for at least one side, so this
+    # returns `[]` for every other command in the corpus and generates no
+    # new code for them at all.
+    def tenant_boundary_checks(aggregate, command, aggregates_by_name, unsupported_names, value_objects_by_name)
+      own_tenant_field = tenant_field_for(aggregate)
+      return [] unless own_tenant_field
+
+      own_tenant_attr = command[:attributes].find { |a| a[:name].to_s == own_tenant_field.to_s }
+      return [] unless own_tenant_attr
+
+      own_accessor = state_reference_check_accessor(own_tenant_attr, value_objects_by_name)
+      return [] unless own_accessor
+
+      command[:attributes].filter_map do |attr|
+        target_name = Projector.reference_target(attr[:type])
+        next unless target_name
+
+        target = aggregates_by_name[target_name]
+        next unless target
+        next if unsupported_names.include?(target_name)
+
+        target_tenant_field = tenant_field_for(target)
+        next unless target_tenant_field
+
+        target_tenant_attr = target[:attributes].find { |a| a[:name].to_s == target_tenant_field.to_s }
+        next unless target_tenant_attr
+
+        target_accessor = state_reference_check_accessor(target_tenant_attr, value_objects_by_name)
+        next unless target_accessor
+
+        {
+          reference_field: attr[:name],
+          target_mod: target[:name].downcase,
+          target_name: target[:name],
+          aggregate_name: aggregate[:name],
+          own_tenant_field: own_tenant_field,
+          own_accessor: own_accessor,
+          target_tenant_field: target_tenant_field,
+          target_accessor: target_accessor,
+        }
+      end
+    end
+
     def call(ir, source_label, mod_dir, mod_name)
       FileUtils.mkdir_p(mod_dir)
       domain_name = ir[:name]
@@ -845,6 +931,13 @@ module RustProjection
               # already cover — see that method's own header.
               reference_checks: reference_checks(command, aggregates_by_name, unsupported_names) +
                 state_reference_checks(aggregate, command, aggregates_by_name, unsupported_names, value_objects_by_name),
+              # ANGLE-8's write-side tenant boundary (PR #595,
+              # `CommandRules::References#enforce_tenant_boundary`) —
+              # `tenant_boundary_checks`'s own header, above, has the full
+              # argument. `[]` for every command outside `tenant_ledger`
+              # today (verified: no other aggregate in the real corpus
+              # declares a tenant-scoping query at all).
+              tenant_boundary_checks: tenant_boundary_checks(aggregate, command, aggregates_by_name, unsupported_names, value_objects_by_name),
               reference_specs: Projector.reference_specs(domain_name, command[:attributes]),
               # THIS COMMAND'S OWN DECLARED ATTRIBUTE NAMES (R1) —
               # `reactions.rb`'s own `emit_command_attributes_table`
