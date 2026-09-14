@@ -74,14 +74,11 @@ jobs:
   # (checks_fuzz's own header cites the sibling `bin/fuzz` figure as
   # comparison scale); splitting the file list across two runners, each
   # still running its own `-n 4` internal `parallel_rspec` workers,
-  # roughly halves that. Same shape as `rspec_postgres_io_parallel_shard`
-  # (in ci-postgres-io-parallel.yml): `--group-by runtime` needs a runtime
-  # log to group well, so every leg restores BOTH groups' own
-  # most-recently-saved logs (each leg only ever writes real numbers for
-  # the files IT ran, per `ParallelTests::RSpec::RuntimeLogger`'s own
-  # truncate-then-append behavior under `--only-group` — see that job's
-  # header for how this was confirmed, not assumed) and merges them before
-  # grouping.
+  # roughly halves that. `--group-by runtime` needs a runtime log to group
+  # well; every leg reads the same committed `.github/rspec_runtime_
+  # baseline.log`, never a restored cache — see the "Determine this shard's
+  # own file list" step for the run where cached logs made the legs'
+  # file lists diverge and hundreds of examples silently never ran.
   rspec_shard:
     runs-on: ubuntu-latest
 
@@ -166,48 +163,33 @@ jobs:
       # this — it would already be broken for every contributor running
       # a plain local `bundle exec rspec`, since none of them provision a
       # local Postgres or build Rust either).
-      # PER-GROUP RUNTIME LOG, SAME PATTERN rspec_postgres_io_parallel_
-      # shard USES (see that job's own header for why per-group keys +
-      # a merge step, not one shared key) — restore both groups' own
-      # most-recently-saved logs and merge before this leg's own
-      # `bin/rspec_shard_files` call reads them.
-      - name: Restore rspec runtime log cache (group 1)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec_main.group1.log
-          key: rspec-main-runtime-group1-${{ github.run_id }}
-          restore-keys: |
-            rspec-main-runtime-group1-
-
-      - name: Restore rspec runtime log cache (group 2)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec_main.group2.log
-          key: rspec-main-runtime-group2-${{ github.run_id }}
-          restore-keys: |
-            rspec-main-runtime-group2-
-
-      # THE COMMITTED BASELINE GOES FIRST — added 2026-09-14. The two cache
-      # restores above only ever hit on a later push to the SAME PR branch:
-      # this job skips `push` to main, so no refs/heads/main-scoped entry
-      # exists, and every brand-new PR branch and every merge-queue ref
-      # (gh-readonly-queue/…, new each time) missed both. On a miss the
-      # merged log was empty, parallel_tests' `set_unknown_runtime` gave
-      # every file the same cost of 1, and the shards split by FILE COUNT
-      # (170/169 on PR #666: 1m22s vs 2m33s). `.github/rspec_runtime_
-      # baseline.log` (bin/refresh_rspec_runtime_baseline) is real
-      # per-file seconds, always present. Order matters: parallel_tests
-      # reads the log into a hash, a later line for the same file wins, so
-      # a restored cache's fresher number still overrides the baseline's.
-      - name: Merge the baseline and the 2 groups' runtime logs into one grouping input
-        run: |
-          mkdir -p tmp
-          cat .github/rspec_runtime_baseline.log tmp/parallel_runtime_rspec_main.group*.log > tmp/parallel_runtime_rspec_main.log 2>/dev/null || true
-          touch tmp/parallel_runtime_rspec_main.log
-
+      # THE COMMITTED BASELINE IS THE ONLY GROUPING INPUT — 2026-09-14.
+      #
+      # Every leg computes its OWN file list, so every leg must compute it
+      # from byte-identical inputs or the lists stop partitioning the
+      # suite. Grouping used to read per-group runtime logs restored from
+      # the Actions cache, and that input was never identical:
+      #
+      #   - Usually both restores MISSED (this job skips `push` to main,
+      #     so no main-scoped entry exists; every new PR branch and every
+      #     gh-readonly-queue/… ref is a fresh scope). The log was empty,
+      #     `set_unknown_runtime` costed every file at 1, and the shards
+      #     split by FILE COUNT: 170/169 on PR #666, 1m22s vs 2m33s.
+      #   - When one leg queued for a runner, the other leg had already
+      #     SAVED its log under this run's own key, so the late leg
+      #     restored it and the early one hadn't. PR #677's first run:
+      #     shard 1 grouped 137 files, shard 2 grouped 201 (338 of 337),
+      #     and the two legs ran 2293 examples where #666 ran 2729 —
+      #     hundreds silently never ran, and the check still went green.
+      #
+      # `.github/rspec_runtime_baseline.log` (bin/refresh_rspec_runtime_
+      # baseline) is committed, so every leg checks out the same bytes and
+      # the split is a pure function of the tree. No cache restore, merge,
+      # or save — a cached log could only ever reintroduce the divergence.
       - name: Determine this shard's own file list
         run: |
-          bundle exec bin/rspec_shard_files ${{ matrix.group }} 2 tmp/parallel_runtime_rspec_main.log \
+          mkdir -p tmp
+          bundle exec bin/rspec_shard_files ${{ matrix.group }} 2 .github/rspec_runtime_baseline.log \
             > tmp/rspec_shard_files.txt
 
       # `--profile 15` — Phase 0 of the CI speed effort: know the top
@@ -215,7 +197,7 @@ jobs:
       # timestamps. Printed once per `parallel_rspec` worker process (4
       # of them here), each covering only that worker's own slice.
       #
-      # `--group-by runtime --runtime-log …` — the SAME merged log splits
+      # `--group-by runtime --runtime-log …` — the SAME baseline splits
       # this shard's files across its 4 workers. Without it parallel_rspec
       # looks for its default tmp/parallel_runtime_rspec.log, never finds
       # it, and splits by file SIZE, so one worker could draw several of
@@ -227,12 +209,5 @@ jobs:
           FILES=()
           while IFS= read -r line; do FILES+=("$line"); done < tmp/rspec_shard_files.txt
           bundle exec parallel_rspec "${FILES[@]}" \
-            --group-by runtime --runtime-log tmp/parallel_runtime_rspec_main.log --allowed-missing 100 \
-            -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec_main.group${{ matrix.group }}.log"
-
-      - name: Save this group's own runtime log cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: tmp/parallel_runtime_rspec_main.group${{ matrix.group }}.log
-          key: rspec-main-runtime-group${{ matrix.group }}-${{ github.run_id }}
+            --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \
+            -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation"
