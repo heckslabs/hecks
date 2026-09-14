@@ -122,6 +122,12 @@ RSpec.describe "the model checker" do
       expect(findings.select { |f| f.subject == "LegSaga" }.map(&:kind)).not_to include(:unarmed_compensation)
     end
 
+    it "raises no finding kind outside the ones this fixture deliberately triggers" do
+      expect(findings.map(&:kind).uniq.sort)
+        .to eq(%i[dead_compensation deaf_handler deaf_trigger unarmed_compensation unknown_dispatch
+                  unreachable_pm_state].sort)
+    end
+
     it "never flags the REFUSED compensation leg as a deaf handler" do
       # The compensating leg answers "refused", a synthetic trigger no
       # command ever emits by name — the one handler this domain's own
@@ -147,6 +153,10 @@ RSpec.describe "the model checker" do
       expect(findings.map(&:subject)).not_to include("OnArchive2")
       archive_findings = findings.select { |f| f.subject == "OnArchive" }
       expect(archive_findings.map(&:kind)).to eq([:deaf_policy])
+    end
+
+    it "raises no finding kind outside the ones this fixture deliberately triggers" do
+      expect(findings.map(&:kind).uniq.sort).to eq(%i[deaf_policy unknown_trigger])
     end
 
     # BUG#23 — a policy triggering an `asks`/`tells` PORT OPERATION

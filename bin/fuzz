@@ -336,11 +336,11 @@ end
 #
 # Discovered rather than listed, so a domain added anywhere is swept
 # without anyone remembering to add it here — `Hecks::Corpus.
-# sweepable_domains`, whose EXCLUDED table names each "not a domain"
-# path with its reason (build output, era snapshots, translation edges,
-# the deliberately conflicting era and deliberately broken model_check
-# fixtures, and spec/fixtures/rust_host while this tool's own given
-# oracle still reads raw rather than coerced value-object args).
+# sweepable_domains`. What it does not boot is not dropped: each such
+# path is sent by `Hecks::Corpus::ROUTES` to the check that owns it
+# (the model_check fixtures to their own findings spec, the conflicting
+# era fixtures to storage_shape_spec, build output to .gitignore, ...),
+# and spec/corpus_accounting_spec.rb holds every route to it.
 domains = domain_arg ? [domain_arg] : Hecks::Corpus.sweepable_domains(ROOT)
 
 ok = domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps, adapter) && all_ok }

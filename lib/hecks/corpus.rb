@@ -40,29 +40,52 @@ module Hecks
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
-    # NOT A DOMAIN, each for a stated reason. Applied by
-    # `sweepable_domains`, the "everything bootable" walk; the kinds above
-    # are raw enumerations, because parser parity deliberately parses the
-    # era and model_check fixtures a boot would refuse.
-    EXCLUDED = {
-      %r{/\.aws-sam/}                  => "SAM build output — a vendored copy of real sources, not a source",
-      %r{\Arust/}                      => "the Rust parser's own test fixtures",
-      %r{/data/eras/}                  => "era snapshots a file adapter writes at runtime, never committed",
-      %r{/translations/}               => "translation edges — a sub-language, not chapters",
-      %r{\Alib/hecks/forms/examples/}  => "a Forms presentation config wearing the .bluebook extension",
-      %r{\Aspec/fixtures/eras/}        => "deliberately conflicting versions of one domain, for era comparison",
-      %r{\Aspec/fixtures/model_check/} => "domains broken on purpose so the model checker has something to find",
-      # Remove once Fuzzing::Replay coerces value-object args before
-      # recomputing givens (lib/hecks/fuzzing/replay.rb).
-      %r{\Aspec/fixtures/rust_host/}   => "a known false positive in bin/fuzz's own oracle: " \
-                                          "lifecycle_guard_and_given_violations_are_refused recomputes givens " \
-                                          "with raw args while dispatch coerces value-object attributes first, " \
-                                          "so checkout_fixture's VO-reading given reads as wrongly admitted"
-    }.freeze
+    # WHERE A BLUEBOOK THE SWEEP DOES NOT BOOT GOES INSTEAD. Not a filter:
+    # nothing leaves `sweepable_domains` without naming the check that owns
+    # it, and spec/corpus_accounting_spec.rb proves each destination exists
+    # and actually exercises what is routed to it.
+    #
+    #   check: :named_in   — `destination` names every routed file
+    #                        (`names: :each_file`) or the given text
+    #   check: :gitignored — `destination` holds the ignore rule `names`,
+    #                        and nothing matching is committed
+    #   check: :gap        — NO check exercises these yet. Listed so the
+    #                        gap is visible; the accounting spec keeps it
+    #                        pending and fails the moment one appears.
+    #
+    # ORDERED — a bluebook belongs to the FIRST route it matches, so a
+    # specific destination sits above the catch-all for its shape.
+    Route = Struct.new(:pattern, :check, :destination, :names, :why)
 
-    # Patterns that only ever match files a RUN writes — a clean checkout
-    # holds none, so "every exclusion still matches something" skips them.
-    RUNTIME_ONLY_EXCLUSIONS = [%r{/\.aws-sam/}, %r{/data/eras/}].freeze
+    ROUTES = [
+      Route.new(%r{\Atmp/}, :gitignored, ".gitignore", "tmp/",
+                "scratch output — generated and mined candidate domains, fuzz failures — never committed"),
+      Route.new(%r{/\.aws-sam/}, :gitignored, ".gitignore", ".aws-sam/",
+                "SAM build output — a vendored copy of real sources, never committed"),
+      Route.new(%r{/data/eras/}, :gitignored, ".gitignore", "**/data/eras/",
+                "era snapshots a file adapter writes at runtime, never committed"),
+      Route.new(%r{\Arust/}, :named_in, "rust/parser/tests/gates.rs", :each_file,
+                "the Rust parser's own fixtures, each loaded by its gate tests"),
+      Route.new(%r{\Aexamples/directory/bluebook/translations/}, :named_in,
+                "spec/adapters/driven/postgres_era/directory_rekey_spec.rb", "bluebook/translations",
+                "directory's rekey edge, applied against a real PostgresEra"),
+      Route.new(%r{/translations/}, :gap, nil, nil,
+                "translation edges: Fuzzing::IsolatedBoot strips them before every sweep, and no gated " \
+                "check loads examples/pizzas's or qa/bluebook's committed edges"),
+      Route.new(%r{\Alib/hecks/forms/examples/}, :named_in, "spec/forms/app_spec.rb", :each_file,
+                "a Forms presentation config wearing the .bluebook extension"),
+      Route.new(%r{\Aspec/fixtures/eras/}, :named_in, "spec/runtime/storage_shape_spec.rb", "fixtures/eras",
+                "deliberately conflicting versions of one domain; each must classify as the verdict " \
+                "its filename declares (bump_* / same_*)"),
+      Route.new(%r{\Aspec/fixtures/model_check/}, :named_in, "spec/model_check_spec.rb", :each_file,
+                "domains broken on purpose; each must produce exactly the finding kinds it is built to trigger"),
+      # bin/fuzz sweeps it too, once Fuzzing::Replay coerces value-object
+      # args before recomputing givens — today its oracle reads raw args
+      # while dispatch coerces, so checkout_fixture's VO-reading given
+      # reads as wrongly admitted.
+      Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web.rs", "checkout_fixture",
+                "the Rust host's checkout fixture, pinned by its web tests")
+    ].freeze
 
     module_function
 
@@ -105,17 +128,19 @@ module Hecks
       files && File.dirname(files.first)
     end
 
-    def excluded?(relative_path)
-      EXCLUDED.keys.any? { |pattern| pattern.match?(relative_path) }
+    # The route a repo-relative path takes instead of the sweep — the
+    # first one it matches — or `nil` when the sweep boots it.
+    def route_for(relative_path)
+      ROUTES.find { |route| route.pattern.match?(relative_path) }
     end
 
     # EVERY BOOTABLE DOMAIN IN THE PROJECT, not a hand-kept list — any
-    # directory holding a `.bluebook` outside EXCLUDED, a `bluebook/`
-    # folder standing for the domain directory around it.
+    # directory holding a `.bluebook` no ROUTE sends elsewhere, a
+    # `bluebook/` folder standing for the domain directory around it.
     def sweepable_domains(root = ROOT)
       Dir.chdir(root) do
         Dir.glob("**/*.bluebook")
-           .reject { |path| excluded?(path) }
+           .reject { |path| route_for(path) }
            .map { |path| File.dirname(path) }
            .map { |dir| File.basename(dir) == "bluebook" ? File.dirname(dir) : dir }
            .uniq.sort

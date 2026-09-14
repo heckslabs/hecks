@@ -1,11 +1,35 @@
 require "spec_helper"
 
-# EVERY BLUEBOOK IN THE REPO IS ACCOUNTED FOR — inside some Hecks::Corpus
-# kind, or excluded with a stated reason. A domain living outside every
-# kind is still swept by bin/fuzz, but invisible to every check that walks
-# kinds (the model checker, parser parity, the corpus load gate); an
-# exclusion that no longer matches anything is a reason nobody can check.
+# EVERY BLUEBOOK IN THE REPO LANDS IN A CHECK — a partition, not a filter.
+# Each one is either inside some Hecks::Corpus kind (and so walked by the
+# model checker, parser parity, the sweep, ...) or sent by a ROUTE to the
+# check that owns it instead. A route is not a reason to look away: its
+# destination has to exist and actually name what it receives, and a
+# route with no destination yet is a gap this spec keeps visible.
 RSpec.describe Hecks::Corpus do
+  ROUTE_CHECKS = %i[named_in gitignored gap].freeze
+
+  def self.committed
+    @committed ||= IO.popen(%w[git ls-files], chdir: Hecks::Corpus::ROOT, &:read).split("\n").freeze
+  end
+
+  def committed = self.class.committed
+
+  def root = described_class::ROOT
+
+  # The committed bluebooks whose FIRST matching route is this one.
+  def routed_to(route)
+    committed.grep(/\.bluebook\z/).select { |path| described_class.route_for(path).equal?(route) }
+  end
+
+  def ignore_rules
+    committed.grep(%r{(\A|/)\.gitignore\z}).flat_map { |file| File.readlines(File.join(root, file), chomp: true) }
+  end
+
+  def named_by_some_spec?(name)
+    Dir.glob(File.join(root, "spec/**/*_spec.rb")).any? { |spec| File.read(spec).include?(name) }
+  end
+
   # The domain directory a member stands for, spelled the way
   # `sweepable_domains` spells it: a `bluebook/` folder is its parent.
   def domain_dir_of(member)
@@ -18,19 +42,38 @@ RSpec.describe Hecks::Corpus do
     uncovered = described_class.sweepable_domains - covered
 
     expect(uncovered).to be_empty,
-                         "no Hecks::Corpus kind holds #{uncovered.join(', ')} — add a kind, or an EXCLUDED entry with its reason"
+                         "no Hecks::Corpus kind holds #{uncovered.join(', ')} — add a kind, or a ROUTE to the check that owns it"
   end
 
-  it "keeps every committed-source exclusion matching at least one bluebook" do
-    bluebooks = Dir.chdir(described_class::ROOT) { Dir.glob("**/*.bluebook") }
-
-    stale = (described_class::EXCLUDED.keys - described_class::RUNTIME_ONLY_EXCLUSIONS)
-            .select { |pattern| bluebooks.grep(pattern).empty? }
-    expect(stale).to be_empty, "#{stale.map(&:inspect).join(', ')} match nothing — delete them from Corpus::EXCLUDED"
+  it "gives every route a known check and a reason" do
+    expect(described_class::ROUTES.map(&:check)).to all(satisfy { |check| ROUTE_CHECKS.include?(check) })
+    expect(described_class::ROUTES.map(&:why)).to all(match(/\S/))
   end
 
-  it "names a reason for every exclusion" do
-    expect(described_class::EXCLUDED.values).to all(match(/\S/))
+  described_class::ROUTES.select { |route| route.check == :gitignored }.each do |route|
+    it "keeps #{route.pattern.inspect} ignored, with nothing it matches committed" do
+      expect(ignore_rules).to include(route.names)
+      expect(committed.grep(route.pattern)).to be_empty
+    end
+  end
+
+  described_class::ROUTES.select { |route| route.check == :named_in }.each do |route|
+    it "routes #{route.pattern.inspect} to #{route.destination}, which names what it receives" do
+      routed = routed_to(route)
+      expect(routed).not_to be_empty, "matches no committed bluebook first — delete it from Corpus::ROUTES"
+
+      text = File.read(File.join(root, route.destination))
+      expected = route.names == :each_file ? routed.map { |path| File.basename(path, ".bluebook") } : [route.names]
+      expect(expected.reject { |name| text.include?(name) }).to be_empty
+    end
+  end
+
+  described_class::ROUTES.select { |route| route.check == :gap }.each do |route|
+    it "still has no destination for #{route.pattern.inspect}" do
+      pending route.why
+      names = routed_to(route).map { |path| File.basename(path, ".bluebook") }
+      expect(names).to all(satisfy { |name| named_by_some_spec?(name) })
+    end
   end
 
   it "keeps stems unique within each kind" do
