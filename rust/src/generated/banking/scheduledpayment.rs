@@ -818,7 +818,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Execute does not declare {} — it takes ",
+        "Execute does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -911,7 +911,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Cancel does not declare {} — it takes ",
+        "Cancel does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1004,7 +1004,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Fail does not declare {} — it takes ",
+        "Fail does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1099,7 +1099,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retry does not declare {} — it takes ",
+        "Retry does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1193,7 +1193,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Abandon does not declare {} — it takes ",
+        "Abandon does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

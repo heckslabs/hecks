@@ -225,7 +225,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "audit_trail", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Flag does not declare {} — it takes ",
+        "Flag does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

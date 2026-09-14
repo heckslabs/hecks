@@ -1568,7 +1568,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "FreezeAccount does not declare {} — it takes ",
+        "FreezeAccount does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1660,7 +1660,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Unfreeze does not declare {} — it takes ",
+        "Unfreeze does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1753,7 +1753,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CloseAccount does not declare {} — it takes ",
+        "CloseAccount does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

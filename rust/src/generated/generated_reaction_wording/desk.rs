@@ -606,7 +606,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "desk", "code"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes ",
+        "Close does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

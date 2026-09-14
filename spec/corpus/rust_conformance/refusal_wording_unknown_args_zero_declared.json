@@ -1,0 +1,8 @@
+{
+  "domain": "qa/stress_domains/generated_reaction_wording",
+  "note": "UnknownArgument/unknown_args, the ZERO-DECLARED-FIELDS case, via a policy trigger whose event payload names a field the triggered command doesn't declare — OnDeskOpenedClose fires Desk.Close (no attributes at all) with the DeskOpened event's own 'parcel' payload riding along. Ruby's ArgumentGate#declared_reading falls back to \"none\" when a command declares nothing; rust/project/json_codec.rb#emit_unknown_argument_check and rust/codegen/src/json_codec.rs#emit_unknown_argument_check build the '{command} does not declare {unknown} — it takes {declared}' wording directly (not through RefusalSite::UnknownArgumentUnknownArgs.render) and never had that fallback. Verified genuinely broken before this fixture existed: unmodified Rust's OnDeskOpenedClose reaction reason read 'Close does not declare parcel — it takes ' (trailing space, nothing after it); Ruby's reads 'Close does not declare parcel — it takes none'. Found live by bin/qa_generated_domains (domain seed 347313/347314, promoted as qa/stress_domains/generated_reaction_wording) — reaction wording only, not visible to bin/rust_conformance's own instances/events/refusals comparison, which is why this fixture leans on this spec file's own reactions comparison rather than a plain refusal fixture.",
+  "steps": [
+    {"verb": "GeneratedReactionWording::Parcel.Open", "args": {"code": {"value": "juliet"}}},
+    {"verb": "GeneratedReactionWording::Desk.Open", "args": {"parcel": "juliet", "code": {"value": "golf"}}}
+  ]
+}

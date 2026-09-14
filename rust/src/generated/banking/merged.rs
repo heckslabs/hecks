@@ -295,7 +295,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reinstate does not declare {} — it takes ",
+        "Reinstate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -318,7 +318,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes ",
+        "Close does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -422,7 +422,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "FreezeAccount does not declare {} — it takes ",
+        "FreezeAccount does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -445,7 +445,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Unfreeze does not declare {} — it takes ",
+        "Unfreeze does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -468,7 +468,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CloseAccount does not declare {} — it takes ",
+        "CloseAccount does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -635,7 +635,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "onboarding_case", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Clear does not declare {} — it takes ",
+        "Clear does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -658,7 +658,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "onboarding_case", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Decline does not declare {} — it takes ",
+        "Decline does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -761,7 +761,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Activate does not declare {} — it takes ",
+        "Activate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -784,7 +784,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes ",
+        "Retire does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -823,7 +823,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Capture does not declare {} — it takes ",
+        "Capture does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -846,7 +846,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Void does not declare {} — it takes ",
+        "Void does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -869,7 +869,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Refund does not declare {} — it takes ",
+        "Refund does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -892,7 +892,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reverse does not declare {} — it takes ",
+        "Reverse does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -947,7 +947,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Chargeback does not declare {} — it takes ",
+        "Chargeback does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -970,7 +970,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RejectDispute does not declare {} — it takes ",
+        "RejectDispute does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1008,7 +1008,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Surrender does not declare {} — it takes ",
+        "Surrender does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1131,7 +1131,7 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Debited does not declare {} — it takes ",
+        "Debited does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1154,7 +1154,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Settle does not declare {} — it takes ",
+        "Settle does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1177,7 +1177,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Credited does not declare {} — it takes ",
+        "Credited does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1200,7 +1200,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reverse does not declare {} — it takes ",
+        "Reverse does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1223,7 +1223,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reject does not declare {} — it takes ",
+        "Reject does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1264,7 +1264,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SendTransfer does not declare {} — it takes ",
+        "SendTransfer does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1287,7 +1287,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Recall does not declare {} — it takes ",
+        "Recall does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1310,7 +1310,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Return does not declare {} — it takes ",
+        "Return does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1350,7 +1350,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Execute does not declare {} — it takes ",
+        "Execute does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1373,7 +1373,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Cancel does not declare {} — it takes ",
+        "Cancel does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1396,7 +1396,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Fail does not declare {} — it takes ",
+        "Fail does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1419,7 +1419,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retry does not declare {} — it takes ",
+        "Retry does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1442,7 +1442,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Abandon does not declare {} — it takes ",
+        "Abandon does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

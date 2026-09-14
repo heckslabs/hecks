@@ -782,7 +782,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "lease", "key"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Release does not declare {} — it takes ",
+        "Release does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

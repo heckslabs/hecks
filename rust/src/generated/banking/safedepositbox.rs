@@ -1287,7 +1287,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Surrender does not declare {} — it takes ",
+        "Surrender does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
