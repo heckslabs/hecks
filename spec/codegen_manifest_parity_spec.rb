@@ -36,14 +36,11 @@ RSpec.describe "Rust codegen manifest parity (hecks-codegen manifest.json)", :io
   # domain NOT listed fails below; an entry here whose manifests now
   # match fails too, so this list can only ever shrink honestly.
   #
-  # Neither entry is a manifest-writer gap: each is a real divergence in
-  # the generators' own skip decision, which the manifest merely reports.
-  MANIFEST_KNOWN_GAPS = {
-    "corrections" => "Ledger.Void (`sets :entries, remove: :sequence`): rust/codegen/src/commands.rs's " \
-                     "command_skip_reason still lacks BUG#32's `remove` op, so hecks-codegen skips the command " \
-                     "Ruby generates (see spec/codegen_parity_spec.rb's own note on why corrections is not in " \
-                     "its corpus)."
-  }.freeze
+  # An entry belongs here only for a real divergence in the generators'
+  # own skip decision, which the manifest merely reports — never for a
+  # manifest-writer gap. Empty since B2 ported BUG#32's `remove` op
+  # (corrections' Ledger.Void) into rust/codegen.
+  MANIFEST_KNOWN_GAPS = {}.freeze
 
   before(:context) do
     built = system("cargo", "build", chdir: MANIFEST_PARITY_CODEGEN_DIR, out: File::NULL, err: File::NULL)

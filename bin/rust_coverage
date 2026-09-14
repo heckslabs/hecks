@@ -83,7 +83,7 @@
 #   `derive_manifest_from_source`'s own note). Findings produced this way
 #   say so explicitly in their own `reason` text.
 #
-#   bin/rust_coverage <domain>
+#   bin/rust_coverage <domain> [--codegen=ruby|rust]
 #
 # `<domain>` is a directory name under rust/src/generated/ — "pizzas",
 # "banking", "embryonaut", "governance", "identity", "meta" — whichever
@@ -91,13 +91,37 @@
 # for the current list; `merged.rs`'s presence marks an independently
 # selectable domain rather than a shared framework chapter, the same
 # distinction bin/project_rust's own root mod.rs comment draws).
+#
+# WHICH GENERATOR'S MANIFEST (ADR 0054a, step B2). `--codegen=ruby` (the
+# default) reads the committed tree, which `bin/project_rust`'s Ruby
+# generator wrote. `--codegen=rust` instead runs `hecks-codegen domain`
+# (rust/codegen) over the SAME committed `ir.json` into a scratch
+# directory and reads the manifest.json it writes. Everything after that
+# — the IR cross-check, the ALLOWLIST, the buckets, the exit code — is the
+# same code in both modes; the ALLOWLIST is deliberately NOT generator-
+# aware (0054a's frozen-contract rule), so `--codegen=rust` can only come
+# back clean if hecks-codegen writes the same reason strings.
+#
+# A FALLBACK-MODE domain (no committed manifest.json — Embryonaut, whose
+# Bluebook source isn't in this checkout and whose committed ir.json
+# predates the invariant `ast` field hecks-codegen requires) has no
+# generator output to read under EITHER flag: nothing regenerates it. It
+# is read from the committed snapshot in both modes, and `--codegen=rust`
+# says so on stderr rather than silently pretending it ran a generator.
 
+require "fileutils"
 require "json"
+require "open3"
+require "tmpdir"
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-domain = ARGV.shift or abort "usage: bin/rust_coverage <generated-module-name>  " \
-                             "(e.g. pizzas, banking, embryonaut, governance, identity)"
+codegen_flags, positional = ARGV.partition { |arg| arg.start_with?("--codegen") }
+codegen = codegen_flags.empty? ? "ruby" : codegen_flags.last.delete_prefix("--codegen=")
+%w[ruby rust].include?(codegen) or abort "--codegen must be `ruby` or `rust` (got #{codegen_flags.last.inspect})"
+
+domain = positional.shift or abort "usage: bin/rust_coverage <generated-module-name> [--codegen=ruby|rust]  " \
+                                   "(e.g. pizzas, banking, embryonaut, governance, identity)"
 
 generated_root = File.expand_path("../rust/src/generated", __dir__)
 mod_dir = File.join(generated_root, domain)
@@ -108,6 +132,26 @@ ir_path = File.join(mod_dir, "ir.json")
 File.exist?(ir_path) or abort "#{ir_path}: missing — this generated tree predates ir.json (bin/project_rust " \
                               "writes it now); re-run bin/project_rust for this domain"
 ir = JSON.parse(File.read(ir_path), symbolize_names: true)
+
+# `--codegen=rust`: regenerate this domain's manifest with hecks-codegen
+# into a scratch directory and point `mod_dir` there. `cargo run` (not a
+# hardcoded target/debug path) so CARGO_TARGET_DIR and rust-toolchain.toml
+# are honored exactly as every other cargo step in this repo honors them.
+if codegen == "rust"
+  if File.exist?(File.join(mod_dir, "manifest.json"))
+    scratch = Dir.mktmpdir("rust-coverage-codegen-")
+    at_exit { FileUtils.rm_rf(scratch) }
+    codegen_dir = File.expand_path("../rust/codegen", __dir__)
+    out_dir = File.join(scratch, domain)
+    output, status = Open3.capture2e("cargo", "run", "--quiet", "--", "domain", ir_path, domain, domain, out_dir,
+                                     chdir: codegen_dir)
+    status.success? or abort "hecks-codegen domain failed for #{domain}:\n#{output}"
+    mod_dir = out_dir
+  else
+    warn "#{domain}: --codegen=rust has nothing to regenerate — no committed manifest.json (fallback-mode " \
+         "domain); reading the committed snapshot exactly as --codegen=ruby does"
+  end
+end
 
 # ── EXPECTED CONSTRUCTS, DERIVED DIRECTLY FROM IR — independent of
 # whatever the manifest (or the fallback deriver) says about itself. This
