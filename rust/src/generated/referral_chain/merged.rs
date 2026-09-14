@@ -310,7 +310,20 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 }
 
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
+crate::kernel::QueryDef {
+    verb: "ReferralChain::Referral.FromGoodSponsors",
+    aggregate: "ReferralChain::Referral",
+    conditions: &[
 
+    ],
+    reference_hop_conditions: &[
+        crate::kernel::read_model::ReferenceHopCondition { via_field: "member", target_aggregate: "ReferralChain::Member", through: &[crate::kernel::read_model::HopStep { via_field: "sponsor", target_aggregate: "ReferralChain::Sponsor" }], inner_field: "standing", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal("good") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "code", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
