@@ -412,15 +412,6 @@ end
 # now, and the reason text it matched is no longer produced).
 ALLOWLIST = [
   {
-    kind:      "command",
-    gap_class: "per_instance",
-    construct: "optional_source",
-    doc:       "rust/project/commands.rb#optional_source_mismatches — a generated Rust struct's shape is fixed at " \
-               "compile time, so an optional argument feeding a field nothing else Option-wraps is skipped, loudly",
-    note:      "meta's nine Bluebook::*.Declare commands (description:/provenance:/position:/...) are every instance; " \
-               "no business domain in the corpus hits this shape."
-  },
-  {
     kind:      "query",
     gap_class: "per_instance",
     construct: "reference_hop_where",

@@ -335,6 +335,11 @@ fn optional_source_mismatches_with(command: &Json, aggregate: &Json, value_objec
                 if target_attr.map(crate::attr::list).unwrap_or(false) {
                     continue;
                 }
+                // An aggregate command's record fields are all `Option<T>` —
+                // commands.rb's own comment on this check.
+                if creating_possible {
+                    continue;
+                }
                 if !target_attr.map(crate::attr::optional).unwrap_or(false) {
                     problems.push(format!("sets :{target} sources optional argument {}", crate::attr::name(source_attr)));
                 }

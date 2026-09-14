@@ -342,6 +342,15 @@ module RustProjection
           # skip over either way.
           next if target_attr && target_attr[:list]
 
+          # AN AGGREGATE COMMAND (`creating_possible`) writes into a record
+          # whose EVERY scalar/value-object field is `Option<T>`
+          # (`emit_record`), and `emit_mutation_line`'s `:set` branch assigns
+          # an optional argument's `Option<T>` straight across — `None` for
+          # an omitted argument, Ruby's own `nil`. Only an ENTITY command's
+          # element field is plain `T` unless declared optional, so only
+          # there is this a real mismatch.
+          next if creating_possible
+
           problems << "sets :#{m[:target]} sources optional argument #{source_attr[:name]}" unless target_attr && target_attr[:optional]
         when "append"
           target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }

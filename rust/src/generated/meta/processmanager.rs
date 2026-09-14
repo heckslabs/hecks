@@ -1517,6 +1517,184 @@ fn processmanager_invariants() -> crate::kernel::InvariantSet {
     }
 }
 
+impl crate::kernel::Fielded for DeclareArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "bluebook" => Some(Field::Value(Value::Str(self.bluebook.clone()))),
+            "name" => Some(Field::Nested(&self.name)),
+            "correlates_by" => Some(Field::Nested(&self.correlates_by)),
+            "starts_on" => Some(Field::Nested(&self.starts_on)),
+            "ends_on" => self.ends_on.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DeclareArgs {
+    pub bluebook: String,
+    pub name: ProcessManagerName,
+    pub correlates_by: ProcessManagerText,
+    pub starts_on: ProcessManagerText,
+    pub ends_on: Option<ProcessManagerText>,
+    pub position: Option<Position>,
+}
+
+pub fn dispatch_declare(
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<ProcessManager> {
+        args.name.check_invariants()?;
+        args.correlates_by.check_invariants()?;
+        args.starts_on.check_invariants()?;
+        if let Some(v) = &args.ends_on { v.check_invariants()?; }
+        if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string());
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Declare routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
+        crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| ProcessManager {
+            bluebook: Some(args.bluebook.clone()),
+            name: Some(args.name.clone()),
+            correlates_by: Some(args.correlates_by.clone()),
+            starts_on: Some(args.starts_on.clone()),
+            ends_on: args.ends_on.clone(),
+            states: vec![],
+            handlers: vec![],
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| ProcessManager {
+            bluebook: Some(args.bluebook.clone()),
+            name: Some(args.name.clone()),
+            correlates_by: Some(args.correlates_by.clone()),
+            starts_on: Some(args.starts_on.clone()),
+            ends_on: args.ends_on.clone(),
+            states: vec![],
+            handlers: vec![],
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    } }
+    },
+        "Declare",
+        "Bluebook::ProcessManager",
+        "ProcessManager",
+        "bluebook, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.bluebook = Some(args.bluebook.clone());
+        record.name = Some(args.name.clone());
+        record.correlates_by = Some(args.correlates_by.clone());
+        record.starts_on = Some(args.starts_on.clone());
+        record.ends_on = args.ends_on.clone();
+        record.position = args.position.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &processmanager_invariants(),
+        &["SagaDeclared"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("bluebook".to_string(), crate::kernel::Json::Str(self.bluebook.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("correlates_by".to_string(), self.correlates_by.to_json()),
+        ("starts_on".to_string(), self.starts_on.to_json()),
+        ("ends_on".to_string(), self.ends_on.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["bluebook", "name", "correlates_by", "starts_on", "ends_on", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Declare does not declare {} — it takes bluebook, name, correlates_by, starts_on, ends_on, position",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["bluebook", "correlates_by", "name", "starts_on"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Declare"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "bluebook, name, correlates_by, starts_on, ends_on, position"),
+    ])));
+}
+        let bluebook = { let x = v.get("bluebook").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs.bluebook expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()) })? };
+        let name = ProcessManagerName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects ProcessManagerName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let correlates_by = ProcessManagerText::from_json(&(match v.get("correlates_by").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.correlates_by expects ProcessManagerText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        correlates_by.check_invariants()?;
+        let starts_on = ProcessManagerText::from_json(&(match v.get("starts_on").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.starts_on expects ProcessManagerText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        starts_on.check_invariants()?;
+        let ends_on = match v.get("ends_on") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &ends_on { v.check_invariants()?; }
+        let position = match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &position { v.check_invariants()?; }
+        Ok(Self {
+        bluebook,
+        name,
+        correlates_by,
+        starts_on,
+        ends_on,
+        position,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for StateArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
