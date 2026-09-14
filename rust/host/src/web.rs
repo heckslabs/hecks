@@ -51,24 +51,21 @@ pub async fn render(
         raw_body.to_string()
     };
 
-    // LIFEADELICS-SPECIFIC GLUE, MARKED — same convention auth.rs's own
-    // header uses for its Embryonaut-specific glue: checkout_route
-    // hardcodes verb strings against Lifeadelics' own aggregates
-    // (Registration, and vendored Payments::Payment's PaymentGateway
-    // port), the pragmatic working version for lifeadelics today rather
-    // than a new IR-driven "outbound port"/"webhook signature scheme"
-    // capability with no second domain to prove it against — considered
-    // for real (equivalence-gap plan 3.3) and declined, not merely
-    // never attempted; checkout.rs's own header has the full reasoning,
-    // including a separate, real `HECKS_IR_PATH`/`rust_web` contradiction
-    // that surfaced investigating it, unrelated to Lifeadelics
-    // specifically. Checked BEFORE the ir()/HECKS_IR_PATH gate below,
-    // deliberately: lifeadelics declares no `web "Rust"` (Shared mode, no
-    // generic FieldShape UI — the same shape Banking's own Shared-mode
-    // deploy already uses), so HECKS_IR_PATH is never set for it and
-    // `ir()` always returns None here; neither of these two routes needs
-    // a domain_ir at all.
-    if config.domain == "Lifeadelics" {
+    // CHECKOUT GLUE, OPT-IN BY CONFIGURATION — `HECKS_CHECKOUT_DOMAIN`
+    // names the domain whose Event/Registration aggregates (plus the
+    // Payments::Payment chapter beside them) the checkout routes
+    // dispatch against; unset, or naming a different domain, these
+    // routes don't exist. An env var rather than an IR-driven "outbound
+    // port"/"webhook signature scheme" capability, the same trade
+    // `HECKS_MEMBERSHIP_AGGREGATE` makes in auth.rs — considered for
+    // real (equivalence-gap plan 3.3) and declined; checkout.rs's own
+    // header has the reasoning. The verb shapes these routes hardcode
+    // are pinned by spec/fixtures/rust_host/checkout_fixture, which this
+    // module's tests run against. Checked BEFORE the ir()/HECKS_IR_PATH
+    // gate below, deliberately: a Shared-mode deploy with no generic
+    // FieldShape UI never sets HECKS_IR_PATH, and neither route needs a
+    // domain_ir at all.
+    if checkout_enabled(std::env::var("HECKS_CHECKOUT_DOMAIN").ok().as_deref(), &config.domain) {
         let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
         if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker).await {
             return Some(response);
@@ -1128,11 +1125,24 @@ fn last_refusal(result: &Value) -> Value {
         .unwrap_or_else(|| json!({"error": "Refused"}))
 }
 
-// ---- lifeadelics: /registrations, /webhooks/stripe ---------------------
-// See `render`'s own "LIFEADELICS-SPECIFIC GLUE" header and checkout.rs's
-// own header for why this is hardcoded rather than IR-driven. Ported
-// from adapters/http_server.rb (the Ruby app, lifeadelics repo) —
-// same two routes, same status codes, same dispatch order, Rust.
+// ---- checkout: /registrations, /webhooks/stripe ------------------------
+// See `render`'s own "CHECKOUT GLUE" header and checkout.rs's own header
+// for why this is hardcoded rather than IR-driven. Ported from the first
+// consuming domain's adapters/http_server.rb (the Ruby app, lifeadelics
+// repo) — same two routes, same status codes, same dispatch order, Rust.
+
+// Pure and separately unit-tested from the env read in `render` — same
+// split `membership_aggregate`/`resolve_membership_aggregate` use in
+// auth.rs. Exact match, not merely "set": a deploy whose HECKS_DOMAIN
+// disagrees with HECKS_CHECKOUT_DOMAIN would otherwise dispatch
+// `<wrong domain>::Registration.Request` and refuse every registration.
+fn checkout_enabled(configured: Option<&str>, domain: &str) -> bool {
+    configured.is_some_and(|c| !c.is_empty() && c == domain)
+}
+
+// THE FIXED, PUBLICLY-KNOWN, NON-SECRET mock webhook secret — see
+// `stripe_webhook_secret` below for when it's allowed.
+const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
 
 // Env vars read ONCE here, at the routing layer, passed down as plain
 // parameters — the same shape `route`'s own `session_secret()` already
@@ -1151,12 +1161,11 @@ fn stripe_api_key() -> String {
     std::env::var("STRIPE_API_KEY").unwrap_or_default()
 }
 
-// THE SAME FIXED, PUBLICLY-KNOWN, NON-SECRET DEFAULT adapters/
-// http_server.rb hardcodes (`ENV.fetch("STRIPE_WEBHOOK_SECRET",
-// "whsec_mock_lifeadelics_fixed")`) — domain/bin/confirm_payment_
-// manually signs against this exact string, so a mock deploy (empty
-// `stripe_api_key`) needs no Lambda environment configuration at all
-// to be fully exercisable end to end. ONLY allowed as a fallback in
+// `MOCK_STRIPE_WEBHOOK_SECRET`, a fixed, publicly-known, non-secret
+// default, so a mock deploy (empty `stripe_api_key`) needs no webhook
+// secret configured to be exercisable end to end. A consumer whose own
+// manual-confirmation tooling signs against a different fixed string
+// sets STRIPE_WEBHOOK_SECRET to it. ONLY allowed as a fallback in
 // MOCK mode though (`processor == "mock_stripe"`) — same
 // panic-at-the-moment-it's-needed split `session_secret`/
 // `validate_session_secret` above already use: a real-Stripe deploy
@@ -1168,17 +1177,18 @@ fn stripe_webhook_secret(processor: &str) -> String {
     if let Err(e) = validate_stripe_webhook_secret(processor, &secret) {
         panic!("{e}");
     }
-    if secret.is_empty() { "whsec_mock_lifeadelics_fixed".to_string() } else { secret }
+    if secret.is_empty() { MOCK_STRIPE_WEBHOOK_SECRET.to_string() } else { secret }
 }
 
 // Pure and separately unit-tested from the panic above — same split
 // `validate_session_secret` already uses.
 fn validate_stripe_webhook_secret(processor: &str, secret: &str) -> Result<(), String> {
     if processor == "stripe" && secret.is_empty() {
-        Err("STRIPE_WEBHOOK_SECRET is required when checkout_processor() reports \"stripe\" \
+        Err(format!(
+            "STRIPE_WEBHOOK_SECRET is required when checkout_processor() reports \"stripe\" \
              (a real STRIPE_API_KEY is set) -- refusing to fall back to the publicly-known mock \
-             webhook secret whsec_mock_lifeadelics_fixed for a real-money deploy"
-            .to_string())
+             webhook secret {MOCK_STRIPE_WEBHOOK_SECRET} for a real-money deploy"
+        ))
     } else {
         Ok(())
     }
@@ -1265,7 +1275,7 @@ async fn registrations_route(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let events = instances_for(&read, "Lifeadelics::Event#");
+    let events = instances_for(&read, &format!("{}::Event#", config.domain));
     let Some((_, event)) = events.iter().find(|(id, _)| id == event_slug) else {
         return respond(404, "application/json", &json!({"error": "no such event"}).to_string());
     };
@@ -1297,7 +1307,8 @@ async fn registrations_route(
         "registration_id": {"value": reference},
         "attendee": {"name": name, "email": email},
     });
-    let outcome = match dispatch::handle(client, wasm_path, "Lifeadelics::Registration.Request", request_args, None, config, invoker).await {
+    let request_verb = format!("{}::Registration.Request", config.domain);
+    let outcome = match dispatch::handle(client, wasm_path, &request_verb, request_args, None, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -1358,7 +1369,14 @@ async fn webhook_route(
 
     if let Some(reference) = reference {
         let reported_processor = json!({"value": processor});
-        let verb_and_args = match event_type {
+        // ROUTED, NOT MIXED ARGS — the kernel refuses a flat
+        // `{"reference": ..., ...}` for an aggregate-scoped port
+        // operation ("invalid routing envelope: aggregate-scoped
+        // operation requires to"), and the benign-refusal rule below
+        // turned that into a silent 200 with the payment left pending.
+        // Found wiring these tests to spec/fixtures/rust_host/
+        // checkout_fixture. `to` is the bare reference string.
+        let verb_and_facts = match event_type {
             "checkout.session.completed" => {
                 // Checkout's own PaymentIntent id when one exists (every
                 // card/wallet payment mints one), the Checkout Session's
@@ -1371,20 +1389,18 @@ async fn webhook_route(
                     .unwrap_or("")
                     .to_string();
                 Some(("Payments::Payment.PaymentGateway.Succeeded", json!({
-                    "reference": reference,
                     "transaction_id": {"value": transaction_id},
                     "reported_processor": reported_processor,
                 })))
             }
             "checkout.session.expired" => Some(("Payments::Payment.PaymentGateway.Failed", json!({
-                "reference": reference,
                 "reason": {"value": "checkout_expired"},
                 "reported_processor": reported_processor,
             }))),
             _ => None,
         };
 
-        if let Some((verb, args)) = verb_and_args {
+        if let Some((verb, facts)) = verb_and_facts {
             // A REFUSAL HERE (e.g. a redelivered webhook for an already-
             // settled payment — Stripe's own delivery is at-least-once)
             // is a benign no-op, not an error: the payment already holds
@@ -1398,7 +1414,7 @@ async fn webhook_route(
             // domain refusal) propagates as a real failure here, a
             // deliberate improvement over the Ruby route's own gap, not
             // a divergence papering over one.
-            if let Err(e) = dispatch::handle(client, wasm_path, verb, args, None, config, invoker).await {
+            if let Err(e) = dispatch::handle_routed(client, wasm_path, verb, json!(reference), facts, None, config, invoker).await {
                 return respond(500, "text/plain", &format!("{e:#}"));
             }
         }
@@ -2027,7 +2043,23 @@ mod tests {
         assert_eq!(own_command_target_id(&json!({"mutations": [[]]})), None);
     }
 
-    // ---- checkout_route: real Postgres, real lifeadelics.wasm, no
+    #[test]
+    fn checkout_is_enabled_only_for_the_exactly_configured_domain() {
+        assert!(checkout_enabled(Some("CheckoutFixture"), "CheckoutFixture"));
+        assert!(!checkout_enabled(None, "CheckoutFixture"));
+        assert!(!checkout_enabled(Some(""), "CheckoutFixture"));
+        assert!(!checkout_enabled(Some("Banking"), "CheckoutFixture"));
+    }
+
+    #[test]
+    fn a_real_stripe_deploy_refuses_the_mock_webhook_secret_fallback() {
+        assert!(validate_stripe_webhook_secret("stripe", "").is_err());
+        assert!(validate_stripe_webhook_secret("mock_stripe", "").is_ok());
+        assert!(validate_stripe_webhook_secret("stripe", "whsec_real").is_ok());
+    }
+
+    // ---- checkout_route: real Postgres, spec/fixtures/rust_host/
+    // checkout_fixture's wasm (rust/dist/checkout_fixture.wasm), no
     // network ----------------------------------------------------------
     // `registrations_route`'s own final hop (checkout::create_checkout_
     // session, a genuine third-party HTTPS call to api.stripe.com) is
@@ -2096,12 +2128,12 @@ mod tests {
         }
     }
 
-    fn lifeadelics_config(era: i32) -> LineageConfig {
-        LineageConfig { domain: "Lifeadelics".to_string(), era: Some(era) }
+    fn checkout_config(era: i32) -> LineageConfig {
+        LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(era) }
     }
 
-    fn lifeadelics_wasm_path() -> std::path::PathBuf {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/lifeadelics.wasm")
+    fn checkout_wasm_path() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm")
     }
 
     async fn schedule_event(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, slug: &str, price_cents: i64) {
@@ -2109,7 +2141,7 @@ mod tests {
             "slug": {"value": slug}, "name": {"value": "Yogadelics"},
             "price": {"cents": price_cents}, "capacity": {"value": 20},
         });
-        let outcome = dispatch::handle(client, wasm_path, "Lifeadelics::Event.Schedule", args, None, config, &lambda_client::NeverInvoker)
+        let outcome = dispatch::handle(client, wasm_path, "CheckoutFixture::Event.Schedule", args, None, config, &lambda_client::NeverInvoker)
             .await
             .unwrap();
         assert!(outcome.accepted, "scheduling the fixture event should succeed: {:?}", outcome.result);
@@ -2130,9 +2162,9 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_refuses_a_body_missing_any_required_field() {
         let client = scratch_db("hecks_host_web_test_registrations_missing_fields").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, "", "mock_stripe", "http://localhost:4321", &client, &lifeadelics_wasm_path(), &lifeadelics_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
         assert!(response["body"].as_str().unwrap().contains("missing name"));
     }
@@ -2140,31 +2172,31 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_refuses_invalid_json_outright() {
         let client = scratch_db("hecks_host_web_test_registrations_bad_json").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
-        let response = registrations_route("not json", "", "mock_stripe", "http://localhost:4321", &client, &lifeadelics_wasm_path(), &lifeadelics_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route("not json", "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
     }
 
     #[tokio::test]
     async fn registrations_route_404s_an_unknown_event_slug() {
         let client = scratch_db("hecks_host_web_test_registrations_no_event").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
         let body = json!({"event_slug": "nope", "name": "Ada", "email": "ada@example.com"}).to_string();
-        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &lifeadelics_wasm_path(), &lifeadelics_config(1), &lambda_client::NeverInvoker).await;
+        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 404);
     }
 
     #[tokio::test]
     async fn registrations_route_refuses_a_closed_event() {
         let client = scratch_db("hecks_host_web_test_registrations_closed_event").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
-        let config = lifeadelics_config(1);
-        let wasm_path = lifeadelics_wasm_path();
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "closed-event", 4200).await;
-        let close = dispatch::handle(&client, &wasm_path, "Lifeadelics::Event.Close", json!({"id": "closed-event"}), None, &config, &lambda_client::NeverInvoker)
+        let close = dispatch::handle(&client, &wasm_path, "CheckoutFixture::Event.Close", json!({"id": "closed-event"}), None, &config, &lambda_client::NeverInvoker)
             .await
             .unwrap();
         assert!(close.accepted, "closing the fixture event should succeed: {:?}", close.result);
@@ -2182,9 +2214,9 @@ mod tests {
         // Registration.Request is ever reached, proving the refusal
         // this route surfaces is the REAL domain rule, not a stand-in.
         let client = scratch_db("hecks_host_web_test_registrations_zero_price").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
-        let config = lifeadelics_config(1);
-        let wasm_path = lifeadelics_wasm_path();
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "free-event", 0).await;
 
@@ -2200,15 +2232,15 @@ mod tests {
         // Registration.Request must never have been dispatched at all.
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
         let instances = read["instances"].as_object().unwrap();
-        assert!(instances.keys().all(|k| !k.starts_with("Lifeadelics::Registration#") && !k.starts_with("Payments::Payment#")));
+        assert!(instances.keys().all(|k| !k.starts_with("CheckoutFixture::Registration#") && !k.starts_with("Payments::Payment#")));
     }
 
     #[tokio::test]
     async fn registrations_route_runs_the_whole_dispatch_chain_and_returns_a_real_mock_checkout_url() {
         let client = scratch_db("hecks_host_web_test_registrations_happy_path").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
-        let config = lifeadelics_config(1);
-        let wasm_path = lifeadelics_wasm_path();
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
 
@@ -2231,7 +2263,7 @@ mod tests {
 
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
         let instances = read["instances"].as_object().unwrap();
-        let registration = instances.iter().find(|(k, _)| k.starts_with("Lifeadelics::Registration#")).map(|(_, v)| v);
+        let registration = instances.iter().find(|(k, _)| k.starts_with("CheckoutFixture::Registration#")).map(|(_, v)| v);
         let payment = instances.iter().find(|(k, _)| k.starts_with("Payments::Payment#")).map(|(_, v)| v);
         assert!(registration.is_some(), "Registration.Request should have committed for real: {instances:?}");
         assert!(payment.is_some(), "Payment.Initiate should have committed for real: {instances:?}");
@@ -2266,9 +2298,9 @@ mod tests {
         // exact drift `checkout_processor`'s own header warns a second,
         // independently-settable flag would risk.
         let client = scratch_db("hecks_host_web_test_mock_full_loop").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
-        let config = lifeadelics_config(1);
-        let wasm_path = lifeadelics_wasm_path();
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "mock-loop-event", 4200).await;
 
@@ -2278,7 +2310,7 @@ mod tests {
         let response_body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         let reference = response_body["registration_id"].as_str().unwrap().to_string();
 
-        let secret = "whsec_mock_lifeadelics_fixed";
+        let secret = MOCK_STRIPE_WEBHOOK_SECRET;
         let payload = json!({
             "type": "checkout.session.completed",
             "data": {"object": {"id": format!("cs_manual_{reference}"), "metadata": {"registration_id": reference}}},
@@ -2300,21 +2332,21 @@ mod tests {
     #[tokio::test]
     async fn webhook_route_rejects_a_bad_signature_before_touching_the_domain_at_all() {
         let client = scratch_db("hecks_host_web_test_webhook_bad_sig").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
         let payload = json!({"type": "checkout.session.completed", "data": {"object": {}}}).to_string();
         let bad_header = "t=1700000000,v1=deadbeef";
 
-        let response = webhook_route(&payload, bad_header, "whsec_test_bad_sig", "stripe", &client, &lifeadelics_wasm_path(), &lifeadelics_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, bad_header, "whsec_test_bad_sig", "stripe", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
     }
 
     #[tokio::test]
     async fn webhook_route_settles_a_payment_on_checkout_session_completed() {
         let client = scratch_db("hecks_host_web_test_webhook_completed").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
-        let config = lifeadelics_config(1);
-        let wasm_path = lifeadelics_wasm_path();
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "webhook-event", 4200).await;
         let initiate = dispatch::handle(
@@ -2357,9 +2389,9 @@ mod tests {
     #[tokio::test]
     async fn webhook_route_declines_a_payment_on_checkout_session_expired() {
         let client = scratch_db("hecks_host_web_test_webhook_expired").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
-        let config = lifeadelics_config(1);
-        let wasm_path = lifeadelics_wasm_path();
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "webhook-event-2", 4200).await;
         dispatch::handle(
@@ -2392,14 +2424,14 @@ mod tests {
     #[tokio::test]
     async fn webhook_route_ignores_an_event_type_it_does_not_handle_and_still_answers_200() {
         let client = scratch_db("hecks_host_web_test_webhook_unhandled_type").await;
-        provision_lineage(&*client.lock().await, "Lifeadelics", 1, &["Event", "Registration", "Payment"]).await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
 
         let secret = "whsec_test_unhandled";
         let payload = json!({"type": "charge.refunded", "data": {"object": {"metadata": {"registration_id": "whatever"}}}}).to_string();
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
-        let response = webhook_route(&payload, &header, secret, "stripe", &client, &lifeadelics_wasm_path(), &lifeadelics_config(1), &lambda_client::NeverInvoker).await;
+        let response = webhook_route(&payload, &header, secret, "stripe", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 200);
     }
 }

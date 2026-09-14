@@ -1,0 +1,15 @@
+Hecks.world "CheckoutFixture" do
+  realm "Fixtures"
+  persisted_by("PostgresEra") do
+    database "postgres://localhost/hecks_checkout_fixture"
+    allow_superuser true
+  end
+end
+
+Hecks.world "Payments" do
+  realm "Fixtures"
+  persisted_by("PostgresEra") do
+    database "postgres://localhost/hecks_checkout_fixture"
+    allow_superuser true
+  end
+end

@@ -1,0 +1,121 @@
+# The Payments chapter checkout_fixture's routes dispatch into
+# (`Payments::Payment.Initiate`, `.PaymentGateway.Succeeded/Failed`) —
+# a trimmed copy of embryonaut_bluebooks' payments package, keeping only
+# the initiate/settle/decline path and the invariant/given wording
+# web.rs's tests assert on.
+Hecks.bluebook "Payments" do
+  vision "Collect a payment through a processor and record what the processor said happened."
+  core
+
+  aggregate "Payment" do
+    description "One attempt to collect money from a client through a specific payment processor."
+
+    identified_by :reference
+
+    value_object "Processor" do
+      attribute :value, String, one_of: ["mock_stripe", "stripe"]
+    end
+
+    value_object "PaymentType" do
+      attribute :value, String, one_of: ["card"]
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("a payment has a reference") { !value.to_s.empty? }
+    end
+
+    value_object "PositiveMoney" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "USD"
+
+      invariant("an amount is positive")             { cents.positive? }
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    value_object "Client" do
+      attribute :name,  String
+      attribute :email, String
+
+      invariant("a client is named")     { !name.to_s.empty? }
+      invariant("a client has an email") { !email.to_s.empty? }
+    end
+
+    value_object "ProcessorTransactionId" do
+      attribute :value, String
+    end
+
+    value_object "FailureReason" do
+      attribute :value, String
+    end
+
+    attribute :reference,      PaymentReference
+    attribute :processor,      Processor
+    attribute :payment_type,   PaymentType
+    attribute :amount,         PositiveMoney
+    attribute :client,         Client
+    attribute :transaction_id, ProcessorTransactionId, optional: true
+    attribute :failure_reason, FailureReason,          optional: true
+
+    lifecycle :status, default: "pending" do
+      transition "Succeed" => "succeeded", from: "pending"
+      transition "Fail"    => "failed",    from: "pending"
+    end
+
+    command "Initiate" do
+      role "Merchant"
+      goal "Start an attempt to collect a payment from a client through a processor"
+
+      attribute :reference,    PaymentReference
+      attribute :processor,    Processor
+      attribute :payment_type, PaymentType
+      attribute :amount,       PositiveMoney
+      attribute :client,       Client
+
+      emits "PaymentInitiated"
+    end
+
+    # Reached only through the PaymentGateway port's policies below.
+    command "Succeed" do
+      role "System"
+      goal "Record that the processor confirmed the payment"
+
+      reference_to Payment
+      attribute :transaction_id,     ProcessorTransactionId
+      attribute :reported_processor, Processor
+
+      given("only a pending payment can succeed") { status == "pending" }
+      given("the processor matches the one this payment was initiated with") { processor.value == reported_processor.value }
+
+      sets :transaction_id
+
+      emits "PaymentSucceeded"
+    end
+
+    command "Fail" do
+      role "System"
+      goal "Record that the processor declined the payment"
+
+      reference_to Payment
+      attribute :reason,             FailureReason
+      attribute :reported_processor, Processor
+
+      given("only a pending payment can fail") { status == "pending" }
+      given("the processor matches the one this payment was initiated with") { processor.value == reported_processor.value }
+
+      sets :failure_reason, to: :reason
+
+      emits "PaymentFailed"
+    end
+  end
+
+  policy "OnPaymentConfirmedByProcessor" do
+    on "PaymentConfirmedByProcessor"
+    trigger Payment::Succeed
+  end
+
+  policy "OnPaymentDeclinedByProcessor" do
+    on "PaymentDeclinedByProcessor"
+    trigger Payment::Fail
+  end
+end

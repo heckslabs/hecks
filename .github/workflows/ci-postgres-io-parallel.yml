@@ -136,6 +136,10 @@ jobs:
       # ~30-file dependency-surface investigation, not a guess. Anything
       # NOT matching one of these prefixes/files is treated as possibly
       # relevant (fails toward RUNNING the job, never toward skipping it).
+      # The rust/ crates skipped here run their own tests elsewhere:
+      # parser + lsp in rspec_rust_parser, codegen in rspec_rust_codegen,
+      # host in rspec_rust_host, build in rspec_rust_io_build, and
+      # rust/tests in rspec_rust_io.
       POSTGRES_IO_SAFE_TO_SKIP_PATTERN: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\.rb$|rust/project_rust_pipeline\.rb$|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)'
 
     steps:

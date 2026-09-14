@@ -1,0 +1,106 @@
+# rust/host's checkout-route fixture (web.rs `checkout_route`,
+# `registrations_route`, `webhook_route` and their tests). Copies the
+# shape of the removed Lifeadelics domain those routes were written
+# against, trimmed to exactly what they dispatch: Event.Schedule/Close,
+# Registration.Request here, and Payments::Payment (payments.bluebook)
+# beside it. Built into rust/dist/checkout_fixture.wasm by
+# `bin/project_wasm spec/fixtures/rust_host/checkout_fixture`.
+Hecks.bluebook "CheckoutFixture" do
+  vision "Scheduled sessions people register for, paid through a Payments chapter sharing one reference."
+  core
+
+  aggregate "Event" do
+    description "One scheduled session with a price and a seat count."
+
+    identified_by :slug
+
+    value_object "Slug" do
+      attribute :value, String
+      invariant("an event has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "Money" do
+      attribute :cents, Integer
+      invariant("a price is never negative") { cents >= 0 }
+    end
+
+    value_object "EventName" do
+      attribute :value, String
+      invariant("an event has a name") { !value.to_s.empty? }
+    end
+
+    value_object "Capacity" do
+      attribute :value, Integer
+      invariant("a session needs at least one seat") { value.positive? }
+    end
+
+    attribute :slug,     Slug
+    attribute :name,     EventName
+    attribute :price,    Money
+    attribute :capacity, Capacity
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+    end
+
+    command "Schedule" do
+      role "Organizer"
+      goal "Put a new session on the calendar"
+
+      attribute :slug,     Slug
+      attribute :name,     EventName
+      attribute :price,    Money
+      attribute :capacity, Capacity
+
+      emits "EventScheduled"
+    end
+
+    command "Close" do
+      role "Organizer"
+      goal "Stop taking new registrations for this session"
+
+      reference_to Event
+
+      given("an open session can be closed") { status == "open" }
+
+      emits "EventClosed"
+    end
+  end
+
+  # WHO is coming, not whether they paid — Payments::Payment, sharing
+  # this registration's id as its own reference, owns that.
+  aggregate "Registration" do
+    description "One person's intent to attend an Event."
+
+    identified_by :registration_id
+
+    value_object "RegistrationId" do
+      attribute :value, String
+      invariant("a registration is identified") { !value.to_s.empty? }
+    end
+
+    value_object "Attendee" do
+      attribute :name,  String
+      attribute :email, String
+
+      invariant("an attendee is named") { !name.to_s.empty? }
+      invariant("an attendee has an email") { !email.to_s.empty? }
+    end
+
+    reference_to Event, as: :event_slug
+
+    attribute :registration_id, RegistrationId
+    attribute :attendee,        Attendee
+
+    command "Request" do
+      role "Guest"
+      goal "Register intent to attend an Event"
+
+      reference_to Event, as: :event_slug
+      attribute :registration_id, RegistrationId
+      attribute :attendee,        Attendee
+
+      emits "RegistrationRequested"
+    end
+  end
+end
