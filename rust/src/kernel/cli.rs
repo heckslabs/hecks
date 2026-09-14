@@ -38,6 +38,13 @@ fn check_query_args(_verb: &str, _args: &Json) -> Result<(), Refusal> {
     Ok(())
 }
 
+// Declared ENTITY queries (`Aggregate.Entity.Query`) — the same snapshot
+// caveat as `check_query_args` above: embryonaut predates the table.
+#[cfg(not(feature = "embryonaut"))]
+use crate::generated::active::ENTITY_QUERIES;
+#[cfg(feature = "embryonaut")]
+const ENTITY_QUERIES: &[named_query::EntityQueryDef] = &[];
+
 pub fn run(input: &str) -> String {
     let parsed = match Json::parse(input) {
         Ok(v) => v,
@@ -234,6 +241,36 @@ pub fn run(input: &str) -> String {
             // yet.
             let caller_role = step.get("role").and_then(Json::as_str);
             match query {
+                // AN ENTITY QUERY — rows are `{ parent_key => id }.merge(element)`
+                // already (`named_query::run_entity`), never `row_json`-wrapped,
+                // and its reference twin is the identical engine (Ruby's
+                // `reference_interpret` delegates to the same `entity_rows`).
+                Json::Str(question) if question.contains("::") && named_query::find_entity(ENTITY_QUERIES, question).is_some() => {
+                    let def = named_query::find_entity(ENTITY_QUERIES, question).expect("matched by the guard above");
+                    match named_query::run_entity(&store, def, args) {
+                        Ok(rows) => {
+                            let rows = Json::Array(rows);
+                            query_results.push(Json::obj(vec![
+                                ("query", Json::Str(question.clone())),
+                                ("args", args.clone()),
+                                ("rows", rows.clone()),
+                                ("reference_rows", rows),
+                            ]));
+                        }
+                        Err(refusal) => {
+                            let message = refusal.to_string();
+                            query_results.push(Json::obj(vec![
+                                ("query", Json::Str(question.clone())),
+                                ("args", args.clone()),
+                                ("rows", Json::Null),
+                                ("error", Json::Str(message.clone())),
+                                ("reference_rows", Json::Null),
+                                ("reference_error", Json::Str(message)),
+                            ]));
+                            refusals.push((question.clone(), refusal));
+                        }
+                    }
+                }
                 Json::Str(question) if question.contains("::") => match named_query::find(QUERIES, question) {
                     Some(def) => match check_query_args(question, args).and_then(|()| named_query::run(&store, def, args, caller_role)) {
                         Ok(entries) => {

@@ -463,10 +463,7 @@
   {
     "kind": "query",
     "id": "Banking::Account.LedgerEntry.Reversed",
-    "generated": false,
-    "gap_class": "whole_kind",
-    "construct": "entity_query",
-    "reason": "an entity-scoped query has no generated code path — only an aggregate's own declared queries reach the QUERIES table"
+    "generated": true
   },
   {
     "kind": "query",
@@ -486,10 +483,7 @@
   {
     "kind": "query",
     "id": "Banking::ATMCard.Withdrawal.Recent",
-    "generated": false,
-    "gap_class": "whole_kind",
-    "construct": "entity_query",
-    "reason": "an entity-scoped query has no generated code path — only an aggregate's own declared queries reach the QUERIES table"
+    "generated": true
   },
   {
     "kind": "query",
@@ -514,10 +508,7 @@
   {
     "kind": "query",
     "id": "Banking::SafeDepositBox.Visit.Recent",
-    "generated": false,
-    "gap_class": "whole_kind",
-    "construct": "entity_query",
-    "reason": "an entity-scoped query has no generated code path — only an aggregate's own declared queries reach the QUERIES table"
+    "generated": true
   },
   {
     "kind": "query",

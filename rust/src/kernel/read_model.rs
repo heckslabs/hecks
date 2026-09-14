@@ -667,6 +667,52 @@ mod reference_hop_tests {
         assert_eq!(ids, vec!["acc-suspended-open"]);
     }
 
+    // AN ENTITY QUERY — banking's `ATMCard.Withdrawal.Recent`
+    // (`where(state: "taken")`, `limit 2`): every card's withdrawals,
+    // flattened under `atm_card`, ordered by card then sequence, capped.
+    #[test]
+    fn an_entity_query_flattens_every_owners_list_ordered_by_parent_then_identity() {
+        fn withdrawal(sequence: f64, state: &str) -> Json {
+            Json::obj(vec![("sequence", Json::obj(vec![("value", Json::Num(sequence))])), ("state", Json::str(state))])
+        }
+        let cards = FakeStore {
+            domain: "Banking",
+            aggregates: vec![(
+                "ATMCard",
+                vec![
+                    ("card-2".to_string(), Json::obj(vec![("withdrawals", Json::Array(vec![withdrawal(2.0, "taken"), withdrawal(1.0, "taken")]))])),
+                    ("card-1".to_string(), Json::obj(vec![("withdrawals", Json::Array(vec![withdrawal(1.0, "disputed"), withdrawal(3.0, "taken")]))])),
+                ],
+            )],
+        };
+        let def = crate::kernel::named_query::EntityQueryDef {
+            verb: "Banking::ATMCard.Withdrawal.Recent",
+            aggregate: "Banking::ATMCard",
+            list_field: "withdrawals",
+            parent_key: "atm_card",
+            identity_keys: &["sequence"],
+            conditions: &[QueryCondition { field: "state", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("taken") }],
+            order_by: None,
+            offset: None,
+            limit: Some(query_ordering::Limit::Literal(2)),
+        };
+
+        let rows = crate::kernel::named_query::run_entity(&cards, &def, &Json::obj(vec![])).expect("no args needed");
+        let keyed: Vec<(String, String)> = rows
+            .iter()
+            .map(|row| {
+                let parent = row.get("atm_card").and_then(Json::as_str).expect("parent key leads every row").to_string();
+                let sequence = format!("{:?}", row.dig("sequence.value"));
+                (parent, sequence)
+            })
+            .collect();
+
+        assert_eq!(keyed.len(), 2, "limit 2 over three taken withdrawals: {keyed:?}");
+        assert_eq!(keyed[0].0, "card-1");
+        assert_eq!(keyed[1].0, "card-2");
+        assert!(keyed[1].1.contains('1'), "card-2's lowest sequence comes first: {keyed:?}");
+    }
+
     // A CHAIN — referral_chain's `Referral.FromGoodSponsors`
     // (`where(:"member/sponsor/standing" => "good")`): the inner clause
     // picks sponsors, the middle step keeps members sponsored by one, and

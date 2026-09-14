@@ -1255,7 +1255,47 @@ pub fn generate(
                 limit: query.get("limit").map(queries::emit_query_limit),
                 authorization: queries::emit_query_authorization(query_name, query.get("authorization")),
                 assignments: assignments_verb.as_deref() == Some(format!("{agg_name}.{query_name}").as_str()),
+                entity: None,
             });
+        }
+
+        // Entity queries, one level down — domain_generator.rb's own comment.
+        let aggregate_id = format!("{domain_name}::{agg_name}");
+        let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+        for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+            let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("");
+            let list_attr = attrs.iter().find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity_name);
+            for query in entity.get("queries").map(Json::each).unwrap_or(&[]) {
+                if queries::entity_query_skip_reason(query, entity, list_attr.is_some(), &value_objects_by_name).is_some() {
+                    continue;
+                }
+                let Some(list_attr) = list_attr else { continue };
+                let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
+                let identity_keys = entity
+                    .get("identified_by")
+                    .map(Json::each)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|path| Json::to_s(path).split('.').next().unwrap_or("").to_string())
+                    .collect();
+                query_defs.push(queries::QueryDef {
+                    verb: format!("{aggregate_id}.{entity_name}.{query_name}"),
+                    aggregate: aggregate_id.clone(),
+                    arg_checks: Vec::new(),
+                    conditions: queries::query_conditions(query),
+                    reference_hop_conditions: Vec::new(),
+                    order_by: query.get("order_by").map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
+                    offset: query.get("offset").map(queries::emit_query_offset),
+                    limit: query.get("limit").map(queries::emit_query_limit),
+                    authorization: None,
+                    assignments: false,
+                    entity: Some(queries::EntityScope {
+                        list_field: crate::attr::name(list_attr).to_string(),
+                        parent_key: crate::naming::snake(agg_name),
+                        identity_keys,
+                    }),
+                });
+            }
         }
     }
 
