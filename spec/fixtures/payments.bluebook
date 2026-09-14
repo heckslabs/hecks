@@ -48,6 +48,14 @@ Hecks.bluebook "Payments" do
       emits "PaymentConfirmed"
     end
 
+    command "Confirm" do
+      role "System"
+      goal "record that the received money has cleared"
+      reference_to Payment
+      given("payment has been received") { status == "received" }
+      emits "PaymentCleared"
+    end
+
     command "RejectPayment" do
       role "System"
       goal "record that the gateway declined the charge"
