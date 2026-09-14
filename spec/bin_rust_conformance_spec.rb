@@ -16,12 +16,15 @@ require_relative "support/rust_conformance_helpers"
 # instances/events/refusals plus one PHANTOM dry run per `"dry_run":` step,
 # so a dry-run script disagrees on `dry_runs` and on nothing else.
 RSpec.describe "bin/rust_conformance", :io do
-  FIXTURE_DOMAIN   = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_dry_run_fixture").freeze
-  FIXTURE_CRATE    = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
-  CONFORMANCE_BIN  = File.join(InMemoryDomain::ROOT, "bin/rust_conformance").freeze
+  # Helper methods, not constants: a constant assigned inside a describe
+  # block lands at top level and collides with any other spec file's
+  # same-named one (spec/load_hygiene_spec.rb holds the suite to that).
+  def fixture_domain = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_dry_run_fixture")
+  def fixture_crate  = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_found_fixture_rust")
+  def conformance    = File.join(InMemoryDomain::ROOT, "bin/rust_conformance")
 
   let(:binary) do
-    Object.new.extend(RustConformanceHelpers).build_rust_for("qa_sweep_all_dry_run_fixture", FIXTURE_CRATE) or
+    Object.new.extend(RustConformanceHelpers).build_rust_for("qa_sweep_all_dry_run_fixture", fixture_crate) or
       skip "could not build the qa_sweep_all_dry_run_fixture crate — is cargo installed?"
   end
 
@@ -29,7 +32,7 @@ RSpec.describe "bin/rust_conformance", :io do
     Dir.mktmpdir("rust_conformance_spec") do |dir|
       script = File.join(dir, "script.json")
       File.write(script, JSON.generate(name: "spec", steps: steps))
-      Open3.capture2e("bundle", "exec", "ruby", CONFORMANCE_BIN, FIXTURE_DOMAIN, script, *other,
+      Open3.capture2e("bundle", "exec", "ruby", conformance, fixture_domain, script, *other,
                       chdir: InMemoryDomain::ROOT)
     end
   end
