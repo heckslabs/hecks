@@ -552,6 +552,9 @@ jobs:
 
       - uses: ./.github/actions/wasm-toolchain
 
+      # Since ADR 0054a's B4 the spec's `bin/project_wasm` vs Ruby-generator
+      # block is tagged `ruby_codegen_parity` (on demand only), so only its
+      # Ruby-free-parse vs Ruby-orchestrated comparison runs here.
       - name: "rspec: hecks-build (Rust-native orchestrator) pipeline parity"
         run: bundle exec rspec --tag io spec/hecks_build_pipeline_spec.rb
 
@@ -640,6 +643,13 @@ jobs:
   # own header. `rust/codegen/` is the same shape as `rust/parser/`
   # above, a different independent Cargo project — see ci-rust-codegen.yml
   # for the rest of this lineage's own comment.
+  #
+  # ADR 0054a, B4 — kept only because `rspec_rust_codegen` is a required
+  # check in the `merge-queue-main` ruleset. It no longer runs the
+  # Ruby-vs-Rust generator parity specs, just rust/codegen's `cargo test`.
+  # A maintainer can remove the ruleset entry; then delete this wrapper,
+  # rspec_rust_codegen_impl below, and ci-rust-codegen.yml (moving the
+  # `cargo test` step elsewhere first).
   rspec_rust_codegen:
     runs-on: ubuntu-latest
 

@@ -8,9 +8,23 @@ on:
   workflow_call:
 
 jobs:
-  # rust/codegen/ ("hecks-codegen") — same shape as rspec_rust_parser,
-  # a different independent Cargo project. codegen_parity_spec.rb builds
-  # it via its own `before(:context) { self.class.build_codegen! }`.
+  # rust/codegen/ ("hecks-codegen") — an independent Cargo project, same
+  # shape as rspec_rust_parser.
+  #
+  # ADR 0054a, B4 — THIS JOB NO LONGER RUNS THE RUBY-vs-RUST GENERATOR
+  # PARITY SPECS. hecks-codegen became bin/project_rust's generator in B3,
+  # so spec/codegen_parity_spec.rb and spec/codegen_manifest_parity_spec.rb
+  # are tagged `ruby_codegen_parity` (on demand only; see spec_helper.rb)
+  # until B5 deletes rust/project/. What is left here is the crate's own
+  # `cargo test` (which includes the manifest writer's tests in
+  # src/manifest.rs) plus the GHCR binary-cache save that rspec_rust_io
+  # restores.
+  #
+  # The job name stays only because `rspec_rust_codegen` is a REQUIRED
+  # status check in the `merge-queue-main` ruleset. A maintainer can drop
+  # that ruleset entry; after that, delete this file and the
+  # rspec_rust_codegen/rspec_rust_codegen_impl jobs in ci.yml, and move the
+  # `cargo test` step into another job (for example rspec_rust_io_build).
   rspec_rust_codegen:
     runs-on: ubuntu-latest
 
@@ -26,7 +40,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-ruby
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -34,8 +47,8 @@ jobs:
           crate-root: rust/codegen
 
       # PHASE 8, GHCR BINARY CACHE — see ghcr-binary-cache-restore's own
-      # header. A hit here means rspec_rust_io's own opt-in codegen build
-      # already ran this run and pushed the identical content.
+      # header. A hit here means rspec_rust_io's own codegen build already
+      # ran this run and pushed the identical content.
       - uses: ./.github/actions/ghcr-binary-cache-restore
         id: ghcr_cache
         with:
@@ -43,11 +56,13 @@ jobs:
           crate-root: rust/codegen
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "rspec: Rust codegen parity"
-        run: bundle exec rspec --tag io spec/codegen_parity_spec.rb spec/codegen_manifest_parity_spec.rb
+      # Bare `cargo build` first, the same command hecks-build runs, so the
+      # target/debug/hecks-codegen that the save step below pushes for
+      # rspec_rust_io is still there (the parity spec used to build it).
+      - name: "cargo build: rust/codegen (hecks-codegen)"
+        run: cd rust/codegen && cargo build
 
-      # The crate's own unit tests — never ran in CI before (only
-      # `cargo test --lib` in rust/ did).
+      # The crate's own unit tests, the manifest writer's included.
       - name: "cargo test: rust/codegen (hecks-codegen)"
         run: cd rust/codegen && cargo test
 
