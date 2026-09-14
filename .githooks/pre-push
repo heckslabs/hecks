@@ -9,8 +9,9 @@
 # (docs/implemented/rust-experiment.md is itself a historical record now — read its own
 # top banner before citing it as current) — but Rust was restarted days
 # later and is very much alive, deployed live, with its own real
-# differential harness (spec/rust_conformance_spec.rb, spec/codegen_parity
-# _spec.rb, spec/parser_parity_spec.rb). Those stay OUT of this fast local
+# differential harness (spec/rust_conformance_spec.rb,
+# spec/parser_parity_spec.rb; spec/codegen_parity_spec.rb is on demand only
+# since ADR 0054a's B4). Those stay OUT of this fast local
 # hook on purpose, same reasoning the `io: true` comment below gives for
 # query_agreement_spec.rb's own narrower exception — they want a Rust
 # toolchain and real build time neither belongs in a ~40s local push gate,

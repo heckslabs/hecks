@@ -70,7 +70,7 @@ jobs:
           name: main
           crate-root: rust
 
-      # bin/project_rust (below, and in project_rust_pipeline_spec.rb)
+      # bin/project_rust (below, and in the conformance specs' builds)
       # generates through hecks-build (rust/build), which builds and runs
       # hecks-codegen (rust/codegen) — ADR 0054a, B3. Cached under the same
       # keys their own jobs use. actions/cache restores by key across jobs
@@ -195,11 +195,9 @@ jobs:
           crate-root: rust/codegen
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # THE 7 REMAINING `io: true` SPECS THAT TOUCH THE SHARED `rust/`
-      # CRATE — via before(:context)/after(:context) backup-and-restore
-      # of rust/src/generated/+Cargo.toml (project_rust_pipeline_spec.rb)
-      # or a read-only `cargo build --features <domain>` against the
-      # already-committed tree (rust_conformance_spec.rb,
+      # THE REMAINING `io: true` SPECS THAT TOUCH THE SHARED `rust/`
+      # CRATE — via a read-only `cargo build --features <domain>` against
+      # the already-committed tree (rust_conformance_spec.rb,
       # rust_conformance_fuzz_spec.rb, rust_numeric_coercion_spec.rb,
       # domain_feature_exclusivity_spec.rb, naming_landmines_spec.rb).
       # semantics_corpus_spec.rb's own :io block joins them for the same
@@ -207,9 +205,9 @@ jobs:
       # project_deploy_parity_gate_spec.rb stay in their own jobs in
       # ci.yml — measured the heaviest two of the original 9 (103.66s/
       # 70.61s locally) and the only two needing wasm32-wasip1/wasmtime.
-      # parser_parity_spec.rb, parser_coverage_spec.rb, codegen_parity_
-      # spec.rb, and rust_host_lineage_conformance_spec.rb build a
-      # SEPARATE crate each (rust/parser/, rust/codegen/, rust/host/) and
+      # parser_parity_spec.rb, parser_coverage_spec.rb, and
+      # rust_host_lineage_conformance_spec.rb build a
+      # SEPARATE crate each (rust/parser/, rust/host/) and
       # never touch this tree — verified by grep, not assumed — so they
       # run in their own reusable-workflow files instead of here. Listed
       # explicitly rather than by directory: spec/rust_project/ also
@@ -219,10 +217,12 @@ jobs:
       # mutation discipline the old serial step already used — cargo
       # builds writing into this checkout's own rust/ tree would race a
       # second worker doing the same.
-      - name: "rspec: Rust conformance + numeric coercion + pipeline parity (serial — shared-file mutation)"
+      # spec/project_rust_pipeline_spec.rb (default path vs the Ruby
+      # generator) left this list in ADR 0054a's B4: it is tagged
+      # `ruby_codegen_parity` and runs on demand only (spec_helper.rb).
+      - name: "rspec: Rust conformance + numeric coercion (serial — shared-file mutation)"
         run: |
           bundle exec rspec --tag io \
-            spec/project_rust_pipeline_spec.rb \
             spec/rust_conformance_spec.rb \
             spec/rust_conformance_fuzz_spec.rb \
             spec/semantics_corpus_spec.rb \

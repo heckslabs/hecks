@@ -423,9 +423,10 @@ generated too (`bin/project_parser_table`, from the language's own
 `Syntax` chapter), not hand-written a second time either.
 
 Ruby is the reference implementation; Rust is checked against it
-continuously, not just at release time: `spec/codegen_parity_spec.rb`
-holds Rust's generated output byte-identical to Ruby's, and
-`spec/rust_conformance_spec.rb` replays 16 pinned fixture scripts —
+continuously, not just at release time. The generated source comes from
+one generator, `hecks-codegen` (`rust/codegen`, driven by `hecks-build`;
+ADR 0054a), and CI regenerates every in-repo domain and fails on any
+drift from the committed tree. `spec/rust_conformance_spec.rb` replays 16 pinned fixture scripts —
 against the `banking`, `pizzas`, and `roster` example domains —
 through the compiled binary, diffing instances, events, refusals,
 reactions, sagas, and query rows against Ruby's byte-for-byte, in CI,

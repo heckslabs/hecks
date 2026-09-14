@@ -24,7 +24,12 @@ require "json"
 #
 # `io: true` — real `cargo build`s and real writes into the shared
 # `rust/src/generated/` tree, snapshotted and restored around this file.
-RSpec.describe "bin/project_rust default (hecks-build) vs the Ruby generator", :io do
+#
+# `ruby_codegen_parity: true` — NOT A CI GATE SINCE ADR 0054a's B4. The
+# drift check still holds the default path to the committed tree; this
+# comparison against the escape hatch runs on demand only (see
+# spec_helper.rb's note) and is deleted with `rust/project/` in B5.
+RSpec.describe "bin/project_rust default (hecks-build) vs the Ruby generator", :io, :ruby_codegen_parity do
   # `InMemoryDomain::ROOT` directly, not aliased to a local `ROOT` — a
   # bare `ROOT` collided with word_coverage_spec.rb's own (see
   # load_hygiene_spec.rb's own top-level-constant check).

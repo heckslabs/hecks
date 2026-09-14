@@ -80,7 +80,12 @@ require_relative "support/ruby_codegen_prelude"
 # excluded by the `io: true` filter, so tagging the group alone wasn't
 # enough; the build itself had to move into a `before(:context)` hook,
 # which — unlike plain body code — really is skipped when excluded.
-RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
+#
+# `ruby_codegen_parity: true` — NOT A CI GATE SINCE ADR 0054a's B4.
+# hecks-codegen is the generator (B3); this comparison against the Ruby
+# escape hatch runs on demand only (see spec_helper.rb's note for the
+# command) and is deleted with `rust/project/` in B5.
+RSpec.describe "Rust codegen parity (hecks-codegen)", :io, :ruby_codegen_parity do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   CODEGEN_BINARY = File.join(CODEGEN_DIR, "target", "debug", "hecks-codegen")
 

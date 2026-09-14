@@ -162,7 +162,12 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
 
   # --- bin/project_wasm's own opt-in delegation to hecks-build ----------
 
-  describe "bin/project_wasm, generating through hecks-build" do
+  # `ruby_codegen_parity: true` — this block alone, not the file: the
+  # example above compares hecks-build's Ruby-free parse path to the
+  # Ruby-orchestrated one (both hecks-codegen) and stays in CI. This one
+  # compares against the Ruby generator, so since ADR 0054a's B4 it runs
+  # on demand only (see spec_helper.rb's note); deleted in B5.
+  describe "bin/project_wasm, generating through hecks-build", :ruby_codegen_parity do
     # ADR 0054a, B3 — `bin/project_wasm` regenerates through
     # `bin/project_rust`, whose default is now `hecks-build`, so the .wasm
     # a Makefile-driven deploy ships is built from the hecks-codegen tree.
