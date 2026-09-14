@@ -142,6 +142,21 @@ subagent's judgments:
    generator fix is deliberate work (`bin/qa_open_pr --improvement`),
    never a Bug.
 
+## Mining combinations with an agent (opt-in, never part of a tick)
+
+Only when a person asks for it ("mine new combinations", "have an agent
+look for new bug shapes"): `bin/qa_mine_combinations [--candidates N]
+[--rust]`. It censuses `qa/stress_domains/*` and `examples/*`, asks an
+agent (`claude -p` by default) to write N candidate bluebooks aimed at
+unmet form pairs and recent bug mechanisms, each with a HYPOTHESIS.md,
+gives non-booting ones back for one repair round, and checks the rest
+through `bin/qa_generated_domains --source`. `--brief` prints the prompt
+without calling an agent; `--from <run>/candidates` re-checks an earlier
+run. Run it in a subagent (its output is large). A `GENERATED DOMAIN FOUND
+SOMETHING` block from it is handled exactly as in the section above; the
+promoted NOTES.md carries the agent's hypothesis. `bin/qa_tick` never runs
+it and no dial turns it on.
+
 ## Authoring a new stress domain (occasional)
 
 Read the backlog first — `bin/run qa/bluebook ask backlog` and `ask

@@ -33,6 +33,8 @@
 #   5. `bin/qa_generated_domains --from-dials` — domains nobody wrote,
 #      checked the way the rotation is (that script's own header); off
 #      when `QualityControlDials::GENERATED_DOMAINS_PER_TICK` is 0.
+#      (`bin/qa_mine_combinations` — an AGENT writing candidate domains —
+#      is deliberately NOT a step: it is opt-in, run by a person.)
 #   6. One consolidated report, and ONE exit code with `bin/qa_sweep
 #      --all`'s own precedence applied across EVERY step:
 #        2  either step found something (a newly-red PR, or a target

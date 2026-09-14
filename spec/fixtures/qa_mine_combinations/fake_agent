@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+
+# A STAND-IN FOR `claude -p` in spec/qa_mine_combinations_spec.rb. Reads the
+# prompt on stdin, finds the output directory in it, and writes candidates
+# the way FAKE_AGENT_MODE says:
+#   valid   — one bluebook that boots
+#   repair  — one that does not boot; fixed when the prompt is a REPAIR ROUND
+#   silent  — nothing at all
+
+require "fileutils"
+
+FIXTURES = __dir__
+prompt = $stdin.read
+mode = ENV.fetch("FAKE_AGENT_MODE", "valid")
+exit 0 if mode == "silent"
+
+if prompt.start_with?("REPAIR ROUND")
+  out_dir = prompt[/under (\S+) for the QA/, 1]
+  File.write(File.join(out_dir, "mined_desk", "mined_desk.bluebook"), File.read(File.join(FIXTURES, "mined_desk.bluebook")))
+  exit 0
+end
+
+out_dir = prompt[%r{`([^`]+)/<snake_case_slug>/`}, 1] or abort "fake agent: no output directory in the prompt"
+dir = File.join(out_dir, "mined_desk")
+FileUtils.mkdir_p(dir)
+source = File.read(File.join(FIXTURES, "mined_desk.bluebook"))
+source = source.sub(/\nend\n\z/, "\n") if mode == "repair" # drop the chapter's closing `end`
+File.write(File.join(dir, "mined_desk.bluebook"), source)
+File.write(File.join(dir, "HYPOTHESIS.md"), "**Combination** a fixture desk.\n")

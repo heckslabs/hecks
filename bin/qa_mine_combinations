@@ -1,0 +1,190 @@
+#!/usr/bin/env ruby
+
+# AN AGENT MINES THE ADVERSARIAL CORPUS FOR THE NEXT COMBINATION — OPT-IN.
+#
+#   bin/qa_mine_combinations                       # 3 candidates, Ruby-only checks
+#   bin/qa_mine_combinations --candidates 5 --rust # 5 candidates, also against a compiled Rust binary
+#   bin/qa_mine_combinations --brief               # print the agent's prompt and stop; no agent, no checks
+#   bin/qa_mine_combinations --from <candidates-dir> [--rust]   # re-check an earlier run's candidates
+#   bin/qa_mine_combinations --agent "my-agent --flag"          # any command reading the prompt on stdin
+#
+# `bin/qa_generated_domains` puts two census forms on one aggregate from a
+# seed, blind to why a meeting should break. The bugs the ledger actually
+# logged came from reading a stress domain beside a bug title and guessing
+# where the next divergence hides. This asks an agent to do that reading
+# (`Hecks::Fuzzing::CombinationMiner` — read its header) and write
+# candidate bluebooks, each with a HYPOTHESIS.md, then checks them WITHOUT
+# the agent: every candidate that boots goes to `bin/qa_generated_domains
+# --source`, the same differential / self-consistency / Rust-build checks,
+# step shrinking, report and `--promote` a generated domain gets.
+#
+# NOT PART OF THE TICK OR THE FULL SWEEP. `bin/qa_tick` never runs this and
+# no `QualityControlDials` entry enables it: an agent call costs real money
+# and minutes, and answers differently each run, which is the opposite of
+# what a rotation needs. A person (or a session a person asked) runs it.
+#
+# IN ORDER:
+#   1. The brief — `FormCensus` over every `qa/stress_domains/*` and
+#      `examples/*` domain: unmet form pairs, pairs only one aggregate
+#      carries, and recent `BUG#` commit subjects — rendered into
+#      `qa/combination_miner/prompt.md`.
+#   2. The agent writes `tmp/qa-mined/run-<stamp>/candidates/<slug>/
+#      <slug>.bluebook` (+ HYPOTHESIS.md). Default agent: `claude -p`,
+#      prompt on stdin, limited to reading and writing files. `--agent` or
+#      `QA_MINER_AGENT` replaces the command (its spec uses a fake one).
+#   3. Boot check, each candidate in its own child process. Candidates
+#      that do not boot go back to the agent with their errors for up to
+#      `--repair-rounds` (default 1) in-place fixes; what still does not
+#      boot is reported and dropped, never a finding.
+#   4. Informational novelty: the census pairs each candidate meets that
+#      no corpus aggregate does. Not a gate — the agent may be aiming at a
+#      construct the census does not name.
+#   5. `bin/qa_generated_domains --source …` over the survivors; its report
+#      is this script's report.
+#
+# EXIT CODES: 0 every checked candidate clean; 2 at least one finding (the
+# "On a generated-domain finding" section of .claude/skills/hecks_qa/
+# SKILL.md applies unchanged); 1 an operational error (usage, the agent
+# failed or wrote nothing, or no candidate booted).
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "hecks/fuzzing/combination_miner"
+require "hecks/fuzzing/domain_generator"
+require "fileutils"
+require "json"
+require "open3"
+require "shellwords"
+
+ROOT          = File.expand_path("..", __dir__)
+EXIT_OK       = 0
+EXIT_ERROR    = 1
+RESULT_MARKER = "QA_GENERATED_RESULT ".freeze
+DEFAULT_AGENT = ["claude", "-p", "--permission-mode", "acceptEdits", "--allowedTools", "Read,Glob,Grep,Write,Edit"].freeze
+USAGE = "usage: bin/qa_mine_combinations [--candidates N] [--rust] [--seeds K] [--steps M] [--adversarial F] " \
+        "[--repair-rounds R] [--agent CMD] [--from <candidates-dir>] [--brief]".freeze
+
+Miner = Hecks::Fuzzing::CombinationMiner
+
+options = { candidates: 3, rust: false, seeds: 5, steps: 25, adversarial: 0.3, repair_rounds: 1,
+            agent: ENV.fetch("QA_MINER_AGENT", nil), from: nil, brief: false }
+until ARGV.empty?
+  case (arg = ARGV.shift)
+  when "-h", "--help"
+    puts USAGE
+    exit EXIT_OK
+  when "--candidates"    then options[:candidates] = Integer(ARGV.shift)
+  when "--rust"          then options[:rust] = true
+  when "--seeds"         then options[:seeds] = Integer(ARGV.shift)
+  when "--steps"         then options[:steps] = Integer(ARGV.shift)
+  when "--adversarial"   then options[:adversarial] = Float(ARGV.shift)
+  when "--repair-rounds" then options[:repair_rounds] = Integer(ARGV.shift)
+  when "--agent"         then options[:agent] = ARGV.shift
+  when "--from"          then options[:from] = File.expand_path(ARGV.shift)
+  when "--brief"         then options[:brief] = true
+  else abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
+  end
+end
+
+def relative(path) = path.delete_prefix("#{ROOT}/")
+
+def ask_agent(command, prompt, log)
+  output, status = Open3.capture2e(*command, stdin_data: prompt, chdir: ROOT)
+  File.open(log, "a") { |file| file.puts(output) }
+  return nil if status.success?
+
+  "agent exited #{status.exitstatus}: #{output.lines.last(5).join.strip}"
+rescue SystemCallError => e
+  "agent could not start (#{command.first}): #{e.message}"
+end
+
+# Adopts the candidate under `QaGenerated` in a scratch directory and
+# boots it in a child `bin/qa_generated_domains --check … --seeds 0`.
+# Answers the boot error, or nil when it boots.
+def boot_error(candidate, boot_root)
+  dir = Hecks::Fuzzing::DomainGenerator.write(
+    { "source" => File.read(candidate[:bluebook]), "aggregates" => [], "policies" => [] },
+    File.join(boot_root, candidate[:slug])
+  )
+  output, = Open3.capture2e("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_generated_domains"),
+                            "--check", dir, "--seeds", "0", chdir: ROOT)
+  line = output.lines.reverse.find { |candidate_line| candidate_line.start_with?(RESULT_MARKER) }
+  return "boot check produced no result: #{output.lines.last(5).join.strip}" unless line
+
+  result = JSON.parse(line.delete_prefix(RESULT_MARKER))
+  result["status"] == "invalid" ? result["error"] : nil
+end
+
+stamp     = Time.now.strftime("%Y%m%d-%H%M%S")
+run_dir   = File.join(ROOT, "tmp/qa-mined/run-#{stamp}")
+out_dir   = options[:from] || File.join(run_dir, "candidates")
+agent_log = File.join(run_dir, "agent.log")
+command   = options[:agent] ? Shellwords.split(options[:agent]) : DEFAULT_AGENT
+
+brief = Miner.brief(Miner.corpus_paths(ROOT), root: ROOT, bug_titles: Miner.recent_bug_titles(ROOT))
+prompt = Miner.prompt(ROOT, brief, count: options[:candidates], out_dir: out_dir)
+if options[:brief]
+  puts prompt
+  exit EXIT_OK
+end
+
+FileUtils.mkdir_p(out_dir)
+FileUtils.mkdir_p(run_dir)
+puts "combination miner: #{brief['corpus'].size} corpus domain(s), #{brief['unmet_pairs'].size} unmet pair(s) " \
+     "— #{relative(run_dir)}"
+
+unless options[:from]
+  puts "asking the agent for #{options[:candidates]} candidate(s) (#{command.first}; log #{relative(agent_log)})…"
+  failure = ask_agent(command, prompt, agent_log)
+  abort "combination miner: #{failure}" if failure
+end
+
+candidates = Miner.candidates(out_dir)
+abort "combination miner: the agent wrote no candidates under #{relative(out_dir)}" if candidates.empty?
+
+boot_root = File.join(run_dir, "boot")
+failures = candidates.filter_map { |candidate| (error = boot_error(candidate, boot_root)) && [candidate, error] }
+repaired = []
+options[:repair_rounds].times do |round|
+  break if failures.empty? || options[:from]
+
+  puts "repair round #{round + 1}: #{failures.size} candidate(s) did not boot — back to the agent…"
+  failure = ask_agent(command, Miner.repair_prompt(failures, out_dir: out_dir), agent_log)
+  abort "combination miner: #{failure}" if failure
+
+  still = failures.filter_map { |candidate, _| (error = boot_error(candidate, boot_root)) && [candidate, error] }
+  repaired.concat(failures.map { |candidate, _| candidate[:slug] } - still.map { |candidate, _| candidate[:slug] })
+  failures = still
+end
+
+invalid = failures.to_h { |candidate, error| [candidate[:slug], error] }
+puts
+candidates.each do |candidate|
+  if invalid.key?(candidate[:slug])
+    puts "  #{candidate[:slug]}: INVALID — #{invalid[candidate[:slug]]}"
+    next
+  end
+
+  pairs = begin
+    Miner.new_pairs(candidate[:dir], brief["covered"])
+  rescue StandardError, ScriptError => e
+    ["(census failed: #{e.class})"]
+  end
+  puts "  #{candidate[:slug]}: boots#{' (repaired)' if repaired.include?(candidate[:slug])}; " \
+       "new pair(s): #{pairs.empty? ? 'none' : pairs.join(', ')}"
+  first_line = candidate[:hypothesis].to_s.lines.map(&:strip).find { |line| !line.empty? && !line.start_with?("#") }
+  puts "    #{first_line}" if first_line
+end
+
+valid = candidates.reject { |candidate| invalid.key?(candidate[:slug]) }
+abort "combination miner: no candidate booted — nothing to check" if valid.empty?
+
+puts
+check = ["bundle", "exec", "ruby", File.join(ROOT, "bin/qa_generated_domains"),
+         "--start", (Time.now.to_i % 1_000_000).to_s, "--seeds", options[:seeds].to_s,
+         "--steps", options[:steps].to_s, "--adversarial", options[:adversarial].to_s]
+check << "--rust" if options[:rust]
+check.concat(valid.flat_map { |candidate| ["--source", candidate[:bluebook]] })
+_, status = Process.wait2(Process.spawn(*check, chdir: ROOT))
+exit(status.exitstatus || EXIT_ERROR)
