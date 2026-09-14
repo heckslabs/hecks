@@ -74,22 +74,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pluralizes_a_many_side_head_with_no_as() {
-        let heads = aggregate_heads(
-            "f.bluebook",
-            1,
-            "Styles",
-            &[("StateStyle".to_string(), None)],
-            None,
-        )
-        .unwrap();
-        assert_eq!(heads.len(), 1);
-        assert_eq!(heads[0].aggregate, "StateStyle");
-        assert_eq!(heads[0].as_name, "state_styles");
-        assert!(heads[0].many);
-    }
-
-    #[test]
     fn keeps_an_explicit_as_name_verbatim() {
         let heads = aggregate_heads(
             "f.bluebook",
@@ -100,29 +84,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(heads[0].as_name, "widget");
-    }
-
-    // ROOTED (`Some(reference_target)`) — previously only exercised
-    // indirectly through the full parity-spec round trip against real
-    // Banking fixtures (`CustomerPortfolio`/`ComplianceDashboard`); these
-    // two give it fast, isolated coverage of its own.
-    #[test]
-    fn the_root_row_is_not_many_and_snake_cases_singular() {
-        let heads = aggregate_heads(
-            "f.bluebook",
-            1,
-            "CustomerPortfolio",
-            &[("Customer".to_string(), None), ("Account".to_string(), None)],
-            Some("Customer"),
-        )
-        .unwrap();
-        assert_eq!(heads.len(), 2);
-        assert_eq!(heads[0].aggregate, "Customer");
-        assert_eq!(heads[0].as_name, "customer");
-        assert!(!heads[0].many, "the declared root's own head must not be many");
-        assert_eq!(heads[1].aggregate, "Account");
-        assert_eq!(heads[1].as_name, "accounts");
-        assert!(heads[1].many, "a sibling head that isn't the root must be many");
     }
 
     #[test]

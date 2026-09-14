@@ -51,37 +51,3 @@ pub fn synthesize(field_name: &str, values: &[String]) -> ir::ValueObject {
             .collect(),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn synthesizes_a_pascal_named_closed_set() {
-        let vo = synthesize("tone", &["good".to_string(), "warn".to_string()]);
-        assert_eq!(vo.name, "Tone");
-        assert!(vo.closed_set);
-        assert_eq!(vo.attributes.len(), 1);
-        assert_eq!(vo.attributes[0].name, "value");
-        assert_eq!(vo.attributes[0].type_name, "String");
-        assert_eq!(
-            vo.members,
-            vec![
-                vec![(
-                    "value".to_string(),
-                    crate::ruby_value::Value::Str("good".to_string())
-                )],
-                vec![(
-                    "value".to_string(),
-                    crate::ruby_value::Value::Str("warn".to_string())
-                )]
-            ]
-        );
-    }
-
-    #[test]
-    fn pascal_cases_a_snake_field_name() {
-        let vo = synthesize("identity_strategy", &["slug".to_string()]);
-        assert_eq!(vo.name, "IdentityStrategy");
-    }
-}

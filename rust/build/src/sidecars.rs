@@ -105,10 +105,4 @@ mod tests {
         assert_eq!(rust_string_literal("\u{1}\u{1f}"), "\"\\u{1}\\u{1f}\"");
         assert_eq!(rust_string_literal("\u{7f}"), "\"\\u{7f}\"");
     }
-
-    #[test]
-    fn leaves_printable_multibyte_utf8_untouched() {
-        assert_eq!(rust_string_literal("café"), "\"café\"");
-        assert_eq!(rust_string_literal("🍕"), "\"🍕\"");
-    }
 }

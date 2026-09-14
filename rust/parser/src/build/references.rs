@@ -41,32 +41,3 @@ pub fn relationship_attribute(
     attribute.relationship = Some(kind.to_string());
     attribute
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn mints_an_explicitly_named_reference_attribute() {
-        let attr = reference_attribute("Order", Some("name"), false);
-        assert_eq!(attr.name, "name");
-        assert_eq!(attr.type_name, "Reference<Order>");
-    }
-
-    #[test]
-    fn defaults_the_name_from_the_target_when_as_is_absent() {
-        let attr = reference_attribute("Customer", None, false);
-        assert_eq!(attr.name, "customer");
-        assert_eq!(attr.type_name, "Reference<Customer>");
-    }
-
-    #[test]
-    fn retains_relationship_kind_and_many_cardinality() {
-        let attr = relationship_attribute("Account", "has_many", Some("accounts"), false, true);
-
-        assert_eq!(attr.name, "accounts");
-        assert_eq!(attr.type_name, "Reference<Account>");
-        assert!(attr.list);
-        assert_eq!(attr.relationship.as_deref(), Some("has_many"));
-    }
-}

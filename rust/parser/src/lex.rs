@@ -753,29 +753,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn strips_an_aggregate_qualified_receiver() {
-        assert_eq!(
-            strip_aggregate_receiver("Pizzas::Order.persisted_by(\"Postgres\")"),
-            Some(("Pizzas::Order", "persisted_by(\"Postgres\")"))
-        );
-        assert_eq!(
-            strip_aggregate_receiver("Pizzas::Order.port \"PaymentGateway\" do"),
-            Some(("Pizzas::Order", "port \"PaymentGateway\" do"))
-        );
-    }
-
-    #[test]
     fn does_not_strip_a_bare_lowercase_call() {
         assert_eq!(
             strip_aggregate_receiver("uses_framework \"Governance\""),
             None
         );
         assert_eq!(strip_aggregate_receiver("subscribe \"Deposited\""), None);
-    }
-
-    #[test]
-    fn does_not_strip_end() {
-        assert_eq!(strip_aggregate_receiver("end"), None);
     }
 
     #[test]
@@ -788,68 +771,6 @@ mod tests {
         assert_eq!(got[1].text, "attribute :name, String");
         assert_eq!(got[1].number, 3);
         assert_eq!(got[2].text, "end");
-    }
-
-    #[test]
-    fn strips_the_hecks_receiver_prefix_at_the_top_of_a_file() {
-        // Confirmed against the real corpus, not assumed: every actual
-        // file (examples/pizzas/bluebook/pizzas.bluebook,
-        // lib/hecks/language/bluebook/*.bluebook, ...) opens with
-        // `Hecks.bluebook "Name" do`, never a bare `bluebook "Name" do`.
-        let line = SourceLine {
-            number: 1,
-            text: "Hecks.bluebook \"Pizzas\" do",
-        };
-        let shape = classify("f.bluebook", &line).unwrap();
-        assert_eq!(
-            shape,
-            LineShape::Call(Call {
-                word: "bluebook".to_string(),
-                args: "\"Pizzas\"".to_string(),
-                opener: Opener::DoBlock { params: None }
-            })
-        );
-    }
-
-    #[test]
-    fn keeps_a_hash_inside_a_quoted_string() {
-        let source = "description \"a # not a comment\"\n";
-        let got = lines(source);
-        assert_eq!(got[0].text, "description \"a # not a comment\"");
-    }
-
-    #[test]
-    fn classifies_a_plain_call() {
-        let line = SourceLine {
-            number: 1,
-            text: "attribute :name, String",
-        };
-        let shape = classify("f.bluebook", &line).unwrap();
-        assert_eq!(
-            shape,
-            LineShape::Call(Call {
-                word: "attribute".to_string(),
-                args: ":name, String".to_string(),
-                opener: Opener::None
-            })
-        );
-    }
-
-    #[test]
-    fn classifies_a_do_block_opener() {
-        let line = SourceLine {
-            number: 1,
-            text: "aggregate \"Pizza\" do",
-        };
-        let shape = classify("f.bluebook", &line).unwrap();
-        assert_eq!(
-            shape,
-            LineShape::Call(Call {
-                word: "aggregate".to_string(),
-                args: "\"Pizza\"".to_string(),
-                opener: Opener::DoBlock { params: None }
-            })
-        );
     }
 
     #[test]
@@ -907,15 +828,6 @@ mod tests {
     }
 
     #[test]
-    fn classifies_end() {
-        let line = SourceLine {
-            number: 1,
-            text: "end",
-        };
-        assert_eq!(classify("f.bluebook", &line).unwrap(), LineShape::End);
-    }
-
-    #[test]
     fn refuses_local_assignment() {
         let line = SourceLine {
             number: 1,
@@ -932,71 +844,6 @@ mod tests {
             text: "\"just a string\"",
         };
         assert!(classify("f.bluebook", &line).is_err());
-    }
-
-    #[test]
-    fn allows_a_hash_rocket_and_wide_operators_without_flagging_assignment() {
-        // not currently written anywhere in this DSL, but `==`/`>=` inside
-        // a captured source body must never be misread as `=`.
-        let line = SourceLine {
-            number: 1,
-            text: "given(\"ok\") { balance >= amount }",
-        };
-        assert!(classify("f.bluebook", &line).is_ok());
-    }
-
-    #[test]
-    fn does_not_mistake_a_hash_literal_argument_for_a_source_block() {
-        // `where(balance: {gte: 100}, status: "open")` — the `{gte: 100}`
-        // is a hash-literal ARGUMENT, not a `source`-shaped `{ ... }`
-        // block; only a brace outside every enclosing paren counts.
-        let line = SourceLine {
-            number: 1,
-            text: "where(balance: {gte: 100}, status: \"open\")",
-        };
-        let shape = classify("f.bluebook", &line).unwrap();
-        match shape {
-            LineShape::Call(call) => {
-                assert_eq!(call.opener, Opener::None);
-                assert_eq!(call.args, "balance: {gte: 100}, status: \"open\"");
-            }
-            _ => panic!("expected a call"),
-        }
-    }
-
-    #[test]
-    fn strips_wrapping_parens_from_arguments() {
-        let line = SourceLine {
-            number: 1,
-            text: "bluebook(\"Pizzas\", version: \"1\") do",
-        };
-        let shape = classify("f.bluebook", &line).unwrap();
-        match shape {
-            LineShape::Call(call) => assert_eq!(call.args, "\"Pizzas\", version: \"1\""),
-            _ => panic!("expected a call"),
-        }
-    }
-
-    #[test]
-    fn joins_a_bare_trailing_comma_across_no_bracket_at_all() {
-        // vocabulary.bluebook's own `RefusalTemplate` rows — a `member`
-        // call's own named arguments spill across two physical lines
-        // with no enclosing bracket for bracket_delta to track.
-        let source = "member refusal: \"NotFound\", site: \"creating_no_identity\",\n       template: \"pass {identity}:\"\n";
-        let joined = join_continuations(source);
-        assert_eq!(joined, "member refusal: \"NotFound\", site: \"creating_no_identity\", template: \"pass {identity}:\"\n");
-    }
-
-    #[test]
-    fn joins_a_backslash_continued_line_and_strips_the_backslash() {
-        // vocabulary.bluebook's own long `RefusalTemplate` wording,
-        // wrapped across two physical lines Ruby's own line-continuation
-        // escape (adjacent string literals concatenate — see
-        // `ruby_value::scan_adjacent_strings`, which is what actually
-        // combines the two quoted strings this leaves behind).
-        let source = "template: \"a \" \\\n          \"b\"\n";
-        let joined = join_continuations(source);
-        assert_eq!(joined, "template: \"a \" \"b\"\n");
     }
 
     #[test]

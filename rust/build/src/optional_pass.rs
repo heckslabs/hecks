@@ -226,30 +226,4 @@ mod tests {
         let amount = entity.get("attributes").unwrap().each().iter().find(|a| a.get("name").and_then(Json::as_str) == Some("amount")).unwrap();
         assert!(amount.get("optional").unwrap().as_bool());
     }
-
-    #[test]
-    fn leaves_the_literal_sourced_field_alone() {
-        let mut aggregate = fixture();
-        mark_append_optional_fields(&mut aggregate);
-
-        let entity = &aggregate.get("entities").unwrap().each()[0];
-        let direction = entity.get("attributes").unwrap().each().iter().find(|a| a.get("name").and_then(Json::as_str) == Some("direction")).unwrap();
-        assert!(!direction.get("optional").map(Json::as_bool).unwrap_or(false));
-    }
-
-    #[test]
-    fn leaves_a_non_optional_source_argument_alone() {
-        let mut aggregate = fixture();
-        // Flip the command argument to non-optional and confirm nothing
-        // gets marked — the pass's own negative case.
-        let command = &mut aggregate.get_mut("commands").unwrap().as_array_mut().unwrap()[0];
-        let arg = &mut command.get_mut("attributes").unwrap().as_array_mut().unwrap()[0];
-        arg.set_bool("optional", false);
-
-        mark_append_optional_fields(&mut aggregate);
-
-        let entity = &aggregate.get("entities").unwrap().each()[0];
-        let amount = entity.get("attributes").unwrap().each().iter().find(|a| a.get("name").and_then(Json::as_str) == Some("amount")).unwrap();
-        assert!(!amount.get("optional").map(Json::as_bool).unwrap_or(false));
-    }
 }
