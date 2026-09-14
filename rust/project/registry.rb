@@ -662,7 +662,23 @@ module RustProjection
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_element_no_identity_message.inspect}.to_string()))?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
+                  # BUG#140 — `element_id` now resolves through `extract_
+                  # id_lenient` (json_codec.rb's own header), not the
+                  # strict `extract_id`: `EntityElement#element_of`'s own
+                  # `raw = args[head] || raise(...)` only ever refuses a
+                  # genuinely ABSENT identity key (still wrapped into
+                  # `entity_element_no_identity` below, via the SAME
+                  # `map_err`, when the lenient extraction itself fails),
+                  # never a present-but-blank one. A present, blank
+                  # element identity now flows through as an ordinary
+                  # (non-matching) `element_id`, and `dispatch_entity`'s
+                  # own `apply_entity_command` (kernel/dispatch.rs) —
+                  # unchanged — already renders the correct `entity_
+                  # element_missing` wording once no stored element's own
+                  # `identity()` equals it. `parent_id` stays on the
+                  # STRICT `extract_id` — a ROOT aggregate's own identity
+                  # (`to_id_component_lenient`'s own header explains why).
+                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_element_no_identity_message.inspect}.to_string()))?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   # R3 FIX — see the aggregate arm's own identical comment,
                   # above.
@@ -737,9 +753,17 @@ module RustProjection
           # `Some(route)`'s identity never goes through `extract_id` and
           # the `else` branch (unrouted unsupported) never calls it
           # against raw `facts_json` at all, so neither needed this.
+          # BUG#140 — `hop1_id`/`hop2_id` both now resolve through
+          # `extract_id_lenient`, not `extract_id`: `EntityElement#
+          # locate_chain` runs `element_of` once per chain entry
+          # (entity_element.rb), and EVERY hop shares the identical
+          # "absent key raises, present-but-blank flows through as a
+          # merely non-matching value" rule — `entity_arms`' own identical
+          # comment, above, has the full reasoning. `parent_id` stays on
+          # the strict `extract_id`.
           route_binding =
             if c[:unrouted_supported]
-              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop1_no_identity_message.inspect}.to_string()))?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop2_no_identity_message.inspect}.to_string()))?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
+              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop1_no_identity_message.inspect}.to_string()))?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop2_no_identity_message.inspect}.to_string()))?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
             else
               "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?; route.require_depth(2)?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();"
             end

@@ -534,7 +534,11 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     let delegation = delegation_of(exemplar, command, aggregate, value_objects_by_name, domain_name);
     if let Some(d) = &delegation {
         assert!(!creates, "{cmd}: a creating command cannot delegate — nothing exists to delegate to");
-        mutation_lines = vec![d.apply.clone()];
+        // BUG#140 — `d.element` (the target's own identity extraction)
+        // runs FIRST, inside the SAME closure `dispatch` only ever calls
+        // AFTER a successful hydrate — mirrors `rust/project/commands.rb`'s
+        // own identical fix exactly.
+        mutation_lines = vec![d.element.clone(), d.apply.clone()];
     }
     let prelude = delegation.as_ref().map(|d| d.prelude.clone()).unwrap_or_default();
     let payload = if delegation.is_some() { "delegate_facts.clone()," } else { "args.to_json()," }.to_string();
@@ -788,6 +792,10 @@ pub fn delegate_skip_reason(command: &Json, aggregate: &Json, value_objects_by_n
 
 struct Delegation {
     prelude: String,
+    // BUG#140 — see `rust/project/commands.rb`'s own identical field for
+    // the full reasoning: split OUT of `prelude` so `element_id`'s own
+    // extraction runs AFTER `dispatch`'s own hydrate, not before it.
+    element: String,
     apply: String,
     emits: Vec<String>,
 }
@@ -864,10 +872,11 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
     }
     let identity_reading = entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
 
-    let prelude = exemplar.render(
-        "delegate_prelude",
-        &[("tmpl_aliases_placeholder()", aliases.join(", ")), ("TmplTargetArgs", target_args_name), ("TmplElement", element_record.clone())],
-    );
+    let prelude = exemplar.render("delegate_prelude", &[("tmpl_aliases_placeholder()", aliases.join(", ")), ("TmplTargetArgs", target_args_name)]);
+    // BUG#140 — see the `Delegation` struct's own comment, above, and
+    // `rust/src/exemplar/commands.rs`'s `tmpl_delegate_element_host`
+    // header for the full reasoning.
+    let element = exemplar.render("delegate_element", &[("TmplElement", element_record.clone())]);
     let apply = exemplar.render(
         "delegate_apply",
         &[
@@ -896,6 +905,7 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
     );
     Some(Delegation {
         prelude: indent_block(&prelude, "    "),
+        element: indent_block(&element, "        "),
         apply: indent_block(&apply, "        "),
         emits: target.get("emits").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect(),
     })

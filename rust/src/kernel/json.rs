@@ -410,6 +410,39 @@ impl Json {
         }
     }
 
+    /// BUG#140 — `to_id_component`'s own sibling for ENTITY-ELEMENT
+    /// addressing, not aggregate/root identity: `EntityElement#element_of`
+    /// (entity_element.rb), read directly, only ever refuses a MISSING
+    /// identity key (`raw = args[head] || raise(...)` — Ruby's `||` is
+    /// falsy-or-nil, so an empty string is truthy and never trips that
+    /// raise) — a PRESENT blank value flows on into VO coercion as an
+    /// ordinary, merely non-matching value, exactly as any other
+    /// well-formed-but-unmatched identity would. `to_id_component`'s own
+    /// blank refusal is right for a ROOT aggregate's identity (R4, this
+    /// type's own comment above) — `Identity.of`/`Hydrate::Create`/`Act`
+    /// genuinely have no "present but blank, still worth comparing"
+    /// case, an aggregate is either addressed or it doesn't exist yet —
+    /// but applying that SAME refusal to an entity element's own identity
+    /// read collapses two different Ruby outcomes (`entity_element_
+    /// no_identity` for an absent key, `entity_element_missing` for a
+    /// present-but-unmatched one) into the one generic `TypeMismatch`
+    /// neither wording ever describes. Used ONLY at entity/nested-entity
+    /// addressing call sites (`rust/project/json_codec.rb`'s `emit_
+    /// extract_id_lenient`, wired into `commands.rb`'s `delegate_prelude`
+    /// and `registry.rb`'s `entity_arms`/`nested_entity_arms`) — never at
+    /// a ROOT aggregate's own `extract_id`, which keeps calling the
+    /// strict `to_id_component` above unchanged. Everything else (numeric/
+    /// bool coercion, the non-scalar `TypeMismatch`) stays identical to
+    /// `to_id_component` — a malformed (non-scalar) identity value is
+    /// still a real shape bug, not a legitimate non-matching value, so it
+    /// still refuses.
+    pub fn to_id_component_lenient(&self) -> Result<String, Refusal> {
+        match self {
+            Json::Str(s) => Ok(s.clone()),
+            other => other.to_id_component(),
+        }
+    }
+
     pub fn parse(input: &str) -> Result<Json, String> {
         let mut parser = Parser { chars: input.chars().peekable() };
         let value = parser.parse_value()?;
@@ -578,6 +611,26 @@ mod integral_i64_tests {
     fn to_id_component_still_accepts_a_real_string() {
         let real = Json::Str("acct-1".to_string());
         assert_eq!(real.to_id_component().unwrap(), "acct-1");
+    }
+
+    #[test]
+    fn to_id_component_lenient_accepts_an_empty_string() {
+        // BUG#140 — the whole point of the sibling: `EntityElement#
+        // element_of`'s own `raw = args[head] || raise(...)` only trips
+        // on a genuinely ABSENT key, never a present-but-blank one — an
+        // empty string is truthy in Ruby and flows on as an ordinary,
+        // merely non-matching value.
+        let blank = Json::Str(String::new());
+        assert_eq!(blank.to_id_component_lenient().unwrap(), "", "a present, blank string must be a valid (non-matching) component");
+    }
+
+    #[test]
+    fn to_id_component_lenient_still_refuses_a_non_scalar() {
+        // A malformed identity shape is still a real bug, not a
+        // legitimate non-matching value — only the blank-string case
+        // differs from `to_id_component`.
+        let list = Json::Array(vec![]);
+        assert!(list.to_id_component_lenient().is_err(), "a non-scalar must still refuse, same as to_id_component");
     }
 }
 

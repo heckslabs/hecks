@@ -739,8 +739,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // splice and BUG#54's own `collision_fallback` already
             // established. The REAL `args` binding below, unchanged, still
             // runs unconditionally for both `Some(route)` and `None`.
+            // BUG#140 — `element_id` resolves through `extract_id_
+            // lenient`, not `extract_id` — see `rust/project/registry.rb`'s
+            // own identical comment for the full reasoning
+            // (`EntityElement#element_of`'s own absent-vs-blank
+            // distinction, entity_element.rb). `parent_id` stays strict.
             let body_entity_match = format!(
-                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ {structural_precheck_line} let _args_precheck = {mod_path}::{}::from_json(facts_json)?; let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
+                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ {structural_precheck_line} let _args_precheck = {mod_path}::{}::from_json(facts_json)?; let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
                 c.args_struct,
                 a.record,
                 naming::ruby_inspect_string(&entity_parent_no_identity_message),
@@ -887,9 +892,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // never goes through `extract_id` and the ROUTED-only `else`
             // branch below never calls it against raw `facts_json` at
             // all, so neither needed this.
+            // BUG#140 — `hop1_id`/`hop2_id` both resolve through
+            // `extract_id_lenient` — see `rust/project/registry.rb`'s own
+            // identical comment for the full reasoning. `parent_id` stays
+            // strict.
             let route_binding = if c.unrouted_supported {
                 format!(
-                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ {structural_precheck_line} let _args_precheck = {mod_path}::{}::from_json(facts_json)?; let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
+                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ {structural_precheck_line} let _args_precheck = {mod_path}::{}::from_json(facts_json)?; let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
                     c.args_struct,
                     a.record,
                     naming::ruby_inspect_string(&entity_parent_no_identity_message),

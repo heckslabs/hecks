@@ -526,7 +526,11 @@ module RustProjection
       if delegation
         raise "#{command[:name]}: a creating command cannot delegate — nothing exists to delegate to" if creates
 
-        mutation_lines = [delegation[:apply]]
+        # BUG#140 — `delegation[:element]` (the target's own identity
+        # extraction) now runs FIRST, inside the SAME closure `dispatch`
+        # only ever calls AFTER a successful hydrate — never, as before,
+        # spliced ahead of `dispatch` entirely via `delegation[:prelude]`.
+        mutation_lines = [delegation[:element], delegation[:apply]]
       end
       prelude   = delegation ? delegation[:prelude] : ""
       payload   = delegation ? "delegate_facts.clone()," : "args.to_json(),"
@@ -911,9 +915,22 @@ module RustProjection
         prelude: Exemplar.render(
           "delegate_prelude",
           "tmpl_aliases_placeholder()" => aliases.join(", "),
-          "TmplTargetArgs" => target_args_name,
-          "TmplElement" => element_record
+          "TmplTargetArgs" => target_args_name
         ).lines.map { |l| "    #{l}" }.join.rstrip,
+        # BUG#140 — split OUT of `delegate_prelude`: `element_id`'s own
+        # extraction has to run strictly AFTER `dispatch`'s own hydrate,
+        # so it's rendered separately and spliced as the FIRST lines
+        # inside the mutation closure (`emit_command`'s own `mutation_
+        # lines = [delegation[:element], delegation[:apply]]`, below),
+        # not before `dispatch` is even called — `rust/src/exemplar/
+        # commands.rs`'s own `tmpl_delegate_element_host` header has the
+        # full trace against Ruby's real `DISPATCH_ORDER`. Same 8-space
+        # indent as `apply`, below — both fill the SAME closure-body
+        # textual slot (`tmpl_mutation_lines_placeholder(record);`).
+        element: Exemplar.render(
+          "delegate_element",
+          "TmplElement" => element_record
+        ).lines.map { |l| "        #{l}" }.join.rstrip,
         apply: Exemplar.render(
           "delegate_apply",
           "TmplRecord" => rust_ident(aggregate[:name]),

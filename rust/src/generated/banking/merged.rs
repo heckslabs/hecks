@@ -1601,7 +1601,7 @@ if !absent.is_empty() {
         ("declared", "adjustment, narrative"),
     ])));
 }
- } let _args_precheck = crate::generated::banking::account::LedgerEntryAmendEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on a Account's LedgerEntry — pass number.value:".to_string()))?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on one LedgerEntry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::banking::account::LedgerEntryAmendEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on a Account's LedgerEntry — pass number.value:".to_string()))?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on one LedgerEntry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::account::LedgerEntryAmendEntityArgs::from_json(facts_json)?;
                       args.adjustment.check_invariants()?;
                       args.narrative.check_invariants()?;
@@ -1634,7 +1634,7 @@ if !absent.is_empty() {
         ("declared", "narrative"),
     ])));
 }
- } let _args_precheck = crate::generated::banking::account::LedgerEntryReverseEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on a Account's LedgerEntry — pass number.value:".to_string()))?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on one LedgerEntry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::banking::account::LedgerEntryReverseEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on a Account's LedgerEntry — pass number.value:".to_string()))?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on one LedgerEntry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::account::LedgerEntryReverseEntityArgs::from_json(facts_json)?;
                       args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "Reverse", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1666,7 +1666,7 @@ if !absent.is_empty() {
         ("declared", "narrative"),
     ])));
 }
- } let _args_precheck = crate::generated::banking::atmcard::WithdrawalDisputeEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispute acts on a ATMCard's Withdrawal — pass serial.value:".to_string()))?; let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispute acts on one Withdrawal — pass sequence.value:".to_string()))?; let element_wants = crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::banking::atmcard::WithdrawalDisputeEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispute acts on a ATMCard's Withdrawal — pass serial.value:".to_string()))?; let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispute acts on one Withdrawal — pass sequence.value:".to_string()))?; let element_wants = crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::atmcard::WithdrawalDisputeEntityArgs::from_json(facts_json)?;
                       args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1698,7 +1698,7 @@ if !absent.is_empty() {
         ("declared", "note"),
     ])));
 }
- } let _args_precheck = crate::generated::banking::safedepositbox::VisitAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a SafeDepositBox's Visit — pass branch_code.value, box_number.value:".to_string()))?; let element_id = crate::generated::banking::safedepositbox::Visit::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Visit — pass date.value, sequence.value:".to_string()))?; let element_wants = crate::generated::banking::safedepositbox::Visit::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::banking::safedepositbox::VisitAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a SafeDepositBox's Visit — pass branch_code.value, box_number.value:".to_string()))?; let element_id = crate::generated::banking::safedepositbox::Visit::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Visit — pass date.value, sequence.value:".to_string()))?; let element_wants = crate::generated::banking::safedepositbox::Visit::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::safedepositbox::VisitAnnotateEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1730,7 +1730,7 @@ if !absent.is_empty() {
         ("declared", "serial"),
     ])));
 }
- } let _args_precheck = crate::generated::banking::safedepositbox::KeyIssuanceReturnEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Return acts on a SafeDepositBox's KeyIssuance — pass branch_code.value, box_number.value:".to_string()))?; let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Return acts on one KeyIssuance — pass serial.value:".to_string()))?; let element_wants = crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::banking::safedepositbox::KeyIssuanceReturnEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Return acts on a SafeDepositBox's KeyIssuance — pass branch_code.value, box_number.value:".to_string()))?; let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Return acts on one KeyIssuance — pass serial.value:".to_string()))?; let element_wants = crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnEntityArgs::from_json(facts_json)?;
                       args.serial.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Return", caller_role, caller_actor_id, &*store, QUERIES)?;
