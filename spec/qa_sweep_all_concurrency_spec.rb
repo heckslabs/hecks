@@ -6,51 +6,15 @@ require_relative "support/qa_sweep_all_fixture"
 # split out of the original `qa_sweep_all_spec.rb` (Phase 2 of the CI
 # speed effort — see `spec/qa_sweep_all_lifecycle_spec.rb`'s own header
 # and `spec/support/qa_sweep_all_fixture.rb` for the full context). This
-# file proves the pool itself: two real children genuinely alive at
-# once, the pool bound holding under real load, and a pool of
+# file proves the pool itself: the pool bound holding under real load
+# (its lower bound — at least two children sampled alive at once — is
+# the real-concurrency proof), and a pool of
 # near-instantly-exiting children draining without stalling — the
 # heaviest group of the four by wall-clock (this file's own throwaway
 # database is `hecks_qa_sweep_all_concurrency_spec`, unique so it never
 # races a sibling file's own scratch resources).
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_concurrency_spec"
-
-  # THE CENTRAL CLAIM `--all` EXISTS FOR, PROVEN WITHOUT TRUSTING THE
-  # CLOCK. PID LIVENESS DOES NOT HAVE THE "shared machine under load"
-  # flakiness a wall-clock comparison would: two real `bin/qa_sweep
-  # <target>` children (the exact same spawn shape `spawn_sweep_child`
-  # uses per target inside `--all` itself) are spawned back to back
-  # (`Process.spawn` returns immediately either way), then checked for
-  # life together immediately after. A SERIALIZED implementation could
-  # NEVER have a second `bin/qa_sweep` process alive before the first one
-  # exits, no matter how fast or slow the machine is at that moment.
-  it "runs two real bin/qa_sweep children as genuinely concurrent OS processes — both alive at once" do
-    identify_targets!(
-      "clone_one" => @target_domain_relpath,
-      "clone_two" => @target_domain_relpath
-    )
-
-    children = %w[clone_one clone_two].map do |target_reference|
-      log = Tempfile.new(target_reference)
-      pid = Process.spawn(
-        { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
-        "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), target_reference, "--seeds", "3",
-        out: log, err: log, chdir: InMemoryDomain::ROOT
-      )
-      { pid: pid, log: log }
-    end
-
-    both_alive_at_once = children.all? { |c| process_alive?(c[:pid]) }
-
-    exit_statuses = children.map do |c|
-      _pid, status = Process.waitpid2(c[:pid])
-      c[:log].close
-      status.exitstatus
-    end
-
-    expect(both_alive_at_once).to be true
-    expect(exit_statuses).to all(eq(0))
-  end
 
   # THE POOL BOUND — `QualityControlDials::SWEEP_MAX_PARALLEL` (read here
   # from the same symlinked bluebook the fixture ledger boots, so this
@@ -61,7 +25,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
   # bound is the claim; the lower bound (at least two at once) is what
   # proves the sampling saw real concurrency rather than an idle moment.
   # REAPED VIA `reap_while_polling` (see the shared fixture's own header
-  # on why a `process_alive?` loop cannot safely watch for exit here —
+  # on why a `Process.kill(0, pid)` loop cannot safely watch for exit here —
   # confirmed live: a real run hung over an hour on a zombie before this
   # was fixed).
   it "keeps at most SWEEP_MAX_PARALLEL real bin/qa_sweep children alive at once" do

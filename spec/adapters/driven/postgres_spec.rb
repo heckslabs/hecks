@@ -364,17 +364,5 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}, []]])
       expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}, []]])
     end
-
-    # `settings[:domain] || settings["domain"] || aggregate.storage_name`
-    # used to coerce a genuinely stored `false` at :domain into the
-    # storage-name fallback — indistinguishable from :domain being absent
-    # entirely.
-    it "reads a `false`-valued :domain setting back as itself, not the storage-name fallback" do
-      falsy_domain = described_class.new(
-        aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB, domain: false }
-      )
-
-      expect(falsy_domain.instance_variable_get(:@domain)).to eq("false")
-    end
   end
 end

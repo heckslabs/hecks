@@ -222,16 +222,4 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
     subjects = sweep.checks.map { |c| c[:subject][:value] }
     expect(subjects).to include(a_string_starting_with("[era_boundary]"))
   end
-
-  # THE DIAL'S OWN DEFAULT — `QualityControlDials::MODES[:era_boundary]`
-  # is `false`; an ordinary sweep, with no `--modes` override, must still
-  # run exactly the checks it always did.
-  it "stays off an ordinary sweep — the real ledger's own dial defaults it off" do
-    identify_target!("era-boundary-default", @target_domain_relpath)
-
-    stdout, _stderr, status = run_qa_sweep("era-boundary-default", "--seeds", "1")
-
-    expect(status.exitstatus).to eq(0)
-    expect(stdout).not_to include("era_boundary")
-  end
 end

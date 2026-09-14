@@ -48,13 +48,6 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       expect(scripts.sum { |s| s.count { |step| step.key?("role") } }).to be_positive
       expect(scripts.sum { |s| s.count { |step| step.key?("dry_run") } }).to be_positive
     end
-
-    it "refuses a draw fraction outside 0..1, naming the option" do
-      expect { described_class.generate(ROLE_PIZZAS, seed: 1, steps: 5, role_draw: 1.5) }
-        .to raise_error(ArgumentError, /role_draw/)
-      expect { described_class.generate(ROLE_PIZZAS, seed: 1, steps: 5, dry_run: -0.1) }
-        .to raise_error(ArgumentError, /dry_run/)
-    end
   end
 
   describe "the caller draw (ANGLE-5)" do

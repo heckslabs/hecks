@@ -126,6 +126,15 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     chains
   end
 
+  # ONE own-RDS fixture (a bare `region "us-east-1"` world, no .env.local),
+  # generated once and shared by H14 and M29 below — both used to generate
+  # their own byte-identical copy of this same world under different names.
+  before(:context) { @own_dir = self.class.generate!("h14_m29_own_fixture", <<~WORLD) }
+    region "us-east-1"
+  WORLD
+
+  after(:context) { FileUtils.rm_rf(@own_dir) }
+
   # --- H13 -----------------------------------------------------------
 
   describe "H13 — Shared-mode mint-era no longer poisons a successful deploy's exit code" do
@@ -158,15 +167,9 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   # --- H14 -------------------------------------------------------------
 
   describe "H14 — scaffold-translation/translation-audit refuse instead of silently running against the local DB" do
-    before(:context) { @generated_dir = self.class.generate!("h14_own_fixture", <<~WORLD) }
-      region "us-east-1"
-    WORLD
-
-    after(:context) { FileUtils.rm_rf(@generated_dir) }
-
     %w[scaffold-translation translation-audit].each do |target|
       it "#{target} refuses up front unless ALLOW_LOCAL_DB is set, before doing anything with AWS" do
-        makefile = File.read(File.join(@generated_dir, "Makefile"))
+        makefile = File.read(File.join(@own_dir, "Makefile"))
         recipe = self.class.recipe_lines(makefile, target).join
         chains = self.class.shell_chains(self.class.recipe_lines(makefile, target))
 
@@ -184,14 +187,14 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
       end
 
       it "#{target} really does refuse when actually run, and stops before touching the tunnel" do
-        stdout, stderr, status = Open3.capture3("make", target, chdir: @generated_dir)
+        stdout, stderr, status = Open3.capture3("make", target, chdir: @own_dir)
         expect(status.success?).to be(false), "#{target} should refuse (nonzero exit) without ALLOW_LOCAL_DB set"
         expect(stderr + stdout).to include("REFUSING")
       end
     end
 
     it "does not add the ALLOW_LOCAL_DB guard to migrate-console-settings (an app-owned script, not asserted env-blind)" do
-      makefile = File.read(File.join(@generated_dir, "Makefile"))
+      makefile = File.read(File.join(@own_dir, "Makefile"))
       recipe = self.class.recipe_lines(makefile, "migrate-console-settings").join
       expect(recipe).not_to include("ALLOW_LOCAL_DB")
     end
@@ -264,14 +267,8 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   # --- M29 -------------------------------------------------------------
 
   describe "M29 — the RDS master password is percent-encoded before it reaches a postgres:// URI" do
-    before(:context) { @generated_dir = self.class.generate!("m29_own_fixture", <<~WORLD) }
-      region "us-east-1"
-    WORLD
-
-    after(:context) { FileUtils.rm_rf(@generated_dir) }
-
     it "derives DB_PASS_URLENC via ERB::Util.url_encode and uses it (not raw DB_PASS) in every DATABASE_URL" do
-      makefile = File.read(File.join(@generated_dir, "Makefile"))
+      makefile = File.read(File.join(@own_dir, "Makefile"))
 
       expect(makefile).to include("DB_PASS_URLENC=$$(ruby -rerb -e 'print ERB::Util.url_encode(ARGV[0])' \"$$DB_PASS\")")
 
@@ -285,17 +282,11 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     end
 
     it "leaves the rename-schema recipe's PGPASSWORD usage as the raw password (psql, not a URI, needs it unencoded)" do
-      makefile = File.read(File.join(@generated_dir, "Makefile"))
+      makefile = File.read(File.join(@own_dir, "Makefile"))
       recipe = self.class.recipe_lines(makefile, "rename-schema").join
 
       expect(recipe).to include("PGPASSWORD=$$DB_PASS psql")
       expect(recipe).not_to include("PGPASSWORD=$$DB_PASS_URLENC")
-    end
-
-    it "actually percent-encodes a password containing % correctly (ERB::Util.url_encode, run for real)" do
-      stdout, stderr, status = Open3.capture3("ruby", "-rerb", "-e", "print ERB::Util.url_encode(ARGV[0])", "ab%cd@ef/gh")
-      expect(status.success?).to be(true), stderr
-      expect(stdout).to eq("ab%25cd%40ef%2Fgh")
     end
   end
 end

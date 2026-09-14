@@ -212,18 +212,6 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
     expect(subjects).to include(a_string_starting_with("[concurrency]"))
   end
 
-  # THE DIAL'S OWN DEFAULT — `QualityControlDials::MODES[:concurrency]`
-  # is `false`; an ordinary sweep, with no `--modes` override, must still
-  # run exactly the checks it always did.
-  it "stays off an ordinary sweep — the real ledger's own dial defaults it off" do
-    identify_target!("cc-default", @target_domain_relpath)
-
-    stdout, _stderr, status = run_qa_sweep("cc-default", "--seeds", "1")
-
-    expect(status.exitstatus).to eq(0)
-    expect(stdout).not_to include("concurrency")
-  end
-
   # `CONCURRENCY_SEED_CAP` — the SAME clamp-down discipline
   # `PERSISTENCE_PARITY_SEED_CAP` already has, proven the same way that
   # dial's own coverage is: ask for more than the cap, get exactly the

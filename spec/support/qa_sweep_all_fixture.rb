@@ -259,17 +259,10 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     )
   end
 
-  def process_alive?(pid)
-    Process.kill(0, pid)
-    true
-  rescue Errno::ESRCH
-    false
-  end
-
   # THE NON-BLOCKING REAP LOOP — see the `keeps at most SWEEP_MAX_PARALLEL`
   # example's own comment (wherever that example landed) for why this is
-  # `Process.waitpid2(pid, Process::WNOHANG)`, polled, and NOT
-  # `process_alive?` in a loop (a zombie answers `process_alive?` just as
+  # `Process.waitpid2(pid, Process::WNOHANG)`, polled, and NOT a
+  # `Process.kill(0, pid)` liveness check in a loop (a zombie answers it just as
   # a live process would, so that loop can never observe the child
   # exiting). `probe` is called once per poll and returns whatever this
   # run wants tracked; returns `[status, probe_results]`.

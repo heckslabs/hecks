@@ -1,5 +1,4 @@
 require "tmpdir"
-require "fileutils"
 require "open3"
 
 # bin/lint_deploy_recipes is a SCRIPT, not a library (bin/stores_spec.rb's
@@ -17,10 +16,12 @@ Kernel.load(File.expand_path("../bin/lint_deploy_recipes", __dir__))
 #   1. It actually catches the BUG CLASS behind H13/H14 (docs/audits/
 #      2026-08-11-bug-triage.md) — a fabricated recipe reproducing each
 #      shape gets flagged, not just the two now-fixed real instances.
-#   2. It does not cry wolf on the targets bin/project_deploy generates
-#      TODAY for the recipes those fixes actually touched (mint-era,
-#      scaffold-translation, translation-audit, migrate-console-settings,
-#      rename-schema, sync-google-oauth all pass with zero violations).
+#   2. It does not cry wolf on what bin/project_deploy generates TODAY —
+#      the CLI's own no-arguments run lints every target of its three
+#      real generated fixture Makefiles (own/shared/oauth) and must find
+#      zero violations, including the recipes those fixes actually
+#      touched (mint-era, scaffold-translation, translation-audit,
+#      migrate-console-settings, rename-schema, sync-google-oauth).
 #
 # `deploy:` USED TO be excluded from the "known clean" set below — running
 # this linter against the real generator used to surface one genuine (if
@@ -30,9 +31,9 @@ Kernel.load(File.expand_path("../bin/lint_deploy_recipes", __dir__))
 # both of which used to run with no echo of their own before them (only
 # prose comments, invisible to a human running `make deploy`, explained
 # them). Now fixed — bin/project_deploy echoes what each of those AWS
-# calls is about to check, right before making it — so `deploy` is folded
-# into KNOWN_CLEAN_TARGETS below like every other target, and the CLI's
-# own "no arguments" test now expects a clean run. If this ever regresses
+# calls is about to check, right before making it — so the CLI's own
+# "no arguments" test now expects a clean run across every target,
+# `deploy` included. If this ever regresses
 # (the echo silently gets lost again), these assertions will fail.
 RSpec.describe "bin/lint_deploy_recipes", :io do
   def self.root = File.expand_path("..", __dir__)
@@ -183,119 +184,16 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
     end
   end
 
-  # --- 2. Runs clean against the REAL generator's fixed targets ---------
-
-  describe "against bin/project_deploy's real, current generated output" do
-    def self.write_fixture(dir, basename, world_body, env_local: nil)
-      domain_dir = File.join(dir, basename)
-      bluebook_dir = File.join(domain_dir, "bluebook")
-      FileUtils.mkdir_p(bluebook_dir)
-      bluebook_name = basename.split("_").map(&:capitalize).join
-
-      File.write(File.join(bluebook_dir, "#{basename}.bluebook"), <<~BLUEBOOK)
-        Hecks.bluebook "#{bluebook_name}" do
-          aggregate "Thing" do
-            identified_by :name
-            attribute :name, ThingName
-            value_object "ThingName" do
-              attribute :value, String
-              invariant("named") { !value.to_s.empty? }
-            end
-            command "Create" do
-              attribute :name, ThingName
-              sets :name
-              emits "ThingCreated"
-            end
-          end
-        end
-      BLUEBOOK
-
-      File.write(File.join(bluebook_dir, "#{basename}.world"), <<~WORLD)
-        Hecks.world "#{bluebook_name}" do
-          deployed_to("AwsLambda") do
-            #{world_body}
-          end
-        end
-      WORLD
-
-      File.write(File.join(domain_dir, ".env.local"), env_local) if env_local
-      domain_dir
-    end
-
-    def self.generate!(basename, world_body, env_local: nil)
-      Dir.mktmpdir do |dir|
-        domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
-        _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
-        status.success? or raise "bin/project_deploy failed: #{stderr}"
-      end
-      File.join(root, "deploy", basename)
-    end
-
-    before(:context) do
-      @own_dir = self.class.generate!("lint_spec_own_fixture", <<~WORLD)
-        region "us-east-1"
-      WORLD
-      @shared_dir = self.class.generate!("lint_spec_shared_fixture", <<~WORLD)
-        region "us-east-1"
-        database "Shared"
-        owner "SomeOwner"
-      WORLD
-      env_local = %(GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com\nGOOGLE_CLIENT_SECRET=test-secret\n)
-      @oauth_dir = self.class.generate!("lint_spec_oauth_fixture", <<~WORLD, env_local: env_local)
-        region "us-east-1"
-        web "Rust"
-      WORLD
-    end
-
-    after(:context) do
-      FileUtils.rm_rf(@own_dir)
-      FileUtils.rm_rf(@shared_dir)
-      FileUtils.rm_rf(@oauth_dir)
-    end
-
-    # The exact targets H13/H14/L20 fixed: mint-era (Shared-mode stub,
-    # H13), scaffold-translation/translation-audit (the ALLOW_LOCAL_DB
-    # REFUSING guard, H14), rename-schema (identifier validation, L20).
-    # migrate-console-settings and sync-google-oauth are generated the
-    # same way and belong in the same "known clean" set. `deploy` joined
-    # this set once predeploy_bridge_shell's own `describe-stacks` check
-    # (and, in Shared mode, the owner-stack Outputs lookup) gained an
-    # echo of their own — see this file's own top comment.
-    KNOWN_CLEAN_TARGETS = %w[mint-era scaffold-translation translation-audit migrate-console-settings rename-schema
-                             sync-google-oauth deploy].freeze
-
-    it "finds zero violations in mint-era/scaffold-translation/translation-audit/migrate-console-settings/rename-schema " \
-       "for an own-RDS domain" do
-      makefile = File.read(File.join(@own_dir, "Makefile"))
-      violations = self.class.lint(makefile, source: "own").select { |v| KNOWN_CLEAN_TARGETS.include?(v.target) }
-      expect(violations).to be_empty, violations.join("\n")
-    end
-
-    it "finds zero violations in the same targets for a Shared-mode domain (H13/H14's own Shared-mode branches)" do
-      makefile = File.read(File.join(@shared_dir, "Makefile"))
-      violations = self.class.lint(makefile, source: "shared").select { |v| KNOWN_CLEAN_TARGETS.include?(v.target) }
-      expect(violations).to be_empty, violations.join("\n")
-    end
-
-    it "finds zero violations in the same targets (plus sync-google-oauth) for an OAuth-present domain" do
-      makefile = File.read(File.join(@oauth_dir, "Makefile"))
-      violations = self.class.lint(makefile, source: "oauth").select { |v| KNOWN_CLEAN_TARGETS.include?(v.target) }
-      expect(violations).to be_empty, violations.join("\n")
-    end
-
-    it "finds zero violations on deploy: itself now that predeploy_bridge_shell's describe-stacks check echoes first" do
-      # Used to be a pinned, known PROD_TOUCH_WITHOUT_ECHO finding here —
-      # see this file's own top comment. Now fixed; pinned the other way
-      # so a regression (the echo silently disappearing again) is caught.
-      %w[own shared oauth].each do |label|
-        dir = instance_variable_get(:"@#{label}_dir")
-        makefile = File.read(File.join(dir, "Makefile"))
-        deploy_violations = self.class.lint(makefile, source: label).select { |v| v.target == "deploy" }
-        expect(deploy_violations).to be_empty, deploy_violations.join("\n")
-      end
-    end
-  end
-
+  # --- 2. End-to-end CLI — including the REAL generator's output ---------
+  #
+  # The no-arguments example below is what proves (2) above: it
+  # generates the same own/shared/oauth fixture domains
+  # (`DeployRecipeLint.fixtures`) through the real bin/project_deploy
+  # and requires ZERO violations across EVERY target in each generated
+  # Makefile — a strict superset of the per-target "known clean" checks
+  # this file used to run against its own separately-generated copies of
+  # those same three fixtures.
+  #
   # --- End-to-end CLI ----------------------------------------------------
 
   describe "the CLI itself" do
@@ -336,44 +234,50 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
       end
     end
 
-    it "with no arguments, generates its own fixture domains and lints them (real bin/project_deploy output)" do
-      stdout, stderr, status = Open3.capture3("ruby", self.class.script)
-      report = stdout + stderr
+    describe "with no arguments" do
+      # ONE real no-arguments run (three real bin/project_deploy builds)
+      # shared by both examples below — the cleanup check needs a
+      # finished run, not a second one of its own.
+      before(:context) do
+        stdout, stderr, @no_args_status = Open3.capture3("ruby", self.class.script)
+        @no_args_report = stdout + stderr
+      end
 
-      # Used to pin one known, real, reported-not-fixed PROD_TOUCH_WITHOUT_
-      # ECHO finding on `deploy` here — see this file's own top comment.
-      # Now fixed, so a genuinely clean run is expected; ANY violation
-      # reappearing here is a regression in bin/project_deploy's own
-      # generated recipes.
-      expect(status.success?).to be(true)
-      expect(report).to include("no violations found")
-    end
+      it "generates its own fixture domains and lints them (real bin/project_deploy output)" do
+        # Used to pin one known, real, reported-not-fixed PROD_TOUCH_WITHOUT_
+        # ECHO finding on `deploy` here — see this file's own top comment.
+        # Now fixed, so a genuinely clean run is expected; ANY violation
+        # reappearing here is a regression in bin/project_deploy's own
+        # generated recipes.
+        expect(@no_args_status.success?).to be(true), @no_args_report
+        expect(@no_args_report).to include("no violations found")
+      end
 
-    it "cleans up every fixture domain it generates under deploy/, win or lose" do
-      Open3.capture3("ruby", self.class.script)
+      it "cleans up every fixture domain it generates under deploy/, win or lose" do
+        # NAMED, not "the whole listing is unchanged" — that first version
+        # of this check found a real bug in ITSELF, not in
+        # bin/lint_deploy_recipes: deploy/ is shared, unscoped scratch
+        # space, and other spec files (spec/project_deploy_bug_fixes_spec.rb's
+        # own "h14_own_fixture", for one) generate their own fixtures
+        # there too. Confirmed live — a before/after directory-listing
+        # diff caught "added: [\"h14_own_fixture\"]" that had nothing to
+        # do with this example: a DIFFERENT spec file's own
+        # before(:context), running concurrently in a different
+        # parallel_rspec worker, created it in the same shared directory
+        # during this example's own before/after window. What this
+        # example can actually verify is narrower and immune to that:
+        # bin/lint_deploy_recipes always namespaces its own fixtures
+        # "lint_deploy_recipes_fixture_<label>" (its own CLI body, above)
+        # — checking that prefix specifically, rather than the directory's
+        # full contents, is what a concurrent sibling's own unrelated
+        # entries can no longer make flaky. Checked after the shared
+        # before(:context) run above has fully finished, win or lose.
+        leftover = Dir.children(File.join(self.class.root, "deploy")).grep(/\Alint_deploy_recipes_fixture_/)
 
-      # NAMED, not "the whole listing is unchanged" — that first version
-      # of this check found a real bug in ITSELF, not in
-      # bin/lint_deploy_recipes: deploy/ is shared, unscoped scratch
-      # space, and other spec files (spec/project_deploy_bug_fixes_spec.rb's
-      # own "h14_own_fixture", for one) generate their own fixtures
-      # there too. Confirmed live — a before/after directory-listing
-      # diff caught "added: [\"h14_own_fixture\"]" that had nothing to
-      # do with this example: a DIFFERENT spec file's own
-      # before(:context), running concurrently in a different
-      # parallel_rspec worker, created it in the same shared directory
-      # during this example's own before/after window. What this
-      # example can actually verify is narrower and immune to that:
-      # bin/lint_deploy_recipes always namespaces its own fixtures
-      # "lint_deploy_recipes_fixture_<label>" (its own CLI body, above)
-      # — checking that prefix specifically, rather than the directory's
-      # full contents, is what a concurrent sibling's own unrelated
-      # entries can no longer make flaky.
-      leftover = Dir.children(File.join(self.class.root, "deploy")).grep(/\Alint_deploy_recipes_fixture_/)
-
-      expect(leftover).to be_empty,
-                          "bin/lint_deploy_recipes must not leave its own generated fixture domains behind " \
-                          "under deploy/ after it finishes -- found: #{leftover.inspect}"
+        expect(leftover).to be_empty,
+                            "bin/lint_deploy_recipes must not leave its own generated fixture domains behind " \
+                            "under deploy/ after it finishes -- found: #{leftover.inspect}"
+      end
     end
   end
 end
