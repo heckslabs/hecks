@@ -281,7 +281,7 @@ jobs:
       # for why splitting this out from the whole `spec` directory is what
       # actually makes runtime-based grouping work for this job (it didn't,
       # under three different nominal grouping strategies, until this).
-      IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
+      IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|codegen_manifest_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
 
     steps:
       - uses: actions/checkout@v4
