@@ -1,0 +1,159 @@
+#!/usr/bin/env ruby
+
+# Regenerates spec/fixtures/persistence_legacy/ — the on-disk/row shapes
+# TODAY'S persistence adapters write for one banking Account and one
+# CardPayment (seeds: spec/support/persistence_legacy_fixture.rb).
+#
+# WHY THESE FIXTURES EXIST (Phase 2, Track A, PR A1): nested state decodes
+# with different key types depending on which adapter wrote/read it
+# (Heki symbolizes only the top level, SQLite/Postgres heads symbolize
+# deep, every journal `entries` reader symbolizes only the top level).
+# A2's IR-driven state codec must keep decoding everything already
+# sitting in real stores, so these are the characterization baseline it
+# is held to — `spec/ports/persistence_legacy_decode_spec.rb` pins what
+# each adapter decodes from them today.
+#
+# EVERY FIXTURE IS WRITTEN BY THE REAL ADAPTER, never by hand:
+#   heki/          Hecks::Adapters::Heki#save into a tmpdir; the `.heki`
+#                  snapshot + `.heki.journal` copied out verbatim.
+#   sqlite/        Hecks::Adapters::Sqlite#save into a tmp database file,
+#                  then `sqlite3 <file> .dump` (text, reviewable; `*.db` is
+#                  gitignored anyway).
+#   d1/            Hecks::Adapters::D1#save through an in-memory SQLite
+#                  stand-in for its HTTP transport (D1 IS SQLite); rows
+#                  dumped as JSON objects, the shape D1's REST API returns.
+#   postgres/      Hecks::Adapters::Postgres#save into a scratch database;
+#                  head + `_entries` rows dumped exactly as `pg` hands them
+#                  back (every value a String, jsonb as Postgres re-renders
+#                  it). hecks_version kept; `sequence` dropped (identity).
+#   postgres_era/  Hecks::Adapters::PostgresEra#save into ANOTHER scratch
+#                  database; journal rows (era/ordinal included) and the
+#                  era-1 head_snapshot rows dumped the same way.
+#
+# NEEDS: a reachable local Postgres (`PG.connect(dbname: "postgres")`, the
+# same probe spec/support/postgres_probe.rb uses) and the `sqlite3` CLI.
+# The two scratch databases are created fresh and dropped on exit.
+#
+#   bin/regenerate_persistence_legacy_fixtures
+#
+# Regenerating is ONLY correct while the adapters still write the legacy
+# shape — once A3 routes them through the codec, re-running this would
+# replace the legacy baseline with the new one. Don't, after A3.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require_relative "../spec/support/persistence_legacy_fixture"
+require "hecks/ports/persistence/plugins/era"
+require "tmpdir"
+require "open3"
+require "pg"
+
+Fixture = PersistenceLegacyFixture
+SCRATCH = {
+  postgres:     "hecks_persistence_legacy_postgres",
+  postgres_era: "hecks_persistence_legacy_postgres_era"
+}.freeze
+
+def reset_dir(name)
+  dir = File.join(Fixture::DIR, name)
+  FileUtils.rm_rf(dir)
+  FileUtils.mkdir_p(dir)
+  dir
+end
+
+def write_json(relative, value)
+  File.write(File.join(Fixture::DIR, relative), "#{JSON.pretty_generate(value)}\n")
+end
+
+def with_scratch_databases
+  admin = PG.connect(dbname: "postgres")
+  admin.exec("SET client_min_messages = warning")
+  SCRATCH.each_value do |name|
+    admin.exec("DROP DATABASE IF EXISTS #{name} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{name}")
+  end
+  yield
+ensure
+  SCRATCH.each_value { |name| admin&.exec("DROP DATABASE IF EXISTS #{name} WITH (FORCE)") }
+  admin&.close
+end
+
+def write_heki(instances)
+  out = reset_dir("heki")
+  Dir.mktmpdir("hecks-legacy-heki-") do |tmp|
+    instances.each do |instance|
+      Hecks::Adapters::Heki.new(aggregate: instance.aggregate, settings: { dir: "." }, root: tmp).save(instance)
+      %w[heki heki.journal].each { |ext| FileUtils.cp(File.join(tmp, "#{instance.aggregate.storage_name}.#{ext}"), out) }
+    end
+  end
+end
+
+def write_sqlite(instances)
+  out = reset_dir("sqlite")
+  Dir.mktmpdir("hecks-legacy-sqlite-") do |tmp|
+    instances.each do |instance|
+      Hecks::Adapters::Sqlite.new(aggregate: instance.aggregate, settings: { database: "banking.sqlite3" }, root: tmp)
+                             .save(instance)
+    end
+    dump, status = Open3.capture2("sqlite3", File.join(tmp, "banking.sqlite3"), ".dump")
+    abort "sqlite3 .dump failed" unless status.success?
+    File.write(File.join(out, "banking.sql"), dump)
+  end
+end
+
+def write_d1(instances)
+  reset_dir("d1")
+  connection = Fixture.fake_d1_connection
+  tables = instances.flat_map do |instance|
+    Fixture.with_d1_connection(connection) do
+      Hecks::Adapters::D1.new(aggregate: instance.aggregate,
+                              settings:  { account_id: "acc", database_id: "db", api_token: "tok" }).save(instance)
+    end
+    [instance.aggregate.storage_name, "#{instance.aggregate.storage_name}_entries"]
+  end
+  write_json("d1/rows.json", tables.to_h { |table| [table, connection.execute(%(SELECT * FROM "#{table}" ORDER BY rowid))] })
+end
+
+def write_postgres(instances)
+  reset_dir("postgres")
+  rows = instances.to_h do |instance|
+    adapter = Hecks::Adapters::Postgres.new(aggregate: instance.aggregate, settings: { database: SCRATCH[:postgres] })
+    adapter.save(instance)
+    db = adapter.instance_variable_get(:@db)
+    table = PG::Connection.quote_ident(instance.aggregate.storage_name)
+    entries = PG::Connection.quote_ident("#{instance.aggregate.storage_name}_entries")
+    [instance.aggregate.storage_name, {
+      "head"    => db.exec("SELECT * FROM #{table} ORDER BY id").to_a,
+      "entries" => db.exec("SELECT aggregate_id, operation, state, mirrors FROM #{entries} ORDER BY sequence").to_a
+    }]
+  end
+  write_json("postgres/rows.json", rows)
+end
+
+def write_postgres_era(instances)
+  reset_dir("postgres_era")
+  rows = instances.to_h do |instance|
+    adapter = Hecks::Adapters::PostgresEra.new(aggregate: instance.aggregate, settings: { database: SCRATCH[:postgres_era] })
+    adapter.save(instance)
+    db = adapter.instance_variable_get(:@db)
+    journal = adapter.instance_variable_get(:@lineage).quoted_journal
+    snapshot = adapter.send(:quoted_head_snapshot)
+    [instance.aggregate.storage_name, {
+      "journal"       => db.exec_params(
+        "SELECT ordinal, era, aggregate, aggregate_id, operation, state, mirrors FROM #{journal} " \
+        "WHERE aggregate = $1 ORDER BY ordinal", [instance.aggregate.storage_name]
+      ).to_a,
+      "head_snapshot" => db.exec("SELECT id, ordinal, operation, state FROM #{snapshot} ORDER BY id").to_a
+    }]
+  end
+  write_json("postgres_era/rows.json", rows)
+end
+
+instances = Fixture.instances
+write_heki(instances)
+write_sqlite(instances)
+write_d1(instances)
+with_scratch_databases do
+  write_postgres(instances)
+  write_postgres_era(instances)
+end
+puts "wrote #{Fixture::DIR}"
