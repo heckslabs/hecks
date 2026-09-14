@@ -91,9 +91,60 @@ module RustProjection
         !CARGO_RESERVED_DOMAIN_NAMES.include?(str)
     end
 
+    # BUG#124 — AN AGGREGATE'S OWN NAME has the SAME landmine class 2 as a
+    # domain name's `pub mod #{name};` above, at a different site:
+    # `domain_generator.rb`'s own per-aggregate file (`#{aggregate[:name].
+    # downcase}.rs`) and the `pub mod #{a[:name].downcase};` line it later
+    # writes into the domain's own `mod.rs` (both keyed off the DOWNCASED
+    # name — an aggregate is conventionally declared PascalCase, e.g.
+    # `Crate`, and it's the lowercase form that collides with a keyword).
+    # An aggregate name does NOT also have to double as a Cargo feature
+    # key (only a DOMAIN's own directory name does — see
+    # `CARGO_RESERVED_DOMAIN_NAMES`'s own header), so this checks only
+    # the identifier-shape + `RUST_KEYWORDS` half of `valid_domain_mod_
+    # name?`'s own two checks, against the downcased form actually used
+    # as the module identifier — not the raw, as-declared name.
+    #
+    # Unescapable in EITHER direction: module names get no `r#name` raw-
+    # identifier escape hatch at all (same as a domain name, per `bin/
+    # project_rust`'s own comment on `target_mod_name`), and even if they
+    # did, `crate`/`self`/`super`/`Self` (`RUST_UNESCAPABLE_KEYWORDS`,
+    # below) couldn't use one anyway — raw identifiers are syntactically
+    # excluded for exactly those four. Refusing up front, the same way
+    # `valid_domain_mod_name?` already does for a domain name, is the
+    # only fix that's actually correct for the whole `RUST_KEYWORDS` set,
+    # not just the four that could never be escaped either way.
+    def valid_aggregate_mod_name?(name)
+      str = name.to_s.downcase
+      str.match?(/\A[a-z_][a-z0-9_]*\z/) && !RUST_KEYWORDS.include?(str)
+    end
+
+    # THE SUBSET OF `RUST_KEYWORDS` A RAW IDENTIFIER (`r#name`) CANNOT
+    # RESCUE AT ALL — per the Rust reference's own RAW_IDENTIFIER
+    # grammar, `r#crate`/`r#self`/`r#super`/`r#Self` are not merely
+    # wrong in some positions, they are not valid raw-identifier SYNTAX,
+    # full stop, in any position. `rust_ident_field`, below, escapes
+    # every OTHER `RUST_KEYWORDS` entry (`type` -> `r#type`, `fn` ->
+    # `r#fn`, ...) correctly — this list is what it must refuse instead
+    # of silently emitting broken source for. Not currently reachable
+    # from any real corpus field name (verified: no attribute in
+    # examples/ or qa/stress_domains/ is named any of these), but the
+    # SAME landmine class as BUG#124's aggregate-name collision, at the
+    # struct-field site rather than the module-name site — worth closing
+    # now that the mechanism is already being extended, rather than
+    # leaving a second copy of the same gap for the next generated
+    # domain to find live.
+    RUST_UNESCAPABLE_KEYWORDS = %w[crate self super Self].freeze
+
     def rust_field(name) = name.to_s
     def rust_ident_field(name)
       field = rust_field(name)
+      if RUST_UNESCAPABLE_KEYWORDS.include?(field)
+        raise "rust_ident_field(#{field.inspect}): #{field.inspect} is a Rust keyword that cannot be rescued by a raw " \
+              "identifier (r##{field} is not valid Rust syntax for crate/self/super/Self in any position) — rename " \
+              "the attribute/field in the bluebook."
+      end
+
       RUST_KEYWORDS.include?(field) ? "r##{field}" : field
     end
 
