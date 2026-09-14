@@ -146,14 +146,56 @@ module Hecks
         # state" lesson item 8's own saga_dispatch_log already learned).
         #
         # #recompute_append/#recompute_remove/#recompute_multiply/
-        # #recompute_clamp are SEPARATE, independently-written
-        # reproductions of MutationApplier#appended/#removed and
+        # #recompute_clamp/#recompute_set are SEPARATE, independently-
+        # written reproductions of EntityElement#appended_to_element/
+        # #removed_from_element/#apply_to_element's own `:set` branch and
         # CommandRules::Arithmetic#multiply/#clamp — never calling either
-        # again, which would only ever agree with itself. `:set`/
-        # `:increment`/`:decrement` are out of scope on purpose (the four
-        # "vendored, not yet upstream" ops this item exists for); a
-        # command mixing them with a recomputable op still gets the
-        # recomputable one checked.
+        # again, which would only ever agree with itself. Every one of
+        # these five reproduces the ENTITY-scoped applier specifically
+        # (`EntityElement#apply_to_element`, entity_element.rb), never
+        # the aggregate-level `MutationApplier#apply` (mutation_applier.rb)
+        # — `build_mutation_trace` (replay.rb) only ever captures an
+        # entity-owned command's own mutation in the first place (that
+        # method's own `command_name&.include?(".")` guard), so there is
+        # no aggregate-level trace for this property to ever compare
+        # against `owner_for_verb`'s own comment draws the identical
+        # aggregate/owner distinction for `:append`. `:increment`/
+        # `:decrement` remain out of scope (CommandRules::Arithmetic#
+        # arithmetic's own VO-vs-scalar branching and INT64_RANGE overflow
+        # checks are a materially larger reproduction than the other five
+        # ops combined — scoped out of this pass, not forgotten; see
+        # docs/decisions/0056); a command mixing them with a recomputable
+        # op still gets the recomputable one checked.
+        #
+        # `:set` CLOSES A REAL, SEPARATE GAP FROM THE OTHER FOUR — this is
+        # not "the fifth op of a symmetrical set." `self_consistency.rb`'s
+        # own rehydration/idempotency checks (lib/hecks/fuzzing/
+        # self_consistency.rb) can NEVER catch a bug in `EntityElement#
+        # apply_to_element`'s `:set` branch (entity_element.rb) no matter
+        # how much they run: both the "live" state they snapshot and the
+        # "rehydrated" state they fold from `Ports::Persistence::
+        # AppendOnly`'s own journal trace back to the SAME single
+        # `step_apply_mutations` call (entity_interpreter.rb) — the
+        # journal holds the FULL POST-MUTATION state, not a delta (that
+        # file's own header), so a wrong `:set` result is already baked
+        # into both sides of that comparison before either one runs. A
+        # Ruby/Rust differential check is subject to the identical
+        # structural blind spot whenever Rust's own generated `:set`
+        # handling was derived from — and so shares — the same
+        # misunderstanding Ruby's implementation has. `#recompute_set`
+        # is a GENUINELY THIRD computation, independent of both: it
+        # re-derives the expected value from the mutation's own declared
+        # `source` (an argument or a literal — matching `apply_to_
+        # element`'s own `resolve_source`, which unlike the aggregate-
+        # level `apply` never special-cases a `StateRef` source at all)
+        # and the step's own captured `args`, then compares against what
+        # the real dispatch actually stored — closing exactly the class
+        # of bug the self-consistency and (whenever Rust's codegen shares
+        # a ruby-derived misunderstanding) differential checks cannot see.
+        # `spec/fuzzing/mutation_set_self_correctness_spec.rb` proves this
+        # concretely: a defect planted directly in `EntityElement#apply_
+        # to_element`'s `:set` branch leaves `SelfConsistency.check`
+        # completely clean while `mutations_match_recompute` names it.
         #
         # `:unrecomputable` (never compared, never a finding) covers the
         # generator's own deliberate arg-malforming (`StepBuilder#malform`)
@@ -161,8 +203,11 @@ module Hecks
         # multiply/clamp need one — the SAME shape `guard_check`'s own
         # AbsentArgument false positive taught: a step whose raw material
         # doesn't fit the op's own contract is inconclusive, not a claimed
-        # mismatch.
-        RECOMPUTABLE_MUTATION_OPS = %i[append remove multiply clamp].freeze
+        # mismatch. `#recompute_set` returns it for the same reason,
+        # whenever `Value.for_attribute`'s own coercion door raises on the
+        # resolved raw source (malformed fuzzer input, never a real
+        # corpus shape).
+        RECOMPUTABLE_MUTATION_OPS = %i[append remove multiply clamp set].freeze
 
         def mutations_match_recompute(history)
           bluebooks = history.fetch(:bluebooks)
@@ -242,7 +287,67 @@ module Hecks
           when :remove   then recompute_remove(current, mutation.source, args)
           when :multiply then recompute_multiply(current, resolve_mutation_source(mutation.source, args))
           when :clamp    then recompute_clamp(current, mutation.source)
+          when :set      then recompute_set(mutation.source, args, aggregate, owner, mutation.target)
           end
+        end
+
+        # `EntityElement#apply_to_element`'s own `:set` branch (entity_
+        # element.rb), reproduced independently — NOT `MutationApplier#
+        # apply`'s aggregate-level twin (mutation_applier.rb), a
+        # DIFFERENT method with a DIFFERENT shape: `build_mutation_trace`
+        # (replay.rb) only ever captures an ENTITY-owned command's own
+        # mutation (`command_name&.include?(".")`, that method's own
+        # header), so `mutations_match_recompute` can only ever be
+        # checking `apply_to_element`'s branch, never `apply`'s — the
+        # same distinction `owner_for_verb`'s own comment already draws
+        # for `:append`. Confirmed by reading `apply_to_element` directly:
+        # its own `:set` branch resolves the source through `rules.
+        # resolve_source` UNCONDITIONALLY (no `StateRef` branch at all —
+        # unlike the aggregate-level `apply`, an entity-owned `sets` has
+        # no declared corpus site using `state(:x)` today, so this
+        # reproduces what SHIPS, not a hypothetical), reads the
+        # attribute off `entity.attribute(mutation.target)` (the OWNING
+        # entity, `owner` here — `Board`, never `Workspace`), and coerces
+        # through `Value.for_attribute(aggregate, attribute, value)`
+        # (the ROOT aggregate, for value-object NAMESPACE resolution
+        # only — `value_object_for(aggregate, attribute.type)` — the
+        # same aggregate/owner split `owner_for_verb`'s own comment
+        # explains for `recompute_append`). An EARLIER version of this
+        # method mirrored `MutationApplier#apply`'s `:set` branch instead
+        # (StateRef-aware, coerced against `aggregate.attribute` rather
+        # than `owner.attribute`) and FALSE-POSITIVED on every real
+        # entity-owned `sets` in the corpus — `NestedPieces::Workspace.
+        # Board.Label` (`sets :label`) has no `:label` attribute on
+        # `Workspace` at all, so `Value.for(aggregate, :label, raw)`
+        # silently passed the raw, uncoerced String through instead of
+        # wrapping it as `BoardLabel`, and the comparison below then
+        # disagreed with the real, correctly-coerced `after` state on
+        # every single run — caught immediately by running this against
+        # `qa/stress_domains/nested_pieces` before this comment existed,
+        # not by inspection alone.
+        #
+        # Reusing `Value.for_attribute` for the coercion step, rather
+        # than re-deriving it, is the same "coercion is its own already-
+        # guaranteed door" reasoning `GUARANTEED_BY_CONSTRUCTION` states
+        # and `#coerce_recompute_append_arg` already leans on for BUG#5 —
+        # what THIS property exists to check is the SOURCE RESOLUTION AND
+        # ROUTING (did the right raw value, from the right source, land
+        # on the right target?), not whether `Value.for_attribute` itself
+        # coerces correctly (a separate, already-enforced concern).
+        # Rescued broadly: a `:set` mutation trace is only ever captured
+        # AFTER a real, already-admitted dispatch (`Replay#build_
+        # mutation_trace`'s own header), so a raise here means this
+        # RECOMPUTATION resolved the wrong raw material, not that the
+        # real dispatch was itself malformed — `:unrecomputable`, not a
+        # crash, the same discipline every other branch in this method
+        # already follows for the generator's own deliberate malforming.
+        def recompute_set(source, args, aggregate, owner, target)
+          raw = resolve_mutation_source(source, args)
+          attribute = owner&.attribute(target)
+          coerced = attribute ? Runtime::Value.for_attribute(aggregate, attribute, raw) : raw
+          Runtime::Value.materialize(coerced)
+        rescue StandardError
+          :unrecomputable
         end
 
         # `EntityElement#appended_to_element`'s own field-mapping half,
