@@ -51,24 +51,37 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   # single crate/binary here (no per-domain Cargo feature to select)
   # makes memoizing the one build across examples safe rather than a
   # staleness risk.
-  def self.lineage_harness_binary
-    return @lineage_harness_binary if defined?(@lineage_harness_binary)
+  #
+  # A FAILED BUILD RAISES, WITH CARGO'S STDERR — never a skip. These
+  # binaries have no feature to be missing, so there is no legitimate
+  # "not declared" answer; a failure is memoized too, so every example
+  # re-raises it rather than re-paying the doomed build.
+  def self.lineage_harness_binary = host_binary("lineage_harness")
 
-    built = system("cargo", "build", "--bin", "lineage_harness",
-                   chdir: RUST_HOST_DIR, out: File::NULL, err: File::NULL)
-    binary = File.join(RUST_HOST_DIR, "target", "debug", "lineage_harness")
-    @lineage_harness_binary = built && File.executable?(binary) ? binary : nil
+  # Same memoization reasoning — one more binary out of the SAME crate.
+  def self.mint_harness_binary = host_binary("mint_harness")
+
+  def self.host_binary(name)
+    @host_binaries ||= {}
+    result = (@host_binaries[name] ||= build_host_binary(name))
+    raise result if result.is_a?(Exception)
+
+    result
   end
 
-  # Same memoization reasoning as `lineage_harness_binary` above — one
-  # more binary out of the SAME crate, built once per suite run.
-  def self.mint_harness_binary
-    return @mint_harness_binary if defined?(@mint_harness_binary)
+  def self.build_host_binary(name)
+    _stdout, stderr, status = Open3.capture3("cargo", "build", "--bin", name, chdir: RUST_HOST_DIR)
+    unless status.success?
+      return RuntimeError.new("`cargo build --bin #{name}` failed in #{RUST_HOST_DIR} " \
+                              "(exit #{status.exitstatus}):\n#{stderr}")
+    end
 
-    built = system("cargo", "build", "--bin", "mint_harness",
-                   chdir: RUST_HOST_DIR, out: File::NULL, err: File::NULL)
-    binary = File.join(RUST_HOST_DIR, "target", "debug", "mint_harness")
-    @mint_harness_binary = built && File.executable?(binary) ? binary : nil
+    binary = File.join(RUST_HOST_DIR, "target", "debug", name)
+    return binary if File.executable?(binary)
+
+    RuntimeError.new("`cargo build --bin #{name}` succeeded but left no executable at #{binary}:\n#{stderr}")
+  rescue SystemCallError => e
+    RuntimeError.new("`cargo build --bin #{name}` could not run in #{RUST_HOST_DIR}: #{e.message}")
   end
 
   def drop_scratch!(db_name, owner_role, app_role)
@@ -106,7 +119,6 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   it "reads every row lineage_harness reports, connecting as the RLS-fenced app role, matching Ruby's own " \
      "translated ground truth exactly" do
     binary = self.class.lineage_harness_binary
-    skip "cargo build --bin lineage_harness failed" unless binary
 
     suffix = SecureRandom.hex(4)
     db_name = "rust_host_lineage_#{suffix}"
@@ -142,7 +154,6 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
 
   it "writes a row through lineage_harness's own generic append_lineage_mutation, and Ruby reads it back exactly as written" do
     binary = self.class.lineage_harness_binary
-    skip "cargo build --bin lineage_harness failed" unless binary
 
     suffix = SecureRandom.hex(4)
     db_name = "rust_host_lineage_write_#{suffix}"
@@ -206,7 +217,6 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   # rubocop:disable-next RSpec/ExampleLength
   it "reads a real corpus aggregate (Pizzas::Order) back exactly as Ruby wrote it, through the RLS-fenced app role" do
     binary = self.class.lineage_harness_binary
-    skip "cargo build --bin lineage_harness failed" unless binary
 
     suffix = SecureRandom.hex(4)
     db_name = "rust_host_lineage_pizzas_#{suffix}"
@@ -280,7 +290,6 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   it "reads a compute-migrated era back exactly as Postgres's own compiled SQL produced it, minted only " \
      "because a real, matching approval was recorded first" do
     binary = self.class.lineage_harness_binary
-    skip "cargo build --bin lineage_harness failed" unless binary
 
     suffix = SecureRandom.hex(4)
     db_name = "rust_host_lineage_compute_#{suffix}"
@@ -322,9 +331,7 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   # for this example to diff directly.
   it "mints the same edge independently in Ruby and in Rust and produces byte-identical account_head views" do
     mint_binary = self.class.mint_harness_binary
-    skip "cargo build --bin mint_harness failed" unless mint_binary
     read_binary = self.class.lineage_harness_binary
-    skip "cargo build --bin lineage_harness failed" unless read_binary
 
     stdout, stderr, status = Open3.capture3("ruby", MINT_VIA_RUST_SCRIPT, mint_binary, read_binary)
     raise "#{File.basename(MINT_VIA_RUST_SCRIPT)} failed:\nstdout:\n#{stdout}\nstderr:\n#{stderr}" unless status.success?

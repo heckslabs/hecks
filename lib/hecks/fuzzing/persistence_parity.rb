@@ -1,5 +1,6 @@
 require "json"
 require_relative "replay"
+require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
@@ -128,14 +129,11 @@ module Hecks
         [{ field: "refusals", left => l, right => r }]
       end
 
-      # `instances_at:` dropped from every entry — the same reason
-      # `diff_ruby_vs_rust` excludes it (`row.except(:instances_at)`):
-      # it is a full state snapshot taken for the QUERY oracle's own use,
-      # already covered by `diff_instances` above, and would make every
-      # query-step entry re-litigate the SAME instances divergence a
-      # second time under a different field name.
+      # `Nondeterministic`'s `query_row` group dropped from every entry —
+      # the same group `Differential.diff` drops, for the reason declared
+      # there (already covered by `diff_instances` above).
       def diff_queries(left_result, right_result, left, right)
-        strip = ->(rows) { rows.map { |row| row.except(:instances_at) } }
+        strip = ->(rows) { rows.map { |row| Nondeterministic.strip(row, :query_row) } }
         l = as_json(strip.call(left_result[:queries]))
         r = as_json(strip.call(right_result[:queries]))
         return [] if l == r
