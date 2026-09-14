@@ -150,7 +150,7 @@ if !absent.is_empty() {
         ("declared", "amount"),
     ])));
 }
- } let parent_id = crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json)?; let element_id = crate::generated::ledger_ordering::folder::Slip::extract_id(facts_json)?; let element_wants = crate::generated::ledger_ordering::folder::Slip::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let parent_id = crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on a Folder's Slip — pass reference.value:".to_string()))?; let element_id = crate::generated::ledger_ordering::folder::Slip::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on one Slip — pass reference.value:".to_string()))?; let element_wants = crate::generated::ledger_ordering::folder::Slip::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::ledger_ordering::folder::SlipAmendEntityArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Amend", caller_role, caller_actor_id, &*store, QUERIES)?;
