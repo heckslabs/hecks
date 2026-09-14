@@ -200,10 +200,13 @@ RSpec.describe "bin/qa_open_pr", :io do
     expect(improvements_on_file).to eq([[777, "landed", head, "ANGLE-1"]])
   end
 
-  # THE CAP — `PR_CAP_PER_DAY` is 0 (uncapped) in the real bluebook, and
-  # the fixture symlinks the real bluebook. So this one example boots a
-  # DERIVED copy with the dial set to 1 — derived at run time from the
-  # real file, substituting one line, so it cannot quietly drift from it
+  # THE CAP — `pr_cap_per_day` is 0 (uncapped) in the real `qa/settings.
+  # yml`. So this one example boots the ordinary fixture ledger (its
+  # bluebook still resolves `QaSettings::DEFAULT_PATH` like every real
+  # caller — see that class's own header on why it never varies by
+  # `__dir__`) but points `HECKS_QA_SETTINGS_PATH` at a DERIVED settings
+  # file with the dial set to 1 — derived at run time from the real
+  # file, substituting one line, so it cannot quietly drift from it
   # either — and proves the count is read from `OpenedSince`.
   it "refuses one more PR than PR_CAP_PER_DAY allows for today" do
     on_branch("qa/capped")
@@ -212,16 +215,14 @@ RSpec.describe "bin/qa_open_pr", :io do
     QualityControl::Improvement.open!(number: { value: 1 }, url: { value: "u" }, branch: { value: "qa/earlier" },
                                       title: { value: "earlier today" }, now: { value: Time.now.to_i })
 
-    capped_dir = File.join(Dir.mktmpdir("qa_open_pr_capped"), "bluebook")
-    FileUtils.mkdir_p(capped_dir)
-    real = File.read(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"))
-    expect(real).to include("PR_CAP_PER_DAY = 0")
-    File.write(File.join(capped_dir, "quality_control.bluebook"), real.sub("PR_CAP_PER_DAY = 0", "PR_CAP_PER_DAY = 1"))
-    FileUtils.cp(File.join(@ledger.dir, "quality_control.hecksagon"), capped_dir)
-    FileUtils.cp(File.join(@ledger.dir, "quality_control.world"), capped_dir)
+    capped_settings = File.join(Dir.mktmpdir("qa_open_pr_capped"), "settings.yml")
+    real = File.read(File.join(InMemoryDomain::ROOT, "qa/settings.yml"))
+    expect(real).to include("pr_cap_per_day: 0")
+    File.write(capped_settings, real.sub("pr_cap_per_day: 0", "pr_cap_per_day: 1"))
 
     env = { "PATH" => "#{@shim_dir}:#{ENV.fetch('PATH')}", "QA_REPO_DIR" => @repo,
-            "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state, "QA_SWEEP_DOMAIN_DIR" => capped_dir }
+            "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state,
+            "HECKS_QA_SETTINGS_PATH" => capped_settings }
     _stdout, stderr, status = @ledger.run("qa_open_pr", "--bug", "BUG#1", "--title", "one too many", env: env)
 
     expect(status.exitstatus).to eq(1)

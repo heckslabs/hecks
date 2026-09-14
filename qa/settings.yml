@@ -1,0 +1,101 @@
+# THE hecks_qa PRACTICE'S OWN DIALS — THE EDITABLE SOURCE OF TRUTH.
+#
+# A human changes a number here and reviews the diff, exactly like
+# editing a Ruby constant used to mean — see `qa/bluebook/
+# quality_control.bluebook`'s own header ("THE PRACTICE'S OWN DIALS")
+# for the full reasoning on why these are data at all, and each key
+# below's matching `QualityControlDials::<CONSTANT>` comment in that
+# same file for what it does, who reads it, and why its value is what
+# it is. This file does not repeat that prose — only the values live
+# here, so there is exactly one source of truth for each number and
+# exactly one source of truth for the reasoning behind it.
+#
+# Loaded by `Hecks::Fuzzing::QaSettings` (lib/hecks/fuzzing/qa_settings.rb),
+# which fails loudly on a missing, extra, or mistyped key rather than
+# letting a bad edit here reach a script as a silent `nil`.
+#
+# `automated_engineer` is deliberately NOT a key here — it stays a bare
+# Ruby literal in the bluebook itself. See that constant's own comment
+# for why: `spec/quality_control_spec.rb` pins it against the `WaivedBy`
+# invariant's own hardcoded "qa_sweep" literal, and moving it here would
+# add a second place that pin would have to reach into.
+
+cadence_seconds: 0
+pr_cap_per_day: 0
+
+widening_tiers:
+  - { upto: 4,    seeds: 10, steps: 25 }
+  - { upto: 19,   seeds: 25, steps: 50 }
+  - { upto: .inf, seeds: 50, steps: 100 }
+
+sweep_max_parallel: 4
+liveness_fallback_seconds: 1500
+
+draft_only: false
+auto_merge: true
+branch_prefix: "qa/"
+
+adversarial_fraction: 0.3
+guided_generation: true
+corpus_splice_probability: 0.0
+favor_rare_verbs: 3
+self_consistency_checks: true
+shrink_budget: 200
+
+yield_weight_seconds: 1800
+yield_decay_percent: 50
+rotation_stale_floor_seconds: 21600
+
+persistence_parity_seed_cap: 5
+concurrency_seed_cap: 3
+
+adapter_parity_pairs:
+  persistence_parity:
+    left: memory
+    right: postgres_era
+  adapter_parity_sqlite:
+    left: memory
+    right: sqlite
+
+modes:
+  differential: true
+  ruby_only: true
+  self_consistency: true
+  properties_in_differential: true
+  structural_skip_report: true
+  adapter_parity_sqlite: false
+  persistence_parity: true
+  adapter_parity_postgres: false
+  era_boundary: false
+  concurrency: false
+  wasm_front: false
+
+role_draw_probability: 0.25
+dry_run_fraction: 0.10
+
+generated_domains_per_tick: 2
+generated_domains_rust: true
+generated_domain_seeds: 5
+
+structural_refusal_boundary:
+  - cursor
+  - consistency
+  - freshness
+  - inspection
+  - index_hints
+  - authorization
+  - null_semantics
+  - scope_to
+  - order_by
+  - limit
+  - offset
+  - no_wheres
+  - reference_hop_where
+  - where_nested_field
+  - where_none_in_state
+  - where_literal
+  - wheres
+  - group_by
+  - count
+  - median_field
+  - rootless
