@@ -25,10 +25,10 @@ it, except for one law they must uphold (C8.4).
 
 ## §1 The dispatch pipeline
 
-- **C1.1 (settled)** A command dispatch runs the sixteen steps of
+- **C1.1 (settled)** A command dispatch runs the seventeen steps of
   `Vocabulary::AggregateDispatchOrder`
   (`lib/hecks/language/bluebook/vocabulary.bluebook`), in that order:
-  refuse_unknown_arguments, refuse_absent_arguments, normalize_args,
+  decode_arguments, refuse_unknown_arguments, refuse_absent_arguments, normalize_args,
   refuse_role_mismatch, resolve_references, hydrate, enforce_givens,
   admissible_transition, assign_creation_attributes, apply_mutations,
   advance_lifecycle, delegate_to_entity, enforce_ensures,

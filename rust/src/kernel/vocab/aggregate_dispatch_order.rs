@@ -5,6 +5,7 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AggregateStep {
+    DecodeArguments,
     RefuseUnknownArguments,
     RefuseAbsentArguments,
     NormalizeArgs,
@@ -25,7 +26,8 @@ pub enum AggregateStep {
 
 impl AggregateStep {
     /// The declared step order, first to last.
-    pub const ORDER: [AggregateStep; 16] = [
+    pub const ORDER: [AggregateStep; 17] = [
+        AggregateStep::DecodeArguments,
         AggregateStep::RefuseUnknownArguments,
         AggregateStep::RefuseAbsentArguments,
         AggregateStep::NormalizeArgs,
@@ -47,6 +49,7 @@ impl AggregateStep {
     /// The row's declared `step`.
     pub fn step(&self) -> &'static str {
         match self {
+            AggregateStep::DecodeArguments => "decode_arguments",
             AggregateStep::RefuseUnknownArguments => "refuse_unknown_arguments",
             AggregateStep::RefuseAbsentArguments => "refuse_absent_arguments",
             AggregateStep::NormalizeArgs => "normalize_args",
@@ -74,22 +77,23 @@ impl AggregateStep {
     /// This step's index in `ORDER`.
     pub fn position(&self) -> usize {
         match self {
-            AggregateStep::RefuseUnknownArguments => 0,
-            AggregateStep::RefuseAbsentArguments => 1,
-            AggregateStep::NormalizeArgs => 2,
-            AggregateStep::RefuseRoleMismatch => 3,
-            AggregateStep::ResolveReferences => 4,
-            AggregateStep::Hydrate => 5,
-            AggregateStep::EnforceGivens => 6,
-            AggregateStep::AdmissibleTransition => 7,
-            AggregateStep::AssignCreationAttributes => 8,
-            AggregateStep::ApplyMutations => 9,
-            AggregateStep::AdvanceLifecycle => 10,
-            AggregateStep::DelegateToEntity => 11,
-            AggregateStep::EnforceEnsures => 12,
-            AggregateStep::EnforceInvariants => 13,
-            AggregateStep::Save => 14,
-            AggregateStep::Emit => 15,
+            AggregateStep::DecodeArguments => 0,
+            AggregateStep::RefuseUnknownArguments => 1,
+            AggregateStep::RefuseAbsentArguments => 2,
+            AggregateStep::NormalizeArgs => 3,
+            AggregateStep::RefuseRoleMismatch => 4,
+            AggregateStep::ResolveReferences => 5,
+            AggregateStep::Hydrate => 6,
+            AggregateStep::EnforceGivens => 7,
+            AggregateStep::AdmissibleTransition => 8,
+            AggregateStep::AssignCreationAttributes => 9,
+            AggregateStep::ApplyMutations => 10,
+            AggregateStep::AdvanceLifecycle => 11,
+            AggregateStep::DelegateToEntity => 12,
+            AggregateStep::EnforceEnsures => 13,
+            AggregateStep::EnforceInvariants => 14,
+            AggregateStep::Save => 15,
+            AggregateStep::Emit => 16,
         }
     }
 }
