@@ -388,6 +388,17 @@ jobs:
           bundle exec bin/project_rust qa/stress_domains/waybill
           git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
 
+      # The reserved-name tables (RustReservedWord/CargoReservedName in
+      # vocabulary.bluebook) are read by rust/project/naming.rb through
+      # lib/hecks/vocabulary.rb and by hecks-codegen through the generated
+      # rust/codegen/src/reserved_names.rs. Regenerate both and refuse a
+      # diff, so the two generators can't escape different words.
+      - name: "vocabulary: regenerate reserved-name tables, fail on drift"
+        run: |
+          bundle exec bin/project_vocabulary
+          bundle exec bin/project_reserved_names
+          git diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs
+
       # THE COVERAGE CHECKER, PER DOMAIN — a different question than
       # `rspec_rust_io`'s "Build the Rust conformance binary" and rspec
       # steps ask. Those check "did Ruby and Rust agree on this script";

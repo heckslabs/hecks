@@ -392,5 +392,34 @@ Hecks.bluebook "Bluebook" do
       member name: "tel",      pattern: 'phone|\btel(ephone)?\b',                                 resolves_to: "html_type"
       member name: "textarea", pattern: '\b(text|body|note|notes|description|message|comment)\b', resolves_to: "kind"
     end
+
+    # The Rust keywords (strict + reserved) a generated identifier must not
+    # collide with — RustProjection::Projector::RUST_KEYWORDS (rust/project/
+    # naming.rb) reads this, and bin/project_reserved_names projects it into
+    # rust/codegen/src/reserved_names.rs, so the Ruby and Rust generators
+    # escape (a field: `r#type`) or refuse (a module name) the SAME words.
+    # Declared once here because the two hand-typed copies were held equal
+    # by nothing but a comment.
+    value_object "RustReservedWord" do
+      attribute :word, String,
+                one_of: ["as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false",
+                         "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub",
+                         "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true", "type",
+                         "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final", "macro",
+                         "override", "priv", "typeof", "unsized", "virtual", "yield", "try"]
+    end
+
+    # The keys a domain's own name must not take, because that name doubles
+    # as a Cargo `[features]` key: every key rust/Cargo.toml already uses
+    # outside `[features]` (`[package]`, `[lib]`, `[[bin]]`) plus `default`,
+    # which Cargo reserves for the auto-enabled feature set. Read by
+    # RustProjection::Projector::CARGO_RESERVED_DOMAIN_NAMES and projected by
+    # bin/project_reserved_names, same as RustReservedWord above.
+    value_object "CargoReservedName" do
+      attribute :name, String,
+                one_of: ["name", "version", "edition", "path", "authors", "license", "description", "default",
+                         "features", "package", "lib", "bin", "dependencies", "dev-dependencies",
+                         "build-dependencies", "workspace"]
+    end
   end
 end

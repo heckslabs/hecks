@@ -43,6 +43,7 @@ mod reactions;
 mod read_models;
 mod reference_specs;
 mod registry;
+mod reserved_names;
 mod shared;
 mod types;
 

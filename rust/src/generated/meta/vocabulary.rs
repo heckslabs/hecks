@@ -1283,6 +1283,347 @@ impl FieldHint {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RustReservedWord {
+    As,
+    Break,
+    Const,
+    Continue,
+    Crate,
+    Dyn,
+    Else,
+    Enum,
+    Extern,
+    False,
+    Fn,
+    For,
+    If,
+    Impl,
+    In,
+    Let,
+    Loop,
+    Match,
+    Mod,
+    Move,
+    Mut,
+    Pub,
+    Ref,
+    Return,
+    Self,
+    Self,
+    Static,
+    Struct,
+    Super,
+    Trait,
+    True,
+    Type,
+    Unsafe,
+    Use,
+    Where,
+    While,
+    Abstract,
+    Become,
+    Box,
+    Do,
+    Final,
+    Macro,
+    Override,
+    Priv,
+    Typeof,
+    Unsized,
+    Virtual,
+    Yield,
+    Try,
+}
+
+impl crate::kernel::Fielded for RustReservedWord {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { RustReservedWord::As => "as".to_string(), RustReservedWord::Break => "break".to_string(), RustReservedWord::Const => "const".to_string(), RustReservedWord::Continue => "continue".to_string(), RustReservedWord::Crate => "crate".to_string(), RustReservedWord::Dyn => "dyn".to_string(), RustReservedWord::Else => "else".to_string(), RustReservedWord::Enum => "enum".to_string(), RustReservedWord::Extern => "extern".to_string(), RustReservedWord::False => "false".to_string(), RustReservedWord::Fn => "fn".to_string(), RustReservedWord::For => "for".to_string(), RustReservedWord::If => "if".to_string(), RustReservedWord::Impl => "impl".to_string(), RustReservedWord::In => "in".to_string(), RustReservedWord::Let => "let".to_string(), RustReservedWord::Loop => "loop".to_string(), RustReservedWord::Match => "match".to_string(), RustReservedWord::Mod => "mod".to_string(), RustReservedWord::Move => "move".to_string(), RustReservedWord::Mut => "mut".to_string(), RustReservedWord::Pub => "pub".to_string(), RustReservedWord::Ref => "ref".to_string(), RustReservedWord::Return => "return".to_string(), RustReservedWord::Self => "self".to_string(), RustReservedWord::Self => "Self".to_string(), RustReservedWord::Static => "static".to_string(), RustReservedWord::Struct => "struct".to_string(), RustReservedWord::Super => "super".to_string(), RustReservedWord::Trait => "trait".to_string(), RustReservedWord::True => "true".to_string(), RustReservedWord::Type => "type".to_string(), RustReservedWord::Unsafe => "unsafe".to_string(), RustReservedWord::Use => "use".to_string(), RustReservedWord::Where => "where".to_string(), RustReservedWord::While => "while".to_string(), RustReservedWord::Abstract => "abstract".to_string(), RustReservedWord::Become => "become".to_string(), RustReservedWord::Box => "box".to_string(), RustReservedWord::Do => "do".to_string(), RustReservedWord::Final => "final".to_string(), RustReservedWord::Macro => "macro".to_string(), RustReservedWord::Override => "override".to_string(), RustReservedWord::Priv => "priv".to_string(), RustReservedWord::Typeof => "typeof".to_string(), RustReservedWord::Unsized => "unsized".to_string(), RustReservedWord::Virtual => "virtual".to_string(), RustReservedWord::Yield => "yield".to_string(), RustReservedWord::Try => "try".to_string(), }))),
+            _ => None,
+        }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+impl RustReservedWord {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            RustReservedWord::As => "as",
+            RustReservedWord::Break => "break",
+            RustReservedWord::Const => "const",
+            RustReservedWord::Continue => "continue",
+            RustReservedWord::Crate => "crate",
+            RustReservedWord::Dyn => "dyn",
+            RustReservedWord::Else => "else",
+            RustReservedWord::Enum => "enum",
+            RustReservedWord::Extern => "extern",
+            RustReservedWord::False => "false",
+            RustReservedWord::Fn => "fn",
+            RustReservedWord::For => "for",
+            RustReservedWord::If => "if",
+            RustReservedWord::Impl => "impl",
+            RustReservedWord::In => "in",
+            RustReservedWord::Let => "let",
+            RustReservedWord::Loop => "loop",
+            RustReservedWord::Match => "match",
+            RustReservedWord::Mod => "mod",
+            RustReservedWord::Move => "move",
+            RustReservedWord::Mut => "mut",
+            RustReservedWord::Pub => "pub",
+            RustReservedWord::Ref => "ref",
+            RustReservedWord::Return => "return",
+            RustReservedWord::Self => "self",
+            RustReservedWord::Self => "Self",
+            RustReservedWord::Static => "static",
+            RustReservedWord::Struct => "struct",
+            RustReservedWord::Super => "super",
+            RustReservedWord::Trait => "trait",
+            RustReservedWord::True => "true",
+            RustReservedWord::Type => "type",
+            RustReservedWord::Unsafe => "unsafe",
+            RustReservedWord::Use => "use",
+            RustReservedWord::Where => "where",
+            RustReservedWord::While => "while",
+            RustReservedWord::Abstract => "abstract",
+            RustReservedWord::Become => "become",
+            RustReservedWord::Box => "box",
+            RustReservedWord::Do => "do",
+            RustReservedWord::Final => "final",
+            RustReservedWord::Macro => "macro",
+            RustReservedWord::Override => "override",
+            RustReservedWord::Priv => "priv",
+            RustReservedWord::Typeof => "typeof",
+            RustReservedWord::Unsized => "unsized",
+            RustReservedWord::Virtual => "virtual",
+            RustReservedWord::Yield => "yield",
+            RustReservedWord::Try => "try",
+        };
+        crate::kernel::Json::obj(vec![("word", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // A `one_of` closed set is admission-checked on the RAW offered
+        // value, no shape check first — `Value::Admission#admit_member`
+        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
+        // the sole attribute's slot (a bare Array, a Bool, anything), never
+        // on a value already known to be a String. `v.dig` gives the same
+        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
+        // `{"word": ...}` shape's inner value if `v` is an
+        // object, or `v` itself untouched if it isn't (matching
+        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
+        // whatever). Only THEN is admission checked — a non-member value
+        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
+        // never `TypeMismatch` for a shape a member set never declared.
+        //
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // is not "a shape a member set never declared" the way a present-
+        // but-wrong value is; it is `Value::Coercion#check_required_fields`
+        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // `admit_member` in `validate!`'s own order. A caller-supplied
+        // `null` for a REQUIRED command argument of this type is translated
+        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
+        // an EMPTY object — "build the value object from no fields at all",
+        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
+        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
+        // genuinely indistinguishable, at this point, from a Hash-shaped
+        // caller argument that simply never named the sole field's own key
+        // either way: BOTH are that field's OWN absence, not a member
+        // mismatch.
+        // Before this fix, that absence still fell through to the admission
+        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
+        // a real member), so a required-but-omitted closed-set argument
+        // always misreported `InvariantViolation` where Ruby raises
+        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
+        // the same `numeric_field` wording `required_field_expr` already
+        // gives every OTHER composite field's own missing-key case).
+        let candidate = v.dig("word").cloned().unwrap_or(crate::kernel::Json::Null);
+        if matches!(candidate, crate::kernel::Json::Null) {
+            return Err(crate::kernel::Refusal::TypeMismatch("RustReservedWord.word expects String, got nil".to_string()));
+        }
+        match candidate.ruby_to_s().as_str() {
+            "as" => Ok(RustReservedWord::As),
+            "break" => Ok(RustReservedWord::Break),
+            "const" => Ok(RustReservedWord::Const),
+            "continue" => Ok(RustReservedWord::Continue),
+            "crate" => Ok(RustReservedWord::Crate),
+            "dyn" => Ok(RustReservedWord::Dyn),
+            "else" => Ok(RustReservedWord::Else),
+            "enum" => Ok(RustReservedWord::Enum),
+            "extern" => Ok(RustReservedWord::Extern),
+            "false" => Ok(RustReservedWord::False),
+            "fn" => Ok(RustReservedWord::Fn),
+            "for" => Ok(RustReservedWord::For),
+            "if" => Ok(RustReservedWord::If),
+            "impl" => Ok(RustReservedWord::Impl),
+            "in" => Ok(RustReservedWord::In),
+            "let" => Ok(RustReservedWord::Let),
+            "loop" => Ok(RustReservedWord::Loop),
+            "match" => Ok(RustReservedWord::Match),
+            "mod" => Ok(RustReservedWord::Mod),
+            "move" => Ok(RustReservedWord::Move),
+            "mut" => Ok(RustReservedWord::Mut),
+            "pub" => Ok(RustReservedWord::Pub),
+            "ref" => Ok(RustReservedWord::Ref),
+            "return" => Ok(RustReservedWord::Return),
+            "self" => Ok(RustReservedWord::Self),
+            "Self" => Ok(RustReservedWord::Self),
+            "static" => Ok(RustReservedWord::Static),
+            "struct" => Ok(RustReservedWord::Struct),
+            "super" => Ok(RustReservedWord::Super),
+            "trait" => Ok(RustReservedWord::Trait),
+            "true" => Ok(RustReservedWord::True),
+            "type" => Ok(RustReservedWord::Type),
+            "unsafe" => Ok(RustReservedWord::Unsafe),
+            "use" => Ok(RustReservedWord::Use),
+            "where" => Ok(RustReservedWord::Where),
+            "while" => Ok(RustReservedWord::While),
+            "abstract" => Ok(RustReservedWord::Abstract),
+            "become" => Ok(RustReservedWord::Become),
+            "box" => Ok(RustReservedWord::Box),
+            "do" => Ok(RustReservedWord::Do),
+            "final" => Ok(RustReservedWord::Final),
+            "macro" => Ok(RustReservedWord::Macro),
+            "override" => Ok(RustReservedWord::Override),
+            "priv" => Ok(RustReservedWord::Priv),
+            "typeof" => Ok(RustReservedWord::Typeof),
+            "unsized" => Ok(RustReservedWord::Unsized),
+            "virtual" => Ok(RustReservedWord::Virtual),
+            "yield" => Ok(RustReservedWord::Yield),
+            "try" => Ok(RustReservedWord::Try),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "RustReservedWord"),
+                ("admitted", "\"as\", \"break\", \"const\", \"continue\", \"crate\", \"dyn\", \"else\", \"enum\", \"extern\", \"false\", \"fn\", \"for\", \"if\", \"impl\", \"in\", \"let\", \"loop\", \"match\", \"mod\", \"move\", \"mut\", \"pub\", \"ref\", \"return\", \"self\", \"Self\", \"static\", \"struct\", \"super\", \"trait\", \"true\", \"type\", \"unsafe\", \"use\", \"where\", \"while\", \"abstract\", \"become\", \"box\", \"do\", \"final\", \"macro\", \"override\", \"priv\", \"typeof\", \"unsized\", \"virtual\", \"yield\", \"try\""),
+                ("offered", &candidate.inspect()),
+            ]))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CargoReservedName {
+    Name,
+    Version,
+    Edition,
+    Path,
+    Authors,
+    License,
+    Description,
+    Default,
+    Features,
+    Package,
+    Lib,
+    Bin,
+    Dependencies,
+    DevDependencies,
+    BuildDependencies,
+    Workspace,
+}
+
+impl crate::kernel::Fielded for CargoReservedName {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { CargoReservedName::Name => "name".to_string(), CargoReservedName::Version => "version".to_string(), CargoReservedName::Edition => "edition".to_string(), CargoReservedName::Path => "path".to_string(), CargoReservedName::Authors => "authors".to_string(), CargoReservedName::License => "license".to_string(), CargoReservedName::Description => "description".to_string(), CargoReservedName::Default => "default".to_string(), CargoReservedName::Features => "features".to_string(), CargoReservedName::Package => "package".to_string(), CargoReservedName::Lib => "lib".to_string(), CargoReservedName::Bin => "bin".to_string(), CargoReservedName::Dependencies => "dependencies".to_string(), CargoReservedName::DevDependencies => "dev-dependencies".to_string(), CargoReservedName::BuildDependencies => "build-dependencies".to_string(), CargoReservedName::Workspace => "workspace".to_string(), }))),
+            _ => None,
+        }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+impl CargoReservedName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            CargoReservedName::Name => "name",
+            CargoReservedName::Version => "version",
+            CargoReservedName::Edition => "edition",
+            CargoReservedName::Path => "path",
+            CargoReservedName::Authors => "authors",
+            CargoReservedName::License => "license",
+            CargoReservedName::Description => "description",
+            CargoReservedName::Default => "default",
+            CargoReservedName::Features => "features",
+            CargoReservedName::Package => "package",
+            CargoReservedName::Lib => "lib",
+            CargoReservedName::Bin => "bin",
+            CargoReservedName::Dependencies => "dependencies",
+            CargoReservedName::DevDependencies => "dev-dependencies",
+            CargoReservedName::BuildDependencies => "build-dependencies",
+            CargoReservedName::Workspace => "workspace",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // A `one_of` closed set is admission-checked on the RAW offered
+        // value, no shape check first — `Value::Admission#admit_member`
+        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
+        // the sole attribute's slot (a bare Array, a Bool, anything), never
+        // on a value already known to be a String. `v.dig` gives the same
+        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
+        // `{"name": ...}` shape's inner value if `v` is an
+        // object, or `v` itself untouched if it isn't (matching
+        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
+        // whatever). Only THEN is admission checked — a non-member value
+        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
+        // never `TypeMismatch` for a shape a member set never declared.
+        //
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // is not "a shape a member set never declared" the way a present-
+        // but-wrong value is; it is `Value::Coercion#check_required_fields`
+        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // `admit_member` in `validate!`'s own order. A caller-supplied
+        // `null` for a REQUIRED command argument of this type is translated
+        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
+        // an EMPTY object — "build the value object from no fields at all",
+        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
+        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
+        // genuinely indistinguishable, at this point, from a Hash-shaped
+        // caller argument that simply never named the sole field's own key
+        // either way: BOTH are that field's OWN absence, not a member
+        // mismatch.
+        // Before this fix, that absence still fell through to the admission
+        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
+        // a real member), so a required-but-omitted closed-set argument
+        // always misreported `InvariantViolation` where Ruby raises
+        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
+        // the same `numeric_field` wording `required_field_expr` already
+        // gives every OTHER composite field's own missing-key case).
+        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
+        if matches!(candidate, crate::kernel::Json::Null) {
+            return Err(crate::kernel::Refusal::TypeMismatch("CargoReservedName.name expects String, got nil".to_string()));
+        }
+        match candidate.ruby_to_s().as_str() {
+            "name" => Ok(CargoReservedName::Name),
+            "version" => Ok(CargoReservedName::Version),
+            "edition" => Ok(CargoReservedName::Edition),
+            "path" => Ok(CargoReservedName::Path),
+            "authors" => Ok(CargoReservedName::Authors),
+            "license" => Ok(CargoReservedName::License),
+            "description" => Ok(CargoReservedName::Description),
+            "default" => Ok(CargoReservedName::Default),
+            "features" => Ok(CargoReservedName::Features),
+            "package" => Ok(CargoReservedName::Package),
+            "lib" => Ok(CargoReservedName::Lib),
+            "bin" => Ok(CargoReservedName::Bin),
+            "dependencies" => Ok(CargoReservedName::Dependencies),
+            "dev-dependencies" => Ok(CargoReservedName::DevDependencies),
+            "build-dependencies" => Ok(CargoReservedName::BuildDependencies),
+            "workspace" => Ok(CargoReservedName::Workspace),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "CargoReservedName"),
+                ("admitted", "\"name\", \"version\", \"edition\", \"path\", \"authors\", \"license\", \"description\", \"default\", \"features\", \"package\", \"lib\", \"bin\", \"dependencies\", \"dev-dependencies\", \"build-dependencies\", \"workspace\""),
+                ("offered", &candidate.inspect()),
+            ]))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Vocabulary {
     pub name: Option<VocabularyName>,

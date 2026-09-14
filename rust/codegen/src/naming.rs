@@ -63,11 +63,9 @@ pub fn dispatch_fn_name(cmd: &str) -> String {
     out.to_lowercase()
 }
 
-pub const RUST_KEYWORDS: &[&str] = &[
-    "as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
-    "return", "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final", "macro", "override", "priv",
-    "typeof", "unsized", "virtual", "yield", "try",
-];
+/// Generated from the `RustReservedWord` vocabulary by
+/// `bin/project_reserved_names` — the same table `naming.rb` reads.
+pub use crate::reserved_names::RUST_KEYWORDS;
 
 pub fn rust_field(name: &str) -> String {
     name.to_string()

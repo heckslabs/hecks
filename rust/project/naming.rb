@@ -1,8 +1,10 @@
+require "hecks/vocabulary"
+
 module RustProjection
   module Projector
     module_function
 
-    SCALAR      = { "String" => "String", "Integer" => "i64", "Float" => "f64" }.freeze
+    SCALAR     = { "String" => "String", "Integer" => "i64", "Float" => "f64" }.freeze
     SCALAR_KIND = { "String" => :string, "Integer" => :int, "Float" => :float }.freeze
 
     # `Reference<X>` is not a scalar per the IR's own vocabulary, but it
@@ -51,12 +53,11 @@ module RustProjection
     # found live: the self-hosted grammar's own `Attribute`/`Argument`
     # aggregates declare a field literally named `type`, because that is
     # what it is.
-    RUST_KEYWORDS = %w[
-      as break const continue crate dyn else enum extern false fn for if impl
-      in let loop match mod move mut pub ref return self Self static struct
-      super trait true type unsafe use where while abstract become box do
-      final macro override priv typeof unsized virtual yield try
-    ].freeze
+    #
+    # Declared once, as the `RustReservedWord` vocabulary (language/bluebook/
+    # vocabulary.bluebook) — the same table bin/project_reserved_names
+    # projects into hecks-codegen's `reserved_names.rs`.
+    RUST_KEYWORDS = Hecks::Vocabulary.fetch("RustReservedWord")
 
     # A DOMAIN'S OWN NAME (`File.basename(domain)`, `bin/project_rust`) has
     # to double as THREE things at once: a directory name, a bare Rust
@@ -73,11 +74,8 @@ module RustProjection
     # comment), so a domain named one of these used to silently never
     # get its own feature line while still being set as `default`,
     # producing a Cargo.toml that referenced an undeclared feature.
-    CARGO_RESERVED_DOMAIN_NAMES = %w[
-      name version edition path authors license description
-      default features package lib bin dependencies
-      dev-dependencies build-dependencies workspace
-    ].freeze
+    # Declared once, as the `CargoReservedName` vocabulary.
+    CARGO_RESERVED_DOMAIN_NAMES = Hecks::Vocabulary.fetch("CargoReservedName")
 
     # TRUE exactly when `name` is safe to use, unescaped, as all three of
     # the above at once. Plain lowercase-identifier shape (no leading
