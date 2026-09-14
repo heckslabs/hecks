@@ -44,6 +44,70 @@ RSpec.describe RustProjection::Projector do
     end
   end
 
+  # BUG#124 -- an aggregate's own name has the same landmine class 2 as a
+  # domain name's `pub mod #{name};` above, at a different site
+  # (domain_generator.rb's per-aggregate file + `pub mod
+  # #{a[:name].downcase};` in the domain's own mod.rs), keyed off the
+  # DOWNCASED form since an aggregate is conventionally declared
+  # PascalCase ("Crate") and it's the lowercase module identifier that
+  # collides.
+  describe ".valid_aggregate_mod_name?" do
+    it "accepts ordinary PascalCase aggregate names" do
+      %w[Roster Pizza MyAggregate A].each do |name|
+        expect(described_class.valid_aggregate_mod_name?(name)).to be(true), "expected #{name.inspect} to be valid"
+      end
+    end
+
+    # THE BUG#124 LANDMINE ITSELF -- downcased, each of these becomes a
+    # Rust keyword as a bare module identifier (`pub mod crate;`),
+    # exactly the shape `bin/qa_generated_domains --rust` found live
+    # against qa/stress_domains/generated_keyword_aggregate.
+    it "rejects aggregate names that downcase to a Rust keyword (would break `pub mod <name>;`)" do
+      %w[Crate Self Type Move Fn Mod Self].each do |name|
+        expect(described_class.valid_aggregate_mod_name?(name)).to be(false), "expected #{name.inspect} to be rejected"
+      end
+    end
+
+    it "rejects aggregate names that aren't a legal bare Rust identifier once downcased" do
+      ["2Crate", "My-App", ""].each do |name|
+        expect(described_class.valid_aggregate_mod_name?(name)).to be(false), "expected #{name.inspect} to be rejected"
+      end
+    end
+
+    # UNLIKE a domain name, an aggregate name never doubles as a Cargo
+    # feature key -- only the DOMAIN'S OWN directory name does
+    # (CARGO_RESERVED_DOMAIN_NAMES's own header). "version"/"default"/etc
+    # are perfectly fine aggregate names.
+    it "accepts aggregate names that collide with a Cargo.toml key (no feature-name role to collide with)" do
+      %w[Version Default Package].each do |name|
+        expect(described_class.valid_aggregate_mod_name?(name)).to be(true), "expected #{name.inspect} to be accepted"
+      end
+    end
+  end
+
+  describe ".rust_ident_field" do
+    it "raw-escapes an ordinary Rust keyword field name" do
+      expect(described_class.rust_ident_field("type")).to eq("r#type")
+      expect(described_class.rust_ident_field("fn")).to eq("r#fn")
+    end
+
+    it "leaves an ordinary field name untouched" do
+      expect(described_class.rust_ident_field("code")).to eq("code")
+    end
+
+    # THE SAME LANDMINE CLASS AS BUG#124's aggregate-name collision, at
+    # the struct-field site: crate/self/super/Self cannot be rescued by
+    # a raw identifier AT ALL (not a matter of position) -- per the Rust
+    # reference's own RAW_IDENTIFIER grammar, `r#crate` etc. are not
+    # valid raw-identifier syntax, full stop. Refuse loudly rather than
+    # silently emit that broken syntax.
+    it "refuses to raw-escape crate/self/super/Self -- no raw identifier rescues them" do
+      %w[crate self super Self].each do |field|
+        expect { described_class.rust_ident_field(field) }.to raise_error(/cannot be rescued by a raw identifier/)
+      end
+    end
+  end
+
   describe ".rust_string_literal" do
     let(:hash_char) { "#" }
 
