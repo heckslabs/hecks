@@ -617,10 +617,52 @@ module RustProjection
           # already in `.github/workflows/ci-checks.yml`'s regen list).
           entity_parent_no_identity_message = "#{c[:name]} acts on a #{a[:record]}'s #{c[:entity_name]} — pass #{Array(a[:identified_by]).join(', ')}:"
           entity_element_no_identity_message = "#{c[:name]} acts on one #{c[:entity_name]} — pass #{c[:entity_identity_reading]}:"
+          # BUG#136 (qa/bluebook/quality_control.bluebook) — `structural_
+          # precheck_line`, above, only ever catches an unknown/absent
+          # ARGUMENT NAME; it never runs a declared argument's own VALUE-
+          # OBJECT coercion (a declared identity-echo attribute — `id`,
+          # say, `optional: true`, not a routing source — offered a
+          # route-shaped `{aggregate:, entities:}` value where its own VO
+          # type declares a plain `value:` field). Ruby's `normalize_args`
+          # (`coerce_declared_arguments`, interpreting.rb) runs that
+          # coercion BEFORE `hydrate_parent`/`locate_element` for EVERY
+          # entity command, unconditionally — so a malformed value there
+          # refuses `UnknownArgument` (BUG#41's own check-unknown-fields-
+          # before-missing-field ordering) before identity is ever
+          # resolved. This route-less `None` arm used to run BOTH
+          # `extract_id` calls (parent, then element) BEFORE
+          # `#{c[:args_struct]}::from_json` ever touched the SAME
+          # declared attribute, so a malformed identity-echo value always
+          # short-circuited via `extract_id`'s own failure (wrapped into
+          # `NotFound` by BUG#132/#135, `TypeMismatch` before that) —
+          # never reaching its own VO-level unknown-key check at all.
+          # `domain_generator.rb`'s own header on `structural_precheck`
+          # (this command's own IR field, above) explains why THAT
+          # narrower fix (BUG#38) deliberately stopped short of this: at
+          # the time, running a declared argument's own VO coercion ahead
+          # of `extract_id` on the happy path surfaced BUG#41 (a single-
+          # attribute value object's own `from_json` didn't check for an
+          # unknown key at all) as a NEW divergence. BUG#41 is now fixed
+          # (PR #623) — `Value::Coercion#check_unknown_fields` on the
+          # Ruby side and this SAME `from_json`'s own generated unknown-
+          # key check on the Rust side now agree — so re-running the full
+          # `#{c[:args_struct]}::from_json(facts_json)` early, here, ahead
+          # of both `extract_id` calls, can no longer reintroduce that
+          # gap. The result is discarded (`_args_precheck`) — this is
+          # purely for its `?` early-error-propagation side effect,
+          # exactly the "deliberately redundant, never diverging" shape
+          # `registry_commands`' own R3 splice and BUG#54's own
+          # `collision_fallback` already established (this file's own
+          # header, above) — the REAL `args` binding two lines down,
+          # unchanged, still runs unconditionally for both `Some(route)`
+          # and `None` and is what dispatch actually uses. Scoped to the
+          # `None` arm alone, same as `structural_precheck_line` — the
+          # `Some(route)` branch's identity never goes through `extract_
+          # id` at all, so it was never part of this gap.
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_element_no_identity_message.inspect}.to_string()))?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
+                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_element_no_identity_message.inspect}.to_string()))?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   # R3 FIX — see the aggregate arm's own identical comment,
                   # above.
@@ -688,9 +730,16 @@ module RustProjection
           entity_parent_no_identity_message = "#{c[:name]} acts on a #{a[:record]}'s #{c[:entity_name]}.#{c[:nested_name]} — pass #{Array(a[:identified_by]).join(', ')}:"
           hop1_no_identity_message = "#{c[:name]} acts on one #{c[:entity_name]} — pass #{c[:entity_identity_reading]}:"
           hop2_no_identity_message = "#{c[:name]} acts on one #{c[:nested_name]} — pass #{c[:nested_identity_reading]}:"
+          # BUG#136 — see `entity_arms`'s own identical fix, above, for
+          # the full reasoning: the SAME early, discarded `#{c[:args_struct]}::
+          # from_json` precheck, one nesting hop deeper, spliced ahead of
+          # BOTH `extract_id` calls in the route-less `None` arm only —
+          # `Some(route)`'s identity never goes through `extract_id` and
+          # the `else` branch (unrouted unsupported) never calls it
+          # against raw `facts_json` at all, so neither needed this.
           route_binding =
             if c[:unrouted_supported]
-              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop1_no_identity_message.inspect}.to_string()))?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop2_no_identity_message.inspect}.to_string()))?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
+              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop1_no_identity_message.inspect}.to_string()))?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop2_no_identity_message.inspect}.to_string()))?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
             else
               "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?; route.require_depth(2)?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();"
             end

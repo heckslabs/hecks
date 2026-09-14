@@ -318,7 +318,7 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
- } let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on a Roster's Member — pass name.value:".to_string()))?; let element_id = crate::generated::roster::roster::Member::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on one Member — pass id.value:".to_string()))?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on a Roster's Member — pass name.value:".to_string()))?; let element_id = crate::generated::roster::roster::Member::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on one Member — pass id.value:".to_string()))?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?;
                       if let Some(v) = &args.id { v.check_invariants()?; }
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &parent_id);
