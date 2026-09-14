@@ -47,9 +47,6 @@
   {
     "kind": "query",
     "id": "ReferralChain::Referral.FromGoodSponsors",
-    "generated": false,
-    "gap_class": "per_instance",
-    "construct": "reference_hop_where",
-    "reason": "where clause on \"member/sponsor/standing\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+    "generated": true
   }
 ]

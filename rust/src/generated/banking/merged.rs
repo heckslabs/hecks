@@ -2225,7 +2225,7 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
     ],
     reference_hop_conditions: &[
-        crate::kernel::read_model::ReferenceHopCondition { via_field: "customer", target_aggregate: "Banking::Customer", inner_field: "status", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal("suspended") },
+        crate::kernel::read_model::ReferenceHopCondition { via_field: "customer", target_aggregate: "Banking::Customer", through: &[], inner_field: "status", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal("suspended") },
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,

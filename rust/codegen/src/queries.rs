@@ -152,23 +152,35 @@ fn kind_name(kind: FieldKind) -> &'static str {
 pub struct HopPlan<'a> {
     pub via_field: String,
     pub target_aggregate: String,
+    /// Further `(via_field, bare target aggregate)` steps of a chain.
+    pub through: Vec<(String, String)>,
     pub target: &'a Json,
     pub inner_field: String,
 }
 
-pub fn query_hop_plan<'a>(aggregate: &Json, field: &str, aggregates_by_name: &HashMap<String, &'a Json>) -> Option<HopPlan<'a>> {
-    let (head, rest) = field.split_once('/')?;
-    if rest.contains('/') {
+/// `queries.rb#HOP_CHAIN_LIMIT` — `HopPath::MAX_HOPS`.
+const HOP_CHAIN_LIMIT: usize = 8;
+
+pub fn query_hop_plan<'a>(aggregate: &'a Json, field: &str, aggregates_by_name: &HashMap<String, &'a Json>) -> Option<HopPlan<'a>> {
+    let segments: Vec<&str> = field.split('/').collect();
+    if segments.len() < 2 || segments.len() - 1 > HOP_CHAIN_LIMIT {
         return None;
     }
-    let via = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).iter().find(|a| crate::attr::name(a) == head)?;
-    let type_name = crate::attr::type_name(via);
-    if !naming::reference_type(type_name) {
-        return None;
+    let mut steps: Vec<(String, String)> = Vec::new();
+    let mut current: &'a Json = aggregate;
+    for segment in &segments[..segments.len() - 1] {
+        let via = current.get("attributes").map(Json::each).unwrap_or(&[]).iter().find(|a| crate::attr::name(a) == *segment)?;
+        let type_name = crate::attr::type_name(via);
+        if !naming::reference_type(type_name) {
+            return None;
+        }
+        let target_name = naming::reference_target(type_name)?;
+        let target = *aggregates_by_name.get(target_name)?;
+        steps.push((segment.to_string(), target_name.to_string()));
+        current = target;
     }
-    let target_name = naming::reference_target(type_name)?;
-    let target = *aggregates_by_name.get(target_name)?;
-    Some(HopPlan { via_field: head.to_string(), target_aggregate: target_name.to_string(), target, inner_field: rest.to_string() })
+    let (via_field, target_aggregate) = steps.remove(0);
+    Some(HopPlan { via_field, target_aggregate, through: steps, target: current, inner_field: segments[segments.len() - 1].to_string() })
 }
 
 fn with_field(where_clause: &Json, field: &str) -> Json {
@@ -400,6 +412,8 @@ fn condition_for(w: &Json) -> Condition {
 pub struct HopCondition {
     pub via_field: String,
     pub target_aggregate: String,
+    /// Further `(via_field, qualified target aggregate)` steps.
+    pub through: Vec<(String, String)>,
     pub condition: Condition,
 }
 
@@ -413,7 +427,8 @@ pub fn query_conditions_and_hops(domain_name: &str, query: &Json, aggregate: &Js
             Some(plan) => {
                 let mut condition = condition_for(w);
                 condition.field = plan.inner_field;
-                hops.push(HopCondition { via_field: plan.via_field, target_aggregate: format!("{domain_name}::{}", plan.target_aggregate), condition });
+                let through = plan.through.into_iter().map(|(via, target)| (via, format!("{domain_name}::{target}"))).collect();
+                hops.push(HopCondition { via_field: plan.via_field, target_aggregate: format!("{domain_name}::{}", plan.target_aggregate), through, condition });
             }
             None => local.push(condition_for(w)),
         }
@@ -426,8 +441,14 @@ pub fn query_conditions_and_hops(domain_name: &str, query: &Json, aggregate: &Js
 
 /// Port of `read_models.rb#emit_reference_hop_condition`.
 pub fn emit_reference_hop_condition(hop: &HopCondition) -> String {
+    let through = hop
+        .through
+        .iter()
+        .map(|(via, target)| format!("crate::kernel::read_model::HopStep {{ via_field: {}, target_aggregate: {} }}", naming::ruby_inspect_string(via), naming::ruby_inspect_string(target)))
+        .collect::<Vec<_>>()
+        .join(", ");
     format!(
-        "crate::kernel::read_model::ReferenceHopCondition {{ via_field: {}, target_aggregate: {}, inner_field: {}, inner_comparator: crate::kernel::query_comparators::QueryComparator::{}, inner_value: {} }},",
+        "crate::kernel::read_model::ReferenceHopCondition {{ via_field: {}, target_aggregate: {}, through: &[{through}], inner_field: {}, inner_comparator: crate::kernel::query_comparators::QueryComparator::{}, inner_value: {} }},",
         naming::ruby_inspect_string(&hop.via_field),
         naming::ruby_inspect_string(&hop.target_aggregate),
         naming::ruby_inspect_string(&hop.condition.field),
@@ -599,7 +620,7 @@ pub fn emit_query_def(query_def: &QueryDef) -> String {
     )
 }
 
-const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: \"tmpl_verb\",\n    aggregate: \"tmpl_aggregate\",\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    reference_hop_conditions: &[\n        crate::kernel::read_model::ReferenceHopCondition {\n            via_field: \"tmpl_via_field\",\n            target_aggregate: \"tmpl_target_aggregate\",\n            inner_field: \"tmpl_inner_field\",\n            inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::query_ordering::OrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),\n    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n},";
+const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: \"tmpl_verb\",\n    aggregate: \"tmpl_aggregate\",\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    reference_hop_conditions: &[\n        crate::kernel::read_model::ReferenceHopCondition {\n            via_field: \"tmpl_via_field\",\n            target_aggregate: \"tmpl_target_aggregate\",\n            through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }],\n            inner_field: \"tmpl_inner_field\",\n            inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::query_ordering::OrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),\n    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n},";
 
 pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String {
     let rows: Vec<String> = query_defs.iter().map(emit_query_def).collect();
