@@ -27,9 +27,14 @@ struct TmplStore {
     tmpl_target_mod: crate::kernel::InMemoryRepository<i64>,
 }
 
+struct TmplRefItem {
+    tmpl_element_field: String,
+}
+
 struct TmplRefArgs {
     tmpl_field: String,
     tmpl_optional_field: Option<String>,
+    tmpl_list_field: Vec<TmplRefItem>,
 }
 
 fn tmpl_reference_check_required_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
@@ -43,6 +48,17 @@ fn tmpl_reference_check_optional_host(store: &TmplStore, args: &TmplRefArgs) -> 
     // TMPL:reference_check_optional BEGIN
     if let Some(v) = &args.tmpl_optional_field { crate::kernel::check_reference(&store.tmpl_target_mod, v, "TmplTarget", "tmpl_heads")?; }
     // TMPL:reference_check_optional END
+    Ok(())
+}
+
+// `reference_check_list` — one `check_reference` per element of a list
+// argument that `sets` a `has_many` field wholesale. `&item.tmpl_element_
+// field` is replaced as a whole: `&item.value` for a single-attribute
+// value object element, bare `item` for a plain `String` element.
+fn tmpl_reference_check_list_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:reference_check_list BEGIN
+    for item in &args.tmpl_list_field { crate::kernel::check_reference(&store.tmpl_target_mod, &item.tmpl_element_field, "TmplTarget", "tmpl_heads")?; }
+    // TMPL:reference_check_list END
     Ok(())
 }
 

@@ -26,7 +26,7 @@ use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::registry::{
     AggregateEntry, CommandEntry, EntityCommandEntry, EntityIdentityEntry, NestedEntityCommandEntry, PortEntry,
-    ReferenceCheck,
+    ReferenceCheck, TenantBoundaryCheck,
 };
 use crate::{commands, json_codec, mutations, ports, queries, reactions, read_models, types};
 use std::collections::HashMap;
@@ -102,6 +102,7 @@ fn reference_checks(
             Some(ReferenceCheck {
                 field: crate::attr::name(attr).to_string(),
                 optional: crate::attr::optional(attr),
+                list_item: None,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -149,17 +150,6 @@ fn state_reference_checks(
         .iter()
         .filter_map(|attr| {
             let target_name = crate::naming::reference_target(crate::attr::type_name(attr))?;
-            // BUG#25/BUG#26 interaction — see `rust/project/domain_
-            // generator.rb#state_reference_checks`'s own matching
-            // comment: this function's own header already documents a
-            // `has_many`/list relationship as "not covered,
-            // deliberately," but nothing here enforced that until now —
-            // a `has_many` field built a `check_reference` call against
-            // `args.<field>.value`, a single-element accessor applied to
-            // the whole `Vec`, which does not compile.
-            if crate::attr::list(attr) {
-                return None;
-            }
             let attr_name = crate::attr::name(attr);
 
             let mutation = cmd_mutations.iter().find(|m| {
@@ -174,7 +164,17 @@ fn state_reference_checks(
                 return None;
             }
 
-            let accessor = state_reference_check_accessor(source_attr, value_objects_by_name)?;
+            // A `has_many` field — see `rust/project/domain_generator.rb
+            // #state_reference_checks`: one `check_reference` per element.
+            let (accessor, list_item) = if crate::attr::list(attr) {
+                let item = list_reference_check_item(source_attr, value_objects_by_name)?;
+                (crate::attr::name(source_attr).to_string(), Some(item))
+            } else {
+                (
+                    state_reference_check_accessor(source_attr, value_objects_by_name)?,
+                    None,
+                )
+            };
 
             let target = aggregates_by_name.get(target_name)?;
             if unsupported_names.iter().any(|n| n == target_name) {
@@ -191,6 +191,7 @@ fn state_reference_checks(
             Some(ReferenceCheck {
                 field: accessor,
                 optional: crate::attr::optional(source_attr),
+                list_item,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -205,6 +206,101 @@ fn state_reference_checks(
             })
         })
         .collect()
+}
+
+/// Port of `rust/project/domain_generator.rb#tenant_field_for` — the
+/// aggregate's own declared tenant field, read off the first query that
+/// declares `authorize ..., tenant:`. `None` unless the aggregate is
+/// tenant-scoped at all.
+fn tenant_field_for(aggregate: &Json) -> Option<String> {
+    aggregate
+        .get("queries")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find_map(|q| q.get("authorization").and_then(|a| a.get("tenant")).map(Json::to_s))
+}
+
+/// Port of `rust/project/domain_generator.rb#tenant_boundary_checks` — the
+/// ANGLE-8 write-side tenant boundary (`CommandRules::References#enforce_
+/// tenant_boundary`), read at codegen time; see that method's own header
+/// for the full argument. Fires only when both this aggregate and a
+/// referenced one declare a tenant field and both tenant attributes have
+/// `state_reference_check_accessor`'s narrow shape; every other shape is
+/// silently not checked, never a wrong answer.
+fn tenant_boundary_checks(
+    aggregate: &Json,
+    command: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+    unsupported_names: &[String],
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<TenantBoundaryCheck> {
+    let Some(own_tenant_field) = tenant_field_for(aggregate) else {
+        return Vec::new();
+    };
+    let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let Some(own_tenant_attr) = cmd_attrs.iter().find(|a| crate::attr::name(a) == own_tenant_field) else {
+        return Vec::new();
+    };
+    let Some(own_accessor) = state_reference_check_accessor(own_tenant_attr, value_objects_by_name) else {
+        return Vec::new();
+    };
+    let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+
+    cmd_attrs
+        .iter()
+        .filter_map(|attr| {
+            let target_name = crate::naming::reference_target(crate::attr::type_name(attr))?;
+            let target = aggregates_by_name.get(target_name)?;
+            if unsupported_names.iter().any(|n| n == target_name) {
+                return None;
+            }
+            let target_tenant_field = tenant_field_for(target)?;
+            let target_attrs = target.get("attributes").map(Json::each).unwrap_or(&[]);
+            let target_tenant_attr = target_attrs
+                .iter()
+                .find(|a| crate::attr::name(a) == target_tenant_field)?;
+            let target_accessor = state_reference_check_accessor(target_tenant_attr, value_objects_by_name)?;
+            let target_decl_name = target.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+
+            Some(TenantBoundaryCheck {
+                reference_field: crate::attr::name(attr).to_string(),
+                target_mod: target_decl_name.to_lowercase(),
+                target_name: target_decl_name,
+                aggregate_name: aggregate_name.clone(),
+                own_tenant_field: own_tenant_field.clone(),
+                own_accessor: own_accessor.clone(),
+                target_tenant_field,
+                target_accessor,
+            })
+        })
+        .collect()
+}
+
+/// Port of `rust/project/domain_generator.rb#list_reference_check_item` —
+/// the per-element key expression for a list source argument: bare
+/// `item` for `list_of(String)`, `&item.<field>` for a list of
+/// single-String-attribute value objects, `None` for anything else.
+fn list_reference_check_item(
+    source_attr: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<String> {
+    if !crate::attr::list(source_attr) {
+        return None;
+    }
+    let type_name = crate::attr::type_name(source_attr);
+    if type_name == "String" {
+        return Some("item".to_string());
+    }
+    let vo = value_objects_by_name.get(type_name)?;
+    let vo_attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    if vo_attrs.len() != 1 || crate::attr::type_name(&vo_attrs[0]) != "String" {
+        return None;
+    }
+    Some(format!(
+        "&item.{}",
+        crate::naming::rust_ident_field(crate::attr::name(&vo_attrs[0]))
+    ))
 }
 
 /// Port of `rust/project/domain_generator.rb#state_reference_check_accessor`
@@ -978,6 +1074,13 @@ pub fn generate(
                     checks.extend(state_reference_checks(aggregate, command, &aggregates_by_name, &unsupported_names, &value_objects_by_name));
                     checks
                 },
+                tenant_boundary_checks: tenant_boundary_checks(
+                    aggregate,
+                    command,
+                    &aggregates_by_name,
+                    &unsupported_names,
+                    &value_objects_by_name,
+                ),
                 reference_specs: crate::reference_specs::reference_specs(domain_name, cmd_attrs),
                 attributes: cmd_attrs
                     .iter()
