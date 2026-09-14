@@ -169,6 +169,32 @@ RSpec.describe "ReferralChain" do
     expect(referral["member"]).to eq("m1"), "Rust must not persist a dangling member reference"
   end
 
+  # BUG#<N> (QualityControl ledger) — the DRY-RUN twin of the real-dispatch
+  # example just above, and where the practice's own differential fuzzer
+  # (SW-referral_chain-1789342724, seed 1) actually caught this: Dispatcher
+  # #dry_run?'s own comment promises "if this were dispatched right now,
+  # would it succeed" — but `CommandInterpreter#step_save` returns before
+  # ever calling `resolve_state_references` when `ctx.dry_run` is set, so
+  # THIS was the one check real dispatch performs that a dry run silently
+  # skipped. Before the fix, `dry_run?` answered `true` for a `Reassign`
+  # naming no real Member — disagreeing with the real dispatch one line
+  # below it, which has always correctly refused. The compiled Rust
+  # conformance binary already refused this shape on both paths (its
+  # `state_reference_checks` runs at the router, unconditionally, so it
+  # never had Ruby's dry-run-specific gap) — this is what the sweep
+  # reported as a Ruby/Rust `dry_runs` divergence.
+  it "answers dry_run? the same way a real dispatch would — a dangling member is refused, not accepted" do
+    runtime
+    chain!
+    ReferralChain::Referral.issue!(code: { value: "r1" }, member: "m1")
+
+    expect do
+      runtime.dry_run?("ReferralChain::Referral.Reassign", code: { value: "r1" }, member: { value: "ghost" })
+    end.to raise_error(Hecks::Runtime::NotFound, /no Member with handle "ghost"/)
+
+    expect(ReferralChain::Referral.find("r1")[:member]).to eq("m1")
+  end
+
   it "gates Suspend on the Registrar role when a caller states one" do
     runtime
     ReferralChain::Sponsor.enroll!(handle: { value: "s1" })
