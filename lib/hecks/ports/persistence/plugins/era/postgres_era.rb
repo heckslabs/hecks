@@ -422,7 +422,7 @@ module Hecks
           Ports::Persistence::Entry.new(
             operation: row["operation"] || "save",
             id:        row["aggregate_id"],
-            state:     state&.transform_keys(&:to_sym),
+            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
             mirrors:   row["mirrors"] && JSON.parse(row["mirrors"])
           )
         end
@@ -540,7 +540,7 @@ module Hecks
       end
 
       def append_and_project!(entry)
-        state_json = entry.state && JSON.generate(entry.state)
+        state_json = entry.state && JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, entry.state))
         ordinal = @db.exec_params(
           "INSERT INTO #{@lineage.quoted_journal} (era, aggregate, aggregate_id, operation, state, mirrors) " \
           "VALUES ($1, $2, $3, $4, $5, $6) RETURNING ordinal",
@@ -638,11 +638,13 @@ module Hecks
         Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row["state"]))
       end
 
+      # Through the state codec (PR A3), after any SQL-side era
+      # translation has already run: the head view hands back the
+      # translated jsonb, and decoding it is the last step, the same as
+      # every other adapter's read. A never-seeded projected field is
+      # simply absent from the blob, and stays absent.
       def decode(state_json)
-        # Deep symbols, exactly what the Sqlite adapter's per-column
-        # `symbolize_names:` decode produces — value-object members and
-        # list elements arrive symbol-keyed either way.
-        JSON.parse(state_json, symbolize_names: true)
+        Ports::Persistence::StateCodec.decode(@aggregate, JSON.parse(state_json))
       end
 
       def quote_ident(name) = PG::Connection.quote_ident(name.to_s)

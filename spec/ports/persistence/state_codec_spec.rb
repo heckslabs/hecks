@@ -77,11 +77,6 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     }
   end
 
-  # A SQL head stores one column per persisted field, so a never-seeded
-  # projected field arrives as a stored NULL. The codec keeps presence as
-  # stored (see "absence" below); it does not invent or erase the key.
-  let(:sql_head_card_payment) { canonical_card_payment.merge(account_customer_status: nil) }
-
   def stringify(held)
     JSON.parse(JSON.generate(held))
   end
@@ -238,7 +233,8 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     end
 
     # The raw `state:` the block's adapter call passes `Instance.new` —
-    # today's per-adapter decode, the same capture A1's spec pins.
+    # the adapter's own decode (through this codec since A3), the same
+    # capture spec/ports/persistence_legacy_decode_spec.rb pins.
     def decoded_state
       captured = []
       allow(Hecks::Runtime::Instance).to receive(:new).and_wrap_original do |original, **kwargs|
@@ -250,6 +246,9 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     end
 
     # [label, aggregate IR, raw state, canonical decode] for one adapter.
+    # A SQL head's never-seeded projected field is a NULL column, which
+    # the adapter reads back ABSENT (Sqlite::Codec#projected_only?) — so
+    # every source, head or journal, lands on the one canonical form.
     def expect_canonical(sources)
       sources.each do |label, ir, raw, expected|
         decoded = codec.decode(ir, raw)
@@ -264,7 +263,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
 
     def records
       [[account_ir, "ACC-1", canonical_account, canonical_account],
-       [card_payment_ir, "AUTH-1", canonical_card_payment, sql_head_card_payment]]
+       [card_payment_ir, "AUTH-1", canonical_card_payment, canonical_card_payment]]
     end
 
     it "Heki: snapshot bytes, today's find, journal lines and today's entries" do

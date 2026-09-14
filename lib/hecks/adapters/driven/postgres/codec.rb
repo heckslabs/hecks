@@ -39,8 +39,8 @@ module Hecks
           # comment: a list attribute nothing has ever appended to has to
           # stay NULL to answer the same as Memory does, not become `[]`
           # invented by this adapter's own storage.
-          return (value.nil? ? nil : JSON.generate(value)) if attr.list?
-          return JSON.generate(value) if value.is_a?(Hash) || value.is_a?(Runtime::Value)
+          return (value.nil? ? nil : state_json(value)) if attr.list?
+          return state_json(value) if value.is_a?(Hash) || value.is_a?(Runtime::Value)
 
           value
         end
@@ -51,21 +51,37 @@ module Hecks
           encode(field[:attribute], value)
         end
 
+        # Every jsonb column's text goes through the state codec's `encode`
+        # (PR A3) — see Sqlite::Codec#state_json.
+        def state_json(value) = JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, value))
+
+        # Columns reassembled, then decoded ONCE through the state codec
+        # (PR A3) — see Sqlite::Codec#decode, including why a NULL
+        # projected-only column reads back absent.
         def decode(row)
-          persisted_fields.each_with_object({}) do |field, state|
+          state = persisted_fields.each_with_object({}) do |field, raw_state|
             attr = field[:attribute]
             unless attr
-              state[field[:name]] = row[field[:name].to_s]
+              value = row[field[:name].to_s]
+              next if value.nil? && projected_only?(field)
+
+              raw_state[field[:name]] = value
               next
             end
             raw = row[attr.name.to_s]
-            state[attr.name] =
+            raw_state[attr.name] =
               if attr.list? || value_object?(attr)
-                raw ? JSON.parse(raw, symbolize_names: true) : nil
+                raw ? JSON.parse(raw) : nil
               else
                 coerce_scalar(attr, raw)
               end
           end
+          Ports::Persistence::StateCodec.decode(@aggregate, state)
+        end
+
+        def projected_only?(field)
+          @aggregate.lifecycle&.field&.to_sym != field[:name].to_sym &&
+            @aggregate.projected_fields.any? { |projected| projected.name.to_sym == field[:name].to_sym }
         end
 
         # `pg` returns every column as a Ruby String by default (no type

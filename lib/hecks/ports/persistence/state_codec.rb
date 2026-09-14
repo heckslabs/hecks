@@ -10,8 +10,11 @@ module Hecks
       # Heki heads and every journal reader symbolize the TOP level only,
       # Sqlite/D1/Postgres/PostgresEra/Lambda heads symbolize DEEP, and
       # Memory never serializes at all (a shallow `state.dup`). This codec is
-      # the single, IR-driven answer those adapters converge on (A3 routes
-      # them through it; nothing calls it yet).
+      # the single, IR-driven answer those adapters converge on. Since A3
+      # every adapter writes through `encode` and reads through `decode`
+      # (Memory through `copy`), and `CodecBoundary` — installed on every
+      # adapter `RepositoryFactory.build` makes — refuses an `Instance`
+      # built inside an adapter call from state `decoded?` rejects.
       #
       # - `encode` — canonical and JSON-ready: string keys at every depth,
       #   `Runtime::Value`s materialized, only JSON scalars at the leaves.
@@ -69,12 +72,27 @@ module Hecks
         # fields: bare scalars with no attribute of their own). The same
         # three sources, the same precedence — an attribute that happens to
         # share the lifecycle's or a projected field's name keeps its type.
+        # An entity (no `projected_fields` of its own) gets its entity
+        # field set — `decoded?` is asked about any `Instance`, and an
+        # entity is "structurally interchangeable with an aggregate".
         def declared_top_level(aggregate)
-          fields = aggregate.attributes.to_h { |attribute| [attribute.name, attribute] }
-          lifecycle = aggregate.lifecycle
-          fields[lifecycle.field.to_sym] = nil if lifecycle && !fields.key?(lifecycle.field.to_sym)
+          fields = entity_fields(aggregate)
+          return fields unless aggregate.respond_to?(:projected_fields)
+
           aggregate.projected_fields.each { |field| fields[field.name.to_sym] = nil unless fields.key?(field.name.to_sym) }
           fields
+        end
+
+        # Whether `decode` would hand `state` back unchanged — every
+        # top-level key a Symbol, every DECLARED key below it a Symbol, no
+        # hash carrying both spellings of a declared key. Allocates
+        # nothing; `CodecBoundary` asks it of every `Instance` an adapter
+        # builds. A `Runtime::Value` (hydrated state, a save's own entry)
+        # already is the declared shape, so it answers true.
+        def decoded?(aggregate, state)
+          return true unless state.is_a?(Hash)
+
+          hash_decoded?(aggregate, declared_top_level(aggregate), state, top: true)
         end
 
         # ── encode ──────────────────────────────────────────────────────
@@ -150,6 +168,41 @@ module Hecks
           lifecycle = entity.lifecycle
           fields[lifecycle.field.to_sym] = nil if lifecycle && !fields.key?(lifecycle.field.to_sym)
           fields
+        end
+
+        # ── decoded? ────────────────────────────────────────────────────
+
+        # The mirror of `decode_hash`: a key `decode` would respell (any
+        # non-Symbol at the top, a non-Symbol DECLARED key below it) means
+        # "not decoded"; an undeclared nested key keeps whatever spelling
+        # it has, exactly as `decode` keeps it.
+        def hash_decoded?(aggregate, fields, hash, top: false)
+          hash.all? do |key, value|
+            if key.is_a?(Symbol)
+              !fields.key?(key) || field_decoded?(aggregate, fields[key], value)
+            else
+              !top && !fields.key?(key.to_s.to_sym)
+            end
+          end
+        end
+
+        def field_decoded?(aggregate, attribute, value)
+          return true if attribute.nil? || value.nil? || attribute.reference?
+          return composite_decoded?(aggregate, attribute.type.to_s, value) unless attribute.list?
+
+          !value.is_a?(Array) || value.all? { |element| composite_decoded?(aggregate, attribute.type.to_s, element) }
+        end
+
+        def composite_decoded?(aggregate, type, value)
+          return true unless value.is_a?(Hash)
+
+          entity = Runtime::Value.find_entity(aggregate, type)
+          return hash_decoded?(aggregate, entity_fields(entity), value) if entity
+
+          value_object = Runtime::Value.value_object_for(aggregate, type)
+          return true unless value_object
+
+          hash_decoded?(aggregate, value_object.attributes.to_h { |field| [field.name, field] }, value)
         end
       end
     end

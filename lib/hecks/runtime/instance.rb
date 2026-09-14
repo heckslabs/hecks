@@ -1,5 +1,6 @@
 require_relative "value"
 require_relative "identity"
+require_relative "../ports/persistence/codec_boundary"
 
 module Hecks
   module Runtime
@@ -32,6 +33,9 @@ module Hecks
       def initialize(aggregate:, id:, state: nil, args: nil)
         @aggregate = aggregate
         @id        = id
+        # Inside a persistence adapter call this refuses undecoded stored
+        # state (Ports::Persistence::CodecBoundary); everywhere else, no-op.
+        Ports::Persistence::CodecBoundary.check_state!(aggregate, state) if state
         @state     = state ? self.class.hydrate_with_defaults(aggregate, state) : self.class.defaults(aggregate)
         @version   = nil
         materialize_identity!(args)

@@ -131,14 +131,11 @@ module Hecks
       end
 
       # Lambda's own JSON response is already Ruby-decoded with STRING
-      # keys (plain `JSON.parse`, no `symbolize_names:`) — every other
-      # adapter's own `instance(row)` builder (Postgres, Sqlite) hands
-      # `Runtime::Instance.new` a SYMBOL-keyed state hash instead. A
-      # round trip through `JSON.generate`/`JSON.parse` is simpler and
-      # safer than a hand-rolled deep-symbolize helper for what is not
-      # a hot path.
+      # keys (plain `JSON.parse`, no `symbolize_names:`) — decoded through
+      # the state codec (PR A3), the same IR-driven spelling every other
+      # adapter's read produces.
       def build_instance(id, state)
-        Runtime::Instance.new(aggregate: @aggregate, id: id, state: JSON.parse(JSON.generate(state), symbolize_names: true))
+        Runtime::Instance.new(aggregate: @aggregate, id: id, state: Ports::Persistence::StateCodec.decode(@aggregate, state))
       end
     end
   end

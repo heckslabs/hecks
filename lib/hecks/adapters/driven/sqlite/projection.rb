@@ -167,24 +167,30 @@ module Hecks
         fields
       end
 
+      # Decoded through the state codec (PR A3) against the row's OWN
+      # aggregate — see Codec#decode, including why a NULL projected-only
+      # column reads back absent.
       def decode_fields(fields, aggregate, row)
-        fields.each_with_object({}) do |(name, attribute), state|
+        state = fields.each_with_object({}) do |(name, attribute), raw_state|
           raw = row[name.to_s]
           # rubocop:disable Lint/DuplicateBranch -- the nil-attribute and
           # reference-id branches both just answer `raw`, coincidentally, for
           # two unrelated reasons (see each branch's own comment); merging
           # them would blur that distinction.
-          state[name] =
+          next if attribute.nil? && raw.nil? && aggregate.lifecycle&.field&.to_sym != name.to_sym
+
+          raw_state[name] =
             if attribute.nil?
               raw
             elsif attribute.list? || !aggregate.value_object(attribute.type).nil?
-              raw ? JSON.parse(raw, symbolize_names: true) : nil
+              raw ? JSON.parse(raw) : nil
             else
               # A reference is a scalar id — see Codec#decode.
               raw
             end
           # rubocop:enable Lint/DuplicateBranch
         end
+        Ports::Persistence::StateCodec.decode(aggregate, state)
       end
     end
   end

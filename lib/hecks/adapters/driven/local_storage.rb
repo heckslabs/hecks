@@ -62,21 +62,24 @@ module Hecks
         Ports::Query::InMemory.execute(all, specification, args, registry: context[:registry])
       end
 
+      # Through the state codec, the same as Memory (see its `append`).
       def append(entry)
-        @entries << entry
+        copied = Ports::Persistence::Entry.new(operation: entry.operation, id: entry.id,
+                                               state: copy(entry.state), mirrors: entry.mirrors)
+        @entries << copied
         entry
       end
 
       def project(entry)
         if entry.save?
-          @records[entry.id] = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state.dup)
+          @records[entry.id] = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: copy(entry.state))
         else
           @records.delete(entry.id)
         end
       end
 
       def save(instance)
-        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+        entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: copy(instance.state))
         append(entry)
         project(entry)
       end
@@ -107,6 +110,10 @@ module Hecks
         @entries = []
         self
       end
+
+      private
+
+      def copy(state) = Ports::Persistence::StateCodec.copy(@aggregate, state)
 
       # NOT lineage_capable? — deliberately absent, the same trade Heki
       # makes and states plainly (writing-an-adapter.md's own section on

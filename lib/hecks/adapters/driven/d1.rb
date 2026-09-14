@@ -199,7 +199,7 @@ module Hecks
           # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
           # check against it would never match. Same guard `postgres_era.rb`
           # already uses for its own journal's `mirrors` column.
-          [entry.id, entry.operation, JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
+          [entry.id, entry.operation, state_json(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
         )
         entry
       end
@@ -225,7 +225,7 @@ module Hecks
           Ports::Persistence::Entry.new(
             operation: row["operation"] || "save",
             id:        row["aggregate_id"],
-            state:     state&.transform_keys(&:to_sym),
+            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
             mirrors:   row["mirrors"] && JSON.parse(row["mirrors"])
           )
         end
@@ -298,12 +298,12 @@ module Hecks
             [
               "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) " \
               "SELECT ?, ?, ?, ? #{not_exists}",
-              [entry.id, entry.operation, JSON.generate(entry.state), encoded_mirrors, entry.id.to_s]
+              [entry.id, entry.operation, state_json(entry.state), encoded_mirrors, entry.id.to_s]
             ]
           else
             [
               "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-              [entry.id, entry.operation, JSON.generate(entry.state), encoded_mirrors]
+              [entry.id, entry.operation, state_json(entry.state), encoded_mirrors]
             ]
           end
 

@@ -1,10 +1,15 @@
 require_relative "append_only"
+require_relative "codec_boundary"
 
 module Hecks
   module Ports
     module Persistence
       # Turns a declared adapter binding plus its world configuration into a
       # concrete repository. Selection policy stays out of adapter creation.
+      #
+      # EVERY ADAPTER IT BUILDS IS GUARDED (`CodecBoundary.guard!`) before
+      # anything else touches it — `recover!` included — so no adapter a
+      # runtime reaches can build an `Instance` from undecoded state.
       module RepositoryFactory
         module_function
 
@@ -24,7 +29,7 @@ module Hecks
                                  settings:  settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s],
                                                            superseded_by: registry.superseded_eras[domain.to_s]),
                                  root:      registry.root)
-          repository = AppendOnly.new(adapter)
+          repository = AppendOnly.new(CodecBoundary.guard!(adapter))
           recover ? repository.recover! : repository
         end
       end
