@@ -73,10 +73,14 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
   # `meta` (every run regenerates it — both paths' own header explains
   # why), plus any framework chapter it attaches (`banking` alone pulls
   # in `governance`/`identity` via `uses_framework`; `pizzas` attaches
-  # none).
+  # none; `compliance` pulls in `governance`; `roster` attaches none).
+  # `roster` is the one member whose policy carries a real `where`
+  # (`OnSeatAssignedHonorFront`), so it pins `where_ast` end to end.
   PARITY_DOMAINS = {
-    "examples/pizzas"  => %w[pizzas meta],
-    "examples/banking" => %w[banking governance identity meta]
+    "examples/pizzas"     => %w[pizzas meta],
+    "examples/banking"    => %w[banking governance identity meta],
+    "examples/roster"     => %w[roster meta],
+    "examples/compliance" => %w[compliance governance meta]
   }.freeze
 
   IGNORED_BASENAMES = %w[manifest.json].freeze
