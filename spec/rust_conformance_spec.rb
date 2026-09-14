@@ -232,9 +232,11 @@ RSpec.describe "Rust conformance (native binary)", :io do
     binary = build_rust_for("banking")
     skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
 
-    # An ENTITY-scoped query: `OpenForSuspendedCustomers`, which this used to
-    # sample, hops once through a reference and is generated now.
-    uncovered = "Banking::Account.LedgerEntry.Reversed"
+    # EVERY query banking declares is generated now — the reference hop
+    # (`OpenForSuspendedCustomers`) and the entity-scoped ones
+    # (`LedgerEntry.Reversed`) this used to sample in turn — so the refusal
+    # path is proven with a verb banking never declares.
+    uncovered = "Banking::Account.NoSuchQuery"
     stdout, status = Open3.capture2(
       binary,
       stdin_data: JSON.generate({ "steps" => [{ "query" => uncovered }] })
@@ -242,10 +244,9 @@ RSpec.describe "Rust conformance (native binary)", :io do
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
     rust_output = JSON.parse(stdout)
-    # The refusal is DECLARED, not merely observed: the generator recorded
-    # this exact verb as a whole-kind entity-query gap.
-    declared = Hecks::Fuzzing::RustGapManifest.for_binary(binary).not_generated(uncovered)
-    expect(declared).to include("gap_class" => "whole_kind", "construct" => "entity_query")
+    # Nothing tolerates it: the manifest declares no gap for this verb, so
+    # the differential fuzzer would treat a divergence here as a finding.
+    expect(Hecks::Fuzzing::RustGapManifest.for_binary(binary).not_generated(uncovered)).to be_nil
     expect(rust_output["refusals"].size).to eq(1)
     expect(rust_output["refusals"][0]["verb"]).to eq(uncovered)
     expect(rust_output["refusals"][0]["error"])
