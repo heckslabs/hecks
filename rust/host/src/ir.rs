@@ -116,6 +116,28 @@ pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra"]
 /// "not found" for an account Ruby's own store has always had, or
 /// accept a create Ruby would refuse as a duplicate. Refusing at boot
 /// instead trades that for a loud, immediate, correct failure.
+/// The chapter this domain's role checks resolve against — `Exporter.
+/// authorization` (exporter.rb), a BINDING fact like `lineage`/
+/// `persistence` above, read off `ir.json`'s own top-level
+/// `authorization` key. `None` when the domain attaches nothing that
+/// declares `provides "authorization"` (the key is omitted entirely).
+#[derive(Debug, Clone, PartialEq)]
+pub struct AuthorizationProvider {
+    /// Qualified grant command, e.g. `Governance::RoleAssignment.Assign`.
+    pub grant: String,
+    /// Qualified aggregate holding the assignments, e.g.
+    /// `Governance::RoleAssignment` — instance keys start `<this>#`.
+    pub assignment_aggregate: String,
+}
+
+pub fn authorization_provider(domain_ir: &Value) -> Option<AuthorizationProvider> {
+    let fact = domain_ir.get("authorization")?;
+    Some(AuthorizationProvider {
+        grant: fact.get("grant")?.as_str()?.to_string(),
+        assignment_aggregate: fact.get("assignment_aggregate")?.as_str()?.to_string(),
+    })
+}
+
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
     let unsupported: Vec<String> = persistence_adapters(domain_ir)
         .into_iter()
