@@ -379,6 +379,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("requested") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,

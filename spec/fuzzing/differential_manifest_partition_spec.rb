@@ -9,7 +9,7 @@ RSpec.describe Hecks::Fuzzing::Differential, ".manifest_partition" do
   let(:gaps) do
     Hecks::Fuzzing::RustGapManifest.new(rust_dir: File.join(InMemoryDomain::ROOT, "rust"), feature: "banking")
   end
-  let(:declared) { "Banking::Account.OpenForSuspendedCustomers" }
+  let(:declared) { "Banking::Account.LedgerEntry.Reversed" }
 
   def partition(ruby_refusals: [], rust_refusals: [], ruby_queries: [], rust_queries: [])
     described_class.manifest_partition(gaps, ruby_refusals: ruby_refusals, rust_refusals: rust_refusals,
@@ -39,6 +39,6 @@ RSpec.describe Hecks::Fuzzing::Differential, ".manifest_partition" do
     kept = partition(rust_queries: [{ "query" => declared, "rows" => [] }])
 
     expect(kept[:stale].map { |d| d[:field] }).to eq(%w[manifest])
-    expect(kept[:stale].first[:detail]).to include("per_instance/reference_hop_where")
+    expect(kept[:stale].first[:detail]).to include("whole_kind/entity_query")
   end
 end

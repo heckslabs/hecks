@@ -622,6 +622,34 @@ mod reference_hop_tests {
         assert_eq!(result.get("accounts").and_then(|v| v.as_array()).map(|rows| rows.len()), Some(3));
         assert_eq!(result.get("ledger_entries").and_then(|v| v.as_array()).map(|rows| rows.len()), Some(0));
     }
+
+    // A DECLARED QUERY folds its hop the same way — banking's own
+    // `Account.OpenForSuspendedCustomers` (`where(status: "open")`,
+    // `where(:"customer/status" => "suspended")`), compiled.
+    #[test]
+    fn a_named_query_folds_its_hop_conditions_like_a_read_model_head() {
+        let def = crate::kernel::named_query::QueryDef {
+            verb: "Banking::Account.OpenForSuspendedCustomers",
+            aggregate: "Banking::Account",
+            conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
+            reference_hop_conditions: &[ReferenceHopCondition {
+                via_field: "customer",
+                target_aggregate: "Banking::Customer",
+                inner_field: "status",
+                inner_comparator: query_comparators::QueryComparator::Eq,
+                inner_value: QueryConditionValue::Literal("suspended"),
+            }],
+            order_by: None,
+            offset: None,
+            limit: None,
+            authorization: None,
+        };
+
+        let rows = crate::kernel::named_query::run(&store(), &def, &Json::obj(vec![]), None).expect("no authorization, no args needed");
+        let ids: Vec<&str> = rows.iter().map(|(id, _)| id.as_str()).collect();
+
+        assert_eq!(ids, vec!["acc-suspended-open"]);
+    }
 }
 
 /// THE GENERIC INTERPRETER — `Runtime::ReadModelInterpreter#project`,
@@ -876,15 +904,28 @@ fn apply_filtered_head_options(
         rows = repository::filter_entries(rows, condition.field, condition.comparator, &want);
     }
 
-    // `Runtime::ReferenceHop::fold`, ported directly — see
-    // `ReferenceHopCondition`'s own header for the full ground truth.
-    // ONE ordinary query against the hop's own target aggregate (the
-    // inner clause), folded into ONE more ordinary `in` filter against
-    // this head's own rows (the outer clause) — the exact two-step shape
-    // Ruby's own `fold`/`matching_ids` already use, just without the
-    // recursion a multi-hop chain would need (single-hop only, this
-    // struct's own header has the reasoning).
-    for hop in def.reference_hop_conditions {
+    rows = apply_reference_hops(rows, def.reference_hop_conditions, args, store)?;
+
+    Ok(query_ordering::apply(rows, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
+}
+
+/// `Runtime::ReferenceHop::fold`, ported directly — see
+/// `ReferenceHopCondition`'s own header for the full ground truth. ONE
+/// ordinary query against the hop's own target aggregate (the inner
+/// clause), folded into ONE more ordinary `in` filter against these rows
+/// (the outer clause) — the exact two-step shape Ruby's own
+/// `fold`/`matching_ids` already use, just without the recursion a
+/// multi-hop chain would need (single-hop only, this struct's own header
+/// has the reasoning). Shared by a read model's eligible head and a
+/// declared query (`named_query::run_cross_domain`), the two places Ruby
+/// folds a hop.
+pub(super) fn apply_reference_hops(
+    mut rows: Vec<(String, Json)>,
+    hops: &[ReferenceHopCondition],
+    args: &Json,
+    store: &impl AggregateScan,
+) -> Result<Vec<(String, Json)>, Refusal> {
+    for hop in hops {
         let inner_want = match hop.inner_value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
             QueryConditionValue::NumericLiteral(n) => Json::Num(n),
@@ -897,6 +938,5 @@ fn apply_filtered_head_options(
         let ids: Vec<Json> = matching.into_iter().map(|(id, _)| Json::Str(id)).collect();
         rows = repository::filter_entries(rows, hop.via_field, query_comparators::QueryComparator::In, &Json::Array(ids));
     }
-
-    Ok(query_ordering::apply(rows, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
+    Ok(rows)
 }

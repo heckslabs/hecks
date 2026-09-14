@@ -1886,6 +1886,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
         crate::kernel::QueryCondition { field: "standing", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("good") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -1896,6 +1899,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::Customer",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("suspended") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -1908,6 +1914,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "standing", comparator: crate::kernel::query_comparators::QueryComparator::Ne, value: crate::kernel::QueryConditionValue::Literal("good") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -1918,6 +1927,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::Account",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -1930,6 +1942,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Lt, value: crate::kernel::QueryConditionValue::Arg("floor") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: Some(crate::kernel::query_ordering::Limit::Literal(100)),
@@ -1940,6 +1955,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::Account",
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Gte, value: crate::kernel::QueryConditionValue::Arg("floor") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -1952,6 +1970,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Gt, value: crate::kernel::QueryConditionValue::Arg("floor") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -1963,6 +1984,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Lte, value: crate::kernel::QueryConditionValue::Arg("cap") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -1973,6 +1997,23 @@ crate::kernel::QueryDef {
     aggregate: "Banking::Account",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::In, value: crate::kernel::QueryConditionValue::Literal("open,frozen") },
+    ],
+    reference_hop_conditions: &[
+
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Account.OpenForSuspendedCustomers",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
+    ],
+    reference_hop_conditions: &[
+        crate::kernel::read_model::ReferenceHopCondition { via_field: "customer", target_aggregate: "Banking::Customer", inner_field: "status", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal("suspended") },
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -1986,6 +2027,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "customer", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("reference") },
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -1996,6 +2040,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::OnboardingCase",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("screening") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -2008,6 +2055,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "nickname", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Last }),
     offset: None,
     limit: None,
@@ -2018,6 +2068,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::ATMCard",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "daily_fee", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),
@@ -2030,6 +2083,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("authorized") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
@@ -2041,6 +2097,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
@@ -2051,6 +2110,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::CardPayment",
     conditions: &[
         crate::kernel::QueryCondition { field: "tags", comparator: crate::kernel::query_comparators::QueryComparator::Contains, value: crate::kernel::QueryConditionValue::Literal("high_risk") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: None,
     offset: None,
@@ -2064,6 +2126,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("rented") },
         crate::kernel::QueryCondition { field: "branch_code", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("branch_code") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "branch_code", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
@@ -2074,6 +2139,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::Transfer",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("debited") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "status", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
@@ -2086,6 +2154,9 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("sent") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
@@ -2096,6 +2167,9 @@ crate::kernel::QueryDef {
     aggregate: "Banking::ScheduledPayment",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("scheduled") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "due_on", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,

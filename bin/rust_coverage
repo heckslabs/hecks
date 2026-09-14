@@ -415,10 +415,10 @@ ALLOWLIST = [
     kind:      "query",
     gap_class: "per_instance",
     construct: "reference_hop_where",
-    doc:       "rust/project/queries.rb#query_where_skip_reason — a where clause hopping through a reference is " \
-               "read_model territory, not this generator's (docs/1.0-readiness.md item 2 tracks the same " \
-               "reference-hop gap on the Postgres side)",
-    note:      "Banking::Account.OpenForSuspendedCustomers and ReferralChain::Referral.FromGoodSponsors."
+    doc:       "rust/project/queries.rb#query_hop_plan — a SINGLE hop is generated (folded by " \
+               "kernel::read_model::apply_reference_hops); a chain of more than one hop is not yet " \
+               "(docs/1.0-readiness.md item 2 tracks the reference-hop gap on the Postgres side)",
+    note:      "ReferralChain::Referral.FromGoodSponsors (member/sponsor/standing, two hops)."
   },
   {
     kind:      "query",

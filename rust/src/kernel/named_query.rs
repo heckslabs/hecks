@@ -73,6 +73,11 @@ pub struct QueryDef {
     pub verb: &'static str,
     pub aggregate: &'static str,
     pub conditions: &'static [QueryCondition],
+    /// `where` clauses that hop through a reference (`customer/status`),
+    /// folded after `conditions` — the same `ReferenceHopCondition` a read
+    /// model's eligible head carries, applied by the same
+    /// `read_model::apply_reference_hops`. `&[]` for a hop-free query.
+    pub reference_hop_conditions: &'static [super::read_model::ReferenceHopCondition],
     pub order_by: Option<query_ordering::OrderBy>,
     /// `None` for the ordinary case (no declared `offset`, true for every
     /// declared query before this field existed). `query_ordering::apply`
@@ -251,6 +256,8 @@ pub fn run_cross_domain(
         entries =
             repository::filter_entries_cross_domain(entries, condition.field, condition.comparator, &want, cross_domain);
     }
+
+    entries = super::read_model::apply_reference_hops(entries, def.reference_hop_conditions, args, store)?;
 
     Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
 }

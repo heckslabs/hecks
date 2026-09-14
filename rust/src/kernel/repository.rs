@@ -480,6 +480,7 @@ mod check_role_actor_id_tests {
             verb: "Governance::RoleAssignment.AssignmentsForActor",
             aggregate: "Governance::RoleAssignment",
             conditions: &[QueryCondition { field: "actor_id", comparator: QueryComparator::Eq, value: QueryConditionValue::Arg("actor_id") }],
+            reference_hop_conditions: &[],
             order_by: None,
             offset: None,
             limit: None,

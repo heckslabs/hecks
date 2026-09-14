@@ -1236,17 +1236,19 @@ pub fn generate(
             .collect();
 
         for query in aggregate.get("queries").map(Json::each).unwrap_or(&[]) {
-            let reason = queries::query_skip_reason(query, aggregate, &value_objects_by_name);
+            let reason = queries::query_skip_reason(query, aggregate, &value_objects_by_name, &aggregates_by_name);
             if reason.is_some() {
                 continue;
             }
 
             let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
+            let (conditions, reference_hop_conditions) = queries::query_conditions_and_hops(domain_name, query, aggregate, &aggregates_by_name);
             query_defs.push(queries::QueryDef {
                 verb: format!("{domain_name}::{agg_name}.{query_name}"),
                 aggregate: format!("{domain_name}::{agg_name}"),
                 arg_checks: queries::query_arg_checks(query, &format!("crate::generated::{mod_name}::{}", agg_name.to_lowercase()), &value_objects_by_name),
-                conditions: queries::query_conditions_with_authorization(query),
+                conditions,
+                reference_hop_conditions,
                 order_by: query.get("order_by").map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
                 offset: query.get("offset").map(queries::emit_query_offset),
                 limit: query.get("limit").map(queries::emit_query_limit),
