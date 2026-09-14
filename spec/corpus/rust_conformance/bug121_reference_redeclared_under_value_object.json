@@ -1,0 +1,10 @@
+{
+  "domain": "qa/stress_domains/generated_revalued_shape",
+  "note": "BUG#121 (QualityControl ledger) — Hangar reference_to Venue; Repoint redeclares that field under its own value object (attribute :venue, VenueHandle; sets :venue) instead of Open's plain reference_to Venue argument. Value::Coercion#reference_identity's path-based identity extraction (lib/hecks/runtime/value/coercion.rb) only matched an incoming shape that already used the TARGET's (Venue's) own field names -- VenueHandle's differently-named sole field (`value`, not Venue's own `code`) failed every path lookup and fell through to the unresolved `return value`, storing the WRAPPED Value ({value: ...}) instead of the canonical bare identity Open's own reference_to argument already stores for the identical field. One aggregate field, two different stored shapes depending on which command wrote it last -- confirmed genuinely broken before the fix (Ruby's own instances diverged from itself across the two commands, and diverged from Rust's compiled binary, which already stored the canonical bare shape unconditionally). Fixed via Value::Coercion#sole_scalar_identity: unambiguous only when the target names exactly one identity path and the offered value is itself a single-attribute value object, matching the bare scalar Open's own path already produces. No Rust codegen change needed -- Rust's generated Repoint dispatch already copies the resolved args value straight through, landing on the bare shape by construction.",
+  "steps": [
+    { "verb": "GeneratedRevaluedShape::Venue.Open", "args": { "code": { "value": "alpha" } } },
+    { "verb": "GeneratedRevaluedShape::Hangar.Open", "args": { "venue": "alpha", "code": { "value": "hangar-one" } } },
+    { "dry_run": "GeneratedRevaluedShape::Hangar.Repoint", "args": { "venue": { "value": "alpha" }, "code": { "value": "hangar-one" } } },
+    { "verb": "GeneratedRevaluedShape::Hangar.Repoint", "args": { "venue": { "value": "alpha" }, "code": { "value": "hangar-one" } } }
+  ]
+}
