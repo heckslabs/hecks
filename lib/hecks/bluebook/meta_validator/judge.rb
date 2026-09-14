@@ -113,8 +113,22 @@ module Hecks
           nil
         end
 
+        # QualityControl BUG#125 — every dispatch the judge makes into the
+        # meta-domain goes through here, and only here, so this is the one
+        # place `Runtime::Value.judge_bootstrapping` needs to wrap: it tells
+        # `Value::Coercion#check_scalar_shapes` this construction is the
+        # language's own self-hosted grammar walk, not a real domain's
+        # command, so a String-typed meta-grammar field (`Normalise`'s
+        # `position`, a `RuleText` — `appends`' generic walk-index handling
+        # collides with that field's own name, see the flag's own comment
+        # in coercion.rb) may still arrive as the raw Integer `appends`
+        # hands it. Scoped to exactly this method: nothing outside a judge's
+        # own dispatch ever runs inside it, so an ordinary domain command
+        # (a real caller's own PieceId, Money, …) is never affected.
         def send_to(verb, label, to: nil, **payload)
-          offer(label) { @runtime.dispatch(verb, to: to, with: args(payload)) }
+          Runtime::Value.judge_bootstrapping do
+            offer(label) { @runtime.dispatch(verb, to: to, with: args(payload)) }
+          end
         end
 
         # THE RECEIVER, SPELLED THE WAY A REAL CALLER ADDRESSES IT.
