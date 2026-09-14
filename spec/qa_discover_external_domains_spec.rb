@@ -87,6 +87,32 @@ RSpec.describe "bin/qa_discover_external_domains" do
     expect(out).not_to include("reference=qualifying_sibling/widgets")
   end
 
+  it "reports a root-shaped domain — <repo-root>/bluebook/<repo-name>.bluebook, the entity dir IS the " \
+     "sibling's own root (embryonautfoundersapp's real shape) — alongside a sibling adapters/ dir inside " \
+     "bluebook/ that must not be mistaken for a second entity (a real translations/ dir is deliberately " \
+     "NOT part of this fixture — see its own bluebook/adapters/README.md for why: that exact directory " \
+     "name is itself a live corpus route this repo's own spec/translation/committed_edges_spec.rb reads, " \
+     "and a fixture domain carrying one without a real translation edge breaks that spec, not this one)" do
+    out, err, status = run_discover
+
+    expect(status.exitstatus).to eq(0), "stdout:\n#{out}\nstderr:\n#{err}"
+    expect(out).to include("root_shaped_sibling/root_shaped_sibling")
+    expect(out).to include(File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, "root_shaped_sibling"))
+    expect(out).to include("bin/run qa/bluebook identify reference=root_shaped_sibling/root_shaped_sibling " \
+                           "path=#{File.join(DISCOVER_EXTERNAL_DOMAINS_FIXTURES, 'root_shaped_sibling')}")
+    expect(out).not_to include("root_shaped_sibling/adapters")
+  end
+
+  it "does not false-positive a root-shaped hecksagain project — the real embryonautfoundersapp situation: " \
+     "a root-shaped bluebook reading `Hecks.bluebook`, backed by vendored hecksagain (`Hecks = Hecksagain`), " \
+     "never a dependency on the real hecks gem" do
+    out, _err, status = run_discover
+
+    expect(status.exitstatus).to eq(0)
+    expect(out).to include("no hecks dependency, skipped:").and include("near_miss_root_shaped_repo")
+    expect(out).not_to include("near_miss_root_shaped_repo/near_miss_root_shaped_repo")
+  end
+
   it "narrows with --max-depth: the default finds qualifying_sibling/widgets, depth 0 does not" do
     out_default, _err, status_default = run_discover
     out_shallow, _err2, status_shallow = run_discover("--max-depth", "0")

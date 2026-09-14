@@ -614,6 +614,9 @@
   "attaches_to": [
 
   ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

@@ -416,10 +416,26 @@ module Hecks
           new(value_object, fields)
         end
 
+        # STATE ARRIVES DECODED OR NOT AT ALL (Phase 2, Track A, PR A4).
+        # Every persistence adapter reads through `Ports::Persistence::
+        # StateCodec.decode` (A3), which symbolizes every top-level key, and
+        # the runtime's own callers (entity elements, the remote dispatcher's
+        # `symbolize_names:` parse, Era's audit) build symbol-keyed state
+        # themselves. A String key here is an adapter or caller that skipped
+        # the codec, so it is refused by name rather than respelled: the
+        # silent `to_sym` that used to sit here is exactly what hid such a
+        # bypass. Always on, because it costs one `is_a?` per key, the same
+        # as the `to_sym` it replaced.
         def hydrate(aggregate, state)
+          undecoded = state.keys.grep_v(Symbol)
+          unless undecoded.empty?
+            raise WiringError,
+                  "#{aggregate.name} state reached hydration with non-Symbol keys #{undecoded.inspect} — " \
+                  "decode stored state through Hecks::Ports::Persistence::StateCodec.decode first"
+          end
+
           trusting_stored_state do
-            state.each_with_object({}) do |(name, value), hydrated|
-              key       = name.to_sym
+            state.each_with_object({}) do |(key, value), hydrated|
               attribute = aggregate.attribute(key)
               hydrated[key] = attribute ? for_attribute(aggregate, attribute, value) : value
             end

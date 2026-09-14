@@ -1,3 +1,5 @@
+require "hecks/vocabulary"
+
 module Hecks
   module Bluebook
     # Lightweight formal methods over the IR — the same family as TLA+/
@@ -45,26 +47,23 @@ module Hecks
       # longer exists to be unreachable — the finding this allowlisted
       # cannot occur any more, by construction.
       #
-      # "banking"/NotifyOnClosure, FlagKeyReturn — real, confirmed
-      # findings, not bugs to fix. `across "Notifications"` names a
-      # domain that does not exist anywhere in this repo — no
-      # Notifications bluebook, no hecksagon, nothing to `uses_framework`
-      # or `subscribe` to. This is deliberate: `spec/runtime/policy_spec.
-      # rb` (a test literally named "records a reaction it cannot
-      # deliver rather than swallowing it") and `lib/hecks/runtime/
-      # errors.rb`'s own `UnknownVerb` comment both treat "target domain
-      # not loaded" as the EXPECTED outcome for it — Notifications is
-      # used on purpose to exercise the undelivered-reaction runtime
-      # path, not left half-built. There is no real `subscribe` line to
-      # add (no event of Notifications' own to name) and no real domain
-      # to point `uses_framework` at.
+      # "banking"/NotifyOnClosure, FlagKeyReturn — GONE FROM HERE, MOVED
+      # TO BANKING. `across "Notifications"` names a domain that does not
+      # exist anywhere in this repo, deliberately (it exercises the
+      # undelivered-reaction runtime path — `spec/runtime/policy_spec.rb`,
+      # "records a reaction it cannot deliver rather than swallowing it").
+      # That expectation is now DECLARED on the two policies themselves —
+      # `across "Notifications", expect_undelivered: true` — and
+      # `expected_undelivered_findings` below holds it in both directions:
+      # the unknown-target and unacknowledged-relationship findings are
+      # expected, and a declaration whose target turns out reachable is a
+      # `stale_undelivered_expectation` error. A domain's own allowance
+      # lives in its own source, never in a core table keyed by its name.
+      #
+      # PINNED EMPTY (spec/model_check_spec.rb), the way `bin/fuzz`'s
+      # `KNOWN_FUZZ_FINDINGS` is: a finding a domain means to keep belongs
+      # in that domain's own declaration.
       ALLOWED_FINDINGS = {
-        "banking" => [
-          [:unacknowledged_relationship, "NotifyOnClosure"],
-          [:unknown_target_domain, "NotifyOnClosure"],
-          [:unacknowledged_relationship, "FlagKeyReturn"],
-          [:unknown_target_domain, "FlagKeyReturn"]
-        ]
         # QualityControl WAS the first domain in this corpus to trigger an
         # `asks`/`tells` PORT OPERATION from a `policy`, and used to carry
         # two entries here for it — both GONE now, not just quieted:
@@ -115,7 +114,11 @@ module Hecks
       # target; see `cross_domain_policy_findings`'s own comment for why
       # this can only ever be a corpus-scoped heuristic, never a general
       # correctness guarantee.
-      def call(bluebook, hecksagon: nil, known_domains: nil)
+      #
+      # `rust_target:`/`strict:` — both default false, both only change the
+      # SEVERITY of `rust_reserved_name` findings (see
+      # `rust_reserved_name_findings`); every other finding is unaffected.
+      def call(bluebook, hecksagon: nil, known_domains: nil, rust_target: false, strict: false)
         findings = []
         bluebook.aggregates.each do |aggregate|
           findings.concat(lifecycle_findings(aggregate, aggregate))
@@ -123,8 +126,66 @@ module Hecks
         end
         bluebook.process_managers.each { |process_manager| findings.concat(saga_findings(bluebook, process_manager)) }
         bluebook.policies.each { |policy| findings.concat(policy_findings(bluebook, policy, hecksagon, known_domains)) }
+        findings.concat(rust_reserved_name_findings(domain_name: bluebook.name,
+                                                    aggregate_names: bluebook.aggregates.map(&:hecks_name),
+                                                    rust_target: rust_target, strict: strict))
         findings
       end
+
+      # ── Rust reserved names ───────────────────────────────────────────
+      #
+      # A name that becomes a bare Rust MODULE identifier with no `r#`
+      # escape hatch: an aggregate (`pub mod <name.downcase>;` plus its
+      # `<name.downcase>.rs` file) and a domain (`pub mod <name>;` AND a
+      # Cargo `[features]` key). Field names are not checked — both
+      # generators already raw-escape those (`rust_ident_field`).
+      #
+      # The words come from the `RustReservedWord`/`CargoReservedName`
+      # vocabularies, the same tables `rust/project/naming.rb` and
+      # hecks-codegen's generated `reserved_names.rs` read. Both Rust
+      # generators refuse through this check (`Projector.
+      # reserved_name_refusal`, and its hecks-codegen port in `naming.rs`).
+      #
+      # SEVERITY: a domain that only ever runs in Ruby is fine with an
+      # aggregate named `Match`, so this WARNS by default. It is an ERROR
+      # when the caller says the domain has a Rust target (`rust_target:` —
+      # `bin/model_check` reads it off the domain's Cargo feature, the
+      # generators always pass it) or asks for strictness (`strict:`,
+      # `bin/model_check --strict`).
+      #
+      # The module-name transform is `downcase`, the one both generators
+      # apply to an aggregate name and to an attached chapter's name.
+      def rust_reserved_name_findings(domain_name: nil, aggregate_names: [], rust_target: false, strict: false)
+        severity = rust_target || strict ? :error : :warning
+        keywords = Hecks::Vocabulary.fetch("RustReservedWord")
+
+        findings = aggregate_names.filter_map do |name|
+          module_name = rust_module_name(name)
+          next unless keywords.include?(module_name)
+
+          Finding.new(kind: :rust_reserved_name, severity: severity, subject: name.to_s,
+                      message: "the aggregate's Rust module `#{module_name}` is a Rust keyword (RustReservedWord) — " \
+                               "`pub mod #{module_name};` has no raw-identifier escape; rename the aggregate")
+        end
+        findings.concat(domain_reserved_name_findings(domain_name, keywords, severity)) if domain_name
+        findings
+      end
+
+      def domain_reserved_name_findings(domain_name, keywords, severity)
+        module_name = rust_module_name(domain_name)
+        table = if keywords.include?(module_name)
+                  "a Rust keyword (RustReservedWord)"
+                elsif Hecks::Vocabulary.fetch("CargoReservedName").include?(module_name)
+                  "a reserved Cargo.toml key (CargoReservedName)"
+                end
+        return [] unless table
+
+        [Finding.new(kind: :rust_reserved_name, severity: severity, subject: domain_name.to_s,
+                     message: "the domain's Rust module and Cargo feature `#{module_name}` is #{table} — " \
+                              "rename the domain")]
+      end
+
+      def rust_module_name(name) = name.to_s.downcase
 
       # ── lifecycles (aggregate AND entity — a piece may declare one too) ──
 
@@ -476,6 +537,7 @@ module Hecks
       # the finding's own name and this comment, and in prose docs — not
       # in the grammar.
       def cross_domain_policy_findings(policy, hecksagon, known_domains)
+        return expected_undelivered_findings(policy, hecksagon, known_domains) if policy.expect_undelivered
         return [] unless hecksagon # no sibling hecksagon loaded — nothing to check a relationship against.
 
         target = policy.target_domain
@@ -513,24 +575,48 @@ module Hecks
         # consumer's own domain (this repo's own embryonaut/lifeadelics-
         # shaped case) lives in a genuinely separate repository this
         # corpus scan can never see, so a target this check cannot find
-        # is "unknown to THIS corpus," never proof of a typo. Two real,
-        # legitimate reasons a target is unresolvable — genuinely
-        # undefined by design (the corpus's own "Notifications," used
+        # is "unknown to THIS corpus," never proof of a typo. A target
+        # undefined BY DESIGN (the corpus's own "Notifications", used
         # deliberately to exercise the undelivered-reaction runtime path)
-        # and real-but-external (a separate repository) — both go in
-        # `ALLOWED_FINDINGS`, the same judged-exception mechanism this
-        # file already uses for ExternalSettlement, rather than a new
-        # keyword invented to declare "this one's fine."
+        # declares so on its own policy — `expect_undelivered: true`,
+        # checked by `expected_undelivered_findings` — rather than being
+        # named in a core allowlist.
         if known_domains && !known_domains.include?(target)
           findings << Finding.new(kind: :unknown_target_domain, severity: :error, subject: policy.name,
                                   message: "across #{target.inspect} names a domain nowhere in the corpus " \
-                                           "this check has booted — a typo, or a real domain intentionally " \
-                                           "outside this corpus (undefined by design, or living in a " \
-                                           "separate repository) belongs in ALLOWED_FINDINGS, named and " \
-                                           "explained, not silently assumed correct")
+                                           "this check has booted — a typo, or a target intentionally never " \
+                                           "reached, which the policy itself declares with " \
+                                           "across #{target.inspect}, expect_undelivered: true")
         end
 
         findings
+      end
+
+      # A DECLARED UNDELIVERED TARGET, HELD TO ITS DECLARATION. The two
+      # findings an unreachable `across` target raises (unknown target,
+      # unacknowledged relationship) are what the policy declared it
+      # expects, so they are not raised. What IS raised is the declaration
+      # going stale: the target is a domain this corpus actually booted,
+      # or the sibling hecksagon attaches or subscribes to it — either way
+      # the reaction can be delivered, and the declaration is now a lie.
+      # `known_domains` is nil for a single-target run, which can then only
+      # check the hecksagon half.
+      def expected_undelivered_findings(policy, hecksagon, known_domains)
+        target  = policy.target_domain
+        reached = []
+        reached << "#{target} is a domain this corpus boots" if known_domains&.include?(target)
+        if hecksagon
+          reached << "this hecksagon uses_framework #{target.inspect}" if hecksagon.framework_members.include?(target)
+          if hecksagon.subscriptions.any? { |subscribed| Naming.qualifier(subscribed) == target }
+            reached << "this hecksagon subscribes to #{target}"
+          end
+        end
+        return [] if reached.empty?
+
+        [Finding.new(kind: :stale_undelivered_expectation, severity: :error, subject: policy.name,
+                     message: "across #{target.inspect}, expect_undelivered: true — but #{reached.join(' and ')}, " \
+                              "so the reaction can be delivered after all; drop expect_undelivered: or remove " \
+                              "what reaches #{target}")]
       end
 
       # ── shared enumeration ────────────────────────────────────────────

@@ -21,6 +21,13 @@ Hecks.bluebook "Bluebook" do
     attribute :on_event,        PolicyText
     attribute :trigger_command, PolicyText
     attribute :target_domain,   PolicyText
+    # AN `across` TARGET THIS DOMAIN EXPECTS NEVER TO REACH — declared on
+    # the policy that owns the expectation, not held in a core allowlist
+    # keyed by domain name. `ModelCheck` honours it both ways: the
+    # unknown-target and unacknowledged-relationship findings it would
+    # otherwise raise are expected, and a declaration whose target turns
+    # out to be known or acknowledged after all is STALE and fails.
+    attribute :expect_undelivered, PolicyText
     # THE GUARD, CARRIED AS TEXT — same discipline `Command.givens`
     # already holds: the block that wrote it is never called at
     # runtime, only its EXTRACTED SOURCE is (Ports::Extraction), so
@@ -92,6 +99,7 @@ Hecks.bluebook "Bluebook" do
       attribute :on_event,        PolicyText
       attribute :trigger_command, PolicyText
       attribute :target_domain,   PolicyText, optional: true
+      attribute :expect_undelivered, PolicyText, optional: true
       attribute :where,           PolicyText, optional: true
       attribute :for_each,        PolicyText, optional: true
 
@@ -102,6 +110,7 @@ Hecks.bluebook "Bluebook" do
       sets :on_event
       sets :trigger_command
       sets :target_domain
+      sets :expect_undelivered
       sets :where
       sets :for_each
       sets :position
@@ -153,7 +162,7 @@ Hecks.bluebook "Bluebook" do
 
       member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event", calls: "on_impl"
       member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command", calls: "trigger_impl"
-      member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain"
+      member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain", calls: "across_impl"
       member word: "where",           context: "Policy",    body: "source", inner: "", opens: "", fills: "where"
       member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "", fills: "for_each"
 
@@ -181,6 +190,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "trigger_command"
       member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text",     required: "true", fills: "trigger_command"
       member keyword: "across",          context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain"
+      member keyword: "across",          context: "Policy", at: "", named: "expect_undelivered", kind: "flag", required: "false", fills: "expect_undelivered"
       member keyword: "for_each",        context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each"
       member keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
 

@@ -3939,6 +3939,16 @@
           "pattern": null,
           "relationship": null,
           "type": "AttachesToContext"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "provides",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Provision"
         }
       ],
       "commands": [
@@ -4140,6 +4150,67 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "capability",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ProvisionText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ProvisionText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "verb",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ProvisionText"
+            }
+          ],
+          "emits": [
+            "CapabilityProvided"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Declare one verb this chapter answers a capability with",
+          "mutations": [
+            {
+              "fields": {
+                "capability": ":capability",
+                "key": ":key",
+                "verb": ":verb"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "provides"
+            }
+          ],
+          "name": "Provide",
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "strategy",
               "optional": false,
               "pattern": null,
@@ -4268,6 +4339,70 @@
         }
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "capability",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "verb",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Provision"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ProvisionText"
+        },
         {
           "attributes": [
             {
@@ -4865,6 +5000,36 @@
             [
               [
                 "word",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "provides"
+              ],
+              [
+                "calls",
+                "provides_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "core"
               ],
               [
@@ -5369,6 +5534,126 @@
               [
                 "variadic",
                 true
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "provides"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "assignments"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "provides"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "grant"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "provides"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "transitions"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "provides"
               ]
             ],
             [
@@ -11999,6 +12284,16 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "expect_undelivered",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "where",
           "optional": true,
           "pattern": null,
@@ -12103,6 +12398,16 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "expect_undelivered",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "where",
               "optional": true,
               "pattern": null,
@@ -12195,6 +12500,15 @@
                 "name": "target_domain"
               },
               "target": "target_domain"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "expect_undelivered"
+              },
+              "target": "expect_undelivered"
             },
             {
               "op": "set",
@@ -12642,6 +12956,10 @@
               [
                 "fills",
                 "target_domain"
+              ],
+              [
+                "calls",
+                "across_impl"
               ]
             ],
             [
@@ -13005,6 +13323,36 @@
               [
                 "fills",
                 "target_domain"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "across"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "expect_undelivered"
+              ],
+              [
+                "kind",
+                "flag"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "expect_undelivered"
               ]
             ],
             [
@@ -23990,6 +24338,438 @@
             ]
           ],
           "name": "FieldHint"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "word",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "word",
+                "as"
+              ]
+            ],
+            [
+              [
+                "word",
+                "break"
+              ]
+            ],
+            [
+              [
+                "word",
+                "const"
+              ]
+            ],
+            [
+              [
+                "word",
+                "continue"
+              ]
+            ],
+            [
+              [
+                "word",
+                "crate"
+              ]
+            ],
+            [
+              [
+                "word",
+                "dyn"
+              ]
+            ],
+            [
+              [
+                "word",
+                "else"
+              ]
+            ],
+            [
+              [
+                "word",
+                "enum"
+              ]
+            ],
+            [
+              [
+                "word",
+                "extern"
+              ]
+            ],
+            [
+              [
+                "word",
+                false
+              ]
+            ],
+            [
+              [
+                "word",
+                "fn"
+              ]
+            ],
+            [
+              [
+                "word",
+                "for"
+              ]
+            ],
+            [
+              [
+                "word",
+                "if"
+              ]
+            ],
+            [
+              [
+                "word",
+                "impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "in"
+              ]
+            ],
+            [
+              [
+                "word",
+                "let"
+              ]
+            ],
+            [
+              [
+                "word",
+                "loop"
+              ]
+            ],
+            [
+              [
+                "word",
+                "match"
+              ]
+            ],
+            [
+              [
+                "word",
+                "mod"
+              ]
+            ],
+            [
+              [
+                "word",
+                "move"
+              ]
+            ],
+            [
+              [
+                "word",
+                "mut"
+              ]
+            ],
+            [
+              [
+                "word",
+                "pub"
+              ]
+            ],
+            [
+              [
+                "word",
+                "ref"
+              ]
+            ],
+            [
+              [
+                "word",
+                "return"
+              ]
+            ],
+            [
+              [
+                "word",
+                "self"
+              ]
+            ],
+            [
+              [
+                "word",
+                "Self"
+              ]
+            ],
+            [
+              [
+                "word",
+                "static"
+              ]
+            ],
+            [
+              [
+                "word",
+                "struct"
+              ]
+            ],
+            [
+              [
+                "word",
+                "super"
+              ]
+            ],
+            [
+              [
+                "word",
+                "trait"
+              ]
+            ],
+            [
+              [
+                "word",
+                true
+              ]
+            ],
+            [
+              [
+                "word",
+                "type"
+              ]
+            ],
+            [
+              [
+                "word",
+                "unsafe"
+              ]
+            ],
+            [
+              [
+                "word",
+                "use"
+              ]
+            ],
+            [
+              [
+                "word",
+                "where"
+              ]
+            ],
+            [
+              [
+                "word",
+                "while"
+              ]
+            ],
+            [
+              [
+                "word",
+                "abstract"
+              ]
+            ],
+            [
+              [
+                "word",
+                "become"
+              ]
+            ],
+            [
+              [
+                "word",
+                "box"
+              ]
+            ],
+            [
+              [
+                "word",
+                "do"
+              ]
+            ],
+            [
+              [
+                "word",
+                "final"
+              ]
+            ],
+            [
+              [
+                "word",
+                "macro"
+              ]
+            ],
+            [
+              [
+                "word",
+                "override"
+              ]
+            ],
+            [
+              [
+                "word",
+                "priv"
+              ]
+            ],
+            [
+              [
+                "word",
+                "typeof"
+              ]
+            ],
+            [
+              [
+                "word",
+                "unsized"
+              ]
+            ],
+            [
+              [
+                "word",
+                "virtual"
+              ]
+            ],
+            [
+              [
+                "word",
+                "yield"
+              ]
+            ],
+            [
+              [
+                "word",
+                "try"
+              ]
+            ]
+          ],
+          "name": "RustReservedWord"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "name"
+              ]
+            ],
+            [
+              [
+                "name",
+                "version"
+              ]
+            ],
+            [
+              [
+                "name",
+                "edition"
+              ]
+            ],
+            [
+              [
+                "name",
+                "path"
+              ]
+            ],
+            [
+              [
+                "name",
+                "authors"
+              ]
+            ],
+            [
+              [
+                "name",
+                "license"
+              ]
+            ],
+            [
+              [
+                "name",
+                "description"
+              ]
+            ],
+            [
+              [
+                "name",
+                "default"
+              ]
+            ],
+            [
+              [
+                "name",
+                "features"
+              ]
+            ],
+            [
+              [
+                "name",
+                "package"
+              ]
+            ],
+            [
+              [
+                "name",
+                "lib"
+              ]
+            ],
+            [
+              [
+                "name",
+                "bin"
+              ]
+            ],
+            [
+              [
+                "name",
+                "dependencies"
+              ]
+            ],
+            [
+              [
+                "name",
+                "dev-dependencies"
+              ]
+            ],
+            [
+              [
+                "name",
+                "build-dependencies"
+              ]
+            ],
+            [
+              [
+                "name",
+                "workspace"
+              ]
+            ]
+          ],
+          "name": "CargoReservedName"
         }
       ]
     }
@@ -24021,6 +24801,9 @@
 
   ],
   "process_managers": [
+
+  ],
+  "provides": [
 
   ],
   "read_models": [

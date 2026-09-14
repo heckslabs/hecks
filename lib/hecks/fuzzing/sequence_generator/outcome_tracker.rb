@@ -15,7 +15,7 @@ module Hecks
           parent_scalar = identity_scalar_of(aggregate, args)
 
           @known_ids[aggregate.hecks_name] << parent_scalar if entry[:entity].nil? && entry[:command].creates?
-          record_grant(args) if entry[:verb] == Adversary::GRANT_VERB
+          record_grant(args) if catalog[:grant_verbs].include?(entry[:verb])
 
           populator = populator_for_entry(catalog, entry)
           return unless populator
@@ -47,8 +47,9 @@ module Hecks
           @appended_identities[key] << populator[:identity_arguments].to_h { |name| [name.to_s, args[name.to_s]] }
         end
 
-        # A GRANT THIS SEQUENCE MADE FOR REAL — `Governance::RoleAssignment.
-        # Assign` succeeded with these exact args, so `actor_id` now holds
+        # A GRANT THIS SEQUENCE MADE FOR REAL — the authorization provider's
+        # declared `grant:` verb (`Governance::RoleAssignment.Assign` in
+        # every boot today) succeeded with these exact args, so `actor_id` now holds
         # `role_name` in this boot's own store, on both replay sides. The
         # `actor_known` caller shape (adversary.rb) replays that identity
         # against a command gated on the same role: the one way a

@@ -418,6 +418,9 @@ pub struct Policy {
     pub on_event: Option<String>,
     pub trigger_command: Option<String>,
     pub target_domain: Option<String>,
+    // `across "X", expect_undelivered: true` — emitted as a JSON boolean
+    // straight after `target_domain`, `false` when not declared.
+    pub expect_undelivered: bool,
     // `where`/`for_each` — new language surface (conditional policy
     // dispatch + fan-out; `PolicyBuilder#where`/`#for_each`,
     // `lib/hecks/bluebook/dsl/policy_builder.rb`). Named
@@ -528,6 +531,10 @@ pub struct Bluebook {
     // (`attaches_to "Query", "ReadModel"`), so far only Paging's own.
     // Empty for every other chapter.
     pub attaches_to: Vec<String>,
+    // `provides "authorization", grant: "RoleAssignment.Assign", ...` —
+    // one row per key, in source order (`IR::Chapter#to_h`'s `provides`).
+    // Empty for every chapter but Governance today.
+    pub provides: Vec<Provision>,
     // canonical_form: Expression::CanonicalForm.table — the two
     // normalisation rules canonical.rs already hand-mirrors; Stage 2's
     // emit.rs writes this the same way for every chapter, not per-domain
@@ -548,6 +555,16 @@ impl Default for Bluebook {
             policies: Vec::new(),
             process_managers: Vec::new(),
             attaches_to: Vec::new(),
+            provides: Vec::new(),
         }
     }
+}
+
+/// One row of a declared capability — `Chapter::Provision` on the Ruby
+/// side, emitted as `{"capability", "key", "verb"}` in that order.
+#[derive(Debug, Clone, Default)]
+pub struct Provision {
+    pub capability: String,
+    pub key: String,
+    pub verb: String,
 }

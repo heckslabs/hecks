@@ -744,6 +744,7 @@
       "on_event": "Order.PizzaPaymentReceived",
       "trigger_command": "Order.Purchase",
       "target_domain": null,
+      "expect_undelivered": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -756,6 +757,9 @@
 
   ],
   "attaches_to": [
+
+  ],
+  "provides": [
 
   ],
   "canonical_form": [
@@ -790,6 +794,12 @@
         "adapter": "PostgresEra"
       }
     ]
+  },
+  "authorization": {
+    "provider": "Governance",
+    "grant": "Governance::RoleAssignment.Assign",
+    "assignments": "Governance::RoleAssignment.AssignmentsForActor",
+    "assignment_aggregate": "Governance::RoleAssignment"
   },
   "translations": [
     {

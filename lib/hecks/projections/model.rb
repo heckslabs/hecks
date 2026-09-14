@@ -37,12 +37,16 @@ module Hecks
           construct: "Policy",
           file:      "policy.rb",
           behaviour: "Behaviour::Policy",
-          readers:   %i[name on_event trigger_command target_domain where for_each with_spec],
+          readers:   %i[name on_event trigger_command target_domain expect_undelivered where for_each with_spec],
           accessors: %i[aggregate],
           defaults:  { name: nil, on_event: "nil", trigger_command: "nil",
-                       target_domain: "nil", where: "nil", for_each: "nil",
+                       target_domain: "nil", expect_undelivered: "false", where: "nil", for_each: "nil",
                        with_spec: "[]", aggregate: "nil" },
-          coerce:    { name: ".to_s", aggregate: "&.to_s" },
+          # A FLAG ON THE WIRE IS A BOOLEAN — the language holds it as
+          # text ("true"), the builder hands over `true`, and a
+          # reconstruction hands back whichever it read; all three land
+          # as the same `true`/`false`.
+          coerce:    { name: ".to_s", aggregate: "&.to_s", expect_undelivered: ".to_s == \"true\"" },
           # A LIST OF BINDINGS IS NOT A SCALAR ON THE WIRE. Every other
           # field emits as itself; this one has to render the way
           # `DispatchSpec`'s own `with_spec` does — keys to strings, and

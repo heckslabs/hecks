@@ -179,13 +179,14 @@ module Hecks
         # correct (a check against an incomplete, not-yet-merged
         # hecksagon can never see the real final shape).
         #
-        # GOVERNANCE ITSELF IS EXEMPT — it cannot `uses_framework` its own
-        # aggregates, and it IS the source of truth a role check runs
-        # against, the same self-reference `CommandRules::Authorization
-        # #governance_attached?` grants it at dispatch time.
+        # A PROVIDER IS RECOGNISED BY ITS DECLARATION, NOT ITS NAME —
+        # `authorization_provider_for` answers for the domain's own
+        # chapter too, so Governance (which declares `provides
+        # "authorization"`) passes here because of what it declares, and
+        # the same rule `CommandRules::Authorization#governance_attached?`
+        # applies at dispatch time.
         def refuse_ungoverned_roles!(hexagon)
-          return if hexagon.domain == "Governance"
-          return if hexagon.framework_members.include?("Governance")
+          return if authorization_provider_for(hexagon.domain)
 
           bluebook_ir = bluebook(hexagon.domain)
           return unless bluebook_ir
@@ -195,9 +196,18 @@ module Hecks
 
           raise WiringError,
                 "#{offender.hecks_fqn} declares role #{offender.role.inspect}, but " \
-                "#{hexagon.domain}'s hecksagon never uses_framework \"Governance\" — role is only " \
-                "real access control once Governance is attached to check it against; without that " \
-                "it is silent decoration, the exact defect this refusal exists to catch"
+                "#{hexagon.domain}'s hecksagon never #{authorization_attachment_hint} — role is only " \
+                "real access control once an authorization provider is attached to check it against; " \
+                "without that it is silent decoration, the exact defect this refusal exists to catch"
+        end
+
+        # The suggestion, derived from whichever framework members actually
+        # declare `provides "authorization"` — never a hardcoded name.
+        def authorization_attachment_hint
+          providers = Framework.providers_of(Bluebook::Capabilities::AUTHORIZATION)
+          return "attaches a chapter that provides \"authorization\" (no framework member declares one)" if providers.empty?
+
+          providers.map { |name| "uses_framework #{name.inspect}" }.join(" or ")
         end
 
         # Every command this domain declares, an aggregate's own AND every
