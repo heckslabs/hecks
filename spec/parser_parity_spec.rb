@@ -322,9 +322,10 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     # STAGE 5 — EVERY `spec/fixtures/**/*.bluebook` member, not
     # hand-listed (see PARITY_FIXTURE_MEMBERS' own `Dir.glob`, above), so
     # a future fixture is covered automatically. Same standalone shape as
-    # the framework trio/grammar chapters: none of these narrow unit-test
-    # fixtures pairs with a `.hecksagon` (confirmed by `find spec/fixtures
-    # -iname '*.hecksagon'` finding nothing at all).
+    # the framework trio/grammar chapters: parity reads the bluebook alone.
+    # `payments.hecksagon` is the one flat fixture sibling, and it exists
+    # for bin/model_check (a port that emits what the policies hear), not
+    # for the chapter this compares.
     PARITY_FIXTURE_MEMBERS.to_h do |bluebook|
       stem = fixture_stem(bluebook)
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"

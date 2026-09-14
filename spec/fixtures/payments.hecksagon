@@ -1,0 +1,32 @@
+# THE PRIMARY PORT payments.bluebook's two policies listen to — a gateway
+# outside the domain tells us money arrived or was declined, and these
+# operations are how that fact enters. Beside the bluebook so
+# bin/model_check sees what emits PaymentReceived/PaymentDeclined; the
+# specs that dispatch against this fixture declare the same port inline.
+#
+# The same wiring spec/port_operation_interpreter_spec.rb declares inline
+# and verifies: a declared hecksagon decides wiring explicitly, so a folder
+# boot of spec/fixtures (spec/fuzzing/properties_spec.rb) refuses an unbound
+# aggregate, and refuses the fixture's `role`s unless an authorization
+# provider is attached.
+Hecks.hecksagon "Payments" do
+  uses_framework "Governance"
+  Payments::Payment.persisted_by("Memory")
+
+  Payments::Payment.port "PaymentGateway" do
+    operation "Receive" do
+      attribute :amount, Money
+      emits "PaymentReceived"
+    end
+
+    operation "Decline" do
+      attribute :reason, DeclineReason
+      emits "PaymentDeclined"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
