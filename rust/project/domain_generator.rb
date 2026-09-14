@@ -1252,7 +1252,38 @@ module RustProjection
           }
         end
 
-        manifest.concat(entity_query_entries("#{domain_name}::#{aggregate[:name]}", aggregate[:entities]))
+        # ENTITY QUERIES, one level down — generated when the aggregate
+        # holds the entity in a list (`kernel::named_query::run_entity`).
+        # Queries on an entity nested inside another entity stay a
+        # recorded gap (`entity_query_entries`).
+        aggregate_id = "#{domain_name}::#{aggregate[:name]}"
+        aggregate[:entities].each do |entity|
+          list_attr = aggregate[:attributes].find { |a| a[:list] && a[:type].to_s == entity[:name].to_s }
+          Array(entity[:queries]).each do |query|
+            query_verb = "#{aggregate_id}.#{entity[:name]}.#{query[:name]}"
+            reason = Projector.entity_query_skip_reason(query, entity, list_attr, value_objects_by_name)
+            if reason
+              puts "skipping query #{query_verb}: #{reason}"
+              manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", construct: reason.construct, reason: reason)
+              next
+            end
+
+            manifest << manifest_entry(kind: "query", id: query_verb, generated: true)
+            query_defs << {
+              verb: query_verb,
+              aggregate: aggregate_id,
+              entity: { list_field: list_attr[:name].to_s, parent_key: Projector.snake(aggregate[:name]),
+                        identity_keys: Array(entity[:identified_by]).map { |path| path.to_s.split(".").first } },
+              arg_checks: [],
+              conditions: Projector.query_conditions(query),
+              order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by], query[:null_semantics]) : nil,
+              offset: query[:offset] ? Projector.emit_query_offset(query[:offset]) : nil,
+              limit: query[:limit] ? Projector.emit_query_limit(query[:limit]) : nil,
+              authorization: nil,
+            }
+          end
+          manifest.concat(entity_query_entries("#{aggregate_id}.#{entity[:name]}", Array(entity[:entities])))
+        end
       end
 
       # ── READ MODELS — a declared `report "X" do ... end` block

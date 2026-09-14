@@ -662,6 +662,22 @@ crate::kernel::QueryDef {
 ];
 /// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
 pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
+crate::kernel::named_query::EntityQueryDef {
+    verb: "Chess::Game.Piece.OnBoard",
+    aggregate: "Chess::Game",
+    list_field: "pieces",
+    parent_key: "game",
+    identity_keys: &["id"],
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("on_board") },
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+},
+];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

@@ -414,16 +414,6 @@ ALLOWLIST = [
   {
     kind:      "query",
     gap_class: "whole_kind",
-    construct: "entity_query",
-    doc:       "rust/project/domain_generator.rb#entity_query_entries — only an aggregate's own declared queries " \
-               "reach the generated QUERIES table; an entity-scoped query has no generated code path",
-    note:      "Banking::Account.LedgerEntry.Reversed, ATMCard.Withdrawal.Recent, SafeDepositBox.Visit.Recent, " \
-               "Chess::Game.Piece.OnBoard. First recorded in the manifest in Phase 4 — before that the fuzzer " \
-               "tolerated their refusals only because it matched Rust's wording, and this tool never expected them."
-  },
-  {
-    kind:      "query",
-    gap_class: "whole_kind",
     construct: "no_generated_code_path",
     doc:       "rust/src/generated/embryonaut/registry.rs and merged.rs (own HAND-PATCHED notes, both files, right " \
                "above their empty QUERIES const)",

@@ -242,6 +242,9 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
 ];
 /// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
 pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
+];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

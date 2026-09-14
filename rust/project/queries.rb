@@ -684,9 +684,11 @@ module RustProjection
     # the same "absent, not wrong" shape an unrouted command's own missing
     # registry entry already is.
     def emit_query_table(query_defs)
-      rows = query_defs.map { |q| emit_query_def(q) }
+      entity_defs, aggregate_defs = query_defs.partition { |q| q[:entity] }
+      rows = aggregate_defs.map { |q| emit_query_def(q) }
       "#{Exemplar.render('query_table', QUERY_TABLE_ROW_PLACEHOLDER => rows.join("\n"))}\n" \
-        "#{emit_authorization_assignments(query_defs)}"
+        "#{emit_authorization_assignments(query_defs)}" \
+        "#{emit_entity_query_table(entity_defs)}"
     end
 
     # `provides "authorization", assignments: "Aggregate.Query"` — the
@@ -707,6 +709,46 @@ module RustProjection
       "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; " \
         "`None` when no chapter here declares one.\n" \
         "pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = #{value};\n"
+    end
+
+    # DECLARED ENTITY QUERIES (`Aggregate.Entity.Query`) —
+    # `kernel::named_query::run_entity`, `QueryInterpreter#entity_rows`
+    # compiled. Beside `QUERIES` in every table this emits, empty for a
+    # domain that declares none.
+    def emit_entity_query_table(entity_defs)
+      rows = entity_defs.map { |q| "#{emit_entity_query_def(q)}\n" }.join
+      "/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.\n" \
+        "pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[\n#{rows}];\n"
+    end
+
+    def emit_entity_query_def(query_def)
+      entity = query_def[:entity]
+      conditions = query_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
+      keys = entity[:identity_keys].map(&:inspect).join(", ")
+      order_by = query_def[:order_by] ? "Some(#{query_def[:order_by]})" : "None"
+      offset = query_def[:offset] ? "Some(#{query_def[:offset]})" : "None"
+      limit = query_def[:limit] ? "Some(#{query_def[:limit]})" : "None"
+      "crate::kernel::named_query::EntityQueryDef {\n    verb: #{query_def[:verb].inspect},\n    " \
+        "aggregate: #{query_def[:aggregate].inspect},\n    list_field: #{entity[:list_field].inspect},\n    " \
+        "parent_key: #{entity[:parent_key].inspect},\n    identity_keys: &[#{keys}],\n    conditions: &[\n#{conditions}\n    ],\n    " \
+        "order_by: #{order_by},\n    offset: #{offset},\n    limit: #{limit},\n},"
+    end
+
+    # An entity query's own eligibility: its aggregate must hold the entity
+    # in a list (the thing `entity_rows` flattens), a tenant-scoped one is
+    # not generated yet, and otherwise every clause gets the SAME check a
+    # declared aggregate query does — against the entity's own fields.
+    def entity_query_skip_reason(query, entity, list_attr, value_objects_by_name)
+      return skip("entity_query", "#{entity[:name]} is held in no list attribute on its aggregate — nothing to flatten") unless list_attr
+      return skip("entity_query_authorization", "declares authorize — an entity query's tenant scope is not generated yet") if query[:authorization]
+
+      query_skip_reason(query, entity, value_objects_by_name)
+    end
+
+    # `Hecks::Naming.snake` — `Naming.reference_key`, the key an entity
+    # query's rows name their owning record under.
+    def snake(text)
+      text.to_s.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
     end
 
     # C3.7 FOR A NAMED QUERY'S OWN ARGUMENTS — `QueryInterpreter#normalize_

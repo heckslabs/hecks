@@ -2435,6 +2435,48 @@ crate::kernel::QueryDef {
 ];
 /// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
 pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = Some("Governance::RoleAssignment.AssignmentsForActor");
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
+crate::kernel::named_query::EntityQueryDef {
+    verb: "Banking::Account.LedgerEntry.Reversed",
+    aggregate: "Banking::Account",
+    list_field: "ledger",
+    parent_key: "account",
+    identity_keys: &["sequence"],
+    conditions: &[
+        crate::kernel::QueryCondition { field: "state", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("reversed") },
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+},
+crate::kernel::named_query::EntityQueryDef {
+    verb: "Banking::ATMCard.Withdrawal.Recent",
+    aggregate: "Banking::ATMCard",
+    list_field: "withdrawals",
+    parent_key: "atm_card",
+    identity_keys: &["sequence"],
+    conditions: &[
+        crate::kernel::QueryCondition { field: "state", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("taken") },
+    ],
+    order_by: None,
+    offset: None,
+    limit: Some(crate::kernel::query_ordering::Limit::Literal(2)),
+},
+crate::kernel::named_query::EntityQueryDef {
+    verb: "Banking::SafeDepositBox.Visit.Recent",
+    aggregate: "Banking::SafeDepositBox",
+    list_field: "visits",
+    parent_key: "safe_deposit_box",
+    identity_keys: &["date", "sequence"],
+    conditions: &[
+        crate::kernel::QueryCondition { field: "state", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("logged") },
+    ],
+    order_by: None,
+    offset: None,
+    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),
+},
+];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

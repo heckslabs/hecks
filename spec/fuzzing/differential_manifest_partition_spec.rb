@@ -1,15 +1,32 @@
 require "spec_helper"
+require "json"
+require "tmpdir"
+require "fileutils"
 require "hecks/fuzzing"
 require "hecks/fuzzing/differential"
 
 # `Differential.manifest_partition` — the one place a Ruby/Rust query
-# divergence may be tolerated, and only for a verb banking's committed
-# manifest.json declares not generated.
+# divergence may be tolerated, and only for a verb a manifest.json declares
+# not generated. A synthetic manifest: the real banking one this used to
+# read now declares no gaps.
 RSpec.describe Hecks::Fuzzing::Differential, ".manifest_partition" do
-  let(:gaps) do
-    Hecks::Fuzzing::RustGapManifest.new(rust_dir: File.join(InMemoryDomain::ROOT, "rust"), feature: "banking")
+  around do |example|
+    Dir.mktmpdir do |root|
+      @gap_root = root
+      dir = File.join(root, "src/generated/shop")
+      FileUtils.mkdir_p(dir)
+      File.write(File.join(dir, "merged.rs"), "")
+      entries = [
+        { "kind" => "query", "id" => "Shop::Order.LineItem.Recent", "generated" => false,
+          "gap_class" => "whole_kind", "construct" => "entity_query" }
+      ]
+      File.write(File.join(dir, "manifest.json"), JSON.generate(entries))
+      example.run
+    end
   end
-  let(:declared) { "Banking::Account.LedgerEntry.Reversed" }
+
+  let(:gaps) { Hecks::Fuzzing::RustGapManifest.new(rust_dir: @gap_root, feature: "shop") }
+  let(:declared) { "Shop::Order.LineItem.Recent" }
 
   def partition(ruby_refusals: [], rust_refusals: [], ruby_queries: [], rust_queries: [])
     described_class.manifest_partition(gaps, ruby_refusals: ruby_refusals, rust_refusals: rust_refusals,

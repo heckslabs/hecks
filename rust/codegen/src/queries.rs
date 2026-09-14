@@ -594,6 +594,8 @@ pub struct QueryDef {
     /// The chapter's `provides "authorization", assignments:` names this
     /// query — see `emit_authorization_assignments`.
     pub assignments: bool,
+    /// `Some` for a declared ENTITY query — emitted into `ENTITY_QUERIES`.
+    pub entity: Option<EntityScope>,
 }
 
 /// Port of `queries.rb#provided_assignments`.
@@ -619,6 +621,53 @@ pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
     format!(
         "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
     )
+}
+
+/// Port of `queries.rb`'s `query_def[:entity]`.
+pub struct EntityScope {
+    pub list_field: String,
+    pub parent_key: String,
+    pub identity_keys: Vec<String>,
+}
+
+/// Port of `queries.rb#emit_entity_query_table`.
+pub fn emit_entity_query_table(entity_defs: &[&QueryDef]) -> String {
+    let rows: String = entity_defs.iter().map(|q| format!("{}\n", emit_entity_query_def(q))).collect();
+    format!(
+        "/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.\npub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[\n{rows}];\n"
+    )
+}
+
+fn emit_entity_query_def(query_def: &QueryDef) -> String {
+    let entity = query_def.entity.as_ref().expect("an entity query def carries its scope");
+    let conditions = query_def.conditions.iter().map(|c| format!("        {}", emit_query_condition(c))).collect::<Vec<_>>().join("\n");
+    let keys = entity.identity_keys.iter().map(|key| naming::ruby_inspect_string(key)).collect::<Vec<_>>().join(", ");
+    let wrap = |value: &Option<String>| match value {
+        Some(v) => format!("Some({v})"),
+        None => "None".to_string(),
+    };
+    format!(
+        "crate::kernel::named_query::EntityQueryDef {{\n    verb: {},\n    aggregate: {},\n    list_field: {},\n    parent_key: {},\n    identity_keys: &[{keys}],\n    conditions: &[\n{conditions}\n    ],\n    order_by: {},\n    offset: {},\n    limit: {},\n}},",
+        naming::ruby_inspect_string(&query_def.verb),
+        naming::ruby_inspect_string(&query_def.aggregate),
+        naming::ruby_inspect_string(&entity.list_field),
+        naming::ruby_inspect_string(&entity.parent_key),
+        wrap(&query_def.order_by),
+        wrap(&query_def.offset),
+        wrap(&query_def.limit)
+    )
+}
+
+/// Port of `queries.rb#entity_query_skip_reason`.
+pub fn entity_query_skip_reason(query: &Json, entity: &Json, holds_list: bool, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let entity_name = entity.get("name").map(Json::to_s).unwrap_or_default();
+    if !holds_list {
+        return Some(format!("{entity_name} is held in no list attribute on its aggregate — nothing to flatten"));
+    }
+    if query.get("authorization").is_some() {
+        return Some("declares authorize — an entity query's tenant scope is not generated yet".to_string());
+    }
+    query_skip_reason(query, entity, value_objects_by_name, &HashMap::new())
 }
 
 pub fn emit_query_def(query_def: &QueryDef) -> String {
@@ -651,11 +700,13 @@ pub fn emit_query_def(query_def: &QueryDef) -> String {
 const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: \"tmpl_verb\",\n    aggregate: \"tmpl_aggregate\",\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    reference_hop_conditions: &[\n        crate::kernel::read_model::ReferenceHopCondition {\n            via_field: \"tmpl_via_field\",\n            target_aggregate: \"tmpl_target_aggregate\",\n            through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }],\n            inner_field: \"tmpl_inner_field\",\n            inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::query_ordering::OrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),\n    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n},";
 
 pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String {
-    let rows: Vec<String> = query_defs.iter().map(emit_query_def).collect();
+    let (entity_defs, aggregate_defs): (Vec<&QueryDef>, Vec<&QueryDef>) = query_defs.iter().partition(|q| q.entity.is_some());
+    let rows: Vec<String> = aggregate_defs.into_iter().map(emit_query_def).collect();
     format!(
-        "{}\n{}",
+        "{}\n{}{}",
         exemplar.render("query_table", &[(QUERY_TABLE_ROW_PLACEHOLDER, rows.join("\n"))]),
-        emit_authorization_assignments(query_defs)
+        emit_authorization_assignments(query_defs),
+        emit_entity_query_table(&entity_defs)
     )
 }
 
