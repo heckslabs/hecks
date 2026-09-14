@@ -1,0 +1,13 @@
+{
+  "domain": "examples/roster",
+  "note": "BUG#140 — the exact shrunk repro the ledger's own investigation used. `Roster::Roster.Retire` (a delegating DOOR, `delegates_to \"Member.Retire\", with: { id: :id }`, examples/roster/bluebook/roster.bluebook) called against a roster (\"charlie\") that was NEVER opened, with its own `id` argument blank. Before this fix, `delegate_prelude`'s `element_id = TmplElement::extract_id(&delegate_facts)?` ran strictly BEFORE `crate::kernel::dispatch`'s own hydrate step (`commands.rs`'s `tmpl_delegate_prelude_host`, substituted ahead of the `dispatch(...)` call in `dispatch_fn`) — so the blank `id`, mapped by `with: { id: :id }` into the target Member's own identity, tripped `to_id_component`'s empty-string refusal (`TypeMismatch`) before the DOOR's own aggregate (\"charlie\") was ever looked up. Ruby's real `DISPATCH_ORDER` reaches `hydrate` (step 6) long before `delegate_to_entity` (step 12) — with no Roster ever opened under \"charlie\", Ruby refuses `NotFound`/`record_missing` off the door's OWN hydrate miss and never even reaches the delegated entity's own identity at all. Fixed by moving the target-entity identity extraction to run INSIDE `dispatch`'s own post-hydrate mutation closure (`rust/src/exemplar/commands.rs`'s `tmpl_delegate_element_host`) instead of before `dispatch` is ever called.",
+  "steps": [
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": { "value": "charlie" },
+        "id": { "value": "" }
+      }
+    }
+  ]
+}
