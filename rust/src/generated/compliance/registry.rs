@@ -101,7 +101,7 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::compliance::accountfreezereview::OpenArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
-              crate::kernel::check_role(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -125,7 +125,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on an existing AccountFreezeReview — pass number.value:".to_string()))?, };
               let args = crate::generated::compliance::accountfreezereview::ClearArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::AccountFreezeReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -149,7 +149,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Escalate acts on an existing AccountFreezeReview — pass number.value:".to_string()))?, };
               let args = crate::generated::compliance::accountfreezereview::EscalateArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::AccountFreezeReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -164,7 +164,7 @@ if !unknown.is_empty() {
               let args = crate::generated::compliance::boxsurrenderreview::OpenArgs::from_json(facts_json)?;
                       args.branch_code.check_invariants()?;
                       args.box_number.check_invariants()?;
-              crate::kernel::check_role(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -188,7 +188,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on an existing BoxSurrenderReview — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::compliance::boxsurrenderreview::ClearArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::BoxSurrenderReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -212,7 +212,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Escalate acts on an existing BoxSurrenderReview — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::compliance::boxsurrenderreview::EscalateArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::BoxSurrenderReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -322,6 +322,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 
 ];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

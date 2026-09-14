@@ -685,7 +685,28 @@ module RustProjection
     # registry entry already is.
     def emit_query_table(query_defs)
       rows = query_defs.map { |q| emit_query_def(q) }
-      Exemplar.render("query_table", QUERY_TABLE_ROW_PLACEHOLDER => rows.join("\n"))
+      "#{Exemplar.render('query_table', QUERY_TABLE_ROW_PLACEHOLDER => rows.join("\n"))}\n" \
+        "#{emit_authorization_assignments(query_defs)}"
+    end
+
+    # `provides "authorization", assignments: "Aggregate.Query"` — the
+    # chapter-local verb a role check reads, or nil when this chapter
+    # provides no authorization. Ruby's `Chapter#provided_verb`, read off IR.
+    def provided_assignments(ir)
+      Array(ir[:provides]).find { |row| row[:capability] == "authorization" && row[:key] == "assignments" }&.dig(:verb)
+    end
+
+    # THE DECLARED ASSIGNMENTS QUERY, beside the table it lives in — the
+    # first def this table covers that a chapter's `provides` named
+    # (`assignments: true`, set where the def is built). A merged union
+    # carries its framework chapters' defs, so the flag travels with them.
+    # `kernel::check_role_via` reads this instead of Governance's name.
+    def emit_authorization_assignments(query_defs)
+      verb = query_defs.find { |q| q[:assignments] }&.dig(:verb)
+      value = verb ? "Some(#{verb.inspect})" : "None"
+      "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; " \
+        "`None` when no chapter here declares one.\n" \
+        "pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = #{value};\n"
     end
 
     # C3.7 FOR A NAMED QUERY'S OWN ARGUMENTS — `QueryInterpreter#normalize_

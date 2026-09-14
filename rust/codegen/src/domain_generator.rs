@@ -1216,6 +1216,7 @@ pub fn generate(
 
     // ── QUERIES.
     let mut query_defs: Vec<queries::QueryDef> = Vec::new();
+    let assignments_verb = queries::provided_assignments(ir);
     for aggregate in all_aggregates {
         let agg_name = aggregate.get("name").and_then(Json::as_str).unwrap_or("");
         let value_objects = aggregate
@@ -1253,6 +1254,7 @@ pub fn generate(
                 offset: query.get("offset").map(queries::emit_query_offset),
                 limit: query.get("limit").map(queries::emit_query_limit),
                 authorization: queries::emit_query_authorization(query_name, query.get("authorization")),
+                assignments: assignments_verb.as_deref() == Some(format!("{agg_name}.{query_name}").as_str()),
             });
         }
     }
