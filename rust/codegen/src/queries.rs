@@ -375,9 +375,13 @@ pub fn emit_query_authorization(query_name: &str, authorization: Option<&Json>) 
 
 // `Vocabulary::QueryComparator` itself declares NINE names (`none_in_state`
 // was added later — vocabulary.bluebook's own comment calls it "a vendored
-// addition") but `rust/src/kernel/query_comparators.rs`'s own hand-
-// maintained enum was never updated to match — only these eight are real
-// Rust variants. `query_where_skip_reason` (above) checks this BEFORE a
+// addition"). `rust/src/kernel/query_comparators.rs` DOES have a
+// `QueryComparator::NoneInState` variant now, but this list still leaves
+// it out on purpose, matching `queries.rb`'s `QUERY_COMPARATOR_VARIANTS`:
+// no generated call site can hand it a cross-domain search list yet, so
+// generating it would answer every row `true` instead of a real anti-join
+// (`query_where_skip_reason`'s `where_none_in_state` refusal has the full
+// reason). `query_where_skip_reason` (above) checks this BEFORE a
 // query reaches `query_comparator_variant` below, so the `panic!` there
 // stays the "should be unreachable" backstop it always was, not the
 // primary gate.
