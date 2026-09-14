@@ -16,11 +16,12 @@ module Hecks
       # checked exactly the way it always has been, string equality
       # against the command's own `role`. Only a caller that ALSO binds an
       # `actor_id` (`Hecks.as_caller(role:, actor_id:)`) reaches the
-      # real check — a live Governance::RoleAssignment lookup through
-      # `Ports::Authorization`, once the command's domain declares
-      # `uses_framework "Governance"` (`HecksagonBuilder` refuses any
-      # domain that declares a `role` and does not, at build time — see
-      # its own `refuse_ungoverned_roles!`). An identified caller is never
+      # real check — a live lookup through `Ports::Authorization`, once the
+      # command's domain has an authorization provider: its own chapter,
+      # or a framework member it attaches, declaring `provides
+      # "authorization"` (Governance, via `uses_framework "Governance"`).
+      # Boot refuses a domain that declares a `role` and has no provider —
+      # `Registry::Verification#refuse_ungoverned_roles!`. An identified caller is never
       # let back through the string fallback: a real identity that holds
       # no matching grant is refused, not waved through because it also
       # happens to type the right word.
@@ -52,12 +53,19 @@ module Hecks
 
         private
 
-        # SELF-EXEMPT, like `HecksagonBuilder#refuse_ungoverned_roles!` —
-        # Governance IS the thing a `holds_role?` lookup runs against, so
-        # its own commands are always checked by the string fallback, not
-        # a lookup against itself.
+        # DECLARED, NOT NAMED — `Registry#authorization_provider_for`.
+        #
+        # THE PROVIDER'S OWN COMMANDS ARE LOOKED UP TOO, not waved through
+        # the string fallback: `Governance::RoleAssignment.Assign` declares
+        # `role "Governance administrator"`, and an identified caller
+        # dispatching it is checked against a live assignment of that role
+        # like any other gated command (ADR 0025 §9). The Rust kernel's
+        # `check_role` (`rust/src/kernel/repository.rs`) does the same. The
+        # consequence is deliberate: the FIRST administrator grant has to
+        # come from a caller that binds no `actor_id` (the unchecked,
+        # string-compared path) — a bootstrap step, not a hole.
         def governance_attached?(domain)
-          domain.to_s == "Governance" || registry.hecksagon(domain)&.framework_members&.include?("Governance") || false
+          !registry.authorization_provider_for(domain).nil?
         end
       end
     end

@@ -9,7 +9,6 @@
     "id": "Bluebook::Aggregate.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :description sources optional argument description; sets :provenance sources optional argument provenance; sets :position sources optional argument position — not generated yet"
   },
   {
@@ -88,12 +87,17 @@
     "id": "Bluebook::Bluebook.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :vision sources optional argument vision; sets :classification sources optional argument classification; sets :version sources optional argument version; sets :formerly_known_as sources optional argument formerly_known_as — not generated yet"
   },
   {
     "kind": "command",
     "id": "Bluebook::Bluebook.Attach",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Bluebook.Provide",
     "generated": true,
     "routed": true
   },
@@ -113,7 +117,6 @@
     "id": "Bluebook::Command.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :role sources optional argument role; sets :goal sources optional argument goal; sets :provenance sources optional argument provenance; sets :position sources optional argument position — not generated yet"
   },
   {
@@ -168,7 +171,6 @@
     "id": "Bluebook::Entity.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :description sources optional argument description; sets :position sources optional argument position — not generated yet"
   },
   {
@@ -235,8 +237,7 @@
     "id": "Bluebook::Policy.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
-    "reason": "optional argument feeds a non-optional target: sets :aggregate sources optional argument aggregate; sets :target_domain sources optional argument target_domain; sets :position sources optional argument position — not generated yet"
+    "reason": "optional argument feeds a non-optional target: sets :aggregate sources optional argument aggregate; sets :target_domain sources optional argument target_domain; sets :expect_undelivered sources optional argument expect_undelivered; sets :position sources optional argument position — not generated yet"
   },
   {
     "kind": "command",
@@ -291,7 +292,6 @@
     "id": "Bluebook::ProcessManager.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :ends_on sources optional argument ends_on; sets :position sources optional argument position — not generated yet"
   },
   {
@@ -316,7 +316,6 @@
     "id": "Bluebook::ReadModel.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :description sources optional argument description; sets :reference_name sources optional argument reference_name; sets :reference_target sources optional argument reference_target; sets :position sources optional argument position — not generated yet"
   },
   {
@@ -359,7 +358,6 @@
     "id": "Bluebook::Query.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :description sources optional argument description; sets :order_field sources optional argument order_field; sets :order_way sources optional argument order_way; sets :limit sources optional argument limit; sets :position sources optional argument position — not generated yet"
   },
   {
@@ -401,7 +399,6 @@
     "id": "Bluebook::ValueObject.Declare",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "optional_source",
     "reason": "optional argument feeds a non-optional target: sets :position sources optional argument position — not generated yet"
   },
   {
@@ -540,7 +537,6 @@
     "id": "Bluebook::WholeBluebook",
     "generated": false,
     "gap_class": "per_instance",
-    "construct": "include_undeclared_aggregate",
     "reason": "includes Member, which this domain never declares"
   }
 ]

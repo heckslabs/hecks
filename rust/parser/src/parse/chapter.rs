@@ -564,6 +564,23 @@ fn parse_body_into(
                     1,
                 )?)
             }
+            // `provides "authorization", assignments: "...", grant: "...",
+            // transitions: "..."` — one row per named argument, in source
+            // order (`BluebookBuilder#provides_impl` keeps kwargs order).
+            // Which keys a capability needs is Ruby's build-time check
+            // (`Validation#validate_provisions!`); the argument gate here
+            // has already refused any key the grammar does not declare.
+            "provides" => {
+                let capability = super::positional_text(file, line, "provides", &gated.args, 1)?;
+                for (key, _) in &gated.args.named {
+                    let verb = super::named_text(&gated.args, key).unwrap_or_default();
+                    bluebook.provides.push(ir::Provision {
+                        capability: capability.clone(),
+                        key: key.clone(),
+                        verb,
+                    });
+                }
+            }
             "core" => bluebook.classification = Some("core".to_string()),
             "supporting" => bluebook.classification = Some("supporting".to_string()),
             "generic" => bluebook.classification = Some("generic".to_string()),

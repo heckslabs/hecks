@@ -88,7 +88,8 @@ pub fn parse_body(
                     "across",
                     &gated.args,
                     1,
-                )?)
+                )?);
+                policy.expect_undelivered = super::named_flag(&gated.args, "expect_undelivered");
             }
             // STAGE 4: `for_each` (fan-out — one `trigger` per row a
             // declared query answers) — newly real: banking.bluebook's

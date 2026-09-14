@@ -73,6 +73,26 @@ Hecks.bluebook "Bluebook", version: "1" do
     # chapters attach to nothing, and ABSENT IS NOT EMPTY, the same
     # reading `version`/`formerly_known_as` above give.
     attribute :attaches_to, list_of(AttachesToContext)
+    # A CAPABILITY THIS CHAPTER ANSWERS FOR OTHER DOMAINS — declared, so
+    # nothing downstream has to recognise the chapter BY NAME. One row
+    # per (capability, key, verb): `provides "authorization", grant:
+    # "RoleAssignment.Assign"` is the row (authorization, grant,
+    # RoleAssignment.Assign). The runtime's role check, boot's
+    # ungoverned-role refusal, the authorization adapter and the fuzzer
+    # all read the rows rather than the literal "Governance". Most
+    # chapters provide nothing, and ABSENT IS NOT EMPTY, the same reading
+    # `attaches_to` above gives.
+    attribute :provides, list_of(Provision)
+
+    value_object "Provision" do
+      attribute :capability, String
+      attribute :key,        String
+      attribute :verb,       String
+    end
+
+    value_object "ProvisionText" do
+      attribute :value, String
+    end
 
     value_object "RuleText" do
       # deliberately permissive : source_token and replacement are legitimately
@@ -159,6 +179,22 @@ Hecks.bluebook "Bluebook", version: "1" do
       emits ChapterAttached
     end
 
+    # ONE ROW OF ONE CAPABILITY — `provides "authorization", assignments:
+    # ..., grant: ..., transitions: ...` offers three, one per key, in the
+    # order they were written.
+    command "Provide" do
+      role "Language"
+      goal "Declare one verb this chapter answers a capability with"
+
+      attribute :capability, ProvisionText
+      attribute :key,        ProvisionText
+      attribute :verb,       ProvisionText
+
+      sets :provides, append: { capability: :capability, key: :key, verb: :verb }
+
+      emits CapabilityProvided
+    end
+
     # THE WAY BACK.
     #
     # Until these existed the meta-domain was write-only: twelve categories, 34
@@ -214,6 +250,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       member word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision"
       member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
       member word: "attaches_to",     context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "attaches_to", calls: "attaches_to_impl"
+      member word: "provides",        context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "provides", calls: "provides_impl"
       member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
       member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
       member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
@@ -246,6 +283,10 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision", coerce: "false"
       member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
       member keyword: "attaches_to",     context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "attaches_to", variadic: "true"
+      member keyword: "provides",        context: "Bluebook", at: "1", named: "",            kind: "text", required: "true",  fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "assignments", kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "grant",       kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "transitions", kind: "text", required: "false", fills: "provides"
       member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"

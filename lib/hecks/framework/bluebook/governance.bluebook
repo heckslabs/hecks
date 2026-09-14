@@ -2,6 +2,15 @@ Hecks.bluebook "Governance" do
   vision "Organizational authority is explicit, reviewable, and historically explainable."
   supporting
 
+  # WHAT THIS CHAPTER ANSWERS FOR EVERY DOMAIN THAT ATTACHES IT. The role
+  # check at dispatch, boot's refusal of an ungoverned `role`, the
+  # authorization adapter and the fuzzer's grant steering all read these
+  # three verbs from here, rather than recognising "Governance" by name.
+  provides "authorization",
+           assignments: "RoleAssignment.AssignmentsForActor",
+           grant:       "RoleAssignment.Assign",
+           transitions: "RoleTransition.Allowed"
+
   aggregate "RoleAssignment" do
     description "One actor holding one role, over one scope, from one point in time — revoked by setting when it ended, never deleted."
 
