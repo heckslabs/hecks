@@ -95,6 +95,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # TEMPORARY — PR #694's fail-path probe, reverted in the next commit.
+      - name: "TEMP fail-path probe (PR #694)"
+        run: exit 1
+
       - uses: ./.github/actions/setup-ruby
 
       # PHASE 7 — finer-grained than `rspec_shard`'s own whole-job skip
