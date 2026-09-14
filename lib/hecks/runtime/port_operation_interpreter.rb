@@ -19,7 +19,7 @@ module Hecks
       include Interpreting
       include CommandInterpreter::ArgumentGate
 
-      Context = Struct.new(:domain, :aggregate, :operation, :args, :route, :instance, :result)
+      Context = Struct.new(:domain, :aggregate, :operation, :args, :route, :instance, :result, :invocation)
 
       DISPATCH_ORDER = %i[
         refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references resolve_route emit
@@ -30,9 +30,12 @@ module Hecks
         @rules    = rules
       end
 
-      def call(domain, aggregate, operation, args, route:)
-        ctx = Context.new(domain, aggregate, operation, args)
-        ctx.route = route
+      # `invocation` — the `Runtime::Invocation` `Dispatcher` built;
+      # `ctx.args` is its `to_args`, `ctx.route` its `target`.
+      def call(domain, aggregate, operation, invocation)
+        ctx = Context.new(domain, aggregate, operation, invocation.to_args)
+        ctx.invocation = invocation
+        ctx.route = invocation.target
         run_dispatch_order(DISPATCH_ORDER, ctx)
         ctx.result
       end

@@ -1,7 +1,7 @@
 require_relative "errors"
 require_relative "refusal_wording"
 require_relative "caller"
-require_relative "routing"
+require_relative "invocation"
 require_relative "command_rules"
 require_relative "command_interpreter"
 require_relative "entity_interpreter"
@@ -101,20 +101,21 @@ module Hecks
               operation = port.operation(sub) ||
                           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "port_no_operation",
                                                                    port: head, operation: sub.inspect))
-              route, args = port_invocation(aggregate, operation, to: to, with: with, legacy: legacy_args)
-              [nil, @port_ops.call(domain, aggregate, operation, args, route: route), nil, nil, :enqueue]
+              invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args,
+                                                      receiver: :port, aggregate: aggregate) { operation }
+              [nil, @port_ops.call(domain, aggregate, operation, invocation), nil, nil, :enqueue]
             else
-              entity_depth = command_name.split(".").size - 1
-              route = Routing.envelope(to, entity_depth: entity_depth)
-              @entities.call(domain, aggregate, command_name, legacy_args, route: route, with: with)
+              resolution = nil
+              invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args,
+                                                      receiver: :entity, entity_depth: command_name.count(".")) do
+                (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
+              end
+              @entities.call(domain, aggregate, resolution, invocation)
             end
           else
-            command = aggregate.command(command_name) ||
-                      raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
-                                                               aggregate: aggregate_name, command: command_name.inspect))
-            args = Routing.payload(command, with: with, legacy: legacy_args)
-            route = Routing.envelope(to)
-            @commands.call(domain, aggregate, command, args, saga_correlation, route: route)
+            command = command_of(aggregate, aggregate_name, command_name)
+            invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args) { command }
+            @commands.call(domain, aggregate, command, invocation, saga_correlation)
           end
 
         # Correlation is SET AT CONSTRUCTION now, not merged on here —
@@ -185,12 +186,17 @@ module Hecks
                   "only for aggregate and entity commands"
           end
 
-          @entities.call(domain, aggregate, command_name, args, dry_run: true)
+          # `to:`/`with:` are NOT keywords of this method — a key named
+          # either is an ordinary fact here (BUG#131), so both go in as nil.
+          resolution = nil
+          invocation = Invocation.from_call(verb, to: nil, with: nil, legacy: args, receiver: :entity) do
+            (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
+          end
+          @entities.call(domain, aggregate, resolution, invocation, dry_run: true)
         else
-          command = aggregate.command(command_name) ||
-                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
-                                                             aggregate: aggregate_name, command: command_name.inspect))
-          @commands.call(domain, aggregate, command, args, dry_run: true)
+          command = command_of(aggregate, aggregate_name, command_name)
+          invocation = Invocation.from_call(verb, to: nil, with: nil, legacy: args) { command }
+          @commands.call(domain, aggregate, command, invocation, dry_run: true)
         end
 
         true
@@ -212,50 +218,15 @@ module Hecks
         operation = port.operation(operation_name) ||
                     raise(UnknownVerb, "#{port_name} has no operation #{operation_name.inspect}")
 
-        route, args = port_invocation(aggregate, operation, to: to, with: with, legacy: legacy_args)
-        announced = @port_ops.call(domain, aggregate, operation, args, route: route)
+        invocation = Invocation.from_call("#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}",
+                                          to: to, with: with, legacy: legacy_args,
+                                          receiver: :port, aggregate: aggregate) { operation }
+        announced = @port_ops.call(domain, aggregate, operation, invocation)
 
         react(announced, domain, aggregate, :enqueue)
 
         announced
       end
-
-      def port_invocation(aggregate, operation, to:, with:, legacy:)
-        legacy = legacy.dup
-        identity = operation.identity_attribute(aggregate.hecks_name)
-        if to.nil? && identity && legacy.key?(identity.name)
-          to = legacy.delete(identity.name)
-        elsif to.nil? && operation.to == aggregate.hecks_name
-          # `to:`-DECLARED OPERATIONS carry no Reference-typed attribute at
-          # all (PortOperationBuilder#initialize's own comment on why —
-          # genuine routing metadata, not an attribute), so `identity`
-          # above is always nil for these; this is the second, purely
-          # additive lookup they need instead. The routing value sits in
-          # a PLAIN external-fact attribute, named for the owning
-          # aggregate's own identified_by field — the domain author's job
-          # to match, same discipline reference_to's own `as:` always
-          # required. Composite identity (more than one identified_by
-          # component) isn't attempted here — `.first` only, no domain in
-          # the real corpus has needed more for a port operation yet.
-          #
-          # READ, NOT deleted — unlike the Reference-attribute branch
-          # above, this is a genuine declared operation attribute (Rust's
-          # own comment: "declare only external facts with attribute"),
-          # not synthetic routing-only state; the operation's own
-          # attributes still expect to find it in the payload a few steps
-          # later (refuse_absent_arguments), and a real, live
-          # AbsentArgument confirmed this the hard way before `[]`
-          # replaced `delete`.
-          identity_name = Array(aggregate.identified_by).first
-          to = legacy[identity_name] if identity_name && legacy.key?(identity_name)
-        end
-
-        route = Routing.envelope(to)
-        raise TypeMismatch, "#{operation.hecks_name} requires its receiving aggregate in to:" unless route
-
-        [route, Routing.payload(operation, with: with, legacy: legacy)]
-      end
-      private :port_invocation
 
       def query(verb, **args)
         domain, query_name = verb.to_s.split(".", 2)
@@ -321,6 +292,12 @@ module Hecks
       def parse(verb)
         Naming.split_verb(verb) ||
           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
+      end
+
+      def command_of(aggregate, aggregate_name, command_name)
+        aggregate.command(command_name) ||
+          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
+                                                   aggregate: aggregate_name, command: command_name.inspect))
       end
 
       def resolve_aggregate(domain, aggregate_name, verb)
