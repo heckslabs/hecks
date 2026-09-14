@@ -133,6 +133,18 @@ module Hecks
       ROUTES.find { |route| route.pattern.match?(relative_path) }
     end
 
+    # WHAT bin/model_check AND spec/model_check_spec.rb WALK — every kind,
+    # less the language (examined as one judged chapter, not file by file)
+    # and deploy chapters (the SAM projector's own inputs), and less any
+    # member a ROUTE already sends to a destination of its own: the
+    # broken-on-purpose model_check fixtures must produce their findings
+    # THERE, so a clean-corpus gate here would be the wrong check for them.
+    MODEL_CHECK_KINDS = %i[example grammar framework qa stress fixture].freeze
+
+    def model_check_members(root: ROOT)
+      members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
+    end
+
     # EVERY BOOTABLE DOMAIN IN THE PROJECT, not a hand-kept list — any
     # directory holding a `.bluebook` no ROUTE sends elsewhere, a
     # `bluebook/` folder standing for the domain directory around it.

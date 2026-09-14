@@ -22,6 +22,7 @@ Hecks.bluebook "GeneratedRevaluedShape" do
     end
 
     lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
       transition "Reopen" => "open", from: "closed"
     end
 
@@ -40,6 +41,12 @@ Hecks.bluebook "GeneratedRevaluedShape" do
       attribute :venue, VenueHandle
       sets :venue
       emits "HangarRepointed"
+    end
+
+    command "Close" do
+      goal "Close it"
+      reference_to Hangar
+      emits "HangarClosed"
     end
 
     command "Reopen" do

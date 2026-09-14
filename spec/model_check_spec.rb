@@ -301,7 +301,7 @@ RSpec.describe "the model checker" do
     # missing here while MODEL_CHECK_ALLOWED named it, and
     # `.fetch(name) { next }` below silently returned nil instead of
     # skipping the entry.
-    MODEL_CHECK_CORPUS = Hecks::Corpus.members(:example, :grammar, :framework, :qa)
+    MODEL_CHECK_CORPUS = Hecks::Corpus.model_check_members
                                       .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
     # The SAME constant bin/model_check reads — one table, not a copy.

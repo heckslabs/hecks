@@ -141,6 +141,29 @@ if !absent.is_empty() {
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::generated_revalued_shape::hangar::dispatch_repoint(&mut store.hangar, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "GeneratedRevaluedShape::Hangar.Close" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CloseArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "hangar", "code"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Close does not declare {} — it takes none",
+        unknown.join(", ")
+    )));
+}
+ }
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing Hangar — pass code.value:".to_string()))?, };
+              let args = crate::generated::generated_revalued_shape::hangar::CloseArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::generated_revalued_shape::hangar::dispatch_close(&mut store.hangar, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "GeneratedRevaluedShape::Hangar.Reopen" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -243,6 +266,7 @@ pub fn command_creates(verb: &str) -> bool {
     match verb {
         "GeneratedRevaluedShape::Hangar.Open" => true,
         "GeneratedRevaluedShape::Hangar.Repoint" => false,
+        "GeneratedRevaluedShape::Hangar.Close" => false,
         "GeneratedRevaluedShape::Hangar.Reopen" => false,
         "GeneratedRevaluedShape::Venue.Open" => true,
         _ => false,
@@ -268,6 +292,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
         "GeneratedRevaluedShape::Hangar.Open" => &["venue", "code"],
         "GeneratedRevaluedShape::Hangar.Repoint" => &["venue"],
+        "GeneratedRevaluedShape::Hangar.Close" => &[],
         "GeneratedRevaluedShape::Hangar.Reopen" => &[],
         "GeneratedRevaluedShape::Venue.Open" => &["code"],
         _ => &[],

@@ -41,6 +41,13 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.hecksagon"),
+    # STRESS DOMAINS — real domains the QA rotation sweeps every tick, not a
+    # page's invented fixture, so a word one of them declares is a real use.
+    # spec/fixtures stays out on purpose: those ARE fixtures invented for one
+    # spec, the exact thing this file's own header refuses to count.
+    File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.hecksagon"),
+    File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.world"),
     # `.port` — REAL, non-synthetic production declarations (13 real
     # ports the framework itself binds against), unlike the S15 Paging
     # precedent's own seed-row false-positive risk (a naive whole-token

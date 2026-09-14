@@ -133,12 +133,13 @@ if domain_arg
   registry = boot(Hecks::Corpus.bluebook_dir(domain_arg.chomp("/")) || domain_arg)
   ok = examine(File.basename(domain_arg.chomp("/")), registry)
 else
-  # EVERY EXAMPLE, GRAMMAR CHAPTER, FRAMEWORK MEMBER AND THE QA LEDGER —
-  # the kinds spec/model_check_spec.rb walks, read from the one table
-  # both use. Globbed separately, the two once disagreed in both
-  # directions: this script skipped the framework members the spec
-  # checked, and the spec skipped the ledger this script checked.
-  targets = Hecks::Corpus.members(:example, :grammar, :framework, :qa)
+  # EVERY CORPUS KIND — examples, grammar chapters, framework members, the
+  # QA ledger, stress domains and fixtures — read from the one table
+  # spec/model_check_spec.rb reads too. Globbed separately, the two once
+  # disagreed in both directions. A fixture a Corpus ROUTE sends elsewhere
+  # (the broken-on-purpose model_check fixtures, the conflicting era
+  # versions) is checked there, by its own destination, not here.
+  targets = Hecks::Corpus.model_check_members
                          .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }
 
   # TWO PASSES OVER THE SAME BOOTS, not two boots — PASS 1 boots every
