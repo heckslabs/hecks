@@ -98,13 +98,25 @@ unless defined?(QualityControlDials)
     # existing `QualityControlDials::X` callsite in this repository keeps
     # reading exactly as it always did. `QaSettings.load` is what refuses
     # a missing, extra, or malformed key (see that class's own header).
-    # NO PATH ARGUMENT, ON PURPOSE — `QaSettings::DEFAULT_PATH` resolves
-    # off ITS OWN file location, never off this bluebook's `__dir__`,
-    # because THIS directory gets copied to a tmpdir for every isolated
-    # fuzz/replay boot while `settings.yml` (a sibling one level up) does
-    # not — see `QaSettings::DEFAULT_PATH`'s own comment for the failure
-    # that would otherwise be.
-    settings = Hecks::Fuzzing::QaSettings.load
+    # NO PATH ARGUMENT, ON PURPOSE, FOR EVERY REAL CALLER — `QaSettings::
+    # DEFAULT_PATH` resolves off ITS OWN file location, never off this
+    # bluebook's `__dir__`, because THIS directory gets copied to a
+    # tmpdir for every isolated fuzz/replay boot while `settings.yml` (a
+    # sibling one level up) does not — see `QaSettings::DEFAULT_PATH`'s
+    # own comment for the failure that would otherwise be.
+    #
+    # `HECKS_QA_SETTINGS_PATH`, THE ONE NAMED ESCAPE HATCH — an end-to-end
+    # test that boots a real subprocess (`spec/qa_open_pr_spec.rb`'s own
+    # "refuses one more PR than PR_CAP_PER_DAY allows for today" is the
+    # motivating case: it needs `bin/qa_open_pr`, run as an actual child
+    # process, to see a DIFFERENT `pr_cap_per_day` than the real file's)
+    # has no way to stub a class inside that child process — an env var,
+    # already this exact test file's own pattern for reaching a
+    # subprocess (`QA_REPO_DIR`, `FAKE_GH_LOG`, …), is the one mechanism
+    # that crosses that boundary. Unset, this resolves to `DEFAULT_PATH`
+    # exactly as before — no behavior changes for `bin/run`, `bin/qa_sweep`,
+    # or any fuzz/replay boot, none of which ever sets it.
+    settings = Hecks::Fuzzing::QaSettings.load(ENV.fetch("HECKS_QA_SETTINGS_PATH", Hecks::Fuzzing::QaSettings::DEFAULT_PATH))
 
     # HOW LONG `hecks_qa`'s OWN LOOP WAITS AFTER A TICK CONCLUDES BEFORE
     # STARTING THE NEXT ONE. Zero means immediately: the loop restarts the
