@@ -22,9 +22,10 @@ require_relative "../support/postgres_probe"
 #
 # WHAT IS PINNED is the raw `state:` each adapter hands
 # `Runtime::Instance.new` (captured below), not `instance.state`
-# afterwards: `Instance#initialize` re-hydrates state into `Value`s,
-# which reads either key spelling (runtime/value/coercion.rb) and so
-# would hide a regression back to the old shapes. Journal `entries`
+# afterwards: `Instance#initialize` re-hydrates state into `Value`s, and
+# a value object's own fields still accept either spelling on that input
+# door (runtime/value/coercion.rb `fields_for`), so reading `state`
+# afterwards would hide a nested regression back to the old shapes. Journal `entries`
 # build a plain `Entry`, so their `state` is pinned as-is.
 RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
   def fixture = PersistenceLegacyFixture

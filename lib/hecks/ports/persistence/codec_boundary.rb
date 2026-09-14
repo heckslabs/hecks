@@ -32,9 +32,10 @@ module Hecks
       #    journal `Entry` is not an `Instance`.
       #
       # Checked, not silently decoded: an adapter that forgets the codec is
-      # a bug in that adapter, and `Instance`'s own hydration reads either
-      # key spelling — decoding for it here would hide the forgetting
-      # until A4 removes that dual-spelling read and data goes missing.
+      # a bug in that adapter, and decoding for it here would hide the
+      # forgetting. Since A4 hydration no longer respells keys either —
+      # `Value.hydrate` refuses a non-Symbol top-level key everywhere — so
+      # this boundary's deep check and hydration's shallow one agree.
       module CodecBoundary
         KEY = :hecks_persistence_codec_boundary
 
