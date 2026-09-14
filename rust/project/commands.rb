@@ -1266,6 +1266,22 @@ module RustProjection
       # documents a structural gap at this exact depth, and matching
       # BUG#30's own explicit choice to leave every unexercised `corrects`
       # combination open rather than guessed at.
+      #
+      # BUG#137 — the hop-2 `apply_entity_command` call's own trailing
+      # `parent_in_args` literal, below, is `true` now, not `false`: the
+      # SAME fix `emit_entity_command`'s one-level twin needed
+      # (`kernel/dispatch.rs`'s own `apply_entity_command`/`dispatch_
+      # entity` header has the full argument). `lib/hecks/language/
+      # bluebook/process_manager.bluebook`'s own `Handler.Dispatch` (its
+      # `Handler` entity nests `Dispatch`) is a REAL two-level corpus
+      # member reaching this exact call — attached to every domain as
+      # `meta` — though it declares no `given`/`ensures` of its own, so
+      # this literal's VALUE has no behavioral effect there today; fixed
+      # for the same reason the one-level case was: correctness, not
+      # just consistency, the moment a real hop-2 command ever DOES
+      # declare one. `rust/codegen/src/commands.rs`'s own byte-identical
+      # twin needs the SAME literal flip — `spec/project_rust_pipeline_
+      # spec.rb`'s own whole-file byte comparison catches a drift here.
       nested_dispatch_fn = <<~RUST
         pub fn #{fn_name}(
             repo: &mut impl crate::kernel::Repository<#{parent_record}>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
@@ -1317,7 +1333,7 @@ module RustProjection
                         &[
         #{ensures_specs.join("\n")}
                         ],
-                        false,
+                        true,
                     )
                 },
                 &[],

@@ -492,14 +492,34 @@ where
 ///
 /// `parent_in_args`: `Admissibility#enforce_givens`/`#enforce_ensures`
 /// merge `parent:` — the OWNING record — into the args every entity
-/// given and ensures evaluates against. A direct entity dispatch gets
-/// that from the routing layer (`parent_deref`, a snapshot fetched
-/// before the command ran, pushed into `command_deref` as `"parent"`);
-/// a delegating door has no such layer, so with `parent_in_args` this
-/// reads the parent off the LIVE record instead — before the mutation
-/// for the givens, after it for the ensures, which is what Ruby's own
-/// in-place element mutation gives it: a chess king's "not left in
-/// check" ensures reads the board with the piece already moved.
+/// given and ensures evaluates against, reading the parent off the LIVE
+/// record: before the mutation for the givens, after it for the
+/// ensures, which is what Ruby's own in-place element mutation gives it —
+/// a chess king's "not left in check" ensures reads the board with the
+/// piece already moved.
+///
+/// BUG#137 — this used to be `false` for a direct entity dispatch (only
+/// a delegating door passed `true`), on the theory that the routing
+/// layer's own `parent_deref` snapshot (`command_deref`'s `"parent"`
+/// entry, fetched BEFORE the command ran) was enough either way. It is
+/// enough for a `given` — which wants the pre-mutation parent, exactly
+/// what `parent_deref` already is — but never for an `ensures`: nothing
+/// ever refreshes that snapshot after `apply_mutations` runs, so an
+/// entity-level `ensures` reading `parent.*` on a directly-dispatched
+/// command NEVER saw its own element's own mutation (`Roster::Roster.
+/// Member.Retire`'s `ensures("someone still serves") { parent.crew.
+/// any? { |m| m.status == "active" } }` — examples/roster/bluebook/
+/// roster.bluebook — retired the sole active member unconditionally:
+/// the stale `parent.crew` snapshot still showed THAT SAME member as
+/// `"active"`, so the `any?` trivially always held). Always `true` now,
+/// for both callers — `apply_entity_command`'s own local
+/// `parent_before`/`parent_after` (below) already replace the routing
+/// layer's `parent_deref` for every SAME-aggregate `parent.*` read
+/// (`given`/`ensures` alike) without changing what either sees; nothing
+/// in the real corpus reads a cross-aggregate `parent.<reference>.*`
+/// chain from inside an entity command (`parent_deref`'s one real edge
+/// over a plain live-record read), so this is safe for every domain that
+/// exists today.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_entity_command<'a, T, E>(
     record: &mut T,
@@ -696,7 +716,10 @@ where
         transition,
         apply_mutations,
         ensures,
-        false,
+        // BUG#137 — see `apply_entity_command`'s own header on
+        // `parent_in_args` for why a direct dispatch needs `true` here
+        // too now, not just a delegating door.
+        true,
     )?;
 
     enforce_invariants(&record, aggregate_name, invariants)?;
