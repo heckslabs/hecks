@@ -1,3 +1,5 @@
+require_relative "bootstrap_table"
+
 module Hecks
   module Bluebook
     module DSL
@@ -129,12 +131,12 @@ module Hecks
         # domain (banking, pizzas, compliance, any future one) boots
         # AFTER `grammar_registry` is fully built and memoized, so reads
         # the real table, every time, no exception.
-        BOOTSTRAP_FALLBACK = {
-          %w[given Aggregate]       => { resolves_via: "owner_keyed", disambiguator: "declared_by" },
-          %w[given Entity]          => { resolves_via: "owner_keyed", disambiguator: "declared_by" },
-          %w[given Command]         => { resolves_via: "hash_chain" },
-          %w[invariant ValueObject] => { resolves_via: "sibling_scan" }
-        }.freeze
+        #
+        # NO LONGER KEPT IN SYNC BY HAND — the same `resolves_via`/
+        # `disambiguator` columns, projected ahead of time into the
+        # committed lib/hecks/bluebook/dsl/bootstrap_table.rb
+        # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).
+        BOOTSTRAP_FALLBACK = BootstrapTable::RESOLVES
 
         def lookup(word, context)
           if MetaValidator.bootstrapping?

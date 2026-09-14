@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+
+# Projects the grammar's bootstrap-window fallbacks into
+# lib/hecks/bluebook/dsl/bootstrap_table.rb, from the Keyword rows'
+# own calls:/resolves_via:/disambiguator: columns.
+#
+#   bin/project_bootstrap_table
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+
+chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+out     = File.expand_path("../lib/hecks/bluebook/dsl/bootstrap_table.rb", __dir__)
+
+puts "wrote #{Hecks::Projector.write(
+  Hecks::Projector.call(:bootstrap_table, bluebook: chapter), out
+)}"
