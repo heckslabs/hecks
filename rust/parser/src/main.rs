@@ -253,6 +253,17 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("given", "Command"),
     ("ensures", "Command"), // STAGE 4
     ("sets", "Command"),
+    // Parsed and byte-matched by parser parity (banking/chess), but never
+    // listed here until the pending audit checked each pair in context.
+    ("corrects", "Command"),
+    ("delegates_to", "Command"),
+    ("given", "Aggregate"),
+    ("given", "Entity"),
+    ("invariant", "Aggregate"),
+    ("invariant", "Entity"),
+    ("projects", "Aggregate"),
+    ("member", "ValueObject"),
+    ("compensates", "Dispatch"),
     ("emits", "Command"),
     ("attribute", "Command"),
     ("attribute", "ValueObject"),

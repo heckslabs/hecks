@@ -116,19 +116,18 @@ RSpec.describe "the Rust parser's own coverage", :io do
     # even parsed, but gated is not covered); a BARE `reference_to` directly
     # in an `entity`/`query` body (every real one sits in a `command`);
     # `provenance` inside a `command`; `formerly_known_as` (no tracked
-    # `.bluebook` declares a rename).
-    ["declared, and no parity corpus member exercises it (Stage 6 audit)", [
-      %w[formerly_known_as Bluebook], %w[has_many Aggregate], %w[has_one Aggregate],
-      %w[provenance Command], %w[reference_to Entity], %w[reference_to Query]
-    ]],
-    # Nobody has recorded why these are unbuilt. Listing them keeps the
-    # debt visible instead of absorbed; the next coverage audit either
-    # builds each one or moves it under a real reason above.
-    ["declared, not reported, and no reason recorded yet", [
-      %w[attaches_to Bluebook], %w[belongs_to Entity], %w[compensates Dispatch], %w[corrects Command],
-      %w[delegates_to Command], %w[entity Entity], %w[given Aggregate], %w[given Entity],
-      %w[has_many Entity], %w[has_one Entity], %w[invariant Aggregate], %w[invariant Entity],
-      %w[member ValueObject], %w[projects Aggregate], %w[state Command], %w[then_set Command]
+    # `.bluebook` declares a rename). The 2026-09-14 audit checked the
+    # remaining unreasoned pairs in context: `attaches_to`, an `entity`'s
+    # own `belongs_to`/`has_many`/`has_one`, a command-level `state`, and the
+    # retired `then_set` appear in no corpus bluebook; a nested `entity`
+    # inside an `entity` appears only in qa/stress_domains/nested_pieces,
+    # which is not a parity member. The other nine were already parsed and
+    # byte-matched, and moved to main.rs::COVERED_PAIRS.
+    ["declared, and no parity corpus member exercises it", [
+      %w[attaches_to Bluebook], %w[belongs_to Entity], %w[entity Entity], %w[formerly_known_as Bluebook],
+      %w[has_many Aggregate], %w[has_many Entity], %w[has_one Aggregate], %w[has_one Entity],
+      %w[provenance Command], %w[reference_to Entity], %w[reference_to Query], %w[state Command],
+      %w[then_set Command]
     ]]
   ].freeze
 
