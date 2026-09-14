@@ -37,6 +37,17 @@
 #     on the subprocess's stdin and its stdout is the comparison JSON —
 #     kernel/cli.rs's stdin/stdout contract, the SAME shape Ruby already
 #     prints above, now answerable live instead of only from a pinned file.
+#
+#   bin/rust_conformance <domain> <script.json> build
+#     Builds the domain's OWN Cargo feature (its directory basename) and
+#     runs that binary — the form a QA-ledger demonstration should use,
+#     since it needs no pre-built binary and names no path that goes
+#     stale. A pinned binary path (`rust/target/debug/rust-<feature>`,
+#     what `bin/qa_sweep`'s `replay:` line prints) works as `other` too.
+#
+# DRY RUNS ARE COMPARED TOO (`verb`/`ok`), whenever either side has one —
+# a `{"dry_run": verb}` step's answer was invisible to this script, so a
+# dry-run split `bin/qa_sweep` found could not be demonstrated here.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -59,9 +70,9 @@ def native_binary
 end
 
 domain = ARGV.shift or abort "usage: bin/rust_conformance <domain> <script.json> " \
-                             "[rust_output.json | native | path/to/module.wasm]"
+                             "[rust_output.json | native | build | path/to/binary | path/to/module.wasm]"
 script = ARGV.shift or abort "usage: bin/rust_conformance <domain> <script.json> " \
-                             "[rust_output.json | native | path/to/module.wasm]"
+                             "[rust_output.json | native | build | path/to/binary | path/to/module.wasm]"
 other  = ARGV.shift
 
 steps  = JSON.parse(File.read(script)).fetch("steps")
@@ -75,6 +86,15 @@ comparable = {
   "refusals"  => result[:refusals].map { |r| { "verb" => r[:verb], "error" => r[:error], "kind" => r[:kind]&.split("::")&.last } }
 }
 
+# DRY RUNS, COMPARED ONLY WHEN THERE ARE ANY. `verb`/`ok` — the same two
+# fields `Hecks::Fuzzing::Differential` compares for `bin/qa_sweep`
+# (`error` is prose, `before`/`after` Ruby's own no-trace oracle). Left
+# out of the printed JSON for a script with no dry-run step, so every
+# pinned expectation produced before this existed is byte-for-byte the
+# same.
+ruby_dry_runs = result[:dry_runs].map { |d| { "verb" => d[:verb].to_s, "ok" => d[:ok] } }
+comparable["dry_runs"] = ruby_dry_runs unless ruby_dry_runs.empty?
+
 unless other
   puts JSON.pretty_generate(comparable)
   exit 0
@@ -85,6 +105,21 @@ their_json =
   when "native"
     bin = native_binary or abort "no native rust binary found under rust/target/{release,debug}/rust — run " \
                                  "`cd rust && cargo build` first"
+    run_subprocess([bin], File.read(script))
+  when "build"
+    # THE DOMAIN'S OWN FEATURE, BUILT ON DEMAND — `native` runs whichever
+    # domain the crate's `default` feature happens to name, which is the
+    # wrong binary for every other domain. `build` builds `--features
+    # <basename of domain>` through the same `RustConformanceHelpers#
+    # build_rust_for` `bin/qa_sweep` uses (flock-serialized, pinned per
+    # feature), so a ledger demonstration naming a stress domain runs
+    # against that domain's Rust with no binary path to go stale.
+    require_relative "../spec/support/rust_conformance_helpers"
+    builder = Object.new.extend(RustConformanceHelpers)
+    feature = File.basename(domain.chomp("/"))
+    bin = builder.build_rust_for(feature, File.expand_path("../rust", __dir__)) or
+    abort "no `#{feature}` feature in rust/Cargo.toml, or `cargo build --features #{feature}` failed — " \
+          "run bin/project_rust #{domain} first"
     run_subprocess([bin], File.read(script))
   when /\.wasm\z/
     abort "#{other}: no such file — run bin/project_wasm #{domain} first" unless File.exist?(other)
@@ -160,6 +195,11 @@ mismatches = []
   next if comparable[key] == theirs[key]
 
   mismatches << "#{key}:\n  ruby:  #{comparable[key].inspect}\n  other: #{theirs[key].inspect}"
+end
+
+their_dry_runs = Array(theirs["dry_runs"]).map { |d| d.slice("verb", "ok") }
+if (comparable["dry_runs"] || []) != their_dry_runs
+  mismatches << "dry_runs:\n  ruby:  #{comparable['dry_runs'].inspect}\n  other: #{their_dry_runs.inspect}"
 end
 
 if mismatches.empty?
