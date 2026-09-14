@@ -286,16 +286,50 @@ module Hecks
       # real dispatch refuses with NotFound. Only the persist/raise-on-
       # conflict tail is genuinely persistence-only and stays behind the
       # early return.
+      #
+      # BUG#132 — a SECOND validation-not-persistence check hid in that
+      # same persist/raise-on-conflict tail: `persist_instance`'s own
+      # ATOMIC_PUT branch (below) is where `hydrate_complete_state`'s
+      # comment says a `creates?` command's duplicate check is
+      # DELIBERATELY DEFERRED TO, for a strategy this fast — a read
+      # (`repository.find`) any earlier, before the real write, would be
+      # exactly the extra read `insert_only:` exists to avoid paying on
+      # every real dispatch. But that means the check never ran at all under
+      # `dry_run:` — not eagerly (hydration skips it for this exact
+      # strategy, on purpose) and not deferred (this whole branch returns
+      # first). `Roster::Roster.Open` against an already-open name is
+      # this shape: `dry_run?` answered `true` for a real dispatch
+      # immediately after it that refuses `AlreadyExists`. Under
+      # `dry_run:` there is no write to race, so paying for that one read
+      # is safe here — and only here.
       def step_save(ctx)
         step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state) }
 
-        return if ctx.dry_run
+        if ctx.dry_run
+          step(:save) { check_dry_run_creates_duplicate(ctx) }
+          return
+        end
 
         step(:save) do
           seed_projected_fields(ctx)
           ctx.persistence_outcome = persist_instance(ctx)
           raise_for_persistence_outcome!(ctx)
         end
+      end
+
+      # See `step_save`'s own BUG#132 comment: the ONLY path, real or dry,
+      # able to catch a `creates?` command reusing an already-occupied
+      # identity when `strategy` is `ATOMIC_PUT` — `hydrate_complete_
+      # state` deliberately skips this exact case (its own comment), and
+      # a dry run never reaches `persist_instance`'s matching branch.
+      def check_dry_run_creates_duplicate(ctx)
+        return unless ctx.strategy == DependencyPlanning::ATOMIC_PUT && ctx.command.creates?
+        return unless ctx.repository.find(ctx.instance.id)
+
+        raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
+                                                   command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
+                                                   identity: identity_reading(ctx.aggregate),
+                                                   offered: Rendering.describe(ctx.instance.id)))
       end
 
       def persist_instance(ctx)
