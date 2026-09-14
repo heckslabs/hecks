@@ -182,6 +182,23 @@ module Hecks
 
       def verbs = @bluebooks.values.flat_map(&:verbs).sort
 
+      # THE CHAPTER THAT ANSWERS A ROLE CHECK FOR `domain` — the domain's
+      # own chapter, or any framework member its hecksagon attaches, that
+      # DECLARES `provides "authorization"`. Nil when none does. Replaces
+      # every check for the literal name "Governance": Governance is
+      # recognised by what it declares, and a chapter that declares the
+      # same thing is recognised the same way.
+      def authorization_provider_for(domain)
+        names = [domain.to_s, *Array(hecksagon(domain)&.framework_members)]
+        names.filter_map { |name| bluebook(name) }
+             .find { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
+      end
+
+      # Every loaded chapter declaring `provides "authorization"`.
+      def authorization_providers
+        @bluebooks.values.select { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
+      end
+
       def repository(domain, aggregate)
         @repositories[[domain.to_s, aggregate.hecks_name]] ||= Ports::Persistence.repository(self, domain, aggregate)
       end

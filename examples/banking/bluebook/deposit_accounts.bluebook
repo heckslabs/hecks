@@ -567,10 +567,17 @@ Hecks.bluebook "Banking" do
     trigger  Account::FreezeAccount, with: { account: :account }
   end
 
+  # NOTIFICATIONS DOES NOT EXIST, ON PURPOSE — no bluebook, no hecksagon,
+  # nothing to subscribe to. This policy exercises the undelivered-reaction
+  # path (spec/runtime/policy_spec.rb, "records a reaction it cannot
+  # deliver rather than swallowing it"), so its expectation is declared
+  # here and ModelCheck holds it: were Notifications ever to appear in the
+  # corpus, or be acknowledged by banking's hecksagon, this line goes stale
+  # and fails.
   policy "NotifyOnClosure" do
     on      Account::AccountClosed
     trigger Notifications::Send
-    across  "Notifications"
+    across  "Notifications", expect_undelivered: true
   end
 
 end

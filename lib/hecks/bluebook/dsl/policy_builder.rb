@@ -80,8 +80,16 @@ module Hecks
           @projection_declared = !with.nil?
         end
 
-        # `across` — item #13's full metaprogrammed dispatch, slice 1:
-        # same shape as `on`, above.
+        # `across "Notifications"` names the domain a trigger reaches into.
+        # `expect_undelivered: true` declares that this domain expects that
+        # target never to be reached (no such domain, on purpose), which
+        # `ModelCheck` holds it to in both directions. Reached through
+        # `calls:` since it gained the named flag — the generic single-fill
+        # coercion takes no keyword arguments.
+        def across_impl(domain, expect_undelivered: false)
+          @target_domain = domain.to_s
+          @expect_undelivered = expect_undelivered == true
+        end
 
         # THE GUARD — same extraction CommandBuilder#given/#ensures already
         # use (Ports::Extraction reads the block's SOURCE ; the block itself
@@ -123,13 +131,14 @@ module Hecks
 
         def build
           Policy.new(
-            name:            @name,
-            on_event:        @on_event,
-            trigger_command: @trigger_command,
-            target_domain:   @target_domain,
-            where:           @where,
-            for_each:        @for_each,
-            with_spec:       @with_spec || []
+            name:               @name,
+            on_event:           @on_event,
+            trigger_command:    @trigger_command,
+            target_domain:      @target_domain,
+            expect_undelivered: @expect_undelivered || false,
+            where:              @where,
+            for_each:           @for_each,
+            with_spec:          @with_spec || []
           ).tap { |policy| policy.instance_variable_set(:@projection_declared, !!@projection_declared) }
         end
 

@@ -229,6 +229,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("aggregate", "Bluebook"),
     ("policy", "Bluebook"),
     ("process_manager", "Bluebook"), // STAGE 4
+    ("provides", "Bluebook"),        // Phase 2a — `provides "authorization", ...`
     ("description", "Aggregate"),
     ("provenance", "Aggregate"), // STAGE 4
     ("identified_by", "Aggregate"),

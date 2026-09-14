@@ -86,6 +86,23 @@ module Hecks
         # themselves with it).
         def attaches_to_impl(*contexts) = (@attaches_to ||= []).concat(contexts.map(&:to_s))
 
+        # A CAPABILITY THIS CHAPTER ANSWERS FOR OTHER DOMAINS, declared so
+        # nothing has to recognise the chapter by name — Governance's
+        # `provides "authorization", assignments: ..., grant: ...,
+        # transitions: ...`. One row per key, in the order written; what
+        # each capability requires is checked once the chapter is whole
+        # (`Validation#validate_provisions!`), since the verbs it names may
+        # be declared further down the file.
+        def provides_impl(capability, **verbs)
+          if verbs.empty?
+            raise Malformed, "#{@name}'s provides #{capability.inspect} names no verb — say which of this " \
+                             "chapter's commands and queries answer it"
+          end
+
+          rows = verbs.map { |key, verb| Chapter::Provision.new(capability: capability.to_s, key: key.to_s, verb: verb.to_s) }
+          (@provides ||= []).concat(rows)
+        end
+
         def core       = @classification = :core
         def supporting = @classification = :supporting
         def generic    = @classification = :generic
@@ -152,7 +169,8 @@ module Hecks
                                            process_managers: @process_managers,
                                            classification: @classification,
                                            formerly_known_as: @formerly_known_as,
-                                           attaches_to: @attaches_to || [])
+                                           attaches_to: @attaches_to || [],
+                                           provides: @provides || [])
 
           # SAME REASON, SAME GATE — a bare chapter-given may still be
           # pending (see `AggregateBuilder#pending_chapter_given`) if a

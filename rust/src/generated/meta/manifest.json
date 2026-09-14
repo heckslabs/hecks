@@ -99,6 +99,12 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Bluebook.Provide",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Bluebook.Normalise",
     "generated": true,
     "routed": true
@@ -236,7 +242,7 @@
     "generated": false,
     "gap_class": "per_instance",
     "construct": "optional_source",
-    "reason": "optional argument feeds a non-optional target: sets :aggregate sources optional argument aggregate; sets :target_domain sources optional argument target_domain; sets :position sources optional argument position — not generated yet"
+    "reason": "optional argument feeds a non-optional target: sets :aggregate sources optional argument aggregate; sets :target_domain sources optional argument target_domain; sets :expect_undelivered sources optional argument expect_undelivered; sets :position sources optional argument position — not generated yet"
   },
   {
     "kind": "command",

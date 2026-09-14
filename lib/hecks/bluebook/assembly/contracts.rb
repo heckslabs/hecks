@@ -47,7 +47,8 @@ module Hecks
             vision:            [:vision,         :plain],
             classification:    [:classification, :plain],
             formerly_known_as: [:formerly_known_as, :plain],
-            attaches_to:       [:attaches_to, :plain]
+            attaches_to:       [:attaches_to, :plain],
+            provides:          [:provides, :plain]
           },
           rows: { normalisations: :normalisation_table },
           derived: { normalisations: :elsewhere }
@@ -195,17 +196,18 @@ module Hecks
         "Policy"         => Contract.new(
           holder: Policy, make: :new,
           fields: {
-            name:            [:name,            :plain],
-            aggregate:       [:aggregate,       :plain],
-            on_event:        [:on_event,        :plain],
-            trigger_command: [:trigger_command, :plain],
-            target_domain:   [:target_domain,   :plain],
-            where:           [:where,           :plain],
-            for_each:        [:for_each,        :plain],
-            with_spec:       [:with_spec,       :bindings]
+            name:               [:name,            :plain],
+            aggregate:          [:aggregate,       :plain],
+            on_event:           [:on_event,        :plain],
+            trigger_command:    [:trigger_command, :plain],
+            target_domain:      [:target_domain,   :plain],
+            expect_undelivered: [:expect_undelivered, :plain],
+            where:              [:where,           :plain],
+            for_each:           [:for_each,        :plain],
+            with_spec:          [:with_spec,       :bindings]
           },
           rows: { with_spec: :with_spec_rows },
-          reads: { with_spec: [:from, :with_spec] },
+          reads: { with_spec: [:from, :with_spec], expect_undelivered: :expect_undelivered? },
           derived: { position: :walk }
         ),
 

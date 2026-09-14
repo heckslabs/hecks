@@ -110,8 +110,9 @@ module Hecks
         #                   unchecked default, recorded so the step reads
         #                   as a deliberate control, not an omission
         #   actor_known     the role PLUS an actor this same sequence
-        #                   already granted it to (`Governance::
-        #                   RoleAssignment.Assign` succeeded earlier) —
+        #                   already granted it to (the authorization
+        #                   provider's declared `grant:` verb succeeded
+        #                   earlier — `catalog[:grant_verbs]`) —
         #                   the real `holds_role?` lookup, both sides
         #   actor_unknown   the role plus an actor nothing granted —
         #                   `holds_role?` must refuse on both
@@ -122,7 +123,6 @@ module Hecks
         # nothing from the RNG when off, so every pinned seed is
         # byte-identical to before it existed.
         CALLER_SHAPES = %w[matching mismatched absent_on_gated actor_known actor_unknown].freeze
-        GRANT_VERB    = "Governance::RoleAssignment.Assign".freeze
         UNKNOWN_ROLE  = "Nobody the domain names".freeze
 
         # BUG#11 — an entity command two or more hops deep. Not a mutation
@@ -500,7 +500,7 @@ module Hecks
         # domain's own declared roles instead; with it off, nothing here
         # runs (no RNG draw, no change to the args).
         def steer_grant!(args, entry, catalog)
-          return unless role_draw? && entry[:verb] == GRANT_VERB && catalog[:roles].any?
+          return unless role_draw? && catalog[:grant_verbs].include?(entry[:verb]) && catalog[:roles].any?
           return unless args.key?("role_name")
 
           args["role_name"] = { "value" => catalog[:roles].sample(random: @random) }

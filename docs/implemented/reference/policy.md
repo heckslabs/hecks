@@ -218,11 +218,12 @@ to stay broken for a long time without anyone noticing.
 ## across
 
 <!-- generated:begin word=across -->
-`across target_domain` — fills `target_domain`
+`across target_domain, expect_undelivered:` — fills `target_domain`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | target_domain |
+| `expect_undelivered:` | flag | false | expect_undelivered |
 <!-- generated:end -->
 
 Names the domain a `trigger` reaches into when it lives outside this

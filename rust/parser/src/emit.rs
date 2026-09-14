@@ -138,6 +138,24 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
             "attaches_to".to_string(),
             JsonValue::strings(&bb.attaches_to),
         ),
+        (
+            "provides".to_string(),
+            JsonValue::Array(
+                bb.provides
+                    .iter()
+                    .map(|row| {
+                        JsonValue::Object(vec![
+                            (
+                                "capability".to_string(),
+                                JsonValue::str(row.capability.clone()),
+                            ),
+                            ("key".to_string(), JsonValue::str(row.key.clone())),
+                            ("verb".to_string(), JsonValue::str(row.verb.clone())),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ),
         ("canonical_form".to_string(), canonical_form_table()),
     ])
 }
@@ -834,6 +852,10 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
         (
             "target_domain".to_string(),
             JsonValue::opt_str(&p.target_domain),
+        ),
+        (
+            "expect_undelivered".to_string(),
+            JsonValue::Bool(p.expect_undelivered),
         ),
         ("where".to_string(), JsonValue::opt_str(&p.where_clause)),
         (

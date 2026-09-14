@@ -76,6 +76,37 @@ module Hecks
     # `AlreadyExists`, not a no-op. Skipped once the member's bluebook is
     # already registered in THIS registry — the same chapter, not merely
     # a same-named one from a stale prior boot.
+    # EVERY MEMBER WHOSE OWN BLUEBOOK DECLARES `provides capability` —
+    # read off the member's real IR (each loaded into a scratch registry,
+    # never the caller's), not off its name. Used where a check needs to
+    # say WHICH member would satisfy it (`refuse_ungoverned_roles!`'s own
+    # suggestion, `Fuzzing::TargetCapabilities`).
+    def self.providers_of(capability)
+      members.keys.select { |name| chapter(name).provides?(capability) }.sort
+    end
+
+    # One member's chapter, built in isolation.
+    def self.chapter(name)
+      path = members.fetch(name.to_s) do
+        raise Runtime::WiringError,
+              "no framework member named #{name.inspect} — known: #{members.keys.sort.join(', ')}"
+      end
+
+      lib = File.expand_path("..", __dir__)
+      registry = Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        # The same four a chapter needs to build at all (a predicate's
+        # source is recovered through the extraction port) — the seed
+        # `Grammar#grammar_chapters` and `bin/model_check` use.
+        Kernel.load(File.join(lib, "hecks/ports/persistence.port"))
+        Kernel.load(File.join(lib, "hecks/ports/extraction.port"))
+        Kernel.load(File.join(lib, "hecks/adapters/driven/memory.adapter"))
+        Kernel.load(File.join(lib, "hecks/adapters/driven/prism.adapter"))
+        Kernel.load(path)
+      end
+      registry.bluebook(name.to_s)
+    end
+
     def self.load!(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,

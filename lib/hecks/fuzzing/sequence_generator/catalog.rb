@@ -52,6 +52,13 @@ module Hecks
             # from (adversary.rb `other_role`).
             roles: (creating + instance + entity_commands).filter_map { |e| e[:command].role }
                                                           .map(&:to_s).reject(&:empty?).uniq.sort,
+            # The GRANT verb every loaded authorization provider declares
+            # (`provides "authorization", grant: ...`) — what the caller
+            # draw steers at a declared role and records as a real grant.
+            # Read off the declaration, never the literal Governance name.
+            grant_verbs: runtime.registry.authorization_providers
+                                .filter_map { |chapter| chapter.provided_verb(Bluebook::Capabilities::AUTHORIZATION, :grant) }
+                                .sort,
             # Which aggregates this corpus can actually make one of — the ones
             # `satisfiable?` is entitled to wait for.
             creatable: creating.to_set { |entry| entry[:aggregate].hecks_name } }

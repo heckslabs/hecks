@@ -617,6 +617,41 @@ if !absent.is_empty() {
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::bluebook::dispatch_attach(&mut store.bluebook, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::Bluebook.Provide" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ProvideArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["capability", "key", "verb", "id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Provide does not declare {} — it takes capability, key, verb",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["capability", "key", "verb"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Provide"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "capability, key, verb"),
+    ])));
+}
+ }
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Provide acts on an existing Bluebook — pass name.value:".to_string()))?, };
+              let args = crate::generated::meta::bluebook::ProvideArgs::from_json(facts_json)?;
+                      args.capability.check_invariants()?;
+                      args.key.check_invariants()?;
+                      args.verb.check_invariants()?;
+              crate::kernel::check_role(Some("Language"), "Provide", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Bluebook", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::bluebook::dispatch_provide(&mut store.bluebook, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Bluebook::Bluebook.Normalise" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -2199,6 +2234,7 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::Aggregate.Precondition" => false,
         "Bluebook::Aggregate.Projects" => false,
         "Bluebook::Bluebook.Attach" => false,
+        "Bluebook::Bluebook.Provide" => false,
         "Bluebook::Bluebook.Normalise" => false,
         "Bluebook::Command.Argument" => false,
         "Bluebook::Command.Reference" => false,
@@ -2276,6 +2312,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Bluebook::Aggregate.Precondition" => &["description", "canonical"],
         "Bluebook::Aggregate.Projects" => &["name", "reference", "remote_field"],
         "Bluebook::Bluebook.Attach" => &["context"],
+        "Bluebook::Bluebook.Provide" => &["capability", "key", "verb"],
         "Bluebook::Bluebook.Normalise" => &["strategy", "source_token", "replacement", "boundary", "position"],
         "Bluebook::Command.Argument" => &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
         "Bluebook::Command.Reference" => &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],

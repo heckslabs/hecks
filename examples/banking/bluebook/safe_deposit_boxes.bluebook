@@ -273,7 +273,8 @@ Hecks.bluebook "Banking" do
   policy "FlagKeyReturn" do
     on      SafeDepositBox::KeyReturnDue
     trigger Notifications::Send
-    across  "Notifications"
+    # Undelivered on purpose — see NotifyOnClosure (deposit_accounts.bluebook).
+    across  "Notifications", expect_undelivered: true
   end
 
 end

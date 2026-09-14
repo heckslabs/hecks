@@ -63,6 +63,43 @@ module Hecks
             # own reference cannot resolve until every aggregate in the
             # chapter is real and owner-stamped (S12, ADR 0025).
             validate_projected_fields!(bluebook)
+
+            validate_provisions!(bluebook)
+          end
+
+          # WHAT A DECLARED CAPABILITY MUST NAME. A `provides` row is only
+          # worth trusting in place of a name check if it is checked: an
+          # unknown capability, a missing or extra key, or a verb that is
+          # not this chapter's own command/query of the right kind would
+          # otherwise wire a role check to nothing, in silence.
+          def validate_provisions!(bluebook)
+            bluebook.provides.group_by(&:capability).each do |capability, rows|
+              contract = Capabilities::CONTRACTS.fetch(capability) do
+                raise Malformed, "#{bluebook.name} provides #{capability.inspect}, which is no capability the " \
+                                 "language knows — known: #{Capabilities::CONTRACTS.keys.sort.join(', ')}"
+              end
+
+              keys = rows.map { |row| row.key.to_sym }
+              unless keys.sort == contract.keys.sort
+                raise Malformed, "#{bluebook.name} provides #{capability.inspect} with #{keys.join(', ')}, but " \
+                                 "#{capability} needs exactly #{contract.keys.join(', ')}"
+              end
+
+              rows.each { |row| validate_provided_verb!(bluebook, capability, row, contract.fetch(row.key.to_sym)) }
+            end
+          end
+
+          def validate_provided_verb!(bluebook, capability, row, kind)
+            aggregate_name, member = row.verb.split(".", 2)
+            aggregate = bluebook.aggregate(aggregate_name)
+            return if aggregate && member && provided_member_names(aggregate, kind).include?(member)
+
+            raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                             "which names no #{kind} this chapter declares (spelled \"Aggregate.#{kind.capitalize}\")"
+          end
+
+          def provided_member_names(aggregate, kind)
+            kind == :command ? aggregate.commands.map(&:hecks_name) : aggregate.queries.map(&:name)
           end
 
           # AN ENTITY COMMAND MAY NOT NAME ITSELF AS ITS ROOT.

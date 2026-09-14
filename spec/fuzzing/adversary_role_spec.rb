@@ -93,14 +93,19 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       # `refusal_precedence`/`omit_mapped_argument` mutation can corrupt or
       # drop it AFTER the steer (that is exactly its job); a `caller_role`
       # note touches no argument at all.
+      # The grant verb is whatever the loaded authorization provider
+      # DECLARES (`provides "authorization", grant: ...`), not a constant.
+      bluebooks   = Hecks::Fuzzing::Replay.call(ROLE_BANKING, [])[:bluebooks]
+      grant_verbs = bluebooks.values.filter_map { |b| b.provided_verb("authorization", :grant) }
+      expect(grant_verbs).to eq(["Governance::RoleAssignment.Assign"])
+
       grants = steps.select do |s|
-        s["verb"] == described_class::GRANT_VERB &&
+        grant_verbs.include?(s["verb"]) &&
           (s["adversarial"] || []).none? { |m| m.values.include?("role_name") }
       end
       expect(grants).not_to be_empty
 
-      bluebooks = Hecks::Fuzzing::Replay.call(ROLE_BANKING, [])[:bluebooks]
-      declared  = bluebooks.values.flat_map { |b| b.aggregates.flat_map { |a| a.commands.map(&:role) } }.compact.map(&:to_s)
+      declared = bluebooks.values.flat_map { |b| b.aggregates.flat_map { |a| a.commands.map(&:role) } }.compact.map(&:to_s)
       grants.each { |s| expect(declared).to include(s["args"]["role_name"]["value"]) }
     end
 

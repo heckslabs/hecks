@@ -361,6 +361,46 @@ RSpec.describe "the model checker" do
       end
     end
 
+    # PINNED EMPTY, the way bin/fuzz's KNOWN_FUZZ_FINDINGS is — a domain
+    # that means to keep a finding declares it in its own source (banking's
+    # `across "Notifications", expect_undelivered: true`), never here.
+    it "keeps the core allowlist empty" do
+      expect(MODEL_CHECK_ALLOWED).to eq({})
+    end
+
+    describe "a declared undelivered across target" do
+      let(:banking) { MODEL_CHECK_CORPUS.to_h.fetch("banking") }
+
+      it "is what keeps banking's two Notifications policies clean" do
+        declared = boot(banking).bluebook("Banking").policies.select(&:expect_undelivered).map(&:name).sort
+        expect(declared).to eq(%w[FlagKeyReturn NotifyOnClosure])
+
+        errors = call_model_check(boot(banking), known_domains: self.class.known_domains)
+                 .select { |f| %w[FlagKeyReturn NotifyOnClosure].include?(f.subject) }
+        expect(errors).to be_empty
+      end
+
+      it "fails as stale once the target is a domain the corpus actually boots" do
+        known    = self.class.known_domains | ["Notifications"]
+        findings = call_model_check(boot(banking), known_domains: known)
+        stale    = findings.select { |f| f.kind == :stale_undelivered_expectation }
+
+        expect(stale.map(&:subject).sort).to eq(%w[FlagKeyReturn NotifyOnClosure])
+        expect(stale.map(&:severity).uniq).to eq([:error])
+      end
+
+      it "raises the ordinary findings again once the declaration is dropped" do
+        registry = boot(banking)
+        registry.bluebook("Banking").policies.select(&:expect_undelivered).each do |policy|
+          policy.instance_variable_set(:@expect_undelivered, false)
+        end
+        kinds = call_model_check(registry, known_domains: self.class.known_domains)
+                .select { |f| f.subject == "NotifyOnClosure" }.map(&:kind).sort
+
+        expect(kinds).to eq(%i[unacknowledged_relationship unknown_target_domain])
+      end
+    end
+
     it "the language itself is clean" do
       %w[Bluebook World].each do |name|
         chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name)

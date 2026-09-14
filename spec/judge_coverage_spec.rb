@@ -43,6 +43,11 @@ RSpec.describe "the judge's coverage of the language" do
     # to be offered at all. Already loaded into the grammar registry
     # itself (MetaValidator::ATTACHED_GRAMMAR_DIR) — no separate boot.
     @paging = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
+    # `Bluebook.Provide` — Governance is the one real chapter that declares
+    # `provides "authorization"`, and Banking only ATTACHES it through its
+    # hecksagon, so the framework member is judged on its own, the same
+    # way Paging is.
+    @governance = Hecks::Framework.chapter("Governance")
     # M13 — "Bluebook" (the meta-grammar describing itself) is the one
     # real user of `Entity.Holds` today: `Handler.dispatches, list_of
     # (Dispatch)` (S17, ADR 0026) is a piece nested inside a piece, and no
@@ -85,6 +90,7 @@ RSpec.describe "the judge's coverage of the language" do
 
   attr_reader :banking
   attr_reader :paging
+  attr_reader :governance
   attr_reader :grammar
   attr_reader :relationships
 
@@ -123,7 +129,7 @@ RSpec.describe "the judge's coverage of the language" do
   # `freshness`/`use_index` — so the union is gone with it.
   def offered_verbs
     offered_in_order + offered_in_order(paging) + offered_in_order(grammar) +
-      offered_in_order(relationships)
+      offered_in_order(relationships) + offered_in_order(governance)
   end
 
   # Every command on every aggregate of the meta-domain, spelled as the judge

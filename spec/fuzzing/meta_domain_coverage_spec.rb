@@ -124,12 +124,25 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     # NotifyOnClosure/FlagKeyReturn -> "Notifications" —
     # examples/banking/bluebook/deposit_accounts.bluebook:477,573,
     # safe_deposit_boxes.bluebook:270,276), two of them the very
-    # `unacknowledged_relationship`/`unknown_target_domain` pair
-    # `model_check.rb`'s own ALLOWED_FINDINGS names. The GAP ITSELF still
+    # `unacknowledged_relationship`/`unknown_target_domain` pair those two
+    # policies now declare as expected (`expect_undelivered: true`, checked
+    # by model_check.rb in both directions). The GAP ITSELF still
     # holds — nothing in FEATURE_COVERAGE claims Policy#target_domain,
     # and no fuzzer PROPERTY (as opposed to model_check's static check)
     # asks whether a generated sequence's cross-domain dispatch actually
     # resolves to the declared target — only the premise needed fixing.
+    # Checked statically, not by a property: model_check.rb raises
+    # stale_undelivered_expectation when a declared target is reachable,
+    # and spec/model_check_spec.rb proves both directions on banking.
+    "Policy#expect_undelivered"         => "a declared-undelivered across target is held by model_check.rb's static " \
+                                           "stale check, but no fuzzer PROPERTY asks whether a generated sequence's " \
+                                           "reaction to such a policy is actually recorded as undelivered at runtime",
+    # Read by the role check, boot's ungoverned-role refusal, the
+    # authorization adapter and the fuzzer's own grant steering (the
+    # `actor_known` caller shape), all over real Governance boots.
+    "Bluebook#provides"                 => "the declared authorization verbs drive every identified-caller role check a " \
+                                           "sequence makes, but no property asks whether holds_role? through the " \
+                                           "declared assignments verb agrees with the grants the sequence itself made",
     "Policy#target_domain"              => "cross-domain `across` policies exist in the corpus today (banking declares " \
                                            "four) and are exercised by model_check.rb's static cross-domain findings, but " \
                                            "no fuzzer PROPERTY over a GENERATED sequence's own dispatch asks whether " \

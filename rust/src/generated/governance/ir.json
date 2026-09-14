@@ -676,6 +676,23 @@
   "attaches_to": [
 
   ],
+  "provides": [
+    {
+      "capability": "authorization",
+      "key": "assignments",
+      "verb": "RoleAssignment.AssignmentsForActor"
+    },
+    {
+      "capability": "authorization",
+      "key": "grant",
+      "verb": "RoleAssignment.Assign"
+    },
+    {
+      "capability": "authorization",
+      "key": "transitions",
+      "verb": "RoleTransition.Allowed"
+    }
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

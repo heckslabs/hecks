@@ -722,6 +722,7 @@
   "name": "Pizzas",
   "policies": [
     {
+      "expect_undelivered": false,
       "for_each": null,
       "name": "OnPizzaPaymentReceived",
       "on_event": "Order.PizzaPaymentReceived",
@@ -735,6 +736,9 @@
     }
   ],
   "process_managers": [
+
+  ],
+  "provides": [
 
   ],
   "read_models": [
