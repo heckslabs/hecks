@@ -84,6 +84,18 @@ module RustProjection
     DEREF_PARAMS = ["owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>",
                      "command_deref: Vec<(&'static str, crate::kernel::DerefNode)>"].freeze
 
+    # BUG#139 — the AGGREGATE-COMMAND-ONLY counterpart to `DEREF_PARAMS`,
+    # above: `kernel/dispatch.rs`'s own `dispatch()` (never `dispatch_
+    # entity`/`apply_entity_command` — write-side tenant boundary checks
+    # are wired for aggregate commands only, `registry.rb`'s own
+    # `tenant_boundary_checks` header) now takes an already-computed
+    # `Result<(), Refusal>`, deferred to the exact position Ruby's own
+    # `step_save` checks it (see `dispatch()`'s own header comment on the
+    # parameter for the full reasoning). Only `emit_command` threads this
+    # — never `emit_entity_command` or the two-hop nested-entity emitter —
+    # since neither of those calls `crate::kernel::dispatch` at all.
+    TENANT_BOUNDARY_PARAM = "tenant_boundary_check: Result<(), crate::kernel::Refusal>".freeze
+
     # The ONE line every generated `dispatch_*`/`dispatch_entity_*` body
     # adds — `crate::kernel::WithReferences`, read directly
     # (reference_lookup.rs): `command_deref` wins ties (an entity
@@ -653,16 +665,16 @@ module RustProjection
               }
         RUST
         fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>", "route: Option<&crate::kernel::RoutingEnvelope>"] + identity_extra_params +
-                        ["args: #{cmd}Args", "mutations: &mut Vec<crate::kernel::MutationRecord>", *DEREF_PARAMS]).join(", ")
+                        ["args: #{cmd}Args", "mutations: &mut Vec<crate::kernel::MutationRecord>", *DEREF_PARAMS, TENANT_BOUNDARY_PARAM]).join(", ")
       else
         hydrate = %(crate::kernel::Hydrate::Act { id: id.to_string() })
         fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>", "id: &str", "args: #{cmd}Args",
-                          "mutations: &mut Vec<crate::kernel::MutationRecord>", *DEREF_PARAMS]).join(", ")
+                          "mutations: &mut Vec<crate::kernel::MutationRecord>", *DEREF_PARAMS, TENANT_BOUNDARY_PARAM]).join(", ")
       end
 
       dispatch_fn = Exemplar.render(
         "dispatch_fn",
-        "repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>" => fn_signature,
+        "repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, #{TENANT_BOUNDARY_PARAM}" => fn_signature,
         "dispatch_tmpl" => "dispatch_#{dispatch_fn_name(cmd)}",
         "TmplRecord" => record,
         "tmpl_invariant_check_placeholder()?;" => invariant_checks.join("\n"),

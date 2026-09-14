@@ -403,7 +403,7 @@ pub struct GenerateArgs {
 }
 
 pub fn dispatch_generate(
-    repo: &mut impl crate::kernel::Repository<Statement>, route: Option<&crate::kernel::RoutingEnvelope>, args: GenerateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Statement>, route: Option<&crate::kernel::RoutingEnvelope>, args: GenerateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Statement> {
         args.period.check_invariants()?;
         args.opening_balance.check_invariants()?;
@@ -474,6 +474,7 @@ pub fn dispatch_generate(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

@@ -1223,7 +1223,7 @@ pub struct StartArgs {
 }
 
 pub fn dispatch_start(
-    repo: &mut impl crate::kernel::Repository<Game>, route: Option<&crate::kernel::RoutingEnvelope>, args: StartArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, route: Option<&crate::kernel::RoutingEnvelope>, args: StartArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
         args.label.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1288,6 +1288,7 @@ pub fn dispatch_start(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1367,7 +1368,7 @@ pub struct PlacePieceArgs {
 }
 
 pub fn dispatch_place_piece(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: PlacePieceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: PlacePieceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
         args.id.check_invariants()?;
         args.square.check_invariants()?;
@@ -1400,6 +1401,7 @@ pub fn dispatch_place_piece(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1489,7 +1491,7 @@ pub struct MovePieceArgs {
 }
 
 pub fn dispatch_move_piece(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: MovePieceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: MovePieceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
         args.id.check_invariants()?;
         args.destination.check_invariants()?;
@@ -1554,6 +1556,7 @@ pub fn dispatch_move_piece(
         delegate_facts.clone(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1639,7 +1642,7 @@ pub struct CapturePieceArgs {
 }
 
 pub fn dispatch_capture_piece(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: CapturePieceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: CapturePieceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
         args.id.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1700,6 +1703,7 @@ pub fn dispatch_capture_piece(
         delegate_facts.clone(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1776,7 +1780,7 @@ pub struct AdvanceTurnArgs {
 }
 
 pub fn dispatch_advance_turn(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: AdvanceTurnArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: AdvanceTurnArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1808,6 +1812,7 @@ pub fn dispatch_advance_turn(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1880,7 +1885,7 @@ pub struct DeclareCheckArgs {
 }
 
 pub fn dispatch_declare_check(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclareCheckArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclareCheckArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1910,6 +1915,7 @@ pub fn dispatch_declare_check(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1982,7 +1988,7 @@ pub struct DeclareCheckmateArgs {
 }
 
 pub fn dispatch_declare_checkmate(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclareCheckmateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclareCheckmateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -2012,6 +2018,7 @@ pub fn dispatch_declare_checkmate(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -2084,7 +2091,7 @@ pub struct DeclareStalemateArgs {
 }
 
 pub fn dispatch_declare_stalemate(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclareStalemateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclareStalemateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -2114,6 +2121,7 @@ pub fn dispatch_declare_stalemate(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -2186,7 +2194,7 @@ pub struct ResignArgs {
 }
 
 pub fn dispatch_resign(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: ResignArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: ResignArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -2216,6 +2224,7 @@ pub fn dispatch_resign(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -2288,7 +2297,7 @@ pub struct OfferDrawArgs {
 }
 
 pub fn dispatch_offer_draw(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: OfferDrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: OfferDrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -2318,6 +2327,7 @@ pub fn dispatch_offer_draw(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -2390,7 +2400,7 @@ pub struct AcceptDrawArgs {
 }
 
 pub fn dispatch_accept_draw(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: AcceptDrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: AcceptDrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -2421,6 +2431,7 @@ pub fn dispatch_accept_draw(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -2493,7 +2504,7 @@ pub struct DeclineDrawArgs {
 }
 
 pub fn dispatch_decline_draw(
-    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclineDrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, id: &str, args: DeclineDrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Game> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -2523,6 +2534,7 @@ pub fn dispatch_decline_draw(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

@@ -1099,7 +1099,7 @@ pub struct RentArgs {
 }
 
 pub fn dispatch_rent(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, route: Option<&crate::kernel::RoutingEnvelope>, args: RentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, route: Option<&crate::kernel::RoutingEnvelope>, args: RentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
@@ -1153,6 +1153,7 @@ pub fn dispatch_rent(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1235,7 +1236,7 @@ pub struct SurrenderArgs {
 }
 
 pub fn dispatch_surrender(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: SurrenderArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: SurrenderArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1265,6 +1266,7 @@ pub fn dispatch_surrender(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1332,7 +1334,7 @@ pub struct LogVisitArgs {
 }
 
 pub fn dispatch_log_visit(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: LogVisitArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: LogVisitArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.date.check_invariants()?;
         args.sequence.check_invariants()?;
@@ -1364,6 +1366,7 @@ pub fn dispatch_log_visit(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1445,7 +1448,7 @@ pub struct IssueKeyArgs {
 }
 
 pub fn dispatch_issue_key(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: IssueKeyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: IssueKeyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1476,6 +1479,7 @@ pub fn dispatch_issue_key(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

@@ -1516,7 +1516,7 @@ pub struct StateArgs {
 }
 
 pub fn dispatch_state(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: StateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: StateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.name.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1546,6 +1546,7 @@ pub fn dispatch_state(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1623,7 +1624,7 @@ pub struct HandlerArgs {
 }
 
 pub fn dispatch_handler(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: HandlerArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: HandlerArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.event_type.check_invariants()?;
         args.from_state.check_invariants()?;
@@ -1655,6 +1656,7 @@ pub fn dispatch_handler(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

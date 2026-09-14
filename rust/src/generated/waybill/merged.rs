@@ -104,10 +104,11 @@ pub fn dispatch_by_name(
                       args.number.check_invariants()?;
                       args.item.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Request", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::waybill::consignment::dispatch_request(&mut store.consignment, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::waybill::consignment::dispatch_request(&mut store.consignment, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Waybill::Consignment.Ship" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -127,10 +128,11 @@ if !unknown.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Ship acts on an existing Consignment — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::consignment::ShipArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Ship", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Consignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::waybill::consignment::dispatch_ship(&mut store.consignment, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::waybill::consignment::dispatch_ship(&mut store.consignment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Waybill::Consignment.Cancel" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -150,10 +152,11 @@ if !unknown.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Cancel acts on an existing Consignment — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::consignment::CancelArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Consignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::waybill::consignment::dispatch_cancel(&mut store.consignment, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::waybill::consignment::dispatch_cancel(&mut store.consignment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Waybill::Manifest.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -163,10 +166,11 @@ if !unknown.is_empty() {
               let args = crate::generated::waybill::manifest::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::waybill::manifest::dispatch_open(&mut store.manifest, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::waybill::manifest::dispatch_open(&mut store.manifest, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Waybill::Manifest.AddSlot" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -195,10 +199,11 @@ if !absent.is_empty() {
               let args = crate::generated::waybill::manifest::AddSlotArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "AddSlot", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::waybill::manifest::dispatch_add_slot(&mut store.manifest, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::waybill::manifest::dispatch_add_slot(&mut store.manifest, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Waybill::Manifest.Slot.Fill" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
