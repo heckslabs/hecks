@@ -102,8 +102,6 @@
 #                                      # diff under rust/src/generated/ or
 #                                      # rust/Cargo.toml (what CI runs)
 
-require "fileutils"
-
 # THE THREE ROOTS a domain's Bluebook source can live under and still be
 # auto-discovered — the same three the old hardcoded list drew every one
 # of its 12 entries from. `spec/fixtures/rust_project/` needs walking
