@@ -88,26 +88,4 @@ RSpec.describe "bin/fuzz" do
       expect(shrunk.first["args"]).to eq({})
     end
   end
-
-  # `KNOWN_FUZZ_FINDINGS`/`#known_finding?` — the narrowest possible
-  # allowlist (`bin/fuzz`'s own equivalent of `Bluebook::ModelCheck::
-  # ALLOWED_FINDINGS`), first added in PR #527 to excuse hecks_qa BUG#4/#5
-  # and later held a second entry excusing `qa/stress_domains/tenant_
-  # ledger`'s (ANGLE-8) own `commands_respect_tenant_scope` finding — a
-  # real, then-open write-side tenant enforcement gap. Both were removed
-  # whole the moment their real fix landed, per the exact same self-
-  # destructing discipline each carried while still open (see `bin/fuzz`'s
-  # own comment above `KNOWN_FUZZ_FINDINGS`): this describe block, pinned
-  # against that second entry's real, currently-reproducing shape, goes
-  # with it rather than being propped up against an empty table — the
-  # next real entry gets its own dedicated coverage the same way this one
-  # did, not a permanent placeholder test asserting `{}` behaves like `{}`.
-  describe "#known_finding?" do
-    it "answers false for any domain/failure while the allowlist is empty" do
-      fuzz = bin_fuzz_methods
-      failure = { signature: "property_violation: some_property", message: "some_property: anything at all" }
-
-      expect(fuzz.known_finding?("any_domain", failure)).to be(false)
-    end
-  end
 end

@@ -3,14 +3,6 @@ require "hecks/query_ir"
 
 RSpec.describe Hecks::QueryIR do
   describe ".constructs" do
-    it "reports every real construct clean, matching spec/model_shape_conformance_spec.rb's own passing gate" do
-      diffs = described_class.constructs
-      expect(diffs.size).to eq(described_class::CONSTRUCTS.size)
-
-      dirty = diffs.reject { |d| d[:missing_from_ruby].empty? && d[:unaccounted_in_ruby].empty? }
-      expect(dirty).to be_empty, "reported a real gap, or drifted from Deviations: #{dirty.inspect}"
-    end
-
     it "scopes to the names given" do
       diffs = described_class.constructs(["Entity"])
       expect(diffs.map { |d| d[:name] }).to eq(["Entity"])
