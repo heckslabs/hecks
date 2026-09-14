@@ -1475,6 +1475,78 @@ RSpec.describe "QualityControl" do
     end
   end
 
+  # ── the pile still owed the bigger call ───────────────────────────────
+
+  # `Untriaged` is the pile nobody has judged YET; this is the pile
+  # somebody already judged too big to fix on the spot, and has not since
+  # been closed out. Before this query existed, getting this answer meant
+  # dispatching `Bug.All` and filtering client-side.
+  describe "the needs-judgment pile" do
+    it "offers a bigger-triaged bug still logged" do
+      bug = a_bug(a_sweep)
+      bug.triage!(disposition: { value: "bigger" })
+
+      expect(references("Bug.NeedsJudgment")).to eq([bug.id])
+    end
+
+    it "leaves out a bug triaged self_contained" do
+      bug = a_bug(a_sweep)
+      bug.triage!(disposition: { value: "self_contained" })
+
+      expect(rows("Bug.NeedsJudgment")).to be_empty
+    end
+
+    it "leaves out a bug nobody has triaged yet" do
+      a_bug(a_sweep)
+
+      expect(rows("Bug.NeedsJudgment")).to be_empty
+    end
+
+    it "keeps a bigger-triaged bug once it moves to investigating or paused" do
+      sweep = a_sweep
+      investigating = a_bug(sweep, reference: "BUG#1", sequence: 1)
+      investigating.triage!(disposition: { value: "bigger" })
+      investigating.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+
+      paused = a_bug(sweep, reference: "BUG#2", sequence: 2)
+      paused = paused.triage!(disposition: { value: "bigger" })
+      paused.investigate!(site: { value: "lib/y.rb" }, cause: { value: "c" })
+            .pause!(reason: { value: "architectural" }, next_step: { value: "review" })
+
+      expect(references("Bug.NeedsJudgment")).to contain_exactly("BUG#1", "BUG#2")
+    end
+
+    # FIXED COUNTS AS STILL OWED, ON PURPOSE. A fix landing does not
+    # retroactively answer the bigger judgment call that was made about
+    # it — the bug is not RESOLVED until `Verify` or `Withdraw` says so.
+    it "keeps a bigger-triaged bug once it is fixed and not yet verified" do
+      bug = a_bug(a_sweep)
+      bug = bug.triage!(disposition: { value: "bigger" })
+      bug.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+         .fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" })
+
+      expect(references("Bug.NeedsJudgment")).to eq([bug.id])
+    end
+
+    it "drops a bigger-triaged bug once it is verified" do
+      bug = a_bug(a_sweep)
+      bug = bug.triage!(disposition: { value: "bigger" })
+      bug = bug.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+               .fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" })
+      bug.verify!(evidence: { value: "rspec: 1 example, 0 failures" })
+
+      expect(rows("Bug.NeedsJudgment")).to be_empty
+    end
+
+    it "drops a bigger-triaged bug once it is withdrawn" do
+      bug = a_bug(a_sweep)
+      bug = bug.triage!(disposition: { value: "bigger" })
+      bug.withdraw!(reason: { value: "the test proved something else" })
+
+      expect(rows("Bug.NeedsJudgment")).to be_empty
+    end
+  end
+
   # ── whether it reliably reproduces ───────────────────────────────────
 
   describe "reproduced" do

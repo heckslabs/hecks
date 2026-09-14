@@ -386,6 +386,10 @@ Write down something that is wrong, with the test that proves it. Done by the qa
 
 Give a bug a short, memorable slug — at log time or any point after. Done by the qa engineer.
 
+### Needs judgment
+
+Open bugs triaged bigger and not yet resolved — the pile still owed a human or agent judgment call, not one anybody can just fix off the queue.
+
 ### Next step
 
 Text.
