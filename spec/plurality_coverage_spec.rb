@@ -72,7 +72,17 @@ RSpec.describe "every list the language declares, filled more than once" do
     "attaches_to" =>
                      "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
                      "no golden IR fixture reaches it because Paging is a grammar " \
-                     "chapter, not a frozen corpus member."
+                     "chapter, not a frozen corpus member.",
+    # Filled with three for real: lib/hecks/framework/bluebook/
+    # governance.bluebook declares `provides "authorization"` with
+    # assignments/grant/transitions, one row each, and
+    # spec/round_trip_spec.rb plus Validation#validate_provisions! (which
+    # refuses anything but exactly those three keys) read every row.
+    # Governance is a framework member with no golden IR fixture of its
+    # own, the same reason attaches_to above is invisible here.
+    "provides"    =>
+                     "Governance provides authorization with three rows (assignments, grant, " \
+                     "transitions) — a framework member, so no golden IR fixture reaches it."
 
     # EMPTY, and every entry that was here is now a corpus member instead.
     #

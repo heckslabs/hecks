@@ -28,6 +28,24 @@ module Hecks
         def read_model(named) = @read_models.find { |model| model.name == named.to_s || model.query_name == named.to_s }
         def port(named)       = @ports_by_name[named.to_s]
 
+        # WHAT THIS CHAPTER DECLARED IT PROVIDES — `{ key => local verb }`
+        # for one capability, or nil when it declares none. Read by
+        # everything that used to recognise the Governance chapter by its
+        # name (`Registry#authorization_provider_for`).
+        def provision(capability)
+          rows = @provides.select { |row| row.capability == capability.to_s }
+          rows.empty? ? nil : rows.to_h { |row| [row.key.to_sym, row.verb] }
+        end
+
+        def provides?(capability) = !provision(capability).nil?
+
+        # The declared verb for `key`, qualified with this chapter's own
+        # name — the spelling `Dispatcher#dispatch`/`#query` take.
+        def provided_verb(capability, key)
+          local = provision(capability)&.fetch(key.to_sym, nil)
+          local && "#{name}::#{local}"
+        end
+
         # A PORT IS DECLARED IN THE HECKSAGON, not the bluebook — so it
         # attaches after the chapter already exists, the same way an
         # aggregate's own ports do.

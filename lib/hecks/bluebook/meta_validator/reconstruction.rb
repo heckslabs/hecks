@@ -60,6 +60,7 @@ module Hecks
             classification:    text(@chapter[:classification]),
             formerly_known_as: text(@chapter[:formerly_known_as]),
             attaches_to:       attached_contexts(@chapter),
+            provides:          provisions(@chapter),
             aggregates:        declared("Aggregate", chapter_id).map { |row| aggregate(row) },
             read_models:       declared("ReadModel", chapter_id).map { |row| read_model(row) },
             policies:          declared("Policy", chapter_id).map { |row| policy(row) },
@@ -133,6 +134,12 @@ module Hecks
         # THE CONTEXTS ONE CHAPTER NAMES ITSELF ONTO, in the order they were
         # attached — same shape identity_paths reads back, one level up.
         def attached_contexts(row) = Array(row[:attaches_to]).map { |part| text(part[:value]).to_s }
+
+        def provisions(row)
+          Array(row[:provides]).map do |part|
+            { capability: text(part[:capability]).to_s, key: text(part[:key]).to_s, verb: text(part[:verb]).to_s }
+          end
+        end
 
         # Every cell of the meta-domain is a single-field value object, so a row
         # arrives holding Values rather than Strings.

@@ -9487,6 +9487,7 @@
   "name": "Banking",
   "policies": [
     {
+      "expect_undelivered": false,
       "for_each": null,
       "name": "ReviewOnFreeze",
       "on_event": "Account.AccountFrozen",
@@ -9499,6 +9500,7 @@
       ]
     },
     {
+      "expect_undelivered": false,
       "for_each": null,
       "name": "RetryOnPaymentFailure",
       "on_event": "ScheduledPayment.ScheduledPaymentFailed",
@@ -9511,6 +9513,7 @@
       ]
     },
     {
+      "expect_undelivered": false,
       "for_each": "Account.OpenForCustomer",
       "name": "FreezeAccountsOnSuspension",
       "on_event": "Customer.CustomerSuspended",
@@ -9526,6 +9529,7 @@
       ]
     },
     {
+      "expect_undelivered": true,
       "for_each": null,
       "name": "NotifyOnClosure",
       "on_event": "Account.AccountClosed",
@@ -9538,6 +9542,7 @@
       ]
     },
     {
+      "expect_undelivered": false,
       "for_each": null,
       "name": "ReviewOnBoxSurrender",
       "on_event": "SafeDepositBox.BoxSurrendered",
@@ -9550,6 +9555,7 @@
       ]
     },
     {
+      "expect_undelivered": true,
       "for_each": null,
       "name": "FlagKeyReturn",
       "on_event": "SafeDepositBox.KeyReturnDue",
@@ -9809,6 +9815,9 @@
         "returned"
       ]
     }
+  ],
+  "provides": [
+
   ],
   "read_models": [
     {

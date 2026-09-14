@@ -471,6 +471,7 @@
   "name": "Reflex",
   "policies": [
     {
+      "expect_undelivered": false,
       "for_each": null,
       "name": "LogOnFlip",
       "on_event": "Flipped",
@@ -483,6 +484,7 @@
       ]
     },
     {
+      "expect_undelivered": false,
       "for_each": null,
       "name": "RingOnRang",
       "on_event": "Rang",
@@ -495,6 +497,7 @@
       ]
     },
     {
+      "expect_undelivered": false,
       "for_each": null,
       "name": "NotifyOnRaise",
       "on_event": "Raised",
@@ -508,6 +511,9 @@
     }
   ],
   "process_managers": [
+
+  ],
+  "provides": [
 
   ],
   "read_models": [
