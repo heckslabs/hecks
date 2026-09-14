@@ -32,10 +32,14 @@
 # any of the four yet, but they were the exact same silent gap, just not
 # yet tripped over by a fuzz sweep.
 #
-# THE MECHANISM, replacing the maintained list entirely: walk every
-# immediate subdirectory of each root in SEARCH_ROOTS below, and treat a
-# candidate as a domain to regenerate if — and only if — it ALREADY has
-# committed output at `rust/src/generated/<basename>/`. That's the same
+# THE MECHANISM, replacing the maintained list entirely: `Hecks::Corpus.
+# rust_regen_order` (lib/hecks/corpus.rb, also printed by `bin/corpus
+# --rust-regen-order`) — every corpus domain directory whose name is a
+# Cargo feature and whose `rust/src/generated/<name>/` module ALREADY
+# exists, with that module's own metadata.rs stamp confirming it came from
+# this directory (so a vendored copy of a domain never regenerates over
+# the real one). This script used to walk three hand-named roots itself;
+# the fuzz bridge and codegen parity now read the same list. That's the same
 # rule the old hand-maintained list already followed by convention (every
 # domain in it was added only after a human ran `bin/project_rust` once by
 # hand and committed the result) — this script just makes the rule self-
@@ -102,70 +106,19 @@
 #                                      # diff under rust/src/generated/ or
 #                                      # rust/Cargo.toml (what CI runs)
 
-# THE THREE ROOTS a domain's Bluebook source can live under and still be
-# auto-discovered — the same three the old hardcoded list drew every one
-# of its 12 entries from. `spec/fixtures/rust_project/` needs walking
-# alongside `examples/` and `qa/stress_domains/`: both `has_many_fixture`
-# (BUG#25) and `bug28_existence_fixture` (discovered stale while building
-# this script, never filed as a Bug) live there with real, committed
-# `rust/src/generated/` output. No other directory in this repo holds a
-# domain with committed Rust output as of this writing (verified by hand
-# against the full `rust/src/generated/` listing while writing this
-# script) — if that ever changes, add the new root here, not a one-off
-# manual regen line.
-SEARCH_ROOTS = [
-  "examples",
-  "qa/stress_domains",
-  "spec/fixtures/rust_project"
-].freeze
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks/corpus"
 
-# BELT AND SUSPENDERS, not the actual mechanism — see the header comment
-# above for why `embryonaut` never appears as a discovered candidate in
-# the first place. Kept as an explicit filter anyway so a future
-# SEARCH_ROOTS addition that happened to contain an `embryonaut/`
-# directory would still be silently skipped rather than silently
-# mis-regenerated against a Bluebook source this checkout doesn't
-# actually have.
-EXCLUDED_DOMAINS = [
-  "embryonaut"
-].freeze
-
-# DISCOVER — every immediate subdirectory of every SEARCH_ROOTS entry,
-# filtered down to only the ones that already have committed Rust output.
-# That "already has output" check is the ENTIRE rule for whether a domain
-# is auto-regenerated: a domain gains it once, by a human running
-# `bin/project_rust <path>` by hand and committing the result (same as
-# every domain in the old hardcoded list originally got there) — from
-# that point on, this script keeps it in sync with no further edits
-# anywhere. Returns paths sorted by full relative path — see the header
-# comment's "ORDER IS NOT ARBITRARY" section for why that specific,
-# mechanical sort (not a hand-picked convenient one) is what makes the
-# shared `governance`/`identity`/`Cargo.toml` default/`mod.rs` cfg
-# "winner" a checkable fact instead of a maintenance burden.
-def discover_domains(search_roots, generated_root, excluded)
-  search_roots.flat_map do |root|
-    next [] unless Dir.exist?(root)
-
-    Dir.children(root).sort.filter_map do |name|
-      path = File.join(root, name)
-      next unless File.directory?(path)
-      next unless File.directory?(File.join(path, "bluebook"))
-      next if excluded.include?(name)
-      next unless Dir.exist?(File.join(generated_root, name))
-
-      path
-    end
-  end.sort
-end
-
+# embryonaut is never in the list: Hecks::Corpus::RUST_ELSEWHERE routes
+# it (and `meta`) to the check that owns it instead, and
+# spec/corpus_rust_spec.rb proves no in-repo directory carries its name.
 repo_root = File.expand_path("..", __dir__)
 Dir.chdir(repo_root) do
-  generated_root = File.join("rust", "src", "generated")
-  domains = discover_domains(SEARCH_ROOTS, generated_root, EXCLUDED_DOMAINS)
+  domains = Hecks::Corpus.rust_regen_order.map { |domain| domain.dir.delete_prefix("#{repo_root}/") }
 
   if domains.empty?
-    abort "bin/regen_codegen_domains: discovered ZERO domains with committed rust/src/generated/ output under " \
-          "#{SEARCH_ROOTS.join(', ')} — that almost certainly means this script is running from the wrong " \
+    abort "bin/regen_codegen_domains: discovered ZERO domains with committed rust/src/generated/ output in " \
+          "Hecks::Corpus — that almost certainly means this script is running from the wrong " \
           "directory, or something upstream deleted rust/src/generated/ entirely. Refusing to silently treat " \
           "that as \"nothing to regenerate.\""
   end

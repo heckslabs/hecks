@@ -1,3 +1,5 @@
+require_relative "fuzzing/target_capabilities"
+
 module Hecks
   # THE CORPUS, DISCOVERED — every place in this repo that holds a real
   # domain, named once.
@@ -143,6 +145,130 @@ module Hecks
            .uniq.sort
            .map { |dir| File.join(root, dir) }
       end
+    end
+
+    # The domain directory a member stands for, spelled the way
+    # `sweepable_domains` spells it: a `bluebook/` folder is its parent.
+    def domain_dir_of(member)
+      dir = File.directory?(member.path) ? member.path : File.dirname(member.path)
+      File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
+    end
+
+    # ── THE RUST-FACING CORPUS ─────────────────────────────────────────
+    #
+    # Every Rust-facing list (the fuzz bridge, the codegen drift check,
+    # rust coverage, codegen parity) used to be typed out by hand, and
+    # each had drifted from `rust/Cargo.toml`'s `[features]`: fuzzing saw
+    # 8 of 20 features. These read the one source instead. The
+    # `rust/src/generated/` modules split into buckets, and
+    # spec/corpus_rust_spec.rb proves every Cargo feature and every
+    # generated module lands in exactly one of them:
+    #
+    #   rust_domains       an in-repo domain directory with a Cargo feature
+    #                      of its own: fuzzed, regenerated, coverage- and
+    #                      parity-checked
+    #   framework chapters no feature and no merged.rs; written as a side
+    #                      effect of every `uses_framework` domain's regen
+    #   RUST_ELSEWHERE     a feature with no in-repo domain directory, and
+    #                      the check that owns it instead
+    GENERATED_DIR = "rust/src/generated".freeze
+    RUST_DOMAIN_KINDS = %i[example stress fixture].freeze
+
+    RustDomain = Struct.new(:feature, :dir, :kind)
+
+    # `check: :named_in` — `destination` must name `names`.
+    # `check: :external` — no in-repo domain directory may carry the name;
+    #                      the day one does, it belongs in rust_domains.
+    Elsewhere = Struct.new(:check, :destination, :names, :why)
+
+    RUST_ELSEWHERE = {
+      "meta"       => Elsewhere.new(:named_in, "spec/codegen_parity_spec.rb", "bluebook_language",
+                                    "the self-hosted grammar (lib/hecks/language), not a domain directory — every " \
+                                    "bin/project_rust run rewrites it (so the drift check diffs it), codegen parity " \
+                                    "checks it as bluebook_language, and there is no directory to fuzz"),
+      "embryonaut" => Elsewhere.new(:external, "~/Projects/embryonautfoundersapp", "embryonaut",
+                                    "an external product's domain — its bluebook, regeneration and parity are owed " \
+                                    "by its own repo; here bin/rust_coverage checks only the committed snapshot")
+    }.freeze
+
+    # SHRINK-ONLY. A generated module `bin/rust_coverage` still reports a
+    # GAP for. `bin/corpus --rust-coverage` requires each of these to
+    # still FAIL, so an entry that starts passing breaks the build until
+    # it is deleted here.
+    RUST_COVERAGE_PENDING = {
+      "corrections" => "read_model FlaggedTrailCount declares reference_to without including its aggregate head; " \
+                       "rust/project/read_models.rb refuses a root-less per-instance read model that Ruby accepts"
+    }.freeze
+
+    def cargo_features_table(root: ROOT)
+      File.read(File.join(root, "rust/Cargo.toml"))[Fuzzing::TargetCapabilities::FEATURES_TABLE] || ""
+    end
+
+    def cargo_features(root: ROOT)
+      cargo_features_table(root: root).scan(/^(\w+)\s*=\s*\[\]/).flatten
+    end
+
+    # The feature `bin/project_rust` last wrote as Cargo's `default`.
+    def cargo_default(root: ROOT)
+      cargo_features_table(root: root)[/^default\s*=\s*\["(\w+)"\]/, 1]
+    end
+
+    # Every in-repo domain directory whose name is a Cargo feature, sorted
+    # by path. When the module is already generated, its metadata.rs stamp
+    # decides which directory it came from — a directory NAME alone is not
+    # enough: spec/fixtures/qa_discover_external_domains vendors a second
+    # `examples/pizzas` that no Cargo feature was ever generated from.
+    def rust_domains(root: ROOT)
+      features = cargo_features(root: root)
+      members(*RUST_DOMAIN_KINDS, root: root)
+        .map { |member| [domain_dir_of(member), member.kind] }
+        .uniq(&:first)
+        .select { |dir, _| rust_domain_dir?(dir, features, root) }
+        .sort_by(&:first)
+        .map { |dir, kind| RustDomain.new(File.basename(dir).downcase, dir, kind) }
+    end
+
+    def rust_domain_dir?(dir, features, root)
+      feature = File.basename(dir).downcase
+      source = generated_source(feature, root: root)
+      features.include?(feature) && (source.nil? || source == dir.delete_prefix("#{root}/"))
+    end
+
+    # WHERE A GENERATED MODULE CAME FROM, read off the stamp bin/project_rust
+    # writes into its metadata.rs — `examples/pizzas`, `/abs/path/embryonaut`,
+    # `the self-hosted language (lib/hecks/language/bluebook)`, with any
+    # ` (uses_framework "X")` suffix dropped. `nil` when not generated.
+    SOURCE_STAMP = %r{GENERATED by bin/project_rust — (.+?)(?: \(uses_framework "\w+"\))?'s own canonical IR,}
+
+    def generated_source(module_name, root: ROOT)
+      metadata = File.join(root, GENERATED_DIR, module_name, "metadata.rs")
+      File.file?(metadata) ? File.read(metadata)[SOURCE_STAMP, 1] : nil
+    end
+
+    def generated_modules(root: ROOT)
+      Dir.children(File.join(root, GENERATED_DIR)).select { |name| File.directory?(File.join(root, GENERATED_DIR, name)) }.sort
+    end
+
+    def generated?(feature, root: ROOT)
+      File.file?(File.join(root, GENERATED_DIR, feature, "merged.rs"))
+    end
+
+    # Framework members `bin/project_rust` writes a module for as a side
+    # effect of some `uses_framework` domain — a module, no merged.rs.
+    def rust_framework_chapters(root: ROOT)
+      modules = generated_modules(root: root)
+      members(:framework, root: root).map(&:stem)
+                                     .select { |stem| modules.include?(stem) && !generated?(stem, root: root) }
+    end
+
+    # THE REGENERATION ORDER the drift check runs. Sorted by path, so
+    # which domain runs last — and so wins Cargo's `default`, mod.rs's cfg
+    # comments and the shared framework modules' attribution stamp — is a
+    # fact of the sorted list, not a hand-picked order. (The old hand list
+    # put waybill last; PR #667 moved to the sort, which makes
+    # has_many_fixture last.) spec/corpus_rust_spec.rb pins last == default.
+    def rust_regen_order(root: ROOT)
+      rust_domains(root: root).select { |domain| generated?(domain.feature, root: root) }
     end
 
     # The chapter a bluebook declares — `Hecks.bluebook "<Name>"`, read

@@ -168,10 +168,16 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
   # another tenant-scoped aggregate at all, so this property should never
   # fire on banking, or on any domain declaring no `authorize`/`tenant:`
   # in the first place.
+  #
+  # THE CORPUS HERE IS DERIVED — `Hecks::Corpus.rust_domains`, the same
+  # set the Rust fuzz bridge walks — minus the one domain this file
+  # exists for. It used to be a hand list of five at 10 seeds each; the
+  # same 50-seed total is spread over the derived list, so widening it
+  # adds no gating time.
   it "never fires on the existing corpus, which declares no second tenant-scoped aggregate to cross" do
-    %w[examples/pizzas examples/banking qa/stress_domains/nested_pieces qa/stress_domains/waybill
-       qa/stress_domains/ledger_ordering].map { |rel| File.join(InMemoryDomain::ROOT, rel) }.each do |domain|
-      (1..10).each do |seed|
+    domains = Hecks::Corpus.rust_domains.map(&:dir).reject { |dir| dir == TENANT_LEDGER_STRESS_DOMAIN }
+    domains.each do |domain|
+      (1..(50.0 / domains.size).ceil).each do |seed|
         steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
         history = Hecks::Fuzzing::Replay.call(domain, steps)
         result = Hecks::Fuzzing::Properties.commands_respect_tenant_scope(history)
