@@ -446,6 +446,21 @@ impl Line {
 }
 
 impl Line {
+    pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("sequence.value")?.to_id_component_lenient().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
+        let by_reference_key = v.get("line").and_then(|j| j.to_id_component_lenient().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Line: no identity found (tried sequence.value, id, line)".to_string())
+        })
+    }
+}
+
+impl Line {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
             let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
@@ -701,7 +716,7 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<Kiosk>, route: Option<&crate::kernel::RoutingEnvelope>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Kiosk>, route: Option<&crate::kernel::RoutingEnvelope>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Kiosk> {
         args.code.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -757,6 +772,7 @@ pub fn dispatch_open(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -829,7 +845,7 @@ pub struct CloseArgs {
 }
 
 pub fn dispatch_close(
-    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: CloseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: CloseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Kiosk> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -859,6 +875,7 @@ pub fn dispatch_close(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -881,7 +898,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "kiosk", "code"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes ",
+        "Close does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -921,7 +938,7 @@ pub struct ReopenArgs {
 }
 
 pub fn dispatch_reopen(
-    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: ReopenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: ReopenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Kiosk> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -951,6 +968,7 @@ pub fn dispatch_reopen(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -973,7 +991,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "kiosk", "code"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reopen does not declare {} — it takes ",
+        "Reopen does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1014,7 +1032,7 @@ pub struct PrioritizeArgs {
 }
 
 pub fn dispatch_prioritize(
-    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: PrioritizeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: PrioritizeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Kiosk> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1044,6 +1062,7 @@ pub fn dispatch_prioritize(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1116,7 +1135,7 @@ pub struct RescoreArgs {
 }
 
 pub fn dispatch_rescore(
-    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: RescoreArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: RescoreArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Kiosk> {
         args.amount.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1146,6 +1165,7 @@ pub fn dispatch_rescore(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1219,7 +1239,7 @@ pub struct AddLineArgs {
 }
 
 pub fn dispatch_add_line(
-    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: AddLineArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Kiosk>, id: &str, args: AddLineArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Kiosk> {
         args.sequence.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1250,6 +1270,7 @@ pub fn dispatch_add_line(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

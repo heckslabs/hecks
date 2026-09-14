@@ -102,10 +102,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::generated_reaction_wording::desk::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
               crate::kernel::check_reference(&store.parcel, &args.parcel, "Parcel", "code")?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "parcel", as_name: "parcel", target: "GeneratedReactionWording::Parcel" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_reaction_wording::desk::dispatch_open(&mut store.desk, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_reaction_wording::desk::dispatch_open(&mut store.desk, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedReactionWording::Desk.Close" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -124,10 +125,11 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::desk::Desk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing Desk — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_reaction_wording::desk::CloseArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedReactionWording::Desk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_reaction_wording::desk::dispatch_close(&mut store.desk, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_reaction_wording::desk::dispatch_close(&mut store.desk, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedReactionWording::Parcel.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -136,10 +138,11 @@ if !unknown.is_empty() {
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::generated_reaction_wording::parcel::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_reaction_wording::parcel::dispatch_open(&mut store.parcel, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_reaction_wording::parcel::dispatch_open(&mut store.parcel, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedReactionWording::Parcel.Annotate" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -159,10 +162,11 @@ if !unknown.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::parcel::Parcel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on an existing Parcel — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_reaction_wording::parcel::AnnotateArgs::from_json(facts_json)?;
                       if let Some(v) = &args.note { v.check_invariants()?; }
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedReactionWording::Parcel", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_reaction_wording::parcel::dispatch_annotate(&mut store.parcel, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_reaction_wording::parcel::dispatch_annotate(&mut store.parcel, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

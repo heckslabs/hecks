@@ -102,10 +102,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::generated_revalued_shape::hangar::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
               crate::kernel::check_reference(&store.venue, &args.venue, "Venue", "code")?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "venue", as_name: "venue", target: "GeneratedRevaluedShape::Venue" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_revalued_shape::hangar::dispatch_open(&mut store.hangar, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_revalued_shape::hangar::dispatch_open(&mut store.hangar, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRevaluedShape::Hangar.Repoint" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -134,10 +135,11 @@ if !absent.is_empty() {
               let args = crate::generated::generated_revalued_shape::hangar::RepointArgs::from_json(facts_json)?;
                       args.venue.check_invariants()?;
               crate::kernel::check_reference(&store.venue, &args.venue.value, "Venue", "code")?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_revalued_shape::hangar::dispatch_repoint(&mut store.hangar, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_revalued_shape::hangar::dispatch_repoint(&mut store.hangar, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRevaluedShape::Hangar.Reopen" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -149,17 +151,18 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "hangar", "code"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reopen does not declare {} — it takes ",
+        "Reopen does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reopen acts on an existing Hangar — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_revalued_shape::hangar::ReopenArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_revalued_shape::hangar::dispatch_reopen(&mut store.hangar, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_revalued_shape::hangar::dispatch_reopen(&mut store.hangar, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "GeneratedRevaluedShape::Venue.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -168,10 +171,11 @@ if !unknown.is_empty() {
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::generated_revalued_shape::venue::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::generated_revalued_shape::venue::dispatch_open(&mut store.venue, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::generated_revalued_shape::venue::dispatch_open(&mut store.venue, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
