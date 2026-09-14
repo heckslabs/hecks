@@ -207,10 +207,7 @@ module Hecks
     # GAP for. `bin/corpus --rust-coverage` requires each of these to
     # still FAIL, so an entry that starts passing breaks the build until
     # it is deleted here.
-    RUST_COVERAGE_PENDING = {
-      "corrections" => "read_model FlaggedTrailCount declares reference_to without including its aggregate head; " \
-                       "rust/project/read_models.rb refuses a root-less per-instance read model that Ruby accepts"
-    }.freeze
+    RUST_COVERAGE_PENDING = {}.freeze
 
     def cargo_features_table(root: ROOT)
       File.read(File.join(root, "rust/Cargo.toml"))[Fuzzing::TargetCapabilities::FEATURES_TABLE] || ""

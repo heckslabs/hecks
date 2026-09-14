@@ -64,10 +64,7 @@
   {
     "kind": "read_model",
     "id": "Corrections::FlaggedTrailCount",
-    "generated": false,
-    "gap_class": "per_instance",
-    "construct": "rootless",
-    "reason": "declares reference_to , but includes no matching aggregate head — nothing for this generator's own root fetch to key off (every real corpus read model includes its own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)"
+    "generated": true
   },
   {
     "kind": "process_manager",
