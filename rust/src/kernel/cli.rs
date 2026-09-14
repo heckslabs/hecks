@@ -379,8 +379,8 @@ pub fn run(input: &str) -> String {
             // `actor_id:` — the SAME sibling opt-in `role:` always was
             // (see the real command step's own identical comment, below).
             let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
-            let command_input = command_input(step, args);
-            dry_runs.push(dry_run(&store, verb, command_input, caller_role, caller_actor_id));
+            let command_input = dry_run_command_input(args);
+            dry_runs.push(dry_run(&store, verb, &command_input, caller_role, caller_actor_id));
             mutations_per_step.push(Vec::new());
             cross_domain_per_step.push(Vec::new());
             continue;
@@ -616,7 +616,7 @@ pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
                 } else if step.get("instances").is_some() {
                     Json::obj(vec![("ok", Json::Bool(true)), ("instances", Json::Object(store.instances()))])
                 } else if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
-                    dry_run(&store, verb, command_input(&step, args), caller_role, caller_actor_id)
+                    dry_run(&store, verb, &dry_run_command_input(args), caller_role, caller_actor_id)
                 } else if let Some(verb) = step.get("verb").and_then(Json::as_str) {
                     let mut events: Vec<Event> = Vec::new();
                     let outcome = orchestrate(
@@ -695,6 +695,50 @@ fn command_input<'a>(step: &'a Json, legacy_args: &'a Json) -> &'a Json {
     } else {
         legacy_args
     }
+}
+
+// BUG#131 — a dry run's OWN command_input, deliberately NOT the shared
+// `command_input()` above. Ruby's `Dispatcher#dry_run?(verb, **args)` has
+// no `to:`/`with:` keyword parameters at all (unlike `#dispatch`, which
+// does, and which THIS kernel's `command_input()` mirrors on purpose) —
+// every key of a dry run's `args`, `to`/`with` included, is forwarded
+// straight through as flat command facts, uninterpreted. The fuzzer's own
+// dry_run steps (`step_builder.rb`: `{"dry_run": verb, "args": args}`,
+// the SAME shape `spec/corpus/rust_conformance/*.json`'s own dry_run
+// fixtures use) never carry a step-level `to`/`with` envelope either —
+// there is no shape a dry run can take in this codebase that legitimately
+// wants routing-envelope parsing at all.
+//
+// Before this: `dry_run()`'s call sites reused `command_input()`, whose
+// legacy branch hands `CommandInvocation::from_json` the flat args
+// object UNCHANGED — and that function treats any PRESENT, non-null
+// top-level `to` key as an explicit routing attempt regardless of where
+// the object came from (`RoutingEnvelope::from_json`'s own
+// `non_null_to_still_takes_the_routing_branch_not_the_legacy_one` test
+// pins that contract for an object it receives directly). A domain fact
+// literally named `to` (`Roster::Roster.Mark`, BUG#7/#16/#17/#18's own
+// running collision) with a REAL, non-null value — `{"to": {"value":
+// 570}, "name": {...}}` — hit exactly that branch: parsed as a
+// routing-envelope Hash, found to carry no `"aggregate"` key, and refused
+// `TypeMismatch("entity route requires a scalar aggregate identity")`
+// before `MarkArgs::from_json` (which already tolerates `to` alongside
+// the identity field `name`, `unknown_keys` allowing both) ever ran.
+// Ruby's own asymmetry between `#dispatch` and `#dry_run?` means Ruby
+// never took that branch for a dry run at all — `ok: true`.
+//
+// Wrapping args as `{"with": args}` reproduces that same asymmetry on
+// this side: `CommandInvocation::from_json` sees no top-level `to` (only
+// `with`), so `target` is `None` and NOTHING inside `args` is ever
+// sniffed for a `to`/`with` key — the whole object becomes `facts`
+// verbatim, exactly like a dry run's own facts always were meant to be
+// read. Identity resolution is untouched: `route` comes back `None`
+// either way, so `dispatch_by_name`'s own `None => extract_id(facts_json)`
+// fallback still resolves the aggregate (or entity) identity straight out
+// of the SAME flat facts, the same "legacy mixed-args" convention the
+// real (non-dry-run) path already relies on when it, too, receives no
+// explicit envelope.
+fn dry_run_command_input(args: &Json) -> Json {
+    Json::obj(vec![("with", args.clone())])
 }
 
 fn mutation_to_json(mutation: &MutationRecord) -> Json {
@@ -812,5 +856,35 @@ mod routing_tests {
         assert_eq!(invocation.route(), None);
         assert_eq!(invocation.facts().get("branch_code").and_then(Json::as_str), Some("DOWNTOWN"));
         assert_eq!(invocation.facts().get("box_number").and_then(Json::as_i64), Some(12));
+    }
+
+    // BUG#131 — a domain fact literally named `to`, with a REAL (non-null)
+    // value, must dry-run as an ordinary fact, never as a routing attempt
+    // — `Roster::Roster.Mark`'s own `to` (BUG#7/#16/#17/#18's running
+    // collision), the exact shape `spec/corpus/rust_conformance/
+    // roster_mark_dry_run_to_collision.json` pins end to end. Without
+    // `dry_run_command_input`, feeding this same `args` object straight
+    // to `CommandInvocation::from_json` (what the shared `command_input()`
+    // used to do for a dry run too) hits `non_null_to_still_takes_the_
+    // routing_branch_not_the_legacy_one`'s own contract and refuses.
+    #[test]
+    fn dry_run_command_input_never_sniffs_a_flat_facts_to_key_as_routing() {
+        let args = Json::obj(vec![
+            ("to", Json::obj(vec![("value", Json::int(570))])),
+            ("name", Json::obj(vec![("value", Json::str("crew-1"))])),
+        ]);
+
+        let wrapped = dry_run_command_input(&args);
+        let invocation = crate::kernel::CommandInvocation::from_json(&wrapped).unwrap();
+
+        assert_eq!(invocation.route(), None);
+        assert_eq!(
+            invocation.facts().get("to").and_then(|to| to.get("value")).and_then(Json::as_i64),
+            Some(570)
+        );
+        assert_eq!(
+            invocation.facts().get("name").and_then(|name| name.get("value")).and_then(Json::as_str),
+            Some("crew-1")
+        );
     }
 }
