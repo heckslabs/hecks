@@ -78,6 +78,27 @@ module Hecks
         { aggregates: aggregates }
       end
 
+      # A BINDING fact, same shape/reasoning as `lineage`/`persistence`
+      # above: which chapter this domain's role checks resolve against
+      # (`Registry#authorization_provider_for` — the domain's own chapter
+      # or a framework member it attaches that declares `provides
+      # "authorization"`), with that chapter's declared verbs qualified.
+      # `rust/host` (auth.rs) reads this instead of naming Governance.
+      # `{}` when nothing this domain attaches provides authorization.
+      def authorization(registry, domain_name)
+        provider = registry.authorization_provider_for(domain_name)
+        return {} unless provider
+
+        capability = Bluebook::Capabilities::AUTHORIZATION
+        assignments = provider.provided_verb(capability, :assignments)
+        {
+          provider:             provider.name,
+          grant:                provider.provided_verb(capability, :grant),
+          assignments:          assignments,
+          assignment_aggregate: assignments&.split(".")&.first
+        }
+      end
+
       # Translation IR, always as an array, WITH each aggregate's
       # precompiled SQL attached (`compiled_translation_aggregate`) —
       # this is the export a consumer embeds (`ir.json`'s `translations`
