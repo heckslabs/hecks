@@ -84,4 +84,3 @@ generated_domain_seeds: 5
 # requires a committed domain that really hits it.
 structural_refusal_boundary:
   - entity_query
-  - reference_hop_where

@@ -413,15 +413,6 @@ end
 ALLOWLIST = [
   {
     kind:      "query",
-    gap_class: "per_instance",
-    construct: "reference_hop_where",
-    doc:       "rust/project/queries.rb#query_hop_plan — a SINGLE hop is generated (folded by " \
-               "kernel::read_model::apply_reference_hops); a chain of more than one hop is not yet " \
-               "(docs/1.0-readiness.md item 2 tracks the reference-hop gap on the Postgres side)",
-    note:      "ReferralChain::Referral.FromGoodSponsors (member/sponsor/standing, two hops)."
-  },
-  {
-    kind:      "query",
     gap_class: "whole_kind",
     construct: "entity_query",
     doc:       "rust/project/domain_generator.rb#entity_query_entries — only an aggregate's own declared queries " \

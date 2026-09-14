@@ -72,6 +72,12 @@ pub struct ReferenceHopCondition {
     /// the same way `ReferenceField::target_aggregate` already is —
     /// `AggregateScan::scan`'s own required prefix.
     pub target_aggregate: &'static str,
+    /// FURTHER hops, in order, for a chain (`member/sponsor/standing`):
+    /// each step's `via_field` is a reference on the PREVIOUS step's
+    /// target. `&[]` for a single hop. `HopPath::MAX_HOPS` bounds the
+    /// chain at build time; `apply_reference_hops` folds it inside out,
+    /// the way `ReferenceHop.fold` recurses.
+    pub through: &'static [HopStep],
     /// The REST of the dotted/hopped field, resolved against the
     /// TARGET aggregate's own shape — `rest` in `ReferenceHop::fold`'s
     /// own `WhereClause.new(field: rest, op: clause.op, value: clause.
@@ -79,6 +85,13 @@ pub struct ReferenceHopCondition {
     pub inner_field: &'static str,
     pub inner_comparator: query_comparators::QueryComparator,
     pub inner_value: QueryConditionValue,
+}
+
+/// One further hop in a `ReferenceHopCondition` chain.
+#[derive(Debug, Clone, Copy)]
+pub struct HopStep {
+    pub via_field: &'static str,
+    pub target_aggregate: &'static str,
 }
 
 /// ONE reference attribute on a NON-ROOT head's own aggregate — "this
@@ -554,6 +567,7 @@ mod reference_hop_tests {
             reference_hop_conditions: &[ReferenceHopCondition {
                 via_field: "customer",
                 target_aggregate: "Banking::Customer",
+                through: &[],
                 inner_field: "status",
                 inner_comparator: query_comparators::QueryComparator::Eq,
                 inner_value: QueryConditionValue::Literal("suspended"),
@@ -593,6 +607,7 @@ mod reference_hop_tests {
         def.reference_hop_conditions = &[ReferenceHopCondition {
             via_field: "customer",
             target_aggregate: "Banking::NoSuchAggregate",
+            through: &[],
             inner_field: "status",
             inner_comparator: query_comparators::QueryComparator::Eq,
             inner_value: QueryConditionValue::Literal("suspended"),
@@ -635,6 +650,7 @@ mod reference_hop_tests {
             reference_hop_conditions: &[ReferenceHopCondition {
                 via_field: "customer",
                 target_aggregate: "Banking::Customer",
+                through: &[],
                 inner_field: "status",
                 inner_comparator: query_comparators::QueryComparator::Eq,
                 inner_value: QueryConditionValue::Literal("suspended"),
@@ -649,6 +665,62 @@ mod reference_hop_tests {
         let ids: Vec<&str> = rows.iter().map(|(id, _)| id.as_str()).collect();
 
         assert_eq!(ids, vec!["acc-suspended-open"]);
+    }
+
+    // A CHAIN — referral_chain's `Referral.FromGoodSponsors`
+    // (`where(:"member/sponsor/standing" => "good")`): the inner clause
+    // picks sponsors, the middle step keeps members sponsored by one, and
+    // the head keeps referrals issued by one of those members.
+    #[test]
+    fn a_hop_chain_folds_inside_out_through_every_step() {
+        let chain_store = FakeStore {
+            domain: "ReferralChain",
+            aggregates: vec![
+                (
+                    "Sponsor",
+                    vec![
+                        ("s-good".to_string(), Json::obj(vec![("standing", Json::str("good"))])),
+                        ("s-poor".to_string(), Json::obj(vec![("standing", Json::str("poor"))])),
+                    ],
+                ),
+                (
+                    "Member",
+                    vec![
+                        ("m-good".to_string(), Json::obj(vec![("sponsor", Json::str("s-good"))])),
+                        ("m-poor".to_string(), Json::obj(vec![("sponsor", Json::str("s-poor"))])),
+                    ],
+                ),
+                (
+                    "Referral",
+                    vec![
+                        ("r-good".to_string(), Json::obj(vec![("member", Json::str("m-good"))])),
+                        ("r-poor".to_string(), Json::obj(vec![("member", Json::str("m-poor"))])),
+                    ],
+                ),
+            ],
+        };
+        let def = crate::kernel::named_query::QueryDef {
+            verb: "ReferralChain::Referral.FromGoodSponsors",
+            aggregate: "ReferralChain::Referral",
+            conditions: &[],
+            reference_hop_conditions: &[ReferenceHopCondition {
+                via_field: "member",
+                target_aggregate: "ReferralChain::Member",
+                through: &[HopStep { via_field: "sponsor", target_aggregate: "ReferralChain::Sponsor" }],
+                inner_field: "standing",
+                inner_comparator: query_comparators::QueryComparator::Eq,
+                inner_value: QueryConditionValue::Literal("good"),
+            }],
+            order_by: None,
+            offset: None,
+            limit: None,
+            authorization: None,
+        };
+
+        let rows = crate::kernel::named_query::run(&chain_store, &def, &Json::obj(vec![]), None).expect("no authorization, no args needed");
+        let ids: Vec<&str> = rows.iter().map(|(id, _)| id.as_str()).collect();
+
+        assert_eq!(ids, vec!["r-good"]);
     }
 }
 
@@ -931,11 +1003,28 @@ pub(super) fn apply_reference_hops(
             QueryConditionValue::NumericLiteral(n) => Json::Num(n),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
-        let target_rows = store
-            .scan(hop.target_aggregate)
-            .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", hop.target_aggregate)))?;
-        let matching = repository::filter_entries(target_rows, hop.inner_field, hop.inner_comparator, &inner_want);
-        let ids: Vec<Json> = matching.into_iter().map(|(id, _)| Json::Str(id)).collect();
+        let scan = |aggregate: &str| {
+            store.scan(aggregate).ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {aggregate:?}")))
+        };
+        let ids_of = |entries: Vec<(String, Json)>| -> Vec<Json> { entries.into_iter().map(|(id, _)| Json::Str(id)).collect() };
+
+        // THE CHAIN, first hop included: `(via_field, target_aggregate)`
+        // pairs, each via_field a reference on the previous target.
+        let chain: Vec<(&str, &str)> = std::iter::once((hop.via_field, hop.target_aggregate))
+            .chain(hop.through.iter().map(|step| (step.via_field, step.target_aggregate)))
+            .collect();
+
+        // Inside out, `ReferenceHop.fold`'s recursion unrolled: the inner
+        // clause picks ids on the LAST target, and each earlier step keeps
+        // the rows of ITS target whose next via_field points at one of them.
+        let (_, last_target) = chain[chain.len() - 1];
+        let mut ids = ids_of(repository::filter_entries(scan(last_target)?, hop.inner_field, hop.inner_comparator, &inner_want));
+        for step in (1..chain.len()).rev() {
+            let (via_field, _) = chain[step];
+            let (_, source) = chain[step - 1];
+            ids = ids_of(repository::filter_entries(scan(source)?, via_field, query_comparators::QueryComparator::In, &Json::Array(ids)));
+        }
+
         rows = repository::filter_entries(rows, hop.via_field, query_comparators::QueryComparator::In, &Json::Array(ids));
     }
     Ok(rows)

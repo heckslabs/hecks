@@ -205,19 +205,33 @@ module RustProjection
     # target:, inner_field:}` — `target` is the resolved aggregate hash
     # itself (`aggregates_by_name`'s own value shape), handed back so a
     # caller never has to re-look-it-up.
+    # A CHAIN IS GENERATED TOO (`member/sponsor/standing`): every segment
+    # but the last must be a reference on the previous segment's target,
+    # up to `HopPath::MAX_HOPS`. `:through` carries the steps after the
+    # first (`kernel::read_model::HopStep`); `:target` is the LAST target,
+    # the one the inner field is checked against.
+    HOP_CHAIN_LIMIT = 8 # Hecks::QuerySpecification::HopPath::MAX_HOPS
+
     def query_hop_plan(aggregate, field, aggregates_by_name)
-      head, rest = field.to_s.split("/", 2)
-      return nil unless rest
-      return nil if rest.include?("/")
+      segments = field.to_s.split("/")
+      return nil if segments.size < 2 || segments.size - 1 > HOP_CHAIN_LIMIT
 
-      via_attr = aggregate[:attributes].find { |a| a[:name].to_s == head }
-      return nil unless via_attr && reference_type?(via_attr[:type])
+      steps = []
+      current = aggregate
+      segments[0..-2].each do |segment|
+        via_attr = current[:attributes].find { |a| a[:name].to_s == segment }
+        return nil unless via_attr && reference_type?(via_attr[:type])
 
-      target_name = reference_target(via_attr[:type])
-      target = aggregates_by_name[target_name]
-      return nil unless target
+        target_name = reference_target(via_attr[:type])
+        target = aggregates_by_name[target_name]
+        return nil unless target
 
-      { via_field: head, target_aggregate: target_name, target: target, inner_field: rest }
+        steps << { via_field: segment, target_aggregate: target_name }
+        current = target
+      end
+
+      { via_field: steps.first[:via_field], target_aggregate: steps.first[:target_aggregate], through: steps.drop(1),
+        target: current, inner_field: segments.last }
     end
 
     # One where clause's own eligibility — `nil` (clean) or a specific,
@@ -647,6 +661,7 @@ module RustProjection
               crate::kernel::read_model::ReferenceHopCondition {
                   via_field: "tmpl_via_field",
                   target_aggregate: "tmpl_target_aggregate",
+                  through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
                   inner_field: "tmpl_inner_field",
                   inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
                   inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),

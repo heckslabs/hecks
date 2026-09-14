@@ -36,6 +36,7 @@ crate::kernel::read_model::ReadModelDef {
         crate::kernel::read_model::ReferenceHopCondition {
             via_field: "tmpl_via_field",
             target_aggregate: "tmpl_target_aggregate",
+            through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
             inner_field: "tmpl_inner_field",
             inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
             inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),

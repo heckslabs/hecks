@@ -452,6 +452,7 @@ module RustProjection
         {
           via_field: hop[:via_field],
           target_aggregate: "#{domain_name}::#{hop[:target_aggregate]}",
+          through: hop[:through].map { |step| { via_field: step[:via_field], target_aggregate: "#{domain_name}::#{step[:target_aggregate]}" } },
           inner_field: hop[:inner_field],
           op: where[:op].to_s,
           arg: symbol ? raw_value.delete_prefix(":") : nil,
@@ -462,8 +463,12 @@ module RustProjection
 
     def emit_reference_hop_condition(hop)
       comparator_expr = "crate::kernel::query_comparators::QueryComparator::#{query_comparator_variant(hop[:op])}"
+      through = Array(hop[:through]).map do |step|
+        "crate::kernel::read_model::HopStep { via_field: #{step[:via_field].inspect}, target_aggregate: #{step[:target_aggregate].inspect} }"
+      end
       "crate::kernel::read_model::ReferenceHopCondition { via_field: #{hop[:via_field].inspect}, " \
-        "target_aggregate: #{hop[:target_aggregate].inspect}, inner_field: #{hop[:inner_field].inspect}, " \
+        "target_aggregate: #{hop[:target_aggregate].inspect}, through: &[#{through.join(', ')}], " \
+        "inner_field: #{hop[:inner_field].inspect}, " \
         "inner_comparator: #{comparator_expr}, inner_value: #{emit_query_condition_value(hop)} },"
     end
 
@@ -809,6 +814,7 @@ module RustProjection
               crate::kernel::read_model::ReferenceHopCondition {
                   via_field: "tmpl_via_field",
                   target_aggregate: "tmpl_target_aggregate",
+                  through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
                   inner_field: "tmpl_inner_field",
                   inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
                   inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
