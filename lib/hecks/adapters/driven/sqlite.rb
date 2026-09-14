@@ -117,7 +117,8 @@ module Hecks
           # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
           # check against it would never match. Same guard `postgres_era.rb`
           # already uses for its own journal's `mirrors` column.
-          [entry.id, entry.operation, JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
+          [entry.id, entry.operation, JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, entry.state)),
+           entry.mirrors && JSON.generate(entry.mirrors)]
         )
         entry
       end
@@ -143,7 +144,7 @@ module Hecks
           Ports::Persistence::Entry.new(
             operation: row["operation"] || "save",
             id:        row["aggregate_id"],
-            state:     state&.transform_keys(&:to_sym),
+            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
             mirrors:   row["mirrors"] && JSON.parse(row["mirrors"])
           )
         end

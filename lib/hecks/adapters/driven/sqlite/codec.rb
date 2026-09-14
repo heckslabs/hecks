@@ -44,8 +44,8 @@ module Hecks
           # attribute that no creating command populates by default — has to
           # stay NULL to answer the same as Memory does. Forcing it to `[]`
           # here is how a persistence topology invented data no dispatch wrote.
-          return (value.nil? ? nil : JSON.generate(value)) if attr.list?
-          return JSON.generate(value) if value.is_a?(Hash) || value.is_a?(Runtime::Value)
+          return (value.nil? ? nil : state_json(value)) if attr.list?
+          return state_json(value) if value.is_a?(Hash) || value.is_a?(Runtime::Value)
 
           value
         end
@@ -56,17 +56,28 @@ module Hecks
           encode(field[:attribute], value)
         end
 
+        # Every JSON column's text goes through the state codec's `encode`
+        # (PR A3) — string keys at every depth, Values materialized.
+        def state_json(value) = JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, value))
+
+        # The row's columns reassembled into the stored state, then decoded
+        # ONCE through the state codec (PR A3) — the same deep, IR-driven
+        # key spelling every other adapter's read now produces, instead of
+        # this codec's own `symbolize_names:` walk.
         def decode(row)
-          persisted_fields.each_with_object({}) do |field, state|
+          state = persisted_fields.each_with_object({}) do |field, raw_state|
             attr = field[:attribute]
             unless attr
-              state[field[:name]] = row[field[:name].to_s]
+              value = row[field[:name].to_s]
+              next if value.nil? && projected_only?(field)
+
+              raw_state[field[:name]] = value
               next
             end
             raw = row[attr.name.to_s]
-            state[attr.name] =
+            raw_state[attr.name] =
               if attr.list? || value_object?(attr)
-                raw ? JSON.parse(raw, symbolize_names: true) : nil
+                raw ? JSON.parse(raw) : nil
               else
                 # A REFERENCE lands here now, with the ordinary scalars. It holds
                 # the id of a head, which is text — `JSON.parse("acct-1")` raises,
@@ -75,6 +86,23 @@ module Hecks
                 raw
               end
           end
+          Ports::Persistence::StateCodec.decode(@aggregate, state)
+        end
+
+        # A NULL `projects` COLUMN IS A FIELD NEVER SEEDED, NOT A STORED
+        # NIL — so it reads back ABSENT, the way Heki/PostgresEra (one blob
+        # holding only what was written) already answer it. A column holds
+        # every persisted field whether or not the record ever had one, so
+        # NULL is the only spelling "never set" has here; and nothing ever
+        # stores a nil projected value to confuse it with —
+        # `CommandInterpreter#seed_projected_fields` and
+        # `RebuildSweep#refresh` both skip a nil remote value. Absent is also
+        # what `RebuildSweep#refresh`'s `record.key?` and
+        # `Registry#projection_current?`'s row comparison expect. The
+        # lifecycle field (the other `attribute: nil` column) keeps its NULL.
+        def projected_only?(field)
+          @aggregate.lifecycle&.field&.to_sym != field[:name].to_sym &&
+            @aggregate.projected_fields.any? { |projected| projected.name.to_sym == field[:name].to_sym }
         end
       end
     end

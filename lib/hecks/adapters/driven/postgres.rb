@@ -157,7 +157,7 @@ module Hecks
           # check against it would never match. Same guard `sqlite.rb`/
           # `d1.rb`/`postgres_era.rb` already use for their own journal's
           # `mirrors` column.
-          [entry.id, entry.operation, JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
+          [entry.id, entry.operation, state_json(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
         )
         entry
       end
@@ -212,7 +212,7 @@ module Hecks
           Ports::Persistence::Entry.new(
             operation: row["operation"] || "save",
             id:        row["aggregate_id"],
-            state:     state&.transform_keys(&:to_sym),
+            state:     Ports::Persistence::StateCodec.decode(@aggregate, state),
             mirrors:   row["mirrors"] && JSON.parse(row["mirrors"])
           )
         end
