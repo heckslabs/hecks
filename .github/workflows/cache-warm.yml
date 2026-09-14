@@ -178,7 +178,7 @@ jobs:
         run: cd rust/parser && cargo build
 
   # Mirrors rspec_rust_codegen's own cache step. Bare `cargo build` —
-  # the exact command spec/codegen_parity_spec.rb's build_codegen! runs.
+  # the exact command rspec_rust_codegen and hecks-build run.
   warm_codegen_crate:
     runs-on: ubuntu-latest
 

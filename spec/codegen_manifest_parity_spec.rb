@@ -22,7 +22,12 @@ require_relative "../rust/project"
 # written out for `hecks-codegen domain` — the identical order
 # `spec/codegen_parity_spec.rb` uses. This compares the two GENERATORS,
 # not the committed tree's freshness (CI's drift check owns that).
-RSpec.describe "Rust codegen manifest parity (hecks-codegen manifest.json)", :io do
+#
+# `ruby_codegen_parity: true` — NOT A CI GATE SINCE ADR 0054a's B4: the
+# committed manifests come from hecks-codegen now, and `bin/rust_coverage`
+# runs against them in CI. On demand only (see spec_helper.rb's note);
+# deleted with `rust/project/` in B5.
+RSpec.describe "Rust codegen manifest parity (hecks-codegen manifest.json)", :io, :ruby_codegen_parity do
   MANIFEST_PARITY_CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   MANIFEST_PARITY_CODEGEN_BINARY = File.join(MANIFEST_PARITY_CODEGEN_DIR, "target", "debug", "hecks-codegen")
   MANIFEST_PARITY_GENERATED_ROOT = File.expand_path("../rust/src/generated", __dir__)

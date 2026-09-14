@@ -111,4 +111,16 @@ RSpec.configure do |config|
   # CI. Run on demand with `bundle exec rspec spec/fuzzing --tag fuzzing`.
   config.define_derived_metadata(file_path: %r{/spec/fuzzing/}) { |metadata| metadata[:fuzzing] = true }
   config.filter_run_excluding fuzzing: true unless ENV["CI"]
+
+  # `ruby_codegen_parity: true` — the byte-parity comparisons between the
+  # Ruby generator (`rust/project/`, `HECKS_RUBY_CODEGEN=1`) and
+  # hecks-codegen. Since ADR 0054a's B3, hecks-codegen IS the generator and
+  # the Ruby one is only an escape hatch, so these are no longer a CI gate
+  # (B4): excluded everywhere, CI included, and a `--tag io` alone does not
+  # bring them back (RSpec only lifts the exclusion for the tag you name).
+  # Kept runnable on demand until B5 deletes `rust/project/`:
+  #   bundle exec rspec --tag io --tag ruby_codegen_parity \
+  #     spec/codegen_parity_spec.rb spec/codegen_manifest_parity_spec.rb \
+  #     spec/project_rust_pipeline_spec.rb spec/hecks_build_pipeline_spec.rb
+  config.filter_run_excluding ruby_codegen_parity: true
 end
