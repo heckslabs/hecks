@@ -192,7 +192,7 @@ module RustProjection
                                          "nothing for this generator's own root fetch to key off")
       end
 
-      if !aggregates_by_name[root[:aggregate]] && nested_entity_names(aggregates_by_name).include?(root[:aggregate].to_s)
+      if root && !aggregates_by_name[root[:aggregate]] && nested_entity_names(aggregates_by_name).include?(root[:aggregate].to_s)
         return entity_head_skip_reason(root[:aggregate], "root", "fetch by id")
       end
 
