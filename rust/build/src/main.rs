@@ -58,8 +58,25 @@
 //! that a plain `hecks-build <domain>` is genuinely end-to-end, bluebook
 //! in, compiled binary out, one command.
 
+//!
+//! `--ir-dir <dir>` (ADR 0054a, B3) skips `hecks-parse` entirely and
+//! generates from IR someone else already built: `<dir>/meta.json`,
+//! `<dir>/target.json`, and `<dir>/chapters/*.json` (sorted; each
+//! attached chapter, in the order its IR should be merged). This is how
+//! `bin/project_rust` generates by default: Ruby still builds the
+//! canonical IR (`Exporter.call` plus the `lineage`/`persistence`/
+//! `translations`/`source_text` keys), this crate does everything after
+//! that. The append-optional pass still runs here (it's the IR
+//! derivation `rust/project`'s generator applied in place); the lineage
+//! pass doesn't (the given target IR already carries `lineage`).
+//!
+//! `--root <path>` names the hecks repo root instead of walking up from
+//! the current directory; `--rust-dir <path>` names the crate to project
+//! into (default `<root>/rust`) — `bin/project_rust`'s `HECKS_RUST_DIR`.
+
 mod build_artifact;
 mod cargo_sync;
+mod fsutil;
 mod json;
 mod lineage_pass;
 mod optional_pass;
@@ -83,24 +100,42 @@ fn main() -> ExitCode {
     }
 }
 
+const USAGE: &str = "usage: hecks-build <domain> [--wasm] [--no-build] [--ir-dir <dir>] [--root <path>] [--rust-dir <path>]";
+
 fn run(args: &[String]) -> Result<(), String> {
     let mut domain: Option<String> = None;
     let mut build_wasm = false;
     let mut no_build = false;
+    let mut ir_dir: Option<std::path::PathBuf> = None;
+    let mut root_arg: Option<std::path::PathBuf> = None;
+    let mut rust_dir: Option<std::path::PathBuf> = None;
 
-    for arg in args {
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--wasm" => build_wasm = true,
             "--no-build" => no_build = true,
+            flag @ ("--ir-dir" | "--root" | "--rust-dir") => {
+                let value = iter.next().ok_or_else(|| format!("{flag} needs a value — {USAGE}"))?;
+                let slot = match flag {
+                    "--ir-dir" => &mut ir_dir,
+                    "--root" => &mut root_arg,
+                    _ => &mut rust_dir,
+                };
+                *slot = Some(std::path::PathBuf::from(value));
+            }
             other if !other.starts_with("--") && domain.is_none() => domain = Some(other.to_string()),
-            other => return Err(format!("unrecognized argument {other:?} — usage: hecks-build <domain> [--wasm] [--no-build]")),
+            other => return Err(format!("unrecognized argument {other:?} — {USAGE}")),
         }
     }
 
-    let domain = domain.ok_or_else(|| "usage: hecks-build <domain> [--wasm] [--no-build]".to_string())?;
-    let root = root::find()?;
+    let domain = domain.ok_or_else(|| USAGE.to_string())?;
+    let root = match root_arg {
+        Some(path) => path,
+        None => root::find()?,
+    };
 
-    let opts = pipeline::Options { build_native: !no_build, build_wasm: build_wasm && !no_build };
+    let opts = pipeline::Options { build_native: !no_build, build_wasm: build_wasm && !no_build, ir_dir, rust_dir };
 
     pipeline::run(&root, &domain, &opts)
 }

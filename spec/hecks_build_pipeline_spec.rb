@@ -82,10 +82,23 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
     FileUtils.remove_entry(@generated_backup)
   end
 
+  # The Ruby-orchestrated all-Rust pipeline, called directly — ADR 0054a's
+  # B3 made bin/project_rust's `HECKS_PARSER=rust HECKS_CODEGEN=rust` opt-in
+  # a deprecated no-op, so it no longer reaches `RustProjectPipeline`.
+  # Deleted with it in B5.
+  HB_PIPELINE_SCRIPT = <<~RUBY.freeze
+    $LOAD_PATH.unshift File.expand_path("lib")
+    require "hecks"
+    require "hecks/bluebook/meta_validator"
+    require File.expand_path("rust/project")
+    require File.expand_path("rust/project_rust_pipeline")
+    RustProjectPipeline.call(ARGV.fetch(0))
+  RUBY
+
   def run_project_rust_opt_in!(domain)
-    env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
-    _out, err, status = Open3.capture3(env, HB_PROJECT_RUST, domain, chdir: HB_ROOT)
-    raise "bin/project_rust (opt-in) #{domain} failed:\n#{err}" unless status.success?
+    _out, err, status = Open3.capture3({ "PATH" => ENV.fetch("PATH", nil) }, "ruby", "-e", HB_PIPELINE_SCRIPT, domain,
+                                       chdir: HB_ROOT)
+    raise "RustProjectPipeline.call(#{domain}) failed:\n#{err}" unless status.success?
   end
 
   def run_hecks_build!(domain)
@@ -147,34 +160,29 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
 
   # --- bin/project_wasm's own opt-in delegation to hecks-build ----------
 
-  describe "bin/project_wasm, opted into the all-Rust pipeline" do
-    # A deploy-path audit found `bin/project_wasm` never checked
-    # HECKS_PARSER/HECKS_CODEGEN at all — it always shelled to the Ruby
-    # generator, even for a caller who had opted into an end-to-end Rust
-    # build everywhere else, so the .wasm a Makefile-driven deploy ships
-    # to Lambda went through Ruby regardless. This proves the fix: opted
-    # in, `bin/project_wasm` delegates to `hecks-build --wasm` (already
-    # proven above to match the Ruby pipeline's generated source byte
-    # for byte) instead of running its own regenerate-then-cargo-build
-    # sequence, and produces the identical compiled artifact either way.
-    def run_hecks_build_wasm!(domain)
-      _out, err, status = Open3.capture3({ "PATH" => ENV.fetch("PATH", nil) }, HECKS_BUILD_BINARY, domain, "--wasm",
-                                         chdir: HB_ROOT)
-      raise "hecks-build #{domain} --wasm failed:\n#{err}" unless status.success?
+  describe "bin/project_wasm, generating through hecks-build" do
+    # ADR 0054a, B3 — `bin/project_wasm` regenerates through
+    # `bin/project_rust`, whose default is now `hecks-build`, so the .wasm
+    # a Makefile-driven deploy ships is built from the hecks-codegen tree.
+    # Proven here against the Ruby generator it replaced
+    # (`HECKS_RUBY_CODEGEN=1`, the temporary escape hatch): same generated
+    # source, so the identical compiled artifact.
+    def run_project_wasm!(domain, extra_env)
+      env = { "PATH" => ENV.fetch("PATH", nil) }.merge(extra_env)
+      _out, err, status = Open3.capture3(env, "ruby", "bin/project_wasm", domain, chdir: HB_ROOT)
+      raise "bin/project_wasm #{extra_env.inspect} #{domain} failed:\n#{err}" unless status.success?
     end
 
-    it "produces the identical .wasm hecks-build --wasm produces directly, not the Ruby generator's own build" do
+    it "produces the identical .wasm the Ruby generator's tree compiles to" do
       domain = "examples/pizzas"
       dist_wasm = File.join(HB_ROOT, "rust", "dist", "pizzas.wasm")
 
-      run_hecks_build_wasm!(domain)
-      direct_wasm = File.binread(dist_wasm)
+      run_project_wasm!(domain, { "HECKS_RUBY_CODEGEN" => "1" })
+      ruby_wasm = File.binread(dist_wasm)
 
-      env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
-      _out, err, status = Open3.capture3(env, "ruby", "bin/project_wasm", domain, chdir: HB_ROOT)
-      raise "bin/project_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
+      run_project_wasm!(domain, {})
 
-      expect(File.binread(dist_wasm)).to eq(direct_wasm)
+      expect(File.binread(dist_wasm)).to eq(ruby_wasm)
     end
   end
 end

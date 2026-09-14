@@ -371,6 +371,20 @@ jobs:
       # applies unchanged; embryonaut remains excluded for the separate,
       # structural reason given above (no Bluebook source in this
       # checkout at all).
+      # bin/project_rust generates through hecks-build (rust/build), which
+      # builds and runs hecks-codegen (rust/codegen) — ADR 0054a, B3. Both
+      # crates are cached so the regeneration below doesn't cold-build them.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: build
+          crate-root: rust/build
+          include-registry: "false"
+
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: |
           bundle exec bin/project_rust examples/banking
@@ -445,8 +459,9 @@ jobs:
       # `--codegen=rust` regenerates each domain's manifest.json with
       # rust/codegen from the same committed ir.json into a scratch dir,
       # then runs the identical analysis and the identical, unchanged
-      # ALLOWLIST. Both paths stay gated here until B3 switches
-      # bin/project_rust's default generator. embryonaut has no committed
+      # ALLOWLIST. Since B3 the committed manifests come from hecks-codegen
+      # too (bin/project_rust's default); both modes stay gated until B5
+      # deletes the Ruby generator. embryonaut has no committed
       # manifest (fallback mode), so it reads the committed snapshot in
       # both modes — see bin/rust_coverage's own header.
       - uses: ./.github/actions/cargo-cache

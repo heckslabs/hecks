@@ -171,9 +171,11 @@ fn write_root_mod(out_root: &Path, all_dirs: &[String], domains: &[String], targ
         }
     }
 
+    // WRITE-IF-CHANGED, not a bare write — `bin/project_rust`'s own
+    // `WriteIfChanged.block(root_mod_path)`; see `fsutil`'s header.
     let path = out_root.join("mod.rs");
-    std::fs::write(&path, out).map_err(|e| format!("writing {}: {e}", path.display()))?;
-    println!("wrote {}", path.display());
+    let wrote = crate::fsutil::write_if_changed(&path, out.as_bytes())?;
+    println!("{} {}", if wrote { "wrote" } else { "unchanged" }, path.display());
     Ok(())
 }
 
@@ -246,8 +248,14 @@ fn sync_cargo_toml_features(cargo_toml_path: &Path, domains: &[String], target_m
 
     cargo_toml = replace_default_line(&cargo_toml, &format!("default = [{:?}]", target_mod_name));
 
-    std::fs::write(cargo_toml_path, &cargo_toml).map_err(|e| format!("writing {}: {e}", cargo_toml_path.display()))?;
-    println!("wrote {} (default feature: {target_mod_name})", cargo_toml_path.display());
+    // WRITE-IF-CHANGED — the Ruby side's own "single highest-leverage site":
+    // an unconditional rewrite bumps Cargo.toml's mtime and dirties the
+    // whole crate for the next `cargo build`, content-identical or not.
+    if crate::fsutil::write_if_changed(cargo_toml_path, cargo_toml.as_bytes())? {
+        println!("wrote {} (default feature: {target_mod_name})", cargo_toml_path.display());
+    } else {
+        println!("{} unchanged (default feature already {target_mod_name})", cargo_toml_path.display());
+    }
     Ok(())
 }
 

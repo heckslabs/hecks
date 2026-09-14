@@ -104,6 +104,19 @@ jobs:
 
       - uses: ./.github/actions/wasm-toolchain
 
+      # bin/project_wasm regenerates through hecks-build + hecks-codegen
+      # (ADR 0054a, B3) — restored so those two aren't cold-built here.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: build
+          crate-root: rust/build
+          include-registry: "false"
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
       - name: Warm wasm cross-compile builds (banking, pizzas, roster)
         run: |
           ruby bin/project_wasm examples/banking
