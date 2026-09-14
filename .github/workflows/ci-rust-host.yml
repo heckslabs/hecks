@@ -65,8 +65,11 @@ jobs:
       - name: Create a superuser role for the runner user
         run: sudo -u postgres psql -c "CREATE ROLE \"$(whoami)\" SUPERUSER LOGIN"
 
+      # `bundle exec` so the lineage tests' Ruby mint fixtures
+      # (tests/fixtures/*.rb, spawned as plain `ruby`) inherit
+      # RUBYOPT=-rbundler/setup and can load `pg`.
       - name: "cargo test (rust/host)"
-        run: cd rust/host && cargo test
+        run: cd rust/host && bundle exec cargo test
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
