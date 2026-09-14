@@ -45,7 +45,11 @@ RSpec.describe "the generated bootstrap table" do
   # in a KeywordSeed row would otherwise surface only as a NoMethodError
   # the first time a bootstrap chapter used that word.
   it "names, in every calls row, a method some DSL module really defines" do
-    modules = ObjectSpace.each_object(Module).select { |mod| mod.name&.start_with?("Hecks::") }
+    # `Module#name` bound directly: some loaded modules (rubocop-ast's
+    # NodePattern sets) override `name` to take an argument, and which of
+    # them are loaded depends on what else ran in the process.
+    module_name = Module.instance_method(:name)
+    modules = ObjectSpace.each_object(Module).select { |mod| module_name.bind_call(mod)&.start_with?("Hecks::") }
 
     unanswered = table::CALLS.values.uniq.reject do |target|
       modules.any? { |mod| mod.method_defined?(target) || mod.private_method_defined?(target) }
