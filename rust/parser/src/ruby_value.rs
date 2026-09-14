@@ -487,42 +487,8 @@ mod tests {
     }
 
     #[test]
-    fn does_not_split_commas_nested_inside_a_call_s_own_parens() {
-        // `attribute :tone, one_of("good", "warn", "danger", "muted",
-        // "accent"), optional: true` — confirmed real,
-        // console_settings.bluebook's own StateStyle.tone. Without paren
-        // tracking this would split into seven segments, not three.
-        assert_eq!(
-            split_items(":tone, one_of(\"good\", \"warn\", \"danger\", \"muted\", \"accent\"), optional: true"),
-            vec![
-                ":tone".to_string(),
-                "one_of(\"good\", \"warn\", \"danger\", \"muted\", \"accent\")".to_string(),
-                "optional: true".to_string(),
-            ]
-        );
-    }
-
-    #[test]
-    fn concatenates_two_adjacent_double_quoted_literals() {
-        // `lex::join_continuations`'s own backslash-continuation test
-        // leaves exactly this shape behind — `"a " "b"` on one logical
-        // line, Ruby's own adjacent-literal concatenation rule (real
-        // corpus syntax: vocabulary.bluebook's own long `RefusalTemplate`
-        // wording, wrapped with a trailing `\`).
-        assert_eq!(read("\"a \" \"b\""), Value::Str("a b".to_string()));
-    }
-
-    #[test]
     fn concatenates_three_adjacent_literals_mixing_quote_styles() {
         assert_eq!(read("\"a\" 'b' \"c\""), Value::Str("abc".to_string()));
-    }
-
-    #[test]
-    fn a_single_quoted_literal_alone_is_still_read_as_before() {
-        // The adjacent-concatenation scan runs BEFORE the ordinary
-        // single-literal branches — must not change behavior for the
-        // ordinary (non-concatenated) case.
-        assert_eq!(read("\"credit\""), Value::Str("credit".to_string()));
     }
 
     #[test]

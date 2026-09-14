@@ -1,4 +1,5 @@
 require_relative "bluebook/meta_validator"
+require_relative "corpus"
 
 module Hecks
   # SHARED MACHINERY for a codemod that migrates real `.bluebook` source
@@ -51,7 +52,7 @@ module Hecks
   module Codemod
     ROOT = File.expand_path("../..", __dir__)
 
-    EXAMPLE_ROOTS = Dir.glob(File.join(ROOT, "examples", "*")).select { |p| File.directory?(p) }.sort
+    EXAMPLE_ROOTS = Corpus.members(:example, root: ROOT).map(&:path)
     META_FILES    = (Dir.glob(File.join(ROOT, "lib/hecks/grammar/*.bluebook")) +
                       Dir.glob(File.join(ROOT, "lib/hecks/framework/bluebook/*.bluebook")) +
                       Dir.glob(File.join(ROOT, "lib/hecks/language/bluebook/**/*.bluebook"))).sort

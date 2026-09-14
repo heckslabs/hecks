@@ -1,0 +1,35 @@
+Hecks.hecksagon "CheckoutFixture" do
+  uses_framework "Governance"
+
+  CheckoutFixture::Event.persisted_by("PostgresEra")
+  CheckoutFixture::Registration.persisted_by("PostgresEra")
+end
+
+Hecks.hecksagon "Payments" do
+  uses_framework "Governance"
+
+  Payments::Payment.persisted_by("PostgresEra")
+
+  # The processor's webhook, translated into this chapter's vocabulary —
+  # web.rs `webhook_route` dispatches these two operations.
+  Payments::Payment.port "PaymentGateway" do
+    operation "Succeeded" do
+      attribute :transaction_id,     ProcessorTransactionId
+      attribute :reported_processor, Processor
+
+      emits "PaymentConfirmedByProcessor"
+    end
+
+    operation "Failed" do
+      attribute :reason,             FailureReason
+      attribute :reported_processor, Processor
+
+      emits "PaymentDeclinedByProcessor"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end

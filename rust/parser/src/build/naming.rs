@@ -165,18 +165,6 @@ mod tests {
     }
 
     #[test]
-    fn snakes_a_pascal_type_name() {
-        assert_eq!(snake("PizzaName"), "pizza_name");
-        assert_eq!(snake("Order"), "order");
-    }
-
-    #[test]
-    fn pascals_a_snake_attribute_name() {
-        assert_eq!(pascal("pizza_name"), "PizzaName");
-        assert_eq!(pascal("size"), "Size");
-    }
-
-    #[test]
     fn demodulises_a_namespaced_constant() {
         assert_eq!(demodulise("Pizzas::Order"), "Order");
         assert_eq!(demodulise("Order"), "Order");

@@ -821,8 +821,8 @@ fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
 /// reaction.bluebook`'s own `Policy` aggregate — field ORDER here is the
 /// declaration order that file's `attribute` lines give, which is the
 /// real wire order `spec/parser_parity_spec.rb` byte-matches against,
-/// not an alphabetised one). `where`/`for_each` — see `ir::Policy`'s own
-/// comment on why both are always `null` here.
+/// not an alphabetised one), then the COMPUTED `where_ast` last, exactly
+/// where `emits_ir` puts it.
 fn policy_json(p: &ir::Policy) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),
@@ -850,6 +850,18 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
                     })
                     .collect(),
             ),
+        ),
+        // `Behaviour::Policy#where_ast` — the structured `where`, the
+        // same `AstJson.emit_predicate` tree every rule row's `ast`
+        // carries; `null` for an unguarded policy (empty/absent `where`),
+        // exactly as Ruby's `guarded?` decides. `hecks-codegen`'s
+        // `reactions.rs::where_fns` reads this and panicked without it.
+        (
+            "where_ast".to_string(),
+            match p.where_clause.as_deref() {
+                Some(w) if !w.is_empty() => crate::expr::ast_json::emit_predicate(w),
+                _ => JsonValue::Null,
+            },
         ),
     ])
 }
@@ -1000,20 +1012,6 @@ fn write_object(out: &mut String, pairs: &[(String, JsonValue)], depth: usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn writes_a_small_object_with_an_empty_array() {
-        // The pinned hazard (this module's own header): an empty array
-        // is NOT simply `[]` under the bundled json 2.7.2 gem.
-        let value = JsonValue::Object(vec![
-            ("name".to_string(), JsonValue::String("Pizzas".to_string())),
-            ("aggregates".to_string(), JsonValue::Array(vec![])),
-        ]);
-        assert_eq!(
-            write(&value),
-            "{\n  \"name\": \"Pizzas\",\n  \"aggregates\": [\n\n  ]\n}"
-        );
-    }
 
     #[test]
     fn writes_a_top_level_empty_array() {

@@ -425,13 +425,9 @@ pub struct Policy {
     // word, and `for_each` collides with nothing but is renamed to match)
     // — `emit.rs::policy_json` still spells the JSON keys `where`/
     // `for_each`, which is the only shape that has to match Ruby's own
-    // wire format. `parse::policy::parse_body` does not build either yet
-    // (Stage 1 "not yet implemented", same as every other pair
-    // `spec/parser_coverage_spec.rb::PENDING_PAIRS` names) — both fields
-    // stay `None`/`null` for every real corpus member this parser
-    // already parses, which is what keeps `spec/parser_parity_spec.rb`'s
-    // byte-exact comparisons passing for `pizzas`/`banking`/`reflex`/
-    // etc. without building real `where`/`for_each` parsing.
+    // wire format. `parse::policy::parse_body` builds both; `policy_json`
+    // also derives `where_ast` from `where_clause` (Ruby's
+    // `Behaviour::Policy#where_ast`).
     pub where_clause: Option<String>,
     pub for_each_query: Option<String>,
     // `trigger`'s own `with:` — WHAT THE TRIGGER IS GIVEN, when the
