@@ -47,12 +47,11 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
 
   before(:context) { self.class.build_parser! }
 
-  # THE SAME bluebook-lookup AND Dir.glob ENUMERATION spec/corpus_spec.rb
-  # already uses — reused rather than re-derived, so this can never
-  # silently drift from what "the corpus" means elsewhere in this suite.
+  # THE SAME bluebook lookup and corpus enumeration every other corpus
+  # walk uses — Hecks::Corpus — so this can never silently drift from
+  # what "the corpus" means elsewhere in this suite.
   def self.bluebooks_in(domain)
-    nested = Dir.glob(File.join(domain, "bluebook", "*.bluebook"))
-    nested.empty? ? Dir.glob(File.join(domain, "*.bluebook")) : nested
+    Hecks::Corpus.bluebook_files(domain) || []
   end
 
   # The SAME domain's own `.hecksagon`, if it has one — `bin/project_rust`
@@ -63,12 +62,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       Dir.glob(File.join(domain, "*.hecksagon")).min
   end
 
-  PARITY_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*")).select do |path|
-    File.directory?(path)
-  end.sort.freeze
-  PARITY_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook")).freeze
-  PARITY_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook",
-                                                "*.bluebook")).freeze
+  PARITY_EXAMPLE_ROOTS = Hecks::Corpus.members(:example).map(&:path).freeze
+  PARITY_GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
+  PARITY_FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
   # STAGE 5's OWN TARGET — narrow, load-bearing unit-test fixtures for
   # OTHER Ruby specs (era/lineage bumps, model-checker findings, dispatch
   # ordering, reflex/hop-chain tests), never previously pointed at by
@@ -76,7 +72,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # and `model_check/` subdirectories, which a flat `*.bluebook` glob
   # would silently miss.
   PARITY_FIXTURES_ROOT = File.join(InMemoryDomain::ROOT, "spec/fixtures")
-  PARITY_FIXTURE_MEMBERS = Dir.glob(File.join(PARITY_FIXTURES_ROOT, "**", "*.bluebook")).freeze
+  PARITY_FIXTURE_MEMBERS = Hecks::Corpus.members(:fixture).map(&:path).freeze
 
   # STAGE 6's OWN TARGET — the self-hosted grammar itself: every concept file
   # `Hecks::Bluebook::MetaValidator::GRAMMAR_FILES` discovers, which
@@ -97,15 +93,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # chapter's own file is named after its ROLE — aggregate.bluebook — not
   # its chapter name, which is always "Bluebook").
   def self.chapter_name_of(bluebook_path)
-    bluebook_path = Array(bluebook_path).first
-    # No line cap — `File.foreach` is lazy and `.find` stops at the
-    # first match regardless, so scanning the whole file costs nothing
-    # extra for the common case (every existing corpus member's header
-    # sits on line 1 or 2) and doesn't silently miss an outlier: framework/
-    # bluebook/interview.bluebook's own header comment runs 33 lines
-    # before the declaration, past a 20-line cap this used to carry.
-    header = File.foreach(bluebook_path).find { |line| line =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
-    header && Regexp.last_match(1)
+    Hecks::Corpus.chapter_name_of(bluebook_path)
   end
 
   # A FIXTURE'S OWN STEM keeps its subdirectory (`"eras/base"`,

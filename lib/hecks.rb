@@ -32,6 +32,7 @@ require_relative "hecks/facade/cli_door"
 require_relative "hecks/facade/cli_runner"
 require_relative "hecks/storehouse"
 require_relative "hecks/framework"
+require_relative "hecks/corpus"
 require_relative "hecks/embryonaut_bluebook"
 
 # The root namespace and public facade of the whole DSL/runtime: `Hecks.boot`/

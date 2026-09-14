@@ -24,34 +24,18 @@ require "spec_helper"
 # bluebook. This file keeps what that walk does not check: that the
 # derived member list is non-empty and every member has a corpus script.
 RSpec.describe "The corpus" do
+  # Read from Hecks::Corpus, the one table every corpus walk shares.
   # Example domains are loaded by folder, so adding or regrouping a concept
-  # file never requires a corpus catalog change.
-  def self.bluebook_in(domain)
-    nested = File.join(domain, "bluebook")
-    return nested if Dir.glob(File.join(nested, "*.bluebook")).any?
-
-    domain if Dir.glob(File.join(domain, "*.bluebook")).any?
-  end
-
-  EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*"))
-                     .select { |path| File.directory?(path) }.sort.freeze
-
-  GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook")).freeze
-
-  # `lib/hecks/framework/bluebook/` holds framework-level domains (Governance, and
-  # whatever else lands beside it) as flat sibling files, the same shape
-  # GRAMMAR_CHAPTERS already walks — not one directory per domain like
-  # `examples/`, since these aren't teaching examples with their own
-  # `bluebook/` subfolder each.
-  FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook")).freeze
+  # file never requires a corpus catalog change; grammar chapters and
+  # framework members are flat sibling files, one chapter each.
+  EXAMPLE_ROOTS = Hecks::Corpus.members(:example).map(&:path).freeze
+  GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
+  FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
 
   # [corpus-script stem, bluebook path] — examples are named after their
   # directory, grammar chapters and framework members after their own file.
-  CORPUS_MEMBERS = (
-    EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebook_in(domain)] } +
-    GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
-    FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] }
-  ).freeze
+  CORPUS_MEMBERS = Hecks::Corpus.members(:example, :grammar, :framework)
+                                .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
   it "finds every domain the corpus declares" do
     expect(EXAMPLE_ROOTS).not_to be_empty
