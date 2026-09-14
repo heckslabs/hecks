@@ -222,7 +222,7 @@ if !absent.is_empty() {
         ("declared", "item"),
     ])));
 }
- } let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "Fill", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -254,7 +254,7 @@ if !absent.is_empty() {
         ("declared", "item"),
     ])));
 }
- } let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;

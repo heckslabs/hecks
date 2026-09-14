@@ -768,15 +768,20 @@ pub fn generate(
                         .map(Json::to_s)
                         .collect::<Vec<_>>()
                         .join(", "),
-                    // BUG#38 (qa/bluebook/quality_control.bluebook) — the
-                    // SAME allowlist `commands::emit_entity_command`'s own
-                    // `Args::from_json` call already builds (`extra_
-                    // identity_heads:` included), run through `json_
-                    // codec::structural_precheck` so `registry.rs`'s
-                    // router can run the identical unknown/absent-
-                    // argument gate a second time, standalone, against
-                    // raw `facts_json`, BEFORE the route-less `None` arm
-                    // resolves `extract_id` — see `EntityCommandEntry::
+                    // BUG#38/#136 (qa/bluebook/quality_control.bluebook)
+                    // — the SAME allowlist `commands::emit_entity_
+                    // command`'s own `Args::from_json` call already
+                    // builds (`extra_identity_heads:` included), run
+                    // through `json_codec::structural_precheck` so
+                    // `registry.rs`'s router can run the identical
+                    // unknown/absent-argument gate a second time,
+                    // standalone, against raw `facts_json`, BEFORE the
+                    // route-less `None` arm resolves `extract_id` — and
+                    // (BUG#136) that same `None` arm now ALSO reruns the
+                    // full `Args::from_json` itself, discarded, ahead of
+                    // `extract_id`, so a declared identity-echo
+                    // attribute's own VO-level coercion runs before
+                    // identity resolution too — see `EntityCommandEntry::
                     // structural_precheck`'s own header for the full
                     // reasoning.
                     structural_precheck: {

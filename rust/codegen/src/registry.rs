@@ -97,10 +97,18 @@ pub struct EntityCommandEntry {
     /// the IDENTICAL allowlist this command's own `Args::from_json` call
     /// already builds (`extra_identity_heads:` included), so a malformed
     /// `id` can no longer short-circuit via `extract_id`'s own `?` before
-    /// an unrelated undeclared argument on the same call is checked. See
-    /// `emit_registry`'s own header on why this stays the narrow
-    /// structural-only check (no declared-argument type coercion) rather
-    /// than moving the whole `Args::from_json` earlier.
+    /// an unrelated undeclared argument on the same call is checked.
+    ///
+    /// BUG#136 — this used to be the FULL story: at the time, this stayed
+    /// a narrow, ARGUMENT-NAME-only check specifically to avoid moving a
+    /// declared argument's own value-object coercion ahead of `extract_id`
+    /// on the happy path, which surfaced BUG#41 (a single-attribute value
+    /// object's own `from_json` didn't check for an unknown key) as a new
+    /// divergence. BUG#41 is now fixed (PR #623) — `emit_registry`'s own
+    /// entity/nested-entity `None` arms now ALSO splice a full, discarded
+    /// `{args_struct}::from_json(facts_json)?` precheck ahead of their own
+    /// `extract_id` calls, matching Ruby's `normalize_args`-before-
+    /// `hydrate_parent` order exactly — see that splice's own header.
     pub structural_precheck: Option<String>,
 }
 
@@ -135,10 +143,11 @@ pub struct NestedEntityCommandEntry {
     /// `extract_id`-supported (`domain_generator.rs`'s own header on
     /// why it needs both, not just the innermost).
     pub unrouted_supported: bool,
-    /// BUG#38 — see `EntityCommandEntry`'s own identical field, above.
-    /// `None` when `unrouted_supported` is false: the ROUTED-only arm
-    /// always requires an explicit route and never calls `extract_id`
-    /// against raw `facts_json`, so there is no race for this to close.
+    /// BUG#38/#136 — see `EntityCommandEntry`'s own identical field,
+    /// above. `None` when `unrouted_supported` is false: the ROUTED-only
+    /// arm always requires an explicit route and never calls `extract_id`
+    /// against raw `facts_json`, so there is no race for either fix to
+    /// close.
     pub structural_precheck: Option<String>,
 }
 
@@ -705,8 +714,34 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "{} acts on one {} — pass {}:",
                 c.name, c.entity_name, c.entity_identity_reading
             );
+            // BUG#136 (qa/bluebook/quality_control.bluebook) — see
+            // `rust/project/registry.rb`'s own identical, longer comment
+            // for the full reasoning: `structural_precheck_line`, above,
+            // only ever catches an unknown/absent ARGUMENT NAME, never a
+            // declared argument's own VALUE-OBJECT coercion (a declared
+            // identity-echo attribute offered a route-shaped value where
+            // its own VO type declares a plain scalar field). Ruby's
+            // `normalize_args` runs that coercion BEFORE `hydrate_parent`/
+            // `locate_element` unconditionally; this arm used to run BOTH
+            // `extract_id` calls before `{}::from_json` ever touched the
+            // same attribute, so a malformed identity-echo value always
+            // short-circuited via `extract_id`'s own failure instead. The
+            // narrower BUG#38 fix deliberately stopped short of this
+            // because running a declared argument's own VO coercion ahead
+            // of `extract_id` on the happy path surfaced BUG#41 (a single-
+            // attribute value object's own `from_json` didn't check for an
+            // unknown key) as a NEW divergence at the time — BUG#41 is now
+            // fixed (PR #623), so re-running the full `from_json` early,
+            // here, can no longer reintroduce that gap. The result is
+            // discarded (`_args_precheck`) — purely for its `?` early-
+            // error-propagation side effect, the same "deliberately
+            // redundant, never diverging" shape the aggregate arm's own R3
+            // splice and BUG#54's own `collision_fallback` already
+            // established. The REAL `args` binding below, unchanged, still
+            // runs unconditionally for both `Some(route)` and `None`.
             let body_entity_match = format!(
-                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
+                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ {structural_precheck_line} let _args_precheck = {mod_path}::{}::from_json(facts_json)?; let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
+                c.args_struct,
                 a.record,
                 naming::ruby_inspect_string(&entity_parent_no_identity_message),
                 c.entity_record,
@@ -844,9 +879,18 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "{} acts on one {} — pass {}:",
                 c.name, c.nested_name, c.nested_identity_reading
             );
+            // BUG#136 — see `entity_arms`'s own identical splice, above,
+            // for the full reasoning: the SAME early, discarded
+            // `{args_struct}::from_json` precheck, one nesting hop
+            // deeper, spliced ahead of ALL THREE `extract_id` calls in
+            // the route-less `None` arm only — `Some(route)`'s identity
+            // never goes through `extract_id` and the ROUTED-only `else`
+            // branch below never calls it against raw `facts_json` at
+            // all, so neither needed this.
             let route_binding = if c.unrouted_supported {
                 format!(
-                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
+                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ {structural_precheck_line} let _args_precheck = {mod_path}::{}::from_json(facts_json)?; let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
+                    c.args_struct,
                     a.record,
                     naming::ruby_inspect_string(&entity_parent_no_identity_message),
                     c.entity_record,
