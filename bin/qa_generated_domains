@@ -355,6 +355,7 @@ def record_finding(blueprint, result, root, options, scratch)
     size_before: Generator.removals(blueprint).size, size_after: Generator.removals(minimal).size }
 end
 
+options[:domains] = options[:sources].size if options[:sources].any?
 sync_scratch!(scratch) if options[:rust]
 puts "generated domains: #{options[:domains]} starting at seed #{start}; #{options[:seeds]} seed(s) x " \
      "#{options[:steps]} steps each, adversarial #{options[:adversarial]}#{', against Rust' if options[:rust]} " \
