@@ -638,16 +638,17 @@ module RustProjection
                   # `extract_id`/`extract_wants` — see this loop's own
                   # header comment above).
                   unrouted_supported: unrouted_supported,
-                  # BUG#38 — see `entity_commands`' own identical field,
-                  # above, for the full reasoning; `nil` when `unrouted_
-                  # supported` is false, the SAME gate `structural_
-                  # precheck` uses for a CREATING aggregate command's
-                  # `id_line` (domain_generator.rb's own header there):
-                  # the ELSE branch (`route_binding`, registry.rb) always
-                  # requires an explicit route and never calls `extract_
-                  # id` against raw `facts_json` at all, so there is no
-                  # identity-resolution-before-structural-checks race for
-                  # this fix to close there either.
+                  # BUG#38/#136 — see `entity_commands`' own identical
+                  # field, above, for the full reasoning; `nil` when
+                  # `unrouted_supported` is false, the SAME gate
+                  # `structural_precheck` uses for a CREATING aggregate
+                  # command's `id_line` (domain_generator.rb's own header
+                  # there): the ELSE branch (`route_binding`, registry.rb)
+                  # always requires an explicit route and never calls
+                  # `extract_id` against raw `facts_json` at all, so there
+                  # is no identity-resolution-before-structural-checks (or
+                  # -before-VO-coercion) race for either fix to close
+                  # there either.
                   structural_precheck: unrouted_supported ? Projector.structural_precheck(
                     "#{nested_rust_name}#{Projector.rust_ident(command[:name])}NestedEntityArgs", command[:name].to_s,
                     command[:attributes],
@@ -774,21 +775,35 @@ module RustProjection
                 # with the exact kind `from_json` would have produced
                 # anyway, never diverge from it — matching `registry_
                 # commands`' own `structural_precheck`'s "deliberately
-                # redundant, never conflicting" shape exactly. NOT the
-                # broader "run the WHOLE `from_json` (including declared-
-                # argument type coercion) before `extract_id`" shape a
-                # first attempt at this fix took and reverted — that
-                # additionally coerces the entity's own identity argument
-                # through its value-object's `from_json` before `extract_
-                # id` gets a chance to run at all, surfacing a SEPARATE,
-                # pre-existing bug in how a single-attribute value object's
-                # own `from_json` checks for unknown keys (confirmed
-                # independently reproducible via a bare, ordinary
-                # aggregate-creating command with no entity dispatch
-                # involved at all — filed as its own gap, not fixed here).
-                # This narrower, structural-only precheck avoids ever
-                # calling a declared argument's own value-object coercion
-                # before `extract_id`, so it cannot reach that gap.
+                # redundant, never conflicting" shape exactly.
+                #
+                # This USED TO BE the full story: at the time, deliberately
+                # NOT the broader "run the WHOLE `from_json` (including
+                # declared-argument type coercion) before `extract_id`"
+                # shape a first attempt at this fix took and reverted —
+                # that additionally coerced the entity's own identity
+                # argument through its value-object's `from_json` before
+                # `extract_id` got a chance to run at all, surfacing a
+                # SEPARATE, then-open bug in how a single-attribute value
+                # object's own `from_json` checked for unknown keys
+                # (confirmed independently reproducible via a bare,
+                # ordinary aggregate-creating command with no entity
+                # dispatch involved at all — logged as BUG#41).
+                #
+                # BUG#136 (qa/bluebook/quality_control.bluebook) — BUG#41
+                # is now fixed (PR #623): Ruby's `Value::Coercion#check_
+                # unknown_fields` and this SAME `from_json`'s own generated
+                # unknown-key check now agree. `registry.rb`'s own route-
+                # less `entity_arms`/`nested_entity_arms` `None` arms now
+                # ALSO splice a full, discarded `#{args_struct}::from_json`
+                # precheck ahead of their `extract_id` calls (that file's
+                # own header on the splice) — closing the gap THIS
+                # narrower, structural-only precheck deliberately left
+                # open: a declared identity-echo attribute (`optional:
+                # true`, not a routing source) offered a malformed, route-
+                # shaped value, where nothing is unknown or absent at the
+                # ARGUMENT-NAME level (so this precheck alone never fires)
+                # but the value itself fails its own VO-level coercion.
                 structural_precheck: Projector.structural_precheck(
                   "#{entity_name}#{Projector.rust_ident(command[:name])}EntityArgs", command[:name].to_s,
                   command[:attributes],
