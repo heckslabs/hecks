@@ -13,6 +13,7 @@ module Hecks
   module Vocabulary
     TABLES = {
       "AggregateDispatchOrder" => [
+        {"step"=>"decode_arguments"}.freeze,
         {"step"=>"refuse_unknown_arguments"}.freeze,
         {"step"=>"refuse_absent_arguments"}.freeze,
         {"step"=>"normalize_args"}.freeze,
@@ -74,6 +75,7 @@ module Hecks
         {"name"=>"UnknownVerb"}.freeze
       ].freeze,
       "EntityDispatchOrder" => [
+        {"step"=>"decode_arguments"}.freeze,
         {"step"=>"refuse_unknown_arguments"}.freeze,
         {"step"=>"refuse_absent_arguments"}.freeze,
         {"step"=>"normalize_args"}.freeze,

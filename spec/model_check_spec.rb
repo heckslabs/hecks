@@ -124,6 +124,12 @@ RSpec.describe "the model checker" do
       expect(findings.select { |f| f.subject == "LegSaga" }.map(&:kind)).not_to include(:unarmed_compensation)
     end
 
+    it "raises no finding kind outside the ones this fixture deliberately triggers" do
+      expect(findings.map(&:kind).uniq.sort)
+        .to eq(%i[dead_compensation deaf_handler deaf_trigger unarmed_compensation unknown_dispatch
+                  unreachable_pm_state].sort)
+    end
+
     it "never flags the REFUSED compensation leg as a deaf handler" do
       # The compensating leg answers "refused", a synthetic trigger no
       # command ever emits by name — the one handler this domain's own
@@ -149,6 +155,10 @@ RSpec.describe "the model checker" do
       expect(findings.map(&:subject)).not_to include("OnArchive2")
       archive_findings = findings.select { |f| f.subject == "OnArchive" }
       expect(archive_findings.map(&:kind)).to eq([:deaf_policy])
+    end
+
+    it "raises no finding kind outside the ones this fixture deliberately triggers" do
+      expect(findings.map(&:kind).uniq.sort).to eq(%i[deaf_policy unknown_trigger])
     end
 
     # BUG#23 — a policy triggering an `asks`/`tells` PORT OPERATION
@@ -286,37 +296,13 @@ RSpec.describe "the model checker" do
   # is stale and must be deleted, the same both-directions discipline
   # plurality_coverage_spec's ALLOWED_SINGLETON holds itself to.
   describe "the real corpus" do
-    def self.bluebook_in(domain)
-      nested = File.join(domain, "bluebook")
-      return nested if Dir.glob(File.join(nested, "*.bluebook")).any?
-
-      domain if Dir.glob(File.join(domain, "*.bluebook")).any?
-    end
-
-    MODEL_CHECK_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*"))
-                                   .select { |path| File.directory?(path) }.sort.freeze
-    MODEL_CHECK_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook")).freeze
-    # `lib/hecks/framework/bluebook/`'s flat sibling-file shape — see corpus_spec.rb's
-    # own FRAMEWORK_MEMBERS comment for why this isn't EXAMPLE_ROOTS-shaped.
-    MODEL_CHECK_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook",
-                                                       "*.bluebook")).freeze
-    # THE QA LEDGER — see bin/model_check's own copy of this comment
-    # (qa_members): a real domain, `qa/bluebook/`-shaped like
-    # MODEL_CHECK_FRAMEWORK_MEMBERS' flat siblings, not EXAMPLE_ROOTS-
-    # shaped. Missing this once already crashed "names nothing in the
-    # allowlist that the checker no longer finds" below — MODEL_CHECK_ALLOWED
-    # (shared with bin/model_check) named "quality_control", but
-    # MODEL_CHECK_CORPUS didn't, and `.fetch(name) { next }`'s `next` only
-    # exits the fetch block (returning nil), not the outer `each` — so
-    # `source` silently became nil instead of skipping the entry.
-    MODEL_CHECK_QA_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "qa/bluebook", "*.bluebook")).freeze
-
-    MODEL_CHECK_CORPUS = (
-      MODEL_CHECK_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebook_in(domain)] } +
-      MODEL_CHECK_GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
-      MODEL_CHECK_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] } +
-      MODEL_CHECK_QA_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] }
-    ).compact.freeze
+    # THE SAME KINDS bin/model_check walks, from the one table both read
+    # (Hecks::Corpus). Globbed separately, the ledger (`:qa`) once went
+    # missing here while MODEL_CHECK_ALLOWED named it, and
+    # `.fetch(name) { next }` below silently returned nil instead of
+    # skipping the entry.
+    MODEL_CHECK_CORPUS = Hecks::Corpus.members(:example, :grammar, :framework, :qa)
+                                      .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
     # The SAME constant bin/model_check reads — one table, not a copy.
     MODEL_CHECK_ALLOWED = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS

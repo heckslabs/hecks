@@ -153,6 +153,10 @@ module Hecks
         end
       end
 
+      # A NO-OP, AND UNTRACED — Vocabulary::EntityDispatchOrder's
+      # decode_arguments. See CommandInterpreter#step_decode_arguments.
+      def step_decode_arguments(_ctx); end
+
       # `extra_identity_heads:` — every entity `ctx.chain` walks through, not
       # just the root aggregate `ArgumentGate` already knows about. A
       # two-hop dispatch (`Handler.Dispatch.Bind`) is addressed by BOTH

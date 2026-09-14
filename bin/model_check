@@ -23,13 +23,6 @@ require "hecks/bluebook/model_check"
 
 ROOT = File.expand_path("..", __dir__)
 
-def bluebook_in(domain)
-  nested = File.join(domain, "bluebook")
-  return nested if Dir.glob(File.join(nested, "*.bluebook")).any?
-
-  domain if Dir.glob(File.join(domain, "*.bluebook")).any?
-end
-
 def boot(source)
   registry = Hecks::Runtime::Registry.new
   Hecks.with_registry(registry) do
@@ -135,32 +128,18 @@ require "hecks/fuzzing/target_capabilities"
 # not only for those with a Rust (Cargo feature) target.
 STRICT = !ARGV.delete("--strict").nil?
 domain_arg = ARGV.shift
-example_domains = Dir.glob("#{ROOT}/examples/*/").map { |d| d.chomp("/") }
-grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook")
-# THE FRAMEWORK MEMBERS, which spec/model_check_spec.rb has always walked
-# (its own MODEL_CHECK_FRAMEWORK_MEMBERS) and this script never did — so the
-# suite checked Governance and Identity while `bin/model_check` reported
-# "no dead states" without having looked at them. Flat sibling files, not
-# EXAMPLE_ROOTS-shaped, for the reason corpus_spec.rb's own comment gives:
-# these are framework chapters, not teaching examples with a bluebook/
-# subfolder each.
-framework_members = Dir.glob("#{ROOT}/lib/hecks/framework/bluebook/*.bluebook")
-# THE QA LEDGER — a real domain like any other (`qa/bluebook/`, the same
-# nested shape `bluebook_in` already expects), so it gets the same
-# model-check discipline: dead states, deaf policies, the corpus-wide
-# checks every example domain already earns. Not under `examples/`
-# itself — it is tooling the practice runs against those domains, not a
-# teaching sample of the language.
-qa_members = Dir.glob("#{ROOT}/qa/bluebook/*.bluebook")
 
 if domain_arg
-  registry = boot(bluebook_in(domain_arg.chomp("/")) || domain_arg)
+  registry = boot(Hecks::Corpus.bluebook_dir(domain_arg.chomp("/")) || domain_arg)
   ok = examine(File.basename(domain_arg.chomp("/")), registry)
 else
-  targets = example_domains.map { |d| [File.basename(d), bluebook_in(d)] }.compact +
-            grammar_chapters.map { |c| [File.basename(c, ".bluebook"), c] } +
-            framework_members.map { |m| [File.basename(m, ".bluebook"), m] } +
-            qa_members.map { |m| [File.basename(m, ".bluebook"), m] }
+  # EVERY EXAMPLE, GRAMMAR CHAPTER, FRAMEWORK MEMBER AND THE QA LEDGER —
+  # the kinds spec/model_check_spec.rb walks, read from the one table
+  # both use. Globbed separately, the two once disagreed in both
+  # directions: this script skipped the framework members the spec
+  # checked, and the spec skipped the ledger this script checked.
+  targets = Hecks::Corpus.members(:example, :grammar, :framework, :qa)
+                         .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }
 
   # TWO PASSES OVER THE SAME BOOTS, not two boots — PASS 1 boots every
   # target once (booting is the expensive part) and accumulates every
