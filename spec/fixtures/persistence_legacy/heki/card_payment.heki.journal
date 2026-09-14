@@ -1,0 +1,1 @@
+{"operation":"save","id":"AUTH-1","state":{"account":"ACC-1","disputed_by":null,"authorisation":{"value":"AUTH-1"},"amount":{"cents":300},"merchant":{"value":"Cafe"},"tags":[{"value":"food"},{"value":"travel"}],"status":"authorized","account_status":"open"},"mirrors":null}
