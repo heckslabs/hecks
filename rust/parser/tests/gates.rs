@@ -83,6 +83,45 @@ fn now_implemented_fixtures_parse_for_real() {
 }
 
 #[test]
+fn one_of_values_unmark_like_member_rows() {
+    // Ruby's `one_of:` writes member rows that round-trip through
+    // `Marks#unmark_scalar`, so a quoted "true"/"false"/"0" exports as a
+    // JSON boolean/integer — the same shape a bare `member` row already
+    // gets. Keeping them strings broke bluebook_language parity once
+    // RustReservedWord listed the keywords `true`/`false`.
+    let path = fixture("one_of_unmarked.bluebook");
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureOneOfUnmarked",
+        path.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "one_of fixture should parse cleanly: {stderr}"
+    );
+
+    let compact: String = stdout.split_whitespace().collect();
+    for expected in [
+        r#"[["word","as"]]"#,
+        r#"[["word",false]]"#,
+        r#"[["word",true]]"#,
+        r#"[["word",0]]"#,
+    ] {
+        assert!(
+            compact.contains(expected),
+            "missing member {expected}: {stdout}"
+        );
+    }
+    assert!(
+        !compact.contains(r#""true"]"#),
+        "\"true\" stayed a string: {stdout}"
+    );
+}
+
+#[test]
 fn identity_and_relationship_exemplar_preserves_ruby_ir_shape() {
     let path = fixture("identity_relationship.bluebook");
     let output = run(&[
