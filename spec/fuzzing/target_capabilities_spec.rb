@@ -152,9 +152,9 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     let(:gaps)  { Hecks::Fuzzing::RustGapManifest.new(rust_dir: CAP_RUST_DIR, feature: "banking") }
 
     it "attributes a skipped query to the construct its manifest entry names" do
-      expect(skips.attribute(gaps, %w[Banking::Account.OpenForSuspendedCustomers]))
-        .to eq([{ verb: "Banking::Account.OpenForSuspendedCustomers", constructs: %w[reference_hop_where] }])
-      expect(skips.attribute(gaps, %w[Banking::Account.LedgerEntry.Reversed]).first[:constructs]).to eq(%w[entity_query])
+      expect(skips.attribute(gaps, %w[Banking::Account.LedgerEntry.Reversed]))
+        .to eq([{ verb: "Banking::Account.LedgerEntry.Reversed", constructs: %w[entity_query] }])
+      expect(skips.attribute(gaps, %w[Banking::ATMCard.Withdrawal.Recent]).first[:constructs]).to eq(%w[entity_query])
     end
 
     it "answers `unknown` for a verb the manifest never declared not generated" do
@@ -166,10 +166,10 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     end
 
     it "flags a construct the boundary does not admit, and passes one it does" do
-      attributed = skips.attribute(gaps, %w[Banking::Account.OpenForSuspendedCustomers])
-      expect(skips.outside_boundary(attributed, %w[entity_query]).map { |e| e[:verb] })
-        .to eq(%w[Banking::Account.OpenForSuspendedCustomers])
-      expect(skips.outside_boundary(attributed, %w[reference_hop_where])).to be_empty
+      attributed = skips.attribute(gaps, %w[Banking::Account.LedgerEntry.Reversed])
+      expect(skips.outside_boundary(attributed, %w[reference_hop_where]).map { |e| e[:verb] })
+        .to eq(%w[Banking::Account.LedgerEntry.Reversed])
+      expect(skips.outside_boundary(attributed, %w[entity_query])).to be_empty
     end
   end
 end

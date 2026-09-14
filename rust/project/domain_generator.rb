@@ -1221,12 +1221,13 @@ module RustProjection
       # a specific declared query still lacking a row is a per-instance
       # shape this generator doesn't cover, the same distinction every
       # OTHER per-instance skip in this file already draws.
+      query_aggregates_by_name = ir[:aggregates].to_h { |a| [a[:name], a] }
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
         aggregate[:queries].each do |query|
           query_verb = "#{domain_name}::#{aggregate[:name]}.#{query[:name]}"
-          reason = Projector.query_skip_reason(query, aggregate, value_objects_by_name)
+          reason = Projector.query_skip_reason(query, aggregate, value_objects_by_name, query_aggregates_by_name)
           if reason
             puts "skipping query #{query_verb}: #{reason}"
             manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", construct: reason.construct, reason: reason)
@@ -1234,12 +1235,14 @@ module RustProjection
           end
 
           manifest << manifest_entry(kind: "query", id: query_verb, generated: true)
+          conditions, reference_hop_conditions = Projector.query_conditions_and_hops(domain_name, query, aggregate, query_aggregates_by_name)
           query_defs << {
             verb: query_verb,
             aggregate: "#{domain_name}::#{aggregate[:name]}",
             arg_checks: Projector.query_arg_checks(query, "crate::generated::#{mod_name}::#{aggregate[:name].downcase}",
                                                    value_objects_by_name),
-            conditions: Projector.query_conditions_with_authorization(query),
+            conditions: conditions,
+            reference_hop_conditions: reference_hop_conditions,
             order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by], query[:null_semantics]) : nil,
             offset: query[:offset] ? Projector.emit_query_offset(query[:offset]) : nil,
             limit: query[:limit] ? Projector.emit_query_limit(query[:limit]) : nil,
