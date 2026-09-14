@@ -7,6 +7,7 @@
 #   bin/qa_mine_combinations --brief               # print the agent's prompt and stop; no agent, no checks
 #   bin/qa_mine_combinations --from <candidates-dir> [--rust]   # re-check an earlier run's candidates
 #   bin/qa_mine_combinations --agent "my-agent --flag"          # any command reading the prompt on stdin
+#   bin/qa_mine_combinations --against <domain> [--against …]   # census only these domains (its spec uses one)
 #
 # `bin/qa_generated_domains` puts two census forms on one aggregate from a
 # seed, blind to why a meeting should break. The bugs the ledger actually
@@ -63,12 +64,12 @@ EXIT_ERROR    = 1
 RESULT_MARKER = "QA_GENERATED_RESULT ".freeze
 DEFAULT_AGENT = ["claude", "-p", "--permission-mode", "acceptEdits", "--allowedTools", "Read,Glob,Grep,Write,Edit"].freeze
 USAGE = "usage: bin/qa_mine_combinations [--candidates N] [--rust] [--seeds K] [--steps M] [--adversarial F] " \
-        "[--repair-rounds R] [--agent CMD] [--from <candidates-dir>] [--brief]".freeze
+        "[--repair-rounds R] [--agent CMD] [--from <candidates-dir>] [--against <domain> …] [--brief]".freeze
 
 Miner = Hecks::Fuzzing::CombinationMiner
 
 options = { candidates: 3, rust: false, seeds: 5, steps: 25, adversarial: 0.3, repair_rounds: 1,
-            agent: ENV.fetch("QA_MINER_AGENT", nil), from: nil, brief: false }
+            agent: ENV.fetch("QA_MINER_AGENT", nil), from: nil, brief: false, against: [] }
 until ARGV.empty?
   case (arg = ARGV.shift)
   when "-h", "--help"
@@ -83,6 +84,7 @@ until ARGV.empty?
   when "--agent"         then options[:agent] = ARGV.shift
   when "--from"          then options[:from] = File.expand_path(ARGV.shift)
   when "--brief"         then options[:brief] = true
+  when "--against"       then options[:against] << File.expand_path(ARGV.shift)
   else abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
   end
 end
@@ -122,7 +124,8 @@ out_dir   = options[:from] || File.join(run_dir, "candidates")
 agent_log = File.join(run_dir, "agent.log")
 command   = options[:agent] ? Shellwords.split(options[:agent]) : DEFAULT_AGENT
 
-brief = Miner.brief(Miner.corpus_paths(ROOT), root: ROOT, bug_titles: Miner.recent_bug_titles(ROOT))
+corpus = options[:against].empty? ? Miner.corpus_paths(ROOT) : options[:against]
+brief = Miner.brief(corpus, root: ROOT, bug_titles: Miner.recent_bug_titles(ROOT))
 prompt = Miner.prompt(ROOT, brief, count: options[:candidates], out_dir: out_dir)
 if options[:brief]
   puts prompt

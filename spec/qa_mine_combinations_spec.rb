@@ -10,11 +10,15 @@ require "hecks/fuzzing/domain_generator"
 # under test, the plumbing around it is.
 RSpec.describe "bin/qa_mine_combinations" do
   MINER_FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_mine_combinations").freeze
+  # ONE CORPUS DOMAIN, NOT ALL OF THEM — the full census (every stress
+  # domain and example) costs ~8s per run and every example here runs the
+  # script; the brief's shape is the same over one domain as over nineteen.
+  MINER_CORPUS = File.join(InMemoryDomain::ROOT, "qa/stress_domains/case_escalation").freeze
 
   def run_miner(*args, mode: "valid")
     env = { "FAKE_AGENT_MODE" => mode, "QA_MINER_AGENT" => "ruby #{File.join(MINER_FIXTURES, 'fake_agent')}" }
     Open3.capture2e(env, "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_mine_combinations"),
-                    *args, chdir: InMemoryDomain::ROOT)
+                    "--against", MINER_CORPUS, *args, chdir: InMemoryDomain::ROOT)
   end
 
   it "prints the agent's brief — unmet pairs, corpus, bug history — and stops, with --brief" do
