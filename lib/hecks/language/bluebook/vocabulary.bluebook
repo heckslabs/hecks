@@ -2,8 +2,11 @@ Hecks.bluebook "Bluebook" do
   aggregate "Vocabulary" do
     # These are DECLARATIONS, not runtime state — a language's admitted sets are
     # fixed when the language is defined, which is what one_of means. They carry
-    # no commands on purpose : nothing dispatches a vocabulary, the conformance
-    # check READS them from the IR and holds the runtime's hand-typed tables to them.
+    # no commands on purpose : nothing dispatches a vocabulary. They are READ
+    # from the IR and projected — bin/project_vocabulary writes the Ruby tables
+    # (lib/hecks/vocabulary.rb) the runtime's constants read, and
+    # bin/project_rust_vocabulary writes rust/src/kernel/vocab/ — so the
+    # runtimes carry no hand-typed copies to drift.
     #
     # Every one of these is a set the runtime must agree with, and every one has
     # already drifted or leaked at least once :
@@ -227,11 +230,10 @@ Hecks.bluebook "Bluebook" do
     # declared them. Everything here is different in kind: a LANGUAGE-LEVEL
     # refusal, the same wording for every domain, not authored per-bluebook —
     # closer to Comparison/SignTest beside it than to a given. So it follows
-    # THEIR pattern, not given's: declared here for a human to read and a
-    # conformance spec to hold equal, and a hand-typed table
-    # (RefusalWording) is what a dispatch
-    # actually reads — the same reason Evaluator::SIGN_TEST_OPERATORS is
-    # hand-typed rather than read live off this very chapter at every call.
+    # THEIR pattern, not given's: declared here, and projected into the
+    # generated tables a dispatch actually reads (Runtime::RefusalWording in
+    # Ruby, kernel::vocab::RefusalSite in Rust) rather than read live off
+    # this very chapter at every call.
     #
     # `{name}` markers are placeholders — plain text substitution, not
     # expression syntax ; a template is read, never evaluated. Two call
@@ -381,10 +383,9 @@ Hecks.bluebook "Bluebook" do
     # rendering convention, the same guess for every domain, not
     # authored per-bluebook — closer to Comparison/SignTest than to a
     # given. `pattern` is the regex SOURCE, no delimiters or flags
-    # (Ruby's own `Regexp#source`) — spec/field_hint_conformance_spec.rb
-    # holds FieldShape's four hand-typed constants equal to this, both
-    # directions, the same conformance shape refusal_wording_
-    # conformance_spec.rb already holds RefusalTemplate to.
+    # (Ruby's own `Regexp#source`) — FieldShape builds its four constants
+    # off these rows, and bin/project_field_hints writes the Rust host's
+    # copy from them, so neither side is typed by hand.
     #
     # `resolves_to` names WHICH Field attribute a match sets — `html_type`
     # for email/url/tel (three candidates, only one wins, checked in that

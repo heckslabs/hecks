@@ -16,8 +16,8 @@ module Hecks
       # mutations.rb, rust/codegen/src/mutations.rs — a ternary on
       # `op == "increment"` in each), even though the fact was already
       # table-driven on the Ruby runtime side
-      # (Runtime::CommandRules::Arithmetic::MUTATION_OPS, held equal to
-      # Vocabulary::MutationOp by spec/vocabulary_conformance_spec.rb).
+      # (Runtime::CommandRules::Arithmetic::MUTATION_OPS, itself read off
+      # the same generated Vocabulary::MutationOp table).
       # Reads `Vocabulary::MutationOp` directly (plain data, no framework
       # dependency — safe during parsing, same reason `RuleReference`'s
       # own bootstrap concerns don't apply here) rather than requiring

@@ -42,10 +42,8 @@ RSpec.describe "the declared vocabularies" do
     aggregate.value_objects.find { |vo| vo.hecks_name == name }.members.map(&:to_h)
   end
 
-  VOCABULARIES      = vocabularies
-  COMPARISON_ROWS   = full_rows("Comparison")
-  MUTATION_OP_ROWS  = full_rows("MutationOp")
-  SIGN_TEST_ROWS    = full_rows("SignTest")
+  VOCABULARIES          = vocabularies
+  COMPARISON_ROWS       = full_rows("Comparison")
   INCLUDE_HAYSTACK_ROWS = full_rows("IncludeHaystack")
 
   def declared(name)
@@ -108,23 +106,15 @@ RSpec.describe "the declared vocabularies" do
     end
   end
 
-  # Each sign test is sugar for an existing Comparison operator against the
-  # literal 0 — compares_via names which one, so this holds Resolver's own
-  # mapping (SIGN_TEST_OPERATORS) to what the language declares, the same
-  # split Comparison's algebra check makes.
-  it "SignTest declares the same operator Resolver::SIGN_TEST_OPERATORS uses" do
-    live = Hecks::Bluebook::Expression::Resolver::SIGN_TEST_OPERATORS
+  # SignTest's compares_via, MutationOp's sign, RefusalTemplate's wording and
+  # FieldHint's patterns used to be held equal to hand-typed Ruby tables here
+  # and in their own conformance specs. Those constants now read the
+  # generated table (Resolver::SIGN_TEST_OPERATORS, CommandRules::
+  # MUTATION_OPS, RefusalWording::TEMPLATES, FieldShape::HINTS), so the
+  # regenerate-and-diff gates (spec/vocabulary_table_spec.rb, spec/
+  # rust_vocabulary_spec.rb, CI's checks_codegen_drift) are the whole check.
 
-    expect(SIGN_TEST_ROWS.map { |row| row[:name] }).to match_array(live.keys)
-
-    SIGN_TEST_ROWS.each do |row|
-      expect(row[:compares_via]).to eq(live.fetch(row[:name])),
-                                    "#{row[:name]} declares compares_via #{row[:compares_via].inspect}, " \
-                                    "Resolver uses #{live.fetch(row[:name]).inspect}"
-    end
-  end
-
-  # Unlike Comparison/SignTest, there is no separate live Ruby table to hold
+  # Unlike Comparison, there is no separate live Ruby table to hold
   # this equal to — `strategy` names what Evaluator#includes? already does
   # per branch, not something a shared constant computes independently. This
   # pins the declaration against the actual case branches directly, so
@@ -142,27 +132,8 @@ RSpec.describe "the declared vocabularies" do
            )).to be(true), "String substring should still match, matching the declared strategy"
   end
 
-  # increment/decrement share one arithmetic primitive, differing only by
-  # sign — the same reduction Comparison's algebra is. set/append carry no
-  # sign at all, so they decode back as EMPTY TEXT rather than a digit — this
-  # reconstruction path only recognises "true"/"false" and integer strings,
-  # unlike Shapes#decode_literal elsewhere, so empty text does not become nil
-  # here ; it is normalised to nil below to compare against MUTATION_OPS.
-  it "MutationOp declares the same sign CommandRules::MUTATION_OPS computes with" do
-    live = Hecks::Runtime::CommandRules::MUTATION_OPS.to_h { |op| [op.name, op.sign] }
-
-    expect(MUTATION_OP_ROWS.map { |row| row[:name] }).to match_array(live.keys)
-
-    MUTATION_OP_ROWS.each do |row|
-      declared_sign = row[:sign] == "" ? nil : row[:sign]
-      expect(declared_sign).to eq(live.fetch(row[:name])),
-                               "#{row[:name]} declares sign #{row[:sign].inspect}, " \
-                               "CommandRules computes #{live.fetch(row[:name]).inspect}"
-    end
-  end
-
-  # Only the NAMES are held to the corpus — signs are checked above against
-  # the live table instead, the same split Comparison uses.
+  # Only the NAMES are held to the corpus — signs are read straight off the
+  # generated table by CommandRules::MUTATION_OPS.
   it "MutationOp admits every op the corpus uses" do
     used = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/*.json")).flat_map do |path|
       JSON.parse(File.read(path)).fetch("steps", [])
