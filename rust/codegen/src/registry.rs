@@ -22,6 +22,19 @@ pub struct ReferenceCheck {
     pub heads: String,
 }
 
+/// One ANGLE-8 write-side tenant boundary check —
+/// `rust/project/domain_generator.rb#tenant_boundary_checks`' Hash, typed.
+pub struct TenantBoundaryCheck {
+    pub reference_field: String,
+    pub target_mod: String,
+    pub target_name: String,
+    pub aggregate_name: String,
+    pub own_tenant_field: String,
+    pub own_accessor: String,
+    pub target_tenant_field: String,
+    pub target_accessor: String,
+}
+
 pub struct CommandEntry {
     pub verb: String,
     pub name: String,
@@ -30,6 +43,9 @@ pub struct CommandEntry {
     pub creates: bool,
     pub identity_extra_params: Vec<String>,
     pub reference_checks: Vec<ReferenceCheck>,
+    /// BUG#139 — the write-side tenant boundary checks this command runs
+    /// before dispatch (`emit_tenant_boundary_check`, below).
+    pub tenant_boundary_checks: Vec<TenantBoundaryCheck>,
     /// This command's OWN reference-typed attributes — `command_deref`'s
     /// own specs (`reference_specs.rb`'s own header).
     pub reference_specs: Vec<ReferenceSpec>,
@@ -222,6 +238,43 @@ pub fn emit_role_check(
             ),
         ],
     ))
+}
+
+/// Port of `rust/project/registry.rb#emit_tenant_boundary_check` — see that
+/// method's own header. Hand-built rather than an exemplar shape: the
+/// target side's accessor differs for a single-attribute value object
+/// (`record.<head>.as_ref().map(|v| v.<inner>.clone())`) and a bare scalar
+/// (`record.<field>.clone()`). Byte-identical to the Ruby output.
+pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
+    let ref_ident = naming::rust_ident_field(&check.reference_field);
+    let own_expr = format!("args.{}.clone()", naming::rust_ident_field(&check.own_accessor));
+    let target_expr = match check.target_accessor.split_once('.') {
+        Some((head, inner)) => format!(
+            "record.{}.as_ref().map(|v| v.{}.clone())",
+            naming::rust_ident_field(head),
+            naming::rust_ident_field(inner)
+        ),
+        None => format!("record.{}.clone()", naming::rust_ident_field(&check.target_accessor)),
+    };
+
+    let mut out = String::new();
+    out.push_str(&format!("if let Some(record) = store.{}.find(&args.{ref_ident}) {{ ", check.target_mod));
+    out.push_str(&format!("if let Some(target_tenant) = {target_expr} {{ "));
+    out.push_str(&format!("let own_tenant = {own_expr}; "));
+    out.push_str("if target_tenant != own_tenant { ");
+    out.push_str(
+        "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[",
+    );
+    out.push_str(&format!("(\"aggregate\", {}), ", naming::ruby_inspect_string(&check.aggregate_name)));
+    out.push_str(&format!("(\"field\", {}), ", naming::ruby_inspect_string(&check.own_tenant_field)));
+    out.push_str("(\"tenant\", &format!(\"{:?}\", own_tenant)), ");
+    out.push_str(&format!("(\"attribute\", {}), ", naming::ruby_inspect_string(&check.reference_field)));
+    out.push_str(&format!("(\"target\", {}), ", naming::ruby_inspect_string(&check.target_name)));
+    out.push_str(&format!("(\"target_field\", {}), ", naming::ruby_inspect_string(&check.target_tenant_field)));
+    out.push_str("(\"other\", &format!(\"{:?}\", target_tenant))");
+    out.push_str("]))); ");
+    out.push_str("} } }");
+    out
 }
 
 pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> String {
@@ -608,21 +661,26 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(|check| emit_reference_check(exemplar, check))
                 .collect();
 
-            // BUG#139 — the ANGLE-8 write-side tenant boundary (PR #595,
-            // `rust/project/registry.rb`'s own `tenant_boundary_checks`
-            // header) has no port in THIS pipeline yet: it works purely
-            // from `ir.json`, which carries no `tenant_boundary_checks`-
-            // equivalent field, and the one real-corpus domain that
-            // declares one (`tenant_ledger`) is generated exclusively
-            // through the Ruby-hosted pipeline (not one of this crate's
-            // own `PARITY_DOMAINS`). `dispatch()`'s signature now always
-            // takes this parameter regardless (`kernel/dispatch.rs`'s own
-            // header comment on it), so every command generated here
-            // passes an unconditional `Ok(())` — a genuine no-op check,
-            // not a placeholder standing in for real logic this pipeline
-            // is missing.
-            let tenant_boundary_check_line =
-                "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());".to_string();
+            // BUG#139 — the ANGLE-8 write-side tenant boundary (PR #595),
+            // ported from `rust/project/registry.rb`'s own
+            // `tenant_boundary_check_line`. The checks are derived from
+            // `ir.json` at codegen time (`domain_generator.rs#tenant_
+            // boundary_checks`); none means the unconditional `Ok(())`,
+            // otherwise every check runs inside one closure, in order.
+            let tenant_boundary_check_bodies: Vec<String> = c
+                .tenant_boundary_checks
+                .iter()
+                .map(emit_tenant_boundary_check)
+                .collect();
+            let tenant_boundary_check_line = if tenant_boundary_check_bodies.is_empty() {
+                "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());".to_string()
+            } else {
+                format!(
+                    "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = \
+                     (|| -> Result<(), crate::kernel::Refusal> {{ {} Ok(()) }})();",
+                    tenant_boundary_check_bodies.join(" ")
+                )
+            };
 
             // `owner_deref`/`command_deref` — see `reference_lookup.rs`'s
             // own header and `rust/project/registry.rb`'s identical
@@ -1154,6 +1212,7 @@ mod tests {
                         "box_number".to_string(),
                     ],
                     reference_checks: Vec::new(),
+                    tenant_boundary_checks: Vec::new(),
                     reference_specs: Vec::new(),
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
@@ -1168,6 +1227,7 @@ mod tests {
                     creates: false,
                     identity_extra_params: Vec::new(),
                     reference_checks: Vec::new(),
+                    tenant_boundary_checks: Vec::new(),
                     reference_specs: Vec::new(),
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
@@ -1255,6 +1315,7 @@ mod tests {
                 creates: false,
                 identity_extra_params: Vec::new(),
                 reference_checks: Vec::new(),
+                tenant_boundary_checks: Vec::new(),
                 reference_specs: Vec::new(),
                 attributes: Vec::new(),
                 invariant_check_lines: Vec::new(),
