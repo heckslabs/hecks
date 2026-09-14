@@ -1,0 +1,157 @@
+require "json"
+require_relative "../../runtime/value"
+
+module Hecks
+  module Ports
+    module Persistence
+      # ONE SPELLING OF AN AGGREGATE'S STATE ACROSS THE STORE BOUNDARY
+      # (Phase 2, Track A, PR A2). Every adapter used to decode its own way
+      # (spec/ports/persistence_legacy_decode_spec.rb pins today's shapes):
+      # Heki heads and every journal reader symbolize the TOP level only,
+      # Sqlite/D1/Postgres/PostgresEra/Lambda heads symbolize DEEP, and
+      # Memory never serializes at all (a shallow `state.dup`). This codec is
+      # the single, IR-driven answer those adapters converge on (A3 routes
+      # them through it; nothing calls it yet).
+      #
+      # - `encode` — canonical and JSON-ready: string keys at every depth,
+      #   `Runtime::Value`s materialized, only JSON scalars at the leaves.
+      #   Needs no IR (JSON has one spelling), but takes it for symmetry.
+      # - `decode` — walks the aggregate's IR: attributes, value objects
+      #   (their fields, recursively), `list_of` value objects and entities
+      #   (entity fields, nested entities, the entity's own lifecycle),
+      #   references, the lifecycle field, and projected fields. A DECLARED
+      #   key becomes a symbol at every depth, whichever spelling arrived.
+      # - `copy` — `decode(encode(state))`: what a durable adapter would hand
+      #   back, for Memory, with no JSON text in between.
+      #
+      # WHAT DECODE NEVER DOES:
+      #
+      # It never INVENTS a key. A declared field absent from the stored
+      # state stays absent — not a present nil — because the runtime reads
+      # absence as "this record predates the field": `Instance.
+      # hydrate_with_defaults` fills a declared `default:` only when the key
+      # is missing (spec/runtime/hydrate_defaults_spec.rb), Era translation
+      # backfills only `unless state.key?` (era/lineage.rb#translate), and a
+      # required declared-but-absent field reads as a named refusal rather
+      # than nil (spec/runtime/attribute_absence_spec.rb). A present nil
+      # would silently suppress all three. For the same reason it never
+      # DROPS a key, nil or not: a stored nil stays a stored nil.
+      #
+      # It never touches an UNDECLARED key's value — a retired field, or a
+      # member a value object no longer declares, is exactly what an Era
+      # translation (rename/move/drop) still has to read. Its KEY keeps its
+      # spelling below the top level; at the top level every key is a
+      # symbol, declared or not, because every adapter has always
+      # symbolized the top level and `Lineage#translate` reads retired
+      # top-level names as symbols.
+      #
+      # When a hash carries BOTH spellings of one declared key, the symbol
+      # spelling wins: it can only have been written by Ruby after the
+      # string one was read.
+      module StateCodec
+        JSON_SCALARS = [String, Integer, Float, TrueClass, FalseClass, NilClass].freeze
+
+        module_function
+
+        def encode(_aggregate, state) = encode_value(state)
+
+        def decode(aggregate, raw)
+          return raw unless raw.is_a?(Hash)
+
+          fields = declared_top_level(aggregate)
+          decode_hash(aggregate, fields, raw, symbolize_undeclared: true)
+        end
+
+        def copy(aggregate, state) = decode(aggregate, encode(aggregate, state))
+
+        # The field walk Sqlite::Codec#persisted_fields does for columns,
+        # as name => Attribute (nil for the lifecycle field and projected
+        # fields: bare scalars with no attribute of their own). The same
+        # three sources, the same precedence — an attribute that happens to
+        # share the lifecycle's or a projected field's name keeps its type.
+        def declared_top_level(aggregate)
+          fields = aggregate.attributes.to_h { |attribute| [attribute.name, attribute] }
+          lifecycle = aggregate.lifecycle
+          fields[lifecycle.field.to_sym] = nil if lifecycle && !fields.key?(lifecycle.field.to_sym)
+          aggregate.projected_fields.each { |field| fields[field.name.to_sym] = nil unless fields.key?(field.name.to_sym) }
+          fields
+        end
+
+        # ── encode ──────────────────────────────────────────────────────
+
+        def encode_value(value)
+          case value
+          when Runtime::Value then encode_value(value.to_h)
+          when Hash then value.each_with_object({}) { |(key, inner), out| out[key.to_s] = encode_value(inner) }
+          when Array then value.map { |inner| encode_value(inner) }
+          when *JSON_SCALARS then value
+          # A Symbol, a Time, anything else: exactly what `JSON.generate`
+          # then `JSON.parse` would make of it, so Memory's copy and a
+          # durable adapter's row agree on the leaf too.
+          else JSON.parse(JSON.generate([value])).first
+          end
+        end
+
+        # ── decode ──────────────────────────────────────────────────────
+
+        # `fields` is name => Attribute-or-nil for this level. Key order is
+        # kept; a string key is skipped when the same hash also holds its
+        # symbol spelling, so the symbol wins wherever either one sits.
+        def decode_hash(aggregate, fields, raw, symbolize_undeclared: false)
+          raw.each_with_object({}) do |(key, value), out|
+            name = key.to_s.to_sym
+            next if key.is_a?(String) && raw.key?(name)
+
+            if fields.key?(name)
+              out[name] = decode_field(aggregate, fields[name], value)
+            else
+              out[symbolize_undeclared ? name : key] = value
+            end
+          end
+        end
+
+        # One declared field's value, by the four shapes `Value::Coercion`
+        # names (scalar / list / optional / composite). nil, a reference (a
+        # bare id or a list of them), and a scalar pass through untouched; a
+        # value object or entity recurses only when the stored value really
+        # is the Hash/Array its declaration says — anything else (a legacy
+        # bare scalar for a one-field value object) is left for hydration.
+        def decode_field(aggregate, attribute, value)
+          return value if attribute.nil? || value.nil? || attribute.reference?
+
+          if attribute.list?
+            return value unless value.is_a?(Array)
+
+            value.map { |element| decode_composite(aggregate, attribute.type.to_s, element) }
+          else
+            decode_composite(aggregate, attribute.type.to_s, value)
+          end
+        end
+
+        def decode_composite(aggregate, type, value)
+          return value unless value.is_a?(Hash)
+
+          entity = Runtime::Value.find_entity(aggregate, type)
+          return decode_hash(aggregate, entity_fields(entity), value) if entity
+
+          value_object = Runtime::Value.value_object_for(aggregate, type)
+          return value unless value_object
+
+          decode_hash(aggregate, value_object.attributes.to_h { |field| [field.name, field] }, value)
+        end
+
+        # An entity is "structurally interchangeable with an aggregate"
+        # (behaviour/entity.rb): its attributes plus its own lifecycle field.
+        # Its value objects and nested entities resolve through the ROOT
+        # aggregate, the same way `EntityListCoercion#hydrate_entity_list`
+        # resolves them.
+        def entity_fields(entity)
+          fields = entity.attributes.to_h { |attribute| [attribute.name, attribute] }
+          lifecycle = entity.lifecycle
+          fields[lifecycle.field.to_sym] = nil if lifecycle && !fields.key?(lifecycle.field.to_sym)
+          fields
+        end
+      end
+    end
+  end
+end
