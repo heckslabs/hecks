@@ -142,13 +142,9 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   # as RSpec `pending`, so the day it matches, the example FAILS until the
   # entry is deleted here.
   CODEGEN_PENDING_MEMBERS = {
-    "corrections"   => "BUG#32's Rust half: `Ledger.Void` (`sets :entries, remove: :sequence`) — rust/codegen never " \
-                       "ported the `remove` mutation op, and `hecks-codegen domain` panics with " \
-                       "\"unsupported mutation op \\\"remove\\\"\"",
-    "tenant_ledger" => "unfiled, found by this derivation: rust/codegen/src/registry.rs always emits " \
-                       "`tenant_boundary_check = Ok(())` (its ir.json carries no tenant_boundary_checks), while " \
-                       "rust/project/registry.rb#emit_tenant_boundary_check builds the real cross-tenant check " \
-                       "for Request's `authorize ... tenant:`"
+    "corrections" => "BUG#32's Rust half: `Ledger.Void` (`sets :entries, remove: :sequence`) — rust/codegen never " \
+                     "ported the `remove` mutation op, and `hecks-codegen domain` panics with " \
+                     "\"unsupported mutation op \\\"remove\\\"\""
   }.freeze
 
   it "finds at least one real corpus member" do

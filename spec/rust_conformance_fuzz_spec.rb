@@ -77,11 +77,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
   # SHRINK-ONLY: a domain that still diverges, with the bug that owns it.
   # Its example runs as RSpec `pending`, so the day it agrees with Ruby
   # the example FAILS until the entry is deleted here.
-  RUST_FUZZ_PENDING = {
-    "has_many_fixture" => "unfiled, found by this derivation: Circle.Admit (`sets :members` onto `has_many " \
-                          "Members`) with a handle no Member holds — Ruby refuses NotFound, the Rust binary " \
-                          "admits the dangling references"
-  }.freeze
+  RUST_FUZZ_PENDING = {}.freeze
 
   # A TOTAL, SPREAD ACROSS DOMAINS — not per domain. The hand list ran
   # 8 domains x 10 seeds = 80; deriving the list must not add gating
