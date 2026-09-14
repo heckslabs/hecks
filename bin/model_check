@@ -67,12 +67,19 @@ end
 # some/domain`), where only that one target's own boot is ever seen —
 # a real, accepted reduction in the cross-domain check's own reach for
 # that narrower form, not a bug.
+#
+# `rust_target` — the domain has a Cargo feature in rust/Cargo.toml (the
+# same inference `Fuzzing::TargetCapabilities` makes for bin/qa_sweep), so
+# a `rust_reserved_name` finding is an error for it, not a warning.
+# `STRICT` (`--strict`) makes it an error for every target.
 def examine(name, registry, known_domains: nil)
   puts "── #{name}"
 
+  rust_target = Hecks::Fuzzing::TargetCapabilities.rust_feature?(name, File.join(ROOT, "rust"))
   chapters = registry.bluebooks.values
   findings = chapters.flat_map do |chapter|
-    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), known_domains: known_domains)
+    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), known_domains: known_domains,
+                                              rust_target: rust_target, strict: STRICT)
   end
 
   allowed = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS.fetch(name, [])
@@ -109,7 +116,7 @@ def examine_language
     next unless chapter
 
     puts "── #{name} (the language itself)"
-    findings = Hecks::Bluebook::ModelCheck.call(chapter)
+    findings = Hecks::Bluebook::ModelCheck.call(chapter, strict: STRICT)
     if findings.empty?
       puts "   clean — no dead states, no unreachable protocol steps"
     else
@@ -122,6 +129,11 @@ def examine_language
   ok
 end
 
+require "hecks/fuzzing/target_capabilities"
+
+# `--strict` — a `rust_reserved_name` finding is an error for every target,
+# not only for those with a Rust (Cargo feature) target.
+STRICT = !ARGV.delete("--strict").nil?
 domain_arg = ARGV.shift
 example_domains = Dir.glob("#{ROOT}/examples/*/").map { |d| d.chomp("/") }
 grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook")
