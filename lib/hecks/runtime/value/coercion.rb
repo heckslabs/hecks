@@ -180,9 +180,49 @@ module Hecks
 
           direct_head = direct_identity_head(value, target)
           parts = paths.map { |path| identity_part(materialized, path, direct_head) }
-          return value if parts.any? { |part| part.nil? || (part.respond_to?(:empty?) && part.empty?) }
+          if parts.any? { |part| part.nil? || (part.respond_to?(:empty?) && part.empty?) }
+            return sole_scalar_identity(value, paths) || value
+          end
 
           Naming.identity(parts)
+        end
+
+        # A COMMAND MAY REDECLARE A `reference_to` FIELD under its OWN,
+        # differently-named single-attribute value object (`attribute
+        # :venue, VenueHandle; sets :venue`, not `reference_to Venue` —
+        # QualityControl BUG#121, `qa/stress_domains/generated_revalued_
+        # shape`'s own `Hangar.Repoint`) instead of naming the target's
+        # own identity field(s) directly. `identity_part`'s path walk
+        # above only ever matches an incoming shape that already uses the
+        # TARGET's own field names (or IS the target's own identity value
+        # object, `direct_identity_head`) — an ad hoc wrapper around a
+        # bare scalar under some OTHER field name (`VenueHandle`'s own
+        # `value`, not `Venue`'s own `code`) fails every path lookup, and
+        # used to fall through to the unresolved `return value` above,
+        # storing the WRAPPED Value. That leaves ONE reference field on
+        # ONE aggregate holding two different shapes depending on which
+        # command last wrote it — `Open`'s own bare `reference_to Venue`
+        # argument was never wrapped in the first place (the top guard
+        # clause passes a bare scalar straight through), so it always
+        # stored the canonical bare identity this class's own header
+        # comment promises ("canonical target identities, not Ruby Value
+        # wrappers") — while `Repoint` silently kept the wrapper instead.
+        #
+        # Unambiguous only when BOTH sides admit exactly one scalar: the
+        # target names exactly one identity path (`paths.one?` — a
+        # compound identity has no single field either side could stand
+        # in for) and the offered value is itself a single-attribute
+        # value object (`sole_attribute` — a multi-field VO has no one
+        # scalar to unwrap either). `materialize_unwrapped` recurses
+        # through any further single-field wrapping the same way it
+        # already does for `Value.materialize_unwrapped`'s other callers,
+        # landing on the bare scalar `Open`'s own path already produces
+        # for the identical target field.
+        def sole_scalar_identity(value, paths)
+          return nil unless value.is_a?(self) && paths.one?
+          return nil unless value.value_object.sole_attribute
+
+          materialize_unwrapped(value)
         end
 
         # Whether `value` is itself the target's own (single) identity
