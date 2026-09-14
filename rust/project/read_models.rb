@@ -1,3 +1,5 @@
+require_relative "skip_reason"
+
 module RustProjection
   module Projector
     module_function
@@ -179,9 +181,15 @@ module RustProjection
 
       heads = read_model[:aggregate_heads]
       root = heads.find { |head| head[:aggregate].to_s == read_model[:reference_target].to_s }
-      return "declares reference_to #{read_model[:reference_target]}, but includes no matching aggregate head — " \
-             "nothing for this generator's own root fetch to key off (every real corpus read model includes its " \
-             "own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)" unless root
+      unless root
+        # `rootless` when nothing was named at all (a count/median-only
+        # report like `Corrections::FlaggedTrailCount`); otherwise the
+        # named target simply isn't among the included heads.
+        construct = read_model[:reference_target].to_s.empty? ? "rootless" : "missing_root_head"
+        return skip(construct, "declares reference_to #{read_model[:reference_target]}, but includes no matching aggregate head — " \
+                               "nothing for this generator's own root fetch to key off (every real corpus read model includes its " \
+                               "own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)")
+      end
 
       heads.each do |head|
         reason = read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)
@@ -195,12 +203,12 @@ module RustProjection
     end
 
     def read_model_options_skip_reason(extra)
-      "declares #{extra.map(&:to_s).sort.join(', ')} — out of scope for this generator: cursor/" \
+      skip(extra.map(&:to_s).min, "declares #{extra.map(&:to_s).sort.join(', ')} — out of scope for this generator: cursor/" \
         "consistency/inspection are real " \
         "capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator " \
         "does not port (this file's own header has the full argument, the same boundary queries.rb already " \
         "draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — " \
-        "neither is read by the in-memory interpreter path this kernel matches"
+        "neither is read by the in-memory interpreter path this kernel matches")
     end
 
     # `ReadModel#filtered_head_name`, ported directly — trusts the
@@ -225,11 +233,11 @@ module RustProjection
     end
 
     def multi_target_options_skip_reason
-      "declares where/order_by/limit/offset with more than one many-side included aggregate — " \
+      skip("multi_target_options", "declares where/order_by/limit/offset with more than one many-side included aggregate — " \
         "ADR 0055's own `on:` lets Ruby's interpreter apply each option to a specific many-side " \
         "head, but this generator still trusts \"the first many-side head is the eligible one\" " \
         "(read_model_filtered_head_as) and has no per-head codegen yet — not generated yet, " \
-        "refused rather than risk applying an option to the wrong head"
+        "refused rather than risk applying an option to the wrong head")
     end
 
     def read_model_filtered_head_as(read_model)
@@ -260,21 +268,21 @@ module RustProjection
         field = where[:field].to_s
         hop = query_hop_plan(aggregate, field, aggregates_by_name)
         if hop.nil? && field.include?("/")
-          return "eligible head #{head[:aggregate]}'s own where clause on #{field.inspect} hops through a " \
+          return skip("reference_hop_where", "eligible head #{head[:aggregate]}'s own where clause on #{field.inspect} hops through a " \
                  "reference this generator can't resolve yet (more than one hop, the head isn't a real " \
-                 "reference attribute, or the target aggregate isn't declared in this domain) — not generated yet"
+                 "reference attribute, or the target aggregate isn't declared in this domain) — not generated yet")
         end
 
         if hop
           target_value_objects_by_name = hop[:target][:value_objects].to_h { |vo| [vo[:name], vo] }
           reason = query_where_skip_reason(where.merge(field: hop[:inner_field]), hop[:target], target_value_objects_by_name)
-          return "eligible head #{head[:aggregate]}'s own hop through #{hop[:via_field]} to " \
-                 "#{hop[:target_aggregate]}'s own #{reason}" if reason
+          return reskip(reason, "eligible head #{head[:aggregate]}'s own hop through #{hop[:via_field]} to " \
+                 "#{hop[:target_aggregate]}'s own #{reason}") if reason
           next
         end
 
         reason = query_where_skip_reason(where, aggregate, value_objects_by_name)
-        return "eligible head #{head[:aggregate]}'s own #{reason}" if reason
+        return reskip(reason, "eligible head #{head[:aggregate]}'s own #{reason}") if reason
       end
 
       # `declared_authorization_skip_reason` — reused from `queries.rb`
@@ -332,9 +340,9 @@ module RustProjection
 
       field = read_model[:median_field].to_s
       kind = query_field_kind(aggregate, field, value_objects_by_name)
-      return "median names #{field.inspect}, but #{target[:aggregate]} declares no such attribute — not generated yet" if kind == :unknown
-      return "median names #{field.inspect} on #{target[:aggregate]}, which is not numeric — median needs a numeric " \
-             "field (a bare number, or a value object carrying one) — not generated yet" unless kind == :number
+      return skip("median_field", "median names #{field.inspect}, but #{target[:aggregate]} declares no such attribute — not generated yet") if kind == :unknown
+      return skip("median_field", "median names #{field.inspect} on #{target[:aggregate]}, which is not numeric — median needs a numeric " \
+             "field (a bare number, or a value object carrying one) — not generated yet") unless kind == :number
 
       nil
     end
@@ -368,9 +376,9 @@ module RustProjection
     # before generating anything), not attempted here.
     def read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)
       target = aggregates_by_name[head[:aggregate]]
-      return "includes #{head[:aggregate]}, which this domain never declares" unless target
-      return "includes #{head[:aggregate]}, which this generator couldn't itself generate " \
-             "(unsupported attribute type — see this domain's own aggregate-level manifest entry)" if unsupported_names.include?(head[:aggregate])
+      return skip("include_undeclared_aggregate", "includes #{head[:aggregate]}, which this domain never declares") unless target
+      return skip("include_unsupported_aggregate", "includes #{head[:aggregate]}, which this generator couldn't itself generate " \
+                                                   "(unsupported attribute type — see this domain's own aggregate-level manifest entry)") if unsupported_names.include?(head[:aggregate])
 
       nil
     end
@@ -389,11 +397,11 @@ module RustProjection
     # generating anything this narrower slice doesn't cover yet.
     def group_by_skip_reason(read_model, aggregates_by_name, unsupported_names)
       heads = read_model[:aggregate_heads]
-      return "declares group_by across #{heads.size} aggregate heads — not generated yet (only a single, rootless head is)" if heads.size != 1
-      return "declares group_by on a NON-rootless read model (reference_to #{read_model[:reference_target]}) — not generated yet" unless read_model[:reference_target].nil?
-      return "declares group_by alongside count/median — not generated yet" if read_model[:count] || read_model[:median_field]
-      return "declares group_by alongside where/order_by/limit/offset — not generated yet" if Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] || read_model[:offset]
-      return "declares group_by with an authorize policy — not generated yet" if read_model[:authorization]
+      return skip("group_by", "declares group_by across #{heads.size} aggregate heads — not generated yet (only a single, rootless head is)") if heads.size != 1
+      return skip("group_by", "declares group_by on a NON-rootless read model (reference_to #{read_model[:reference_target]}) — not generated yet") unless read_model[:reference_target].nil?
+      return skip("group_by", "declares group_by alongside count/median — not generated yet") if read_model[:count] || read_model[:median_field]
+      return skip("group_by", "declares group_by alongside where/order_by/limit/offset — not generated yet") if Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] || read_model[:offset]
+      return skip("group_by", "declares group_by with an authorize policy — not generated yet") if read_model[:authorization]
 
       head = heads.first
       reason = read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)
@@ -406,7 +414,7 @@ module RustProjection
         next if aggregate[:attributes].any? { |a| a[:name].to_s == field_s }
         next if field_s == lifecycle_field
 
-        return "group_by names #{field_s.inspect}, but #{aggregate[:name]} declares no such attribute — not generated yet"
+        return skip("group_by", "group_by names #{field_s.inspect}, but #{aggregate[:name]} declares no such attribute — not generated yet")
       end
 
       nil

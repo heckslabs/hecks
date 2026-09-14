@@ -1,3 +1,5 @@
+require_relative "skip_reason"
+
 module RustProjection
   module Projector
     module_function
@@ -225,9 +227,10 @@ module RustProjection
       field = where[:field].to_s
       kind = query_field_kind(aggregate, field, value_objects_by_name)
       if kind == :unknown
-        return "where clause on #{field.inspect} isn't a recognized attribute of this aggregate — a hop through a " \
+        construct = field.include?("/") ? "reference_hop_where" : "where_unrecognized_field"
+        return skip(construct, "where clause on #{field.inspect} isn't a recognized attribute of this aggregate — a hop through a " \
                "reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model " \
-               "territory, not this generator's job"
+               "territory, not this generator's job")
       end
 
       raw_value = where[:value].to_s
@@ -235,28 +238,28 @@ module RustProjection
 
       op = where[:op].to_s
       unless QUERY_COMPARATOR_VARIANTS.key?(op)
-        return "where clause on #{field.inspect} uses op #{op.inspect} — Vocabulary::QueryComparator admits it, " \
+        return skip("where_none_in_state", "where clause on #{field.inspect} uses op #{op.inspect} — Vocabulary::QueryComparator admits it, " \
                "and rust/src/kernel/query_comparators.rs's own QueryComparator::NoneInState variant now exists " \
                "and is proven correct (item #9, whole-project table-unification survey) — but no generated " \
                "domain has any way to hand it a cross-domain search list at the call site (named_query::run's " \
                "own thin `run_cross_domain([])` wrapper is what every generated QUERIES table actually calls), " \
                "so generating this condition today would silently answer every row 'true' rather than a real " \
                "anti-join — deliberately left ungenerated until a real cross-domain-search call site exists, " \
-               "the same honest-refusal-over-silently-wrong choice this generator makes everywhere else"
+               "the same honest-refusal-over-silently-wrong choice this generator makes everywhere else")
       end
       if COMPARATORS_NEEDING_NUMERIC_FIDELITY.include?(op)
         return nil if kind == :number
 
-        return "where clause on #{field.inspect} uses op #{op.inspect} against a LITERAL value whose target " \
+        return skip("where_literal", "where clause on #{field.inspect} uses op #{op.inspect} against a LITERAL value whose target " \
                "field doesn't reduce to a plain JSON number (kind: #{kind}) — gt/gte/lt/lte only mean anything " \
-               "against a number (query_comparators.rs's own `ordered?` gate)"
+               "against a number (query_comparators.rs's own `ordered?` gate)")
       end
       return nil if COMPARATORS_EXEMPT_FROM_LITERAL_TYPING.include?(op)
       return nil if kind == :string
       return nil if kind == :number
 
-      "where clause on #{field.inspect} uses op #{op.inspect} against a LITERAL value whose target field doesn't " \
-        "reduce to a plain JSON string (kind: #{kind}) — its true wire type can't be recovered from the exported IR"
+      skip("where_literal", "where clause on #{field.inspect} uses op #{op.inspect} against a LITERAL value whose target field doesn't " \
+                            "reduce to a plain JSON string (kind: #{kind}) — its true wire type can't be recovered from the exported IR")
     end
 
     # A whole declared query's own eligibility. `nil` means every
@@ -276,9 +279,9 @@ module RustProjection
     # remaining one, never a stale one order_by/limit merely used to mask.
     def query_skip_reason(query, aggregate, value_objects_by_name)
       extras = %i[cursor consistency freshness inspection].select { |k| query[k] }
-      return "declares #{extras.join(', ')} — out of scope for this generator (rust/project/queries.rb's own " \
-             "header has the full argument)" if extras.any?
-      return "declares use_index, out of scope for the same reason the extras above are" if Array(query[:index_hints]).any?
+      return skip(extras.first, "declares #{extras.join(', ')} — out of scope for this generator (rust/project/queries.rb's own " \
+                                "header has the full argument)") if extras.any?
+      return skip("index_hints", "declares use_index, out of scope for the same reason the extras above are") if Array(query[:index_hints]).any?
 
       # An empty `wheres` list is ONLY a real "nothing to compile" — a
       # declared `authorize policy, tenant: :field` synthesizes its own
@@ -290,7 +293,7 @@ module RustProjection
       # `declared_authorization_skip_reason` below still runs afterward
       # either way, to validate the tenant FIELD itself is generable.
       declared_tenant = query[:authorization] && query[:authorization][:tenant]
-      return "declares no where clauses at all — nothing for filter_entries to bake in" if Array(query[:wheres]).empty? && !declared_tenant
+      return skip("no_wheres", "declares no where clauses at all — nothing for filter_entries to bake in") if Array(query[:wheres]).empty? && !declared_tenant
 
       query[:wheres].each do |where|
         reason = query_where_skip_reason(where, aggregate, value_objects_by_name)
@@ -324,7 +327,8 @@ module RustProjection
       return nil unless tenant
 
       synthetic_where = { field: tenant, op: "eq", value: ":#{tenant}" }
-      query_where_skip_reason(synthetic_where, aggregate, value_objects_by_name)
+      reason = query_where_skip_reason(synthetic_where, aggregate, value_objects_by_name)
+      reason && skip("authorization", reason)
     end
 
     # `Query`'s own `order_by`/`limit` content check — MOVED here from
@@ -346,9 +350,9 @@ module RustProjection
       kind = query_field_kind(aggregate, field, value_objects_by_name)
       return nil if %i[string number].include?(kind)
 
-      "declares order_by on #{field.inspect} — this generator can only sort a field that reduces to a plain " \
-        "JSON string or number (kind: #{kind}); a hop through a reference, an entity-scoped field, a list_of " \
-        "field, or a multi-member non-numeric value object can't be compared generically"
+      skip("order_by", "declares order_by on #{field.inspect} — this generator can only sort a field that reduces to a plain " \
+                       "JSON string or number (kind: #{kind}); a hop through a reference, an entity-scoped field, a list_of " \
+                       "field, or a multi-member non-numeric value object can't be compared generically")
     end
 
     # `limit`'s own literal value rides the wire through `QuerySpecification.
@@ -364,8 +368,8 @@ module RustProjection
       raw = limit[:value].to_s
       return nil if raw.start_with?(":") || raw.match?(/\A-?\d+\z/)
 
-      "declares limit #{raw.inspect} — not a literal integer or a caller-bound Symbol arg, so this generator " \
-        "can't compile a real limit count from it"
+      skip("limit", "declares limit #{raw.inspect} — not a literal integer or a caller-bound Symbol arg, so this generator " \
+                    "can't compile a real limit count from it")
     end
 
     # `offset`'s own content check — the IDENTICAL shape `declared_limit_
@@ -385,8 +389,8 @@ module RustProjection
       raw = offset[:value].to_s
       return nil if raw.start_with?(":") || raw.match?(/\A-?\d+\z/)
 
-      "declares offset #{raw.inspect} — not a literal integer or a caller-bound Symbol arg, so this generator " \
-        "can't compile a real offset count from it"
+      skip("offset", "declares offset #{raw.inspect} — not a literal integer or a caller-bound Symbol arg, so this generator " \
+                     "can't compile a real offset count from it")
     end
 
     # `order_by`'s own compiled form — the identical `descending` collapse
