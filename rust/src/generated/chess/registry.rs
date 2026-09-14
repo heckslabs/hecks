@@ -86,6 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::chess::game::StartArgs::from_json(facts_json)?;
                       args.label.check_invariants()?;
               let owner_deref = Vec::new();
@@ -450,11 +451,11 @@ if !absent.is_empty() {
         ("declared", "id, destination, by, outcome"),
     ])));
 }
- } let parent_id = crate::generated::chess::game::Game::extract_id(facts_json)?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json)?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::chess::game::PieceMoveEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::chess::game::PieceMoveEntityArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.destination.check_invariants()?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -482,10 +483,10 @@ if !absent.is_empty() {
         ("declared", "id, by"),
     ])));
 }
- } let parent_id = crate::generated::chess::game::Game::extract_id(facts_json)?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json)?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
