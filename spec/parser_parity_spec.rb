@@ -431,18 +431,13 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # and the expression parse itself; the old blanket `:ast` strip (and
   # its long rationale) is gone with the second parser it protected.
   #
-  # ONE key is still stripped: `where_ast`, a policy's structured
-  # `where`. The parser emits `where` as text but no `where_ast` — a
-  # NAMED gap, same category as `parser_coverage_spec`'s remaining
-  # pairs, to be closed when policy `where` parity matters (no projected
-  # domain carries a non-nil one yet).
-  def self.strip_invariant_ast(node)
-    case node
-    when Hash then node.except(:where_ast).transform_values { |v| strip_invariant_ast(v) }
-    when Array then node.map { |v| strip_invariant_ast(v) }
-    else node
-    end
-  end
+  # `where_ast` (a policy's structured `where`) is no longer stripped
+  # either: `hecks-parse` emits it via the same `ast_json::emit_predicate`
+  # (closed when roster — whose `OnSeatAssignedHonorFront` carries a real
+  # `where` — joined the project_rust/hecks-build pipeline parity corpus,
+  # where the missing key made `hecks-codegen` panic). The helper stays
+  # as an identity pass so callers keep one seam for any future strip.
+  def self.strip_invariant_ast(node) = node
 
   it "finds at least one real corpus member (the enumeration itself isn't silently empty)" do
     expect(PARITY_CORPUS_MEMBERS).not_to be_empty
