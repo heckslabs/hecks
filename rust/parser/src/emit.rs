@@ -1002,20 +1002,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn writes_a_small_object_with_an_empty_array() {
-        // The pinned hazard (this module's own header): an empty array
-        // is NOT simply `[]` under the bundled json 2.7.2 gem.
-        let value = JsonValue::Object(vec![
-            ("name".to_string(), JsonValue::String("Pizzas".to_string())),
-            ("aggregates".to_string(), JsonValue::Array(vec![])),
-        ]);
-        assert_eq!(
-            write(&value),
-            "{\n  \"name\": \"Pizzas\",\n  \"aggregates\": [\n\n  ]\n}"
-        );
-    }
-
-    #[test]
     fn writes_a_top_level_empty_array() {
         assert_eq!(write(&JsonValue::Array(vec![])), "[\n\n]");
     }

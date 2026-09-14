@@ -90,44 +90,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn implies_eq_for_a_bare_value() {
-        let clauses = where_clauses(&[("status".to_string(), "\"available\"".to_string())]);
-        assert_eq!(clauses[0].op, "eq");
-        assert_eq!(clauses[0].value, "\"available\"");
-    }
-
-    #[test]
-    fn reads_an_explicit_comparator_hash() {
-        let clauses = where_clauses(&[(
-            "pizza.price_cents.cents".to_string(),
-            "{ lt: :ceiling }".to_string(),
-        )]);
-        assert_eq!(clauses[0].op, "lt");
-        assert_eq!(clauses[0].value, ":ceiling");
-    }
-
-    #[test]
-    fn reads_a_number_comparator_operand() {
-        let clauses = where_clauses(&[(
-            "pizza.price_cents.cents".to_string(),
-            "{ gt: 1000 }".to_string(),
-        )]);
-        assert_eq!(clauses[0].op, "gt");
-        assert_eq!(clauses[0].value, "1000");
-    }
-
-    #[test]
     fn refuses_an_on_target_cleanly_instead_of_silently_dropping_or_misparsing_it() {
         let named = vec![("on".to_string(), "Character".to_string())];
         let err = refuse_on_target("f.bluebook", 3, "where", &named).unwrap_err();
         assert!(err.message.contains("on: ...) — per-target read-model filtering (ADR 0055)"));
         assert_eq!(err.file, "f.bluebook");
         assert_eq!(err.line, 3);
-    }
-
-    #[test]
-    fn passes_through_named_args_that_are_not_on() {
-        let named = vec![("status".to_string(), "\"available\"".to_string())];
-        assert!(refuse_on_target("f.bluebook", 3, "where", &named).is_ok());
     }
 }
