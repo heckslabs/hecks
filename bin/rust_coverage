@@ -448,14 +448,6 @@ ALLOWLIST = [
     note:      "Embryonaut runs in fallback mode only: its bluebook lives in a separate repository, so bin/project_rust " \
                "can't give it a manifest here, and the fallback deriver records each of its queries as having no " \
                "generated code path. Delete this rule the day that domain is regenerated with a real manifest."
-  },
-  {
-    kind:      "read_model",
-    gap_class: "per_instance",
-    construct: "include_undeclared_aggregate",
-    doc:       "rust/project/read_models.rb#read_model_head_skip_reason (own header note on entity-typed include)",
-    note:      "Bluebook::WholeBluebook includes Member, which S17/ADR 0026 turned into a nested entity; no spec " \
-               "dispatches or queries WholeBluebook on either side."
   }
 ].freeze
 # REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry
