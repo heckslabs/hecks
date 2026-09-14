@@ -606,7 +606,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Debited does not declare {} — it takes ",
+        "Debited does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -699,7 +699,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Settle does not declare {} — it takes ",
+        "Settle does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -792,7 +792,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Credited does not declare {} — it takes ",
+        "Credited does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -885,7 +885,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reverse does not declare {} — it takes ",
+        "Reverse does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -978,7 +978,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reject does not declare {} — it takes ",
+        "Reject does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

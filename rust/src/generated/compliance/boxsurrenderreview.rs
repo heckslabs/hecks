@@ -474,7 +474,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "box_surrender_review", "branch_code", "box_number"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Clear does not declare {} — it takes ",
+        "Clear does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -566,7 +566,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "box_surrender_review", "branch_code", "box_number"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Escalate does not declare {} — it takes ",
+        "Escalate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

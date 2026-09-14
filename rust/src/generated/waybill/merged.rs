@@ -119,7 +119,7 @@ pub fn dispatch_by_name(
 let unknown = v.unknown_keys(&["id", "consignment", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Ship does not declare {} — it takes ",
+        "Ship does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -142,7 +142,7 @@ if !unknown.is_empty() {
 let unknown = v.unknown_keys(&["id", "consignment", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Cancel does not declare {} — it takes ",
+        "Cancel does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

@@ -1157,7 +1157,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Deprecate does not declare {} — it takes ",
+        "Deprecate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1258,7 +1258,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes ",
+        "Retire does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1502,7 +1502,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Deprecate does not declare {} — it takes ",
+        "Deprecate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -1603,7 +1603,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes ",
+        "Retire does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

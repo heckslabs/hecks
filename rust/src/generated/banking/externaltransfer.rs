@@ -641,7 +641,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SendTransfer does not declare {} — it takes ",
+        "SendTransfer does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -734,7 +734,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Recall does not declare {} — it takes ",
+        "Recall does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -827,7 +827,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Return does not declare {} — it takes ",
+        "Return does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

@@ -305,11 +305,24 @@ fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String
     )
 }
 
+/// Mirrors `json_codec.rb#emit_unknown_argument_check`'s own fallback,
+/// added the same time and for the same reason (that method's own
+/// comment, quoted here): `declared_names.join(", ")` used to be
+/// spliced straight into the template, correct for every command with
+/// at least one attribute but rendering the empty string — and trailing
+/// the sentence off mid-clause, "Close does not declare parcel — it
+/// takes " — for a command that declares NONE. `declared_reading`'s own
+/// "none" fallback (argument_gate.rb) never reached this path, because
+/// this check builds its wording directly rather than through
+/// `RefusalSite::UnknownArgumentUnknownArgs.render` the way
+/// `emit_absent_argument_check` (above) already does. Found live via
+/// `bin/qa_generated_domains` (BUG#134).
 fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declared_names: &[String]) -> String {
+    let reading = if declared_names.is_empty() { "none".to_string() } else { declared_names.join(", ") };
     format!(
         "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    return Err(crate::kernel::Refusal::UnknownArgument(format!(\n        \"{command_name} does not declare {{}} — it takes {}\",\n        unknown.join(\", \")\n    )));\n}}\n",
         known_keys.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
-        declared_names.join(", "),
+        reading,
     )
 }
 

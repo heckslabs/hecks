@@ -372,7 +372,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "sponsor", "handle"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Suspend does not declare {} — it takes ",
+        "Suspend does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

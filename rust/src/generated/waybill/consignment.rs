@@ -551,7 +551,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "consignment", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Ship does not declare {} — it takes ",
+        "Ship does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -643,7 +643,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "consignment", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Cancel does not declare {} — it takes ",
+        "Cancel does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }

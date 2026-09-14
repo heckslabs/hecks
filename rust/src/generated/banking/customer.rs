@@ -761,7 +761,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reinstate does not declare {} — it takes ",
+        "Reinstate does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
@@ -853,7 +853,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes ",
+        "Close does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
