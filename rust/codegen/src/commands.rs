@@ -162,12 +162,16 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
     let mut unsupported_ops: Vec<String> = Vec::new();
     for m in mutations_list {
         let op = m.get("op").map(Json::to_s).unwrap_or_default();
-        if !["append", "set", "increment", "decrement", "multiply", "clamp", "delegate", "corrects"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
+        // BUG#32 — `remove` is admitted here and narrowed to the one
+        // generatable shape (an entity-typed list, matched by identity)
+        // by `mutations::remove_field_problems` below; see
+        // rust/project/commands.rb's own matching comment.
+        if !["append", "set", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
             unsupported_ops.push(op);
         }
     }
     if !unsupported_ops.is_empty() {
-        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)", unsupported_ops.join(", ")));
+        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement/multiply/clamp/remove/delegate/corrects are)", unsupported_ops.join(", ")));
     }
 
     if let Some(corrects) = crate::bridging::corrects_of(command) {
@@ -184,6 +188,11 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
     let append_problems = mutations::append_field_problems(command, aggregate, value_objects_by_name);
     if !append_problems.is_empty() {
         return Some(format!("sets append field(s): {}", append_problems.join("; ")));
+    }
+
+    let remove_problems = mutations::remove_field_problems(command, aggregate, value_objects_by_name);
+    if !remove_problems.is_empty() {
+        return Some(format!("sets remove field(s): {}", remove_problems.join("; ")));
     }
 
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
