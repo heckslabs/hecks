@@ -5,6 +5,7 @@
   ],
   "canonical": "full_name.split(\" \")",
   "ruby_only": true,
+  "ruby_only_reason": "KNOWN GAP G11 (docs/semantics/bluebook-grammar.md): hecks-parse's expression resolver has no production for Split (`.split`) — the text falls through to the Lookup catch-all, so its ast cannot match Ruby's.",
   "note": "KNOWN GAP (G11): Split{receiver, separator} unrecognised by hecks-parse.",
   "expect_ast": {
     "op": "split",
