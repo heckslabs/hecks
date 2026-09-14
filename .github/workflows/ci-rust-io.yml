@@ -131,6 +131,14 @@ jobs:
       - name: Build the Rust conformance binary
         run: bundle exec bin/project_rust examples/banking
 
+      # rust/tests/from_json_round_trip.rs — `cargo test --lib` below
+      # skips tests/ entirely, and the file is `#![cfg(feature =
+      # "banking")]`, so nothing ever compiled it: it silently rotted
+      # (a stale `dispatch_by_name` arity) from #335 until this step.
+      # Runs right after the banking generation above, which it needs.
+      - name: Run the from_json round-trip test
+        run: cd rust && cargo test --no-default-features --features banking --test from_json_round_trip
+
       # rust/src/exemplar/** — real Rust the codegen in rust/project/*.rb
       # slices shapes out of, proven valid/idiomatic here BEFORE any Ruby
       # runs. `#[cfg(test)] pub mod exemplar;` (rust/src/lib.rs) means
