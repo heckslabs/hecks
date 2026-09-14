@@ -29,8 +29,8 @@ module Hecks
       end
 
       # DRIVES `DISPATCH_ORDER` (CommandInterpreter/EntityInterpreter, each
-      # mirroring its own Vocabulary::*DispatchOrder — vocabulary.bluebook,
-      # held equal to it by spec/vocabulary_conformance_spec.rb) by `send`ing
+      # read off its own generated Vocabulary::*DispatchOrder table —
+      # vocabulary.bluebook, via lib/hecks/vocabulary.rb) by `send`ing
       # each declared step name against the including interpreter's own
       # `step_<name>` handler, in declared order. What used to be `call`'s own
       # literal sequence of method calls is now DATA driving that sequence —
