@@ -89,7 +89,7 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::ledger_ordering::folder::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
-              crate::kernel::check_role(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -123,7 +123,7 @@ if !absent.is_empty() {
               let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;
-              crate::kernel::check_role(Some("Clerk"), "AddSlip", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Clerk"), "AddSlip", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LedgerOrdering::Folder", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -155,7 +155,7 @@ if !absent.is_empty() {
  } let _args_precheck = crate::generated::ledger_ordering::folder::SlipAmendEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on a Folder's Slip — pass reference.value:".to_string()))?; let element_id = crate::generated::ledger_ordering::folder::Slip::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on one Slip — pass reference.value:".to_string()))?; let element_wants = crate::generated::ledger_ordering::folder::Slip::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::ledger_ordering::folder::SlipAmendEntityArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
-              crate::kernel::check_role(Some("Clerk"), "Amend", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Clerk"), "Amend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LedgerOrdering::Folder", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "LedgerOrdering::Folder", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -254,6 +254,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 
 ];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

@@ -101,7 +101,7 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::has_many_fixture::member::JoinArgs::from_json(facts_json)?;
                       args.handle.check_invariants()?;
-              crate::kernel::check_role(Some("Person"), "Join", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Person"), "Join", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -115,7 +115,7 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::has_many_fixture::circle::OpenArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
-              crate::kernel::check_role(Some("Organizer"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Organizer"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -148,7 +148,7 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::has_many_fixture::circle::Circle::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Admit acts on an existing Circle — pass id.value:".to_string()))?, };
               let args = crate::generated::has_many_fixture::circle::AdmitArgs::from_json(facts_json)?;
                       for item in &args.members { item.check_invariants()?; }
-              crate::kernel::check_role(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               for item in &args.members { crate::kernel::check_reference(&store.member, &item.value, "Member", "handle")?; }
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "HasManyFixture::Circle", &id);
@@ -254,6 +254,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 
 ];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

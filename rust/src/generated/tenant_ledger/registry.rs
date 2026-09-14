@@ -102,7 +102,7 @@ pub fn dispatch_by_name(
               let args = crate::generated::tenant_ledger::ledger::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
                       args.region.check_invariants()?;
-              crate::kernel::check_role(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -137,7 +137,7 @@ if !absent.is_empty() {
                       args.amount_cents.check_invariants()?;
                       args.sequence.check_invariants()?;
                       args.reference.check_invariants()?;
-              crate::kernel::check_role(Some("System"), "Credit", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("System"), "Credit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -153,7 +153,7 @@ if !absent.is_empty() {
                       args.reference.check_invariants()?;
                       args.region.check_invariants()?;
                       args.amount_cents.check_invariants()?;
-              crate::kernel::check_role(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.ledger, &args.ledger, "Ledger", "code")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = (|| -> Result<(), crate::kernel::Refusal> { if let Some(record) = store.ledger.find(&args.ledger) { if let Some(target_tenant) = record.region.as_ref().map(|v| v.value.clone()) { let own_tenant = args.region.value.clone(); if target_tenant != own_tenant { return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[("aggregate", "Transfer"), ("field", "region"), ("tenant", &format!("{:?}", own_tenant)), ("attribute", "ledger"), ("target", "Ledger"), ("target_field", "region"), ("other", &format!("{:?}", target_tenant))]))); } } } Ok(()) })();
               let owner_deref = Vec::new();
@@ -186,7 +186,7 @@ if !absent.is_empty() {
  } let _args_precheck = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Ledger's Entry — pass code.value:".to_string()))?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
-              crate::kernel::check_role(Some("Auditor"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Auditor"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -320,6 +320,8 @@ crate::kernel::QueryDef {
     authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "ByRegion", tenant_field: "region", policy: "transfer_access" }),
 },
 ];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

@@ -136,7 +136,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::referral_chain::sponsor::Sponsor::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Suspend acts on an existing Sponsor — pass handle.value:".to_string()))?, };
               let args = crate::generated::referral_chain::sponsor::SuspendArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ReferralChain::Sponsor", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -312,6 +312,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 
 ];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

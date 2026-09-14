@@ -570,6 +570,34 @@ pub struct QueryDef {
     pub offset: Option<String>,
     pub limit: Option<String>,
     pub authorization: Option<String>,
+    /// The chapter's `provides "authorization", assignments:` names this
+    /// query — see `emit_authorization_assignments`.
+    pub assignments: bool,
+}
+
+/// Port of `queries.rb#provided_assignments`.
+pub fn provided_assignments(ir: &Json) -> Option<String> {
+    ir.get("provides")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|row| {
+            row.get("capability").and_then(Json::as_str) == Some("authorization")
+                && row.get("key").and_then(Json::as_str) == Some("assignments")
+        })
+        .and_then(|row| row.get("verb").and_then(Json::as_str))
+        .map(str::to_string)
+}
+
+/// Port of `queries.rb#emit_authorization_assignments`.
+pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
+    let value = match query_defs.iter().find(|q| q.assignments) {
+        Some(q) => format!("Some({})", naming::ruby_inspect_string(&q.verb)),
+        None => "None".to_string(),
+    };
+    format!(
+        "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
+    )
 }
 
 pub fn emit_query_def(query_def: &QueryDef) -> String {
@@ -603,7 +631,11 @@ const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: 
 
 pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String {
     let rows: Vec<String> = query_defs.iter().map(emit_query_def).collect();
-    exemplar.render("query_table", &[(QUERY_TABLE_ROW_PLACEHOLDER, rows.join("\n"))])
+    format!(
+        "{}\n{}",
+        exemplar.render("query_table", &[(QUERY_TABLE_ROW_PLACEHOLDER, rows.join("\n"))]),
+        emit_authorization_assignments(query_defs)
+    )
 }
 
 /// Port of `queries.rb#query_arg_checks` — C3.7 for a named query's own
