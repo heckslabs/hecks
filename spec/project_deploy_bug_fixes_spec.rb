@@ -282,7 +282,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     end
 
     it "leaves the rename-schema recipe's PGPASSWORD usage as the raw password (psql, not a URI, needs it unencoded)" do
-      makefile = File.read(File.join(@generated_dir, "Makefile"))
+      makefile = File.read(File.join(@own_dir, "Makefile"))
       recipe = self.class.recipe_lines(makefile, "rename-schema").join
 
       expect(recipe).to include("PGPASSWORD=$$DB_PASS psql")
