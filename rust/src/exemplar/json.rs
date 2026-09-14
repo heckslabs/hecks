@@ -309,25 +309,39 @@ tmpl_ident: tmpl_rhs_placeholder(),
 }
 // TMPL:from_json_flat END
 
-// `extract_id` — an aggregate's own identity, read straight off the
-// incoming JSON step args (json_codec.rb's own header: the three-tier
-// chain `hydrate`'s own acting-command identity resolution needs).
-// `TIER1_LINE`, nested (not standalone like `field_assignment`/
-// `to_json_field`): single-use, only ever called from ONE outer
-// (`emit_extract_id`), so `compose`'s auto-reindent is the right tool —
-// no duplication risk when nothing else ever wants this exact leaf.
+// `extract_id` — an aggregate's OR AN ENTITY's own identity, read
+// straight off the incoming JSON step args (json_codec.rb's own header:
+// the three-tier chain `hydrate`'s own acting-command identity
+// resolution needs). `TIER1_LINE`, nested (not standalone like
+// `field_assignment`/`to_json_field`): single-use, only ever called from
+// ONE outer (`emit_extract_id`/`emit_extract_id_lenient`), so `compose`'s
+// auto-reindent is the right tool — no duplication risk when nothing else
+// ever wants this exact leaf.
+//
+// `tmpl_extract_id_name` (the method's own name) and `tmpl_id_coercion`
+// (the identity-scalar coercion it calls) are BOTH placeholders now —
+// BUG#140 — because this ONE shape backs TWO real generated methods on
+// the same Rust type: `extract_id` (strict — `to_id_component`, refuses a
+// blank scalar the same way a ROOT aggregate's own identity always has)
+// for aggregate hydrate and `emit_extract_id_lenient`'s own `extract_id_
+// lenient` (`to_id_component_lenient`, `json.rs`'s own header) for entity/
+// nested-entity ADDRESSING, where Ruby's `EntityElement#element_of` only
+// ever refuses a genuinely ABSENT identity key, never a present-but-blank
+// one. Two real methods, never two conflicting `extract_id` definitions
+// on the same `impl` — the METHOD NAME has to vary too, not just the
+// coercion it calls.
 struct TmplExtractIdType;
 // TMPL:extract_id BEGIN
 impl TmplExtractIdType {
-    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+    pub fn tmpl_extract_id_name(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
             // TMPL:extract_id:TIER1_LINE BEGIN
-            let c0 = v.dig("tmpl_path")?.to_id_component().ok()?;
+            let c0 = v.dig("tmpl_path")?.tmpl_id_coercion().ok()?;
             // TMPL:extract_id:TIER1_LINE END
             Some(tmpl_tier1_join_placeholder())
         })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
-        let by_reference_key = v.get("tmpl_reference_key").and_then(|j| j.to_id_component().ok());
+        let by_id_key = v.get("id").and_then(|j| j.tmpl_id_coercion().ok());
+        let by_reference_key = v.get("tmpl_reference_key").and_then(|j| j.tmpl_id_coercion().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
             crate::kernel::Refusal::TypeMismatch("tmpl_error_text".to_string())
@@ -338,6 +352,22 @@ impl TmplExtractIdType {
 
 fn tmpl_tier1_join_placeholder() -> String {
     String::new()
+}
+
+// A placeholder-NAMED trait method, not a bare marker string — unlike
+// `tmpl_tier1_join_placeholder()` (a whole substituted CALL), `tmpl_id_
+// coercion` has to stay a real METHOD on `Json` (`.tmpl_id_coercion()`,
+// above) so the exemplar keeps compiling standalone with the placeholder
+// still in place; codegen substitutes just the method NAME text
+// (`"tmpl_id_coercion" => "to_id_component"` or `"...lenient"`), the same
+// substring-substitution convention every other marker here uses.
+trait TmplIdCoercion {
+    fn tmpl_id_coercion(&self) -> Result<String, crate::kernel::Refusal>;
+}
+impl TmplIdCoercion for crate::kernel::Json {
+    fn tmpl_id_coercion(&self) -> Result<String, crate::kernel::Refusal> {
+        self.to_id_component()
+    }
 }
 
 // `extract_wants` — `element_of`'s own `wants` (entity_interpreter.rb),

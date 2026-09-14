@@ -791,6 +791,22 @@ impl Dispatch {
 }
 
 impl Dispatch {
+    pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("command_name.value")?.to_id_component_lenient().ok()?;
+            let c1 = v.dig("position.value")?.to_id_component_lenient().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
+        let by_reference_key = v.get("dispatch").and_then(|j| j.to_id_component_lenient().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Dispatch: no identity found (tried command_name.value, position.value, id, dispatch)".to_string())
+        })
+    }
+}
+
+impl Dispatch {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
             let c0 = v.dig("command_name.value")?.to_id_component().ok()?;
@@ -1223,6 +1239,22 @@ impl Handler {
         })();
         let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
         let by_reference_key = v.get("handler").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Handler: no identity found (tried event_type.value, from_state.value, id, handler)".to_string())
+        })
+    }
+}
+
+impl Handler {
+    pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("event_type.value")?.to_id_component_lenient().ok()?;
+            let c1 = v.dig("from_state.value")?.to_id_component_lenient().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
+        let by_reference_key = v.get("handler").and_then(|j| j.to_id_component_lenient().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
             crate::kernel::Refusal::TypeMismatch("Handler: no identity found (tried event_type.value, from_state.value, id, handler)".to_string())

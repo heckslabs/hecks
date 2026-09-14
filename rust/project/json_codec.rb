@@ -954,10 +954,36 @@ module RustProjection
     # dispatches `Transfer.Debited` with only `transfer:` set, never
     # `reference:`, exactly the shape tier 1 alone cannot resolve.
     def emit_extract_id(aggregate)
+      emit_extract_id_shaped(aggregate, method_name: "extract_id", coercion: "to_id_component")
+    end
+
+    # BUG#140 — the SAME `extract_id` shape, minted a second time under a
+    # different method name, calling `to_id_component_lenient` (json.rs's
+    # own header) instead of the strict `to_id_component`. Wired ONLY into
+    # entity/nested-entity ADDRESSING call sites (`commands.rb`'s
+    # `delegate_prelude`, `registry.rb`'s `entity_arms`/`nested_entity_
+    # arms` route-less `None` branches) — never a root aggregate's own
+    # hydrate, which keeps calling `extract_id` (strict) unchanged, the
+    # same reasoning `to_id_component_lenient`'s own doc comment gives for
+    # why a blank ROOT identity still refuses. `domain_generator.rb` calls
+    # this immediately alongside `emit_extract_id` at every call site that
+    # already emits an entity's own `extract_id` (gated the same way, on
+    # `extract_id_supported?`), never for an aggregate.
+    def emit_extract_id_lenient(entity)
+      emit_extract_id_shaped(entity, method_name: "extract_id_lenient", coercion: "to_id_component_lenient")
+    end
+
+    def emit_extract_id_shaped(aggregate, method_name:, coercion:)
       name = rust_ident(aggregate[:name])
       reference_key = Hecks::Naming.snake(aggregate[:name])
 
-      tier1_subs = aggregate[:identified_by].each_with_index.map { |path, i| { '"tmpl_path"' => path.inspect, "c0" => "c#{i}" } }
+      # `"tmpl_id_coercion" => coercion` also goes into EACH tier1_subs
+      # entry, not just the outer subs hash below — `compose`'s nested
+      # `TIER1_LINE` slot is rendered (and its own leftover-placeholder
+      # check enforced) independently, before the outer `extract_id`
+      # text's own two OTHER `tmpl_id_coercion` occurrences (`by_id_key`/
+      # `by_reference_key`) ever get their turn.
+      tier1_subs = aggregate[:identified_by].each_with_index.map { |path, i| { '"tmpl_path"' => path.inspect, "c0" => "c#{i}", "tmpl_id_coercion" => coercion } }
       tier1_join =
         if aggregate[:identified_by].size == 1
           "c0"
@@ -971,6 +997,8 @@ module RustProjection
         "extract_id",
         {
           "TmplExtractIdType" => name,
+          "tmpl_extract_id_name" => method_name,
+          "tmpl_id_coercion" => coercion,
           '"tmpl_reference_key"' => reference_key.inspect,
           "tmpl_tier1_join_placeholder()" => tier1_join,
           '"tmpl_error_text"' => "#{name}: no identity found (tried #{tried})".inspect,

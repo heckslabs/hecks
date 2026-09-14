@@ -589,6 +589,15 @@ module RustProjection
               if unrouted_supported
                 f.puts Projector.emit_extract_id(nested)
                 f.puts
+                # BUG#140 — the ADDRESSING sibling, generated alongside
+                # `extract_id` at every entity/nested-entity call site:
+                # `commands.rb`'s own `emit_nested_entity_command`/
+                # `registry.rb`'s own `nested_entity_arms` route-less
+                # branch use THIS one (not `extract_id`) to resolve each
+                # hop's own identity, so a present-but-blank value is a
+                # valid non-matching component, never a refusal.
+                f.puts Projector.emit_extract_id_lenient(nested)
+                f.puts
                 f.puts Projector.emit_extract_wants(nested)
                 f.puts
               else
@@ -666,6 +675,13 @@ module RustProjection
             entity_router_reason = "identity #{entity[:identified_by].inspect} isn't a shape extract_id resolves yet (json_codec.rb)"
             if entity_can_route
               f.puts Projector.emit_extract_id(entity)
+              f.puts
+              # BUG#140 — see the nested-entity loop's own identical
+              # comment, above: `commands.rb`'s `delegate_prelude`/`emit_
+              # entity_command` and `registry.rb`'s `entity_arms` route-
+              # less branch both address THIS entity's own element by
+              # `extract_id_lenient`, not `extract_id`.
+              f.puts Projector.emit_extract_id_lenient(entity)
               f.puts
               f.puts Projector.emit_extract_wants(entity)
               f.puts

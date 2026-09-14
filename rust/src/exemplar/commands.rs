@@ -40,6 +40,14 @@ impl TmplElement {
         let _ = v;
         Ok(String::new())
     }
+    // BUG#140 — every real entity record generates BOTH `extract_id`
+    // (strict) and `extract_id_lenient` (json_codec.rb's own `emit_
+    // extract_id_lenient`) — this scaffolding struct needs the second
+    // one too, for `tmpl_delegate_element_host` (below) to compile.
+    fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let _ = v;
+        Ok(String::new())
+    }
     fn extract_wants(v: &crate::kernel::Json) -> String {
         let _ = v;
         String::new()
@@ -227,11 +235,45 @@ fn tmpl_delegate_prelude_host(
     // TMPL:delegate_prelude BEGIN
     let delegate_facts = args.to_json().with_aliases(&[tmpl_aliases_placeholder()]);
     let target_args = TmplTargetArgs::from_json(&delegate_facts)?;
-    let element_id = TmplElement::extract_id(&delegate_facts)?;
-    let element_wants = TmplElement::extract_wants(&delegate_facts);
     let target_with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &target_args, owner_deref: &owner_deref };
     // TMPL:delegate_prelude END
-    let _ = (element_id, element_wants, target_with_references);
+    let _ = target_with_references;
+    Ok(())
+}
+
+// BUG#140 — split OUT of `delegate_prelude`, above: `element_id`'s own
+// extraction has to run strictly AFTER `crate::kernel::dispatch`'s own
+// hydrate (the `Hydrate::Act`/`Create` branch it evaluates first,
+// kernel/dispatch.rs), never before it — `commands.rb`'s own `delegation_
+// of` header has the full trace against Ruby's real `DISPATCH_ORDER`
+// (hydrate at step 6, `delegate_to_entity` at step 12: a door's target-
+// entity identity is never even inspected until the door's OWN aggregate
+// is already found). Spliced as the FIRST lines of what fills `tmpl_
+// mutation_lines_placeholder(record);` in `dispatch_fn` — INSIDE `dispatch`'s
+// own `apply_mutations` closure, which by construction only ever runs
+// once hydrate/givens/transition have already succeeded — immediately
+// followed by `delegate_apply`'s own `apply_entity_command` call, which
+// needs exactly these two bindings. `delegate_facts` itself stays
+// computed in `delegate_prelude`, above, unchanged: building it can never
+// fail (`with_aliases` is infallible), and the door's own emitted-event
+// PAYLOAD (`commands.rb`'s `payload = "delegate_facts.clone(),"`,
+// substituted straight into `dispatch`'s own call) needs it visible
+// BEFORE `dispatch` is ever called, not only inside this closure.
+//
+// `extract_id_lenient`, not `extract_id` — `json.rs`'s own `to_id_
+// component_lenient` header and `json_codec.rb`'s own `emit_extract_id_
+// lenient` header have the full reasoning: a door's mapped target-entity
+// identity may arrive present-but-blank, which is a valid, merely non-
+// matching value to Ruby's own `EntityElement#element_of`, never a
+// refusal on its own — `apply_entity_command` (kernel/dispatch.rs)
+// already renders the correct `entity_element_missing` wording once no
+// stored element's own `identity()` matches.
+fn tmpl_delegate_element_host(delegate_facts: crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:delegate_element BEGIN
+    let element_id = TmplElement::extract_id_lenient(&delegate_facts)?;
+    let element_wants = TmplElement::extract_wants(&delegate_facts);
+    // TMPL:delegate_element END
+    let _ = (element_id, element_wants);
     Ok(())
 }
 

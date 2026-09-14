@@ -266,7 +266,7 @@ if !absent.is_empty() {
         ("declared", "reference, amount"),
     ])));
 }
- } let _args_precheck = crate::generated::corrections::ledger::EntryAmendEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::corrections::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on a Ledger's Entry — pass reference.value:".to_string()))?; let element_id = crate::generated::corrections::ledger::Entry::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::corrections::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::corrections::ledger::EntryAmendEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::corrections::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on a Ledger's Entry — pass reference.value:".to_string()))?; let element_id = crate::generated::corrections::ledger::Entry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::corrections::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::corrections::ledger::EntryAmendEntityArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;

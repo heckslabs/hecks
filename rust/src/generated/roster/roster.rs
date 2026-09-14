@@ -848,6 +848,21 @@ impl Member {
 }
 
 impl Member {
+    pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("id.value")?.to_id_component_lenient().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
+        let by_reference_key = v.get("member").and_then(|j| j.to_id_component_lenient().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Member: no identity found (tried id.value, id, member)".to_string())
+        })
+    }
+}
+
+impl Member {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
             let c0 = v.dig("id.value")?.to_id_component().ok()?;
@@ -1908,8 +1923,6 @@ pub fn dispatch_retire(
     let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
     let delegate_facts = args.to_json().with_aliases(&[("id", "id")]);
     let target_args = MemberRetireEntityArgs::from_json(&delegate_facts)?;
-    let element_id = Member::extract_id(&delegate_facts)?;
-    let element_wants = Member::extract_wants(&delegate_facts);
     let target_with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &target_args, owner_deref: &owner_deref };
     crate::kernel::dispatch(
         repo,
@@ -1924,6 +1937,8 @@ pub fn dispatch_retire(
         ],
         None,
         |record| {
+        let element_id = Member::extract_id_lenient(&delegate_facts)?;
+        let element_wants = Member::extract_wants(&delegate_facts);
                 crate::kernel::apply_entity_command(
                     record,
                     id,
