@@ -275,16 +275,23 @@ module Hecks
         step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
-      # `dry_run:` skips this — see Dispatcher#dry_run?'s own comment. The
-      # same conditional-skip shape `step_assign_creation_attributes`
-      # already has (`return unless ctx.command.creates?`), not a new
-      # pattern: a step that does not apply this time traces nothing,
-      # rather than a caller having to branch around it.
+      # `dry_run:` skips the WRITE half of this step — see Dispatcher#
+      # dry_run?'s own comment — but not `resolve_state_references`.
+      # BUG#127: that check is validation, not persistence — it asks
+      # whether the settled in-memory state names a reference target that
+      # actually exists, the same question a real dispatch answers before
+      # it ever writes anything. Skipping it under `dry_run:` made
+      # `dry_run?` disagree with what a real dispatch immediately after it
+      # would do: it answered `true` ("would succeed") for a command whose
+      # real dispatch refuses with NotFound. Only the persist/raise-on-
+      # conflict tail is genuinely persistence-only and stays behind the
+      # early return.
       def step_save(ctx)
+        step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state) }
+
         return if ctx.dry_run
 
         step(:save) do
-          @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state)
           seed_projected_fields(ctx)
           ctx.persistence_outcome = persist_instance(ctx)
           raise_for_persistence_outcome!(ctx)
