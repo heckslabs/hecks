@@ -197,8 +197,33 @@ name: CI
 # `main` runs before this split — the largest single job in the
 # workflow by a wide margin.
 
+# A PULL REQUEST RUNS THE LIGHT SET; THE MERGE QUEUE RUNS EVERYTHING —
+# added 2026-09-14. Every change reaches main only through the merge
+# queue, and a `merge_group` run already tests the PR merged onto main's
+# current tip with every job below, so a full PR-level run was a second,
+# earlier copy of the same work. Measured over 37 merges the night this
+# was added: 3 in 4 queue runs overlapped another run and queued for
+# runners (median 318s overlapped vs 263s alone, tail to 586s), and the
+# PR run itself (median 285s) sat in front of every queue entry.
+#
+# ON `pull_request`, ONLY `rspec` (both shards + attestation) AND
+# `checks_static` RUN. The Rust, Postgres-io, fuzzing and codegen-drift
+# jobs and `runtime_changed`/`stress_concurrency` skip. Their required-
+# check wrapper jobs already report success on a skipped `_impl` (the
+# `success || skipped` step each one carries), so the ruleset's nine
+# required contexts still report on the PR and auto-merge still enqueues
+# it. Nothing reaches main less tested: the queue run is unchanged.
+#
+# THE `full-ci` LABEL puts a PR back on the full set — for a long-lived
+# or experimental PR that wants Rust/Postgres/fuzz signal without going
+# through the queue. `labeled` is in the trigger types so adding it
+# starts a new run right away (the concurrency group below cancels the
+# light run it supersedes). Any other label also re-runs the light set,
+# which is harmless; skipping that run instead would let a cancelled
+# real run be replaced by an all-skipped green one.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   merge_group:
   # Cache-warming only — see the top-of-file comment. Every job below
   # except `rspec_postgres_io_parallel_shard` (the matrix doing the real
@@ -352,6 +377,8 @@ jobs:
   # attestation step (Phase 7 only covers the `rspec`/`checks` lineages),
   # so ci-postgres-io.yml's own `on.workflow_call` declares no secrets.
   rspec_postgres_io_impl:
+    # Light PR set — see the comment above `on:`.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-postgres-io.yml
 
   # REUSABLE-WORKFLOW SPLIT, group 2 (part 3 of 3) — `postgres_io_relevant_
@@ -398,6 +425,9 @@ jobs:
   # own header. No `secrets:` block, same reasoning as `rspec_postgres_io_
   # impl` above: this lineage never ran the HMAC attestation step either.
   rspec_postgres_io_parallel_impl:
+    # Light PR set — see the comment above `on:`. `!= 'pull_request'`
+    # (not `== 'merge_group'`) keeps the cache-warming `push` run.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
 
   # REUSABLE-WORKFLOW SPLIT, group 3 (part 1 of 4) — 4 independently-
@@ -461,6 +491,8 @@ jobs:
   # No `secrets:` block, same reasoning as `rspec_postgres_io_impl`: this
   # lineage never ran the HMAC attestation step either.
   rspec_rust_io_impl:
+    # Light PR set — see the comment above `on:`.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-io.yml
     # PHASE 8, GHCR BINARY CACHE — a reusable workflow's own jobs can
     # only use what the calling job's `permissions:` grants; ci-rust-
@@ -485,8 +517,8 @@ jobs:
     runs-on: ubuntu-latest
 
     # See `rspec` job's own comment above — cache-warming push doesn't
-    # need this job.
-    if: github.event_name != 'push'
+    # need this job. Light PR set — see the comment above `on:`.
+    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
     steps:
       - uses: actions/checkout@v4
@@ -523,8 +555,8 @@ jobs:
     runs-on: ubuntu-latest
 
     # See `rspec` job's own comment above — cache-warming push doesn't
-    # need this job.
-    if: github.event_name != 'push'
+    # need this job. Light PR set — see the comment above `on:`.
+    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
     steps:
       - uses: actions/checkout@v4
@@ -566,6 +598,8 @@ jobs:
   # header. No `secrets:` block — this lineage never ran the HMAC
   # attestation step.
   rspec_rust_parser_impl:
+    # Light PR set — see the comment above `on:`.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-parser.yml
     # PHASE 8, GHCR BINARY CACHE — see rspec_rust_io_impl's own comment.
     permissions:
@@ -597,6 +631,8 @@ jobs:
   # header. No `secrets:` block, same reasoning as `rspec_rust_parser_
   # impl` above.
   rspec_rust_codegen_impl:
+    # Light PR set — see the comment above `on:`.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-codegen.yml
     # PHASE 8, GHCR BINARY CACHE — see rspec_rust_io_impl's own comment.
     permissions:
@@ -628,14 +664,16 @@ jobs:
   # header. No `secrets:` block, same reasoning as the other 3 rust
   # lineages above.
   rspec_rust_host_impl:
+    # Light PR set — see the comment above `on:`.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-host.yml
 
   rspec_fuzzing:
     runs-on: ubuntu-latest
 
     # See `rspec` job's own comment above — cache-warming push doesn't
-    # need this job.
-    if: github.event_name != 'push'
+    # need this job. Light PR set — see the comment above `on:`.
+    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
     steps:
       - uses: actions/checkout@v4
@@ -682,7 +720,8 @@ jobs:
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job (and `stress_concurrency` below then also skips,
     # via its own `needs:`, with no `if:` of its own required for that).
-    if: github.event_name != 'push'
+    # Light PR set — see the comment above `on:`.
+    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
     outputs:
       touched: ${{ steps.diff.outputs.touched }}
