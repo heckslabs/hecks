@@ -1,0 +1,32 @@
+Hecks.bluebook "AFourScratchWidgetTarget" do
+  vision "A trivially well-behaved sweep target for A4 verification of adapter_parity_sqlite."
+
+  aggregate "Widget" do
+    description "One numbered widget and a bump count."
+    identified_by :reference
+    attribute :reference, WidgetReference
+    attribute :count,     WidgetCount
+
+    value_object "WidgetReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a widget is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "WidgetCount" do
+      attribute :value, Integer, default: 0
+      invariant("a count never goes negative") { !value.negative? }
+    end
+
+    command "Open" do
+      attribute :reference, WidgetReference
+      sets :reference
+      emits "WidgetOpened"
+    end
+
+    command "Bump" do
+      reference_to Widget
+      sets :count, increment: 1
+      emits "WidgetBumped"
+    end
+  end
+end

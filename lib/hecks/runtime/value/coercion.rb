@@ -422,12 +422,12 @@ module Hecks
         # the runtime's own callers (entity elements, the remote dispatcher's
         # `symbolize_names:` parse, Era's audit) build symbol-keyed state
         # themselves. A String key here is an adapter or caller that skipped
-        # the codec, so it is refused by name rather than respelled: a silent
-        # `to_sym` is exactly what used to hide such a bypass. Always on,
-        # because it costs one `is_a?` per key, the same as the `to_sym` it
-        # sits beside.
+        # the codec, so it is refused by name rather than respelled: the
+        # silent `to_sym` that used to sit here is exactly what hid such a
+        # bypass. Always on, because it costs one `is_a?` per key, the same
+        # as the `to_sym` it replaced.
         def hydrate(aggregate, state)
-          undecoded = state.each_key.reject { |name| name.is_a?(Symbol) }
+          undecoded = state.keys.grep_v(Symbol)
           unless undecoded.empty?
             raise WiringError,
                   "#{aggregate.name} state reached hydration with non-Symbol keys #{undecoded.inspect} — " \
@@ -435,8 +435,7 @@ module Hecks
           end
 
           trusting_stored_state do
-            state.each_with_object({}) do |(name, value), hydrated|
-              key       = name.to_sym
+            state.each_with_object({}) do |(key, value), hydrated|
               attribute = aggregate.attribute(key)
               hydrated[key] = attribute ? for_attribute(aggregate, attribute, value) : value
             end

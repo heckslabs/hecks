@@ -1,0 +1,3 @@
+Hecks.hecksagon "AFourScratchWidgetTarget" do
+  AFourScratchWidgetTarget::Widget.persisted_by("Memory")
+end

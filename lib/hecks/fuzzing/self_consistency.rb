@@ -76,7 +76,7 @@ module Hecks
       # could hand `Runtime::Instance` undecoded state and the codec's
       # guarantee would have a bypass in exactly the check that exists to
       # compare stored state against live state.
-      def guarded_heki(**options) = Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(**options))
+      def guarded_heki(**) = Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(**))
 
       # THE WHOLE PASS — called once, with the runtime STILL LIVE (inside
       # `Replay.call`'s own `IsolatedBoot.call` block, before the tmp
@@ -569,7 +569,7 @@ module Hecks
                            state: saga[:state], memory: saga[:memory], completed_compensations: [])
 
           rehydrated = guarded_heki(aggregate: anchor, root: tmp, settings: { domain: domain_name })
-                                     .each_saga.find { |_pm, corr, *| corr == correlation.to_s }
+                       .each_saga.find { |_pm, corr, *| corr == correlation.to_s }
           next unless rehydrated
 
           _pm, _corr, state, memory, compensations = rehydrated
@@ -628,7 +628,11 @@ module Hecks
         end
 
         guarded_heki(aggregate: aggregate, root: tmp).all
-                      .to_h { |record| [record.id.to_s, Runtime::Value.materialize(record.state)] }
+                                                     .to_h do |record|
+          [
+            record.id.to_s, Runtime::Value.materialize(record.state)
+          ]
+        end
       end
 
       # RECURSES THROUGH A `Value`'S OWN FIELDS VIA `#[]`, NOT `#to_h` —
