@@ -249,19 +249,22 @@ jobs:
       # and `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s track
       # whichever domain ran LAST, period. banking, compliance, pizzas,
       # roster, ledger_ordering, nested_pieces, referral_chain,
-      # has_many_fixture, lease_clock, corrections, chess, waybill is the
-      # one order that reproduces the committed tree byte-for-byte today
-      # (verified by hand before this step was extended to the
-      # qa/stress_domains trio, again when referral_chain joined, then
-      # again for `has_many_fixture` — BUG#25 — again for `lease_clock`,
-      # again for `corrections` — BUG#126 — and again for `chess` —
-      # BUG#138); change it and re-verify locally (`git diff --stat rust/`
-      # after running every `bin/project_rust` line below against a clean
-      # checkout) rather than guessing. `referral_chain`, `has_many_
-      # fixture`, `lease_clock`, `corrections`, and `chess` are each
-      # slotted BEFORE `waybill`, not last, specifically so `waybill`
-      # stays the committed tree's own `default` feature — unrelated to
-      # any of these additions, unchanged by any of them.
+      # has_many_fixture, lease_clock, corrections, chess,
+      # generated_entity_no_identity, waybill is the one order that
+      # reproduces the committed tree byte-for-byte today (verified by
+      # hand before this step was extended to the qa/stress_domains
+      # trio, again when referral_chain joined, then again for
+      # `has_many_fixture` — BUG#25 — again for `lease_clock`, again for
+      # `corrections` — BUG#126 — again for `chess` — BUG#138 — and
+      # again for `generated_entity_no_identity` — BUG#122); change it
+      # and re-verify locally (`git diff --stat rust/` after running
+      # every `bin/project_rust` line below against a clean checkout)
+      # rather than guessing. `referral_chain`, `has_many_fixture`,
+      # `lease_clock`, `corrections`, `chess`, and
+      # `generated_entity_no_identity` are each slotted BEFORE
+      # `waybill`, not last, specifically so `waybill` stays the
+      # committed tree's own `default` feature — unrelated to any of
+      # these additions, unchanged by any of them.
       #
       # `tenant_ledger` is NOT in this list despite having real,
       # committed `rust/src/generated/` output — a pre-existing gap
@@ -336,6 +339,30 @@ jobs:
       # `corrections` is (verified locally: `git diff --stat rust/` after
       # running every line below against a clean checkout touches only
       # `rust/src/generated/chess/{registry,merged}.rs`, nothing else).
+      #
+      # `qa/stress_domains/generated_entity_no_identity` (BUG#122 — the
+      # identical class of false positive corrections/chess/nested_
+      # pieces already caused): BUG#135's fix for route-less nested-
+      # entity dispatch landed in `rust/project/registry.rb`, wrapping
+      # `extract_id` calls in `.map_err(... Refusal::NotFound(...))`
+      # instead of letting `extract_id`'s own raw `TypeMismatch`
+      # propagate, but `generated_entity_no_identity` was never in this
+      # step's own regen list, so its committed Rust output stayed on
+      # the pre-BUG#135 shape and a later differential fuzz sweep found
+      # what looked like a fresh divergence on `GeneratedEntityNoIdentity
+      # ::Kiosk.Line.Label` called with no identity key at all — Ruby
+      # refusing `NotFound` where Rust's stale `extract_id` ordering
+      # still refused `TypeMismatch` — but was actually the same
+      # already-fixed bug, just never regenerated. Added here for the
+      # identical reason `corrections`/`chess` were: real, committed
+      # Rust output, so it follows the same "only regenerate a domain
+      # that already has committed Rust output" rule.
+      # `generated_entity_no_identity` is slotted BEFORE `waybill`, not
+      # last, for the same reason `corrections`/`chess` are (verified
+      # locally: `git diff --stat rust/` after running every line below
+      # against a clean checkout touches only `rust/src/generated/
+      # generated_entity_no_identity/{kiosk,merged,registry}.rs`,
+      # nothing else).
       # `tenant_ledger` remains excluded — its own note above still
       # applies unchanged; embryonaut remains excluded for the separate,
       # structural reason given above (no Bluebook source in this
@@ -353,6 +380,7 @@ jobs:
           bundle exec bin/project_rust qa/stress_domains/lease_clock
           bundle exec bin/project_rust qa/stress_domains/corrections
           bundle exec bin/project_rust examples/chess
+          bundle exec bin/project_rust qa/stress_domains/generated_entity_no_identity
           bundle exec bin/project_rust qa/stress_domains/waybill
           git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
 
