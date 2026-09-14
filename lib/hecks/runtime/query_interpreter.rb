@@ -205,12 +205,9 @@ module Hecks
         [entity, declared, list_attr]
       end
 
-      # FieldPath.dig, not a raw `element[clause.field.to_sym]` — an
-      # entity sub-list row is a plain hash merged from stored state
-      # (mixed string/symbol keys depending on adapter, per `#cell`'s own
-      # comment below), and a dotted `where` (`where "price.cents" < 100`)
-      # needs the same segment-by-segment walk every other query path
-      # already gets. Reading only the symbol spelling of the WHOLE
+      # FieldPath.dig, not a raw `element[clause.field.to_sym]` — a dotted
+      # `where` (`where "price.cents" < 100`) needs the same segment-by-
+      # segment walk every other query path already gets. Reading the WHOLE
       # dotted string as one key always missed — `element[:"price.cents"]`
       # is never a real key — so a dotted where on an entity query
       # silently matched nothing, on the only engine entity queries have.
@@ -218,20 +215,14 @@ module Hecks
         holds?(clause, QuerySpecification::FieldPath.dig(element, clause.field), args)
       end
 
-      # A row's own key, however the store spells it. A sub-list row is a plain hash
-      # merged from stored state, so its keys arrive as strings from one adapter and
-      # symbols from another — and reading only one spelling gave every row the SAME
-      # identity, which is a tie, which is the exact nondeterminism this tier exists
-      # to remove. It rides `comparable` for the same reason a where-clause does : an
+      # A row's own key. A sub-list row is a hydrated entity element (symbol-keyed
+      # since every adapter decodes through `Ports::Persistence::StateCodec` and
+      # `EntityListCoercion#hydrate_entity_list` symbolizes each element — PR A4
+      # removed the string-spelling fallback that coped with the old per-adapter
+      # shapes). It rides `comparable` for the same reason a where-clause does : an
       # identity is a value object, and `to_s` on one is an OBJECT ADDRESS — a sort key
       # that differs run to run, which is worse than the store order it replaced.
-      # `key?` decides which spelling answers, never `||` — a row whose
-      # value is a genuinely-held `false` must not fall through to the
-      # other spelling (usually absent) and land on `nil`.
-      def cell(row, key)
-        sym = key.to_sym
-        row.key?(sym) ? row[sym] : row[key.to_s]
-      end
+      def cell(row, key) = row[key.to_sym]
 
       # A sub-list row is identified by its PARENT and then its own key : two
       # entities under different parents can share a sequence, so the parent has
