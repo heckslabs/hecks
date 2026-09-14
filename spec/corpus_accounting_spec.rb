@@ -30,15 +30,8 @@ RSpec.describe Hecks::Corpus do
     Dir.glob(File.join(root, "spec/**/*_spec.rb")).any? { |spec| File.read(spec).include?(name) }
   end
 
-  # The domain directory a member stands for, spelled the way
-  # `sweepable_domains` spells it: a `bluebook/` folder is its parent.
-  def domain_dir_of(member)
-    dir = File.directory?(member.path) ? member.path : File.dirname(member.path)
-    File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
-  end
-
   it "covers every sweepable domain with some kind" do
-    covered = described_class.members.map { |member| domain_dir_of(member) }.uniq
+    covered = described_class.members.map { |member| described_class.domain_dir_of(member) }.uniq
     uncovered = described_class.sweepable_domains - covered
 
     expect(uncovered).to be_empty,

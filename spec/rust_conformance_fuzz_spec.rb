@@ -57,25 +57,38 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   FUZZ_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
-  # EVERY DOMAIN WITH A CARGO FEATURE OF ITS OWN — this used to be
-  # pizzas/banking only (ANGLE-3: compliance/roster/chess and the three
-  # stress domains all had compiled binaries and were never wired in
-  # here, so BUG#13's class — an engine-divergence Ruby-only fuzzing
-  # structurally cannot see — was gated in CI on two domains out of
-  # eight). `entity_list_mutations` is still not included: it has no
-  # Cargo feature at all (never regenerated into `rust/src/generated/`),
-  # so there is no binary to compare against; `meta`/`embryonaut` have
-  # their own conformance specs and are not sweep targets.
+  # EVERY IN-REPO DOMAIN WITH A CARGO FEATURE OF ITS OWN, derived —
+  # `Hecks::Corpus.rust_domains`, the same list the codegen drift check
+  # regenerates. This used to be a hand list of 8 while rust/Cargo.toml
+  # had 20 features. The two features with no in-repo domain directory
+  # (`meta`, `embryonaut`) go to the checks `Corpus::RUST_ELSEWHERE`
+  # names, and spec/corpus_rust_spec.rb proves every feature lands in one
+  # bucket or the other. A domain with no Cargo feature (e.g.
+  # `generated_keyword_aggregate`, whose `Crate` aggregate is a Rust
+  # keyword — PR #673's reserved-name check owns it) has no binary to
+  # compare against.
   # `SEEDS_PER_DOMAIN` is deliberately modest (an `io: true` spec already
   # pays a full `cargo build` per domain; each seed here ALSO pays a
   # subprocess spawn) — widen it locally with `SEEDS=40 bundle exec rspec
   # spec/rust_conformance_fuzz_spec.rb --tag io` when hunting, same
   # convention `bin/fuzz` itself uses for its own seed count.
-  DOMAINS = %w[
-    examples/pizzas examples/banking examples/chess examples/compliance examples/roster
-    qa/stress_domains/waybill qa/stress_domains/nested_pieces qa/stress_domains/ledger_ordering
-  ].map { |path| File.join(InMemoryDomain::ROOT, path) }.freeze
-  SEEDS_PER_DOMAIN = Integer(ENV["SEEDS"] || 10)
+  DOMAINS = Hecks::Corpus.rust_domains.map(&:dir).freeze
+
+  # SHRINK-ONLY: a domain that still diverges, with the bug that owns it.
+  # Its example runs as RSpec `pending`, so the day it agrees with Ruby
+  # the example FAILS until the entry is deleted here.
+  RUST_FUZZ_PENDING = {
+    "has_many_fixture" => "unfiled, found by this derivation: Circle.Admit (`sets :members` onto `has_many " \
+                          "Members`) with a handle no Member holds — Ruby refuses NotFound, the Rust binary " \
+                          "admits the dangling references"
+  }.freeze
+
+  # A TOTAL, SPREAD ACROSS DOMAINS — not per domain. The hand list ran
+  # 8 domains x 10 seeds = 80; deriving the list must not add gating
+  # wall-clock, so the same 80 is divided over however many domains
+  # Corpus derives. `SEEDS=` still sets a per-domain count locally.
+  SEED_BUDGET = 80
+  SEEDS_PER_DOMAIN = Integer(ENV["SEEDS"] || (SEED_BUDGET.to_f / DOMAINS.size).ceil)
   STEPS_PER_SEQUENCE = 25
   # OPT-IN, OFF IN CI — `SequenceGenerator`'s adversarial layer
   # (sequence_generator/adversary.rb) is what `bin/qa_sweep` runs by
@@ -86,6 +99,10 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
   ADVERSARIAL_FRACTION = Float(ENV["ADVERSARIAL"] || 0)
 
   def build_rust_for(domain_feature) = super(domain_feature, FUZZ_RUST_DIR)
+
+  it "pends only domains it actually fuzzes" do
+    expect(RUST_FUZZ_PENDING.keys - DOMAINS.map { |domain| File.basename(domain) }).to be_empty
+  end
 
   DOMAINS.each do |domain|
     describe File.basename(domain) do
@@ -101,6 +118,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
       # rubocop:disable-next RSpec/ExampleLength
       it "agrees with Ruby across #{SEEDS_PER_DOMAIN} generated sequences (instances, events, refusals, " \
          "reactions, sagas, queries)" do
+        pending RUST_FUZZ_PENDING.fetch(File.basename(domain)) if RUST_FUZZ_PENDING.key?(File.basename(domain))
         feature = File.basename(domain).downcase
         binary = build_rust_for(feature)
         skip "rust/Cargo.toml has no #{feature} feature — run bin/project_rust for it first" unless binary

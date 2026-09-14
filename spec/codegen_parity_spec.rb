@@ -4,7 +4,6 @@ require "fileutils"
 require "tmpdir"
 require "open3"
 require_relative "../rust/project"
-require_relative "support/ruby_codegen_prelude"
 
 # THE DIFFERENTIAL HARNESS FOR STAGE 7 (codegen) — modeled directly on
 # spec/parser_parity_spec.rb's own proven pattern (cargo-build-then-
@@ -31,20 +30,13 @@ require_relative "support/ruby_codegen_prelude"
 # the FULL per-chapter output: every aggregate `.rs` file, `registry.rs`,
 # `mod.rs`.
 #
-# `WHOLE_FILE_MEMBERS` names which `CODEGEN_CORPUS_MEMBERS` get the
-# STRONGER, whole-file check below instead of the older prelude-only one
-# — every member not listed there stays on prelude-only, unchanged and
-# un-weakened (regression-safe, per the stage's own instructions). As of
-# this continuation, ALL SIX real corpus members reach full whole-file
-# byte-exactness on the first genuine attempt — including `banking`
-# (entity commands on SafeDepositBox/ATMCard, arithmetic mutations,
-# process managers, cross-domain policies) and `bluebook_language` (the
-# self-hosted grammar's own nine-file chapter) — leaving the prelude-only
-# loop with nothing left to run except `embryonaut`'s own always-pending
-# entry (a structural gap: no local `.bluebook` source to load, unrelated
-# to anything ported here).
+# EVERY member gets the whole-file check. The older prelude-only check
+# (and its `WHOLE_FILE_MEMBERS` split) is gone: once every hand-listed
+# member reached whole-file byte-exactness it had nothing left to run.
+# Members that don't match yet sit in `CODEGEN_PENDING_MEMBERS`, where
+# the same whole-file check runs as RSpec `pending`.
 #
-# NOT covered even for a `WHOLE_FILE_MEMBERS` entry: `metadata.rs` (embeds
+# NOT covered even by the whole-file check: `metadata.rs` (embeds
 # `ir.json` as a Rust string constant via Ruby's own `JSON.pretty_generate
 # (ir).inspect` — this crate has no JSON pretty-printer, only a reader,
 # see `json.rs`'s own header), `ir.json` itself (the same reason), and
@@ -123,117 +115,62 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     json_shaped(Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
   end
 
-  # [member name, ir-loader lambda] — a REAL corpus member each,
-  # enumerated by hand for now (not yet `Dir.glob`-derived the way
-  # spec/parser_parity_spec.rb's own PARITY_CORPUS_MEMBERS is — Stage 7's
-  # own scope is narrower than "every corpus member parses", see
-  # CODEGEN_PENDING_MEMBERS below for what's genuinely still open and why).
+  # [member name, ir-loader lambda] — DERIVED, not hand-listed:
+  #   - every in-repo Rust domain `bin/project_rust` has generated
+  #     (`Hecks::Corpus.rust_regen_order`, the list the drift check
+  #     regenerates), loaded from its bluebook directory the way
+  #     bin/project_rust loads it, under the chapter its header declares
+  #   - every framework chapter generated as a side effect of a
+  #     `uses_framework` domain (`Corpus.rust_framework_chapters`)
+  #   - the self-hosted language, `bluebook_language` (the `meta` module)
+  # spec/corpus_rust_spec.rb proves every generated module is one of these
+  # or `embryonaut` (external, below).
+  def self.corpus_member(name, source)
+    [name, -> { domain_ir(source, Hecks::Corpus.chapter_name_of(Hecks::Corpus.bluebook_files(source) || source)) }]
+  end
+
   CODEGEN_CORPUS_MEMBERS = [
-    ["pizzas", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"), "Pizzas") }],
-    ["identity", lambda {
-      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"), "Identity")
-    }],
-    ["governance", lambda {
-      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"), "Governance")
-    }],
-    ["compliance", lambda {
-      domain_ir(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance")
-    }],
-    ["roster", lambda {
-      domain_ir(File.join(InMemoryDomain::ROOT, "examples/roster/bluebook/roster.bluebook"), "Roster")
-    }],
-    ["banking", -> { domain_ir(InMemoryDomain::BANKING_BLUEBOOK_DIR, "Banking") }],
-    ["bluebook_language", -> { meta_ir }],
-    # BUG#25 — `has_many` (a LIST OF REFERENCES) never had a Rust
-    # codegen path at all before this fix, and reaches THREE genuinely
-    # separate generator sites at once (json_codec.rb's list-
-    # serialization branches, bridging.rb/mutations.rb's list-target
-    # `:set` bridging) that no other corpus member below exercises — see
-    # `spec/fixtures/rust_project/has_many_fixture/bluebook/has_many_
-    # fixture.bluebook`'s own header for the construct-by-construct
-    # trace. Added here, not just proven by `spec/rust_project/has_many_
-    # spec.rb`'s own compiled-binary round-trip, so the TWO PIPELINES'
-    # OWN BYTE-IDENTITY claim (this file's whole reason to exist) is
-    # checked for the new construct too, not just for constructs neither
-    # pipeline's fix touched.
-    ["has_many_fixture", lambda {
-      domain_ir(File.join(InMemoryDomain::ROOT, "spec/fixtures/rust_project/has_many_fixture/bluebook/has_many_fixture.bluebook"),
-                "HasManyFixture")
-    }],
-    # BUG#28 — the smallest domain pairing a state-independent creating
-    # command with a genuinely-falsifiable aggregate invariant (see the
-    # fixture's own bluebook header). Added here for the same reason
-    # `has_many_fixture` was: the TWO PIPELINES' OWN BYTE-IDENTITY claim
-    # needs checking for `state_independent_creation?`'s own generated
-    # `Hydrate::Create` shape too, not just for constructs neither
-    # pipeline's fix touched.
-    ["bug28_existence_fixture", lambda {
-      fixture_dir = "spec/fixtures/rust_project/bug28_existence_fixture/bluebook/bug28_existence_fixture.bluebook"
-      domain_ir(File.join(InMemoryDomain::ROOT, fixture_dir), "Bug28ExistenceFixture")
-    }]
-    # NOT ADDED HERE: qa/stress_domains/corrections. Its own `Ledger.Void`
-    # (`sets :entries, remove: :sequence`) hits a PRE-EXISTING, separate
-    # gap in THIS pipeline — BUG#32's own Rust half (rust/project/
-    # mutations.rb's/commands.rb's `remove` support) was never ported to
-    # `rust/codegen/src` (confirmed: `command_skip_reason_with`,
-    # commands.rs, still lists only append/set/increment/decrement/
-    # multiply/clamp/delegate/corrects, no `remove`; `hecks-codegen
-    # domain` panics with "unsupported mutation op \"remove\"" the moment
-    # it's asked to generate this exact domain) — unrelated to BUG#31,
-    # not fixed here. BUG#31's own entity-level `corrects` fix (`emit_
-    # entity_command`'s `corrects_given_specs` prepend, `correctable_
-    # event_names`'s entity recursion) IS mirrored in both pipelines —
-    # see `rust/codegen/src/bridging.rs`/`commands.rs`'s own identical
-    # changes — and is proven correct in `rust/codegen/src/mutations.rs`
-    # (the "corrects" mutation-line no-op arm) directly, and end-to-end
-    # for the Ruby-hosted pipeline via `spec/corpus/rust_conformance/
-    # corrections_entity_amend_*.json`. Adding this domain here waits on
-    # BUG#32's own separate follow-up.
+    *Hecks::Corpus.rust_regen_order.map { |domain| corpus_member(domain.feature, Hecks::Corpus.bluebook_dir(domain.dir)) },
+    *Hecks::Corpus.rust_framework_chapters.map do |stem|
+      corpus_member(stem, File.join(Hecks::Corpus::ROOT, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
+    end,
+    ["bluebook_language", -> { meta_ir }]
   ].freeze
 
-  # A REAL, per-member reason — never a placeholder. See this file's own
-  # header on why Stage 7 doesn't reach "empty" here (the plan explicitly
-  # doesn't require it to, unlike Stage 6's parsing-side table).
+  # SHRINK-ONLY: a derived member whose Rust codegen still disagrees with
+  # Ruby's, with the bug that owns it. It runs the same whole-file check
+  # as RSpec `pending`, so the day it matches, the example FAILS until the
+  # entry is deleted here.
   CODEGEN_PENDING_MEMBERS = {
-    "embryonaut" => "Its own bluebook source lives in a separate, sibling repository (embryonaut_console) not " \
-                    "checked out here — only rust/src/generated/embryonaut's own already-compiled output exists " \
-                    "in THIS repo, with no `.bluebook` this spec's own Kernel.load-based domain_ir helper can " \
-                    "load. A real follow-up item once that repo's source is reachable from a codegen-parity run, " \
-                    "not a shape/algorithm gap in rust/codegen itself."
+    "corrections"   => "BUG#32's Rust half: `Ledger.Void` (`sets :entries, remove: :sequence`) — rust/codegen never " \
+                       "ported the `remove` mutation op, and `hecks-codegen domain` panics with " \
+                       "\"unsupported mutation op \\\"remove\\\"\"",
+    "tenant_ledger" => "unfiled, found by this derivation: rust/codegen/src/registry.rs always emits " \
+                       "`tenant_boundary_check = Ok(())` (its ir.json carries no tenant_boundary_checks), while " \
+                       "rust/project/registry.rb#emit_tenant_boundary_check builds the real cross-tenant check " \
+                       "for Request's `authorize ... tenant:`"
   }.freeze
-
-  # Corpus members that reach FULL whole-file byte-exactness — every
-  # generated `.rs` file `DomainGenerator.call` writes for the chapter
-  # (aggregate files + registry.rs + mod.rs), not just the prelude prefix.
-  # These get the STRONGER check below instead of the prelude-only one;
-  # every other `CODEGEN_CORPUS_MEMBERS` entry stays on prelude-only.
-  #
-  # ALL SEVEN real corpus members reach it — including `banking` (entity
-  # commands on SafeDepositBox/ATMCard, arithmetic mutations, process
-  # managers, cross-domain policies), `bluebook_language` (the
-  # self-hosted grammar's own nine-file chapter), and `roster` (added
-  # after ADR 0054's own Option-2 scoping pass found it had never been
-  # proven byte-identical at any level, despite CI's drift-check step
-  # regenerating and trusting it via the Ruby generator) — leaving only
-  # `embryonaut` on `CODEGEN_PENDING_MEMBERS` (a structural gap: no local
-  # `.bluebook` source to load, unrelated to anything ported this stage).
-  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language roster has_many_fixture
-                          bug28_existence_fixture].freeze
 
   it "finds at least one real corpus member" do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty
   end
 
-  # CODEGEN_CORPUS_MEMBERS is an Array of [name, loader] pairs, not a Hash
-  # (see its own definition above) — Style/HashSlice's autocorrect assumed
-  # otherwise from the `|name, _|` block shape alone and rewrote this to
-  # `.slice(*WHOLE_FILE_MEMBERS)`, which is Array#slice (start/length or
-  # index/range args, not a splat of keys) and raised ArgumentError at
-  # load time. False positive — the receiver isn't a Hash.
-  # rubocop:disable-next Style/HashSlice
-  CODEGEN_CORPUS_MEMBERS.select { |name, _| WHOLE_FILE_MEMBERS.include?(name) }.each do |name, ir_loader|
+  it "pends only members it actually derives" do
+    expect(CODEGEN_PENDING_MEMBERS.keys - CODEGEN_CORPUS_MEMBERS.map(&:first)).to be_empty
+  end
+
+  # EMBRYONAUT IS EXTERNAL, not pending: its bluebook lives in its own
+  # repository, which owes its codegen parity. This fails the day an
+  # in-repo source for it appears, so it joins the derived members.
+  it "embryonaut: has no in-repo source, so its own repository owns its codegen parity" do
+    expect(Hecks::Corpus::RUST_ELSEWHERE.fetch("embryonaut").check).to eq(:external)
+    expect(CODEGEN_CORPUS_MEMBERS.map(&:first)).not_to include("embryonaut")
+  end
+
+  CODEGEN_CORPUS_MEMBERS.each do |name, ir_loader|
     it "#{name}: Rust hecks-codegen's FULL domain .rs output (every aggregate file + registry.rs + " \
        "mod.rs) is byte-identical to Ruby's" do
+      pending CODEGEN_PENDING_MEMBERS.fetch(name) if CODEGEN_PENDING_MEMBERS.key?(name)
       ir = ir_loader.call
 
       Dir.mktmpdir do |tmp|
@@ -284,47 +221,6 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
       next nil if RustProjection::Projector.unsupported_attribute_types(aggregate, vo_by_name).any?
 
       "#{aggregate[:name].downcase}.rs"
-    end
-  end
-
-  # Same false positive as above (Style/HashSlice): CODEGEN_CORPUS_MEMBERS
-  # is an Array, not a Hash, so Style/HashExcept's `.except(*array)`
-  # rewrite is Array#except (not a real method) rather than Hash#except.
-  # rubocop:disable-next Style/HashExcept
-  CODEGEN_CORPUS_MEMBERS.reject { |name, _| WHOLE_FILE_MEMBERS.include?(name) }.each do |name, ir_loader|
-    it "#{name}: Rust hecks-codegen's prelude .rs output is byte-identical to Ruby's, per aggregate" do
-      ir = ir_loader.call
-
-      Dir.mktmpdir do |tmp|
-        ruby_dir = File.join(tmp, "ruby")
-        rust_dir = File.join(tmp, "rust")
-
-        RubyCodegenPrelude.write_all(ir, name, ruby_dir)
-
-        ir_json_path = File.join(tmp, "ir.json")
-        File.write(ir_json_path, JSON.pretty_generate(ir))
-        stdout, status = Open3.capture2(CODEGEN_BINARY, "prelude", ir_json_path, name, rust_dir)
-        expect(status.success?).to be(true), "hecks-codegen prelude failed for #{name}:\n#{stdout}"
-
-        ruby_files = Dir.glob(File.join(ruby_dir, "*.rs")).map { |p| File.basename(p) }.sort
-        rust_files = Dir.glob(File.join(rust_dir, "*.rs")).map { |p| File.basename(p) }.sort
-        expect(rust_files).to eq(ruby_files),
-                              "#{name}: the SET of generated aggregate files differs (unsupported-attribute " \
-                              "skip decisions disagree) — ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
-
-        ruby_files.each do |basename|
-          ruby_text = File.read(File.join(ruby_dir, basename))
-          rust_text = File.read(File.join(rust_dir, basename))
-          expect(rust_text).to eq(ruby_text),
-                               "#{name}/#{basename}: Rust codegen's prelude output does not byte-match Ruby's"
-        end
-      end
-    end
-  end
-
-  CODEGEN_PENDING_MEMBERS.each do |name, reason|
-    it "#{name}: still pending — #{reason[0, 60]}..." do
-      expect(reason).to be_a(String).and(satisfy("be non-empty") { |r| !r.strip.empty? })
     end
   end
 end
