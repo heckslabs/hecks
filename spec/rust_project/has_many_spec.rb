@@ -69,8 +69,8 @@ RSpec.describe "has_many — Rust codegen compiles and round-trips (BUG#25)", :i
 
   it "the generated has_many_fixture module actually compiles" do
     binary = build_rust_for("has_many_fixture")
-    expect(binary).not_to be_nil, "cargo build --features has_many_fixture failed — run bin/project_rust " \
-                                  "spec/fixtures/rust_project/has_many_fixture first if rust/Cargo.toml has no such feature"
+    expect(binary).not_to be_nil, "rust/Cargo.toml has no has_many_fixture feature — run bin/project_rust " \
+                                  "spec/fixtures/rust_project/has_many_fixture first (a failed build raises instead)"
   end
 
   it "a real command sequence round-trips through the compiled binary: has_many's own list serializes as bare " \
