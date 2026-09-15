@@ -454,23 +454,24 @@ pub fn generate(
                 "attribute type(s) {} not generated yet (a bare, non-list entity-typed attribute isn't resolved to a Rust type)",
                 unsupported.join(", ")
             );
-            manifest.skipped("aggregate", format!("{domain_name}::{agg_name}"), aggregate_reason.clone());
+            manifest.skipped_as("aggregate", format!("{domain_name}::{agg_name}"), "attribute_type", aggregate_reason.clone());
             let cascade = format!("owning aggregate not generated: {aggregate_reason}");
             for command in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
-                manifest.skipped("command", format!("{domain_name}::{agg_name}.{}", node_name(command)), cascade.clone());
+                manifest.skipped_as("command", format!("{domain_name}::{agg_name}.{}", node_name(command)), "owning_aggregate", cascade.clone());
             }
             for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
                 let entity_verb = format!("{domain_name}::{agg_name}.{}", node_name(entity));
-                manifest.skipped("entity", entity_verb.clone(), cascade.clone());
+                manifest.skipped_as("entity", entity_verb.clone(), "owning_aggregate", cascade.clone());
                 for command in entity.get("commands").map(Json::each).unwrap_or(&[]) {
-                    manifest.skipped("entity_command", format!("{entity_verb}.{}", node_name(command)), cascade.clone());
+                    manifest.skipped_as("entity_command", format!("{entity_verb}.{}", node_name(command)), "owning_aggregate", cascade.clone());
                 }
             }
             for port in aggregate.get("ports").map(Json::each).unwrap_or(&[]) {
                 for operation in port.get("operations").map(Json::each).unwrap_or(&[]) {
-                    manifest.skipped(
+                    manifest.skipped_as(
                         "port_operation",
                         format!("{domain_name}::{agg_name}.{}.{}", node_name(port), node_name(operation)),
+                        "owning_aggregate",
                         cascade.clone(),
                     );
                 }
@@ -743,6 +744,7 @@ pub fn generate(
                         true,
                         Some(true),
                         None,
+                        None,
                         Some(if unrouted_supported {
                             "routed (`to: { entities: [...] }`) and flat-args (one identity head per hop) both supported (BUG#19)".to_string()
                         } else {
@@ -882,6 +884,7 @@ pub fn generate(
                     manifest.unrouted(
                         "entity_command",
                         entity_command_verb,
+                        "router_identity",
                         format!(
                             "generated as a real Rust function, but not JSON-dispatchable — identity {} isn't a shape extract_id resolves yet (json_codec.rb)",
                             ruby_inspect(entity.get_raw("identified_by"))
@@ -1100,6 +1103,7 @@ pub fn generate(
                 manifest.unrouted(
                     "command",
                     command_verb,
+                    "router_identity",
                     format!(
                         "generated as a real Rust function, but not JSON-dispatchable — identity {} isn't a shape extract_id resolves yet (json_codec.rb)",
                         ruby_inspect(aggregate.get_raw("identified_by"))
@@ -1354,11 +1358,14 @@ pub fn generate(
             let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("");
             let list_attr = attrs.iter().find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity_name);
             for query in entity.get("queries").map(Json::each).unwrap_or(&[]) {
-                if queries::entity_query_skip_reason(query, entity, list_attr.is_some(), &value_objects_by_name).is_some() {
+                let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
+                let query_verb = format!("{aggregate_id}.{entity_name}.{query_name}");
+                if let Some(reason) = queries::entity_query_skip_reason(query, entity, list_attr.is_some(), &value_objects_by_name) {
+                    manifest.skipped("query", query_verb, reason);
                     continue;
                 }
                 let Some(list_attr) = list_attr else { continue };
-                let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
+                manifest.generated("query", query_verb);
                 let identity_keys = entity
                     .get("identified_by")
                     .map(Json::each)
@@ -1384,6 +1391,7 @@ pub fn generate(
                     }),
                 });
             }
+            manifest.entity_query_gaps(&format!("{aggregate_id}.{entity_name}"), entity.get("entities").map(Json::each).unwrap_or(&[]));
         }
     }
 
@@ -1421,6 +1429,7 @@ pub fn generate(
             format!("{domain_name}::{}", node_name(lineage_aggregate)),
             true,
             Some(true),
+            None,
             None,
             Some(format!(
                 "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"{}\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)",

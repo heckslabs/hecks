@@ -46,6 +46,7 @@ mod reference_specs;
 mod registry;
 mod reserved_names;
 mod shared;
+mod skip_reason;
 mod types;
 
 use json::Json;

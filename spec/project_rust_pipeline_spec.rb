@@ -129,9 +129,8 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
 
         ruby_files = files_in(ruby_dir)
         rust_files = files_in(rust_dir)
-        expect(rust_files).to eq(ruby_files - IGNORED_BASENAMES),
-                              "#{dir}: the opt-in path's own file list differs from the default path's " \
-                              "(beyond the named manifest.json gap) — " \
+        expect(rust_files).to eq(ruby_files),
+                              "#{dir}: the opt-in path's own file list differs from the default path's — " \
                               "ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
 
         (ruby_files - IGNORED_BASENAMES - CONTENT_EXEMPT_BASENAMES).each do |basename|
