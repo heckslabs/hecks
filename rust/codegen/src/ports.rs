@@ -4,6 +4,7 @@
 use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::naming;
+use crate::skip_reason::{skip, SkipReason};
 use std::collections::HashMap;
 
 /// A list attribute carrying `admits:`/`pattern:` used to be refused
@@ -15,7 +16,7 @@ pub fn port_operation_skip_reason(
     operation: &Json,
     _owner_name: &str,
     value_objects_by_name: &HashMap<String, &Json>,
-) -> Option<String> {
+) -> Option<SkipReason> {
     let attrs = operation.get("attributes").map(Json::each).unwrap_or(&[]);
     let unresolved: Vec<&Json> = attrs
         .iter()
@@ -40,7 +41,7 @@ pub fn port_operation_skip_reason(
                 types.push(t);
             }
         }
-        return Some(format!("attribute type(s) {} not generated yet (a value object this aggregate's own attributes never resolved a Rust type for)", types.join(", ")));
+        return Some(skip("port_attribute_type", format!("attribute type(s) {} not generated yet (a value object this aggregate's own attributes never resolved a Rust type for)", types.join(", "))));
     }
 
     None
