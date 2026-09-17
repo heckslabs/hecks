@@ -25,7 +25,19 @@ module Hecks
     DIRECTORY_KINDS = {
       example:   "examples/*",
       stress:    "qa/stress_domains/*",
-      semantics: "spec/corpus/semantics/domains/*"
+      semantics: "spec/corpus/semantics/domains/*",
+      # A PACKAGE VENDORED VIA `uses_embryonaut_bluebook` — same real
+      # mechanism `uses_framework` is (`lib/hecks/embryonaut_bluebook.rb`'s
+      # own header: "same shape as Framework"), one level further out: not
+      # a chapter shipped inside THIS gem's own `lib/hecks/framework/
+      # bluebook/` (the `:framework` FILE_KIND, below), but a directory
+      # nested inside the CONSUMING example's own checkout
+      # (`<domain>/vendor/embryonaut_bluebooks/<name>/bluebook/`,
+      # EmbryonautBluebook.load!'s own resolution path) — hence its own
+      # DIRECTORY_KIND rather than reuse of `:framework`'s shape. First
+      # real member: docs/decisions/0058's own
+      # examples/embryonaut_vendoring_demo/vendor/embryonaut_bluebooks/widgets.
+      vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
     }.freeze
 
     # ONE CHAPTER PER FILE. Stemmed by the path below the glob's fixed
@@ -268,6 +280,25 @@ module Hecks
       modules = generated_modules(root: root)
       members(:framework, root: root).map(&:stem)
                                      .select { |stem| modules.include?(stem) && !generated?(stem, root: root) }
+    end
+
+    # SAME SHAPE, `uses_embryonaut_bluebook`'s own side effect — a vendored
+    # package's directory stem (`:vendored`, above) already equals the
+    # generated module's own directory name, the same "no merged.rs of its
+    # own" fact `rust_framework_chapters` already relies on. A vendored
+    # package's OWN bluebook stem doesn't have to equal its declared
+    # chapter name the way a framework member's does (`EmbryonautBluebook.
+    # load!` resolves the chapter as `Naming.pascal(dir_name)`, e.g.
+    # "widgets" -> "Widgets") — but `bin/project_rust`'s own generated
+    # module name is always `chapter_name.downcase`
+    # (rust/src/generated/mod.rs's own convention), which for a
+    # `Naming.pascal`-derived chapter name is always the ORIGINAL lowercase
+    # directory stem again — confirmed live: widgets -> "Widgets" ->
+    # downcase -> "widgets".
+    def rust_vendored_chapters(root: ROOT)
+      modules = generated_modules(root: root)
+      members(:vendored, root: root).map(&:stem)
+                                    .select { |stem| modules.include?(stem) && !generated?(stem, root: root) }
     end
 
     # THE REGENERATION ORDER the drift check runs. Sorted by path, so

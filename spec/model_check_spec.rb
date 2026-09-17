@@ -13,7 +13,24 @@ RSpec.describe "the model checker" do
   ROOT_DIR = InMemoryDomain::ROOT
 
   def boot(bluebook)
-    registry = Hecks::Runtime::Registry.new
+    # `root:` — WITHOUT IT, a real corpus member declaring
+    # `uses_embryonaut_bluebook` (docs/decisions/0058's own
+    # examples/embryonaut_vendoring_demo, the first) refuses here with
+    # "needs a registry with a root to vendor from": `EmbryonautBluebook.
+    # load!` resolves `<root>/vendor/embryonaut_bluebooks/<name>/bluebook/`
+    # off this registry's own root, same as any other boot
+    # (`Runtime::Loader.boot`'s own `root: File.dirname(directory)`,
+    # `bin/project_rust`'s own copy of this same comment). `bluebook` here
+    # is already the domain's own `bluebook/` folder (`Hecks::Corpus.
+    # source_of`, a directory kind's `bluebook_dir`) for every real corpus
+    # member this matters for, so its OWN parent is the domain root —
+    # exactly `Runtime::Loader.boot`'s own `directory`/`root` relationship.
+    # `nil` for anything else (a bare `.bluebook` FILE — a framework
+    # member or `spec/fixtures/model_check/` fixture, neither of which
+    # ever vendors anything) — unchanged, since none of those callers ever
+    # reach `uses_embryonaut_bluebook`.
+    root = File.directory?(bluebook) ? File.dirname(bluebook) : nil
+    registry = Hecks::Runtime::Registry.new(root: root)
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)

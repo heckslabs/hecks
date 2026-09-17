@@ -241,7 +241,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # `spec/corpus_spec.rb`'s own `bluebook_in` does.)
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
                      %w[pizzas identity governance console_settings expression translation banking compliance
-                        compliance_framework roster chess directory bluebook_language] -
+                        compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -266,7 +266,17 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # Derived the SAME way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
   # `hecksagon_in`/`chapter_name_of`), not hand-listed, so this stays
   # honest if pizzas.bluebook's own file ever moves.
-  REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster chess directory].to_h do |stem|
+  # "embryonaut_vendoring_demo" (docs/decisions/0058) joins the list
+  # SAME REASON banking does — its own `.hecksagon` calls
+  # `uses_embryonaut_bluebook "widgets"` rather than `uses_framework`, but
+  # this comparison only ever parses the TARGET chapter's own
+  # bluebook+hecksagon (this module's own header on the framework trio,
+  # above: "that mechanism only matters for a CONSUMING app's own
+  # .hecksagon" — never exercised here either way, `hecksagon.rs`'s own
+  # header: neither word ever reaches `ir.json`). Confirmed byte-exact
+  # before being promoted out of PENDING_MEMBERS, the same discipline
+  # every other promotion on this list documents.
+  REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster chess directory embryonaut_vendoring_demo].to_h do |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
     bluebooks = bluebooks_in(domain)
     raise "#{domain} has no .bluebook" if bluebooks.empty?
@@ -394,13 +404,21 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       if stem == "bluebook_language"
         Hecks::Bluebook::MetaValidator.grammar_registry
       else
-        fresh = Hecks::Runtime::Registry.new
+        bluebooks, companions = paths.partition { |path| File.extname(path) == ".bluebook" }
+        # `root:` — see bin/model_check's own copy of this comment: a
+        # member declaring `uses_embryonaut_bluebook` (docs/decisions/0058
+        # — "embryonaut_vendoring_demo", the first) refuses here otherwise.
+        # Every current corpus member's own bluebook lives at
+        # `<domain>/bluebook/*.bluebook`, so its own grandparent is the
+        # domain root, exactly `Runtime::Loader.boot`'s own
+        # `root: File.dirname(directory)` — harmless for a member (a
+        # framework/grammar/fixture chapter) that never calls it.
+        fresh = Hecks::Runtime::Registry.new(root: File.dirname(File.dirname(bluebooks.first)))
         Hecks.with_registry(fresh) do
           Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-          bluebooks, companions = paths.partition { |path| File.extname(path) == ".bluebook" }
           InMemoryDomain.load_bluebook_files(bluebooks)
           companions.each { |path| Kernel.load(path) }
         end

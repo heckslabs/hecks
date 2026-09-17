@@ -253,16 +253,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "refused unconditionally at build outside MetaValidator.shadow_parsing? " \
                                               "(CommandBuilder#then_set_impl) — sets is the word now; a live declaration " \
                                               "exists only to be refused, never to succeed.",
-    "uses_embryonaut_bluebook (Hecksagon)" =>
-                                              "no hecksagon in THIS repository's own corpus vendors an embryonaut bluebook — " \
-                                              "real, external use is what this word is for: lifeadelics/domain (a hecks-" \
-                                              "based service, not part of this repository) declares `uses_embryonaut_bluebook " \
-                                              "\"payments\"` for real, attaching embryonaut_bluebooks/payments' Payment " \
-                                              "aggregate — a full settle/refund/dispute lifecycle shared across every project " \
-                                              "that needs one rather than reimplemented per project. Written up in " \
-                                              "docs/implemented/reference/hecksagon.md's own section, naming the " \
-                                              "consumer, per principle " \
-                                              "4's own wording — same shape formerly_known_as (Bluebook) above already is.",
     # Translation/TranslationAggregate — item #13's remaining builders.
     # `corpus_uses?` is a NAIVE whole-token scan (its own header already
     # names this risk) with no context awareness at all, and every one of

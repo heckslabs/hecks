@@ -410,13 +410,41 @@ else
   # exists at all — recovers a documented, deliberate gap, not a new
   # capability invented speculatively.
   policy_sources = [{ domain_name: target_domain_name, policies: target_ir[:policies], aggregates: target_ir[:aggregates] }]
+  # WHICH ATTACHMENT WORD NAMES THIS CHAPTER — the loop above this one is
+  # already GENERIC over how a chapter got attached (`target_registry.
+  # bluebooks.keys - [target_domain_name]`, no framework-specific
+  # special-casing); the comment header `DomainGenerator.call` writes
+  # into every generated `.rs` file used to hardcode `uses_framework`
+  # regardless, which is simply wrong for a chapter this target attached
+  # via `uses_embryonaut_bluebook` instead (found live: docs/decisions/
+  # 0058's own widgets/widget.rs, byte-compared against the opt-in
+  # Rust-native pipeline's own — correct — `uses_embryonaut_bluebook
+  # "widgets"` label by spec/project_rust_pipeline_spec.rb). Checked
+  # against the TARGET's own hecksagon (`target_registry.
+  # hecksagon(target_domain_name)`) — the one real object both
+  # `HecksagonBuilder#uses_framework` and `#uses_embryonaut_bluebook`
+  # record onto (`@framework_members`/`@vendored_bluebooks`,
+  # hecksagon_builder.rb). A vendored name is recorded lowercase (the
+  # literal DSL argument, "widgets"), never the chapter name itself
+  # ("Widgets") — resolved the same way `EmbryonautBluebook.load!`
+  # resolves it, `Naming.pascal(name)`. Falls back to the original,
+  # unconditional `uses_framework` wording for a chapter named by
+  # neither list (a framework member pulled in transitively by ANOTHER
+  # framework member's own sibling hecksagon, e.g. Identity's own
+  # `uses_framework "Governance"` inside banking.hecksagon's second
+  # block, rather than Banking's top-level block naming it directly) —
+  # preserves this comment's own prior, already-correct wording for
+  # every chapter the existing corpus already covers.
+  target_hecksagon = target_registry.hecksagon(target_domain_name)
   (target_registry.bluebooks.keys - [target_domain_name]).each do |chapter_name|
     chapter_mod_name = chapter_name.downcase
     chapter_mod_names[chapter_mod_name] = chapter_name
     chapter_ir = json_shaped(Hecks::Projector::Exporter.call(target_registry).fetch(chapter_name))
+    vendored_name = target_hecksagon&.vendored_bluebooks&.find { |name| Hecks::Naming.pascal(name.to_s) == chapter_name }
+    attachment_label = vendored_name ? "uses_embryonaut_bluebook #{vendored_name.inspect}" : "uses_framework #{chapter_name.inspect}"
     chapter_result = nil
     RustProjection::WriteIfChanged.track_directory(File.join(out_root, chapter_mod_name)) do
-      chapter_result = RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (uses_framework #{chapter_name.inspect})",
+      chapter_result = RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (#{attachment_label})",
                                                             File.join(out_root, chapter_mod_name), chapter_mod_name)
     end
     framework_aggregates.concat(chapter_result[:aggregates])

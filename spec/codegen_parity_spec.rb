@@ -134,6 +134,17 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     *Hecks::Corpus.rust_framework_chapters.map do |stem|
       corpus_member(stem, File.join(Hecks::Corpus::ROOT, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
     end,
+    # SAME SHAPE, `uses_embryonaut_bluebook`'s own side (docs/decisions/
+    # 0058) — a vendored package generated as a side effect of some other
+    # domain's own regen, same "no merged.rs, no Cargo feature of its
+    # own" fact `rust_framework_chapters` already carries, just sourced
+    # from `:vendored` corpus members (nested inside a consuming
+    # example's own `vendor/embryonaut_bluebooks/`) instead of this gem's
+    # own `lib/hecks/framework/bluebook/`.
+    *Hecks::Corpus.rust_vendored_chapters.map do |stem|
+      member = Hecks::Corpus.members(:vendored).find { |m| m.stem == stem }
+      corpus_member(stem, Hecks::Corpus.bluebook_dir(member.path))
+    end,
     ["bluebook_language", -> { meta_ir }]
   ].freeze
 

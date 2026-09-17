@@ -7,6 +7,21 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`uses_embryonaut_bluebook` proven Rust-conformant** (docs/decisions/0058). A new
+minimal example, `examples/embryonaut_vendoring_demo` (consuming domain `Gadget`) plus a
+vendored package at `examples/embryonaut_vendoring_demo/vendor/embryonaut_bluebooks/widgets`
+(`Widget`), proves the vendoring mechanism dispatches and codegens correctly on Rust with
+the same rigor `examples/banking` already gives `uses_framework` — real conformance
+fixtures, a `spec/project_rust_pipeline_spec.rb` entry, and a `Hecks::Fuzzing::SequenceGenerator`
+pass, all green. Found and fixed along the way: the opt-in `HECKS_PARSER=rust
+HECKS_CODEGEN=rust` pipeline never resolved `uses_embryonaut_bluebook` at all (only
+`uses_framework`); `bin/project_rust`'s own generated-file header hardcoded
+`uses_framework` wording regardless of which DSL word actually attached a chapter;
+`Hecks::Corpus` had no accounting kind for a vendored package; three separate test boot
+helpers (`bin/model_check`, `spec/model_check_spec.rb`, `spec/parser_parity_spec.rb`) built
+a registry with no `root:`, which vendoring requires. The known, separate, pre-existing
+lineage/mint-era gap (docs/decisions/0030) is unaffected and explicitly out of scope.
+
 ## [1.3.0] - 2026-09-12
 
 **`hecks_qa`, resurrected: a continuous adversarial Ruby/Rust parity
