@@ -65,7 +65,7 @@ module Hecks
       # mix of lineage-capable and plain-adapter bluebooks.
       def check_lineage!(registry, directory)
         registry.bluebooks.each_value do |bluebook|
-          check_bluebook!(registry, bluebook, source_text_for(bluebook, directory), directory: directory)
+          check_bluebook!(registry, bluebook, source_text_for(bluebook, directory, registry: registry), directory: directory)
         end
       end
 
@@ -97,23 +97,97 @@ module Hecks
       # A single-file directory whose one file names something ELSE
       # falls back to it anyway (a fixture may legitimately name its
       # file differently from the `Hecks.bluebook` it declares) — UNLESS
-      # this bluebook is a known framework member, in which case that
-      # one file is certainly some OTHER domain's, not this one's, and
-      # the framework registry is asked instead — the only other place a
-      # bluebook in this registry could have come from, per
-      # `uses_framework`.
-      def source_text_for(bluebook, directory)
+      # this bluebook is a known framework member OR a vendored
+      # embryonaut bluebook (see `vendored_source_for` below), in which
+      # case that one file is certainly some OTHER domain's, not this
+      # one's, and the real registry is asked instead — the only other
+      # two places a bluebook in this registry could have come from, per
+      # `uses_framework` and `uses_embryonaut_bluebook`.
+      #
+      # THE BUG THIS GUARDS AGAINST, FOUND LIVE: `Framework.members` was
+      # the only exclusion checked here, so a domain attaching a
+      # VENDORED bluebook instead (`uses_embryonaut_bluebook`, which has
+      # no equivalent registry — see embryonaut_bluebook.rb's own
+      # header) fell straight through the single-file fallback: a
+      # directory holding exactly one `.bluebook` file (the target
+      # domain's own) handed that SAME text back for the vendored
+      # bluebook's era check too. PostgresEra minted era 1 for the
+      # vendored domain with the target's own source stamped as its
+      # `held_text` — the label computed from it, too — so the very
+      # next boot re-derived the vendored domain's REAL shape, found it
+      # didn't match what got (wrongly) stored, and refused to boot
+      # toward a scaffold for drift that never actually happened.
+      # `registry:` is what lets this check the one thing
+      # `Framework.members` cannot: whether SOME hecksagon in this
+      # registry declared `uses_embryonaut_bluebook` for this exact
+      # bluebook name, the same way `EmbryonautBluebook.load!` itself
+      # already resolves the vendored package's own directory.
+      def source_text_for(bluebook, directory, registry: nil)
         domain_files = Dir[File.join(directory, "*.bluebook")]
-        own = domain_files.select do |path|
-          File.foreach(path, encoding: "UTF-8").any? do |line|
-            line.match?(/\A\s*Hecks\.bluebook\s+#{Regexp.escape(bluebook.name.inspect)}/)
-          end
-        end
-        own = domain_files if own.empty? && domain_files.size == 1 && !Framework.members.key?(bluebook.name)
-        own = [Framework.members[bluebook.name]].compact if own.empty?
+        own = domain_files.select { |path| declares_bluebook?(path, bluebook.name) }
+        own = fallback_source_files(bluebook, directory, domain_files, registry) if own.empty?
         return if own.empty?
 
         own.map { |path| File.read(path, encoding: "UTF-8") }.join("\n")
+      end
+
+      def declares_bluebook?(path, bluebook_name)
+        File.foreach(path, encoding: "UTF-8").any? do |line|
+          line.match?(/\A\s*Hecks\.bluebook\s+#{Regexp.escape(bluebook_name.inspect)}/)
+        end
+      end
+
+      # Only reached once nothing in the domain's own directory actually
+      # DECLARES this bluebook by name. Three remaining sources, in
+      # order: a genuinely single-file domain directory whose one file
+      # just happens to name something else (but only when this
+      # bluebook isn't already known to come from somewhere else
+      # entirely — the exact guard the bug below was missing half of);
+      # a framework member; a vendored embryonaut bluebook.
+      def fallback_source_files(bluebook, directory, domain_files, registry)
+        vendored_name = registry && vendored_bluebook_name_for(registry, bluebook.name)
+        framework_path = Framework.members[bluebook.name]
+
+        if domain_files.size == 1 && !framework_path && !vendored_name
+          domain_files
+        elsif framework_path
+          [framework_path]
+        elsif vendored_name
+          vendored_source_for(directory, vendored_name)
+        else
+          []
+        end
+      end
+
+      # THE NAME `uses_embryonaut_bluebook` WAS ACTUALLY CALLED WITH —
+      # recovered from whichever hecksagon in THIS registry recorded it
+      # (`HecksagonBuilder#uses_embryonaut_bluebook`'s own
+      # `@vendored_bluebooks`), matched the same way
+      # `EmbryonautBluebook.load!` itself decides idempotency: the
+      # vendored name Pascal-cases to this bluebook's own declared name.
+      # Nil for an ordinary bluebook nothing ever vendored.
+      def vendored_bluebook_name_for(registry, bluebook_name)
+        registry.hecksagons.each_value do |hecksagon|
+          match = hecksagon.vendored_bluebooks.find { |name| Naming.pascal(name) == bluebook_name }
+          return match if match
+        end
+        nil
+      end
+
+      # THE SAME PATH `EmbryonautBluebook.load!` ITSELF RESOLVES FROM —
+      # `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`,
+      # rebuilt here from `directory` (the domain's own bluebook
+      # directory, always `registry.root`'s immediate child — see
+      # `Runtime::Loader.boot`) rather than threading `registry.root`
+      # through as a second parameter. EVERY `.bluebook` file the
+      # package ships, in the SAME `Dir.glob` order actually loaded at
+      # boot time — order matters here because this text is later
+      # re-parsed whole (`EraCheck::shadow`) to reconstruct the shape a
+      # held era claims, and that reconstruction must see the files in
+      # the order that actually built the live shape.
+      def vendored_source_for(directory, name)
+        dir = File.join(File.dirname(directory), "vendor", "embryonaut_bluebooks", name, "bluebook")
+        Dir.glob(File.join(dir, "*.bluebook"))
       end
 
       def check_bluebook!(registry, bluebook, current_text, directory: nil)
