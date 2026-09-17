@@ -52,7 +52,10 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # feature list) whose compiled binary always answers a fixed,
   # hand-written mismatch against `spec/fixtures/qa_sweep_all_found_
   # fixture`'s own trivially well-behaved Ruby domain.
-  FIXTURE_RUST_DIR = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze unless defined?(FIXTURE_RUST_DIR)
+  unless defined?(FIXTURE_RUST_DIR)
+    FIXTURE_RUST_DIR = File.join(InMemoryDomain::ROOT,
+                                 "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
+  end
 
   # THE FIXTURE LEDGER'S OWN `.hecksagon` — line-for-line what
   # `qa/bluebook/quality_control.hecksagon` declares (every aggregate
@@ -163,7 +166,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   RUBY
 
-  FIXTURE_TARGET_HECKSAGON = <<~RUBY.freeze
+  FIXTURE_TARGET_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_TARGET_HECKSAGON)
     Hecks.hecksagon "QaSweepAllFixtureTarget" do
       QaSweepAllFixtureTarget::Widget.persisted_by("Heki")
     end
@@ -173,7 +176,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # `Hecks::Fuzzing::TargetCapabilities` reads off a `.hecksagon` to make
   # a target eligible for `persistence_parity`, and therefore for
   # `--all`'s own second wave.
-  FIXTURE_PG_TARGET_HECKSAGON = <<~RUBY.freeze
+  FIXTURE_PG_TARGET_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_PG_TARGET_HECKSAGON)
     Hecks.hecksagon "QaSweepAllFixtureTarget" do
       QaSweepAllFixtureTarget::Widget.persisted_by("PostgresEra")
     end

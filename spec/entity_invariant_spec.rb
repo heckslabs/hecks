@@ -11,7 +11,7 @@ require "spec_helper"
 # is not blank" — an optional VisitNote a vault officer wrote nothing
 # but empty text into.
 RSpec.describe "a piece's own invariant, checked against every instance the aggregate holds" do
-  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
   def boot
     registry = Hecks::Runtime::Registry.new

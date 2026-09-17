@@ -14,7 +14,7 @@ require "open3"
 # quietly made that order load-bearing again. Now this spec names it,
 # and the file it names is the one that grew the dependency.
 RSpec.describe "load hygiene", :io do
-  ROOT_DIR = File.expand_path("..", __dir__)
+  ROOT_DIR = File.expand_path("..", __dir__) unless defined?(ROOT_DIR)
   LIB = File.join(ROOT_DIR, "lib")
 
   def load_in_subprocess(feature)
