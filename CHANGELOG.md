@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`deployed_to("AwsLambda") { stack_prefix "..." }`.** An optional
+setting for the `hecks-` half of a domain's own stack name (and so both
+Lambda function names, the Google OAuth secret, and the bastion stack),
+for a domain whose live stack predates the convention — Embryonaut's
+`hecksagain-embryonaut`. The counterpart to `owner_stack`, which covers
+the same legacy name from a Shared-mode borrower's side. Defaults to
+`hecks`; existing recipes regenerate unchanged.
+
 ## [1.3.0] - 2026-09-12
 
 **`hecks_qa`, resurrected: a continuous adversarial Ruby/Rust parity

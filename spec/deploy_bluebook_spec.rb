@@ -243,6 +243,70 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       FileUtils.rm_rf(generated_dir)
     end
 
+    # `stack_prefix` — `owner_stack`'s counterpart for THIS domain's own
+    # names: Embryonaut's live stack, both Lambda functions, and its
+    # Google OAuth secret all carry the legacy "hecksagain-" prefix.
+    # Reads the generated files directly for the same reason the
+    # `owner_stack` test above does. `web_oauth: true` adds what turns
+    # on WebFunction and its Google OAuth secret wiring (a
+    # lambda_handler.rb, a Gemfile.lock pinning pg, and a `.env.local`
+    # with GOOGLE_CLIENT_ID), so the prefix is proven on the second
+    # function and the secret name too, not just the stack.
+    def generate_with_world(world_body, web_oauth: false)
+      root = File.expand_path("..", __dir__)
+      generated_dir = File.join(root, "deploy", FIXTURE_BASENAME)
+
+      Dir.mktmpdir do |dir|
+        domain_dir = File.join(dir, FIXTURE_BASENAME)
+        bluebook_dir = write_scratch_fixture_bluebook(domain_dir)
+        File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.world"), world_body)
+        if web_oauth
+          File.write(File.join(domain_dir, "lambda_handler.rb"), "# scratch\n")
+          File.write(File.join(domain_dir, "Gemfile.lock"), "GEM\n  specs:\n    pg (1.5.9)\n")
+          File.write(File.join(domain_dir, ".env.local"), "GOOGLE_CLIENT_ID=placeholder\n")
+        end
+
+        _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
+        status.success? or raise "bin/project_deploy failed: #{stderr}"
+
+        %w[template.yaml Makefile samconfig.toml].to_h { |f| [f, File.read(File.join(generated_dir, f))] }
+      end
+    ensure
+      FileUtils.rm_rf(generated_dir)
+    end
+
+    it "names the stack hecks-<name> when no stack_prefix is declared" do
+      files = generate_with_world(<<~WORLD)
+        Hecks.world "Scratch" do
+          deployed_to("AwsLambda") do
+            region "us-east-1"
+          end
+        end
+      WORLD
+
+      expect(files["samconfig.toml"]).to include(%(stack_name = "hecks-#{FIXTURE_BASENAME}"))
+      expect(files["template.yaml"]).to include("FunctionName: hecks-#{FIXTURE_BASENAME}")
+    end
+
+    it "uses a declared stack_prefix for the stack, function, and secret names" do
+      files = generate_with_world(<<~WORLD, web_oauth: true)
+        Hecks.world "Scratch" do
+          deployed_to("AwsLambda") do
+            region "us-east-1"
+            stack_prefix "hecksagain"
+          end
+        end
+      WORLD
+
+      expected = "hecksagain-#{FIXTURE_BASENAME}"
+      expect(files["samconfig.toml"]).to include(%(stack_name = "#{expected}"))
+      expect(files["template.yaml"]).to include("FunctionName: #{expected}\n")
+      expect(files["template.yaml"]).to include("FunctionName: #{expected}-web\n")
+      expect(files["template.yaml"]).to include("GOOGLE_OAUTH_SECRET_ID: #{expected}-web-google-oauth")
+      expect(files["Makefile"]).to include(expected)
+      expect(files.values.join).not_to include("hecks-#{FIXTURE_BASENAME}")
+    end
+
     it 'refuses database "Shared" with no owner declared' do
       _stdout, stderr, status = run_project_deploy(<<~WORLD)
         Hecks.world "Scratch" do
