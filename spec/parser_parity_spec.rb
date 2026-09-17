@@ -413,7 +413,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
         # domain root, exactly `Runtime::Loader.boot`'s own
         # `root: File.dirname(directory)` — harmless for a member (a
         # framework/grammar/fixture chapter) that never calls it.
-        fresh = Hecks::Runtime::Registry.new(root: File.dirname(File.dirname(bluebooks.first)))
+        fresh = Hecks::Runtime::Registry.new(root: File.dirname(bluebooks.first, 2))
         Hecks.with_registry(fresh) do
           Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)

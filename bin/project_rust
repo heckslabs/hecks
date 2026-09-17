@@ -441,7 +441,12 @@ else
     chapter_mod_names[chapter_mod_name] = chapter_name
     chapter_ir = json_shaped(Hecks::Projector::Exporter.call(target_registry).fetch(chapter_name))
     vendored_name = target_hecksagon&.vendored_bluebooks&.find { |name| Hecks::Naming.pascal(name.to_s) == chapter_name }
-    attachment_label = vendored_name ? "uses_embryonaut_bluebook #{vendored_name.inspect}" : "uses_framework #{chapter_name.inspect}"
+    attachment_label =
+      if vendored_name
+        "uses_embryonaut_bluebook #{vendored_name.inspect}"
+      else
+        "uses_framework #{chapter_name.inspect}"
+      end
     chapter_result = nil
     RustProjection::WriteIfChanged.track_directory(File.join(out_root, chapter_mod_name)) do
       chapter_result = RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (#{attachment_label})",

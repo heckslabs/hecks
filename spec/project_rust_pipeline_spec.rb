@@ -77,10 +77,10 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
   # `roster` is the one member whose policy carries a real `where`
   # (`OnSeatAssignedHonorFront`), so it pins `where_ast` end to end.
   PARITY_DOMAINS = {
-    "examples/pizzas"     => %w[pizzas meta],
-    "examples/banking"    => %w[banking governance identity meta],
-    "examples/roster"     => %w[roster meta],
-    "examples/compliance" => %w[compliance governance meta],
+    "examples/pizzas"                    => %w[pizzas meta],
+    "examples/banking"                   => %w[banking governance identity meta],
+    "examples/roster"                    => %w[roster meta],
+    "examples/compliance"                => %w[compliance governance meta],
     # docs/decisions/0058 — the `uses_embryonaut_bluebook` counterpart to
     # `examples/banking`'s own `uses_framework` proof: a VENDORED package
     # (widgets, attached the same `Kernel.load`-into-registry way a
