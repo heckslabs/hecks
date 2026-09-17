@@ -45,9 +45,9 @@ require_relative "../support/fenced_owner"
 # through a registry holding a second, attached one. Multi-bluebook +
 # PostgresEra self-minting was a genuine, unexercised seam.
 RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-bluebook registry", :io do
-  DB = "hecks_era_vendored_bluebook_spec".freeze
+  VENDORED_BLUEBOOK_DB = "hecks_era_vendored_bluebook_spec".freeze
 
-  def owner_url = FencedOwner.url(DB)
+  def owner_url = FencedOwner.url(VENDORED_BLUEBOOK_DB)
 
   def target_bluebook
     <<~BLUEBOOK
@@ -163,24 +163,24 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{DB}")
+    admin.exec("DROP DATABASE IF EXISTS #{VENDORED_BLUEBOOK_DB} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{VENDORED_BLUEBOOK_DB}")
     admin.close
-    FencedOwner.own!(DB)
+    FencedOwner.own!(VENDORED_BLUEBOOK_DB)
   end
 
   after(:all) do
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DB} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{VENDORED_BLUEBOOK_DB} WITH (FORCE)")
     admin.close
   end
 
   before do
-    scrub = PG.connect(dbname: DB)
+    scrub = PG.connect(dbname: VENDORED_BLUEBOOK_DB)
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
-    FencedOwner.own_public!(DB)
+    FencedOwner.own_public!(VENDORED_BLUEBOOK_DB)
   end
 
   it "stamps the SECOND bluebook's own era-1 held_text with its own source, not the first bluebook's" do
@@ -189,7 +189,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
 
       Hecks.boot(domain_dir, install_facade: false)
 
-      db = PG.connect(dbname: DB)
+      db = PG.connect(dbname: VENDORED_BLUEBOOK_DB)
       rows = db.exec_params(
         "SELECT domain, ordinal, held_text FROM hecks_eras WHERE ordinal = 1 ORDER BY domain", []
       ).to_a
