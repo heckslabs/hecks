@@ -1,0 +1,229 @@
+{
+  "ir_version": 1,
+  "name": "EmbryonautVendoringDemo",
+  "version": null,
+  "vision": "The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through uses_embryonaut_bluebook, exercising the same dispatch-table merge uses_framework already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Gadget",
+      "description": "One gadget: registered idle, then activated once.",
+      "identified_by": [
+        "name.value"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": "GadgetName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "status",
+          "type": "GadgetStatus",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "GadgetName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "GadgetStatus",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "idle"
+              ]
+            ],
+            [
+              [
+                "value",
+                "active"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Register",
+          "role": null,
+          "goal": "Register a gadget, idle",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "GadgetName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              }
+            },
+            {
+              "target": "status",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "idle"
+              }
+            }
+          ],
+          "emits": [
+            "GadgetRegistered"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Activate",
+          "role": null,
+          "goal": "Activate a gadget — once; an already-active gadget cannot activate again",
+          "references": "Gadget",
+          "attributes": [],
+          "givens": [
+            {
+              "description": "only an idle gadget may activate",
+              "canonical": "status.value == \"idle\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "idle"
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "status",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "active"
+              }
+            }
+          ],
+          "emits": [
+            "GadgetActivated"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": []
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Gadget",
+        "storage_name": "gadget",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [],
+  "source_text": "Hecks.bluebook \"EmbryonautVendoringDemo\" do\n  vision \"The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through uses_embryonaut_bluebook, exercising the same dispatch-table merge uses_framework already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.\"\n  supporting\n\n  # DELIBERATELY NO reference_to THE VENDORED Widget — this session's own\n  # earlier confirmed finding: reference_to is same-chapter-scoped even\n  # across a framework/vendored attachment (examples/banking's own\n  # Banking aggregates never reference_to a Governance/Identity aggregate\n  # either). Gadget and Widget coexist in the same merged dispatch table,\n  # the same shallow relationship Banking has with Governance/Identity —\n  # a dispatch-table merge, never an attribute-level reference.\n  aggregate \"Gadget\" do\n    description \"One gadget: registered idle, then activated once.\"\n\n    attribute :name,   GadgetName\n    attribute :status, GadgetStatus\n\n    identified_by :name\n\n    value_object(\"GadgetName\") { attribute :value, String }\n\n    value_object \"GadgetStatus\" do\n      attribute :value, String, one_of: [\"idle\", \"active\"]\n    end\n\n    command \"Register\" do\n      goal \"Register a gadget, idle\"\n\n      attribute :name, GadgetName\n\n      sets :name\n      sets :status, to: \"idle\"\n\n      emits GadgetRegistered\n    end\n\n    command \"Activate\" do\n      goal \"Activate a gadget — once; an already-active gadget cannot activate again\"\n\n      reference_to Gadget\n\n      given(\"only an idle gadget may activate\") { status.value == \"idle\" }\n\n      sets :status, to: \"active\"\n\n      emits GadgetActivated\n    end\n  end\nend\n"
+}

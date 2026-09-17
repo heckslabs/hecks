@@ -9,7 +9,7 @@ require "hecks/fuzzing"
 # decoration, the same lesson the coverage gates state for
 # declarations.
 RSpec.describe "Hecks::Fuzzing::Properties" do
-  ROOT_DIR = InMemoryDomain::ROOT
+  ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   PROPERTIES_PIZZAS   = File.join(ROOT_DIR, "examples/pizzas")
   PROPERTIES_BANKING  = File.join(ROOT_DIR, "examples/banking")
   PROPERTIES_FIXTURES = File.join(ROOT_DIR, "spec/fixtures")
