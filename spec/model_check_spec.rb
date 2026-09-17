@@ -10,7 +10,7 @@ require "tmpdir"
 # whose from_state is unreachable (the deadlock class this arc named),
 # dispatches to nowhere, handlers listening for an event nothing emits.
 RSpec.describe "the model checker" do
-  ROOT_DIR = InMemoryDomain::ROOT
+  ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
 
   def boot(bluebook)
     # `root:` — WITHOUT IT, a real corpus member declaring

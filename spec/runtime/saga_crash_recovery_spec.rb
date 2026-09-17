@@ -13,8 +13,8 @@ require "tmpdir"
 # own dispatch, so nothing after that point in `settle_transition` — not
 # even its own "clear the pending marker" checkpoint — ever runs.
 RSpec.describe "saga durability across a process death mid-leg" do
-  WIRE_BLUEBOOK  = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
-  SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
+  WIRE_BLUEBOOK  = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
+  SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter") unless defined?(SQLITE_ADAPTER)
 
   around do |example|
     @dir = Dir.mktmpdir("hecks-saga-crash-")
