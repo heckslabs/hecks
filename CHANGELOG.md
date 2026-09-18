@@ -7,6 +7,23 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`rust/host`: an unauthenticated JSON request gets a 401, not a
+redirect to the login page.** The web gate used to answer every
+unauthenticated request the same way — `302` to `/login` — including
+ones that asked for JSON, so a `fetch()` or a `curl` followed the
+redirect and got `200` and an HTML login page where it expected data.
+A JSON-shaped request now gets `401 application/json` with
+`{"error":"Unauthenticated","message":"sign in first"}`, the Ruby
+console engine's own refusal body, key for key; everything else still
+redirects to `/login` exactly as before. JSON-shaped means a path under
+`/api/` (the Ruby engine's own rule, which likewise ignores `Accept:`)
+or one of this host's own routes asking for any format but `.html` —
+read through the same `split_format` the renderers use, so the gate
+can't disagree with the response the same path would have produced
+with a session. Found in production, where a deployed domain's own CI
+assertion that `/api/clients` is `401` had quietly stopped holding once
+the Rust host, rather than the Ruby engine, was serving it.
+
 **`deployed_to("AwsLambda") { stack_prefix "..." }`.** An optional
 setting for the `hecks-` half of a domain's own stack name (and so both
 Lambda function names, the Google OAuth secret, and the bastion stack),
