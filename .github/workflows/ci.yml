@@ -104,7 +104,7 @@ name: CI
 # above — that claim is still true of the eight themselves, none of
 # which depend on each other. `rspec_postgres_io_parallel` — the
 # aggregator that now holds that slot's NAME — is the one exception: it
-# has a real `needs:` (on `rspec_postgres_io_parallel_shard`'s own 4-way
+# has a real `needs:` (on `rspec_postgres_io_parallel_shard`'s own 8-way
 # matrix), so it no longer belongs to "no `needs:` between any of them"
 # either, even though nothing else in this file depends on IT.
 # This used to be two jobs (`rspec`, `checks`) with `rspec` itself split
@@ -388,7 +388,7 @@ jobs:
 
   # REUSABLE-WORKFLOW SPLIT, group 2 (part 3 of 3) — `postgres_io_relevant_
   # changed` (the skip-gate detector) and `rspec_postgres_io_parallel_shard`
-  # (the 4-way matrix) both moved verbatim into ci-postgres-io-parallel.yml;
+  # (the 8-way matrix) both moved verbatim into ci-postgres-io-parallel.yml;
   # see that file's own header for the full reasoning these two jobs'
   # comments used to carry inline here. `rspec_postgres_io_parallel` below
   # (the required-check aggregator) now points at that file's own call job
