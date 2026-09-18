@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
 # `bin/qa_sweep --all` / single-target — CLAIM RACES AND MODES. One of
-# four sibling files split out of the original `qa_sweep_all_spec.rb`
+# seven sibling files split out of the original `qa_sweep_all_spec.rb`
 # (Phase 2 of the CI speed effort — see `spec/qa_sweep_all_lifecycle_
 # spec.rb`'s own header and `spec/support/qa_sweep_all_fixture.rb` for
 # the full context). This file proves the claim race a real concurrent
