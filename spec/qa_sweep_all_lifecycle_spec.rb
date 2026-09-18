@@ -8,11 +8,14 @@ require_relative "support/qa_sweep_all_fixture"
 # full "why a disposable ledger, why QA_SWEEP_DOMAIN_DIR" reasoning this
 # fixture rests on). THIS FILE covers the ledger-lifecycle surface: the
 # operator role-provisioning step, an empty rotation, a stale-hold
-# reclaim, and every child failing outright. The other three groups
-# (concurrency mechanics, claim races + modes, report formatting +
-# persistence parity) live in their own sibling files, each with its own
-# throwaway database name so `parallel_rspec` can run all four
-# concurrently without any two racing the same scratch resource.
+# reclaim, and every child failing outright. The other six groups
+# (concurrency mechanics, claim races + modes, and — since 2026-09-18 —
+# output capture, shrinking, the persistence-parity wave, and the
+# `dry_runs` divergence surface, split further out of what was one
+# `qa_sweep_all_report_and_parity_spec.rb`) live in their own sibling
+# files, each with its own throwaway database name so `parallel_rspec`
+# can run all seven concurrently without any two racing the same
+# scratch resource.
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_lifecycle_spec"
 
