@@ -32,6 +32,7 @@
 
 use crate::auth::Session;
 use crate::presentation;
+use crate::ui_schema;
 use crate::web::respond;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
@@ -44,9 +45,29 @@ use tokio_postgres::Client;
 /// unwrapped, because `/api/me` is precisely the route whose Ruby
 /// counterpart (`json(session[:member] || {})`) also has an
 /// empty-session branch.
-pub async fn route(method: &str, path: &str, session: Option<&Session>, client: &Mutex<Client>) -> Value {
+pub async fn route(domain_ir: &Value, method: &str, path: &str, session: Option<&Session>, client: &Mutex<Client>) -> Value {
     match (method, path) {
         ("GET", "/api/me") => ok(&me(session)),
+
+        // THE WHOLE UI, DERIVED — nav, columns, field shapes,
+        // transitions, create forms, merged with whatever the config
+        // adds. Read fresh every call, same as `/api/presentation`
+        // below and for the same reason: a Settings-screen save has to
+        // be visible on this app's very next request, not after a
+        // restart.
+        ("GET", "/api/ui-schema") => match presentation::load(client).await {
+            Ok(config) => ok(&ui_schema::build(domain_ir, &config)),
+            Err(e) => internal_error(&e.to_string()),
+        },
+
+        // EVERY REAL AGGREGATE, ITS REAL LIFECYCLE STATES, EVERY REAL
+        // QUERY — a pure structural fact with no presentation opinion
+        // in it, which the Settings screen's own list_query picker and
+        // the table's live query picker both read.
+        ("GET", "/api/schema") => match presentation::load(client).await {
+            Ok(config) => ok(&ui_schema::schema(domain_ir, &config)),
+            Err(e) => internal_error(&e.to_string()),
+        },
 
         // Read fresh every call, never memoized — a Settings-screen
         // save has to be visible on the very next request, which is

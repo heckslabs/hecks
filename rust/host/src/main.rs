@@ -31,6 +31,7 @@ mod reference_transform;
 mod reference_validate;
 mod secrets;
 mod storage_shape;
+mod ui_schema;
 mod wasm_runner;
 mod web;
 

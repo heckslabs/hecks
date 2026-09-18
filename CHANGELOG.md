@@ -7,6 +7,21 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`rust/host` answers the console's `/api/ui-schema` and `/api/schema`.**
+`UiSchema.build` ported to Rust, rule for rule: one live domain IR plus
+the presentation config in, the same nav / columns / detail fields /
+field shapes / lifecycle transitions / create forms document
+embryonaut_console has always served out. Verified differentially, not
+just by unit test — the Rust document is BYTE-IDENTICAL to the Ruby
+engine's for the real Embryonaut domain, both with its real 8KB
+presentation config and with none at all. That diff found the one real
+disagreement in the port (Ruby's `String#split` drops trailing empty
+segments and Rust's does not, which showed up as `"  State  "` where
+Ruby renders `"  State"` in every table header) and it is fixed and
+pinned. `/api/schema` — every aggregate's real lifecycle states and
+real declared queries, each query argument shaped through the same
+`field` a create form's inputs go through — is identical too.
+
 **`rust/host` answers the console's `/api/*` surface: `/api/me` and
 `/api/presentation`.** The deployed Rust host already refused an
 unauthenticated `/api/...` request exactly the way the Ruby console
