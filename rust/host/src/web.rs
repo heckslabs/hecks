@@ -145,6 +145,77 @@ fn redirect_uri() -> String {
     std::env::var("GOOGLE_REDIRECT_URI").unwrap_or_default()
 }
 
+// THE GATE, AND WHY IT HAS TWO ANSWERS — an unauthenticated request is
+// refused here, but HOW it's refused has to match what the caller can
+// actually do with the refusal. A browser navigating to a page wants to
+// be sent somewhere it can sign in. A `fetch()`/`curl` asking for JSON
+// wants a status code it can branch on, and a 302 to an HTML login page
+// is the one answer it cannot use: the redirect is followed
+// transparently, so the caller gets 200 and a login page exactly where
+// it expected data, and only notices when parsing fails.
+//
+// This host used to redirect BOTH, which is what made
+// embryonautfoundersapp's own CI assertion (`curl -o /dev/null -w
+// '%{http_code}' /api/clients` is `401`) pass against the Ruby console
+// engine and then silently stop holding the moment the same domain was
+// served by this host instead — the gap was found in production, not by
+// a test.
+//
+// The rule is the Ruby engine's rule (embryonaut_console's
+// `web/app.rb` `before` filter: UNGATED_PATHS pass, then `/api/` gets
+// `halt 401, json({error:, message:})`, everything else redirects),
+// plus the one request shape that engine has no equivalent for — this
+// host's own routes carry their format IN THE PATH, so JSON-shaped here
+// is a wider set than just `/api/`. See `json_shaped`.
+//
+// PATH, NOT `Accept:` — deliberately, on two counts. The Ruby engine
+// keys off `request.path_info.start_with?("/api/")` and ignores
+// `Accept` entirely; keying off the header here would buy agreement on
+// the reported case at the price of a second, subtler disagreement (a
+// browser's own `Accept: text/html,...` sent to an `/api/` path would
+// then redirect in Rust and 401 in Ruby). And it's the honest fit for
+// this call chain: `route` is handed cookies, query and body, never
+// headers — `render` reads the incoming headers exactly once, for the
+// Stripe webhook signature — so honoring `Accept` would mean threading
+// a header down four call sites to decide something the path already
+// answers.
+fn auth_gate(path: &str, authenticated: bool) -> Option<Value> {
+    if authenticated || UNGATED_PATHS.contains(&path) {
+        return None;
+    }
+
+    Some(if json_shaped(path) {
+        // The Ruby engine's own refusal body, key for key, so a client
+        // can branch on it without caring which runtime answered.
+        respond(401, "application/json", &json!({"error": "Unauthenticated", "message": "sign in first"}).to_string())
+    } else {
+        redirect("/login")
+    })
+}
+
+// `/api/` first, so an `/api/...` path refuses the way Ruby refuses it
+// whatever suffix it carries. Everything after that is this host's own
+// `/<Domain>/<aggregate>[.fmt][/<verb-or-id>[.fmt]]` routing, read
+// through the SAME `split_format` the renderers read it through —
+// `.html` is the page, and anything else, INCLUDING no suffix at all,
+// is already the JSON branch (`aggregate_index`, `record_show` and
+// `command_route` all test `format != "html"`). Reusing that one
+// function is the point: a gate that decided "JSON-shaped" its own way
+// could drift into 401-ing a path that renders HTML, or redirecting one
+// that renders JSON. Fewer than two segments is `/`, `/favicon.ico` or
+// a bare `/<Domain>` — the home page and the text/HTML 404s around it,
+// no JSON route among them.
+fn json_shaped(path: &str) -> bool {
+    if path.starts_with("/api/") {
+        return true;
+    }
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    match segments.last() {
+        Some(last) if segments.len() >= 2 => split_format(last).1 != "html",
+        _ => false,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn route(
     domain_ir: &Value,
@@ -166,8 +237,8 @@ async fn route(
         return response;
     }
 
-    if !UNGATED_PATHS.contains(&path) && session.is_none() {
-        return redirect("/login");
+    if let Some(refusal) = auth_gate(path, session.is_some()) {
+        return refusal;
     }
 
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
@@ -1700,6 +1771,100 @@ mod tests {
         assert!(validate_stripe_webhook_secret("stripe", "").is_err());
         assert!(validate_stripe_webhook_secret("stripe", "whsec_real").is_ok());
         assert!(validate_stripe_webhook_secret("mock_stripe", "").is_ok());
+    }
+
+    // ---- the auth gate ---------------------------------------------
+    //
+    // `auth_gate` is the whole gate, factored out of `route` so it can
+    // be tested at all: `route` itself needs a live `Mutex<Client>`
+    // (tokio_postgres) and a compiled wasm domain, which is why every
+    // other test in this module is a pure-function test too. What's
+    // asserted here is exactly what `route` does with the answer —
+    // `None` means the request carries on to ordinary dispatch, `Some`
+    // is returned as the response verbatim.
+    //
+    // The bug these pin: every unauthenticated request used to get the
+    // same 302 to /login, so a JSON caller followed the redirect and
+    // parsed a login page. embryonautfoundersapp's CI asserts a 401 on
+    // `/api/clients`; the Ruby console engine gives it one.
+
+    fn status(response: &Value) -> u64 {
+        response.get("statusCode").and_then(|v| v.as_u64()).expect("a response always carries a statusCode")
+    }
+
+    #[test]
+    fn an_unauthenticated_api_request_is_refused_with_the_ruby_engines_own_401_json() {
+        let refusal = auth_gate("/api/clients", false).expect("an unauthenticated /api/ request must be refused");
+
+        assert_eq!(status(&refusal), 401);
+        assert_eq!(refusal["headers"]["content-type"], "application/json");
+        // Byte-for-byte embryonaut_console web/app.rb's own
+        // `halt 401, json({ error: "Unauthenticated", message: "sign in first" })`.
+        assert_eq!(refusal["body"], r#"{"error":"Unauthenticated","message":"sign in first"}"#);
+        assert!(refusal["headers"].get("location").is_none(), "a JSON caller must not be redirected: {refusal}");
+    }
+
+    // Ruby keys off the `/api/` PREFIX alone and doesn't look at a
+    // suffix; so does this, checked before the format-based rule below.
+    #[test]
+    fn an_api_path_is_json_shaped_whatever_suffix_it_carries() {
+        assert!(json_shaped("/api/clients"));
+        assert!(json_shaped("/api/clients.html"));
+        assert!(json_shaped("/api/ui-schema"));
+    }
+
+    // This host's own routes, which the Ruby engine has no counterpart
+    // for: the format lives in the path, `.html` is the page and
+    // EVERYTHING ELSE — including a bare segment with no suffix — is
+    // the JSON branch (`aggregate_index`/`record_show`/`command_route`
+    // all branch on `format != "html"`). So a no-suffix aggregate URL
+    // is a JSON request, not an HTML one, and refusing it with a
+    // redirect would hand a JSON caller a login page just as surely as
+    // `/api/clients` did.
+    #[test]
+    fn an_unauthenticated_host_route_is_401_unless_it_asks_for_html() {
+        assert_eq!(status(&auth_gate("/Pizzas/Order.json", false).expect("refused")), 401);
+        assert_eq!(status(&auth_gate("/Pizzas/Order", false).expect("refused")), 401);
+        assert_eq!(status(&auth_gate("/Pizzas/Order/p1.json", false).expect("refused")), 401);
+
+        let page = auth_gate("/Pizzas/Order.html", false).expect("refused");
+        assert_eq!(status(&page), 302);
+        assert_eq!(page["headers"]["location"], "/login");
+
+        let record_page = auth_gate("/Pizzas/Order/p1.html", false).expect("refused");
+        assert_eq!(status(&record_page), 302);
+        assert_eq!(record_page["headers"]["location"], "/login");
+    }
+
+    // The home page and the not-a-route paths around it are HTML (or
+    // plain-text 404s reached through the HTML side), and a browser is
+    // who asks for them — unchanged behavior, and the reason the rule
+    // isn't simply "everything that isn't `.html`".
+    #[test]
+    fn an_unauthenticated_browser_navigation_still_redirects_to_login() {
+        let home = auth_gate("/", false).expect("refused");
+        assert_eq!(status(&home), 302);
+        assert_eq!(home["headers"]["location"], "/login");
+
+        assert_eq!(status(&auth_gate("/favicon.ico", false).expect("refused")), 302);
+        assert_eq!(status(&auth_gate("/Pizzas", false).expect("refused")), 302);
+    }
+
+    #[test]
+    fn the_ungated_paths_are_still_ungated_without_a_session() {
+        for path in UNGATED_PATHS {
+            assert!(auth_gate(path, false).is_none(), "{path} must reach its own handler with no session");
+        }
+    }
+
+    // No regression for a signed-in caller: the gate refuses nothing,
+    // JSON-shaped or not, and the request goes on to ordinary dispatch.
+    #[test]
+    fn an_authenticated_request_passes_the_gate_untouched() {
+        assert!(auth_gate("/api/clients", true).is_none());
+        assert!(auth_gate("/Pizzas/Order", true).is_none());
+        assert!(auth_gate("/Pizzas/Order.html", true).is_none());
+        assert!(auth_gate("/", true).is_none());
     }
 
     #[test]
