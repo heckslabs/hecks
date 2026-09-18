@@ -16,8 +16,12 @@ RSpec.describe "the DSL surface is fully covered" do
       # `behaviors` — lib/hecks/behaviors.rb, opt-in (see its own
       # header) but a process-global singleton method the moment anything
       # in the suite requires it, same as `boot_files`.
+      # `deprecate` — lib/hecks/deprecation.rb, the one door this gem
+      # warns about its own API through (roadmap I3's loose keyword facts
+      # are its first caller); tested in
+      # spec/runtime/legacy_dispatch_args_deprecation_spec.rb.
       %i[boot boot_files with_registry bluebook hecksagon port adapter world data_translation current_registry
-         as_caller behaviors]
+         as_caller behaviors deprecate]
     ],
     "BluebookBuilder"             => [
       Hecks::Bluebook::DSL::BluebookBuilder,
