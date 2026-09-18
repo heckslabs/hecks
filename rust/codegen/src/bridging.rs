@@ -458,14 +458,11 @@ pub fn corrects_of(command: &Json) -> Option<&Json> {
 /// CONFIRMED currently harmless: no real corpus command declares
 /// `corrects EVENT, reverses: true` on an invertible mutation today (ADR
 /// 0041 — the real corpus motivation, `Banking::Account.CorrectFee`,
-/// uses the explicit-`sets` shape instead). So `corrects_reverses` here
-/// keeps refusing UNCONDITIONALLY, for every mutation kind including
-/// increment/decrement — a real, named, confirmed-harmless divergence
-/// FROM THE OTHER GENERATOR (not from Ruby: nothing in either real
-/// generator's own corpus exercises the shape this narrows), left this
-/// way deliberately rather than forcing a mutable-tree port for no
-/// currently-observable behavioral gain. Re-open this the day a real
-/// corpus command needs it.
+/// uses the explicit-`sets` shape instead). The derivation itself stays
+/// Ruby's: `hecks-codegen` reads the IR `DomainGenerator.call` already
+/// derived, so `command_skip_reason` refuses only a `reverses: true`
+/// command whose mutations are still just its `corrects` — the same check
+/// commands.rb makes after deriving.
 pub fn corrects_reverses(mutation: &Json) -> bool {
     mutation
         .get("source")

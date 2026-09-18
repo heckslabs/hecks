@@ -6,6 +6,7 @@ use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::literal::{self, Literal};
 use crate::naming;
+use crate::skip_reason::{reskip, skip, SkipReason};
 use std::collections::HashMap;
 
 const COMPARATORS_NEEDING_NUMERIC_FIDELITY: &[&str] = &["gt", "gte", "lt", "lte"];
@@ -85,13 +86,17 @@ fn query_vo_collapse_kind(vo: &Json, value_objects_by_name: &HashMap<String, &Js
 }
 
 /// One where clause's own eligibility.
-pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let field = where_clause.get("field").map(Json::to_s).unwrap_or_default();
     let kind = query_field_kind(aggregate, &field, value_objects_by_name);
     if kind == FieldKind::Unknown {
-        return Some(format!(
-            "where clause on {} isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job",
-            naming::ruby_inspect_string(&field)
+        let construct = if field.contains('/') { "reference_hop_where" } else { "where_unrecognized_field" };
+        return Some(skip(
+            construct,
+            format!(
+                "where clause on {} isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job",
+                naming::ruby_inspect_string(&field)
+            ),
         ));
     }
 
@@ -102,21 +107,27 @@ pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_obje
 
     let op = where_clause.get("op").map(Json::to_s).unwrap_or_default();
     if !known_query_comparator(&op) {
-        return Some(format!(
-            "where clause on {} uses op {} — Vocabulary::QueryComparator admits it, but rust/src/kernel/query_comparators.rs's own hand-maintained enum has no matching variant yet (item #9, whole-project table-unification survey); not generated until that catches up",
-            naming::ruby_inspect_string(&field),
-            naming::ruby_inspect_string(&op)
+        return Some(skip(
+            "where_none_in_state",
+            format!(
+                "where clause on {} uses op {} — Vocabulary::QueryComparator admits it, and rust/src/kernel/query_comparators.rs's own QueryComparator::NoneInState variant now exists and is proven correct (item #9, whole-project table-unification survey) — but no generated domain has any way to hand it a cross-domain search list at the call site (named_query::run's own thin `run_cross_domain([])` wrapper is what every generated QUERIES table actually calls), so generating this condition today would silently answer every row 'true' rather than a real anti-join — deliberately left ungenerated until a real cross-domain-search call site exists, the same honest-refusal-over-silently-wrong choice this generator makes everywhere else",
+                naming::ruby_inspect_string(&field),
+                naming::ruby_inspect_string(&op)
+            ),
         ));
     }
     if COMPARATORS_NEEDING_NUMERIC_FIDELITY.contains(&op.as_str()) {
         if kind == FieldKind::Number {
             return None;
         }
-        return Some(format!(
-            "where clause on {} uses op {} against a LITERAL value whose target field doesn't reduce to a plain JSON number (kind: {}) — gt/gte/lt/lte only mean anything against a number (query_comparators.rs's own `ordered?` gate)",
-            naming::ruby_inspect_string(&field),
-            naming::ruby_inspect_string(&op),
-            kind_name(kind)
+        return Some(skip(
+            "where_literal",
+            format!(
+                "where clause on {} uses op {} against a LITERAL value whose target field doesn't reduce to a plain JSON number (kind: {}) — gt/gte/lt/lte only mean anything against a number (query_comparators.rs's own `ordered?` gate)",
+                naming::ruby_inspect_string(&field),
+                naming::ruby_inspect_string(&op),
+                kind_name(kind)
+            ),
         ));
     }
     if COMPARATORS_EXEMPT_FROM_LITERAL_TYPING.contains(&op.as_str()) {
@@ -129,11 +140,14 @@ pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_obje
         return None;
     }
 
-    Some(format!(
-        "where clause on {} uses op {} against a LITERAL value whose target field doesn't reduce to a plain JSON string (kind: {}) — its true wire type can't be recovered from the exported IR",
-        naming::ruby_inspect_string(&field),
-        naming::ruby_inspect_string(&op),
-        kind_name(kind)
+    Some(skip(
+        "where_literal",
+        format!(
+            "where clause on {} uses op {} against a LITERAL value whose target field doesn't reduce to a plain JSON string (kind: {}) — its true wire type can't be recovered from the exported IR",
+            naming::ruby_inspect_string(&field),
+            naming::ruby_inspect_string(&op),
+            kind_name(kind)
+        ),
     ))
 }
 
@@ -183,7 +197,7 @@ pub fn query_hop_plan<'a>(aggregate: &'a Json, field: &str, aggregates_by_name: 
     Some(HopPlan { via_field, target_aggregate, through: steps, target: current, inner_field: segments[segments.len() - 1].to_string() })
 }
 
-fn with_field(where_clause: &Json, field: &str) -> Json {
+pub fn with_field(where_clause: &Json, field: &str) -> Json {
     match where_clause {
         Json::Object(pairs) => Json::Object(
             pairs
@@ -195,7 +209,7 @@ fn with_field(where_clause: &Json, field: &str) -> Json {
     }
 }
 
-fn value_objects_of(aggregate: &Json) -> HashMap<String, &Json> {
+pub fn value_objects_of(aggregate: &Json) -> HashMap<String, &Json> {
     aggregate
         .get("value_objects")
         .map(Json::each)
@@ -206,14 +220,14 @@ fn value_objects_of(aggregate: &Json) -> HashMap<String, &Json> {
 }
 
 /// A whole declared query's own eligibility.
-pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, aggregates_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let extra_keys = ["cursor", "consistency", "freshness", "inspection"];
     let extras: Vec<&str> = extra_keys.iter().filter(|k| query.get(k).is_some()).copied().collect();
     if !extras.is_empty() {
-        return Some(format!("declares {} — out of scope for this generator (rust/project/queries.rb's own header has the full argument)", extras.join(", ")));
+        return Some(skip(extras[0], format!("declares {} — out of scope for this generator (rust/project/queries.rb's own header has the full argument)", extras.join(", "))));
     }
     if query.get("index_hints").map(Json::each).unwrap_or(&[]).iter().any(|_| true) {
-        return Some("declares use_index, out of scope for the same reason the extras above are".to_string());
+        return Some(skip("index_hints", "declares use_index, out of scope for the same reason the extras above are"));
     }
 
     // An empty `wheres` list is ONLY a real "nothing to compile" — a
@@ -228,7 +242,7 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
     let declared_tenant = query.get("authorization").and_then(|a| a.get("tenant")).is_some();
     let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
     if wheres.is_empty() && !declared_tenant {
-        return Some("declares no where clauses at all — nothing for filter_entries to bake in".to_string());
+        return Some(skip("no_wheres", "declares no where clauses at all — nothing for filter_entries to bake in"));
     }
 
     // A single hop is generated — `queries.rb#query_skip_reason`'s own comment.
@@ -237,7 +251,7 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
         if let Some(plan) = query_hop_plan(aggregate, &field, aggregates_by_name) {
             let target_value_objects_by_name = value_objects_of(plan.target);
             if let Some(reason) = query_where_skip_reason(&with_field(where_clause, &plan.inner_field), plan.target, &target_value_objects_by_name) {
-                return Some(format!("hop through {} to {}'s own {reason}", plan.via_field, plan.target_aggregate));
+                return Some(reskip(&reason, format!("hop through {} to {}'s own {reason}", plan.via_field, plan.target_aggregate)));
             }
             continue;
         }
@@ -261,7 +275,7 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
     declared_limit_skip_reason(query.get("limit"))
 }
 
-pub fn declared_order_by_skip_reason(order_by: Option<&Json>, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn declared_order_by_skip_reason(order_by: Option<&Json>, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let order_by = order_by?;
     let field = order_by.get("field").map(Json::to_s).unwrap_or_default();
     let kind = query_field_kind(aggregate, &field, value_objects_by_name);
@@ -269,21 +283,24 @@ pub fn declared_order_by_skip_reason(order_by: Option<&Json>, aggregate: &Json, 
         return None;
     }
 
-    Some(format!(
-        "declares order_by on {} — this generator can only sort a field that reduces to a plain JSON string or number (kind: {}); a hop through a reference, an entity-scoped field, a list_of field, or a multi-member non-numeric value object can't be compared generically",
-        naming::ruby_inspect_string(&field),
-        kind_name(kind)
+    Some(skip(
+        "order_by",
+        format!(
+            "declares order_by on {} — this generator can only sort a field that reduces to a plain JSON string or number (kind: {}); a hop through a reference, an entity-scoped field, a list_of field, or a multi-member non-numeric value object can't be compared generically",
+            naming::ruby_inspect_string(&field),
+            kind_name(kind)
+        ),
     ))
 }
 
-pub fn declared_limit_skip_reason(limit: Option<&Json>) -> Option<String> {
+pub fn declared_limit_skip_reason(limit: Option<&Json>) -> Option<SkipReason> {
     let limit = limit?;
     let raw = limit.get("value").map(Json::to_s).unwrap_or_default();
     if raw.starts_with(':') || is_plain_integer(&raw) {
         return None;
     }
 
-    Some(format!("declares limit {} — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real limit count from it", naming::ruby_inspect_string(&raw)))
+    Some(skip("limit", format!("declares limit {} — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real limit count from it", naming::ruby_inspect_string(&raw))))
 }
 
 /// `offset`'s own content check — same shape as `declared_limit_skip_
@@ -291,14 +308,14 @@ pub fn declared_limit_skip_reason(limit: Option<&Json>) -> Option<String> {
 /// `declared_offset_skip_reason` for the full reasoning); kept a
 /// separately-named function for the same reason that file's does — so
 /// the reason string names "offset", not "limit".
-pub fn declared_offset_skip_reason(offset: Option<&Json>) -> Option<String> {
+pub fn declared_offset_skip_reason(offset: Option<&Json>) -> Option<SkipReason> {
     let offset = offset?;
     let raw = offset.get("value").map(Json::to_s).unwrap_or_default();
     if raw.starts_with(':') || is_plain_integer(&raw) {
         return None;
     }
 
-    Some(format!("declares offset {} — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real offset count from it", naming::ruby_inspect_string(&raw)))
+    Some(skip("offset", format!("declares offset {} — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real offset count from it", naming::ruby_inspect_string(&raw))))
 }
 
 fn is_plain_integer(raw: &str) -> bool {
@@ -314,14 +331,14 @@ fn is_plain_integer(raw: &str) -> bool {
 /// other where-clause field gets — constructed as the exact synthetic
 /// arg-bound where shape and run through `query_where_skip_reason`
 /// wholesale, rather than duplicating that check.
-pub fn declared_authorization_skip_reason(authorization: Option<&Json>, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn declared_authorization_skip_reason(authorization: Option<&Json>, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let tenant = authorization.and_then(|a| a.get("tenant")).map(Json::to_s)?;
     let synthetic_where = Json::Object(vec![
         ("field".to_string(), Json::String(tenant.clone())),
         ("op".to_string(), Json::String("eq".to_string())),
         ("value".to_string(), Json::String(format!(":{tenant}"))),
     ]);
-    query_where_skip_reason(&synthetic_where, aggregate, value_objects_by_name)
+    query_where_skip_reason(&synthetic_where, aggregate, value_objects_by_name).map(|reason| skip("authorization", reason.text))
 }
 
 pub fn emit_query_order_by(order_by: &Json, null_semantics: Option<&Json>) -> String {
@@ -424,12 +441,7 @@ pub fn query_conditions_and_hops(domain_name: &str, query: &Json, aggregate: &Js
     for w in query.get("wheres").map(Json::each).unwrap_or(&[]) {
         let field = w.get("field").map(Json::to_s).unwrap_or_default();
         match query_hop_plan(aggregate, &field, aggregates_by_name) {
-            Some(plan) => {
-                let mut condition = condition_for(w);
-                condition.field = plan.inner_field;
-                let through = plan.through.into_iter().map(|(via, target)| (via, format!("{domain_name}::{target}"))).collect();
-                hops.push(HopCondition { via_field: plan.via_field, target_aggregate: format!("{domain_name}::{}", plan.target_aggregate), through, condition });
-            }
+            Some(plan) => hops.push(hop_condition(domain_name, plan, w)),
             None => local.push(condition_for(w)),
         }
     }
@@ -437,6 +449,25 @@ pub fn query_conditions_and_hops(domain_name: &str, query: &Json, aggregate: &Js
         local.push(Condition { field: tenant.clone(), op: "eq".to_string(), arg: Some(tenant), literal: None });
     }
     (local, hops)
+}
+
+/// Port of `read_models.rb#read_model_hop_conditions` — `hop_wheres` were
+/// already confirmed to be resolvable hops by the skip check.
+pub fn read_model_hop_conditions(domain_name: &str, hop_wheres: &[&Json], aggregate: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Vec<HopCondition> {
+    hop_wheres
+        .iter()
+        .filter_map(|w| {
+            let plan = query_hop_plan(aggregate, &w.get("field").map(Json::to_s).unwrap_or_default(), aggregates_by_name)?;
+            Some(hop_condition(domain_name, plan, w))
+        })
+        .collect()
+}
+
+fn hop_condition(domain_name: &str, plan: HopPlan<'_>, w: &Json) -> HopCondition {
+    let mut condition = condition_for(w);
+    condition.field = plan.inner_field;
+    let through = plan.through.into_iter().map(|(via, target)| (via, format!("{domain_name}::{target}"))).collect();
+    HopCondition { via_field: plan.via_field, target_aggregate: format!("{domain_name}::{}", plan.target_aggregate), through, condition }
 }
 
 /// Port of `read_models.rb#emit_reference_hop_condition`.
@@ -659,13 +690,13 @@ fn emit_entity_query_def(query_def: &QueryDef) -> String {
 }
 
 /// Port of `queries.rb#entity_query_skip_reason`.
-pub fn entity_query_skip_reason(query: &Json, entity: &Json, holds_list: bool, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn entity_query_skip_reason(query: &Json, entity: &Json, holds_list: bool, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let entity_name = entity.get("name").map(Json::to_s).unwrap_or_default();
     if !holds_list {
-        return Some(format!("{entity_name} is held in no list attribute on its aggregate — nothing to flatten"));
+        return Some(skip("entity_query", format!("{entity_name} is held in no list attribute on its aggregate — nothing to flatten")));
     }
     if query.get("authorization").is_some() {
-        return Some("declares authorize — an entity query's tenant scope is not generated yet".to_string());
+        return Some(skip("entity_query_authorization", "declares authorize — an entity query's tenant scope is not generated yet"));
     }
     query_skip_reason(query, entity, value_objects_by_name, &HashMap::new())
 }

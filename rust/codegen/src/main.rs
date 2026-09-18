@@ -34,6 +34,7 @@ mod hecks_naming;
 mod json;
 mod json_codec;
 mod literal;
+mod manifest;
 mod mutations;
 mod naming;
 mod ports;
@@ -45,6 +46,7 @@ mod reference_specs;
 mod registry;
 mod reserved_names;
 mod shared;
+mod skip_reason;
 mod types;
 
 use json::Json;
@@ -103,14 +105,14 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
 /// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` —
 /// the FULL per-chapter walk (`domain_generator::generate`, a port of
 /// `DomainGenerator.call`): one `<aggregate>.rs` per generated aggregate,
-/// `registry.rs`, and `mod.rs`. NOT written here: `metadata.rs`/`ir.json`
-/// (this subcommand only ever sees ALREADY-PARSED `ir.json`, on disk —
-/// `bin/project_rust`'s own opt-in orchestration writes those two
-/// straight from the exact bytes `hecks-parse chapter` already emitted
-/// plus a plain `String#inspect` call, never re-derived here — see that
-/// script's own header on why re-serializing JSON in this crate was
-/// judged unnecessary, not merely deferred) and `manifest.json`
-/// (bookkeeping only, see `run_full`'s own header) — named gaps, not
+/// `registry.rs`, `mod.rs`, and `manifest.json` (the coverage manifest
+/// `bin/rust_coverage` reads — `manifest.rs`). NOT written here:
+/// `metadata.rs`/`ir.json` (this subcommand only ever sees ALREADY-PARSED
+/// `ir.json`, on disk — `bin/project_rust`'s own opt-in orchestration
+/// writes those two straight from the exact bytes `hecks-parse chapter`
+/// already emitted plus a plain `String#inspect` call, never re-derived
+/// here — see that script's own header on why re-serializing JSON in this
+/// crate was judged unnecessary, not merely deferred) — named gaps, not
 /// silently dropped.
 fn run_domain(args: &[String]) -> Result<(), String> {
     let [ir_path, source_label, mod_name, out_dir] = args else {
@@ -170,6 +172,10 @@ fn write_domain(
     std::fs::write(&mod_path, &generated.mod_rs).map_err(|e| format!("writing {mod_path}: {e}"))?;
     println!("wrote {mod_path}");
 
+    let manifest_path = format!("{out_dir}/manifest.json");
+    std::fs::write(&manifest_path, &generated.manifest_json).map_err(|e| format!("writing {manifest_path}: {e}"))?;
+    println!("wrote {manifest_path}");
+
     Ok(generated)
 }
 
@@ -205,18 +211,8 @@ fn puts_blank(out: &mut String) {
 /// already gets, same as that script's own comment says.
 ///
 /// NOT written here: `metadata.rs`/`ir.json` per directory (the
-/// orchestrator's own job — see `run_domain`'s header) and
-/// `manifest.json` (the coverage manifest `bin/rust_coverage` reads —
-/// `domain_generator.rb`'s own per-construct `manifest_entry` tracking
-/// was judged out of scope for this stage: it is bookkeeping ABOUT the
-/// generator's decisions, with "no bearing on whether the generated
-/// `.rs` source is correct" per that file's own header, and porting its
-/// ~15 call sites' worth of skip-reason tracking into this crate would
-/// duplicate logic `commands.rs`/`queries.rs`/`read_models.rs`/etc.
-/// already compute for the REAL decision, not add any new correctness
-/// coverage. Left an explicit, named Ruby-only gap for now, not a
-/// silent drop — `bin/project_rust`'s own opt-in branch says so again
-/// at the point it skips writing the file).
+/// orchestrator's own job — see `run_domain`'s header). `manifest.json`
+/// IS written per directory, by `write_domain`.
 fn run_full(args: &[String]) -> Result<(), String> {
     if args.len() < 4 || (args.len() - 4) % 3 != 0 {
         return Err(

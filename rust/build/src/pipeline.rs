@@ -14,10 +14,9 @@
 //! it owns; this file is the sequencing, matching
 //! `RustProjectPipeline.call`'s own body step for step.
 //!
-//! ONE NAMED, DELIBERATE GAP remains — `manifest.json` (coverage
-//! bookkeeping only, no bearing on whether the generated `.rs` source is
-//! correct). The `lineage` key gap is CLOSED (`lineage_pass`'s own
-//! header has the full reasoning) — see
+//! `manifest.json` is written per directory by `hecks-codegen full` itself
+//! (rust/codegen/src/manifest.rs). The `lineage` key gap is CLOSED
+//! (`lineage_pass`'s own header has the full reasoning) — see
 //! `rust/project_rust_pipeline.rb`'s own header for that fix's own
 //! Ruby-side account, which this crate mirrors rather than re-deriving.
 
@@ -183,12 +182,6 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     for c in &chapters {
         sidecars::write(&out_root.join(&c.mod_name), &c.ir_text, &c.source_label)?;
     }
-
-    eprintln!(
-        "hecks-build: manifest.json NOT written for any directory above — coverage bookkeeping only, \
-         no bearing on whether the generated .rs source is correct (rust/codegen/src/main.rs's own \
-         `run_full` header has the full reasoning)."
-    );
 
     let cargo_toml_path = root.join("rust/Cargo.toml");
     cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;

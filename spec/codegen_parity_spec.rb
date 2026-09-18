@@ -141,11 +141,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   # Ruby's, with the bug that owns it. It runs the same whole-file check
   # as RSpec `pending`, so the day it matches, the example FAILS until the
   # entry is deleted here.
-  CODEGEN_PENDING_MEMBERS = {
-    "corrections" => "BUG#32's Rust half: `Ledger.Void` (`sets :entries, remove: :sequence`) — rust/codegen never " \
-                     "ported the `remove` mutation op, and `hecks-codegen domain` panics with " \
-                     "\"unsupported mutation op \\\"remove\\\"\""
-  }.freeze
+  CODEGEN_PENDING_MEMBERS = {}.freeze
 
   it "finds at least one real corpus member" do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty

@@ -23,11 +23,9 @@ require "json"
 # session to trip over — no other spec in this repo calls
 # `bin/project_rust` for real, so this is the first that needs to.
 #
-# ONE NAMED, DELIBERATE EXCEPTION to "byte-identical" — explained in
-# full in `rust/project_rust_pipeline.rb`'s own header: `manifest.json`
-# is not written by the opt-in path at all — coverage bookkeeping only
-# (`hecks-codegen full`'s own header in `rust/codegen/src/main.rs`), no
-# bearing on whether the generated `.rs` source is correct.
+# `manifest.json` is still excluded here (IGNORED_BASENAMES): both paths
+# write it now, but its two-generator byte parity is owned by
+# spec/codegen_manifest_parity_spec.rb, over every manifest-mode domain.
 #
 # The `lineage` key (a former second exception) is CLOSED —
 # `rust/project_rust_pipeline.rb::derive_lineage` computes it from a
@@ -131,9 +129,8 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
 
         ruby_files = files_in(ruby_dir)
         rust_files = files_in(rust_dir)
-        expect(rust_files).to eq(ruby_files - IGNORED_BASENAMES),
-                              "#{dir}: the opt-in path's own file list differs from the default path's " \
-                              "(beyond the named manifest.json gap) — " \
+        expect(rust_files).to eq(ruby_files),
+                              "#{dir}: the opt-in path's own file list differs from the default path's — " \
                               "ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
 
         (ruby_files - IGNORED_BASENAMES - CONTENT_EXEMPT_BASENAMES).each do |basename|

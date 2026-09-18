@@ -44,7 +44,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "rspec: Rust codegen parity"
-        run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
+        run: bundle exec rspec --tag io spec/codegen_parity_spec.rb spec/codegen_manifest_parity_spec.rb
 
       # The crate's own unit tests — never ran in CI before (only
       # `cargo test --lib` in rust/ did).

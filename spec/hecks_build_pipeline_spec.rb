@@ -34,10 +34,8 @@ require "json"
 # `lineage` key for real now, from the same narrow `.hecksagon`
 # `persisted_by`-bind text scan, ported line for line — so
 # `ir.json`/`metadata.rs` are expected to be PLAIN BYTE-IDENTICAL too,
-# same as every other generated file. `manifest.json` stays the one
-# remaining named, deliberate gap (coverage bookkeeping only) — neither
-# side writes it, so the file-list comparison below never sees it on
-# either side and needs no exclusion list.
+# same as every other generated file — `manifest.json` included: both
+# sides get it from the same `hecks-codegen full` call.
 RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # PREFIXED (HB_*), not the bare names `spec/project_rust_pipeline_spec.rb`
   # already uses (ROOT/GENERATED_ROOT/CARGO_TOML/PROJECT_RUST/
