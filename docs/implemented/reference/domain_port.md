@@ -80,8 +80,8 @@ end
 ```
 
 ```ruby
-runtime.dispatch("DomainPortReference::Shipment.Book", waybill: { value: "wb-1" }, note: { text: "two crates" })
-runtime.dispatch("DomainPortReference::Shipment.Book", waybill: { value: "wb-remote" }, note: { text: "one crate" })
+runtime.dispatch("DomainPortReference::Shipment.Book", with: { waybill: { value: "wb-1" }, note: { text: "two crates" } })
+runtime.dispatch("DomainPortReference::Shipment.Book", with: { waybill: { value: "wb-remote" }, note: { text: "one crate" } })
 ```
 
 ## operation
@@ -132,7 +132,7 @@ Declaring `answers` or `refuses` on one is refused when the bluebook builds.
 arrived, and the domain records that it was told:
 
 ```ruby
-told = runtime.dispatch("DomainPortReference::Shipment.Carrier.Delivered", waybill: "wb-1")
+told = runtime.dispatch("DomainPortReference::Shipment.Carrier.Delivered", to: "wb-1", with: { waybill: "wb-1" })
 told.events.map(&:name)  # => ["DeliveryReported"]
 ```
 
@@ -189,7 +189,7 @@ The adapter really is called, and what it returned comes back as the
 event the ask named:
 
 ```ruby
-answered = runtime.dispatch("DomainPortReference::Shipment.Carrier.Quote", waybill: "wb-1")
+answered = runtime.dispatch("DomainPortReference::Shipment.Carrier.Quote", to: "wb-1", with: { waybill: "wb-1" })
 answered.events.map(&:name)  # => ["QuoteReturned"]
 ```
 
@@ -197,7 +197,7 @@ And when the outside says no, that is an event too — not an exception
 escaping into the caller:
 
 ```ruby
-refused = runtime.dispatch("DomainPortReference::Shipment.Carrier.Quote", waybill: "wb-remote")
+refused = runtime.dispatch("DomainPortReference::Shipment.Carrier.Quote", to: "wb-remote", with: { waybill: "wb-remote" })
 refused.events.map(&:name)  # => ["QuoteRefused"]
 ```
 

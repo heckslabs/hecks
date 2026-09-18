@@ -67,10 +67,10 @@ A card payment authorizes against an existing account, so the
 walkthrough needs one first:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
-                 name: { given: "Odile", family: "Payer" }, email: { address: "odile@example.com" })
-runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
-                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c1" },
+                                                       name: { given: "Odile", family: "Payer" }, email: { address: "odile@example.com" } })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "a1" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 50_000 } })
 ```
 
 ## The default, and the automatic move

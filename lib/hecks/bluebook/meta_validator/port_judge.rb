@@ -34,7 +34,7 @@ module Hecks
         end
 
         def send_to(verb, label, **payload)
-          offer(label) { @runtime.dispatch(verb, **args(payload)) }
+          offer(label) { @runtime.dispatch_flat(verb, args(payload)) }
         end
 
         def judge!
