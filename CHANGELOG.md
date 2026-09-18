@@ -7,6 +7,27 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`rust/host` answers the console's `/api/*` surface: `/api/me` and
+`/api/presentation`.** The deployed Rust host already refused an
+unauthenticated `/api/...` request exactly the way the Ruby console
+engine does; an authenticated one fell through to this host's own
+`/<Domain>/<aggregate>` router and came back `404 no domain "api"
+loaded`. The refusal contract matched and the success contract didn't.
+`/api/me` now answers the same signed-in member hash
+(`email`/`name`/`identity_id`/`role`) embryonaut_console's own
+`session[:member]` carries, and `/api/presentation` the same nested
+config `PresentationConfig.load` returns — read from the `ConsoleSettings`
+chapter's own Postgres head views (`state_style_head`,
+`collection_head`, `overview_head`), in the database this host already
+holds a connection to, since that chapter is pinned to Ruby's Postgres
+adapter deliberately and permanently and is not in this crate's flat
+journal. A domain with no such relations reads back an empty config
+rather than failing. `PUT /api/presentation` is deliberately NOT ported
+and refuses with `501 NotImplemented` naming why: this host has no
+`ConsoleSettings` kernel to dispatch that chapter's commands through,
+and writing the rows behind its back would skip the invariants those
+commands enforce.
+
 **`rust/host`: an unauthenticated JSON request gets a 401, not a
 redirect to the login page.** The web gate used to answer every
 unauthenticated request the same way — `302` to `/login` — including

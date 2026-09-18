@@ -16,6 +16,7 @@
 // `main.rs` falls through to its existing `read`/`verb` handling
 // untouched in that case, zero risk to the internal-dispatch path.
 
+use crate::api;
 use crate::auth;
 use crate::auth::Session;
 use crate::checkout;
@@ -239,6 +240,18 @@ async fn route(
 
     if let Some(refusal) = auth_gate(path, session.is_some()) {
         return refusal;
+    }
+
+    // THE CONSOLE'S OWN `/api/*` CONTRACT (api.rs) — answered BEFORE
+    // this host's `/<Domain>/<aggregate>` routing, and unconditionally:
+    // every path under `/api/` belongs to that surface, including one
+    // it doesn't recognize (which it answers as a JSON 404). Falling
+    // through instead is what used to produce `404 no domain "api"
+    // loaded` for an authenticated `/api/clients` — a plain-text
+    // refusal, from this host's own router, for a request the Ruby
+    // engine answers with data.
+    if path.starts_with("/api/") {
+        return api::route(method, path, session.as_ref(), client).await;
     }
 
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
@@ -1735,7 +1748,7 @@ fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "cookies": [cookie], "body": "", "isBase64Encoded": false})
 }
 
-fn respond(status: u16, content_type: &str, body: &str) -> Value {
+pub(crate) fn respond(status: u16, content_type: &str, body: &str) -> Value {
     json!({"statusCode": status, "headers": {"content-type": content_type}, "body": body, "isBase64Encoded": false})
 }
 
