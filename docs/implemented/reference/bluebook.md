@@ -168,6 +168,44 @@ sub-language, whose own `Syntax` aggregate holds the seed rows for
 `ParserTable`/this doc generator/every conformance spec reads the
 merged table and cannot tell a core row from an attached one.
 
+## provides
+
+<!-- generated:begin word=provides -->
+`provides provides, assignments:, grant:, transitions:` — fills `provides`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | provides |
+| `assignments:` | text | false | provides |
+| `grant:` | text | false | provides |
+| `transitions:` | text | false | provides |
+<!-- generated:end -->
+
+Declares a capability this chapter answers for every domain that attaches
+it, so nothing downstream has to recognise the chapter by its name. The
+one capability the language knows today is `authorization`, and it needs
+exactly three verbs, each one of this chapter's own:
+
+- `assignments:` — a query answering every role an actor holds
+- `grant:` — the command that grants an actor a role
+- `transitions:` — a query answering whether one role may act as another
+
+The Governance framework member is the real use
+(`lib/hecks/framework/bluebook/governance.bluebook`). The role check at
+dispatch, boot's refusal of a `role` in a domain with no provider, the
+authorization adapter and the fuzzer all read these verbs. None of them
+looks for the name "Governance". A `provides` with an unknown capability,
+a missing or extra key, or a verb that names no command or query of the
+right kind is refused when the chapter is built. Each key becomes one
+row, in the order written:
+
+```ruby
+runtime.registry.bluebook("Governance").provision("authorization")[:grant]  # => "RoleAssignment.Assign"
+runtime.registry.bluebook("Governance").provided_verb("authorization", :assignments)  # => "Governance::RoleAssignment.AssignmentsForActor"
+runtime.registry.authorization_provider_for("Banking").name  # => "Governance"
+runtime.registry.bluebook("Ledgering").provides  # => []
+```
+
 ## core
 
 <!-- generated:begin word=core -->

@@ -32,6 +32,16 @@ crate::kernel::QueryDef {
             value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
         },
     ],
+    reference_hop_conditions: &[
+        crate::kernel::read_model::ReferenceHopCondition {
+            via_field: "tmpl_via_field",
+            target_aggregate: "tmpl_target_aggregate",
+            through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
+            inner_field: "tmpl_inner_field",
+            inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+            inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
+        },
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
     offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),
     limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),

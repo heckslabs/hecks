@@ -239,7 +239,30 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
 /// below is the one that decides whether that should fall back to the
 /// plain string comparison rather than read as an outright refusal.
 pub fn holds_role(store: &impl AggregateScan, queries: &[super::QueryDef], actor_id: &str, role: &str) -> bool {
-    let Some(def) = super::named_query::find(queries, "Governance::RoleAssignment.AssignmentsForActor") else {
+    holds_role_via(store, queries, Some(EXTERNAL_SNAPSHOT_ASSIGNMENTS), actor_id, role)
+}
+
+/// THE ONE NAME THAT SURVIVES, and why: the external embryonaut snapshot
+/// (rust/src/generated/embryonaut — its regeneration is owed by its own
+/// repo, `Hecks::Corpus::RUST_ELSEWHERE`) was generated before `provides
+/// "authorization"` existed and still calls `check_role`/`holds_role`.
+/// Every in-repo generated module calls the `_via` forms with
+/// `AUTHORIZATION_ASSIGNMENTS`, the query its own chapters declare. Delete
+/// this and the two wrappers once that snapshot regenerates.
+const EXTERNAL_SNAPSHOT_ASSIGNMENTS: &str = "Governance::RoleAssignment.AssignmentsForActor";
+
+/// `holds_role`, reading the assignments query a chapter declared
+/// (`provides "authorization", assignments: ...`, emitted beside `QUERIES`
+/// as `AUTHORIZATION_ASSIGNMENTS`) instead of assuming Governance's.
+/// `None` — nothing this domain attaches provides authorization — holds no role.
+pub fn holds_role_via(
+    store: &impl AggregateScan,
+    queries: &[super::QueryDef],
+    assignments: Option<&str>,
+    actor_id: &str,
+    role: &str,
+) -> bool {
+    let Some(def) = assignments.and_then(|verb| super::named_query::find(queries, verb)) else {
         return false;
     };
     let args = super::Json::Object(vec![("actor_id".to_string(), super::Json::Str(actor_id.to_string()))]);
@@ -333,12 +356,28 @@ pub fn check_role(
     store: &impl AggregateScan,
     queries: &[super::QueryDef],
 ) -> Result<(), super::Refusal> {
+    check_role_via(command_role, command_name, caller_role, caller_actor_id, store, queries, Some(EXTERNAL_SNAPSHOT_ASSIGNMENTS))
+}
+
+/// `check_role`, with "is authorization attached" answered by the
+/// assignments query a chapter DECLARED (`AUTHORIZATION_ASSIGNMENTS`,
+/// generated from `provides "authorization"`) rather than by looking for
+/// Governance's own query name — Ruby's `Registry#authorization_provider_for`,
+/// compiled. What every in-repo generated role check calls.
+pub fn check_role_via(
+    command_role: Option<&str>,
+    command_name: &str,
+    caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
+    store: &impl AggregateScan,
+    queries: &[super::QueryDef],
+    assignments: Option<&str>,
+) -> Result<(), super::Refusal> {
     let (Some(caller), Some(role)) = (caller_role, command_role) else { return Ok(()) };
 
+    let attached = assignments.and_then(|verb| super::named_query::find(queries, verb)).is_some();
     let authorized = match caller_actor_id {
-        Some(actor_id) if super::named_query::find(queries, "Governance::RoleAssignment.AssignmentsForActor").is_some() => {
-            holds_role(store, queries, actor_id, role)
-        }
+        Some(actor_id) if attached => holds_role_via(store, queries, assignments, actor_id, role),
         _ => caller == role,
     };
 
@@ -448,7 +487,7 @@ mod filter_entries_none_in_state_tests {
 /// doc comment for that trace.
 #[cfg(test)]
 mod check_role_actor_id_tests {
-    use super::{check_role, AggregateScan};
+    use super::{check_role, check_role_via, AggregateScan};
     use crate::kernel::query_comparators::QueryComparator;
     use crate::kernel::{Json, QueryCondition, QueryConditionValue, QueryDef};
 
@@ -480,6 +519,7 @@ mod check_role_actor_id_tests {
             verb: "Governance::RoleAssignment.AssignmentsForActor",
             aggregate: "Governance::RoleAssignment",
             conditions: &[QueryCondition { field: "actor_id", comparator: QueryComparator::Eq, value: QueryConditionValue::Arg("actor_id") }],
+            reference_hop_conditions: &[],
             order_by: None,
             offset: None,
             limit: None,
@@ -577,5 +617,34 @@ mod check_role_actor_id_tests {
 
         let mismatches = check_role(Some("Chef"), "Prepare", Some("Customer"), Some("whoever"), &store, &queries);
         assert!(mismatches.is_err(), "no AssignmentsForActor query compiled in -> string fallback, mismatched role -> refused");
+    }
+
+    // THE DECLARED PROVIDER, NOT THE NAME — `check_role_via` reads the
+    // assignments verb it is handed (`AUTHORIZATION_ASSIGNMENTS`, generated
+    // from `provides "authorization"`). A query under a different name is
+    // honoured when declared...
+    #[test]
+    fn check_role_via_reads_whichever_assignments_query_the_chapter_declared() {
+        let declared = QueryDef { verb: "Access::Grant.HeldBy", ..assignments_for_actor_query() };
+        let queries = [declared];
+
+        let granted = FakeStore { role_assignments: vec![("ra1".to_string(), role_assignment("u1", "Chef", None))] };
+        let accepted = check_role_via(Some("Chef"), "Prepare", Some("Chef"), Some("u1"), &granted, &queries, Some("Access::Grant.HeldBy"));
+        assert!(accepted.is_ok(), "a live grant under the declared query must be accepted: {accepted:?}");
+
+        let ungranted = FakeStore { role_assignments: vec![] };
+        let refused = check_role_via(Some("Chef"), "Prepare", Some("Chef"), Some("u1"), &ungranted, &queries, Some("Access::Grant.HeldBy"));
+        assert!(refused.is_err(), "no grant under the declared query must refuse even though the typed role matches");
+    }
+
+    // ...and Governance's own query name means nothing when nothing declared
+    // it: `None` is "no authorization provider", the string fallback.
+    #[test]
+    fn check_role_via_ignores_a_governance_named_query_nobody_declared() {
+        let store = FakeStore { role_assignments: vec![] };
+        let queries = [assignments_for_actor_query()];
+
+        let result = check_role_via(Some("Chef"), "Prepare", Some("Chef"), Some("whoever"), &store, &queries, None);
+        assert!(result.is_ok(), "no declared provider -> string fallback, matching role -> accepted: {result:?}");
     }
 }

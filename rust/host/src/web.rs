@@ -241,7 +241,7 @@ async fn auth_route(
 
         ("GET", "/admin/members") => {
             let Some(session) = session else { return Some(redirect("/login")) };
-            if !is_admin(client, wasm_path, &session.identity_id).await {
+            if !is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
                 return Some(html(403, "<p>Admins only.</p>"));
             }
             Some(html(200, &admin_members_page(client, domain_ir).await))
@@ -249,7 +249,7 @@ async fn auth_route(
 
         ("POST", "/admin/members") => {
             let Some(session) = session else { return Some(redirect("/login")) };
-            if !is_admin(client, wasm_path, &session.identity_id).await {
+            if !is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
                 return Some(html(403, "<p>Admins only.</p>"));
             }
             let form = parse_form(raw_body);
@@ -266,9 +266,10 @@ async fn auth_route(
     }
 }
 
-async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, identity_id: &str) -> bool {
+async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, domain_ir: &Value, identity_id: &str) -> bool {
+    let provider = crate::ir::authorization_provider(domain_ir);
     match dispatch::read(client, wasm_path).await {
-        Ok(read) => auth::holds_admin(read.get("instances").unwrap_or(&json!({})), identity_id),
+        Ok(read) => auth::holds_admin(read.get("instances").unwrap_or(&json!({})), identity_id, provider.as_ref()),
         Err(_) => false,
     }
 }
@@ -2120,7 +2121,9 @@ mod tests {
             .unwrap();
 
         for name in aggregate_storage_names {
-            let snapshot_table = format!("{}_head_snapshot_{era}", crate::journal::snake(name));
+            // domain-qualified (docs/decisions/0059) — matches what a real
+            // `journal::append_lineage_mutation` write actually targets now.
+            let snapshot_table = crate::journal::qualified_name(domain, &format!("{}_head_snapshot_{era}", crate::journal::snake(name)));
             client
                 .batch_execute(&format!("CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"))
                 .await

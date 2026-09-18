@@ -1,4 +1,5 @@
 require "spec_helper"
+require "json"
 require "tmpdir"
 require "fileutils"
 require "hecks/fuzzing"
@@ -145,31 +146,51 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     end
   end
 
-  # Constructs come from banking's committed manifest.json, the generator's
-  # own record of why it skipped each verb — not from the Ruby declaration.
+  # Constructs come from a manifest.json, the generator's own record of why
+  # it skipped each verb — not from the Ruby declaration. A synthetic one:
+  # the real banking manifest this used to read now declares no gaps.
   describe Hecks::Fuzzing::StructuralSkips do
     let(:skips) { described_class }
-    let(:gaps)  { Hecks::Fuzzing::RustGapManifest.new(rust_dir: CAP_RUST_DIR, feature: "banking") }
+    let(:gaps)  { Hecks::Fuzzing::RustGapManifest.new(rust_dir: @gap_root, feature: "shop") }
+
+    around do |example|
+      Dir.mktmpdir do |root|
+        @gap_root = root
+        dir = File.join(root, "src/generated/shop")
+        FileUtils.mkdir_p(dir)
+        File.write(File.join(dir, "merged.rs"), "")
+        entries = [
+          { "kind" => "query", "id" => "Shop::Order.LineItem.Recent", "generated" => false,
+            "gap_class" => "whole_kind", "construct" => "entity_query" },
+          { "kind" => "query", "id" => "Shop::Order.ByHop", "generated" => false,
+            "gap_class" => "per_instance", "construct" => "reference_hop_where" },
+          { "kind" => "query", "id" => "Shop::Order.Open", "generated" => true },
+          { "kind" => "read_model", "id" => "Shop::OrderPortfolio", "generated" => true }
+        ]
+        File.write(File.join(dir, "manifest.json"), JSON.generate(entries))
+        example.run
+      end
+    end
 
     it "attributes a skipped query to the construct its manifest entry names" do
-      expect(skips.attribute(gaps, %w[Banking::Account.OpenForSuspendedCustomers]))
-        .to eq([{ verb: "Banking::Account.OpenForSuspendedCustomers", constructs: %w[reference_hop_where] }])
-      expect(skips.attribute(gaps, %w[Banking::Account.LedgerEntry.Reversed]).first[:constructs]).to eq(%w[entity_query])
+      expect(skips.attribute(gaps, %w[Shop::Order.LineItem.Recent]))
+        .to eq([{ verb: "Shop::Order.LineItem.Recent", constructs: %w[entity_query] }])
+      expect(skips.attribute(gaps, %w[Shop::Order.ByHop]).first[:constructs]).to eq(%w[reference_hop_where])
     end
 
     it "answers `unknown` for a verb the manifest never declared not generated" do
-      # `Banking::ATMCard.ByFee` is generated; `customer_portfolio` is a
-      # generated read model. Neither can be explained as a declared skip.
-      attributed = skips.attribute(gaps, %w[Banking::ATMCard.ByFee Banking.customer_portfolio])
+      # `Shop::Order.Open` is generated; `order_portfolio` is a generated
+      # read model. Neither can be explained as a declared skip.
+      attributed = skips.attribute(gaps, %w[Shop::Order.Open Shop.order_portfolio])
       expect(attributed.map { |e| e[:constructs] }).to eq([%w[unknown], %w[unknown]])
       expect(skips.outside_boundary(attributed, %w[reference_hop_where entity_query]).size).to eq(2)
     end
 
     it "flags a construct the boundary does not admit, and passes one it does" do
-      attributed = skips.attribute(gaps, %w[Banking::Account.OpenForSuspendedCustomers])
-      expect(skips.outside_boundary(attributed, %w[entity_query]).map { |e| e[:verb] })
-        .to eq(%w[Banking::Account.OpenForSuspendedCustomers])
-      expect(skips.outside_boundary(attributed, %w[reference_hop_where])).to be_empty
+      attributed = skips.attribute(gaps, %w[Shop::Order.LineItem.Recent])
+      expect(skips.outside_boundary(attributed, %w[reference_hop_where]).map { |e| e[:verb] })
+        .to eq(%w[Shop::Order.LineItem.Recent])
+      expect(skips.outside_boundary(attributed, %w[entity_query])).to be_empty
     end
   end
 end

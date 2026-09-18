@@ -45,10 +45,13 @@ module Hecks
       # domain-level default (`persisted_by "PostgresEra"`).
       POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
 
-      # `HecksagonBuilder#uses_framework` — the one line that attaches
-      # Governance's own `RoleAssignment` lookup to a domain's `role` checks
-      # (`CommandRules::Authorization#governance_attached?`).
-      GOVERNANCE_ATTACHED = /uses_framework\s*\(?\s*"Governance"/
+      # `HecksagonBuilder#uses_framework "X"` — captures WHICH member a
+      # hecksagon attaches, whatever its name. Whether that member answers
+      # a role check is then read off its own declaration (`provides
+      # "authorization"`, via `Framework.providers_of`), the same rule
+      # `Registry#authorization_provider_for` applies at runtime — never a
+      # match on the literal "Governance".
+      FRAMEWORK_ATTACHED = /uses_framework\s*\(?\s*"([^"]+)"/
 
       # A command-level `role "..."` — the only construct
       # `refuse_role_mismatch` ever has anything to check a caller against.
@@ -110,7 +113,7 @@ module Hecks
         capabilities << "rust" if rust_feature?(domain_path, rust_dir)
         capabilities << "postgres_era" if any_file?(domain_path, "*.hecksagon", POSTGRES_ERA_BINDING)
         capabilities << "translations" if Dir.glob(File.join(domain_path, "**", "translations", "*.bluebook")).any?
-        capabilities << "governance" if any_file?(domain_path, "*.hecksagon", GOVERNANCE_ATTACHED)
+        capabilities << "governance" if authorization_attached?(domain_path)
         capabilities << "role_gated" if any_file?(domain_path, "*.bluebook", ROLE_GATED)
         capabilities << "tenant" if any_file?(domain_path, "*.bluebook", TENANT_SCOPED)
         capabilities << "sagas" if any_file?(domain_path, "*.bluebook", PROCESS_MANAGER)
@@ -139,6 +142,17 @@ module Hecks
         feature  = File.basename(domain_path).downcase
         features = File.read(cargo_toml)[FEATURES_TABLE] || ""
         features.match?(/^#{Regexp.escape(feature)}\s*=\s*\[\]/)
+      end
+
+      # The capability label stays "governance" — it is the value
+      # `bin/qa_sweep` writes into the QualityControl ledger's
+      # `Target.capabilities`, and renaming it is a ledger change, not
+      # part of dropping the name check.
+      def authorization_attached?(domain_path)
+        attached = Dir.glob(File.join(domain_path, "**", "*.hecksagon"))
+                      .flat_map { |path| File.read(path).scan(FRAMEWORK_ATTACHED).flatten }.uniq
+        providers = Framework.providers_of(Bluebook::Capabilities::AUTHORIZATION)
+        attached.intersect?(providers)
       end
 
       def any_file?(domain_path, glob, pattern)

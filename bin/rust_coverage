@@ -412,34 +412,6 @@ end
 # now, and the reason text it matched is no longer produced).
 ALLOWLIST = [
   {
-    kind:      "command",
-    gap_class: "per_instance",
-    construct: "optional_source",
-    doc:       "rust/project/commands.rb#optional_source_mismatches — a generated Rust struct's shape is fixed at " \
-               "compile time, so an optional argument feeding a field nothing else Option-wraps is skipped, loudly",
-    note:      "meta's nine Bluebook::*.Declare commands (description:/provenance:/position:/...) are every instance; " \
-               "no business domain in the corpus hits this shape."
-  },
-  {
-    kind:      "query",
-    gap_class: "per_instance",
-    construct: "reference_hop_where",
-    doc:       "rust/project/queries.rb#query_where_skip_reason — a where clause hopping through a reference is " \
-               "read_model territory, not this generator's (docs/1.0-readiness.md item 2 tracks the same " \
-               "reference-hop gap on the Postgres side)",
-    note:      "Banking::Account.OpenForSuspendedCustomers and ReferralChain::Referral.FromGoodSponsors."
-  },
-  {
-    kind:      "query",
-    gap_class: "whole_kind",
-    construct: "entity_query",
-    doc:       "rust/project/domain_generator.rb#entity_query_entries — only an aggregate's own declared queries " \
-               "reach the generated QUERIES table; an entity-scoped query has no generated code path",
-    note:      "Banking::Account.LedgerEntry.Reversed, ATMCard.Withdrawal.Recent, SafeDepositBox.Visit.Recent, " \
-               "Chess::Game.Piece.OnBoard. First recorded in the manifest in Phase 4 — before that the fuzzer " \
-               "tolerated their refusals only because it matched Rust's wording, and this tool never expected them."
-  },
-  {
     kind:      "query",
     gap_class: "whole_kind",
     construct: "no_generated_code_path",
@@ -448,14 +420,6 @@ ALLOWLIST = [
     note:      "Embryonaut runs in fallback mode only: its bluebook lives in a separate repository, so bin/project_rust " \
                "can't give it a manifest here, and the fallback deriver records each of its queries as having no " \
                "generated code path. Delete this rule the day that domain is regenerated with a real manifest."
-  },
-  {
-    kind:      "read_model",
-    gap_class: "per_instance",
-    construct: "include_undeclared_aggregate",
-    doc:       "rust/project/read_models.rb#read_model_head_skip_reason (own header note on entity-typed include)",
-    note:      "Bluebook::WholeBluebook includes Member, which S17/ADR 0026 turned into a nested entity; no spec " \
-               "dispatches or queries WholeBluebook on either side."
   }
 ].freeze
 # REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry

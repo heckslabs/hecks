@@ -181,14 +181,19 @@ module RustProjection
 
       heads = read_model[:aggregate_heads]
       root = heads.find { |head| head[:aggregate].to_s == read_model[:reference_target].to_s }
-      unless root
-        # `rootless` when nothing was named at all (a count/median-only
-        # report like `Corrections::FlaggedTrailCount`); otherwise the
-        # named target simply isn't among the included heads.
-        construct = read_model[:reference_target].to_s.empty? ? "rootless" : "missing_root_head"
-        return skip(construct, "declares reference_to #{read_model[:reference_target]}, but includes no matching aggregate head — " \
-                               "nothing for this generator's own root fetch to key off (every real corpus read model includes its " \
-                               "own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)")
+      # ROOTLESS IS GENERATED — no `reference_to` at all (a count/median
+      # report like `Corrections::FlaggedTrailCount`) means every head reads
+      # its own whole table, `ReadModelInterpreter#project`'s own `rootless`
+      # branch, which `kernel/read_model.rs#run` already ports for the
+      # `group_by` case (`reference_name: None`). Only a NAMED target with
+      # no matching head is refused: there, a root fetch has nothing to key off.
+      if !root && !read_model[:reference_target].to_s.empty?
+        return skip("missing_root_head", "declares reference_to #{read_model[:reference_target]}, but includes no matching aggregate head — " \
+                                         "nothing for this generator's own root fetch to key off")
+      end
+
+      if root && !aggregates_by_name[root[:aggregate]] && nested_entity_names(aggregates_by_name).include?(root[:aggregate].to_s)
+        return entity_head_skip_reason(root[:aggregate], "root", "fetch by id")
       end
 
       heads.each do |head|
@@ -262,6 +267,8 @@ module RustProjection
 
       head = read_model[:aggregate_heads].find { |h| h[:as].to_s == eligible_as.to_s }
       aggregate = aggregates_by_name[head[:aggregate]]
+      return entity_head_skip_reason(head[:aggregate], "filtered head", "filter, order or authorize") unless aggregate
+
       value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
       Array(read_model[:wheres]).each do |where|
@@ -336,6 +343,8 @@ module RustProjection
 
       target = read_model[:aggregate_heads].find { |head| head[:many] }
       aggregate = aggregates_by_name[target[:aggregate]]
+      return entity_head_skip_reason(target[:aggregate], "median target", "take a median of") unless aggregate
+
       value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
       field = read_model[:median_field].to_s
@@ -347,36 +356,44 @@ module RustProjection
       nil
     end
 
-    # A REAL, NEWLY-CONFIRMED BOUNDARY, distinct from every other gap
-    # this file already names: an `include` naming an ENTITY, not an
-    # aggregate. `aggregates_by_name` — this whole file's own head/join
-    # machinery, `AggregateScan`/`filter_entries` included — has no
-    # concept of scanning an entity's own records at all; entities live
-    # nested inside their owning aggregate's storage, not their own
-    # top-level table, so "fetch every Member" isn't a query this
-    # generator's `kernel/repository.rs` primitives can even express,
-    # let alone FK-match against a sibling head the way an ordinary
-    # aggregate head already does. The one real corpus site is the
-    # self-hosted grammar's own `Bluebook::WholeBluebook` (`include
-    # Member` — S17/ADR 0026 retired Member's own root aggregate in
-    # favor of a genuine nested entity under ValueObject, and this
-    # `include` was never updated to match). Confirmed this has no
-    # working path on EITHER side today, not merely an unported Rust
-    # gap: no spec anywhere dispatches or queries `WholeBluebook` for
-    # real (grep spec/ finds exactly one comment mentioning it, in
-    # self_use_spec.rb, about the read model's existence as a design
-    # rationale — never its own execution). A genuinely new subsystem
-    # this generator has no code path for at all, the same class of
-    # "missing subsystem, not a parity bug" `group_by`'s own history
-    # (above) already drew a line around before this file supported it
-    # for real — worth its own dedicated design (does an entity-typed
-    # head mean "every element across every instance of the owning
-    # aggregate," or something narrower scoped to the reference root?
-    # ReadModelInterpreter's own Ruby answer would need reading closely
-    # before generating anything), not attempted here.
+    # AN `include` NAMING A NESTED ENTITY, not an aggregate — generated,
+    # with Ruby's own answer. `ReadModelInterpreter#records` looks the head
+    # up with `bluebook.aggregate`, which never finds an entity, and reads
+    # it as "no rows of its own" (`spec/runtime/read_model_interpreter_
+    # spec.rb` pins that it neither crashes nor blocks the sibling heads).
+    # So such a head is emitted with no reference fields, and
+    # `kernel/read_model.rs` reads a head whose aggregate has no table as
+    # empty, the same way. `Bluebook::WholeBluebook` (`include Member`,
+    # `Handler`, `Dispatch`) is the corpus site.
+    #
+    # Only as an ordinary sibling head, though: an entity as the ROOT, the
+    # filtered head, the median target or the group_by head would need the
+    # aggregate's own fields or rows, so those stay refused
+    # (`entity_head_skip_reason`). A name that is neither an aggregate nor
+    # a nested entity is still `include_undeclared_aggregate`.
+    #
+    # Ruby reading an entity head as empty is itself a gap — the entity's
+    # rows do exist inside its owner — recorded, not fixed, here: this
+    # change is parity, not a new semantics for either side.
+    def nested_entity_names(aggregates_by_name)
+      collect = lambda do |owners|
+        owners.flat_map { |owner| Array(owner[:entities]).flat_map { |entity| [entity[:name].to_s, *collect.call([entity])] } }
+      end
+      collect.call(aggregates_by_name.values)
+    end
+
+    def entity_head_skip_reason(aggregate_name, role, purpose)
+      skip("include_entity_head", "includes #{aggregate_name}, a nested entity, as the #{role} — an entity has no rows of its own " \
+                                  "(ReadModelInterpreter#records reads it as empty), so there is nothing to #{purpose} — not generated yet")
+    end
+
     def read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)
       target = aggregates_by_name[head[:aggregate]]
-      return skip("include_undeclared_aggregate", "includes #{head[:aggregate]}, which this domain never declares") unless target
+      unless target
+        return nil if nested_entity_names(aggregates_by_name).include?(head[:aggregate].to_s)
+
+        return skip("include_undeclared_aggregate", "includes #{head[:aggregate]}, which this domain never declares")
+      end
       return skip("include_unsupported_aggregate", "includes #{head[:aggregate]}, which this generator couldn't itself generate " \
                                                    "(unsupported attribute type — see this domain's own aggregate-level manifest entry)") if unsupported_names.include?(head[:aggregate])
 
@@ -408,6 +425,7 @@ module RustProjection
       return reason if reason
 
       aggregate = aggregates_by_name[head[:aggregate]]
+      return entity_head_skip_reason(head[:aggregate], "group_by head", "group") unless aggregate
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       Array(read_model[:group_by]).each do |row|
         field_s = row[:field].to_s
@@ -434,6 +452,7 @@ module RustProjection
         {
           via_field: hop[:via_field],
           target_aggregate: "#{domain_name}::#{hop[:target_aggregate]}",
+          through: hop[:through].map { |step| { via_field: step[:via_field], target_aggregate: "#{domain_name}::#{step[:target_aggregate]}" } },
           inner_field: hop[:inner_field],
           op: where[:op].to_s,
           arg: symbol ? raw_value.delete_prefix(":") : nil,
@@ -444,8 +463,12 @@ module RustProjection
 
     def emit_reference_hop_condition(hop)
       comparator_expr = "crate::kernel::query_comparators::QueryComparator::#{query_comparator_variant(hop[:op])}"
+      through = Array(hop[:through]).map do |step|
+        "crate::kernel::read_model::HopStep { via_field: #{step[:via_field].inspect}, target_aggregate: #{step[:target_aggregate].inspect} }"
+      end
       "crate::kernel::read_model::ReferenceHopCondition { via_field: #{hop[:via_field].inspect}, " \
-        "target_aggregate: #{hop[:target_aggregate].inspect}, inner_field: #{hop[:inner_field].inspect}, " \
+        "target_aggregate: #{hop[:target_aggregate].inspect}, through: &[#{through.join(', ')}], " \
+        "inner_field: #{hop[:inner_field].inspect}, " \
         "inner_comparator: #{comparator_expr}, inner_value: #{emit_query_condition_value(hop)} },"
     end
 
@@ -489,7 +512,8 @@ module RustProjection
     # `run`, mirroring `ReadModelInterpreter#project`'s own `if
     # head[:aggregate] == model.reference_target` branch).
     def emit_read_model_head(domain_name, head, is_root, aggregates_by_name)
-      reference_fields = is_root ? [] : read_model_reference_fields(aggregates_by_name[head[:aggregate]])
+      head_aggregate = aggregates_by_name[head[:aggregate]]
+      reference_fields = is_root || head_aggregate.nil? ? [] : read_model_reference_fields(head_aggregate)
       reference_fields_expr = reference_fields.map { |rf| emit_reference_field(domain_name, rf) }.join(", ")
       qualified_aggregate = "#{domain_name}::#{head[:aggregate]}"
 
@@ -790,6 +814,7 @@ module RustProjection
               crate::kernel::read_model::ReferenceHopCondition {
                   via_field: "tmpl_via_field",
                   target_aggregate: "tmpl_target_aggregate",
+                  through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
                   inner_field: "tmpl_inner_field",
                   inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
                   inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),

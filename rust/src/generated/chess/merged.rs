@@ -651,10 +651,31 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("in_progress") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
     authorization: None,
+},
+];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
+crate::kernel::named_query::EntityQueryDef {
+    verb: "Chess::Game.Piece.OnBoard",
+    aggregate: "Chess::Game",
+    list_field: "pieces",
+    parent_key: "game",
+    identity_keys: &["id"],
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("on_board") },
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
 },
 ];
 

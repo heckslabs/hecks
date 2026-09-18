@@ -346,6 +346,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "trigger", context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "trigger_command", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "trigger", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "across", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "across", context: "Policy", at: "", named: "expect_undelivered", kind: "flag", required: "false", fills: "expect_undelivered", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "for_each", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "admitted", variadic: "", coerce: "", blank_message: "" },
 ];
@@ -389,6 +390,7 @@ pub struct Policy {
     pub on_event: Option<PolicyText>,
     pub trigger_command: Option<PolicyText>,
     pub target_domain: Option<PolicyText>,
+    pub expect_undelivered: Option<PolicyText>,
     pub r#where: Option<PolicyText>,
     pub for_each: Option<PolicyText>,
     pub with_spec: Vec<Binding>,
@@ -405,6 +407,7 @@ impl crate::kernel::Fielded for Policy {
             "on_event" => self.on_event.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "trigger_command" => self.trigger_command.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "target_domain" => self.target_domain.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "expect_undelivered" => self.expect_undelivered.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "where" => self.r#where.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "for_each" => self.for_each.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "with_spec" => Some(Field::Value(Value::List(self.with_spec.len()))),
@@ -436,6 +439,7 @@ impl Policy {
         ("on_event".to_string(), self.on_event.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("trigger_command".to_string(), self.trigger_command.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("target_domain".to_string(), self.target_domain.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("expect_undelivered".to_string(), self.expect_undelivered.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("where".to_string(), self.r#where.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("for_each".to_string(), self.for_each.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("with_spec".to_string(), crate::kernel::Json::Array(self.with_spec.iter().map(|x| x.to_json()).collect())),
@@ -456,6 +460,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         on_event: match v.get("on_event") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
         trigger_command: match v.get("trigger_command") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
         target_domain: match v.get("target_domain") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
+        expect_undelivered: match v.get("expect_undelivered") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
         r#where: match v.get("where") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
         for_each: match v.get("for_each") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
         with_spec: match v.get("with_spec").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Binding::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
@@ -504,6 +509,222 @@ fn policy_invariants() -> crate::kernel::InvariantSet {
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],
+    }
+}
+
+impl crate::kernel::Fielded for DeclareArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "bluebook" => Some(Field::Value(Value::Str(self.bluebook.clone()))),
+            "name" => Some(Field::Nested(&self.name)),
+            "aggregate" => self.aggregate.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "on_event" => Some(Field::Nested(&self.on_event)),
+            "trigger_command" => Some(Field::Nested(&self.trigger_command)),
+            "target_domain" => self.target_domain.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "expect_undelivered" => self.expect_undelivered.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "where" => self.r#where.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "for_each" => self.for_each.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DeclareArgs {
+    pub bluebook: String,
+    pub name: PolicyName,
+    pub aggregate: Option<PolicyText>,
+    pub on_event: PolicyText,
+    pub trigger_command: PolicyText,
+    pub target_domain: Option<PolicyText>,
+    pub expect_undelivered: Option<PolicyText>,
+    pub r#where: Option<PolicyText>,
+    pub for_each: Option<PolicyText>,
+    pub position: Option<Position>,
+}
+
+pub fn dispatch_declare(
+    repo: &mut impl crate::kernel::Repository<Policy>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Policy> {
+        args.name.check_invariants()?;
+        if let Some(v) = &args.aggregate { v.check_invariants()?; }
+        args.on_event.check_invariants()?;
+        args.trigger_command.check_invariants()?;
+        if let Some(v) = &args.target_domain { v.check_invariants()?; }
+        if let Some(v) = &args.expect_undelivered { v.check_invariants()?; }
+        if let Some(v) = &args.r#where { v.check_invariants()?; }
+        if let Some(v) = &args.for_each { v.check_invariants()?; }
+        if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, POLICY_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string());
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Declare routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
+        crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Policy {
+            bluebook: Some(args.bluebook.clone()),
+            name: Some(args.name.clone()),
+            aggregate: args.aggregate.clone(),
+            on_event: Some(args.on_event.clone()),
+            trigger_command: Some(args.trigger_command.clone()),
+            target_domain: args.target_domain.clone(),
+            expect_undelivered: args.expect_undelivered.clone(),
+            r#where: args.r#where.clone(),
+            for_each: args.for_each.clone(),
+            with_spec: vec![],
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Policy {
+            bluebook: Some(args.bluebook.clone()),
+            name: Some(args.name.clone()),
+            aggregate: args.aggregate.clone(),
+            on_event: Some(args.on_event.clone()),
+            trigger_command: Some(args.trigger_command.clone()),
+            target_domain: args.target_domain.clone(),
+            expect_undelivered: args.expect_undelivered.clone(),
+            r#where: args.r#where.clone(),
+            for_each: args.for_each.clone(),
+            with_spec: vec![],
+            position: args.position.clone(),
+        }),
+        state_independent: true,
+    } }
+    },
+        "Declare",
+        "Bluebook::Policy",
+        "Policy",
+        "bluebook, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.bluebook = Some(args.bluebook.clone());
+        record.name = Some(args.name.clone());
+        record.aggregate = args.aggregate.clone();
+        record.on_event = Some(args.on_event.clone());
+        record.trigger_command = Some(args.trigger_command.clone());
+        record.target_domain = args.target_domain.clone();
+        record.expect_undelivered = args.expect_undelivered.clone();
+        record.r#where = args.r#where.clone();
+        record.for_each = args.for_each.clone();
+        record.position = args.position.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &policy_invariants(),
+        &["ReactionDeclared"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("bluebook".to_string(), crate::kernel::Json::Str(self.bluebook.clone())),
+        ("name".to_string(), self.name.to_json()),
+        ("aggregate".to_string(), self.aggregate.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("on_event".to_string(), self.on_event.to_json()),
+        ("trigger_command".to_string(), self.trigger_command.to_json()),
+        ("target_domain".to_string(), self.target_domain.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("expect_undelivered".to_string(), self.expect_undelivered.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("where".to_string(), self.r#where.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("for_each".to_string(), self.for_each.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["bluebook", "name", "aggregate", "on_event", "trigger_command", "target_domain", "expect_undelivered", "where", "for_each", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Declare does not declare {} — it takes bluebook, name, aggregate, on_event, trigger_command, target_domain, expect_undelivered, where, for_each, position",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["bluebook", "name", "on_event", "trigger_command"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Declare"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "bluebook, name, aggregate, on_event, trigger_command, target_domain, expect_undelivered, where, for_each, position"),
+    ])));
+}
+        let bluebook = { let x = v.get("bluebook").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs.bluebook expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()) })? };
+        let name = PolicyName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects PolicyName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let aggregate = match v.get("aggregate") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &aggregate { v.check_invariants()?; }
+        let on_event = PolicyText::from_json(&(match v.get("on_event").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.on_event expects PolicyText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        on_event.check_invariants()?;
+        let trigger_command = PolicyText::from_json(&(match v.get("trigger_command").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.trigger_command expects PolicyText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        trigger_command.check_invariants()?;
+        let target_domain = match v.get("target_domain") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &target_domain { v.check_invariants()?; }
+        let expect_undelivered = match v.get("expect_undelivered") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &expect_undelivered { v.check_invariants()?; }
+        let r#where = match v.get("where") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &r#where { v.check_invariants()?; }
+        let for_each = match v.get("for_each") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &for_each { v.check_invariants()?; }
+        let position = match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &position { v.check_invariants()?; }
+        Ok(Self {
+        bluebook,
+        name,
+        aggregate,
+        on_event,
+        trigger_command,
+        target_domain,
+        expect_undelivered,
+        r#where,
+        for_each,
+        position,
+        })
     }
 }
 

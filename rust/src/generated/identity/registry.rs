@@ -101,7 +101,7 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
                       args.identity_id.check_invariants()?;
-              crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -117,7 +117,7 @@ pub fn dispatch_by_name(
                       args.key.check_invariants()?;
                       args.issuer.check_invariants()?;
                       args.subject.check_invariants()?;
-              crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
@@ -226,11 +226,19 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "issuer", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("issuer") },
         crate::kernel::QueryCondition { field: "subject", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("subject") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
     authorization: None,
 },
+];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`

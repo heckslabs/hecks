@@ -15,10 +15,15 @@
 // (kernel/cli.rs). Empty here — this exemplar proves the CALL SHAPE
 // compiles, not any particular domain's own declared queries.
 static QUERIES: &[crate::kernel::QueryDef] = &[];
+// `AUTHORIZATION_ASSIGNMENTS` — emitted beside `QUERIES` by the same
+// `emit_query_table`: the assignments query a chapter's `provides
+// "authorization"` names, or `None`. `None` here for the same reason
+// `QUERIES` is empty.
+static AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 fn tmpl_role_check_host(store: &TmplStore2, caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Result<(), crate::kernel::Refusal> {
     // TMPL:role_check BEGIN
-    crate::kernel::check_role(Some("TmplRole"), "TmplCommandName", caller_role, caller_actor_id, &*store, QUERIES)?;
+    crate::kernel::check_role_via(Some("TmplRole"), "TmplCommandName", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
     // TMPL:role_check END
     Ok(())
 }
@@ -27,9 +32,14 @@ struct TmplStore {
     tmpl_target_mod: crate::kernel::InMemoryRepository<i64>,
 }
 
+struct TmplRefItem {
+    tmpl_element_field: String,
+}
+
 struct TmplRefArgs {
     tmpl_field: String,
     tmpl_optional_field: Option<String>,
+    tmpl_list_field: Vec<TmplRefItem>,
 }
 
 fn tmpl_reference_check_required_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
@@ -43,6 +53,17 @@ fn tmpl_reference_check_optional_host(store: &TmplStore, args: &TmplRefArgs) -> 
     // TMPL:reference_check_optional BEGIN
     if let Some(v) = &args.tmpl_optional_field { crate::kernel::check_reference(&store.tmpl_target_mod, v, "TmplTarget", "tmpl_heads")?; }
     // TMPL:reference_check_optional END
+    Ok(())
+}
+
+// `reference_check_list` — one `check_reference` per element of a list
+// argument that `sets` a `has_many` field wholesale. `&item.tmpl_element_
+// field` is replaced as a whole: `&item.value` for a single-attribute
+// value object element, bare `item` for a plain `String` element.
+fn tmpl_reference_check_list_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:reference_check_list BEGIN
+    for item in &args.tmpl_list_field { crate::kernel::check_reference(&store.tmpl_target_mod, &item.tmpl_element_field, "TmplTarget", "tmpl_heads")?; }
+    // TMPL:reference_check_list END
     Ok(())
 }
 

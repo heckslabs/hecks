@@ -136,7 +136,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::referral_chain::sponsor::Sponsor::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Suspend acts on an existing Sponsor — pass handle.value:".to_string()))?, };
               let args = crate::generated::referral_chain::sponsor::SuspendArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ReferralChain::Sponsor", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -310,7 +310,25 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 }
 
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
+crate::kernel::QueryDef {
+    verb: "ReferralChain::Referral.FromGoodSponsors",
+    aggregate: "ReferralChain::Referral",
+    conditions: &[
 
+    ],
+    reference_hop_conditions: &[
+        crate::kernel::read_model::ReferenceHopCondition { via_field: "member", target_aggregate: "ReferralChain::Member", through: &[crate::kernel::read_model::HopStep { via_field: "sponsor", target_aggregate: "ReferralChain::Sponsor" }], inner_field: "standing", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal("good") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "code", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`

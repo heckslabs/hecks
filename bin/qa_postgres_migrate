@@ -113,15 +113,14 @@ if candidates.empty?
   exit 0
 end
 
-# DEEP, KEY-TYPE-AND-ORDER-INDEPENDENT COMPARISON — Heki's own state
-# hashes are only symbolized at the TOP LEVEL (`Heki#instance`'s
-# `record.transform_keys(&:to_sym)`; nested value-object members and
-# list elements stay however the snapshot file itself stored them, which
-# for Heki is string-keyed), while a `PostgresEra`-backed read comes back
-# fully, deeply symbolized (`JSON.parse(..., symbolize_names: true)`) —
-# a real, already-known divergence between the two adapters' own shapes
-# (see the project's own notes on "Heki list key shape"), not a bug this
-# migration should trip over. Two states that mean the same thing must
+# DEEP, KEY-TYPE-AND-ORDER-INDEPENDENT COMPARISON — written when Heki's
+# own state hashes were only symbolized at the TOP LEVEL while a
+# `PostgresEra`-backed read came back deeply symbolized. Since PR A3 both
+# sides decode through `Ports::Persistence::StateCodec` (and PR A4 guards
+# the source adapter above), so that divergence is gone; the comparison is
+# kept because it is also what `spec/qa_postgres_migration_spec.rb` pins
+# for conflict detection, and loosening it is not this script's change to
+# make. Two states that mean the same thing must
 # compare equal regardless of which side's key type or hash-insertion
 # order they happen to carry; only ARRAY ORDER is preserved as
 # meaningful (an entity list's `sequence` IS its order, and two Sweeps
@@ -145,8 +144,12 @@ candidates.each do |candidate|
   domain_name = candidate[:domain_name]
   aggregate   = candidate[:aggregate]
 
-  source = Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: heki_dir }, root: nil)
-  dest   = registry.repository(domain_name, aggregate)
+  # Guarded like a factory-built repository (PR A4): a legacy Heki store
+  # read here must decode through the state codec before it is migrated.
+  source = Hecks::Ports::Persistence::CodecBoundary.guard!(
+    Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: heki_dir }, root: nil)
+  )
+  dest = registry.repository(domain_name, aggregate)
 
   source.all.each do |instance|
     existing = dest.find(instance.id)

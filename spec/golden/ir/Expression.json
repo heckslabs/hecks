@@ -2551,6 +2551,9 @@
   "process_managers": [
 
   ],
+  "provides": [
+
+  ],
   "read_models": [
 
   ],

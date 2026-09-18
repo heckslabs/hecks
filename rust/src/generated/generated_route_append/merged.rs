@@ -286,7 +286,7 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Prioritize acts on an existing Kiosk — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::kiosk::PrioritizeArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Clerk"), "Prioritize", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Clerk"), "Prioritize", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -319,7 +319,7 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Rescore acts on an existing Kiosk — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::kiosk::RescoreArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
-              crate::kernel::check_role(Some("Manager"), "Rescore", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Manager"), "Rescore", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -352,7 +352,7 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_route_append::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddLine acts on an existing Kiosk — pass code.value:".to_string()))?, };
               let args = crate::generated::generated_route_append::kiosk::AddLineArgs::from_json(facts_json)?;
                       args.sequence.check_invariants()?;
-              crate::kernel::check_role(Some("Manager"), "AddLine", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Manager"), "AddLine", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRouteAppend::Kiosk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -508,11 +508,19 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "code", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
     authorization: None,
 },
+];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`

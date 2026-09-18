@@ -104,7 +104,7 @@ name: CI
 # above — that claim is still true of the eight themselves, none of
 # which depend on each other. `rspec_postgres_io_parallel` — the
 # aggregator that now holds that slot's NAME — is the one exception: it
-# has a real `needs:` (on `rspec_postgres_io_parallel_shard`'s own 4-way
+# has a real `needs:` (on `rspec_postgres_io_parallel_shard`'s own 8-way
 # matrix), so it no longer belongs to "no `needs:` between any of them"
 # either, even though nothing else in this file depends on IT.
 # This used to be two jobs (`rspec`, `checks`) with `rspec` itself split
@@ -271,17 +271,35 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: rspec_impl
-    if: always()
+    # RUNS ONLY TO FAIL — 2026-09-14. A job skipped by its own `if:` needs
+    # no runner and reports to a required status check as passing (the
+    # same way `rspec_fuzzing`, a required check, has been skipped on every
+    # plain pull request since PR #666 without blocking a merge). So each
+    # of these nine-context wrappers now runs only when its `_impl` came
+    # back as something OTHER than success or skipped — and then its step
+    # fails — instead of spending a runner slot on every run to print
+    # "success" (PR #666's run: wrappers waited up to 3m31s for a runner to
+    # do 4s of work). Written fail-closed: any result not explicitly
+    # success/skipped, a future one included, runs the wrapper and fails.
+    # The same condition, with its own `_impl`, is on every wrapper below.
+    #
+    # SKIPPED PASSES ONLY WHERE IT SHOULD — plan step 5.5. A skipped `_impl`
+    # is not a pass by itself: a call that skipped where it should have run
+    # (on the merge queue, say) ran nothing. So `skipped` lets the wrapper
+    # skip only when that call's OWN skip condition holds — for `rspec_impl`
+    # that is `push` (every ci-rspec.yml job skips there; on a PR or the
+    # queue the attestation job always runs). Anywhere else the wrapper runs
+    # and fails, printing the result. Each wrapper below carries its own
+    # call's condition; spec/ci_summary_jobs_spec.rb pins the shape.
+    if: always() && !(needs.rspec_impl.result == 'success' || (needs.rspec_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
       - name: rspec_impl (ci_attestation_rspec + both rspec shards) passed
+        env:
+          RESULT: ${{ needs.rspec_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' }}
         run: |
-          result="${{ needs.rspec_impl.result }}"
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_impl: $result"
-            exit 0
-          fi
-          echo "rspec_impl: $result — at least one shard did not succeed" >&2
+          echo "rspec_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-rspec.yml's own header for
@@ -312,28 +330,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: checks_impl
-    if: always()
+    # Runs only to fail — see `rspec`'s own `if:` comment above.
+    if: always() && !(needs.checks_impl.result == 'success' || (needs.checks_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
       - name: checks_impl (fuzz, codegen drift, and static checks) passed
+        env:
+          RESULT: ${{ needs.checks_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' }}
         run: |
-          result="${{ needs.checks_impl.result }}"
-          # BUGFIX: this used to only accept "success", failing this
-          # required check on every plain `push` to main — checks_impl's
-          # own inner jobs correctly no-op on `push` (see the top-of-file
-          # comment: everything except the postgres_io_parallel matrix/
-          # aggregator skips via `if: github.event_name != 'push'`), which
-          # makes `needs.checks_impl.result` read "skipped", not
-          # "success", on every such run. Every other wrapper job in this
-          # file (`rspec`, `rspec_postgres_io`, `rspec_postgres_io_
-          # parallel`, the 4 rust lineages) already accepts both — this
-          # one was the one straggler, caught live via a real failing push
-          # run on main right after PR #625 merged.
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "checks_impl: $result"
-            exit 0
-          fi
-          echo "checks_impl (checks_fuzz/checks_codegen_drift/checks_static): $result" >&2
+          echo "checks_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-checks.yml's own header
@@ -359,17 +365,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: rspec_postgres_io_impl
-    if: always()
+    # Runs only to fail — see `rspec`'s own `if:` comment above.
+    if: always() && !(needs.rspec_postgres_io_impl.result == 'success' || (needs.rspec_postgres_io_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
 
     steps:
       - name: rspec_postgres_io_impl passed (or was correctly gated off)
+        env:
+          RESULT: ${{ needs.rspec_postgres_io_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
-          result="${{ needs.rspec_postgres_io_impl.result }}"
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_postgres_io_impl: $result"
-            exit 0
-          fi
-          echo "rspec_postgres_io_impl: $result" >&2
+          echo "rspec_postgres_io_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-postgres-io.yml's own header.
@@ -383,7 +388,7 @@ jobs:
 
   # REUSABLE-WORKFLOW SPLIT, group 2 (part 3 of 3) — `postgres_io_relevant_
   # changed` (the skip-gate detector) and `rspec_postgres_io_parallel_shard`
-  # (the 4-way matrix) both moved verbatim into ci-postgres-io-parallel.yml;
+  # (the 8-way matrix) both moved verbatim into ci-postgres-io-parallel.yml;
   # see that file's own header for the full reasoning these two jobs'
   # comments used to carry inline here. `rspec_postgres_io_parallel` below
   # (the required-check aggregator) now points at that file's own call job
@@ -408,17 +413,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: rspec_postgres_io_parallel_impl
-    if: always()
+    # Runs only to fail — see `rspec`'s own `if:` comment above.
+    if: always() && !(needs.rspec_postgres_io_parallel_impl.result == 'success' || (needs.rspec_postgres_io_parallel_impl.result == 'skipped' && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci'))))
 
     steps:
       - name: rspec_postgres_io_parallel_impl passed (or was correctly gated off)
+        env:
+          RESULT: ${{ needs.rspec_postgres_io_parallel_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') }}
         run: |
-          result="${{ needs.rspec_postgres_io_parallel_impl.result }}"
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_postgres_io_parallel_impl: $result"
-            exit 0
-          fi
-          echo "rspec_postgres_io_parallel_impl: $result — at least one shard did not succeed" >&2
+          echo "rspec_postgres_io_parallel_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-postgres-io-parallel.yml's
@@ -474,17 +478,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: rspec_rust_io_impl
-    if: always()
+    # Runs only to fail — see `rspec`'s own `if:` comment above.
+    if: always() && !(needs.rspec_rust_io_impl.result == 'success' || (needs.rspec_rust_io_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
 
     steps:
       - name: rspec_rust_io_impl passed (or was correctly gated off)
+        env:
+          RESULT: ${{ needs.rspec_rust_io_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
-          result="${{ needs.rspec_rust_io_impl.result }}"
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_rust_io_impl: $result"
-            exit 0
-          fi
-          echo "rspec_rust_io_impl: $result" >&2
+          echo "rspec_rust_io_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-rust-io.yml's own header.
@@ -586,17 +589,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: rspec_rust_parser_impl
-    if: always()
+    # Runs only to fail — see `rspec`'s own `if:` comment above.
+    if: always() && !(needs.rspec_rust_parser_impl.result == 'success' || (needs.rspec_rust_parser_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
 
     steps:
       - name: rspec_rust_parser_impl passed (or was correctly gated off)
+        env:
+          RESULT: ${{ needs.rspec_rust_parser_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
-          result="${{ needs.rspec_rust_parser_impl.result }}"
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_rust_parser_impl: $result"
-            exit 0
-          fi
-          echo "rspec_rust_parser_impl: $result" >&2
+          echo "rspec_rust_parser_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-rust-parser.yml's own
@@ -619,17 +621,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: rspec_rust_codegen_impl
-    if: always()
+    # Runs only to fail — see `rspec`'s own `if:` comment above.
+    if: always() && !(needs.rspec_rust_codegen_impl.result == 'success' || (needs.rspec_rust_codegen_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
 
     steps:
       - name: rspec_rust_codegen_impl passed (or was correctly gated off)
+        env:
+          RESULT: ${{ needs.rspec_rust_codegen_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
-          result="${{ needs.rspec_rust_codegen_impl.result }}"
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_rust_codegen_impl: $result"
-            exit 0
-          fi
-          echo "rspec_rust_codegen_impl: $result" >&2
+          echo "rspec_rust_codegen_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-rust-codegen.yml's own
@@ -652,17 +653,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: rspec_rust_host_impl
-    if: always()
+    # Runs only to fail — see `rspec`'s own `if:` comment above.
+    if: always() && !(needs.rspec_rust_host_impl.result == 'success' || (needs.rspec_rust_host_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
 
     steps:
       - name: rspec_rust_host_impl passed (or was correctly gated off)
+        env:
+          RESULT: ${{ needs.rspec_rust_host_impl.result }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
-          result="${{ needs.rspec_rust_host_impl.result }}"
-          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_rust_host_impl: $result"
-            exit 0
-          fi
-          echo "rspec_rust_host_impl: $result" >&2
+          echo "rspec_rust_host_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-rust-host.yml's own
@@ -680,21 +680,37 @@ jobs:
     # need this job. Light PR set — see the comment above `on:`.
     if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
 
+    # POSTGRES, BECAUSE TWO FUZZING SPECS ARE `io: true` AND NEED IT —
+    # spec/fuzzing/concurrent_dispatch_spec.rb ("with a real, disposable
+    # PostgresEra schema") and spec/fuzzing/era_boundary_spec.rb. Under
+    # `CI` this job's `--tag fuzzing` run includes io examples, and every
+    # other io job runs `--tag ~fuzzing`, so this is the ONLY lane that
+    # runs them. Without Postgres here they used to skip silently, which
+    # meant they ran nowhere in CI; PostgresProbe now raises in CI instead
+    # of skipping, which is how that surfaced. Both create and drop their
+    # own scratch databases, so no `hecks_pizzas` provisioning is needed.
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — same action
+      # every other Postgres job uses; see its own header.
+      - uses: ./.github/actions/postgres
+
       # `spec/fuzzing/**`, tagged by PATH not by hand
       # (`config.define_derived_metadata(file_path: %r{/spec/fuzzing/})`,
-      # spec/spec_helper.rb) — no subprocess, no network, all in-memory,
-      # so unlike the other two `rspec_*_io` jobs this one needs no
-      # service and no Rust toolchain. Slow for a different reason: a
-      # live-generated-history replay against a real domain, dispatched
-      # for real, several seeds deep (spec_helper.rb's own comment: ~8s
-      # for properties_spec.rb's "standard battery" + determinism check
-      # alone, against a suite that's otherwise ~50ms/example) — enough
-      # to be worth its own runner rather than sharing one with either
-      # Postgres or cargo work it doesn't need.
+      # spec/spec_helper.rb). No Rust toolchain. Mostly in-memory and slow
+      # for a different reason: a live-generated-history replay against a
+      # real domain, dispatched for real, several seeds deep
+      # (spec_helper.rb's own comment: ~8s for properties_spec.rb's
+      # "standard battery" + determinism check alone, against a suite
+      # that's otherwise ~50ms/example) — enough to be worth its own
+      # runner. The two Postgres-backed specs above are the exception.
       - name: "rspec: fuzzing (property replay)"
         run: bundle exec rspec spec/fuzzing --tag fuzzing
 

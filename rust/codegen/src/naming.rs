@@ -63,11 +63,61 @@ pub fn dispatch_fn_name(cmd: &str) -> String {
     out.to_lowercase()
 }
 
-pub const RUST_KEYWORDS: &[&str] = &[
-    "as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
-    "return", "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final", "macro", "override", "priv",
-    "typeof", "unsized", "virtual", "yield", "try",
-];
+/// Generated from the `RustReservedWord`/`CargoReservedName` vocabularies by
+/// `bin/project_reserved_names` — the same tables `naming.rb` reads.
+pub use crate::reserved_names::{CARGO_RESERVED_DOMAIN_NAMES, RUST_KEYWORDS};
+
+/// `/\A[a-z_][a-z0-9_]*\z/` — a plain lowercase Rust identifier.
+fn plain_lower_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c == '_' || c.is_ascii_lowercase())
+        && chars.all(|c| c == '_' || c.is_ascii_lowercase() || c.is_ascii_digit())
+}
+
+/// Mirrors `legal_aggregate_mod_identifier?` — the identifier-SHAPE half
+/// only, against the downcased name.
+pub fn legal_aggregate_mod_identifier(name: &str) -> bool {
+    plain_lower_identifier(&name.to_lowercase())
+}
+
+/// Mirrors `valid_domain_mod_name?` — shape, and neither a Rust keyword nor
+/// a reserved Cargo.toml key.
+pub fn valid_domain_mod_name(name: &str) -> bool {
+    plain_lower_identifier(name) && !RUST_KEYWORDS.contains(&name) && !CARGO_RESERVED_DOMAIN_NAMES.contains(&name)
+}
+
+/// Port of `RustProjection::Projector.reserved_name_refusal` (BUG#124) —
+/// `None` when every aggregate name and the domain's module name are usable,
+/// else the byte-identical refusal the Ruby generator raises. Aggregates are
+/// checked (and reported) before the domain name, all at once.
+pub fn reserved_name_refusal(source_label: &str, mod_name: &str, aggregate_names: &[&str]) -> Option<String> {
+    let refused: Vec<&str> = aggregate_names
+        .iter()
+        .copied()
+        .filter(|name| {
+            let module = name.to_lowercase();
+            RUST_KEYWORDS.contains(&module.as_str()) || !legal_aggregate_mod_identifier(name)
+        })
+        .collect();
+    if let Some(first) = refused.first() {
+        let names = refused.iter().map(|name| format!("{name:?}")).collect::<Vec<_>>().join(", ");
+        return Some(format!(
+            "{source_label}: aggregate name(s) {names} can't be used as-is — downcased, each becomes a bare Rust \
+             module identifier (`pub mod {};`) and a generated file name, and at least one is not a plain identifier \
+             or is a Rust keyword (RustReservedWord). Module names get no raw-identifier (r#name) escape hatch — \
+             rename the aggregate.",
+            first.to_lowercase()
+        ));
+    }
+    if valid_domain_mod_name(mod_name) {
+        return None;
+    }
+    Some(format!(
+        "{source_label}: domain module name {mod_name:?} can't be used as-is — it has to double as a Rust module \
+         identifier and a Cargo feature name, and this one is either not a plain lowercase identifier, is a Rust \
+         keyword (RustReservedWord), or is a reserved Cargo.toml key (CargoReservedName). Rename the domain."
+    ))
+}
 
 pub fn rust_field(name: &str) -> String {
     name.to_string()
@@ -86,13 +136,20 @@ pub fn rust_ident_field(name: &str) -> String {
 /// identifier — split on ANY run of non-alphanumeric characters (see
 /// naming.rb's own header on why plain `_`/whitespace splitting broke on
 /// glob-shaped members like `"*.port"`).
+///
+/// `Self` — the one capitalized Rust keyword — is renamed by spelling:
+/// `SelfType` / `SelfValue` (naming.rb's own `closed_set_variant` header).
 pub fn closed_set_variant(value: &str) -> String {
-    value
+    let variant = value
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|s| !s.is_empty())
         .map(capitalize)
         .collect::<Vec<_>>()
-        .join("")
+        .join("");
+    if variant != "Self" {
+        return variant;
+    }
+    if value.starts_with('S') { "SelfType".to_string() } else { "SelfValue".to_string() }
 }
 
 fn capitalize(word: &str) -> String {
@@ -101,6 +158,31 @@ fn capitalize(word: &str) -> String {
         None => String::new(),
         Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
     }
+}
+
+/// Port of `Hecks::Naming.snake` —
+/// `gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase`.
+pub fn snake(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut first = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        let next_upper = chars.get(i + 1).is_some_and(|n| n.is_ascii_uppercase());
+        let then_lower = chars.get(i + 2).is_some_and(|n| n.is_ascii_lowercase());
+        first.push(c);
+        if c.is_ascii_uppercase() && next_upper && then_lower {
+            first.push('_');
+        }
+    }
+    let chars: Vec<char> = first.chars().collect();
+    let mut second = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        second.push(c);
+        let next_upper = chars.get(i + 1).is_some_and(|n| n.is_ascii_uppercase());
+        if (c.is_ascii_lowercase() || c.is_ascii_digit()) && next_upper {
+            second.push('_');
+        }
+    }
+    second.to_lowercase()
 }
 
 /// `name.to_s.gsub(/([a-z0-9])([A-Z])/, '\1_\2').upcase`
@@ -190,4 +272,36 @@ pub fn ruby_inspect_string(s: &str) -> String {
     }
     out.push('"');
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refuses_an_aggregate_whose_module_name_is_a_rust_keyword() {
+        let refusal = reserved_name_refusal("shop", "shop", &["Pizza", "Match", "Type"]).expect("refused");
+        assert!(refusal.starts_with("shop: aggregate name(s) \"Match\", \"Type\" can't be used as-is"), "{refusal}");
+        assert!(refusal.contains("`pub mod match;`"), "{refusal}");
+        assert!(refusal.contains("Rust keyword"), "{refusal}");
+    }
+
+    #[test]
+    fn refuses_an_aggregate_name_that_is_not_a_plain_identifier() {
+        assert!(reserved_name_refusal("shop", "shop", &["My-App"]).is_some());
+        assert!(reserved_name_refusal("shop", "shop", &[""]).is_some());
+    }
+
+    #[test]
+    fn refuses_a_domain_module_name_that_is_a_keyword_or_a_cargo_key() {
+        for name in ["crate", "type", "package", "default", "version"] {
+            let refusal = reserved_name_refusal("label", name, &["Widget"]).expect("refused");
+            assert!(refusal.starts_with(&format!("label: domain module name {name:?} can't be used as-is")), "{refusal}");
+        }
+    }
+
+    #[test]
+    fn accepts_ordinary_names_and_cargo_keys_as_aggregate_names() {
+        assert_eq!(reserved_name_refusal("shop", "shop", &["Pizza", "Version", "Default"]), None);
+    }
 }

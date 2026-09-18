@@ -146,8 +146,67 @@ fn kind_name(kind: FieldKind) -> &'static str {
     }
 }
 
+/// Port of `queries.rb#query_hop_plan` — a SINGLE `/` hop through a
+/// Reference-typed attribute to an aggregate this domain declares, or
+/// `None`.
+pub struct HopPlan<'a> {
+    pub via_field: String,
+    pub target_aggregate: String,
+    /// Further `(via_field, bare target aggregate)` steps of a chain.
+    pub through: Vec<(String, String)>,
+    pub target: &'a Json,
+    pub inner_field: String,
+}
+
+/// `queries.rb#HOP_CHAIN_LIMIT` — `HopPath::MAX_HOPS`.
+const HOP_CHAIN_LIMIT: usize = 8;
+
+pub fn query_hop_plan<'a>(aggregate: &'a Json, field: &str, aggregates_by_name: &HashMap<String, &'a Json>) -> Option<HopPlan<'a>> {
+    let segments: Vec<&str> = field.split('/').collect();
+    if segments.len() < 2 || segments.len() - 1 > HOP_CHAIN_LIMIT {
+        return None;
+    }
+    let mut steps: Vec<(String, String)> = Vec::new();
+    let mut current: &'a Json = aggregate;
+    for segment in &segments[..segments.len() - 1] {
+        let via = current.get("attributes").map(Json::each).unwrap_or(&[]).iter().find(|a| crate::attr::name(a) == *segment)?;
+        let type_name = crate::attr::type_name(via);
+        if !naming::reference_type(type_name) {
+            return None;
+        }
+        let target_name = naming::reference_target(type_name)?;
+        let target = *aggregates_by_name.get(target_name)?;
+        steps.push((segment.to_string(), target_name.to_string()));
+        current = target;
+    }
+    let (via_field, target_aggregate) = steps.remove(0);
+    Some(HopPlan { via_field, target_aggregate, through: steps, target: current, inner_field: segments[segments.len() - 1].to_string() })
+}
+
+fn with_field(where_clause: &Json, field: &str) -> Json {
+    match where_clause {
+        Json::Object(pairs) => Json::Object(
+            pairs
+                .iter()
+                .map(|(key, value)| if key == "field" { (key.clone(), Json::String(field.to_string())) } else { (key.clone(), value.clone()) })
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
+fn value_objects_of(aggregate: &Json) -> HashMap<String, &Json> {
+    aggregate
+        .get("value_objects")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo))
+        .collect()
+}
+
 /// A whole declared query's own eligibility.
-pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, aggregates_by_name: &HashMap<String, &Json>) -> Option<String> {
     let extra_keys = ["cursor", "consistency", "freshness", "inspection"];
     let extras: Vec<&str> = extra_keys.iter().filter(|k| query.get(k).is_some()).copied().collect();
     if !extras.is_empty() {
@@ -172,7 +231,16 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
         return Some("declares no where clauses at all — nothing for filter_entries to bake in".to_string());
     }
 
+    // A single hop is generated — `queries.rb#query_skip_reason`'s own comment.
     for where_clause in wheres {
+        let field = where_clause.get("field").map(Json::to_s).unwrap_or_default();
+        if let Some(plan) = query_hop_plan(aggregate, &field, aggregates_by_name) {
+            let target_value_objects_by_name = value_objects_of(plan.target);
+            if let Some(reason) = query_where_skip_reason(&with_field(where_clause, &plan.inner_field), plan.target, &target_value_objects_by_name) {
+                return Some(format!("hop through {} to {}'s own {reason}", plan.via_field, plan.target_aggregate));
+            }
+            continue;
+        }
         if let Some(reason) = query_where_skip_reason(where_clause, aggregate, value_objects_by_name) {
             return Some(reason);
         }
@@ -325,19 +393,68 @@ pub struct Condition {
 /// clause is either Symbol-valued (an `arg:`) or a safely-typed literal.
 pub fn query_conditions(query: &Json) -> Vec<Condition> {
     let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
-    wheres
-        .iter()
-        .map(|w| {
-            let raw_value = w.get("value").map(Json::to_s).unwrap_or_default();
-            let symbol = raw_value.starts_with(':');
-            Condition {
-                field: w.get("field").map(Json::to_s).unwrap_or_default(),
-                op: w.get("op").map(Json::to_s).unwrap_or_default(),
-                arg: if symbol { Some(raw_value.trim_start_matches(':').to_string()) } else { None },
-                literal: if symbol { None } else { Some(literal::read(&raw_value)) },
+    wheres.iter().map(condition_for).collect()
+}
+
+fn condition_for(w: &Json) -> Condition {
+    let raw_value = w.get("value").map(Json::to_s).unwrap_or_default();
+    let symbol = raw_value.starts_with(':');
+    Condition {
+        field: w.get("field").map(Json::to_s).unwrap_or_default(),
+        op: w.get("op").map(Json::to_s).unwrap_or_default(),
+        arg: if symbol { Some(raw_value.trim_start_matches(':').to_string()) } else { None },
+        literal: if symbol { None } else { Some(literal::read(&raw_value)) },
+    }
+}
+
+/// One single-hop where clause, compiled — `condition.field` is the hop's
+/// inner field. Port of `read_models.rb#read_model_hop_conditions`' row.
+pub struct HopCondition {
+    pub via_field: String,
+    pub target_aggregate: String,
+    /// Further `(via_field, qualified target aggregate)` steps.
+    pub through: Vec<(String, String)>,
+    pub condition: Condition,
+}
+
+/// Port of `queries.rb#query_conditions_and_hops`.
+pub fn query_conditions_and_hops(domain_name: &str, query: &Json, aggregate: &Json, aggregates_by_name: &HashMap<String, &Json>) -> (Vec<Condition>, Vec<HopCondition>) {
+    let mut local = Vec::new();
+    let mut hops = Vec::new();
+    for w in query.get("wheres").map(Json::each).unwrap_or(&[]) {
+        let field = w.get("field").map(Json::to_s).unwrap_or_default();
+        match query_hop_plan(aggregate, &field, aggregates_by_name) {
+            Some(plan) => {
+                let mut condition = condition_for(w);
+                condition.field = plan.inner_field;
+                let through = plan.through.into_iter().map(|(via, target)| (via, format!("{domain_name}::{target}"))).collect();
+                hops.push(HopCondition { via_field: plan.via_field, target_aggregate: format!("{domain_name}::{}", plan.target_aggregate), through, condition });
             }
-        })
-        .collect()
+            None => local.push(condition_for(w)),
+        }
+    }
+    if let Some(tenant) = query.get("authorization").and_then(|a| a.get("tenant")).map(Json::to_s) {
+        local.push(Condition { field: tenant.clone(), op: "eq".to_string(), arg: Some(tenant), literal: None });
+    }
+    (local, hops)
+}
+
+/// Port of `read_models.rb#emit_reference_hop_condition`.
+pub fn emit_reference_hop_condition(hop: &HopCondition) -> String {
+    let through = hop
+        .through
+        .iter()
+        .map(|(via, target)| format!("crate::kernel::read_model::HopStep {{ via_field: {}, target_aggregate: {} }}", naming::ruby_inspect_string(via), naming::ruby_inspect_string(target)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "crate::kernel::read_model::ReferenceHopCondition {{ via_field: {}, target_aggregate: {}, through: &[{through}], inner_field: {}, inner_comparator: crate::kernel::query_comparators::QueryComparator::{}, inner_value: {} }},",
+        naming::ruby_inspect_string(&hop.via_field),
+        naming::ruby_inspect_string(&hop.target_aggregate),
+        naming::ruby_inspect_string(&hop.condition.field),
+        query_comparator_variant(&hop.condition.op),
+        emit_query_condition_value(&hop.condition)
+    )
 }
 
 /// `Runtime::TenantScope.apply`'s own synthetic clause, ported at codegen
@@ -375,9 +492,13 @@ pub fn emit_query_authorization(query_name: &str, authorization: Option<&Json>) 
 
 // `Vocabulary::QueryComparator` itself declares NINE names (`none_in_state`
 // was added later — vocabulary.bluebook's own comment calls it "a vendored
-// addition") but `rust/src/kernel/query_comparators.rs`'s own hand-
-// maintained enum was never updated to match — only these eight are real
-// Rust variants. `query_where_skip_reason` (above) checks this BEFORE a
+// addition"). `rust/src/kernel/query_comparators.rs` DOES have a
+// `QueryComparator::NoneInState` variant now, but this list still leaves
+// it out on purpose, matching `queries.rb`'s `QUERY_COMPARATOR_VARIANTS`:
+// no generated call site can hand it a cross-domain search list yet, so
+// generating it would answer every row `true` instead of a real anti-join
+// (`query_where_skip_reason`'s `where_none_in_state` refusal has the full
+// reason). `query_where_skip_reason` (above) checks this BEFORE a
 // query reaches `query_comparator_variant` below, so the `panic!` there
 // stays the "should be unreachable" backstop it always was, not the
 // primary gate.
@@ -465,14 +586,93 @@ pub struct QueryDef {
     pub aggregate: String,
     pub arg_checks: Vec<String>,
     pub conditions: Vec<Condition>,
+    pub reference_hop_conditions: Vec<HopCondition>,
     pub order_by: Option<String>,
     pub offset: Option<String>,
     pub limit: Option<String>,
     pub authorization: Option<String>,
+    /// The chapter's `provides "authorization", assignments:` names this
+    /// query — see `emit_authorization_assignments`.
+    pub assignments: bool,
+    /// `Some` for a declared ENTITY query — emitted into `ENTITY_QUERIES`.
+    pub entity: Option<EntityScope>,
+}
+
+/// Port of `queries.rb#provided_assignments`.
+pub fn provided_assignments(ir: &Json) -> Option<String> {
+    ir.get("provides")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|row| {
+            row.get("capability").and_then(Json::as_str) == Some("authorization")
+                && row.get("key").and_then(Json::as_str) == Some("assignments")
+        })
+        .and_then(|row| row.get("verb").and_then(Json::as_str))
+        .map(str::to_string)
+}
+
+/// Port of `queries.rb#emit_authorization_assignments`.
+pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
+    let value = match query_defs.iter().find(|q| q.assignments) {
+        Some(q) => format!("Some({})", naming::ruby_inspect_string(&q.verb)),
+        None => "None".to_string(),
+    };
+    format!(
+        "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
+    )
+}
+
+/// Port of `queries.rb`'s `query_def[:entity]`.
+pub struct EntityScope {
+    pub list_field: String,
+    pub parent_key: String,
+    pub identity_keys: Vec<String>,
+}
+
+/// Port of `queries.rb#emit_entity_query_table`.
+pub fn emit_entity_query_table(entity_defs: &[&QueryDef]) -> String {
+    let rows: String = entity_defs.iter().map(|q| format!("{}\n", emit_entity_query_def(q))).collect();
+    format!(
+        "/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.\npub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[\n{rows}];\n"
+    )
+}
+
+fn emit_entity_query_def(query_def: &QueryDef) -> String {
+    let entity = query_def.entity.as_ref().expect("an entity query def carries its scope");
+    let conditions = query_def.conditions.iter().map(|c| format!("        {}", emit_query_condition(c))).collect::<Vec<_>>().join("\n");
+    let keys = entity.identity_keys.iter().map(|key| naming::ruby_inspect_string(key)).collect::<Vec<_>>().join(", ");
+    let wrap = |value: &Option<String>| match value {
+        Some(v) => format!("Some({v})"),
+        None => "None".to_string(),
+    };
+    format!(
+        "crate::kernel::named_query::EntityQueryDef {{\n    verb: {},\n    aggregate: {},\n    list_field: {},\n    parent_key: {},\n    identity_keys: &[{keys}],\n    conditions: &[\n{conditions}\n    ],\n    order_by: {},\n    offset: {},\n    limit: {},\n}},",
+        naming::ruby_inspect_string(&query_def.verb),
+        naming::ruby_inspect_string(&query_def.aggregate),
+        naming::ruby_inspect_string(&entity.list_field),
+        naming::ruby_inspect_string(&entity.parent_key),
+        wrap(&query_def.order_by),
+        wrap(&query_def.offset),
+        wrap(&query_def.limit)
+    )
+}
+
+/// Port of `queries.rb#entity_query_skip_reason`.
+pub fn entity_query_skip_reason(query: &Json, entity: &Json, holds_list: bool, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let entity_name = entity.get("name").map(Json::to_s).unwrap_or_default();
+    if !holds_list {
+        return Some(format!("{entity_name} is held in no list attribute on its aggregate — nothing to flatten"));
+    }
+    if query.get("authorization").is_some() {
+        return Some("declares authorize — an entity query's tenant scope is not generated yet".to_string());
+    }
+    query_skip_reason(query, entity, value_objects_by_name, &HashMap::new())
 }
 
 pub fn emit_query_def(query_def: &QueryDef) -> String {
     let conditions = query_def.conditions.iter().map(|c| format!("        {}", emit_query_condition(c))).collect::<Vec<_>>().join("\n");
+    let reference_hop_conditions = query_def.reference_hop_conditions.iter().map(|h| format!("        {}", emit_reference_hop_condition(h))).collect::<Vec<_>>().join("\n");
     let order_by = match &query_def.order_by {
         Some(o) => format!("Some({o})"),
         None => "None".to_string(),
@@ -491,17 +691,23 @@ pub fn emit_query_def(query_def: &QueryDef) -> String {
     };
 
     format!(
-        "crate::kernel::QueryDef {{\n    verb: {},\n    aggregate: {},\n    conditions: &[\n{conditions}\n    ],\n    order_by: {order_by},\n    offset: {offset},\n    limit: {limit},\n    authorization: {authorization},\n}},",
+        "crate::kernel::QueryDef {{\n    verb: {},\n    aggregate: {},\n    conditions: &[\n{conditions}\n    ],\n    reference_hop_conditions: &[\n{reference_hop_conditions}\n    ],\n    order_by: {order_by},\n    offset: {offset},\n    limit: {limit},\n    authorization: {authorization},\n}},",
         naming::ruby_inspect_string(&query_def.verb),
         naming::ruby_inspect_string(&query_def.aggregate)
     )
 }
 
-const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: \"tmpl_verb\",\n    aggregate: \"tmpl_aggregate\",\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::query_ordering::OrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),\n    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n},";
+const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: \"tmpl_verb\",\n    aggregate: \"tmpl_aggregate\",\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    reference_hop_conditions: &[\n        crate::kernel::read_model::ReferenceHopCondition {\n            via_field: \"tmpl_via_field\",\n            target_aggregate: \"tmpl_target_aggregate\",\n            through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }],\n            inner_field: \"tmpl_inner_field\",\n            inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::query_ordering::OrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),\n    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n},";
 
 pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String {
-    let rows: Vec<String> = query_defs.iter().map(emit_query_def).collect();
-    exemplar.render("query_table", &[(QUERY_TABLE_ROW_PLACEHOLDER, rows.join("\n"))])
+    let (entity_defs, aggregate_defs): (Vec<&QueryDef>, Vec<&QueryDef>) = query_defs.iter().partition(|q| q.entity.is_some());
+    let rows: Vec<String> = aggregate_defs.into_iter().map(emit_query_def).collect();
+    format!(
+        "{}\n{}{}",
+        exemplar.render("query_table", &[(QUERY_TABLE_ROW_PLACEHOLDER, rows.join("\n"))]),
+        emit_authorization_assignments(query_defs),
+        emit_entity_query_table(&entity_defs)
+    )
 }
 
 /// Port of `queries.rb#query_arg_checks` — C3.7 for a named query's own

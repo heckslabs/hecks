@@ -136,6 +136,10 @@ module Hecks
         # lifecycle guard.
         def from(row) = decode_literal(text(row[:from]))
 
+        # A FLAG IS HELD AS TEXT ("true"/"false") and emitted as a boolean —
+        # `Policy#expect_undelivered` on the wire.
+        def expect_undelivered?(row) = text(row[:expect_undelivered]).to_s == "true"
+
         # THE OPTION ROWS, GATHERED BACK into the shapes `extra_options_to_h` spells.
         #
         # One row per part, so a compound option is several rows and a repeated one is

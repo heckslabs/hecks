@@ -193,21 +193,6 @@ module RustProjection
       aggregate[:attributes].filter_map do |attr|
         target_name = Projector.reference_target(attr[:type])
         next unless target_name
-        # BUG#25/BUG#26 interaction — this method's own header already
-        # documents a `has_many`/list relationship as "not covered,
-        # deliberately," but nothing here actually enforced that: a
-        # `has_many` field reached this far and built a `check_reference`
-        # call against `args.<field>.value` — a single-field accessor
-        # applied to the WHOLE Vec (`has_many_fixture`'s own `Circle.
-        # Admit`, `sets :members` from a `list_of(Handle)` argument),
-        # which does not compile (`no field 'value' on type Vec<Handle>`,
-        # found live regenerating this fixture against BUG#26's own
-        # fix). `state_reference_check_accessor` builds an ELEMENT-level
-        # accessor unconditionally; a real list-aware port needs
-        # `check_reference` (kernel/repository.rs) to walk each element,
-        # which nothing in the real corpus needs yet — matching this
-        # header's own already-stated scope, just actually applied now.
-        next if attr[:list]
 
         mutation = command[:mutations].find do |m|
           m[:op].to_s == "set" && m[:target].to_s == attr[:name].to_s && m[:source][:kind] == "argument"
@@ -218,8 +203,22 @@ module RustProjection
         next unless source_attr
         next if Projector.reference_target(source_attr[:type])
 
-        accessor = state_reference_check_accessor(source_attr, value_objects_by_name)
-        next unless accessor
+        # A `has_many` field (`has_many_fixture`'s `Circle.Admit`, `sets
+        # :members` from a `list_of(Handle)` argument) — Ruby's
+        # `validate_reference_values(list: true)` checks EVERY element, so
+        # this emits one `check_reference` per element
+        # (`reference_check_list`) rather than the scalar accessor, which
+        # would dot `.value` into the whole `Vec` and not compile.
+        list_item = nil
+        if attr[:list]
+          list_item = list_reference_check_item(source_attr, value_objects_by_name)
+          next unless list_item
+
+          accessor = source_attr[:name]
+        else
+          accessor = state_reference_check_accessor(source_attr, value_objects_by_name)
+          next unless accessor
+        end
 
         target = aggregates_by_name[target_name]
         next unless target
@@ -228,11 +227,31 @@ module RustProjection
         {
           field: accessor,
           optional: source_attr[:optional],
+          list_item: list_item,
           target_mod: target[:name].downcase,
           target_name: target[:name],
           heads: target[:identified_by].map { |path| path.split(".").first }.join(", "),
         }
       end
+    end
+
+    # `list_reference_check_item(source_attr, value_objects_by_name)` —
+    # the per-element key expression `reference_check_list` checks, for a
+    # LIST source argument: bare `item` for a `list_of(String)`, or
+    # `&item.<field>` for a list of single-String-attribute value objects
+    # (Ruby's `reference_key` unwraps exactly that one field). `nil` for
+    # any other element shape (a non-list source, a multi-attribute value
+    # object, a non-String key) — not checked, same as
+    # `state_reference_check_accessor`'s own uncovered shapes.
+    def list_reference_check_item(source_attr, value_objects_by_name)
+      return nil unless source_attr[:list]
+      return "item" if source_attr[:type].to_s == "String"
+
+      vo = value_objects_by_name[source_attr[:type]]
+      return nil unless vo && vo[:attributes].size == 1
+      return nil unless vo[:attributes].first[:type].to_s == "String"
+
+      "&item.#{Projector.rust_ident_field(vo[:attributes].first[:name])}"
     end
 
     # `state_reference_check_accessor(source_attr, value_objects_by_name)`
@@ -358,23 +377,15 @@ module RustProjection
 
     def call(ir, source_label, mod_dir, mod_name)
       # BUG#124 — VALIDATED FIRST, before ANY side effect this method has
-      # (the `mkdir_p` immediately below included) — same placement
-      # reasoning as `bin/project_rust`'s own domain-name guard: a name
-      # collision found only after some OTHER aggregate in this same `ir`
-      # already had files written would leave a partial, silently-stale
-      # generated tree behind when this raises. Every aggregate in THIS
-      # chapter is checked up front, not just the first offender, so one
-      # `bin/project_rust` run reports every colliding name at once
-      # rather than making the domain author fix them one at a time.
-      keyword_collisions = ir[:aggregates].reject { |a| Projector.valid_aggregate_mod_name?(a[:name]) }
-      if keyword_collisions.any?
-        names = keyword_collisions.map { |a| a[:name].inspect }.join(", ")
-        raise "RustProjection::DomainGenerator.call(#{source_label}): aggregate name(s) #{names} can't be used as-is — " \
-              "downcased, each becomes a bare Rust module identifier (`pub mod #{keyword_collisions.first[:name].downcase};`) " \
-              "and a generated file name, and at least one collides with a Rust keyword " \
-              "(RustProjection::Projector::RUST_KEYWORDS). Module names get no raw-identifier (r#name) escape hatch — " \
-              "rename the aggregate."
-      end
+      # (the `mkdir_p` immediately below included): a name collision found
+      # only after some OTHER aggregate already had files written would
+      # leave a partial, silently-stale generated tree behind. Every
+      # aggregate is checked up front, so one run reports every colliding
+      # name at once. The reserved-word half is the shared
+      # `ModelCheck.rust_reserved_name_findings`; hecks-codegen's
+      # `write_domain` refuses with the identical message.
+      refusal = Projector.reserved_name_refusal(source_label, mod_name, ir[:aggregates].map { |a| a[:name] })
+      raise refusal if refusal
 
       FileUtils.mkdir_p(mod_dir)
       domain_name = ir[:name]
@@ -1210,12 +1221,14 @@ module RustProjection
       # a specific declared query still lacking a row is a per-instance
       # shape this generator doesn't cover, the same distinction every
       # OTHER per-instance skip in this file already draws.
+      query_aggregates_by_name = ir[:aggregates].to_h { |a| [a[:name], a] }
+      assignments_verb = Projector.provided_assignments(ir)
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
         aggregate[:queries].each do |query|
           query_verb = "#{domain_name}::#{aggregate[:name]}.#{query[:name]}"
-          reason = Projector.query_skip_reason(query, aggregate, value_objects_by_name)
+          reason = Projector.query_skip_reason(query, aggregate, value_objects_by_name, query_aggregates_by_name)
           if reason
             puts "skipping query #{query_verb}: #{reason}"
             manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", construct: reason.construct, reason: reason)
@@ -1223,20 +1236,54 @@ module RustProjection
           end
 
           manifest << manifest_entry(kind: "query", id: query_verb, generated: true)
+          conditions, reference_hop_conditions = Projector.query_conditions_and_hops(domain_name, query, aggregate, query_aggregates_by_name)
           query_defs << {
             verb: query_verb,
             aggregate: "#{domain_name}::#{aggregate[:name]}",
             arg_checks: Projector.query_arg_checks(query, "crate::generated::#{mod_name}::#{aggregate[:name].downcase}",
                                                    value_objects_by_name),
-            conditions: Projector.query_conditions_with_authorization(query),
+            conditions: conditions,
+            reference_hop_conditions: reference_hop_conditions,
             order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by], query[:null_semantics]) : nil,
             offset: query[:offset] ? Projector.emit_query_offset(query[:offset]) : nil,
             limit: query[:limit] ? Projector.emit_query_limit(query[:limit]) : nil,
             authorization: Projector.emit_query_authorization(query[:name], query[:authorization]),
+            assignments: assignments_verb == "#{aggregate[:name]}.#{query[:name]}",
           }
         end
 
-        manifest.concat(entity_query_entries("#{domain_name}::#{aggregate[:name]}", aggregate[:entities]))
+        # ENTITY QUERIES, one level down — generated when the aggregate
+        # holds the entity in a list (`kernel::named_query::run_entity`).
+        # Queries on an entity nested inside another entity stay a
+        # recorded gap (`entity_query_entries`).
+        aggregate_id = "#{domain_name}::#{aggregate[:name]}"
+        aggregate[:entities].each do |entity|
+          list_attr = aggregate[:attributes].find { |a| a[:list] && a[:type].to_s == entity[:name].to_s }
+          Array(entity[:queries]).each do |query|
+            query_verb = "#{aggregate_id}.#{entity[:name]}.#{query[:name]}"
+            reason = Projector.entity_query_skip_reason(query, entity, list_attr, value_objects_by_name)
+            if reason
+              puts "skipping query #{query_verb}: #{reason}"
+              manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", construct: reason.construct, reason: reason)
+              next
+            end
+
+            manifest << manifest_entry(kind: "query", id: query_verb, generated: true)
+            query_defs << {
+              verb: query_verb,
+              aggregate: aggregate_id,
+              entity: { list_field: list_attr[:name].to_s, parent_key: Projector.snake(aggregate[:name]),
+                        identity_keys: Array(entity[:identified_by]).map { |path| path.to_s.split(".").first } },
+              arg_checks: [],
+              conditions: Projector.query_conditions(query),
+              order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by], query[:null_semantics]) : nil,
+              offset: query[:offset] ? Projector.emit_query_offset(query[:offset]) : nil,
+              limit: query[:limit] ? Projector.emit_query_limit(query[:limit]) : nil,
+              authorization: nil,
+            }
+          end
+          manifest.concat(entity_query_entries("#{aggregate_id}.#{entity[:name]}", Array(entity[:entities])))
+        end
       end
 
       # ── READ MODELS — a declared `report "X" do ... end` block

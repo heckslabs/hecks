@@ -9658,6 +9658,7 @@
       "on_event": "Account.AccountFrozen",
       "trigger_command": "AccountFreezeReview.Open",
       "target_domain": "Compliance",
+      "expect_undelivered": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -9670,6 +9671,7 @@
       "on_event": "ScheduledPayment.ScheduledPaymentFailed",
       "trigger_command": "ScheduledPayment.Retry",
       "target_domain": null,
+      "expect_undelivered": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -9682,6 +9684,7 @@
       "on_event": "Customer.CustomerSuspended",
       "trigger_command": "Account.FreezeAccount",
       "target_domain": null,
+      "expect_undelivered": false,
       "where": null,
       "for_each": "Account.OpenForCustomer",
       "with_spec": [
@@ -9697,6 +9700,7 @@
       "on_event": "Account.AccountClosed",
       "trigger_command": "Notifications.Send",
       "target_domain": "Notifications",
+      "expect_undelivered": true,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -9709,6 +9713,7 @@
       "on_event": "SafeDepositBox.BoxSurrendered",
       "trigger_command": "BoxSurrenderReview.Open",
       "target_domain": "Compliance",
+      "expect_undelivered": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -9721,6 +9726,7 @@
       "on_event": "SafeDepositBox.KeyReturnDue",
       "trigger_command": "Notifications.Send",
       "target_domain": "Notifications",
+      "expect_undelivered": true,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -9980,6 +9986,9 @@
   "attaches_to": [
 
   ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -10054,6 +10063,12 @@
         "adapter": "Heki"
       }
     ]
+  },
+  "authorization": {
+    "provider": "Governance",
+    "grant": "Governance::RoleAssignment.Assign",
+    "assignments": "Governance::RoleAssignment.AssignmentsForActor",
+    "assignment_aggregate": "Governance::RoleAssignment"
   },
   "translations": [
 

@@ -1,4 +1,5 @@
 require_relative "behaviour/chapter"
+require_relative "capabilities"
 require_relative "../ir"
 
 module Hecks
@@ -50,15 +51,32 @@ module Hecks
         policies:          many(:policies),
         process_managers:  many(:process_managers),
         attaches_to:       :attaches_to,
+        # A CAPABILITY THIS CHAPTER ANSWERS (`provides "authorization",
+        # grant: "RoleAssignment.Assign", ...`), one row per key, in the
+        # order written. Present (possibly empty) on every chapter, the
+        # same reading `attaches_to` beside it gives.
+        provides:          -> { provides.map(&:to_h) },
         canonical_form:    -> { Expression::CanonicalForm.table }
       )
 
+      # ONE ROW OF A DECLARED CAPABILITY — `verb` is chapter-local
+      # ("RoleAssignment.Assign"); `Behaviour::Chapter#provided_verb`
+      # qualifies it with the chapter's own name.
+      Provision = Struct.new(:capability, :key, :verb, keyword_init: true) do
+        def self.from(row)
+          return row if row.is_a?(self)
+
+          fields = row.to_h.transform_keys(&:to_sym)
+          new(capability: fields[:capability].to_s, key: fields[:key].to_s, verb: fields[:verb].to_s)
+        end
+      end
+
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
-                  :classification, :read_models, :ports, :formerly_known_as, :attaches_to
+                  :classification, :read_models, :ports, :formerly_known_as, :attaches_to, :provides
 
       def initialize(name:, version: nil, vision: nil, aggregates: [], policies: [],
                      process_managers: [], classification: nil, read_models: [], formerly_known_as: nil,
-                     attaches_to: [])
+                     attaches_to: [], provides: [])
         @policies         = policies
         @process_managers = process_managers
         @name       = name.to_s
@@ -71,6 +89,7 @@ module Hecks
         @classification = classification&.to_s
         @formerly_known_as = formerly_known_as&.to_s
         @attaches_to = Array(attaches_to).map(&:to_s)
+        @provides    = Array(provides).map { |row| Provision.from(row) }
         settle
       end
     end

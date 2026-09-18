@@ -91,8 +91,11 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     tables = conn.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").map { |row| row["tablename"] }
     conn.close
 
-    expect(tables).to include("order_head_snapshot_1")
-    expect(tables).not_to include("order_head_snapshot_0", "order_head_snapshot_")
+    # domain-qualified (docs/decisions/0059) — `aggregate` (top of this
+    # file) has no explicit `domain:` setting, so it defaults to its own
+    # owning chapter's name, "Pizzas".
+    expect(tables).to include("pizzas_order_head_snapshot_1")
+    expect(tables).not_to include("pizzas_order_head_snapshot_0", "pizzas_order_head_snapshot_")
   end
 
   # ensure_base! (provisioning.rb) runs on every boot, not only the first —
@@ -495,7 +498,9 @@ status: "sold"))
                         ))
 
       db = PG.connect(dbname: SPEC_DB)
-      raw = JSON.parse(db.exec("SELECT state FROM ticket_head WHERE id = 't1'")[0]["state"])
+      # domain-qualified (docs/decisions/0059) — `refs_adapter` (above)
+      # sets domain: "Refs" explicitly.
+      raw = JSON.parse(db.exec("SELECT state FROM refs_ticket_head WHERE id = 't1'")[0]["state"])
       db.close
       expect(raw["team"]).to eq("team-a")
     end

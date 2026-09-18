@@ -287,8 +287,26 @@ module Hecks
       def prune_lifecycle!(owner, available)
         return unless owner["lifecycle"]
 
-        owner["lifecycle"]["transitions"].select! { |t| available.include?(t["requires"].first) }
-        owner["lifecycle"] = nil if owner["lifecycle"]["transitions"].empty?
+        transitions = owner["lifecycle"]["transitions"]
+        transitions.select! { |t| available.include?(t["requires"].first) }
+        reachable = reachable_states(owner["lifecycle"]["default"], transitions)
+        transitions.select! { |t| t["from"].any? { |state| reachable.include?(state) } }
+        owner["lifecycle"] = nil if transitions.empty?
+      end
+
+      # EVERY STATE A PATH FROM THE DEFAULT REACHES. A transition out of a
+      # state nothing reaches can never fire, so a removal that orphans one
+      # goes too: shrinking away `Close` used to leave `Reopen from closed`
+      # behind — qa/stress_domains/generated_revalued_shape was promoted
+      # that way, and bin/model_check reports it as a dead transition.
+      def reachable_states(default, transitions)
+        reachable = [default]
+        loop do
+          reached = transitions.select { |t| t["from"].any? { |state| reachable.include?(state) } }.map { |t| t["to"] }
+          return reachable if (reached - reachable).empty?
+
+          reachable |= reached
+        end
       end
 
       def prune_command!(command, available)

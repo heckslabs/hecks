@@ -73,6 +73,11 @@ pub struct QueryDef {
     pub verb: &'static str,
     pub aggregate: &'static str,
     pub conditions: &'static [QueryCondition],
+    /// `where` clauses that hop through a reference (`customer/status`),
+    /// folded after `conditions` — the same `ReferenceHopCondition` a read
+    /// model's eligible head carries, applied by the same
+    /// `read_model::apply_reference_hops`. `&[]` for a hop-free query.
+    pub reference_hop_conditions: &'static [super::read_model::ReferenceHopCondition],
     pub order_by: Option<query_ordering::OrderBy>,
     /// `None` for the ordinary case (no declared `offset`, true for every
     /// declared query before this field existed). `query_ordering::apply`
@@ -252,6 +257,8 @@ pub fn run_cross_domain(
             repository::filter_entries_cross_domain(entries, condition.field, condition.comparator, &want, cross_domain);
     }
 
+    entries = super::read_model::apply_reference_hops(entries, def.reference_hop_conditions, args, store)?;
+
     Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
 }
 
@@ -260,4 +267,106 @@ pub fn run_cross_domain(
 /// (small in every real corpus; no index structure earns its keep here).
 pub fn find<'a>(table: &'a [QueryDef], verb: &str) -> Option<&'a QueryDef> {
     table.iter().find(|def| def.verb == verb)
+}
+
+/// A declared ENTITY query (`Domain::Aggregate.Entity.Query`), compiled —
+/// `Runtime::QueryInterpreter#entity_rows`, read directly: every
+/// aggregate record's `list_field` elements, filtered by the declared
+/// wheres, each row `{ parent_key => record.id }.merge(element)`, ordered
+/// by the parent's id then the entity's own identity keys
+/// (`ordered_elements`), then offset, then limit.
+#[derive(Debug, Clone, Copy)]
+pub struct EntityQueryDef {
+    pub verb: &'static str,
+    pub aggregate: &'static str,
+    /// The aggregate's list attribute holding this entity (`withdrawals`).
+    pub list_field: &'static str,
+    /// `Naming.reference_key(aggregate)` — the key each row names its
+    /// owning record under (`atm_card`).
+    pub parent_key: &'static str,
+    /// The heads of the entity's `identified_by` paths, in order.
+    pub identity_keys: &'static [&'static str],
+    pub conditions: &'static [QueryCondition],
+    pub order_by: Option<query_ordering::OrderBy>,
+    pub offset: Option<query_ordering::Offset>,
+    pub limit: Option<query_ordering::Limit>,
+}
+
+pub fn find_entity<'a>(table: &'a [EntityQueryDef], verb: &str) -> Option<&'a EntityQueryDef> {
+    table.iter().find(|def| def.verb == verb)
+}
+
+pub fn run_entity(store: &impl AggregateScan, def: &EntityQueryDef, args: &Json) -> Result<Vec<Json>, Refusal> {
+    let records = store
+        .scan(def.aggregate)
+        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", def.aggregate)))?;
+
+    // One entry per element, keyed by its parent's id — the same
+    // `(id, record)` shape `filter_entries`/`query_ordering::apply` take.
+    let mut entries: Vec<(String, Json)> = Vec::new();
+    for (parent_id, record) in records {
+        if let Some(elements) = record.get(def.list_field).and_then(Json::as_array) {
+            entries.extend(elements.iter().map(|element| (parent_id.clone(), element.clone())));
+        }
+    }
+
+    for condition in def.conditions {
+        let want = match condition.value {
+            QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
+            QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
+        };
+        entries = repository::filter_entries(entries, condition.field, condition.comparator, &want);
+    }
+
+    // THE IDENTITY ORDER — parent id, then each identity key's comparable
+    // value. `query_ordering::apply` re-sorts by entry id (the parent's)
+    // STABLY, so this order survives within each parent.
+    entries.sort_by(|(parent_a, a), (parent_b, b)| parent_a.cmp(parent_b).then_with(|| identity_order(a, b, def.identity_keys)));
+    let ordered = query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args);
+
+    Ok(ordered.into_iter().map(|(parent_id, element)| row_under_parent(def.parent_key, parent_id, element)).collect())
+}
+
+fn identity_order(a: &Json, b: &Json, keys: &[&str]) -> std::cmp::Ordering {
+    keys.iter()
+        .map(|key| compare_comparable(comparable(a.get(key)), comparable(b.get(key))))
+        .find(|ordering| *ordering != std::cmp::Ordering::Equal)
+        .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+/// `comparable` — a single-field value object reduces to its one value.
+fn comparable(value: Option<&Json>) -> Option<&Json> {
+    match value {
+        Some(Json::Object(fields)) if fields.len() == 1 => comparable(Some(&fields[0].1)),
+        other => other,
+    }
+}
+
+fn compare_comparable(a: Option<&Json>, b: Option<&Json>) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    match (a, b) {
+        (Some(Json::Num(x)), Some(Json::Num(y))) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
+        (Some(Json::Str(x)), Some(Json::Str(y))) => x.cmp(y),
+        (None | Some(Json::Null), None | Some(Json::Null)) => Ordering::Equal,
+        (None | Some(Json::Null), _) => Ordering::Less,
+        (_, None | Some(Json::Null)) => Ordering::Greater,
+        _ => Ordering::Equal,
+    }
+}
+
+/// `{ parent_key => record.id }.merge(element)` — the parent key leads; an
+/// element field of the same name wins its value, as `merge` does.
+fn row_under_parent(parent_key: &str, parent_id: String, element: Json) -> Json {
+    let mut fields = vec![(parent_key.to_string(), Json::Str(parent_id))];
+    if let Json::Object(pairs) = element {
+        for (key, value) in pairs {
+            if key == parent_key {
+                fields[0].1 = value;
+            } else {
+                fields.push((key, value));
+            }
+        }
+    }
+    Json::Object(fields)
 }

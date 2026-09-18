@@ -229,6 +229,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("aggregate", "Bluebook"),
     ("policy", "Bluebook"),
     ("process_manager", "Bluebook"), // STAGE 4
+    ("provides", "Bluebook"),        // Phase 2a — `provides "authorization", ...`
     ("description", "Aggregate"),
     ("provenance", "Aggregate"), // STAGE 4
     ("identified_by", "Aggregate"),
@@ -253,6 +254,17 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("given", "Command"),
     ("ensures", "Command"), // STAGE 4
     ("sets", "Command"),
+    // Parsed and byte-matched by parser parity (banking/chess), but never
+    // listed here until the pending audit checked each pair in context.
+    ("corrects", "Command"),
+    ("delegates_to", "Command"),
+    ("given", "Aggregate"),
+    ("given", "Entity"),
+    ("invariant", "Aggregate"),
+    ("invariant", "Entity"),
+    ("projects", "Aggregate"),
+    ("member", "ValueObject"),
+    ("compensates", "Dispatch"),
     ("emits", "Command"),
     ("attribute", "Command"),
     ("attribute", "ValueObject"),
@@ -269,11 +281,12 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("on", "Policy"),
     ("trigger", "Policy"),
     ("across", "Policy"),                // STAGE 4
+    ("where", "Policy"),                 // chess, roster
+    ("for_each", "Policy"),              // banking
     ("correlates_by", "ProcessManager"), // STAGE 4
     ("starts_on", "ProcessManager"),     // STAGE 4
     ("ends_on", "ProcessManager"),       // STAGE 4
-    ("state", "ProcessManager"),         // STAGE 4
-    ("on", "ProcessManager"),            // STAGE 4
+    ("transition", "ProcessManager"),    // banking, settlement (was `state`/`on`)
     ("dispatch", "Handler"),             // STAGE 4
     ("port", "Hecksagon"),
     ("operation", "DomainPort"),

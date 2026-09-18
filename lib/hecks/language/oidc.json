@@ -77,6 +77,11 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:bluebook.provide",
+      "verb": "Bluebook::Bluebook.Provide",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:command.acts_on",
       "verb": "Bluebook::Command.ActsOn",
       "role": "Language"

@@ -31,7 +31,7 @@ module Hecks
       # for why the dispatch path must not consult the clock itself.
       def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
         rows = Runtime::Dispatcher.new(registry).query(
-          "Governance::RoleAssignment.AssignmentsForActor",
+          provided_verb(registry, :assignments),
           actor_id: { value: actor_id.to_s }
         )
 
@@ -74,7 +74,7 @@ module Hecks
       # since `AssignmentsForActor` can return several.
       def authorized_as?(registry, from_role:, to_role:)
         rows = Runtime::Dispatcher.new(registry).query(
-          "Governance::RoleTransition.Allowed",
+          provided_verb(registry, :transitions),
           from_role: { value: from_role.to_s }, to_role: { value: to_role.to_s }
         )
 
@@ -89,12 +89,30 @@ module Hecks
       # a default) is domain-specific and does not belong here.
       def live_role_for(registry, actor_id:)
         rows = Runtime::Dispatcher.new(registry).query(
-          "Governance::RoleAssignment.AssignmentsForActor",
+          provided_verb(registry, :assignments),
           actor_id: { value: actor_id.to_s }
         )
 
         live = rows.find { |row| row[:ends_at].nil? }
         live && live[:role_name][:value]
+      end
+
+      # THE VERB, READ FROM THE PROVIDER'S OWN DECLARATION — `provides
+      # "authorization", assignments: ..., transitions: ...` on whichever
+      # loaded chapter declares it (Governance's, in every boot today).
+      # Exactly one provider, the same "the runtime will not choose for
+      # you" rule `Ports::Authorization.adapter` applies to adapters.
+      def provided_verb(registry, key)
+        providers = registry.authorization_providers
+        unless providers.size == 1
+          raise Runtime::WiringError,
+                "#{providers.size} loaded chapters provide \"authorization\"" \
+                "#{" (#{providers.map(&:name).sort.join(', ')})" unless providers.empty?} — " \
+                "a role lookup needs exactly one (framework members declaring it: " \
+                "#{Framework.providers_of(Bluebook::Capabilities::AUTHORIZATION).join(', ')})"
+        end
+
+        providers.first.provided_verb(Bluebook::Capabilities::AUTHORIZATION, key)
       end
     end
   end

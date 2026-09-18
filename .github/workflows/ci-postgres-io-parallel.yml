@@ -4,7 +4,7 @@ name: CI postgres io parallel (reusable)
 # ci-rspec.yml's own header for why this group needed three separate
 # files instead of one. This file holds `postgres_io_relevant_changed`
 # (the skip-gate detector) and `rspec_postgres_io_parallel_shard` (the
-# 4-way matrix), the two jobs behind the `rspec_postgres_io_parallel`
+# 8-way matrix), the two jobs behind the `rspec_postgres_io_parallel`
 # required-status-check name.
 
 on:
@@ -221,12 +221,13 @@ jobs:
   # `--only-group` — researched against the vendored parallel_tests-4.10.1
   # gem source (lib/parallel_tests/cli.rb), not assumed to exist: it does,
   # and does exactly what this needs. `tests_in_groups` below is still
-  # computed for the FULL `-n 4`, using the SAME grouping algorithm and
-  # the SAME shared runtime-log cache (restored below exactly like the
-  # old single job did) as before; `--only-group` then just selects ONE
-  # of those 4 already-computed groups and forces `num_processes = 1` for
-  # it (cli.rb's own `run_tests_in_parallel`). So all 4 matrix legs
-  # independently compute the IDENTICAL 4-way split and each runs only
+  # computed for the FULL `-n 8`, using the SAME grouping algorithm and
+  # the SAME committed runtime baseline in every leg (see the step that
+  # replaced the old cache restores for why it must be committed);
+  # `--only-group` then just selects ONE
+  # of those 8 already-computed groups and forces `num_processes = 1` for
+  # it (cli.rb's own `run_tests_in_parallel`). So all 8 matrix legs
+  # independently compute the IDENTICAL 8-way split and each runs only
   # its own slice, as ONE `rspec` process instead of one of 4 processes
   # sharing one job's CPU — the real hardware-parallelism lever, not a
   # hand-rolled reimplementation of the balancing `parallel_tests`
@@ -263,18 +264,29 @@ jobs:
 
     strategy:
       # `fail-fast: false` — a real regression in one shard shouldn't
-      # cancel the others mid-run and hide their own results; all 4
+      # cancel the others mid-run and hide their own results; all 8
       # report independently, same as the old single job's own
-      # `parallel_rspec` invocation always ran all 4 internal processes
-      # to completion regardless of one of them failing.
+      # `parallel_rspec` invocation always ran all of its internal
+      # processes to completion regardless of one of them failing.
       fail-fast: false
       matrix:
-        # MUST match the `-n 4` passed to parallel_rspec below — both are
+        # MUST match the `-n 8` passed to parallel_rspec below — both are
         # the total group count `parallel_tests`' own grouping math
         # divides by; changing one without the other desyncs
         # `--only-group`'s 1-indexed range from what `-n` actually
         # computed.
-        group: [1, 2, 3, 4]
+        #
+        # BUMPED FROM 4 TO 8, 2026-09-17 — this job is Postgres-bound
+        # (`--only-group` forces `num_processes = 1` per leg, see the
+        # header comment below), so unlike `rspec_shard` more legs is a
+        # real win here, not diminishing returns: the committed baseline's
+        # total (1619s across 44 files) divided by 4 legs averaged ~405s,
+        # while the single slowest file (`qa_open_pr_spec.rb`, ~173s) sets
+        # the real floor — 8 legs average ~202s, close to that floor,
+        # roughly halving this job's wall-clock. This was the long pole
+        # in a 9-minute merge_group run (run 35284295457) while every
+        # other job finished within 6 minutes.
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
 
     env:
       PGHOST: localhost
@@ -320,78 +332,23 @@ jobs:
       - name: Create the pizzas example's database
         run: createdb -h localhost -U postgres hecks_pizzas
 
-      # Every one of the 4 matrix legs restores from the SAME cache
-      # prefix, so all 4 independently compute the identical grouping —
-      # see this job's own header comment above. Same key convention as
-      # the old single job: keyed on `github.run_id`, unique to THIS run,
-      # so `key:` itself never matches on restore — it always falls
-      # through to the `restore-keys` prefix match, which resolves to the
-      # MOST RECENT previously-saved log FOR THAT GROUP.
+      # THE COMMITTED BASELINE IS THE ONLY GROUPING INPUT — 2026-09-14.
       #
-      # PER-GROUP KEYS, ALL FOUR RESTORED AND MERGED — the design this
-      # job's own header used to defer (see the "ONLY GROUP 1 SAVES"
-      # comment that used to sit on the save step below). `--only-group N`
-      # + `num_processes=1` makes `ParallelTests::RSpec::RuntimeLogger`'s
-      # `--out` TRUNCATE-then-append (confirmed by reading
-      # `parallel_tests/rspec/logger_base.rb`'s own constructor:
-      # `File.open(@output, 'w') {}` before reopening 'a') — so any one
-      # leg's own saved log only ever has real times for ITS OWN ~1/4 of
-      # the file list, never the other three groups'. Saving only group 1
-      # (the old design) meant the other three groups' files never got
-      # real timing data at all, forever — graded on `--allowed-missing
-      # 100`'s averaged guess instead, every single run. Four independent
-      # per-group keys plus a merge step fixes that: each leg restores its
-      # own group's most recent log (real data for the files it actually
-      # ran last time) and the other three groups' too, concatenates them
-      # (no file appears in more than one group's own log, so this is a
-      # disjoint union, not a conflict), and `--group-by runtime` sees a
-      # genuinely complete history instead of one leg's slice.
-      # FOUR SEPARATE STEPS, NOT ONE WITH A MULTI-LINE `path:` — a single
-      # `actions/cache` call treats every `path:` line as ONE combined
-      # blob under ONE `key`, so bundling all 4 groups' files into one
-      # `restore@v4` call would restore them as a single atomic entry, not
-      # four independently-versioned ones. Every leg runs all 4 restores
-      # regardless of its OWN `matrix.group`, so every leg's own
-      # `--group-by runtime` sees the complete 4-group history, not just
-      # its own slice.
-      - name: Restore rspec runtime log cache (group 1)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group1.log
-          key: postgres-io-parallel-runtime-group1-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group1-
-
-      - name: Restore rspec runtime log cache (group 2)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group2.log
-          key: postgres-io-parallel-runtime-group2-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group2-
-
-      - name: Restore rspec runtime log cache (group 3)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group3.log
-          key: postgres-io-parallel-runtime-group3-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group3-
-
-      - name: Restore rspec runtime log cache (group 4)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group4.log
-          key: postgres-io-parallel-runtime-group4-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group4-
-
-      - name: Merge the 4 groups' runtime logs into one grouping input
-        run: |
-          mkdir -p tmp
-          cat tmp/parallel_runtime_rspec.group*.log > tmp/parallel_runtime_rspec.log 2>/dev/null || true
-          touch tmp/parallel_runtime_rspec.log
-
+      # All 8 legs compute the 8-way split themselves and each keeps its own
+      # `--only-group`, so the split is only a PARTITION if every leg
+      # computes it from byte-identical inputs. This used to restore the
+      # latest cached runtime log for each group and merge them, and that
+      # input was not identical across legs: a leg that queued for a runner
+      # could restore a log a sibling had already SAVED under this very run's
+      # key, while the earlier legs had not. `rspec_shard` hit exactly that
+      # on PR #677's first run — its two legs grouped 137 and 201 of 337
+      # files and ran 2293 examples where #666 ran 2729, still green.
+      #
+      # `.github/postgres_io_runtime_baseline.log` is committed, built by
+      # `bin/refresh_rspec_runtime_baseline --from-run <run-id>` from the
+      # four `postgres-io-runtime-group-N` artifacts one successful run
+      # uploads (see the upload step at the end). Every leg checks out the
+      # same bytes, so the split is a pure function of the tree.
       - name: Determine which spec files can ever match --tag io (real dry run, see bin/rspec_io_parallel_files)
         run: |
           mkdir -p tmp
@@ -402,32 +359,19 @@ jobs:
           IO_FILES=()
           while IFS= read -r line; do IO_FILES+=("$line"); done < tmp/io_parallel_files.txt
           bundle exec parallel_rspec "${IO_FILES[@]}" \
-            -n 4 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
-            --runtime-log tmp/parallel_runtime_rspec.log \
+            -n 8 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
+            --runtime-log .github/postgres_io_runtime_baseline.log \
             -o "--tag io --tag ~fuzzing --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 
-      # EVERY GROUP SAVES ITS OWN FILE NOW — see the restore step's own
-      # header above for why the old "only group 1 saves" design left the
-      # other three groups permanently ungraded on real timing. `--out`
-      # above already points each leg at its own `group${N}.log`, written
-      # fresh by `ParallelTests::RSpec::RuntimeLogger` this run (its own
-      # `--only-group`-forced single process still gets a real,
-      # non-empty `TEST_ENV_NUMBER` — `""`, not unset — so the formatter
-      # is not the no-op it would be if that env var were genuinely
-      # absent; confirmed by reading `parallel_tests/rspec/
-      # runtime_logger.rb`'s own `start_dump` guard against
-      # `parallel_tests/test/runner.rb`'s `test_env_number`).
-      - name: Save this group's own runtime log cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group${{ matrix.group }}.log
-          key: postgres-io-parallel-runtime-group${{ matrix.group }}-${{ github.run_id }}
-
-      # THE SAME LOG, ALSO AS AN ARTIFACT — `bin/refresh_rspec_runtime_
-      # baseline --from-run <run-id>` needs all four legs' logs from one
-      # run to write `.github/postgres_io_runtime_baseline.log`, and a cache
-      # entry can't be downloaded. See ci-rspec.yml's upload step.
+      # UPLOADED, NEVER RESTORED — each leg's own per-file seconds, for
+      # `bin/refresh_rspec_runtime_baseline --from-run <run-id>`, which needs
+      # all eight legs' logs from one successful run to rewrite the committed
+      # baseline. `--out` above points each leg at its own `group${N}.log`,
+      # written fresh by `ParallelTests::RSpec::RuntimeLogger` (its
+      # `--only-group`-forced single process still gets a real, non-empty
+      # `TEST_ENV_NUMBER` — `""`, not unset — so the formatter is not a
+      # no-op; `parallel_tests/rspec/runtime_logger.rb`'s own `start_dump`
+      # guard). Grouping above never reads it.
       - name: Upload this group's runtime log (for bin/refresh_rspec_runtime_baseline --from-run)
         if: always()
         uses: actions/upload-artifact@v4

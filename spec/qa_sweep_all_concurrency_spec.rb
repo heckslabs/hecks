@@ -2,8 +2,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` — CONCURRENCY MECHANICS. One of four sibling files
-# split out of the original `qa_sweep_all_spec.rb` (Phase 2 of the CI
+# `bin/qa_sweep --all` — CONCURRENCY MECHANICS. One of seven sibling
+# files split out of the original `qa_sweep_all_spec.rb` (Phase 2 of the CI
 # speed effort — see `spec/qa_sweep_all_lifecycle_spec.rb`'s own header
 # and `spec/support/qa_sweep_all_fixture.rb` for the full context). This
 # file proves the pool itself: the pool bound holding under real load

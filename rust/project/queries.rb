@@ -205,19 +205,33 @@ module RustProjection
     # target:, inner_field:}` — `target` is the resolved aggregate hash
     # itself (`aggregates_by_name`'s own value shape), handed back so a
     # caller never has to re-look-it-up.
+    # A CHAIN IS GENERATED TOO (`member/sponsor/standing`): every segment
+    # but the last must be a reference on the previous segment's target,
+    # up to `HopPath::MAX_HOPS`. `:through` carries the steps after the
+    # first (`kernel::read_model::HopStep`); `:target` is the LAST target,
+    # the one the inner field is checked against.
+    HOP_CHAIN_LIMIT = 8 # Hecks::QuerySpecification::HopPath::MAX_HOPS
+
     def query_hop_plan(aggregate, field, aggregates_by_name)
-      head, rest = field.to_s.split("/", 2)
-      return nil unless rest
-      return nil if rest.include?("/")
+      segments = field.to_s.split("/")
+      return nil if segments.size < 2 || segments.size - 1 > HOP_CHAIN_LIMIT
 
-      via_attr = aggregate[:attributes].find { |a| a[:name].to_s == head }
-      return nil unless via_attr && reference_type?(via_attr[:type])
+      steps = []
+      current = aggregate
+      segments[0..-2].each do |segment|
+        via_attr = current[:attributes].find { |a| a[:name].to_s == segment }
+        return nil unless via_attr && reference_type?(via_attr[:type])
 
-      target_name = reference_target(via_attr[:type])
-      target = aggregates_by_name[target_name]
-      return nil unless target
+        target_name = reference_target(via_attr[:type])
+        target = aggregates_by_name[target_name]
+        return nil unless target
 
-      { via_field: head, target_aggregate: target_name, target: target, inner_field: rest }
+        steps << { via_field: segment, target_aggregate: target_name }
+        current = target
+      end
+
+      { via_field: steps.first[:via_field], target_aggregate: steps.first[:target_aggregate], through: steps.drop(1),
+        target: current, inner_field: segments.last }
     end
 
     # One where clause's own eligibility — `nil` (clean) or a specific,
@@ -277,7 +291,7 @@ module RustProjection
     # now, and content-checking order_by/limit LAST, means the reason this
     # function returns for a still-excluded query is always the REAL
     # remaining one, never a stale one order_by/limit merely used to mask.
-    def query_skip_reason(query, aggregate, value_objects_by_name)
+    def query_skip_reason(query, aggregate, value_objects_by_name, aggregates_by_name = {})
       extras = %i[cursor consistency freshness inspection].select { |k| query[k] }
       return skip(extras.first, "declares #{extras.join(', ')} — out of scope for this generator (rust/project/queries.rb's own " \
                                 "header has the full argument)") if extras.any?
@@ -295,7 +309,21 @@ module RustProjection
       declared_tenant = query[:authorization] && query[:authorization][:tenant]
       return skip("no_wheres", "declares no where clauses at all — nothing for filter_entries to bake in") if Array(query[:wheres]).empty? && !declared_tenant
 
+      # A SINGLE hop through a reference (`customer/status`) is generated —
+      # folded by `kernel::read_model::apply_reference_hops`, the same code a
+      # read model's eligible head uses. Its inner clause gets the ordinary
+      # check against the hop's target aggregate. A chain of more than one
+      # hop still falls through to `reference_hop_where`.
       query[:wheres].each do |where|
+        hop = query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name)
+        if hop
+          target_value_objects_by_name = hop[:target][:value_objects].to_h { |vo| [vo[:name], vo] }
+          reason = query_where_skip_reason(where.merge(field: hop[:inner_field]), hop[:target], target_value_objects_by_name)
+          return reskip(reason, "hop through #{hop[:via_field]} to #{hop[:target_aggregate]}'s own #{reason}") if reason
+
+          next
+        end
+
         reason = query_where_skip_reason(where, aggregate, value_objects_by_name)
         return reason if reason
       end
@@ -503,6 +531,17 @@ module RustProjection
       query_conditions(query) << { field: tenant.to_s, op: "eq", arg: tenant.to_s, literal: nil }
     end
 
+    # A declared query's where clauses, SPLIT — local ones (plus the tenant
+    # clause) as ordinary `QueryCondition`s, single-hop ones as
+    # `ReferenceHopCondition`s (`read_models.rb#read_model_hop_conditions`,
+    # reused). `query_skip_reason` already confirmed every clause is one or
+    # the other.
+    def query_conditions_and_hops(domain_name, query, aggregate, aggregates_by_name)
+      local, hops = Array(query[:wheres]).partition { |where| query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name).nil? }
+      [query_conditions_with_authorization(query.merge(wheres: local)),
+       read_model_hop_conditions(domain_name, hops, aggregate, aggregates_by_name)]
+    end
+
     # `TenantAuth`'s own compiled form — `nil` unless a real tenant is
     # declared (an `authorize policy` with no `tenant:` is a genuine no-op,
     # per `declared_authorization_skip_reason`'s own comment; nothing to
@@ -579,6 +618,7 @@ module RustProjection
     # Phase 10 of the equivalence-gap plan).
     def emit_query_def(query_def)
       conditions = query_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
+      reference_hop_conditions = Array(query_def[:reference_hop_conditions]).map { |h| "        #{emit_reference_hop_condition(h)}" }.join("\n")
       order_by = query_def[:order_by] ? "Some(#{query_def[:order_by]})" : "None"
       offset = query_def[:offset] ? "Some(#{query_def[:offset]})" : "None"
       limit = query_def[:limit] ? "Some(#{query_def[:limit]})" : "None"
@@ -590,6 +630,9 @@ module RustProjection
             aggregate: #{query_def[:aggregate].inspect},
             conditions: &[
         #{conditions}
+            ],
+            reference_hop_conditions: &[
+        #{reference_hop_conditions}
             ],
             order_by: #{order_by},
             offset: #{offset},
@@ -614,6 +657,16 @@ module RustProjection
                   value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
               },
           ],
+          reference_hop_conditions: &[
+              crate::kernel::read_model::ReferenceHopCondition {
+                  via_field: "tmpl_via_field",
+                  target_aggregate: "tmpl_target_aggregate",
+                  through: &[crate::kernel::read_model::HopStep { via_field: "tmpl_via_field", target_aggregate: "tmpl_target_aggregate" }],
+                  inner_field: "tmpl_inner_field",
+                  inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                  inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
+              },
+          ],
           order_by: Some(crate::kernel::query_ordering::OrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
           offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),
           limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),
@@ -631,8 +684,71 @@ module RustProjection
     # the same "absent, not wrong" shape an unrouted command's own missing
     # registry entry already is.
     def emit_query_table(query_defs)
-      rows = query_defs.map { |q| emit_query_def(q) }
-      Exemplar.render("query_table", QUERY_TABLE_ROW_PLACEHOLDER => rows.join("\n"))
+      entity_defs, aggregate_defs = query_defs.partition { |q| q[:entity] }
+      rows = aggregate_defs.map { |q| emit_query_def(q) }
+      "#{Exemplar.render('query_table', QUERY_TABLE_ROW_PLACEHOLDER => rows.join("\n"))}\n" \
+        "#{emit_authorization_assignments(query_defs)}" \
+        "#{emit_entity_query_table(entity_defs)}"
+    end
+
+    # `provides "authorization", assignments: "Aggregate.Query"` — the
+    # chapter-local verb a role check reads, or nil when this chapter
+    # provides no authorization. Ruby's `Chapter#provided_verb`, read off IR.
+    def provided_assignments(ir)
+      Array(ir[:provides]).find { |row| row[:capability] == "authorization" && row[:key] == "assignments" }&.dig(:verb)
+    end
+
+    # THE DECLARED ASSIGNMENTS QUERY, beside the table it lives in — the
+    # first def this table covers that a chapter's `provides` named
+    # (`assignments: true`, set where the def is built). A merged union
+    # carries its framework chapters' defs, so the flag travels with them.
+    # `kernel::check_role_via` reads this instead of Governance's name.
+    def emit_authorization_assignments(query_defs)
+      verb = query_defs.find { |q| q[:assignments] }&.dig(:verb)
+      value = verb ? "Some(#{verb.inspect})" : "None"
+      "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; " \
+        "`None` when no chapter here declares one.\n" \
+        "pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = #{value};\n"
+    end
+
+    # DECLARED ENTITY QUERIES (`Aggregate.Entity.Query`) —
+    # `kernel::named_query::run_entity`, `QueryInterpreter#entity_rows`
+    # compiled. Beside `QUERIES` in every table this emits, empty for a
+    # domain that declares none.
+    def emit_entity_query_table(entity_defs)
+      rows = entity_defs.map { |q| "#{emit_entity_query_def(q)}\n" }.join
+      "/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.\n" \
+        "pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[\n#{rows}];\n"
+    end
+
+    def emit_entity_query_def(query_def)
+      entity = query_def[:entity]
+      conditions = query_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
+      keys = entity[:identity_keys].map(&:inspect).join(", ")
+      order_by = query_def[:order_by] ? "Some(#{query_def[:order_by]})" : "None"
+      offset = query_def[:offset] ? "Some(#{query_def[:offset]})" : "None"
+      limit = query_def[:limit] ? "Some(#{query_def[:limit]})" : "None"
+      "crate::kernel::named_query::EntityQueryDef {\n    verb: #{query_def[:verb].inspect},\n    " \
+        "aggregate: #{query_def[:aggregate].inspect},\n    list_field: #{entity[:list_field].inspect},\n    " \
+        "parent_key: #{entity[:parent_key].inspect},\n    identity_keys: &[#{keys}],\n    conditions: &[\n#{conditions}\n    ],\n    " \
+        "order_by: #{order_by},\n    offset: #{offset},\n    limit: #{limit},\n},"
+    end
+
+    # An entity query's own eligibility: its aggregate must hold the entity
+    # in a list (the thing `entity_rows` flattens), a tenant-scoped one is
+    # not generated yet, and otherwise every clause gets the SAME check a
+    # declared aggregate query does — against the entity's own fields.
+    def entity_query_skip_reason(query, entity, list_attr, value_objects_by_name)
+      return skip("entity_query", "#{entity[:name]} is held in no list attribute on its aggregate — nothing to flatten") unless list_attr
+      return skip("entity_query_authorization", "declares authorize — an entity query's tenant scope is not generated yet") if query[:authorization]
+
+      query_skip_reason(query, entity, value_objects_by_name)
+    end
+
+    # `Hecks::Naming.snake` — `Naming.reference_key`, the key an entity
+    # query's rows name their owning record under.
+    def snake(text)
+      text.to_s.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
     end
 
     # C3.7 FOR A NAMED QUERY'S OWN ARGUMENTS — `QueryInterpreter#normalize_

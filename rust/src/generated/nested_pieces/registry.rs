@@ -89,7 +89,7 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::nested_pieces::workspace::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
-              crate::kernel::check_role(Some("Owner"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Owner"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -122,7 +122,7 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddBoard acts on an existing Workspace — pass reference.value:".to_string()))?, };
               let args = crate::generated::nested_pieces::workspace::AddBoardArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
-              crate::kernel::check_role(Some("Owner"), "AddBoard", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Owner"), "AddBoard", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -154,7 +154,7 @@ if !absent.is_empty() {
  } let _args_precheck = crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddCard acts on a Workspace's Board — pass reference.value:".to_string()))?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddCard acts on one Board — pass number.value:".to_string()))?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::from_json(facts_json)?;
                       args.sequence.check_invariants()?;
-              crate::kernel::check_role(Some("Owner"), "AddCard", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Owner"), "AddCard", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -186,7 +186,7 @@ if !absent.is_empty() {
  } let _args_precheck = crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on a Workspace's Board — pass reference.value:".to_string()))?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on one Board — pass number.value:".to_string()))?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::from_json(facts_json)?;
                       args.label.check_invariants()?;
-              crate::kernel::check_role(Some("Owner"), "Label", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Owner"), "Label", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -218,7 +218,7 @@ if !absent.is_empty() {
  } let _args_precheck = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Workspace's Board.Card — pass reference.value:".to_string()))?; let hop1_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Board — pass number.value:".to_string()))?; let hop1_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); let hop2_id = crate::generated::nested_pieces::workspace::Card::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Card — pass sequence.value:".to_string()))?; let hop2_wants = crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
-              crate::kernel::check_role(Some("Owner"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Owner"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -317,6 +317,11 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 
+];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`

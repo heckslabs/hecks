@@ -284,13 +284,23 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
       expect(repository.adapter).to be_a(forgetful_class)
       expect do
         repository.transaction do
-          Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: { "status" => "open" })
+          Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: undecoded_nested)
         end
       end.not_to raise_error
     end
 
+    # Nested string keys under a declared value object: undecoded to the
+    # boundary, still accepted by hydration's own input door. A string
+    # TOP-LEVEL key is refused everywhere since A4 (Value.hydrate).
+    def undecoded_nested = { status: "open", balance: { "cents" => 1, "currency" => "USD" } }
+
     it "does nothing to an Instance built outside any adapter call" do
-      expect { Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: { "status" => "open" }) }.not_to raise_error
+      expect { Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: undecoded_nested) }.not_to raise_error
+    end
+
+    it "refuses a string top-level key at hydration, inside or outside any adapter call" do
+      expect { Hecks::Runtime::Instance.new(aggregate: aggregate, id: "A", state: { "status" => "open" }) }
+        .to raise_error(Hecks::Runtime::WiringError, /non-Symbol keys \["status"\].*StateCodec\.decode/)
     end
   end
 end

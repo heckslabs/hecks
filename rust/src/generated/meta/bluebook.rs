@@ -4,6 +4,140 @@
 use crate::kernel::Expr;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Provision {
+    pub capability: String,
+    pub key: String,
+    pub verb: String,
+}
+
+impl crate::kernel::Fielded for Provision {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "capability" => Some(Field::Value(Value::Str(self.capability.clone()))),
+            "key" => Some(Field::Value(Value::Str(self.key.clone()))),
+            "verb" => Some(Field::Value(Value::Str(self.verb.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+impl Provision {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl Provision {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("capability".to_string(), crate::kernel::Json::Str(self.capability.clone())),
+        ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
+        ("verb".to_string(), crate::kernel::Json::Str(self.verb.clone())),
+        ])
+    }
+}
+
+impl Provision {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Provision expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["capability", "key", "verb"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Provision does not declare {} — it takes capability, key, verb",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        capability: { let x = v.get("capability").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Provision.capability expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Provision.capability expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Provision.capability: expected String".to_string()) })? },
+        key: { let x = v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Provision.key expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Provision.key expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Provision.key: expected String".to_string()) })? },
+        verb: { let x = v.get("verb").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Provision.verb expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Provision.verb expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Provision.verb: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProvisionText {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for ProvisionText {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+
+impl ProvisionText {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl ProvisionText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl ProvisionText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ProvisionText expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ProvisionText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProvisionText.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("ProvisionText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProvisionText.value: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct RuleText {
     pub value: String,
 }
@@ -626,6 +760,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "formerly_known_as", context: "Bluebook", body: "none", inner: "", opens: "", fills: "formerly_known_as", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "attaches_to", context: "Bluebook", body: "none", inner: "", opens: "", fills: "attaches_to", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "provides", context: "Bluebook", body: "none", inner: "", opens: "", fills: "provides", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "core", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "supporting", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "generic", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
@@ -686,6 +821,10 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "vision", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "vision", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "false", blank_message: "" },
     ArgumentSeed { keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "formerly_known_as", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "attaches_to", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "attaches_to", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "provides", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "provides", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "provides", context: "Bluebook", at: "", named: "assignments", kind: "text", required: "false", fills: "provides", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "provides", context: "Bluebook", at: "", named: "grant", kind: "text", required: "false", fills: "provides", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "provides", context: "Bluebook", at: "", named: "transitions", kind: "text", required: "false", fills: "provides", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "aggregate", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "policy", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
@@ -732,6 +871,7 @@ pub struct Bluebook {
     pub formerly_known_as: Option<FormerlyKnownAs>,
     pub normalisations: Vec<NormalisationRule>,
     pub attaches_to: Vec<AttachesToContext>,
+    pub provides: Vec<Provision>,
 }
 
 impl crate::kernel::Fielded for Bluebook {
@@ -745,6 +885,7 @@ impl crate::kernel::Fielded for Bluebook {
             "formerly_known_as" => self.formerly_known_as.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "normalisations" => Some(Field::Value(Value::List(self.normalisations.len()))),
             "attaches_to" => Some(Field::Value(Value::List(self.attaches_to.len()))),
+            "provides" => Some(Field::Value(Value::List(self.provides.len()))),
             _ => None,
         }
     }
@@ -755,6 +896,7 @@ impl crate::kernel::Fielded for Bluebook {
         match name {
             "normalisations" => Some(self.normalisations.iter().map(|v| Field::Nested(v)).collect()),
             "attaches_to" => Some(self.attaches_to.iter().map(|v| Field::Nested(v)).collect()),
+            "provides" => Some(self.provides.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
     }
@@ -774,6 +916,7 @@ impl Bluebook {
         ("formerly_known_as".to_string(), self.formerly_known_as.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("normalisations".to_string(), crate::kernel::Json::Array(self.normalisations.iter().map(|x| x.to_json()).collect())),
         ("attaches_to".to_string(), crate::kernel::Json::Array(self.attaches_to.iter().map(|x| x.to_json()).collect())),
+        ("provides".to_string(), crate::kernel::Json::Array(self.provides.iter().map(|x| x.to_json()).collect())),
         ])
     }
 }
@@ -791,6 +934,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         formerly_known_as: match v.get("formerly_known_as") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(&x.coerce_single_field("value"))?), },
         normalisations: match v.get("normalisations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(NormalisationRule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         attaches_to: match v.get("attaches_to").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| AttachesToContext::from_json(&item.coerce_single_field("value"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        provides: match v.get("provides").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Provision::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
 }
@@ -834,6 +978,178 @@ fn bluebook_invariants() -> crate::kernel::InvariantSet {
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],
+    }
+}
+
+impl crate::kernel::Fielded for DeclareArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "name" => Some(Field::Nested(&self.name)),
+            "vision" => self.vision.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "classification" => self.classification.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "version" => self.version.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "formerly_known_as" => self.formerly_known_as.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DeclareArgs {
+    pub name: BluebookName,
+    pub vision: Option<Vision>,
+    pub classification: Option<Classification>,
+    pub version: Option<Version>,
+    pub formerly_known_as: Option<FormerlyKnownAs>,
+}
+
+pub fn dispatch_declare(
+    repo: &mut impl crate::kernel::Repository<Bluebook>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Bluebook> {
+        args.name.check_invariants()?;
+        if let Some(v) = &args.vision { v.check_invariants()?; }
+        if let Some(v) = &args.classification { v.check_invariants()?; }
+        if let Some(v) = &args.version { v.check_invariants()?; }
+        if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, BLUEBOOK_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.name.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Declare routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
+        crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Bluebook {
+            name: Some(args.name.clone()),
+            vision: args.vision.clone(),
+            classification: args.classification.clone(),
+            version: args.version.clone(),
+            formerly_known_as: args.formerly_known_as.clone(),
+            normalisations: vec![],
+            attaches_to: vec![],
+            provides: vec![],
+        }),
+        state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.name.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Bluebook {
+            name: Some(args.name.clone()),
+            vision: args.vision.clone(),
+            classification: args.classification.clone(),
+            version: args.version.clone(),
+            formerly_known_as: args.formerly_known_as.clone(),
+            normalisations: vec![],
+            attaches_to: vec![],
+            provides: vec![],
+        }),
+        state_independent: true,
+    } }
+    },
+        "Declare",
+        "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.name = Some(args.name.clone());
+        record.vision = args.vision.clone();
+        record.classification = args.classification.clone();
+        record.version = args.version.clone();
+        record.formerly_known_as = args.formerly_known_as.clone();
+            Ok(())
+        },
+        &[
+
+        ],
+        &bluebook_invariants(),
+        &["ChapterDeclared"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),
+        ("vision".to_string(), self.vision.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("classification".to_string(), self.classification.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("formerly_known_as".to_string(), self.formerly_known_as.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "vision", "classification", "version", "formerly_known_as", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Declare does not declare {} — it takes name, vision, classification, version, formerly_known_as",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Declare"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name, vision, classification, version, formerly_known_as"),
+    ])));
+}
+        let name = BluebookName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects BluebookName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let vision = match v.get("vision") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Vision::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &vision { v.check_invariants()?; }
+        let classification = match v.get("classification") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Classification::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &classification { v.check_invariants()?; }
+        let version = match v.get("version") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &version { v.check_invariants()?; }
+        let formerly_known_as = match v.get("formerly_known_as") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &formerly_known_as { v.check_invariants()?; }
+        Ok(Self {
+        name,
+        vision,
+        classification,
+        version,
+        formerly_known_as,
+        })
     }
 }
 
@@ -937,6 +1253,124 @@ if !absent.is_empty() {
         context.check_invariants()?;
         Ok(Self {
         context,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for ProvideArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "capability" => Some(Field::Nested(&self.capability)),
+            "key" => Some(Field::Nested(&self.key)),
+            "verb" => Some(Field::Nested(&self.verb)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct ProvideArgs {
+    pub capability: ProvisionText,
+    pub key: ProvisionText,
+    pub verb: ProvisionText,
+}
+
+pub fn dispatch_provide(
+    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: ProvideArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Bluebook> {
+        args.capability.check_invariants()?;
+        args.key.check_invariants()?;
+        args.verb.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, BLUEBOOK_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Provide",
+        "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.provides.push(Provision { capability: args.capability.value.clone(), key: args.key.value.clone(), verb: args.verb.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &bluebook_invariants(),
+        &["CapabilityProvided"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl ProvideArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("capability".to_string(), self.capability.to_json()),
+        ("key".to_string(), self.key.to_json()),
+        ("verb".to_string(), self.verb.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl ProvideArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ProvideArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["capability", "key", "verb", "id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Provide does not declare {} — it takes capability, key, verb",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["capability", "key", "verb"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Provide"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "capability, key, verb"),
+    ])));
+}
+        let capability = ProvisionText::from_json(&(match v.get("capability").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProvideArgs.capability expects ProvisionText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        capability.check_invariants()?;
+        let key = ProvisionText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProvideArgs.key expects ProvisionText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        key.check_invariants()?;
+        let verb = ProvisionText::from_json(&(match v.get("verb").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProvideArgs.verb expects ProvisionText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        verb.check_invariants()?;
+        Ok(Self {
+        capability,
+        key,
+        verb,
         })
     }
 }

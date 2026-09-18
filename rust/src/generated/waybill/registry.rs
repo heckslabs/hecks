@@ -103,7 +103,7 @@ pub fn dispatch_by_name(
                       args.reference.check_invariants()?;
                       args.number.check_invariants()?;
                       args.item.check_invariants()?;
-              crate::kernel::check_role(Some("Customer"), "Request", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Customer"), "Request", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -127,7 +127,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Ship acts on an existing Consignment — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::consignment::ShipArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("System"), "Ship", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("System"), "Ship", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Consignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -151,7 +151,7 @@ if !unknown.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Cancel acts on an existing Consignment — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::consignment::CancelArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("System"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("System"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Consignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -165,7 +165,7 @@ if !unknown.is_empty() {
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::waybill::manifest::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
-              crate::kernel::check_role(Some("Loader"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Loader"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -198,7 +198,7 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSlot acts on an existing Manifest — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::manifest::AddSlotArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
-              crate::kernel::check_role(Some("Loader"), "AddSlot", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Loader"), "AddSlot", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -230,7 +230,7 @@ if !absent.is_empty() {
  } let _args_precheck = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
-              crate::kernel::check_role(Some("Loader"), "Fill", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Loader"), "Fill", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -262,7 +262,7 @@ if !absent.is_empty() {
  } let _args_precheck = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
-              crate::kernel::check_role(Some("Loader"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Loader"), "Clear", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -379,11 +379,19 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("requested") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
     authorization: None,
 },
+];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
+/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
+pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`

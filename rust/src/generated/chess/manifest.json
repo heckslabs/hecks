@@ -101,10 +101,7 @@
   {
     "kind": "query",
     "id": "Chess::Game.Piece.OnBoard",
-    "generated": false,
-    "gap_class": "whole_kind",
-    "construct": "entity_query",
-    "reason": "an entity-scoped query has no generated code path — only an aggregate's own declared queries reach the QUERIES table"
+    "generated": true
   },
   {
     "kind": "policy",

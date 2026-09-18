@@ -27,6 +27,16 @@
         "default": "open",
         "transitions": [
           {
+            "command": "Close",
+            "to": "closed",
+            "from": [
+              "open"
+            ],
+            "requires": [
+              "command:Hangar.Close"
+            ]
+          },
+          {
             "command": "Reopen",
             "to": "open",
             "from": [
@@ -100,6 +110,25 @@
           ],
           "emits": [
             "HangarRepointed"
+          ]
+        },
+        {
+          "name": "Close",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "HangarClosed"
           ]
         },
         {

@@ -1,5 +1,7 @@
 require "spec_helper"
 require "hecks/bluebook/model_check"
+require "hecks/fuzzing/target_capabilities"
+require "tmpdir"
 
 # The lightweight-formal-methods leg of the verification arc: every
 # lifecycle is a declared FSM and every process manager a declared
@@ -216,6 +218,76 @@ RSpec.describe "the model checker" do
     end
   end
 
+  # A domain or aggregate whose Rust MODULE name (downcased) is a Rust
+  # keyword, or a domain whose module/Cargo feature key is a reserved
+  # Cargo.toml key (BUG#124). Warning by default; error with a Rust target
+  # or under strict. The Rust generator refuses through the same check.
+  describe "Rust reserved names" do
+    def reserved_name_findings(domain, aggregate, **options)
+      Dir.mktmpdir("model-check-reserved-name") do |dir|
+        path = File.join(dir, "#{domain.downcase}.bluebook")
+        File.write(path, <<~BLUEBOOK)
+          Hecks.bluebook #{domain.inspect} do
+            aggregate #{aggregate.inspect} do
+              identified_by :code
+              attribute :code, #{aggregate}Code
+              value_object "#{aggregate}Code" do
+                attribute :value, String
+              end
+              command "Open" do
+                attribute :code, #{aggregate}Code
+                sets :code
+                emits "#{aggregate}Opened"
+              end
+            end
+          end
+        BLUEBOOK
+        bluebook = boot(path).bluebooks.values.first
+        Hecks::Bluebook::ModelCheck.call(bluebook, **options)
+                                   .select { |f| f.kind == :rust_reserved_name }
+                                   .map { |f| [f.subject, f.severity] }
+      end
+    end
+
+    [
+      ["keyword aggregate, Ruby only",          "Shop",    "Match",   {}, [["Match", :warning]]],
+      ["keyword aggregate, Rust target",        "Shop",    "Type",    { rust_target: true }, [["Type", :error]]],
+      ["keyword aggregate, strict",             "Shop",    "Crate",   { strict: true }, [["Crate", :error]]],
+      ["Cargo-key aggregate is fine",           "Shop",    "Version", { rust_target: true }, []],
+      ["Cargo-reserved domain, Ruby only",      "Package", "Widget",  {}, [["Package", :warning]]],
+      ["Cargo-reserved domain, Rust target",    "Default", "Widget",  { rust_target: true }, [["Default", :error]]],
+      ["keyword domain, strict",                "Crate",   "Widget",  { strict: true },    [["Crate", :error]]],
+      ["ordinary names, Rust target and strict", "Shop",   "Pizza",   { rust_target: true, strict: true }, []]
+    ].each do |label, domain, aggregate, options, expected|
+      it "#{label}: #{domain}/#{aggregate} #{options} -> #{expected}" do
+        expect(reserved_name_findings(domain, aggregate, **options)).to eq(expected)
+      end
+    end
+
+    describe "the Rust generator refuses through the same check" do
+      before(:context) { require_relative "../rust/project" }
+
+      def generate(mod_name, *aggregate_names)
+        Dir.mktmpdir("model-check-reserved-generator") do |dir|
+          out = File.join(dir, mod_name)
+          ir = { name: "Shop", aggregates: aggregate_names.map { |name| { name: name } } }
+          RustProjection::DomainGenerator.call(ir, "spec", out, mod_name)
+        ensure
+          expect(Dir.exist?(File.join(dir, mod_name))).to be(false), "refused, but still wrote #{mod_name}/"
+        end
+      end
+
+      it "refuses every keyword-named aggregate at once, before writing anything" do
+        expect { generate("shop", "Pizza", "Match", "Type") }
+          .to raise_error(/aggregate name\(s\) "Match", "Type" can't be used as-is .* Rust keyword/)
+      end
+
+      it "refuses a domain module name that is a reserved Cargo.toml key" do
+        expect { generate("package", "Widget") }.to raise_error(/domain module name "package" can't be used as-is/)
+      end
+    end
+  end
+
   # THE COVERAGE GATE. `bin/model_check` runs this same walk over every
   # example domain, every grammar chapter, and the language itself — the
   # spec keeps that corpus finding-free by holding it to bin/model_check's
@@ -229,7 +301,7 @@ RSpec.describe "the model checker" do
     # missing here while MODEL_CHECK_ALLOWED named it, and
     # `.fetch(name) { next }` below silently returned nil instead of
     # skipping the entry.
-    MODEL_CHECK_CORPUS = Hecks::Corpus.members(:example, :grammar, :framework, :qa)
+    MODEL_CHECK_CORPUS = Hecks::Corpus.model_check_members
                                       .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
     # The SAME constant bin/model_check reads — one table, not a copy.
@@ -262,7 +334,14 @@ RSpec.describe "the model checker" do
 
     MODEL_CHECK_CORPUS.each do |name, source|
       it "#{name} has no error bin/model_check does not already name" do
-        findings = call_model_check(boot(source), known_domains: self.class.known_domains)
+        # Same Rust-target inference bin/model_check#examine makes, so a
+        # reserved-name collision in a Rust-built corpus domain is an error here too.
+        rust_target = Hecks::Fuzzing::TargetCapabilities.rust_feature?(name, File.join(ROOT_DIR, "rust"))
+        registry = boot(source)
+        bluebook = registry.bluebooks.values.first
+        findings = Hecks::Bluebook::ModelCheck.call(bluebook, hecksagon:     registry.hecksagon(bluebook.name),
+                                                              known_domains: self.class.known_domains,
+                                                              rust_target:   rust_target)
         errors   = findings.select { |f| f.severity == :error }
         allowed  = MODEL_CHECK_ALLOWED.fetch(name, [])
 
@@ -279,6 +358,46 @@ RSpec.describe "the model checker" do
 
         stale = entries - found
         expect(stale).to be_empty, "#{name}: #{stale.inspect} no longer found — delete from ALLOWED_FINDINGS"
+      end
+    end
+
+    # PINNED EMPTY, the way bin/fuzz's KNOWN_FUZZ_FINDINGS is — a domain
+    # that means to keep a finding declares it in its own source (banking's
+    # `across "Notifications", expect_undelivered: true`), never here.
+    it "keeps the core allowlist empty" do
+      expect(MODEL_CHECK_ALLOWED).to eq({})
+    end
+
+    describe "a declared undelivered across target" do
+      let(:banking) { MODEL_CHECK_CORPUS.to_h.fetch("banking") }
+
+      it "is what keeps banking's two Notifications policies clean" do
+        declared = boot(banking).bluebook("Banking").policies.select(&:expect_undelivered).map(&:name).sort
+        expect(declared).to eq(%w[FlagKeyReturn NotifyOnClosure])
+
+        errors = call_model_check(boot(banking), known_domains: self.class.known_domains)
+                 .select { |f| %w[FlagKeyReturn NotifyOnClosure].include?(f.subject) }
+        expect(errors).to be_empty
+      end
+
+      it "fails as stale once the target is a domain the corpus actually boots" do
+        known    = self.class.known_domains | ["Notifications"]
+        findings = call_model_check(boot(banking), known_domains: known)
+        stale    = findings.select { |f| f.kind == :stale_undelivered_expectation }
+
+        expect(stale.map(&:subject).sort).to eq(%w[FlagKeyReturn NotifyOnClosure])
+        expect(stale.map(&:severity).uniq).to eq([:error])
+      end
+
+      it "raises the ordinary findings again once the declaration is dropped" do
+        registry = boot(banking)
+        registry.bluebook("Banking").policies.select(&:expect_undelivered).each do |policy|
+          policy.instance_variable_set(:@expect_undelivered, false)
+        end
+        kinds = call_model_check(registry, known_domains: self.class.known_domains)
+                .select { |f| f.subject == "NotifyOnClosure" }.map(&:kind).sort
+
+        expect(kinds).to eq(%i[unacknowledged_relationship unknown_target_domain])
       end
     end
 
