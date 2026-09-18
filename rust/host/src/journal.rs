@@ -484,8 +484,41 @@ fn journal_table(domain: &str) -> String {
     format!("hecks_journal_{}", snake(domain))
 }
 
-fn head_snapshot_table(qualified_aggregate: &str, era: i32) -> String {
-    format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era)
+/// Postgres's own NAMEDATALEN-1 limit: an identifier over 63 bytes is
+/// silently TRUNCATED, never refused — ported verbatim from Ruby's
+/// `Lineage::POSTGRES_IDENTIFIER_LIMIT` (postgres_era/lineage.rb). Two
+/// different overlong names sharing their first 63 bytes would collide
+/// again, at a longer length — the exact same failure mode
+/// `qualified_name` below exists to close for `storage_name` alone.
+const POSTGRES_IDENTIFIER_LIMIT: usize = 63;
+
+/// The SAME algorithm `Lineage#qualified_name` (lineage.rb) applies —
+/// kept in exact lockstep (same 63-byte limit, same 8-hex-char SHA256
+/// suffix) so Ruby and Rust, writing the same aggregate against the
+/// same database, always agree on which physical relation that is.
+/// This is the fix for docs/decisions/0059: `head_view`/
+/// `head_snapshot_table` below used to be qualified by `storage_name`
+/// alone, so two different domains bound to PostgresEra against the
+/// SAME database, each declaring an aggregate whose own name
+/// snake_cases to the same storage_name, derived the exact same
+/// physical relations — silently sharing (and, on Ruby's own
+/// `ensure_first_head!`, clobbering) each other's data. Human-readable
+/// in the ordinary case; only a long domain + suffix combination
+/// degrades to the hashed, truncated form.
+pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
+    let full = format!("{}_{}", snake(domain), suffix);
+    if full.len() <= POSTGRES_IDENTIFIER_LIMIT {
+        return full;
+    }
+
+    let digest = format!("{:x}", Sha256::digest(full.as_bytes()));
+    let digest = &digest[0..8];
+    let keep = POSTGRES_IDENTIFIER_LIMIT - digest.len() - 1;
+    format!("{}_{}", &full[0..keep], digest)
+}
+
+fn head_snapshot_table(domain: &str, qualified_aggregate: &str, era: i32) -> String {
+    qualified_name(domain, &format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era))
 }
 
 /// The boot-time gate — but "does this ordinal have a row" was never
@@ -568,7 +601,7 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     }
 
     let journal = journal_table(&config.domain);
-    let snapshot = head_snapshot_table(mutation.aggregate, era);
+    let snapshot = head_snapshot_table(&config.domain, mutation.aggregate, era);
     let storage = storage_name(mutation.aggregate);
 
     let row = client
@@ -635,19 +668,24 @@ pub async fn append_lineage_mutation<C: GenericClient>(
 // exported IR marks lineage-capable (`ir.json`'s `lineage.
 // capable_aggregates`, Projector::Exporter.lineage), rather than
 // leaving Member as a one-off.
-pub(crate) fn head_view(storage_name: &str) -> String {
-    format!("{storage_name}_head")
+pub(crate) fn head_view(domain: &str, storage_name: &str) -> String {
+    qualified_name(domain, &format!("{storage_name}_head"))
 }
 
 /// Every live row for one lineage-capable aggregate, already translated
 /// to its current shape — `member_rows`'s own query (auth.rs), made
 /// generic over `storage_name` instead of hard-typed to `"member_head"`.
+/// `domain` (docs/decisions/0059) is what makes this the SAME physical
+/// relation `append_lineage_mutation`/Ruby's own `PostgresEra` wrote to
+/// — never merely "whichever aggregate happens to share this
+/// storage_name in ANY domain".
 pub async fn read_lineage_head_all<C: GenericClient>(
     client: &C,
+    domain: &str,
     storage_name: &str,
 ) -> anyhow::Result<Vec<(String, serde_json::Value)>> {
     let rows = client
-        .query(&format!("SELECT id, state FROM {}", quote_ident(&head_view(storage_name))), &[])
+        .query(&format!("SELECT id, state FROM {}", quote_ident(&head_view(domain, storage_name))), &[])
         .await?;
     Ok(rows.into_iter().map(|row| (row.get(0), row.get(1))).collect())
 }
@@ -656,12 +694,13 @@ pub async fn read_lineage_head_all<C: GenericClient>(
 /// query (auth.rs), made generic the same way.
 pub async fn read_lineage_head_by_id<C: GenericClient>(
     client: &C,
+    domain: &str,
     storage_name: &str,
     id: &str,
 ) -> anyhow::Result<Option<serde_json::Value>> {
     let row = client
         .query_opt(
-            &format!("SELECT state FROM {} WHERE id = $1", quote_ident(&head_view(storage_name))),
+            &format!("SELECT state FROM {} WHERE id = $1", quote_ident(&head_view(domain, storage_name))),
             &[&id],
         )
         .await?;
@@ -995,16 +1034,17 @@ mod lineage_tests {
             let _ = connection.await;
         });
 
-        client.batch_execute("DROP VIEW IF EXISTS widget_head").await.unwrap();
-        client.batch_execute("DROP TABLE IF EXISTS widget_head_snapshot_1").await.unwrap();
+        // domain-qualified (docs/decisions/0059) — snake("Fixtures") == "fixtures".
+        client.batch_execute("DROP VIEW IF EXISTS fixtures_widget_head").await.unwrap();
+        client.batch_execute("DROP TABLE IF EXISTS fixtures_widget_head_snapshot_1").await.unwrap();
         client
             .batch_execute(
-                "CREATE TABLE widget_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)",
+                "CREATE TABLE fixtures_widget_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)",
             )
             .await
             .unwrap();
         client
-            .batch_execute("CREATE VIEW widget_head AS SELECT id, state FROM widget_head_snapshot_1")
+            .batch_execute("CREATE VIEW fixtures_widget_head AS SELECT id, state FROM fixtures_widget_head_snapshot_1")
             .await
             .unwrap();
 
@@ -1028,13 +1068,13 @@ mod lineage_tests {
         .await
         .unwrap();
 
-        let one = read_lineage_head_by_id(&client, "widget", "widget-1").await.unwrap();
+        let one = read_lineage_head_by_id(&client, "Fixtures", "widget", "widget-1").await.unwrap();
         assert_eq!(one, Some(serde_json::json!({ "name": "Gadget" })));
 
-        let missing = read_lineage_head_by_id(&client, "widget", "widget-nonexistent").await.unwrap();
+        let missing = read_lineage_head_by_id(&client, "Fixtures", "widget", "widget-nonexistent").await.unwrap();
         assert_eq!(missing, None);
 
-        let mut all = read_lineage_head_all(&client, "widget").await.unwrap();
+        let mut all = read_lineage_head_all(&client, "Fixtures", "widget").await.unwrap();
         all.sort_by(|a, b| a.0.cmp(&b.0));
         assert_eq!(
             all,

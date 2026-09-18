@@ -215,11 +215,13 @@ pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Optio
 // was never migrated into rust/host's flat `hecks_lambda_journal` at
 // all (bin/bootstrap_lambda_data's own header: "Member is dispatched
 // LOCALLY ... against whatever DATABASE_URL names"). Queried straight
-// off `member_head` instead -- the SAME era-scoped read view Ruby's
-// own `Adapters::PostgresEra#all`/`#find` already read from
+// off `<domain>_member_head` instead -- the SAME era-scoped read view
+// Ruby's own `Adapters::PostgresEra#all`/`#find` already read from
 // (`SELECT id, state FROM #{lineage.head_view(table)}`,
-// `head_view(name) = "#{name}_head"`, `table = aggregate.storage_name`
-// = "member") -- confirmed live against the real deployed database. A
+// `head_view(storage_name) = "#{qualified_name(storage_name)}_head"`,
+// `table = aggregate.storage_name` = "member"; `qualified_name` folds
+// in the OWNING domain's own snake_cased name -- docs/decisions/0059)
+// -- confirmed live against the real deployed database. A
 // real, live "google_unlinked" for an ALREADY-linked chris@embryonaut.ai
 // caught this: `resolve_identity` correctly found his real identity_id,
 // but scanning `instances` for his Member record could never find it.
@@ -236,14 +238,20 @@ pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Optio
 // auth.rs is doing.
 async fn member_row_by_email(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<Value>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
+    // docs/decisions/0059 — `head_view` is domain-qualified now, so the
+    // generic read needs the SAME domain name `PostgresEra#initialize`
+    // (Ruby) and this deployment's own mint used, the owning bluebook's
+    // declared name, exactly as `ir.rs`/`web.rs` already extract it.
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let guard = client.lock().await;
-    journal::read_lineage_head_by_id(&*guard, &storage_name, email).await
+    journal::read_lineage_head_by_id(&*guard, domain, &storage_name, email).await
 }
 
 async fn member_rows(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<(String, Value)>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let guard = client.lock().await;
-    journal::read_lineage_head_all(&*guard, &storage_name).await
+    journal::read_lineage_head_all(&*guard, domain, &storage_name).await
 }
 
 // WHICH LINEAGE-CAPABLE AGGREGATE THIS DEPLOYMENT TREATS AS "THE
@@ -349,12 +357,14 @@ async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, dom
 
 pub async fn session_for_member_by_identity(client: &Mutex<Client>, domain_ir: &Value, identity_id: &str) -> anyhow::Result<Option<Session>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
+    // docs/decisions/0059 — same domain-qualification as member_row_by_email/member_rows above.
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let guard = client.lock().await;
     let row = guard
         .query_opt(
             &format!(
                 "SELECT state FROM {} WHERE state->'identity_id'->>'value' = $1",
-                journal::quote_ident(&journal::head_view(&storage_name))
+                journal::quote_ident(&journal::head_view(domain, &storage_name))
             ),
             &[&identity_id],
         )
@@ -728,13 +738,14 @@ mod tests {
     }
 
     // A REAL, THROWAWAY POSTGRES DATABASE per test, matching the real
-    // shape `head_view` names ("#{storage_name}_head", postgres/
-    // lineage.rb) -- member_row_by_email/session_for_member_by_identity/
-    // all_people all query this exact table against the real, deployed
-    // database (confirmed live via a bastion tunnel: `\dt` + `SELECT id,
-    // state FROM member_head` on the real hecks-embryonaut RDS
-    // instance). Uniquely named per test, same reasoning dispatch.rs's
-    // own `scratch_db` gives itself.
+    // shape `head_view` names (`qualified_name(domain, "#{storage_name}
+    // _head")`, postgres/lineage.rb — docs/decisions/0059 folded the
+    // owning domain, "Embryonaut", into this name) -- member_row_by_
+    // email/session_for_member_by_identity/all_people all query this
+    // exact table against the real, deployed database (originally
+    // confirmed live via a bastion tunnel, pre-0059, when this table was
+    // still bare `member_head`). Uniquely named per test, same reasoning
+    // dispatch.rs's own `scratch_db` gives itself.
     async fn scratch_member_db(name: &str) -> Mutex<tokio_postgres::Client> {
         use tokio_postgres::NoTls;
         let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
@@ -752,19 +763,20 @@ mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        // The REAL shape, confirmed live against the deployed database
-        // (`\dt` + `SELECT id, state FROM member_head` via a bastion
-        // tunnel): `member_head` is a VIEW over the era-1 snapshot
-        // table (postgres/lineage/head_compiler.rb's `ensure_first_head!`,
-        // `CREATE OR REPLACE VIEW "member_head" AS SELECT id, state FROM
-        // "member_head_snapshot_1"`), and every write goes through the
+        // The REAL shape, originally confirmed live against the deployed
+        // database via a bastion tunnel (pre-0059, when this was still
+        // bare `member_head`): `embryonaut_member_head` is a VIEW over
+        // the era-1 snapshot table (postgres/lineage/head_compiler.rb's
+        // `ensure_first_head!`,
+        // `CREATE OR REPLACE VIEW "embryonaut_member_head" AS SELECT id, state FROM
+        // "embryonaut_member_head_snapshot_1"`), and every write goes through the
         // domain's own era-partitioned journal table first
         // (`hecks_journal_embryonaut`) -- `append_member_state`'s own
         // target, exercised by the test below.
         client
             .batch_execute(
-                "CREATE TABLE member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
-                 CREATE VIEW member_head AS SELECT id, state FROM member_head_snapshot_1;
+                "CREATE TABLE embryonaut_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                 CREATE VIEW embryonaut_member_head AS SELECT id, state FROM embryonaut_member_head_snapshot_1;
                  CREATE TABLE hecks_journal_embryonaut (
                      ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL,
                      aggregate_id text NOT NULL, operation text NOT NULL, state jsonb, mirrors jsonb
@@ -799,7 +811,7 @@ mod tests {
         {
             let guard = db.lock().await;
             guard.execute(
-                "INSERT INTO member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb), ($3, 1, $4::jsonb)",
+                "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb), ($3, 1, $4::jsonb)",
                 &[
                     &"chris@embryonaut.ai",
                     &json!({"name": {"value": "Chris Young"}, "email": {"value": "chris@embryonaut.ai"},
@@ -847,7 +859,7 @@ mod tests {
             // advance -- caught live by this very test, not a
             // hypothetical.
             guard.execute(
-                "INSERT INTO member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
+                "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
                 &[
                     &"angie@embryonaut.ai",
                     &json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@embryonaut.ai"},
@@ -885,7 +897,7 @@ mod tests {
 
         // The snapshot's own ordinal advanced past the seed row's.
         let ordinal: i64 = guard
-            .query_one("SELECT ordinal FROM member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
+            .query_one("SELECT ordinal FROM embryonaut_member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
             .await
             .unwrap()
             .get(0);
@@ -901,13 +913,13 @@ mod tests {
         // downgrade the snapshot with a smaller ordinal is a no-op.
         let guard = db.lock().await;
         guard.execute(
-            "INSERT INTO member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb) \
+            "INSERT INTO embryonaut_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb) \
              ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state \
-             WHERE member_head_snapshot_1.ordinal < EXCLUDED.ordinal",
+             WHERE embryonaut_member_head_snapshot_1.ordinal < EXCLUDED.ordinal",
             &[&"angie@embryonaut.ai", &json!({"role": {"value": "SHOULD_NOT_APPLY"}})],
         ).await.unwrap();
         let state: Value = guard
-            .query_one("SELECT state FROM member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
+            .query_one("SELECT state FROM embryonaut_member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
             .await
             .unwrap()
             .get(0);

@@ -197,7 +197,8 @@ def account_instance(aggregate, kind_label, cents:)
 end
 
 def read_head(db_name, owner)
-  rows = PG.connect(dbname: db_name, user: owner).exec("SELECT id, state FROM account_head ORDER BY id")
+  # domain-qualified (docs/decisions/0059) — DOMAIN above is "Ledger".
+  rows = PG.connect(dbname: db_name, user: owner).exec("SELECT id, state FROM ledger_account_head ORDER BY id")
   rows.map { |row| [row["id"], JSON.parse(row["state"])] }
 end
 

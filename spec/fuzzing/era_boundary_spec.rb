@@ -225,7 +225,8 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
       "VALUES (1, 'widget', $1, 'save', $2) RETURNING ordinal",
       ["w9", state]
     )[0]["ordinal"]
-    db.exec_params("INSERT INTO widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
+    # domain-qualified (docs/decisions/0059) — Naming.snake("EraBoundaryFixture") == "era_boundary_fixture"
+    db.exec_params("INSERT INTO era_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
                    ["w9", ordinal, state])
     db.close
 

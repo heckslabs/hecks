@@ -603,7 +603,10 @@ mod tests {
             .unwrap();
 
         for name in aggregate_storage_names {
-            let snapshot_table = format!("{}_head_snapshot_{era}", journal::snake(name));
+            // domain-qualified (docs/decisions/0059) — matches what a real
+            // `journal::append_lineage_mutation` write (exercised by
+            // `handle` below) actually targets now.
+            let snapshot_table = journal::qualified_name(domain, &format!("{}_head_snapshot_{era}", journal::snake(name)));
             client
                 .batch_execute(&format!(
                     "CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"
@@ -667,8 +670,9 @@ mod tests {
         let operation: String = row.get(3);
         assert_eq!((era, aggregate.as_str(), aggregate_id.as_str(), operation.as_str()), (1, "customer", "CUST-0001", "save"));
 
+        // domain-qualified (docs/decisions/0059) — snake("Banking") == "banking".
         let snapshot_rows = guard
-            .query("SELECT id FROM customer_head_snapshot_1", &[])
+            .query("SELECT id FROM banking_customer_head_snapshot_1", &[])
             .await
             .unwrap();
         assert_eq!(snapshot_rows.len(), 1, "the head-snapshot table should carry exactly the one live record");

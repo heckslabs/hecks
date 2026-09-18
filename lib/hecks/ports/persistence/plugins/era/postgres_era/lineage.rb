@@ -96,6 +96,18 @@ module Hecks
 
         JOURNAL_COLUMNS = "ordinal, era, aggregate, aggregate_id, operation, state, mirrors".freeze
 
+        # Postgres's own NAMEDATALEN limit: an identifier over 63 bytes is
+        # silently TRUNCATED, never refused — so two different overlong
+        # names that happen to share their first 63 bytes would collide
+        # again, at a longer length, the exact same failure mode this
+        # whole file exists to close for `storage_name` alone. Domain-
+        # qualifying every name below (`qualified_name`, private) makes
+        # that reachable in a way it mostly wasn't before (a long domain
+        # name stacked onto a long aggregate name). A constant, not
+        # private — Ruby constants are never actually scoped by `private`
+        # (Lint/UselessConstantScoping), so this stays above it.
+        POSTGRES_IDENTIFIER_LIMIT = 63
+
         attr_reader :db, :domain, :formerly_known_as
 
         def initialize(db, domain, formerly_known_as: nil)
@@ -108,7 +120,18 @@ module Hecks
         def quoted_journal = quote(journal)
         def sequence = "#{journal}_ordinal"
         def partition(era) = "#{journal}_era_#{era}"
-        def head_view(storage_name) = "#{storage_name}_head"
+        # DOMAIN-QUALIFIED, the same way `journal` already is — see
+        # `qualified_name`'s own comment for why this wasn't true until
+        # docs/decisions/0059. Two different domains bound to PostgresEra
+        # against the SAME database, each declaring an aggregate whose
+        # OWN name snake_cases to the same storage_name (found live: two
+        # unrelated "Note" aggregates), used to derive the exact same
+        # `note_head`/`note_head_snapshot_1` physical relations — every
+        # boot of the SECOND domain silently clobbered the first's
+        # already-compiled head view, `ensure_first_head!`'s own
+        # "belt-and-suspenders self-healing" being exactly the mechanism
+        # that did it (postgres_era.rb's own comment there).
+        def head_view(storage_name) = qualified_name("#{storage_name}_head")
         # The transactionally-upserted read cache behind head_view — one row
         # per LIVE id, keyed by id, carrying the ordinal it was last written
         # at. Scoped by ERA, not just storage_name — an aggregate that
@@ -118,10 +141,31 @@ module Hecks
         # every pre-mint (and, worse, pre-rekey/pre-translation) row
         # instead of starting empty. era-qualified naming is what
         # `partition`/`matview` already do for exactly this reason.
-        def head_snapshot(storage_name, era) = "#{storage_name}_head_snapshot_#{era}"
-        def matview(storage_name, era, label) = "#{storage_name}_lineage_#{era}_#{label}"
+        def head_snapshot(storage_name, era) = qualified_name("#{storage_name}_head_snapshot_#{era}")
+        def matview(storage_name, era, label) = qualified_name("#{storage_name}_lineage_#{era}_#{label}")
 
         private
+
+        # `@domain`, snake-cased and folded onto `suffix` — human-readable
+        # in the ordinary case (every one of these names gets read
+        # directly at a psql prompt during a live incident — see
+        # docs/decisions/0059's own verification section), degrading to a
+        # hashed, truncated form only once the readable form would
+        # actually risk exceeding `POSTGRES_IDENTIFIER_LIMIT`. The same
+        # trade `Runtime::StorageShape.mint_label` (a bare hash-prefix, no
+        # attempt at readability at all — a mint label is never meant to
+        # be legible on its own) and `FieldCache#field_cache` (fully
+        # hashed, for the same reason) already make elsewhere in this
+        # adapter — this one keeps more of the readable form than either,
+        # since unlike a mint label or a field-cache table, these names
+        # ARE the ones an operator reads and types by hand.
+        def qualified_name(suffix)
+          full = "#{Naming.snake(@domain)}_#{suffix}"
+          return full if full.bytesize <= POSTGRES_IDENTIFIER_LIMIT
+
+          digest = Digest::SHA256.hexdigest(full)[0, 8]
+          "#{full.byteslice(0, POSTGRES_IDENTIFIER_LIMIT - digest.bytesize - 1)}_#{digest}"
+        end
 
         def quote(name) = PG::Connection.quote_ident(name.to_s)
 
