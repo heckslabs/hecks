@@ -1,7 +1,13 @@
 # Make `hecks-codegen` the only Rust generator — 0054 reopened, option 2 adopted
 
 **Status:** Decided — the maintainer reopened [0054](0054-keep-one-rust-generator.md)
-and adopted its option 2. Supersedes 0054's Decision section (option 3, "keep
+and adopted its option 2. DECISION SUPERSEDED by
+[0054b](0054b-the-ruby-generator-stays-primary.md): the Ruby generator stays
+primary, `hecks-codegen` is held to it by parity gates, and B3/B4/B5 are
+cancelled. This document's Evidence section and its parity work (S3, B1, B2,
+frozen manifest reason strings) still stand.
+
+As originally decided: supersedes 0054's Decision section (option 3, "keep
 both") and its "no immediate driver" framing; everything else in 0054 stands,
 including the reason option 1 was rejected (a Ruby-free toolchain is a
 product requirement, so `hecks-codegen` is the generator that stays).

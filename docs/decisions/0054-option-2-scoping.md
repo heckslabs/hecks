@@ -1,6 +1,12 @@
 # Option 2 scoping — making `hecks-codegen` the sole Rust generator
 
-**Status:** Scoping addendum to 0054, not a decision. 0054 kept both generators
+**Status:** Scoping addendum to 0054, not a decision. Option 2 was adopted by
+[0054a](0054a-make-hecks-codegen-the-only-rust-generator.md) and then
+reversed by [0054b](0054b-the-ruby-generator-stays-primary.md): the Ruby
+generator stays primary and `rust/project` is not retired. Items 1-2 and 4
+below (manifest writer, coverage against `hecks-codegen`, parity-corpus
+expansion) survive as parity work. Items 3 and 5-7 (default switch,
+re-baseline, deletion) are cancelled. 0054 kept both generators
 (status quo, Option 3) and named Option 2 — "make `hecks-codegen` the sole
 generator, retire `rust/project`" — as the direction to move in *if* the
 two-copy tax ever outweighs the porting cost, while stating plainly that the

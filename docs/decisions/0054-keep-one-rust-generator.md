@@ -4,9 +4,13 @@
 toolchain is a product requirement, so `rust/codegen` stays. DECISION
 SUPERSEDED IN PART by
 [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md): option 2
-(keep `rust/codegen`, retire `rust/project`) is now adopted, on the parity
-bug data recorded there. This document's rejection of option 1 and its
-Ruby-free-toolchain premise still stand.
+(keep `rust/codegen`, retire `rust/project`) was adopted, on the parity
+bug data recorded there. 0054a is in turn SUPERSEDED by
+[0054b](0054b-the-ruby-generator-stays-primary.md), which restores this
+document's stance: both generators stay, the Ruby generator (`rust/project`)
+is the default producer of the Rust port, and `hecks-codegen` is held to it
+by parity gates. 0054b keeps 0054a's parity fixes. This document's rejection
+of option 1 and its Ruby-free-toolchain premise still stand.
 
 ## Context
 
