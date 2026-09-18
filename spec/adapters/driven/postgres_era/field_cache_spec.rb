@@ -190,8 +190,19 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     registry.bluebooks.values.first.aggregate(aggregate_name).queries.find { |q| q.name == query_name }
   end
 
+  # THE REAL HELPER, NOT A SECOND, HAND-ROLLED COPY OF ITS HASH — this
+  # used to reimplement `Lineage#field_cache`'s own
+  # `Digest::SHA256.hexdigest(...)` by hand, storage_name-only, and went
+  # silently out of sync the moment `field_cache` started folding
+  # `@domain` into that hash (docs/decisions/0059: the SAME cross-domain
+  # storage_name collision `head_view`/`head_snapshot`/`matview` were
+  # fixed for also applied here, a fourth, differently-shaped relation
+  # family). Every real call site in this file is domain "Cache" (see
+  # `adapter_for`'s own `domain: "Cache"`) — calling through the real
+  # method rather than reconstructing it independently is what makes
+  # this impossible to drift out of sync again.
   def field_cache_table(db, storage_name, era, field)
-    name = "hecks_fc_#{Digest::SHA256.hexdigest("#{storage_name}\0#{era}\0#{field}")[0, 20]}"
+    name = Hecks::Adapters::PostgresEra::Lineage.new(db, "Cache").field_cache(storage_name, era, field)
     db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name])[0]["present"] == "t" ? name : nil
   end
 
