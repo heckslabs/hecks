@@ -496,10 +496,12 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(reopened.find("a1")).to be_nil
 
     db = PG.connect(dbname: LINEAGE_DB)
-    expect(db.exec("SELECT count(*) FROM account_head WHERE id = 'a1'")[0]["count"]).to eq("0")
+    # domain-qualified (docs/decisions/0059) — every Lineage in this file
+    # is built for domain "Ledger" unless noted otherwise.
+    expect(db.exec("SELECT count(*) FROM ledger_account_head WHERE id = 'a1'")[0]["count"]).to eq("0")
     # the tombstone itself is a real row, not an absence — this era genuinely
     # out-ranks the ancestor's save row rather than merely lacking one
-    tombstone = db.exec("SELECT operation, state FROM account_head_snapshot_2 WHERE id = 'a1'")
+    tombstone = db.exec("SELECT operation, state FROM ledger_account_head_snapshot_2 WHERE id = 'a1'")
     expect(tombstone.ntuples).to eq(1)
     expect(tombstone[0]["operation"]).to eq("delete")
     expect(tombstone[0]["state"]).to be_nil
@@ -586,7 +588,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     fresh = PG.connect(dbname: LINEAGE_DB)
     expect(fresh.exec("SELECT count(*) FROM hecks_eras WHERE domain = 'Ledger' AND ordinal = 99")[0]["count"]).to eq("0")
-    expect(fresh.exec("SELECT to_regclass('acct_head_snapshot_99') IS NULL AS gone")[0]["gone"]).to eq("t")
+    # domain-qualified (docs/decisions/0059)
+    expect(fresh.exec("SELECT to_regclass('ledger_acct_head_snapshot_99') IS NULL AS gone")[0]["gone"]).to eq("t")
     fresh.close
   end
 
@@ -707,7 +710,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     # does — old_world.find below reads head_view, which for era 1 is
     # this snapshot table verbatim, not a live re-derivation.
     db.exec_params(
-      "INSERT INTO acct_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
+      # domain-qualified (docs/decisions/0059)
+      "INSERT INTO ledger_acct_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
       ["a9", ordinal, state]
     )
 
@@ -723,7 +727,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     )
     expect(old_world.find("a9").cost.to_h).to eq(cents: 5, currency: "USD")
     # ...the new head does NOT (the watermark is baked into the matview)...
-    new_head = db.exec("SELECT count(*) FROM account_head WHERE id = 'a9'")[0]["count"]
+    new_head = db.exec("SELECT count(*) FROM ledger_account_head WHERE id = 'a9'")[0]["count"]
     expect(new_head).to eq("0")
     # ...and the divergence is observable
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
@@ -876,7 +880,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     # the tail arrived, translated; the declared winner stood; the
     # divergence is gone; and not one ancestor row changed
-    head = db.exec("SELECT id, state FROM account_head ORDER BY id").to_h { |row| [row["id"], JSON.parse(row["state"])] }
+    head = db.exec("SELECT id, state FROM ledger_account_head ORDER BY id").to_h { |row| [row["id"], JSON.parse(row["state"])] }
     expect(head["a9"]["amount"]).to eq("cents" => 5)
     expect(head["a9"]["denomination"]).to eq("code" => "EUR")
     expect(head["a9"]["kind"]).to eq("label" => "personal")
@@ -942,7 +946,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     )
 
     db = PG.connect(dbname: LINEAGE_DB)
-    a1 = JSON.parse(db.exec("SELECT state FROM account_head WHERE id = 'a1'")[0]["state"])
+    a1 = JSON.parse(db.exec("SELECT state FROM ledger_account_head WHERE id = 'a1'")[0]["state"])
     db.close
     expect(a1["amount"]).to eq("cents" => 111)
     expect(a1["denomination"]).to eq("code" => "USD")
@@ -1066,7 +1070,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     # the compiled matview evaluated the SQL...
     db = PG.connect(dbname: LINEAGE_DB)
-    compiled = JSON.parse(db.exec("SELECT state FROM quote_lineage_2_#{to} WHERE aggregate_id = 'q1'")[0]["state"])
+    # domain-qualified (docs/decisions/0059) — this Lineage is domain "Pricing".
+    compiled = JSON.parse(db.exec("SELECT state FROM pricing_quote_lineage_2_#{to} WHERE aggregate_id = 'q1'")[0]["state"])
     db.close
     expect(compiled).to eq("price_dollars" => { "value" => 12.5 }, "sku" => { "value" => "q1" })
 
@@ -1194,8 +1199,9 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     # ONLY its new id — the raw journal row is untouched (still keyed
     # "Chris Young"), but nothing reads it directly
     db = PG.connect(dbname: LINEAGE_DB)
-    under_new_id = db.exec("SELECT state FROM person_lineage_2_#{to} WHERE aggregate_id = 'chris@example.com'")
-    under_old_id = db.exec("SELECT state FROM person_lineage_2_#{to} WHERE aggregate_id = 'Chris Young'")
+    # domain-qualified (docs/decisions/0059) — this Lineage is domain "Roster".
+    under_new_id = db.exec("SELECT state FROM roster_person_lineage_2_#{to} WHERE aggregate_id = 'chris@example.com'")
+    under_old_id = db.exec("SELECT state FROM roster_person_lineage_2_#{to} WHERE aggregate_id = 'Chris Young'")
     raw_journal = db.exec("SELECT aggregate_id FROM hecks_journal_roster WHERE aggregate_id = 'Chris Young'")
     db.close
 
@@ -1656,13 +1662,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     db = PG.connect(dbname: LINEAGE_DB)
     layered = db.exec(
       "SELECT aggregate_id, operation, state FROM " \
-      "#{PG::Connection.quote_ident("account_lineage_3_#{l3}")} ORDER BY aggregate_id"
+      "#{PG::Connection.quote_ident("ledger_account_lineage_3_#{l3}")} ORDER BY aggregate_id"
     ).values
 
     # the definition actually used era 2's matview rather than the journal
     definition = db.exec_params("SELECT definition FROM pg_matviews WHERE matviewname = $1",
-                                ["account_lineage_3_#{l3}"])[0]["definition"]
-    expect(definition).to include("account_lineage_2_#{l2}")
+                                ["ledger_account_lineage_3_#{l3}"])[0]["definition"]
+    expect(definition).to include("ledger_account_lineage_2_#{l2}")
 
     # ...and it agrees with the from-scratch build, row for row
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
@@ -1749,13 +1755,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     db = PG.connect(dbname: LINEAGE_DB)
     layered = db.exec(
       "SELECT aggregate_id, operation, state FROM " \
-      "#{PG::Connection.quote_ident("account_lineage_3_#{l3}")} ORDER BY aggregate_id"
+      "#{PG::Connection.quote_ident("ledger_account_lineage_3_#{l3}")} ORDER BY aggregate_id"
     ).values
 
     # the definition actually used era 2's matview rather than the journal
     definition = db.exec_params("SELECT definition FROM pg_matviews WHERE matviewname = $1",
-                                ["account_lineage_3_#{l3}"])[0]["definition"]
-    expect(definition).to include("account_lineage_2_#{l2}")
+                                ["ledger_account_lineage_3_#{l3}"])[0]["definition"]
+    expect(definition).to include("ledger_account_lineage_2_#{l2}")
 
     # ...and it agrees with the from-scratch build, row for row — ids
     # included, the one dimension the ordinary-edge test above cannot see
@@ -1805,8 +1811,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     # The cut only earns its keep when the definition is re-evaluated,
     # and the header promises it holds "even on a full REFRESH". So
     # refresh, and hold it to that.
-    db.exec("REFRESH MATERIALIZED VIEW #{PG::Connection.quote_ident("account_lineage_3_#{l3}")}")
-    head = db.exec("SELECT id, state FROM account_head ORDER BY id").values
+    db.exec("REFRESH MATERIALIZED VIEW #{PG::Connection.quote_ident("ledger_account_lineage_3_#{l3}")}")
+    head = db.exec("SELECT id, state FROM ledger_account_head ORDER BY id").values
     diverged = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger").diverged_count(2)
     db.close
 
@@ -1864,7 +1870,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     # the compilation target: the matview the mint created
     db = PG.connect(dbname: LINEAGE_DB)
     matview = db.exec("SELECT matviewname FROM pg_matviews")[0]["matviewname"]
-    expect(matview).to eq("account_lineage_2_#{to}")
+    expect(matview).to eq("ledger_account_lineage_2_#{to}")
     compiled = JSON.parse(db.exec("SELECT state FROM #{matview} WHERE aggregate_id = 'a1'")[0]["state"])
     db.close
 

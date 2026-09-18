@@ -46,8 +46,18 @@ module Hecks
           # that if built any less defensively. Not meant to be
           # human-readable; `hecks_backfill_progress`/catalog lookups are
           # always driven by this same computed name, never typed by hand.
+          #
+          # `@domain` IS PART OF THE HASH INPUT — this table has the exact
+          # same collision this whole file's siblings (`head_view`/
+          # `head_snapshot`/`matview`, `lineage.rb`) were fixed for in
+          # docs/decisions/0059: two domains bound to PostgresEra against
+          # the same database, each with an aggregate sharing a
+          # storage_name AND a cached where-field of the same name, used
+          # to derive the identical `hecks_fc_<hash>` table and silently
+          # share cached rows across domains. Already fully hashed, so
+          # folding the domain in costs nothing readability could lose.
           def field_cache(storage_name, era, field)
-            "hecks_fc_#{Digest::SHA256.hexdigest("#{storage_name}\0#{era}\0#{field}")[0, 20]}"
+            "hecks_fc_#{Digest::SHA256.hexdigest("#{@domain}\0#{storage_name}\0#{era}\0#{field}")[0, 20]}"
           end
 
           # Self-healing, same idiom as `ensure_head_snapshot!`: cheap,

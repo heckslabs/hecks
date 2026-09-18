@@ -2121,7 +2121,9 @@ mod tests {
             .unwrap();
 
         for name in aggregate_storage_names {
-            let snapshot_table = format!("{}_head_snapshot_{era}", crate::journal::snake(name));
+            // domain-qualified (docs/decisions/0059) — matches what a real
+            // `journal::append_lineage_mutation` write actually targets now.
+            let snapshot_table = crate::journal::qualified_name(domain, &format!("{}_head_snapshot_{era}", crate::journal::snake(name)));
             client
                 .batch_execute(&format!("CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"))
                 .await

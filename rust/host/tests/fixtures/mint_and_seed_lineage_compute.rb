@@ -199,7 +199,8 @@ adapter_v2.save(account_instance(aggregate_v2, "c", :doubled, 20))
 # fencing itself is proven elsewhere; this script seeds and reads,
 # it doesn't re-prove the fence). ──
 
-raw = PG.connect(owner_url).exec("SELECT id, state FROM account_head ORDER BY id")
+# domain-qualified (docs/decisions/0059) — Naming.snake("LedgerCompute") == "ledger_compute"
+raw = PG.connect(owner_url).exec("SELECT id, state FROM ledger_compute_account_head ORDER BY id")
 ground_truth_rows = raw.map { |row| [row["id"], JSON.parse(row["state"])] }
 
 puts JSON.generate({
