@@ -12,7 +12,7 @@
 # `--from-run` downloads the per-leg runtime logs that `rspec_shard` and
 # `rspec_postgres_io_parallel_shard` upload as artifacts and writes
 #   .github/rspec_runtime_baseline.log        (from both `rspec-runtime-group-N`)
-#   .github/postgres_io_runtime_baseline.log  (from all four `postgres-io-runtime-group-N`)
+#   .github/postgres_io_runtime_baseline.log  (from all eight `postgres-io-runtime-group-N`)
 # Runner seconds, not a laptop's: subprocess-heavy specs run ~2.7x slower on
 # a runner, relative to the rest of the suite, than locally (PR #688's run),
 # which a local baseline cannot see. Only a SUCCESSFUL run is read, and a
@@ -43,7 +43,7 @@ RUNTIME_LINE = %r{\A(?<file>spec/\S+_spec\.rb):(?<seconds>\d+(?:\.\d+)?(?:e-?\d+
 
 FAMILIES = {
   "rspec-runtime-group"       => { legs: 2, baseline: ".github/rspec_runtime_baseline.log" },
-  "postgres-io-runtime-group" => { legs: 4, baseline: ".github/postgres_io_runtime_baseline.log" }
+  "postgres-io-runtime-group" => { legs: 8, baseline: ".github/postgres_io_runtime_baseline.log" }
 }.freeze
 
 def baseline_lines(paths)
