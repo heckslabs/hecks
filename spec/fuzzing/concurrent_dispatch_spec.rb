@@ -202,4 +202,100 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
       expect(check(steps, "identity")).to eq([])
     end
   end
+
+  # BUG#142 — found by the FIRST real sweep of the `concurrency` mode
+  # (SW-quality_control-1789768606, seed 3, race step
+  # `Governance::RoleAssignment.Assign`). `check` picked a race step
+  # whose aggregate isn't actually bound to anything shared across
+  # processes: `uses_framework "X"` only loads a framework member's
+  # SHAPE (`hecksagon_builder.rb`'s own `uses_framework`), never its
+  # persistence — see `examples/banking/bluebook/banking.hecksagon`'s
+  # own comment on why a SIBLING `Hecks.hecksagon "X"` is required to
+  # bind a framework member's own aggregates to anything but the
+  # default (`Ports::Persistence::BindingPolicy.default_binding` —
+  # `"Memory"`, silently, when no hecksagon is registered under that
+  # name at all: `resolve` only raises `missing_binding` when a
+  # hecksagon EXISTS for that domain and simply omits this aggregate).
+  # `qa/bluebook/quality_control.hecksagon` attaches `Governance` via
+  # `uses_framework` and never gives it that sibling hecksagon, so
+  # `Governance::RoleAssignment`/`RoleTransition` are Memory-backed —
+  # process-local — in the real ledger too, `concurrency` mode included.
+  # Racing a Memory-backed aggregate across two real OS processes is
+  # certain to "diverge" from the single-process sequential oracle: each
+  # racer's own boot gets its OWN empty Memory store, so a `creates?`
+  # command's own identity collision can never be seen by the other
+  # racer — not a broken lock, nothing to lock at all. This fixture
+  # reproduces the EXACT shape (a host domain attaching a framework
+  # member with no sibling hecksagon) without depending on qa/bluebook's
+  # own corpus staying any particular shape.
+  context "with an aggregate attached via uses_framework but never given its own persistence binding", :io do
+    CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE = "hecks_concurrent_dispatch_unbound_spec".freeze
+
+    CONCURRENT_DISPATCH_UNBOUND_FIXTURE_BLUEBOOK = <<~RUBY.freeze
+      Hecks.bluebook "ConcurrentDispatchUnboundFixture" do
+        vision "A host domain that attaches Governance (uses_framework) but never gives it its own sibling hecksagon — the exact shape qa/bluebook/quality_control.hecksagon itself has today."
+        supporting
+      end
+    RUBY
+
+    CONCURRENT_DISPATCH_UNBOUND_FIXTURE_HECKSAGON = <<~RUBY.freeze
+      Hecks.hecksagon "ConcurrentDispatchUnboundFixture" do
+        uses_framework "Governance"
+      end
+    RUBY
+
+    before(:all) do
+      skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
+      @unbound_fixture_root = Dir.mktmpdir("concurrent_dispatch_unbound_spec")
+      File.write(File.join(@unbound_fixture_root, "fixture.bluebook"), CONCURRENT_DISPATCH_UNBOUND_FIXTURE_BLUEBOOK)
+      File.write(File.join(@unbound_fixture_root, "fixture.hecksagon"), CONCURRENT_DISPATCH_UNBOUND_FIXTURE_HECKSAGON)
+
+      admin = PG.connect(dbname: "postgres")
+      admin.exec("DROP DATABASE IF EXISTS #{CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE} WITH (FORCE)")
+      admin.exec("CREATE DATABASE #{CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE}")
+      admin.close
+    end
+
+    after(:all) do
+      next unless PostgresProbe.available?
+
+      admin = PG.connect(dbname: "postgres")
+      admin.exec("DROP DATABASE IF EXISTS #{CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE} WITH (FORCE)")
+      admin.close
+      FileUtils.remove_entry(@unbound_fixture_root)
+    end
+
+    def assign_step(actor, role, scope, starts_at)
+      { "verb" => "Governance::RoleAssignment.Assign",
+        "args" => { "actor_id" => { "value" => actor }, "role_name" => { "value" => role },
+                    "scope" => { "value" => scope }, "starts_at" => starts_at } }
+    end
+
+    # THE FALSE POSITIVE ITSELF — the IDENTICAL pair, dispatched
+    # sequentially with no contention (the oracle), correctly settles as
+    # `["succeeded", "refused"]`: a `creates?` command's second dispatch
+    # under the same identity IS a genuine `AlreadyExists`, and that
+    # works fine within one process's own Memory store. The "concurrent"
+    # pair, raced across two real OS processes, settles as
+    # `["succeeded", "succeeded"]` — not because any write lock failed
+    # to serialize them, but because each racer process boots its own
+    # independent, empty Memory-backed `RoleAssignment` store that never
+    # shares anything with the other. `check` reports this as a
+    # `concurrency_race` today; it should never have picked this
+    # aggregate as a race candidate at all.
+    it "reports a spurious concurrency_race today — racing an aggregate with no shared persistence guarantees one" do
+      steps = [assign_step("golf", "Governance administrator", "bravo", "echo")]
+
+      divergences = described_class.check(@unbound_fixture_root, steps,
+                                          database: CONCURRENT_DISPATCH_UNBOUND_SPEC_DATABASE,
+                                          race_schema: "cd_race_unbound", reference_schema: "cd_ref_unbound")
+
+      expect(divergences).to eq([]),
+                             "expected no finding (Governance::RoleAssignment isn't durably, sharedly " \
+                             "persisted in this fixture, so it should never have been raced at all) but " \
+                             "got: #{divergences.inspect} — this is BUG#142, a false positive from racing " \
+                             "a Memory-backed aggregate, not a broken PostgresEra write lock"
+    end
+  end
 end

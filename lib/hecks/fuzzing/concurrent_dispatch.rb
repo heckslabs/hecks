@@ -3,6 +3,7 @@ require "tmpdir"
 require "tempfile"
 require "json"
 require_relative "isolated_boot"
+require_relative "../naming"
 
 module Hecks
   module Fuzzing
@@ -76,7 +77,8 @@ module Hecks
       # same lifecycle `persistence_parity_schema` already has.
       def check(domain_path, steps, database:, race_schema:, reference_schema:)
         normalized = steps.map { |step| step.transform_keys(&:to_s) }
-        race_index = pick_race_index(normalized)
+        lockable = lockable_verbs(domain_path, normalized, database: database, schema: reference_schema)
+        race_index = pick_race_index(normalized, lockable)
         return [] unless race_index
 
         setup_steps = normalized[0...race_index]
@@ -98,11 +100,80 @@ module Hecks
       # actually conflicting with itself. `nil` when the generated
       # sequence has no command step at all (every step a query or a dry
       # run) — nothing here for this seed to race.
-      def pick_race_index(steps)
+      #
+      # `lockable_verbs` — OPTIONAL, but `check` always passes one: the
+      # set of verbs whose OWN aggregate is actually bound to an adapter
+      # that declares `:cross_process_lock` in THIS domain (see
+      # `lockable_verbs` below for why this can't be assumed just because
+      # the domain binds SOME of its own aggregates to PostgresEra).
+      # Racing anything outside that set is not a legitimate race at
+      # all — nil when nothing eligible is left, same as the "no command
+      # step" case, never a finding of its own.
+      def pick_race_index(steps, lockable_verbs = nil)
         command_indices = steps.each_index.select { |i| COMMAND_STEP.call(steps[i]) }
+        command_indices = command_indices.select { |i| lockable_verbs.include?(steps[i]["verb"]) } if lockable_verbs
         return nil if command_indices.empty?
 
         command_indices[command_indices.size / 2]
+      end
+
+      # WHICH OF THIS SEQUENCE'S OWN COMMAND VERBS ARE EVEN CANDIDATES TO
+      # RACE — BUG#142 (SW-quality_control-1789768606's own first real
+      # concurrency run, seed 3): a domain that `persisted_by("PostgresEra")`
+      # binds ITS OWN aggregates is not thereby binding a framework
+      # member it merely `uses_framework`s — `hecksagon_builder.rb`'s own
+      # `uses_framework` loads only that member's SHAPE, never its
+      # persistence (see `examples/banking/bluebook/banking.hecksagon`'s
+      # own comment: a framework member's aggregates need a SIBLING
+      # hecksagon, registered under THAT member's own name, or
+      # `Ports::Persistence::BindingPolicy.default_binding` silently
+      # gives them "Memory" — no hecksagon registered under that name at
+      # all, so `resolve`'s own `missing_binding` refusal (which only
+      # fires when a hecksagon EXISTS for that domain and simply omits
+      # this aggregate) never gets a chance to say so).
+      # `qa/bluebook/quality_control.hecksagon` attaches `Governance` via
+      # `uses_framework` with no such sibling — `Governance::
+      # RoleAssignment`/`RoleTransition` are Memory-backed, process-
+      # local, in the real ledger, `concurrency` mode included. Racing a
+      # Memory-backed aggregate across two real OS processes can never
+      # agree with the single-process sequential oracle — each racer's
+      # own boot gets its own independent, empty store — no matter how
+      # correct any write lock is; that is a guaranteed false positive,
+      # not evidence of a broken lock.
+      #
+      # Boots the SAME PostgresEra-rebound copy the race itself boots
+      # (`boot_preserving_schema` — structural inspection only, nothing
+      # dispatched, so the schema it's given is left exactly as it found
+      # it) and asks each distinct command verb's own resolved repository
+      # whether it actually declares `:cross_process_lock` — the same
+      # capability `Interpreting#run_dispatch_order_with_isolation`
+      # itself keys off of to decide whether a real advisory lock is
+      # even in play for that aggregate. A verb this boot can't resolve
+      # at all (a malformed adversarial verb, say) is conservatively
+      # excluded, not raced on a guess.
+      def lockable_verbs(domain_path, steps, database:, schema:)
+        verbs = steps.select { |step| COMMAND_STEP.call(step) }.map { |step| step["verb"] }.uniq
+        lockable = []
+        boot_preserving_schema(domain_path, database: database, schema: schema) do |copy|
+          runtime = Hecks.boot(copy)
+          verbs.each do |verb|
+            lockable << verb if verb_cross_process_lockable?(runtime, verb)
+          end
+        end
+        lockable
+      end
+
+      def verb_cross_process_lockable?(runtime, verb)
+        domain, aggregate_name, = Naming.split_verb(verb)
+        return false unless domain && aggregate_name
+
+        aggregate = runtime.registry.bluebook(domain)&.aggregate(aggregate_name)
+        return false unless aggregate
+
+        repository = runtime.registry.repository(domain, aggregate)
+        repository.capabilities.include?(:cross_process_lock)
+      rescue StandardError
+        false
       end
 
       def divergences_for(race_step, reference, concurrent)
