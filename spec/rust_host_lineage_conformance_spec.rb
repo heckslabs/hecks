@@ -177,8 +177,9 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     # Rust made is durably visible to Ruby's own read path, not just to
     # a second Rust-side read of the same connection.
     require "pg"
+    # domain-qualified (docs/decisions/0059) — mint_and_seed_lineage.rb's own DOMAIN is "Ledger".
     raw = PG.connect("postgres://#{owner_role}@localhost/#{db_name}")
-            .exec_params("SELECT state FROM account_head WHERE id = $1", ["written-by-rust"])
+            .exec_params("SELECT state FROM ledger_account_head WHERE id = $1", ["written-by-rust"])
     expect(raw.ntuples).to eq(1)
     expect(JSON.parse(raw[0]["state"])).to eq(write_op["state"])
   ensure
@@ -270,7 +271,8 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     # in the read_all example above for that normalization already
     # proven correct on the synthetic fixture); this asks the narrower,
     # still-real question the DB round-trip alone can answer directly.
-    raw = PG.connect(owner_url).exec_params("SELECT state FROM order_head WHERE id = $1", ["p1"])
+    # domain-qualified (docs/decisions/0059) — adapter above sets domain: "Pizzas".
+    raw = PG.connect(owner_url).exec_params("SELECT state FROM pizzas_order_head WHERE id = $1", ["p1"])
     expect(raw.ntuples).to eq(1)
     expect(results.first["state"]).to eq(JSON.parse(raw[0]["state"]))
   ensure

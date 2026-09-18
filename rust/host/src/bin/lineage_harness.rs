@@ -86,8 +86,8 @@ async fn run_one(client: &tokio_postgres::Client, config: &journal::LineageConfi
     let op = operation.get("op").and_then(|v| v.as_str()).unwrap_or("");
 
     let outcome = match op {
-        "read_all" => read_all(client, operation).await,
-        "read_by_id" => read_by_id(client, operation).await,
+        "read_all" => read_all(client, config, operation).await,
+        "read_by_id" => read_by_id(client, config, operation).await,
         "write" => write(client, config, operation).await,
         other => Err(anyhow::anyhow!("unknown op {other:?}")),
     };
@@ -102,16 +102,20 @@ async fn run_one(client: &tokio_postgres::Client, config: &journal::LineageConfi
     }
 }
 
-async fn read_all(client: &tokio_postgres::Client, operation: &Value) -> anyhow::Result<Value> {
+// `config.domain` (docs/decisions/0059) — the ONE domain this whole
+// invocation speaks for (the CLI's own `<domain>` positional arg), the
+// same domain-qualification `journal::head_view` now folds into every
+// generic lineage read.
+async fn read_all(client: &tokio_postgres::Client, config: &journal::LineageConfig, operation: &Value) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
-    let rows = journal::read_lineage_head_all(client, storage_name).await?;
+    let rows = journal::read_lineage_head_all(client, &config.domain, storage_name).await?;
     Ok(json!({ "rows": rows.into_iter().map(|(id, state)| json!([id, state])).collect::<Vec<_>>() }))
 }
 
-async fn read_by_id(client: &tokio_postgres::Client, operation: &Value) -> anyhow::Result<Value> {
+async fn read_by_id(client: &tokio_postgres::Client, config: &journal::LineageConfig, operation: &Value) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
     let id = require_str(operation, "id")?;
-    let state = journal::read_lineage_head_by_id(client, storage_name, id).await?;
+    let state = journal::read_lineage_head_by_id(client, &config.domain, storage_name, id).await?;
     Ok(json!({ "state": state }))
 }
 

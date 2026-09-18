@@ -58,16 +58,27 @@ fn partition(domain: &str, era: i32) -> String {
     format!("{}_era_{era}", journal_table(domain))
 }
 
-fn head_snapshot(storage_name: &str, era: i32) -> String {
-    format!("{storage_name}_head_snapshot_{era}")
+// DOMAIN-QUALIFIED (docs/decisions/0059), the SAME `crate::journal::
+// qualified_name`/`Lineage#qualified_name` algorithm both other places
+// this naming scheme is computed already use — delegated to, not
+// reimplemented a THIRD time, the same reasoning `storage_shape_snake`
+// below already gives for `snake`. Before this fix, two different
+// domains bound to PostgresEra against the same database, each
+// declaring an aggregate whose own name snake_cased to the same
+// storage_name, made this file's own mint path (`compile_head`/
+// `ensure_first_head`/`grant_role`) derive the exact same physical
+// relations as the OTHER domain's — this crate's own copy of the exact
+// collision docs/decisions/0059 documents for Ruby.
+fn head_snapshot(domain: &str, storage_name: &str, era: i32) -> String {
+    crate::journal::qualified_name(domain, &format!("{storage_name}_head_snapshot_{era}"))
 }
 
-fn matview(storage_name: &str, era: i32, label: &str) -> String {
-    format!("{storage_name}_lineage_{era}_{label}")
+fn matview(domain: &str, storage_name: &str, era: i32, label: &str) -> String {
+    crate::journal::qualified_name(domain, &format!("{storage_name}_lineage_{era}_{label}"))
 }
 
-fn head_view(storage_name: &str) -> String {
-    format!("{storage_name}_head")
+fn head_view(domain: &str, storage_name: &str) -> String {
+    crate::journal::qualified_name(domain, &format!("{storage_name}_head"))
 }
 
 // `Naming.snake` — same pure syntactic transform `crate::journal::snake`
@@ -545,7 +556,7 @@ async fn run_backfill_chunk<C: GenericClient>(client: &C, domain: &str, storage_
 }
 
 async fn backfill_head_snapshot<C: GenericClient>(client: &C, domain: &str, storage_name: &str, era: i32) -> anyhow::Result<()> {
-    let target = head_snapshot(storage_name, era);
+    let target = head_snapshot(domain, storage_name, era);
     loop {
         if run_backfill_chunk(client, domain, storage_name, era, &target).await? {
             break;
@@ -564,7 +575,7 @@ async fn table_exists<C: GenericClient>(client: &C, name: &str) -> anyhow::Resul
 }
 
 async fn ensure_head_snapshot<C: GenericClient>(client: &C, domain: &str, storage_name: &str, era: i32) -> anyhow::Result<()> {
-    let name = head_snapshot(storage_name, era);
+    let name = head_snapshot(domain, storage_name, era);
     if !table_exists(client, &name).await? {
         client.batch_execute("SAVEPOINT hecks_head_snapshot").await?;
         let result: anyhow::Result<()> = async {
@@ -896,7 +907,7 @@ async fn compile_head<C: GenericClient>(
     watermarks: &std::collections::HashMap<i32, Option<i64>>,
 ) -> anyhow::Result<()> {
     let storage_name = &aggregate.storage_name;
-    let view = matview(storage_name, era, label);
+    let view = matview(domain, storage_name, era, label);
     let body = chain_sql(domain, &aggregate.name, era, edges, watermarks);
 
     client.batch_execute(&format!("CREATE MATERIALIZED VIEW {} AS\n{body}", quote_ident(&view))).await?;
@@ -910,7 +921,7 @@ async fn compile_head<C: GenericClient>(
 
     ensure_head_snapshot(client, domain, storage_name, era).await?;
 
-    client.batch_execute(&format!("DROP VIEW IF EXISTS {}", quote_ident(&head_view(storage_name)))).await?;
+    client.batch_execute(&format!("DROP VIEW IF EXISTS {}", quote_ident(&head_view(domain, storage_name)))).await?;
     client
         .batch_execute(&format!(
             "CREATE VIEW {} AS \
@@ -921,9 +932,9 @@ async fn compile_head<C: GenericClient>(
                  SELECT ordinal, id AS aggregate_id, 'save' AS operation, state FROM {}\
                ) merged ORDER BY aggregate_id, ordinal DESC\
              ) latest WHERE operation = 'save'",
-            quote_ident(&head_view(storage_name)),
+            quote_ident(&head_view(domain, storage_name)),
             quote_ident(&view),
-            quote_ident(&head_snapshot(storage_name, era))
+            quote_ident(&head_snapshot(domain, storage_name, era))
         ))
         .await?;
     Ok(())
@@ -991,8 +1002,8 @@ async fn ensure_first_head<C: GenericClient>(client: &C, domain: &str, storage_n
     client
         .batch_execute(&format!(
             "CREATE OR REPLACE VIEW {} AS SELECT id, state FROM {}",
-            quote_ident(&head_view(storage_name)),
-            quote_ident(&head_snapshot(storage_name, 1))
+            quote_ident(&head_view(domain, storage_name)),
+            quote_ident(&head_snapshot(domain, storage_name, 1))
         ))
         .await?;
     Ok(())
@@ -1033,10 +1044,10 @@ async fn grant_role<C: GenericClient>(client: &C, domain: &str, role: &str, aggr
         client
             .batch_execute(&format!(
                 "GRANT SELECT, INSERT, UPDATE, DELETE ON {} TO {quoted_role}",
-                quote_ident(&head_snapshot(storage_name, era))
+                quote_ident(&head_snapshot(domain, storage_name, era))
             ))
             .await?;
-        let view = head_view(storage_name);
+        let view = head_view(domain, storage_name);
         if table_or_view_exists(client, &view).await? {
             client.batch_execute(&format!("GRANT SELECT ON {} TO {quoted_role}", quote_ident(&view))).await?;
         }
@@ -1316,7 +1327,7 @@ mod tests {
 
         // ── read back through the SAME generic function real deployment
         // traffic uses — proving the whole chain, not just that SQL ran ──
-        let mut rows = journal::read_lineage_head_all(&client, "widget").await.expect("read_lineage_head_all");
+        let mut rows = journal::read_lineage_head_all(&client, domain, "widget").await.expect("read_lineage_head_all");
         rows.sort_by(|a, b| a.0.cmp(&b.0));
         assert_eq!(
             rows,
