@@ -11,21 +11,6 @@ end
 require "hecks"
 require_relative "support/ci_skip_backstop"
 
-# LOOSE KEYWORD FACTS IN DISPATCH ARE DEPRECATED (roadmap I3), and the suite
-# REFUSES a new one outright rather than warning, so no spec — nor a doctested
-# guide, which runs under this helper too — can reintroduce the shape. The
-# sites that already exist are counted, file by file, in
-# spec/support/legacy_dispatch_sites.rb (its own header says what is left and
-# why); anywhere else the deprecation raises, naming the caller's own line.
-# `bin/codemod_legacy_dispatch_args` drains the list.
-#
-# A spec testing the deprecation itself wraps its call in
-# `Hecks::Deprecation.allowing(:legacy_dispatch_args) { ... }`.
-# `HECKS_DEPRECATIONS=warn` turns the whole thing back into a warning — what
-# `bin/codemod_legacy_dispatch_args record` needs to observe old callers.
-require_relative "support/legacy_dispatch_sites"
-LegacyDispatchSites.install_suite_guard!
-
 module InMemoryDomain
   ROOT             = File.expand_path("..", __dir__)
   PIZZAS_BLUEBOOK  = File.join(ROOT, "examples/pizzas/bluebook/pizzas.bluebook")

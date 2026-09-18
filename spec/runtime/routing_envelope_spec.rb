@@ -140,6 +140,6 @@ RSpec.describe "receiver routing outside the command payload" do
         with:   { aggregate: "a1", entities: [] }
       )
     end.to raise_error(Hecks::Runtime::TypeMismatch,
-                       /dispatch takes command facts in with:, not both with: and loose keyword arguments/)
+                       /dispatch takes command facts in with:, not both with: and a flat facts hash/)
   end
 end
