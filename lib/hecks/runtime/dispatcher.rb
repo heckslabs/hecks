@@ -96,7 +96,7 @@ module Hecks
         "(bin/codemod_legacy_dispatch_args rewrites existing callers)".freeze
 
       def self.deprecate_loose_facts(legacy_args)
-        Hecks.deprecate(:legacy_dispatch_args, LEGACY_ARGS_WARNING) unless legacy_args.empty?
+        Deprecation.call(:legacy_dispatch_args, LEGACY_ARGS_WARNING) unless legacy_args.empty?
       end
 
       # THE FLAT-FACTS WIRE FORM — one Hash, NOT keywords, and NOT

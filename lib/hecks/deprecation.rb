@@ -1,5 +1,8 @@
-# Deprecation warnings this gem raises about its own API — see
-# Hecks::Deprecation below.
+# Deprecation warnings this gem raises about its own API. NOT a singleton
+# method on `Hecks` itself: the self-hosted language declares every word
+# that module answers (spec/syntax_conformance_spec.rb), and a warning
+# about an old call shape is not a word of the language — callers name
+# `Hecks::Deprecation.call` in full.
 module Hecks
   # ONE WARNING PER CALL SITE, NAMING THE CALLER'S LINE — never a line
   # inside this gem. A deprecated shape usually reaches the runtime through
@@ -7,7 +10,7 @@ module Hecks
   # `RemoteDispatcher`), so the site reported is the first frame OUTSIDE
   # `lib/hecks`, which is the line a reader can actually change.
   #
-  #   Hecks.deprecate(:legacy_dispatch_args, "pass facts in with:")
+  #   Hecks::Deprecation.call(:legacy_dispatch_args, "pass facts in with:")
   #   # warns once: "spec/foo_spec.rb:12: warning: pass facts in with:"
   #
   # Per key, in this order:
@@ -89,6 +92,4 @@ module Hecks
       end
     end
   end
-
-  def self.deprecate(key, message) = Deprecation.call(key, message)
 end
