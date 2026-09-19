@@ -21,6 +21,30 @@ require "fileutils"
 # CAN fire; `divergences_for`'s own unit coverage proves that instead,
 # with synthetic outcome pairs.
 RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
+  # A PROBE THAT BROKE IS NOT A SEQUENCE WITH NOTHING TO RACE. Both used
+  # to answer `[]`, which `bin/qa_sweep` logs as a clean concurrency
+  # Check — so a renamed capability symbol or a wiring change could make
+  # the race silently never happen while the ledger recorded the mode as
+  # held. No Postgres here: the refusal happens before any boot.
+  describe ".check, when the cross-process-lock probe itself fails" do
+    it "reports it rather than answering clean" do
+      allow(described_class).to receive(:lockable_verbs).and_return([[], ["Shop::Order.Place: NoMethodError: boom"]])
+
+      divergences = described_class.check("examples/pizzas", [{ "verb" => "Shop::Order.Place" }],
+                                          database: "unused", race_schema: "unused", reference_schema: "unused")
+
+      expect(divergences.map { |divergence| divergence[:field] }).to eq(["concurrency_unraceable"])
+      expect(divergences.first[:detail]).to include("NoMethodError: boom")
+    end
+
+    it "still answers clean when nothing raced because there was nothing to race" do
+      allow(described_class).to receive(:lockable_verbs).and_return([[], []])
+
+      expect(described_class.check("examples/pizzas", [{ "query" => "Order::All" }],
+                                   database: "unused", race_schema: "unused", reference_schema: "unused")).to eq([])
+    end
+  end
+
   describe ".pick_race_index" do
     def step(verb) = { "verb" => verb }
     def query_step = { "verb" => nil, "query" => "Widget::All" }

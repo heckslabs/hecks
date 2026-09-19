@@ -45,20 +45,30 @@ module Hecks
       module_function
 
       # `{ checked: true, diverged_total:, breakdown: [{ordinal:, diverged:}] }`
-      # or `{ checked: false, reason: "..." }` — the caller decides what a
-      # `false` means (an operational note, not a finding); a `true` with
+      # or `{ checked: false, kind:, reason: "..." }`. A `true` with
       # `diverged_total.positive?` is the finding this module exists to
       # surface: real post-cut writes an ancestor era is still holding.
+      #
+      # `kind:` SPLITS THE TWO THINGS `checked: false` USED TO MEAN. Both
+      # answered the same shape, and `bin/qa_sweep` logged that shape as a
+      # HELD Check either way — so a refused connection or a `Lineage`
+      # defect read, in the ledger, exactly like an audit that ran and
+      # found nothing: counted toward `sweep.made` and the target's clean
+      # streak. `:not_applicable` is a target with no lineage to audit at
+      # all; `:error` is the audit failing to run, which the caller
+      # surfaces as a finding rather than holding.
       def diverged_ancestor_writes(domain_path)
         registry, directory = load_registry(domain_path)
         bluebook = registry.bluebooks.values.first
-        return unchecked("no bluebook in #{directory}") unless bluebook
+        return failed("no bluebook in #{directory}") unless bluebook
 
         first = bluebook.aggregates.first
-        return unchecked("#{bluebook.name} declares no aggregates") unless first
+        return not_applicable("#{bluebook.name} declares no aggregates") unless first
 
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
-        return unchecked("#{bluebook.name} is bound to #{adapter_name}, not PostgresEra") unless adapter_name == "PostgresEra"
+        unless adapter_name == "PostgresEra"
+          return not_applicable("#{bluebook.name} is bound to #{adapter_name}, not PostgresEra")
+        end
 
         settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
         db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
@@ -81,10 +91,19 @@ module Hecks
           db.close
         end
       rescue StandardError => e
-        unchecked("#{e.class}: #{e.message}")
+        # COULD NOT AUDIT IS NOT THE SAME AS NOTHING TO AUDIT — a refused
+        # connection, a `Lineage` defect, malformed `.world` settings. Every
+        # one of these used to answer the benign shape and be HELD.
+        failed("#{e.class}: #{e.message}")
       end
 
-      def unchecked(reason) = { checked: false, reason: reason }
+      # NOTHING TO AUDIT — this target holds no PostgresEra lineage, so no
+      # ancestor era can carry post-cut writes. Not a finding, and not
+      # evidence of anything either: the caller logs no Check at all.
+      def not_applicable(reason) = { checked: false, kind: :not_applicable, reason: reason }
+
+      # THE AUDIT ITSELF COULD NOT RUN — reported as a finding, never held.
+      def failed(reason) = { checked: false, kind: :error, reason: reason }
 
       # THE SAME LOAD `bin/merge_tail` ITSELF PERFORMS (that script's own
       # top half) — a fresh `Registry`, never the ledger's own (this asks

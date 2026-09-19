@@ -195,7 +195,20 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     result = described_class.diverged_ancestor_writes(@fixture_root)
 
     expect(result[:checked]).to be(false)
+    expect(result[:kind]).to eq(:not_applicable)
     expect(result[:reason]).to include("not PostgresEra")
+  end
+
+  # NOTHING TO AUDIT AND COULD-NOT-AUDIT MUST NOT LOOK ALIKE — they did,
+  # and `bin/qa_sweep` logged the second as a HELD Check, so a refused
+  # connection or a `Lineage` defect counted toward the target's clean
+  # streak. `kind:` is what the sweep now reads to tell a note (no Check
+  # at all) from a finding.
+  it "reports kind: :error when the audit itself cannot run" do
+    result = described_class.diverged_ancestor_writes(@fixture_root)
+
+    expect(result[:checked]).to be(false)
+    expect(result[:kind]).to eq(:error)
   end
 
   it "reports checked: true, diverged_total: 0 for a domain on its very first era" do
