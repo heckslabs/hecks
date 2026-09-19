@@ -117,26 +117,10 @@ AllCops:
     # siblings `lib/hecks/projections/vocabulary.rb`/`lib/hecks/
     # bluebook/behaviour/policy.rb`) reproducibly excludes it again; a
     # bare, wildcard-free path is the one shape that stopped working.
-    # `bin/project_deploy`, below, hit the identical failure mode.
     - "**/lib/hecks/vocabulary.rb"
     - "**/lib/hecks/bluebook/dsl/bootstrap_table.rb"
     - "**/lib/hecks/projections/parser_table.rb"
     - "**/lib/hecks/bluebook/policy.rb"
-    # PRE-EXISTING, UNRELATED TO THIS CONFIG — `ruby -c bin/project_deploy`
-    # itself fails (confirmed independently of rubocop): two heredocs
-    # opened on separate lines of the SAME `if/else` interpolation
-    # (`<<~GOOGLE` in the `if` branch, `<<~NOOAUTH` in the `else`)
-    # around line 1131 — Ruby consumes a heredoc's body starting from
-    # the NEXT line after it's opened, so `<<~GOOGLE`'s body silently
-    # swallows the literal text "else", "<<~NOOAUTH...", and "end}"
-    # rather than stopping at its own intended content. A real,
-    # separate bug in the deploy tooling, not a rubocop config
-    # decision — flagged rather than fixed here; fixing it means
-    # restructuring the heredoc pair (e.g. hoisting both opens onto
-    # one line, or building the branch as a plain string first) with
-    # care for the actual generated CloudFormation template, well
-    # outside a lint-gate task's scope.
-    - "**/bin/project_deploy"
 
 # frozen_string_literal — this codebase has exactly one file that opts
 # in (Gemfile) and 282 that don't; enforcing it now would be a
