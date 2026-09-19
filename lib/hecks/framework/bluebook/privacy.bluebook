@@ -74,4 +74,85 @@ Hecks.bluebook "Privacy" do
       where(domain: :domain)
     end
   end
+
+  # **Cryptoshredding** — a right-to-erasure request satisfied without
+  # rewriting or deleting a single event. `key_reference` is an opaque
+  # handle a caller obtains from `Ports::KeyVault.issue` before
+  # dispatching `Issue`, the same "nothing is minted inside a bluebook"
+  # convention `Identity::Register`'s own `identity_id` and
+  # `Delivery::Record`'s own `message_id` already hold to (the
+  # expression sublanguage cannot call a port at all). The key material
+  # itself never appears here or on any emitted event — only the fact
+  # that a reference exists, and the fact that it was destroyed.
+  aggregate "SubjectKey" do
+    description "One data subject's own encryption key, from the moment it exists to the moment it is destroyed."
+
+    attribute :domain,        KeyDomain
+    attribute :subject_id,    SubjectId
+    attribute :key_reference, KeyReference
+    attribute :shredded_at,   Timestamp, optional: true
+
+    identified_by :domain, :subject_id
+
+    value_object "KeyDomain" do
+      attribute :value, String
+      invariant("a key names the domain its subject belongs to") { !value.to_s.empty? }
+    end
+
+    value_object "SubjectId" do
+      attribute :value, String
+      invariant("a key names the subject it was issued for") { !value.to_s.empty? }
+    end
+
+    value_object "KeyReference" do
+      attribute :value, String
+      invariant("a key carries the vault's own opaque reference to it") { !value.to_s.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :value, Integer
+    end
+
+    command "Issue" do
+      role "System"
+      goal "Record that a subject's data is now encrypted under a fresh, dedicated key"
+
+      attribute :domain,        KeyDomain
+      attribute :subject_id,    SubjectId
+      attribute :key_reference, KeyReference
+
+      sets :domain
+      sets :subject_id
+      sets :key_reference
+
+      emits SubjectKeyIssued
+    end
+
+    # **Records destruction, never performs it** — the actual
+    # `Ports::KeyVault.destroy` call happens in driving-side code before
+    # this is ever dispatched, the same boundary `send_issue.rb` draws
+    # around `Delivery::Record` for an already-sent email. This
+    # command's own job is to make an already-irreversible fact
+    # durable, not to cause it.
+    command "Shred" do
+      role "Privacy officer"
+      goal "Mark this subject's key destroyed, so its ciphertext is recorded as permanently unrecoverable"
+
+      reference_to SubjectKey
+      attribute :occurred_at, Timestamp
+
+      given("not already shredded") { shredded_at.unset? }
+
+      sets :shredded_at, to: :occurred_at
+
+      emits SubjectKeyShredded
+    end
+
+    query "ForSubject" do
+      description "One subject's key record, checked before any attempt to decrypt their sensitive fields."
+      attribute :domain,     KeyDomain
+      attribute :subject_id, SubjectId
+      where(domain: :domain, subject_id: :subject_id)
+    end
+  end
 end
