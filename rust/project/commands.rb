@@ -15,15 +15,26 @@ module RustProjection
     def invariants_fn_name(aggregate) = "#{rust_ident_field(aggregate[:name]).downcase}_invariants"
 
     def emit_invariants_fn(aggregate)
+      aggregate_vec = invariant_specs_vec(aggregate[:invariants], 8)
+      entities_vec = entity_invariants_vec(aggregate, 8)
+      # `use crate::kernel::Expr;` is only needed when one of the two
+      # vecs below actually built an `Expr::...` literal
+      # (`invariant_specs_vec`'s own `ExprEmitter.emit_ast` call, never
+      # reached when `rules.empty?` short-circuits to a bare `vec![]`) —
+      # an aggregate/entity with NO invariants at all (most of the
+      # corpus) emits neither, leaving the import unused. Found live as
+      # a real `cargo check --workspace` warning across several
+      # generated files (RoleAssignment, RoleTransition, Identity, ...).
+      needs_expr = [aggregate_vec, entities_vec].any? { |vec| vec.include?("Expr::") }
       [
         "fn #{invariants_fn_name(aggregate)}() -> crate::kernel::InvariantSet {",
-        "    use crate::kernel::Expr;",
+        (needs_expr ? "    use crate::kernel::Expr;" : nil),
         "    crate::kernel::InvariantSet {",
-        "        aggregate: #{invariant_specs_vec(aggregate[:invariants], 8)},",
-        "        entities: #{entity_invariants_vec(aggregate, 8)},",
+        "        aggregate: #{aggregate_vec},",
+        "        entities: #{entities_vec},",
         "    }",
         "}"
-      ].join("\n")
+      ].compact.join("\n")
     end
 
     def invariant_specs_vec(rules, indent)

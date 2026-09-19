@@ -66,6 +66,12 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
     // an incremental per-branch tracker that only flagged the list/
     // optional branches (this function's own first draft) missed it.
     let uses_value = arms.iter().any(|a| a.contains("Value"));
+    // Mirrors `fielded.rb#emit_fielded_flat`'s same conditional-import
+    // trick, now also applied to `Field` — a struct with no
+    // fielded-capable attributes (a bare command like `Retire`) renders
+    // `match name { _ => None, }`, never constructing a bare
+    // `Field::...`, leaving `use crate::kernel::Field;` unused.
+    let uses_field = arms.iter().any(|a| a.contains("Field"));
 
     format!(
         "{}\n",
@@ -76,6 +82,7 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
                 ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n")),
                 ("\"tmpl_items_placeholder\" => tmpl_items_block(),", items_arms(exemplar, attributes, value_objects_by_name, &[], |attr| crate::attr::optional(attr)).join("\n")),
                 ("tmpl_as_scalar_placeholder()", as_scalar_expr(attributes)),
+                ("use crate::kernel::Field;", if uses_field { "use crate::kernel::Field;".to_string() } else { String::new() }),
                 ("use crate::kernel::Value;", if uses_value { "use crate::kernel::Value;".to_string() } else { String::new() }),
             ],
         )

@@ -237,7 +237,6 @@ impl Gadget {
 }
 
 fn gadget_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],
@@ -411,7 +410,7 @@ if !absent.is_empty() {
 
 impl crate::kernel::Fielded for ActivateArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 

@@ -578,7 +578,7 @@ pub fn dispatch_entity_line_label(
 
 impl crate::kernel::Fielded for LineSettleEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -792,7 +792,6 @@ impl Kiosk {
 }
 
 fn kiosk_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],

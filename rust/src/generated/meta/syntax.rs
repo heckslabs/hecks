@@ -1163,7 +1163,7 @@ impl Keyword {
 
 impl crate::kernel::Fielded for KeywordDeprecateEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1293,7 +1293,7 @@ pub fn dispatch_entity_keyword_deprecate(
 
 impl crate::kernel::Fielded for KeywordRetireEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1581,7 +1581,7 @@ impl Argument {
 
 impl crate::kernel::Fielded for ArgumentDeprecateEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1711,7 +1711,7 @@ pub fn dispatch_entity_argument_deprecate(
 
 impl crate::kernel::Fielded for ArgumentRetireEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1934,7 +1934,6 @@ impl Syntax {
 }
 
 fn syntax_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],

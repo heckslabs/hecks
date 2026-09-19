@@ -1708,7 +1708,7 @@ if !absent.is_empty() {
 
 impl crate::kernel::Fielded for FreezeAccountArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1829,7 +1829,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for UnfreezeArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1950,7 +1950,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for CloseAccountArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 

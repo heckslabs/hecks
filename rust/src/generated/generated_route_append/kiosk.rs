@@ -727,7 +727,6 @@ impl Kiosk {
 }
 
 fn kiosk_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],
@@ -902,7 +901,7 @@ if !absent.is_empty() {
 
 impl crate::kernel::Fielded for CloseArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1023,7 +1022,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for ReopenArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 

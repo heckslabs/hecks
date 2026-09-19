@@ -79,6 +79,15 @@ module RustProjection
         # lists) enumerates them the same way the record does.
         '"tmpl_items_placeholder" => tmpl_items_block(),' => items_arms(attributes, value_objects_by_name, entity_names, optional: ->(attr) { attr[:optional] }).join("\n"),
         "tmpl_as_scalar_placeholder()" => as_scalar_expr(attributes),
+        # Same conditional-import trick as `Value` just below — a struct
+        # with no fielded-capable attributes (a bare command like
+        # `Retire`, whose `attributes` is empty and `extra_arms` stays
+        # empty too) renders `match name { _ => None, }`, never
+        # constructing a bare `Field::...` — leaving `use
+        # crate::kernel::Field;` unused. Found live as a real `cargo
+        # check --workspace` warning across several generated files
+        # (RoleAssignment, Widget's `RetireArgs`, ...).
+        'use crate::kernel::Field;' => (arms.any? { |arm| arm.include?('Field') } ? 'use crate::kernel::Field;' : ''),
         'use crate::kernel::Value;' => (arms.any? { |arm| arm.include?('Value') } ? 'use crate::kernel::Value;' : '')
       )}\n"
     end

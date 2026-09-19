@@ -20,15 +20,27 @@ pub fn invariants_fn_name(aggregate: &Json) -> String {
 }
 
 pub fn emit_invariants_fn(aggregate: &Json) -> String {
+    let aggregate_vec = invariant_specs_vec(aggregate.get("invariants").map(Json::each).unwrap_or(&[]), 8);
+    let entities_vec = entity_invariants_vec(aggregate, 8);
+    // Mirrors `commands.rb#emit_invariants_fn`'s own conditional import —
+    // `use crate::kernel::Expr;` is only needed when one of the two vecs
+    // above actually built an `Expr::...` literal (`invariant_specs_vec`'s
+    // own `emit_ast` call, never reached when `rules` is empty and it
+    // short-circuits to a bare `vec![]`). An aggregate/entity with no
+    // invariants at all emits neither, leaving the import unused.
+    let needs_expr = aggregate_vec.contains("Expr::") || entities_vec.contains("Expr::");
     [
-        format!("fn {}() -> crate::kernel::InvariantSet {{", invariants_fn_name(aggregate)),
-        "    use crate::kernel::Expr;".to_string(),
-        "    crate::kernel::InvariantSet {".to_string(),
-        format!("        aggregate: {},", invariant_specs_vec(aggregate.get("invariants").map(Json::each).unwrap_or(&[]), 8)),
-        format!("        entities: {},", entity_invariants_vec(aggregate, 8)),
-        "    }".to_string(),
-        "}".to_string(),
+        Some(format!("fn {}() -> crate::kernel::InvariantSet {{", invariants_fn_name(aggregate))),
+        needs_expr.then(|| "    use crate::kernel::Expr;".to_string()),
+        Some("    crate::kernel::InvariantSet {".to_string()),
+        Some(format!("        aggregate: {aggregate_vec},")),
+        Some(format!("        entities: {entities_vec},")),
+        Some("    }".to_string()),
+        Some("}".to_string()),
     ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
     .join("\n")
 }
 
