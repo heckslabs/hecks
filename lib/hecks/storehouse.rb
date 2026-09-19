@@ -725,10 +725,14 @@ module Hecks
     # ── beyond the zoom levels ──────────────────────────────────────────
 
     # The full write history, not just the current head — `bin/history`'s
-    # own logic, unchanged: an append-only-backed aggregate's `entries`,
-    # every operation that ever touched it. An aggregate bound to a
-    # non-append-only adapter (Memory, Postgres proper) answers an empty
-    # list honestly rather than pretending to a history it never kept.
+    # own logic, unchanged: every operation that ever touched the
+    # aggregate, read off its repository's own `entries`. `Registry#repository`
+    # always hands back a `Ports::Persistence::AppendOnly`-wrapped adapter,
+    # never the bare adapter, so this never needs to guard against one —
+    # what varies by adapter is only how much the wrapped `entries` itself
+    # actually holds: a fresh Memory boot honestly has none yet, and a
+    # durable adapter (Heki, Postgres, SQLite, D1) has whatever it
+    # journaled.
     #
     # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted runtime
     # @return [Hash{Symbol => Object}] `:ok`, `:domain` and `:history` (each
@@ -748,13 +752,11 @@ module Hecks
 
     # One aggregate's full append-only write history, JSON-safe.
     #
-    # @param repository [Object] the aggregate's repository, as `Registry#repository`
-    #   returns it
+    # @param repository [Ports::Persistence::AppendOnly] the aggregate's repository, as
+    #   `Registry#repository` always returns it
     # @return [Array<Hash>] each journal entry's `:operation`, `:id` and `:state`
-    #   (materialized); `[]` if `repository` is not `Ports::Persistence::AppendOnly`
+    #   (materialized); `[]` when the adapter has journaled nothing yet
     def journal_entries(repository)
-      return [] unless repository.is_a?(Ports::Persistence::AppendOnly)
-
       repository.entries.map { |entry| { operation: entry.operation, id: entry.id, state: Facade::JsonDoor.materialize(entry.state) } }
     end
 

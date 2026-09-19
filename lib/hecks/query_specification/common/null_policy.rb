@@ -22,7 +22,8 @@ module Hecks
         # `field DESC, id DESC`.
         #
         # @param records [Array<Object>] the rows to order, already in identity order
-        # @param direction [Symbol, String] `desc` sorts descending; anything else ascending
+        # @param direction [Symbol, String] `desc` in any letter case sorts descending;
+        #   anything else ascending
         # @param policy [NullSemantics, nil] where nulls go: mode `first` or `last`; `nil` or
         #   any other mode (`native`) puts nulls first ascending and last descending
         # @yield reads the sort key out of one record
@@ -32,16 +33,17 @@ module Hecks
         # @return [Array<Object>] a new Array holding every record in the requested order
         # @raise [ArgumentError] if two non-nil keys cannot be compared with each other
         def order(records, direction:, policy: nil, &key)
+          descending = direction.to_s.downcase == "desc"
           null_rows, valued_rows = records.partition { |record| key.call(record).nil? }
           sorted = valued_rows.each_with_index.sort_by { |record, index| [key.call(record), index] }.map(&:first)
-          if direction.to_s == "desc"
+          if descending
             sorted.reverse!
             null_rows.reverse!
           end
           case policy&.mode.to_s
           when "first" then null_rows + sorted
           when "last" then sorted + null_rows
-          else direction.to_s == "desc" ? sorted + null_rows : null_rows + sorted
+          else descending ? sorted + null_rows : null_rows + sorted
           end
         end
 
