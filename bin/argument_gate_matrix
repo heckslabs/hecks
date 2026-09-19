@@ -234,9 +234,9 @@ def run_row(runtime, row, kind)
   args = JSON.parse(JSON.generate(row[:args])).transform_keys(&:to_sym)
   begin
     if row[:role]
-      Hecks.as_caller(role: row[:role]) { runtime.dispatch(row[:verb], **args) }
+      Hecks.as_caller(role: row[:role]) { runtime.dispatch_flat(row[:verb], args) }
     else
-      runtime.dispatch(row[:verb], **args)
+      runtime.dispatch_flat(row[:verb], args)
     end
     [nil, nil, nil]
   rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
