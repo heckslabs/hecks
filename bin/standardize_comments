@@ -20,6 +20,7 @@
 #
 # This script is not a CI gate. Nothing runs it automatically.
 
+require "English"
 require "json"
 require "optparse"
 require "ripper"
@@ -110,6 +111,12 @@ module CommentStyle
   TypeDef = Struct.new(:fqn, :line, :namespace_only)
   Comment = Struct.new(:line, :col, :text, :full_line)
 
+  # @param source [String] Ruby source
+  # @return [Array<String>] every token that is not a comment or whitespace
+  def self.code_tokens(source)
+    Ripper.lex(source).reject { |token| CODE_NOISE.include?(token[1]) }.map { |token| token[2] }
+  end
+
   # One parsed source file and the violations found in it.
   class SourceFile
     attr_reader :path, :lines, :comments
@@ -128,7 +135,7 @@ module CommentStyle
     # @param only [Array<String>, nil] categories to keep, all when nil
     # @return [Array<Violation>]
     def violations(only: nil)
-      found = text_violations + structure_violations
+      found = text_violations + (test_file? ? [] : structure_violations)
       found = found.select { |v| only.include?(v.category) } if only
       found.sort_by { |v| [v.line, v.category] }
     end
@@ -142,14 +149,24 @@ module CommentStyle
       wanted = (only || FIXABLE) & FIXABLE
       output = @lines.map.with_index(1) { |line, number| fix_line(line, number, wanted) }.join
       return @source if output == @source
-      raise "#{path}: fix would change code, refusing" unless code_tokens(@source) == code_tokens(output)
+
+      unchanged = CommentStyle.code_tokens(@source) == CommentStyle.code_tokens(output)
+      raise "#{path}: fix would change code, refusing" unless unchanged
 
       output
     end
 
     # @return [Array<TypeDef>] every class and module opened in this file
     def types
-      structure.last
+      test_file? ? [] : structure.last
+    end
+
+    # Helpers defined inside a spec are test scaffolding, not API, so the
+    # doc-tag categories skip them. The prose categories still apply.
+    #
+    # @return [Boolean]
+    def test_file?
+      path.end_with?("_spec.rb")
     end
 
     # @param type [TypeDef]
@@ -167,10 +184,6 @@ module CommentStyle
         prefix = @lines[line - 1].byteslice(0, col)
         Comment.new(line, col, text.chomp, prefix.strip.empty?)
       end
-    end
-
-    def code_tokens(source)
-      Ripper.lex(source).reject { |token| CODE_NOISE.include?(token[1]) }.map { |token| token[2] }
     end
 
     def text_violations
@@ -484,8 +497,21 @@ module CommentStyle
     # @param paths [Array<String>] files or directories
     # @param only [Array<String>, nil] categories to keep
     def initialize(paths, only: nil)
-      @files = paths.flat_map { |p| File.directory?(p) ? Dir[File.join(p, "**", "*.rb")] : [p] }.sort.uniq
+      @files = paths.flat_map { |p| File.directory?(p) ? ruby_files(p) : [p] }.sort.uniq
       @only = only
+    end
+
+    # Files whose code differs from `ref`, comments and whitespace aside.
+    #
+    # @param ref [String] git revision to compare the working tree against
+    # @return [Array<String>] paths whose non-comment token stream changed
+    def code_changed_since(ref)
+      @files.select do |path|
+        before = IO.popen(["git", "show", "#{ref}:#{path}"], err: File::NULL, &:read)
+        next false unless $CHILD_STATUS.success?
+
+        CommentStyle.code_tokens(before) != CommentStyle.code_tokens(File.read(path))
+      end
     end
 
     # @return [Array<Violation>]
@@ -516,12 +542,20 @@ module CommentStyle
       [
         "#{violations.size} violations in #{by_file.size} of #{@files.size} files\n",
         "By category:", *category_rows,
-        "\nBy directory:", *directory_rows,
+        "\nBy directory (top #{top}):", *directory_rows.first(top),
         "\nWorst #{top} files:", *file_rows(by_file, top)
       ].join("\n")
     end
 
     private
+
+    # `.rb` files, plus extensionless scripts (`bin/*`) with a Ruby shebang.
+    def ruby_files(dir)
+      scripts = Dir[File.join(dir, "**", "*")].select do |path|
+        File.file?(path) && File.extname(path).empty? && File.open(path, &:gets).to_s.match?(/\A#!.*ruby/)
+      end
+      Dir[File.join(dir, "**", "*.rb")] + scripts
+    end
 
     def category_rows
       counts = violations.group_by(&:category).transform_values(&:size)
@@ -565,6 +599,10 @@ module CommentStyle
       opts.on("--check", "list every violation, exit 1 if any") { options[:mode] = :check }
       opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(', ')}") { options[:mode] = :fix }
       opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(', ')}") { |list| options[:only] = list }
+      opts.on("--code-unchanged REF", "exit 1 if any file's code (not comments) differs from REF") do |ref|
+        options[:mode] = :code_unchanged
+        options[:ref] = ref
+      end
       opts.on("--json", "machine-readable output") { options[:json] = true }
       opts.on("--top N", Integer, "rows in the worst-files table") { |n| options[:top] = n }
     end
@@ -591,11 +629,17 @@ module CommentStyle
     abort parser.help if paths.empty?
 
     run = Run.new(paths, only: options[:only])
-    if options[:mode] == :fix
-      puts "rewrote #{run.fix!} files"
-      return 0
+    case options[:mode]
+    when :fix then puts("rewrote #{run.fix!} files") || 0
+    when :code_unchanged then report_code_changes(run.code_changed_since(options[:ref]))
+    else render(run, options)
     end
-    render(run, options)
+  end
+
+  def self.report_code_changes(changed)
+    changed.each { |path| puts "#{path}: code changed, not just comments" }
+    puts "code unchanged" if changed.empty?
+    changed.empty? ? 0 : 1
   end
 end
 
