@@ -34,13 +34,13 @@ use crate::exemplar::types::TmplKind;
 // the first time this was written nested inside one ("non-local `impl`
 // definition" — real, if harmless, lint noise this tree holds itself to
 // zero of).
-// Tmpl:closed_set_codec begin
+// TMPL:closed_set_codec BEGIN
 impl TmplKind {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
-            // Tmpl:closed_set_codec:TO_JSON_ARM begin
+            // TMPL:closed_set_codec:TO_JSON_ARM BEGIN
             TmplKind::TmplMemberA => "tmpl_member_a",
-            // Tmpl:closed_set_codec:TO_JSON_ARM end
+            // TMPL:closed_set_codec:TO_JSON_ARM END
         };
         crate::kernel::Json::obj(vec![("tmpl_field_name", crate::kernel::Json::str(member))])
     }
@@ -86,9 +86,9 @@ impl TmplKind {
             return Err(crate::kernel::Refusal::TypeMismatch("tmpl_null_field_message".to_string()));
         }
         match candidate.ruby_to_s().as_str() {
-            // Tmpl:closed_set_codec:FROM_JSON_ARM begin
+            // TMPL:closed_set_codec:FROM_JSON_ARM BEGIN
             "tmpl_member_a" => Ok(TmplKind::TmplMemberA),
-            // Tmpl:closed_set_codec:FROM_JSON_ARM end
+            // TMPL:closed_set_codec:FROM_JSON_ARM END
             _ => Err(crate::kernel::Refusal::InvariantViolation(
                 crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                     r#type: "tmpl_closed_set_type",
@@ -100,7 +100,7 @@ impl TmplKind {
         }
     }
 }
-// Tmpl:closed_set_codec end
+// TMPL:closed_set_codec END
 
 fn tmpl_json_value_placeholder() -> crate::kernel::Json {
     crate::kernel::Json::Null
@@ -121,9 +121,9 @@ fn tmpl_json_value_placeholder() -> crate::kernel::Json {
 // machinery, which is for a leaf one specific outer alone owns.
 fn tmpl_to_json_field_host() -> Vec<(String, crate::kernel::Json)> {
     vec![
-        // Tmpl:to_json_field begin
+        // TMPL:to_json_field BEGIN
         ("tmpl_field_name".to_string(), tmpl_json_value_placeholder()),
-        // Tmpl:to_json_field end
+        // TMPL:to_json_field END
     ]
 }
 
@@ -166,7 +166,7 @@ fn tmpl_from_json_conditions() -> bool {
     true
 }
 
-// Tmpl:closed_set_table_codec begin
+// TMPL:closed_set_table_codec BEGIN
 impl TmplTableRow {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
@@ -183,7 +183,7 @@ tmpl_to_json_fields_block()
         Err(crate::kernel::Refusal::TypeMismatch(format!("TmplTableRow: no member matches {:?}", v)))
     }
 }
-// Tmpl:closed_set_table_codec end
+// TMPL:closed_set_table_codec END
 
 // `tmpl_accessor_fn` — the function-call placeholder idiom again, this
 // time standing in for whichever of `Json::as_str`/`as_i64`/`as_f64`
@@ -198,9 +198,9 @@ fn tmpl_accessor_fn(j: &crate::kernel::Json) -> Option<i64> {
 }
 
 fn tmpl_from_json_condition_host(v: &crate::kernel::Json, row: &TmplTableRow) -> bool {
-    // Tmpl:closed_set_table_from_json_condition begin
+    // TMPL:closed_set_table_from_json_condition BEGIN
     v.get("tmpl_field_name").and_then(tmpl_accessor_fn) == Some(row.tmpl_field)
-    // Tmpl:closed_set_table_from_json_condition end
+    // TMPL:closed_set_table_from_json_condition END
 }
 
 // `to_json_flat`/`from_json_flat` — the JSON boundary for value objects
@@ -222,9 +222,9 @@ struct TmplFieldAssignmentHost {
 impl TmplFieldAssignmentHost {
     fn build() -> Self {
         Self {
-            // Tmpl:field_assignment begin
+            // TMPL:field_assignment BEGIN
             tmpl_ident: tmpl_rhs_placeholder(),
-            // Tmpl:field_assignment end
+            // TMPL:field_assignment END
         }
     }
 }
@@ -237,7 +237,7 @@ fn tmpl_to_json_field_block() -> (String, crate::kernel::Json) {
     (String::new(), crate::kernel::Json::Null)
 }
 
-// Tmpl:to_json_flat begin
+// TMPL:to_json_flat BEGIN
 impl TmplFlatType2 {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
@@ -245,7 +245,7 @@ tmpl_to_json_field_block()
         ])
     }
 }
-// Tmpl:to_json_flat end
+// TMPL:to_json_flat END
 
 struct TmplFlatType3 {
     tmpl_ident: i64,
@@ -277,7 +277,7 @@ fn tmpl_to_json_field_block_sparse() -> (String, crate::kernel::Json) {
 // value for a value that exists — so this filter can only ever drop an
 // entry that came from a genuinely absent optional argument, never one
 // from a required field or an explicit domain value.
-// Tmpl:to_json_flat_sparse begin
+// TMPL:to_json_flat_sparse BEGIN
 impl TmplFlatType3 {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
@@ -288,7 +288,7 @@ impl TmplFlatType3 {
         )
     }
 }
-// Tmpl:to_json_flat_sparse end
+// TMPL:to_json_flat_sparse END
 
 // The unknown-argument-check preamble is either a real, multi-line,
 // already-fully-built block (`emit_unknown_argument_check`, unchanged
@@ -302,7 +302,7 @@ impl TmplFlatType3 {
 // `emit_from_json_flat` and `emit_from_json_state` (json_codec.rb) —
 // structurally identical; only the preamble and each field's RHS
 // (plain Ruby, `field_assignment`'s own header) differ between them.
-// Tmpl:from_json_flat begin
+// TMPL:from_json_flat BEGIN
 impl TmplFlatType2 {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 let _tmpl_unknown_check_placeholder = ();
@@ -311,7 +311,7 @@ tmpl_ident: tmpl_rhs_placeholder(),
         })
     }
 }
-// Tmpl:from_json_flat end
+// TMPL:from_json_flat END
 
 // `extract_id` — an aggregate's or an entity's own identity, read
 // straight off the incoming JSON step args (json_codec.rb's own header:
@@ -335,13 +335,13 @@ tmpl_ident: tmpl_rhs_placeholder(),
 // on the same `impl` — the method name has to vary too, not just the
 // coercion it calls.
 struct TmplExtractIdType;
-// Tmpl:extract_id begin
+// TMPL:extract_id BEGIN
 impl TmplExtractIdType {
     pub fn tmpl_extract_id_name(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            // Tmpl:extract_id:TIER1_LINE begin
+            // TMPL:extract_id:TIER1_LINE BEGIN
             let c0 = v.dig("tmpl_path")?.tmpl_id_coercion().ok()?;
-            // Tmpl:extract_id:TIER1_LINE end
+            // TMPL:extract_id:TIER1_LINE END
             Some(tmpl_tier1_join_placeholder())
         })();
         let by_id_key = v.get("id").and_then(|j| j.tmpl_id_coercion().ok());
@@ -352,7 +352,7 @@ impl TmplExtractIdType {
         })
     }
 }
-// Tmpl:extract_id end
+// TMPL:extract_id END
 
 fn tmpl_tier1_join_placeholder() -> String {
     String::new()
@@ -388,19 +388,19 @@ impl TmplIdCoercion for crate::kernel::Json {
 // part degrades to an empty string rather than a second way for dispatch
 // itself to fail.
 struct TmplExtractWantsType;
-// Tmpl:extract_wants begin
+// TMPL:extract_wants BEGIN
 impl TmplExtractWantsType {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
-            // Tmpl:extract_wants:TIER1_LINE begin
+            // TMPL:extract_wants:TIER1_LINE BEGIN
             let c0 = v.dig("tmpl_path")?.to_id_component().ok()?;
-            // Tmpl:extract_wants:TIER1_LINE end
+            // TMPL:extract_wants:TIER1_LINE END
             Some(tmpl_wants_join_placeholder())
         })()
         .unwrap_or_default()
     }
 }
-// Tmpl:extract_wants end
+// TMPL:extract_wants END
 
 fn tmpl_wants_join_placeholder() -> String {
     String::new()
@@ -411,13 +411,13 @@ fn tmpl_wants_join_placeholder() -> String {
 // raw JSON (`self.field` in place of `v.get(...)`) — an entity
 // element's own identity, for `dispatch_entity`'s `matches` closure.
 struct TmplSelfIdentityType;
-// Tmpl:self_identity begin
+// TMPL:self_identity BEGIN
 impl TmplSelfIdentityType {
     pub fn identity(&self) -> String {
         tmpl_identity_body_placeholder()
     }
 }
-// Tmpl:self_identity end
+// TMPL:self_identity END
 
 fn tmpl_identity_body_placeholder() -> String {
     String::new()

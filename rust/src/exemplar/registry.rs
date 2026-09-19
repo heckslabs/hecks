@@ -22,9 +22,9 @@ static QUERIES: &[crate::kernel::QueryDef] = &[];
 static AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 fn tmpl_role_check_host(store: &TmplStore2, caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Result<(), crate::kernel::Refusal> {
-    // Tmpl:role_check begin
+    // TMPL:role_check BEGIN
     crate::kernel::check_role_via(Some("TmplRole"), "TmplCommandName", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
-    // Tmpl:role_check end
+    // TMPL:role_check END
     Ok(())
 }
 
@@ -43,16 +43,16 @@ struct TmplRefArgs {
 }
 
 fn tmpl_reference_check_required_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
-    // Tmpl:reference_check_required begin
+    // TMPL:reference_check_required BEGIN
     crate::kernel::check_reference(&store.tmpl_target_mod, &args.tmpl_field, "TmplTarget", "tmpl_heads")?;
-    // Tmpl:reference_check_required end
+    // TMPL:reference_check_required END
     Ok(())
 }
 
 fn tmpl_reference_check_optional_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
-    // Tmpl:reference_check_optional begin
+    // TMPL:reference_check_optional BEGIN
     if let Some(v) = &args.tmpl_optional_field { crate::kernel::check_reference(&store.tmpl_target_mod, v, "TmplTarget", "tmpl_heads")?; }
-    // Tmpl:reference_check_optional end
+    // TMPL:reference_check_optional END
     Ok(())
 }
 
@@ -61,9 +61,9 @@ fn tmpl_reference_check_optional_host(store: &TmplStore, args: &TmplRefArgs) -> 
 // field` is replaced as a whole: `&item.value` for a single-attribute
 // value object element, bare `item` for a plain `String` element.
 fn tmpl_reference_check_list_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
-    // Tmpl:reference_check_list begin
+    // TMPL:reference_check_list BEGIN
     for item in &args.tmpl_list_field { crate::kernel::check_reference(&store.tmpl_target_mod, &item.tmpl_element_field, "TmplTarget", "tmpl_heads")?; }
-    // Tmpl:reference_check_list end
+    // TMPL:reference_check_list END
     Ok(())
 }
 
@@ -107,7 +107,7 @@ fn tmpl_dispatch_arm_placeholder() -> Result<Vec<crate::kernel::Event>, crate::k
 // own `f.puts` calls already write directly for every aggregate file's
 // header — `emit_registry` (registry.rb) keeps building it as a plain
 // Ruby constant, prepended in front of this shape's own rendered text.
-// Tmpl:registry_file begin
+// TMPL:registry_file BEGIN
 // `Clone` — a dry run (`cli::run`'s `{"dry_run": …}` step, `cli::serve`'s
 // `snapshot`/`restore`) dispatches against a throwaway copy of the whole
 // store: givens, mutations, ensures all run for real, nothing is kept.
@@ -198,4 +198,4 @@ pub fn dispatch_by_name(
 fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::Json) -> Vec<crate::kernel::Event> {
     events.into_iter().map(|e| crate::kernel::Event { payload: args_json.clone(), ..e }).collect()
 }
-// Tmpl:registry_file end
+// TMPL:registry_file END

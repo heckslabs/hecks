@@ -8,14 +8,14 @@
 // tag — and gets its own exemplar item once that wave lands.
 #![allow(dead_code, unused_variables)]
 
-// Tmpl:closed_set_enum begin
+// TMPL:closed_set_enum BEGIN
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TmplKind {
-    // Tmpl:closed_set_enum:VARIANT begin
+    // TMPL:closed_set_enum:VARIANT BEGIN
     TmplMemberA,
-    // Tmpl:closed_set_enum:VARIANT end
+    // TMPL:closed_set_enum:VARIANT END
 }
-// Tmpl:closed_set_enum end
+// TMPL:closed_set_enum END
 
 // `plain_struct` — the Rust reading of a `ShapeField` list (a whole value
 // object's/entity's/aggregate record's declared attributes), independent
@@ -28,14 +28,14 @@ pub enum TmplKind {
 // by `closed_set_table`'s own struct half, below.
 type TmplFieldType = i64;
 
-// Tmpl:plain_struct begin
+// TMPL:plain_struct BEGIN
 #[derive(Debug, Clone, PartialEq)]
 pub struct TmplType {
-    // Tmpl:struct_field begin
+    // TMPL:struct_field BEGIN
     pub tmpl_field: TmplFieldType,
-    // Tmpl:struct_field end
+    // TMPL:struct_field END
 }
-// Tmpl:plain_struct end
+// TMPL:plain_struct END
 
 // `closed_set_table` — the other real shape a closed set can take
 // (`closed_set_enum`'s own header explains the split): a fixed data
@@ -58,8 +58,8 @@ fn tmpl_value_placeholder() -> i64 {
 
 fn tmpl_row_field_host() -> TmplRow {
     TmplRow {
-        // Tmpl:closed_set_table_row_field begin
+        // TMPL:closed_set_table_row_field BEGIN
         tmpl_field: tmpl_value_placeholder()
-        // Tmpl:closed_set_table_row_field end
+        // TMPL:closed_set_table_row_field END
     }
 }

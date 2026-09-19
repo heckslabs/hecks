@@ -45,9 +45,9 @@ impl TmplListOptionalHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // Tmpl:fielded_arm_list_optional begin
+            // TMPL:fielded_arm_list_optional BEGIN
             "tmpl_field" => self.tmpl_ident.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),
-            // Tmpl:fielded_arm_list_optional end
+            // TMPL:fielded_arm_list_optional END
             _ => None,
         }
     }
@@ -61,9 +61,9 @@ impl TmplListHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // Tmpl:fielded_arm_list begin
+            // TMPL:fielded_arm_list BEGIN
             "tmpl_field" => Some(Field::Value(Value::List(self.tmpl_ident.len()))),
-            // Tmpl:fielded_arm_list end
+            // TMPL:fielded_arm_list END
             _ => None,
         }
     }
@@ -77,9 +77,9 @@ impl TmplOptionalScalarHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // Tmpl:fielded_arm_optional_scalar begin
+            // TMPL:fielded_arm_optional_scalar BEGIN
             "tmpl_field" => self.tmpl_ident.as_ref().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).or(Some(Field::Value(Value::Nil))),
-            // Tmpl:fielded_arm_optional_scalar end
+            // TMPL:fielded_arm_optional_scalar END
             _ => None,
         }
     }
@@ -99,9 +99,9 @@ impl TmplOptionalNestedHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // Tmpl:fielded_arm_optional_nested begin
+            // TMPL:fielded_arm_optional_nested BEGIN
             "tmpl_field" => self.tmpl_ident.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            // Tmpl:fielded_arm_optional_nested end
+            // TMPL:fielded_arm_optional_nested END
             _ => None,
         }
     }
@@ -114,9 +114,9 @@ impl TmplScalarHost {
     fn arm(&self) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         match "x" {
-            // Tmpl:fielded_arm_scalar begin
+            // TMPL:fielded_arm_scalar BEGIN
             "tmpl_field" => Some(Field::Value(tmpl_value_expr_placeholder(&self.tmpl_ident))),
-            // Tmpl:fielded_arm_scalar end
+            // TMPL:fielded_arm_scalar END
             _ => None,
         }
     }
@@ -129,9 +129,9 @@ impl TmplNestedHost {
     fn arm(&self) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         match "x" {
-            // Tmpl:fielded_arm_nested begin
+            // TMPL:fielded_arm_nested BEGIN
             "tmpl_field" => Some(Field::Nested(&self.tmpl_ident)),
-            // Tmpl:fielded_arm_nested end
+            // TMPL:fielded_arm_nested END
             _ => None,
         }
     }
@@ -145,9 +145,9 @@ impl TmplLifecycleHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // Tmpl:fielded_lifecycle_arm begin
+            // TMPL:fielded_lifecycle_arm BEGIN
             "tmpl_field" => Some(Field::Value(Value::Str(self.tmpl_ident.clone()))),
-            // Tmpl:fielded_lifecycle_arm end
+            // TMPL:fielded_lifecycle_arm END
             _ => None,
         }
     }
@@ -167,9 +167,9 @@ impl TmplCorrectsFlagHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // Tmpl:fielded_corrects_flag_arm begin
+            // TMPL:fielded_corrects_flag_arm BEGIN
             "tmpl_field" => Some(Field::Value(Value::Bool(self.tmpl_ident))),
-            // Tmpl:fielded_corrects_flag_arm end
+            // TMPL:fielded_corrects_flag_arm END
             _ => None,
         }
     }
@@ -233,9 +233,9 @@ impl TmplItemsNestedHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // Tmpl:fielded_items_arm_list_nested begin
+            // TMPL:fielded_items_arm_list_nested BEGIN
             "tmpl_field" => Some(self.tmpl_ident.iter().map(|v| Field::Nested(v)).collect()),
-            // Tmpl:fielded_items_arm_list_nested end
+            // TMPL:fielded_items_arm_list_nested END
             _ => None,
         }
     }
@@ -249,9 +249,9 @@ impl TmplItemsScalarHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // Tmpl:fielded_items_arm_list_scalar begin
+            // TMPL:fielded_items_arm_list_scalar BEGIN
             "tmpl_field" => Some(self.tmpl_ident.iter().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).collect()),
-            // Tmpl:fielded_items_arm_list_scalar end
+            // TMPL:fielded_items_arm_list_scalar END
             _ => None,
         }
     }
@@ -265,9 +265,9 @@ impl TmplItemsOptionalNestedHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // Tmpl:fielded_items_arm_list_optional_nested begin
+            // TMPL:fielded_items_arm_list_optional_nested BEGIN
             "tmpl_field" => self.tmpl_ident.as_ref().map(|items| items.iter().map(|v| Field::Nested(v)).collect()),
-            // Tmpl:fielded_items_arm_list_optional_nested end
+            // TMPL:fielded_items_arm_list_optional_nested END
             _ => None,
         }
     }
@@ -281,9 +281,9 @@ impl TmplItemsOptionalScalarHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // Tmpl:fielded_items_arm_list_optional_scalar begin
+            // TMPL:fielded_items_arm_list_optional_scalar BEGIN
             "tmpl_field" => self.tmpl_ident.as_ref().map(|items| items.iter().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).collect()),
-            // Tmpl:fielded_items_arm_list_optional_scalar end
+            // TMPL:fielded_items_arm_list_optional_scalar END
             _ => None,
         }
     }
@@ -312,7 +312,7 @@ struct TmplRecordType;
 // naming `Field` bare. An attribute before `// TMPL: BEGIN` silences the
 // warning here without becoming part of what gets extracted.
 #[allow(unused_imports)]
-// Tmpl:fielded_flat begin
+// TMPL:fielded_flat BEGIN
 impl crate::kernel::Fielded for TmplFlatType {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -336,10 +336,10 @@ impl crate::kernel::Fielded for TmplFlatType {
         tmpl_as_scalar_placeholder()
     }
 }
-// Tmpl:fielded_flat end
+// TMPL:fielded_flat END
 
 #[allow(unused_imports)]
-// Tmpl:fielded_record begin
+// TMPL:fielded_record BEGIN
 impl crate::kernel::Fielded for TmplRecordType {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
@@ -362,4 +362,4 @@ impl crate::kernel::Fielded for TmplRecordType {
         tmpl_as_scalar_placeholder()
     }
 }
-// Tmpl:fielded_record end
+// TMPL:fielded_record END

@@ -20,7 +20,7 @@
 // is exactly as const-evaluable as `PolicyRule { ... }` already is, so the
 // placeholder row is a real literal, substituted wholesale (the same
 // flush-left "one row, one item" convention those two tables already use).
-// Tmpl:query_table begin
+// TMPL:query_table BEGIN
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 crate::kernel::QueryDef {
     verb: "tmpl_verb",
@@ -48,4 +48,4 @@ crate::kernel::QueryDef {
     authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field", policy: "tmpl_policy" }),
 },
 ];
-// Tmpl:query_table end
+// TMPL:query_table END

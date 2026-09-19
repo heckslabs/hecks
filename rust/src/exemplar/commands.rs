@@ -124,7 +124,7 @@ fn tmpl_seed_projections_placeholder() -> Vec<(&'static str, Option<String>)> {
     Vec::new()
 }
 
-// Tmpl:dispatch_fn begin
+// TMPL:dispatch_fn BEGIN
 pub fn dispatch_tmpl(
     repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<TmplRecord> {
@@ -159,7 +159,7 @@ tmpl_ensures_spec_placeholder(),
         tenant_boundary_check,
     )
 }
-// Tmpl:dispatch_fn end
+// TMPL:dispatch_fn END
 
 fn tmpl_invariant_check_placeholder() -> Result<(), crate::kernel::Refusal> {
     Ok(())
@@ -232,11 +232,11 @@ fn tmpl_delegate_prelude_host(
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> Result<(), crate::kernel::Refusal> {
-    // Tmpl:delegate_prelude begin
+    // TMPL:delegate_prelude BEGIN
     let delegate_facts = args.to_json().with_aliases(&[tmpl_aliases_placeholder()]);
     let target_args = TmplTargetArgs::from_json(&delegate_facts)?;
     let target_with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &target_args, owner_deref: &owner_deref };
-    // Tmpl:delegate_prelude end
+    // TMPL:delegate_prelude END
     let _ = target_with_references;
     Ok(())
 }
@@ -269,10 +269,10 @@ fn tmpl_delegate_prelude_host(
 // already renders the correct `entity_element_missing` wording once no
 // stored element's own `identity()` matches.
 fn tmpl_delegate_element_host(delegate_facts: crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-    // Tmpl:delegate_element begin
+    // TMPL:delegate_element BEGIN
     let element_id = TmplElement::extract_id_lenient(&delegate_facts)?;
     let element_wants = TmplElement::extract_wants(&delegate_facts);
-    // Tmpl:delegate_element end
+    // TMPL:delegate_element END
     let _ = (element_id, element_wants);
     Ok(())
 }
@@ -284,7 +284,7 @@ fn tmpl_delegate_apply_host(
     element_wants: String,
     target_with_references: TmplArgs,
 ) -> Result<(), crate::kernel::Refusal> {
-        // Tmpl:delegate_apply begin
+        // TMPL:delegate_apply BEGIN
         crate::kernel::apply_entity_command(
             record,
             id,
@@ -311,7 +311,7 @@ tmpl_ensures_spec_placeholder(),
             ],
             true,
         )?;
-        // Tmpl:delegate_apply end
+        // TMPL:delegate_apply END
     Ok(())
 }
 
@@ -327,7 +327,7 @@ tmpl_ensures_spec_placeholder(),
 // `fn_signature`-style whole-span marker; the signature itself is fixed.
 fn tmpl_entity_mutation_lines_placeholder(record: &mut TmplElement) {}
 
-// Tmpl:entity_dispatch_fn begin
+// TMPL:entity_dispatch_fn BEGIN
 pub fn dispatch_entity_tmpl(
     repo: &mut impl crate::kernel::Repository<TmplRecord>, parent_id: &str, element_id: &str, element_wants: &str, args: TmplArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, tmpl_deref_params_placeholder: (),
@@ -368,4 +368,4 @@ tmpl_ensures_spec_placeholder(),
         tmpl_seed_projections,
     )
 }
-// Tmpl:entity_dispatch_fn end
+// TMPL:entity_dispatch_fn END

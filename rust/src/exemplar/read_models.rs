@@ -8,7 +8,7 @@
 // rather than a placeholder function call: `ReadModelDef { ... }` is
 // exactly as const-evaluable as `QueryDef { ... }` already is, so the
 // placeholder row is a real literal, substituted wholesale.
-// Tmpl:read_model_table begin
+// TMPL:read_model_table BEGIN
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 crate::kernel::read_model::ReadModelDef {
     verb: "tmpl_verb",
@@ -51,4 +51,4 @@ crate::kernel::read_model::ReadModelDef {
     median_field: None,
 },
 ];
-// Tmpl:read_model_table end
+// TMPL:read_model_table END
