@@ -65,10 +65,19 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # reason (the target itself, `meta` — every run regenerates it — plus
   # any framework chapter it attaches).
   HB_PARITY_DOMAINS = {
-    "examples/pizzas"     => %w[pizzas meta],
-    "examples/banking"    => %w[banking governance identity meta],
-    "examples/roster"     => %w[roster meta],
-    "examples/compliance" => %w[compliance governance meta]
+    "examples/pizzas"                    => %w[pizzas meta],
+    "examples/banking"                   => %w[banking governance identity meta],
+    "examples/roster"                    => %w[roster meta],
+    "examples/compliance"                => %w[compliance governance meta],
+    # docs/decisions/0058 — same entry spec/project_rust_pipeline_spec.rb's
+    # own PARITY_DOMAINS carries, for the same reason: `hecks-build`
+    # (this crate) previously had NO support at all for
+    # `uses_embryonaut_bluebook` (only `uses_framework`), so a vendored
+    # chapter silently never reached its own generated output — closed by
+    # `resolve::resolve_uses_embryonaut_bluebook`/`resolve::
+    # vendored_bluebook_files` and the vendored-chapter loop in
+    # `pipeline.rs::run`.
+    "examples/embryonaut_vendoring_demo" => %w[embryonaut_vendoring_demo widgets meta]
   }.freeze
 
   before(:context) do

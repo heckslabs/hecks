@@ -447,12 +447,20 @@ else
   # block, rather than Banking's top-level block naming it directly) —
   # preserves this comment's own prior, already-correct wording for
   # every chapter the existing corpus already covers.
-  target_hecksagon = target_registry.hecksagon(target_domain_name)
+  # EVERY HECKSAGON THE REGISTRY LOADED, not just the target's own — the
+  # transitive case this comment already reasons through for
+  # `uses_framework` (Identity pulled in via Governance's own sibling
+  # `uses_framework "Governance"` block) applies identically to
+  # `uses_embryonaut_bluebook`: a chapter a SIBLING hecksagon vendors
+  # in is recorded on THAT hecksagon's own `vendored_bluebooks`, never
+  # the target's, so checking only the target's own hecksagon mislabels
+  # it `uses_framework` regardless.
+  all_vendored_names = target_registry.hecksagons.values.flat_map(&:vendored_bluebooks)
   (target_registry.bluebooks.keys - [target_domain_name]).each do |chapter_name|
     chapter_mod_name = chapter_name.downcase
     chapter_mod_names[chapter_mod_name] = chapter_name
     chapter_ir = json_shaped(Hecks::Projector::Exporter.call(target_registry).fetch(chapter_name))
-    vendored_name = target_hecksagon&.vendored_bluebooks&.find { |name| Hecks::Naming.pascal(name.to_s) == chapter_name }
+    vendored_name = all_vendored_names.find { |name| Hecks::Naming.pascal(name.to_s) == chapter_name }
     attachment_label =
       if vendored_name
         "uses_embryonaut_bluebook #{vendored_name.inspect}"

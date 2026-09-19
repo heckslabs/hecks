@@ -127,9 +127,9 @@ module RustProjectPipeline
       end
       fw_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", fw_chapter_name, fw_path))
       {
-        mod_name: fw_name.downcase,
+        mod_name:     fw_name.downcase,
         source_label: "#{domain} (uses_framework #{fw_name.inspect})",
-        ir_text: fw_ir_text,
+        ir_text:      fw_ir_text
       }
     end
 
@@ -160,10 +160,35 @@ module RustProjectPipeline
       pkg_bluebooks = pkg_files.select { |path| header_chapter_name(path) == pkg_chapter_name }
       pkg_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", pkg_chapter_name, *pkg_bluebooks))
       {
-        mod_name: pkg_name.to_s.downcase,
+        # SAME DERIVATION as the DEFAULT path's own generated module name
+        # (`bin/project_rust`'s `chapter_name.downcase`, off the DECLARED
+        # chapter name) — not `pkg_name.to_s.downcase` off the raw
+        # argument, which diverges from it the moment a package name
+        # contains an underscore (`Naming.pascal("my_widget").downcase !=
+        # "my_widget".downcase`). `expected_chapter_name` above already IS
+        # that declared chapter name (`pkg_chapter_name` is asserted equal
+        # to it just above), so reusing it here keeps both pipelines
+        # writing to the same output directory for the same package.
+        mod_name:     expected_chapter_name.downcase,
         source_label: "#{domain} (uses_embryonaut_bluebook #{pkg_name.inspect})",
-        ir_text: pkg_ir_text,
+        ir_text:      pkg_ir_text
       }
+    end
+
+    # NO SILENT COLLISION between a `uses_framework`- and a
+    # `uses_embryonaut_bluebook`-derived entry — the DEFAULT path
+    # (`bin/project_rust`) is immune for free, since it iterates
+    # `target_registry.bluebooks.keys`, a Hash that cannot hold a literal
+    # duplicate key; this opt-in path builds `chapters` as a plain Array
+    # via two separate `map`s, so nothing else stops two entries sharing
+    # one `mod_name` from silently overwriting each other's sidecars in
+    # `write_sidecars!` below.
+    chapters.group_by { |c| c[:mod_name] }.each_value do |group|
+      next if group.size == 1
+
+      abort "bin/project_rust (Rust path): #{group.map { |c| c[:source_label] }.join(' and ')} both resolve to the " \
+            "same generated module #{group.first[:mod_name].inspect} — attach #{target_chapter_name} to at most one " \
+            "of them"
     end
 
     # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO — same nine files, same
@@ -442,7 +467,7 @@ module RustProjectPipeline
         f.puts "// it whenever any other domain feature is present)."
         non_default_domains.combination(2).each do |a, b|
           f.puts "#[cfg(all(feature = #{a.inspect}, feature = #{b.inspect}))]"
-          f.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{domains.join(", ")} (both #{a} and #{b} are enabled)\");"
+          f.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{domains.join(', ')} (both #{a} and #{b} are enabled)\");"
         end
       end
     end
