@@ -76,25 +76,17 @@ module Hecks
           self
         end
 
-        # Declares one of this aggregate's own attributes sensitive — the same
-        # `.hecksagon`-time fact `Facade::Surface::AggregateDoor#mark_sensitive` records
-        # when the constant it's called on happens to already be a real, installed door
-        # instead of this parse-time stand-in. A real method for the same reason `#port`
-        # above is: its shape has nothing to do with `Bind`.
-        #
-        # @param attribute_path [String] the dotted path within this aggregate, e.g.
-        #   `"attendee.medications"`
-        # @param category [String] the marking's own sensitivity category, e.g. `"phi"`
-        # @param role_required [String] the Governance role a read must hold, unredacted
-        # @return [Bluebook::DSL::BindingProxy] this proxy, so further binds can chain
-        def mark_sensitive(attribute_path, category:, role_required:)
-          Hecks.current_registry.add_pending_privacy_marking(
-            domain: @fqn, attribute_path: attribute_path, category: category, role_required: role_required
-          )
-          self
-        end
-
         def method_missing(verb, *args, **kwargs, &block)
+          # A BARE CALL — no args, no kwargs, no block — starts (or
+          # continues, on `AttributePath` itself below) a Privacy
+          # marking chain: `Registration.attendee.medications.has_phi(
+          # readable_by: "Privacy officer")`. No existing real
+          # `.hecksagon` bind is ever called this way (verified by
+          # grep before adding this branch — `persisted_by`/
+          # `opened_by`/every other bind always takes at least one
+          # arg), so this cannot collide with recording a `Bind`.
+          return AttributePath.new(@fqn, [verb.to_s]) if args.empty? && kwargs.empty? && !block
+
           @collector << Bind.new(
             aggregate: @fqn,
             verb:      verb.to_s,
@@ -108,6 +100,55 @@ module Hecks
         def respond_to_missing?(_name, _include_private = false) = true
 
         def to_s = @fqn
+      end
+
+      # What a Privacy-marking chain resolves to after its first bare segment —
+      # `Registration.attendee` returns one of these, `.medications` returns another
+      # (one segment longer), and a terminal `has_<category>(readable_by:)` records the
+      # marking and ends the chain. See `BindingProxy#method_missing`'s own header for why
+      # a bare call is unambiguously the start of one of these, never a `Bind`.
+      class AttributePath
+        # @param fqn [String] the aggregate's own qualified name, `"Domain::Aggregate"`
+        # @param path [Array<String>] every segment named so far, e.g. `["attendee"]`
+        def initialize(fqn, path)
+          @fqn  = fqn
+          @path = path
+        end
+
+        # @param verb [Symbol] `has_<category>` to record the marking and end the chain;
+        #   any other bare name to extend the path one segment further
+        # @param readable_by [String] required only for a `has_<category>` call — the
+        #   Governance role a read must hold to see this field unredacted
+        # @return [Bluebook::DSL::AttributePath, nil] a longer chain for a plain segment;
+        #   `nil` (nothing further to chain) for a `has_<category>` call
+        # @raise [Malformed] if a `has_<category>` call omits `readable_by:`, or any call
+        #   carries positional args or a block (neither shape this chain supports)
+        def method_missing(verb, *args, readable_by: nil, **kwargs, &block)
+          name = verb.to_s
+          return record_marking(name.delete_prefix("has_"), readable_by) if name.start_with?("has_")
+
+          if !args.empty? || !kwargs.empty? || block
+            raise Malformed, "#{@fqn}.#{@path.join('.')}.#{name} — an attribute path chain takes no " \
+                             "arguments except a terminal has_<category>(readable_by:)"
+          end
+
+          AttributePath.new(@fqn, @path + [name])
+        end
+
+        def respond_to_missing?(_name, _include_private = false) = true
+
+        def to_s = "#{@fqn}.#{@path.join('.')}"
+
+        private
+
+        def record_marking(category, readable_by)
+          raise Malformed, "#{self}.has_#{category} needs readable_by: (the Governance role a read must hold)" unless readable_by
+
+          Hecks.current_registry.add_pending_privacy_marking(
+            domain: @fqn, attribute_path: @path.join("."), category: category, role_required: readable_by
+          )
+          nil
+        end
       end
     end
   end

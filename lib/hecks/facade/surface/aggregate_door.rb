@@ -1,6 +1,7 @@
 require_relative "../../bluebook/dsl/hecksagon_builder"
 require_relative "../../bluebook/dsl/domain_port_builder"
 require_relative "../../bluebook/dsl/const_shim"
+require_relative "../../bluebook/dsl/binding_proxy"
 require_relative "../../bluebook/hexagon"
 require_relative "../handle"
 require_relative "../../naming"
@@ -163,23 +164,14 @@ module Hecks
             self
           end
 
-          # Declares one of this aggregate's own attributes sensitive — a `.hecksagon`
-          # fact, same timing as `port`/`persisted_by` above, not something this
-          # aggregate's own bluebook states about itself (Privacy's own bluebook header
-          # has the fuller reasoning). Recorded on the registry, not dispatched here —
-          # `Runtime::Loader.boot` turns it into a real `Privacy::Marking.Mark` once a
-          # dispatcher exists to dispatch it through.
-          door.define_singleton_method(:mark_sensitive) do |attribute_path, category:, role_required:|
-            Hecks.current_registry&.bluebook(domain)&.aggregate(aggregate.hecks_name) or
-              raise Bluebook::DSL::Malformed, "#{fqn}.mark_sensitive(#{attribute_path.inspect}) called outside a boot"
-
-            Hecks.current_registry.add_pending_privacy_marking(
-              domain: fqn, attribute_path: attribute_path, category: category, role_required: role_required
-            )
-            self
-          end
-
           door.define_singleton_method(:method_missing) do |verb, *args, **kwargs, &block|
+            # A BARE CALL starts a Privacy marking chain — see
+            # `Bluebook::DSL::BindingProxy#method_missing`'s own header;
+            # this is the same mechanism, reached when the constant is
+            # already a real, installed door (a second boot in-process)
+            # rather than a `.hecksagon`-parse-time `BindingProxy`.
+            return Bluebook::DSL::AttributePath.new(fqn, [verb.to_s]) if args.empty? && kwargs.empty? && !block
+
             collector = Bluebook::DSL::HecksagonBuilder.collector
             return super(verb, *args, **kwargs, &block) unless collector
 
