@@ -98,7 +98,11 @@ end
 reactions = dispatcher.dispatch_port(
   "Deploy", "Tenant", "TenantProvisioning", "Provision",
   to:   slug,
-  with: { database: { value: options[:database] }, adapter: { value: options[:adapter] } }
+  with: {
+    database:  { value: options[:database] },
+    adapter:   { value: options[:adapter] },
+    directory: { value: domain_directory }
+  }
 )
 
 if reactions.map(&:name).include?("ProvisioningRefused")

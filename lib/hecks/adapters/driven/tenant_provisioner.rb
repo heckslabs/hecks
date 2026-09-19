@@ -34,8 +34,18 @@ module Hecks
     class TenantProvisioner
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
-      def provision(slug:, domain:, realm:, schema:, database:, adapter:)
-        domain_directory = File.expand_path(domain[:value] || domain, Dir.pwd)
+      # `directory:` IS REQUIRED, NOT DERIVED FROM `domain` — a real,
+      # confirmed bug found only under CI's own real-Postgres suite: a
+      # domain's own DECLARED NAME (`domain`, e.g. "Scratch") is not a
+      # filesystem path, and File.expand_path(domain, Dir.pwd) silently
+      # resolved to the wrong directory (relative to whatever the
+      # RUNNING PROCESS' own cwd happened to be) whenever the CLI's own
+      # `--domain=` value didn't happen to equal its own directory
+      # argument by coincidence. `bin/project_tenant` passes its own
+      # real `domain_directory` local straight through.
+
+      def provision(slug:, domain:, realm:, schema:, database:, adapter:, directory:)
+        domain_directory = File.expand_path(directory[:value] || directory)
 
         overlay_path = File.join(domain_directory, "environments", "#{slug[:value] || slug}.world")
         FileUtils.mkdir_p(File.dirname(overlay_path))
