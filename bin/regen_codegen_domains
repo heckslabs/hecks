@@ -127,9 +127,27 @@ Dir.chdir(repo_root) do
   domains.each { |d| puts "  #{d}" }
   puts
 
+  # ONE BOOT, NOT ONE PER DOMAIN. Every `bin/project_rust` run builds
+  # `MetaValidator.grammar_registry` — the same value every time, and most
+  # of a small domain's whole run. Build it here once and fork: each child
+  # inherits the memoized registry and then runs bin/project_rust exactly
+  # as a fresh process would. Still one domain at a time, in the fixed
+  # order above — the shared outputs depend on which domain ran last.
+  require "hecks"
+  require "hecks/bluebook/meta_validator"
+  Hecks::Bluebook::MetaValidator.grammar_registry
+  project_rust = File.join(repo_root, "bin/project_rust")
+
   domains.each do |domain|
-    puts "== bundle exec bin/project_rust #{domain} =="
-    system("bundle", "exec", "bin/project_rust", domain, exception: true)
+    puts "== bin/project_rust #{domain} =="
+    $stdout.flush
+    pid = fork do
+      ARGV.replace([domain])
+      $PROGRAM_NAME = project_rust
+      load project_rust
+    end
+    Process.wait(pid)
+    abort "bin/regen_codegen_domains: bin/project_rust #{domain} failed (#{$?.inspect})" unless $?.success?
     puts
   end
 
