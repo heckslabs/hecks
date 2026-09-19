@@ -28,13 +28,14 @@ RSpec.describe Hecks::Runtime::Dispatcher do
       dispatcher = bare_dispatcher
       levels_entered = 0
 
-      # Each `dispatch` stub call recurses one level deeper via `reenter`,
+      # Each `dispatch_flat` stub call recurses one level deeper via
+      # `reenter` (the flat wire door `reenter` itself calls),
       # exactly the shape a real policy/saga cascade produces (a triggered
       # command's own announced events re-entering `@policies.react` /
       # `@sagas.advance`, which call `door.reenter` again) — and, exactly
       # like `PolicyInterpreter`/`SagaInterpreter` themselves, checks
       # `reaction_depth_reached?` BEFORE recursing again rather than after.
-      dispatcher.define_singleton_method(:dispatch) do |verb, **_args|
+      dispatcher.define_singleton_method(:dispatch_flat) do |verb, _args = {}|
         levels_entered += 1
         dispatcher.reenter("Nested::deeper") unless dispatcher.reaction_depth_reached?
       end
@@ -71,7 +72,7 @@ RSpec.describe Hecks::Runtime::Dispatcher do
       a_result         = Queue.new
 
       a_level = 0
-      dispatcher.define_singleton_method(:dispatch) do |verb, **_args|
+      dispatcher.define_singleton_method(:dispatch_flat) do |verb, _args = {}|
         case verb
         when "A::step"
           a_level += 1

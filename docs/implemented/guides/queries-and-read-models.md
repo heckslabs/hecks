@@ -55,25 +55,25 @@ alongside real dispatches against the boot above.
 Seed two customers and four accounts, then look at the everyday roll:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
-                  name: { given: "Ada", family: "Voss" }, email: { address: "ada@example.com" })
-runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
-                  name: { given: "Bo", family: "Reyes" }, email: { address: "bo@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c1" },
+                                                       name: { given: "Ada", family: "Voss" }, email: { address: "ada@example.com" } })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c2" },
+                                                       name: { given: "Bo", family: "Reyes" }, email: { address: "bo@example.com" } })
 
-runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "a" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 300, currency: "USD" },
                   narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "b" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "b" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Account.Credit", number: { value: "b" }, amount: { cents: 500, currency: "USD" },
                   narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "c" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "c" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Account.Credit", number: { value: "c" }, amount: { cents: 1000, currency: "USD" },
                   narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "d" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "d" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 
 runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "c" })
 runtime.dispatch("Banking::Account.CloseAccount", number: { value: "d" })
@@ -117,8 +117,8 @@ One more account, opened for `c2` WHILE `c2` is still active —
 has to happen before what comes next, not after:
 
 ```ruby
-runtime.dispatch("Banking::Account.Open", customer: "c2", number: { value: "e" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c2", number: { value: "e" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c2" },
                   standing: { value: "chargeback investigation" })
 ```
@@ -329,10 +329,10 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::CardPayment.Authorize", account: "a", authorisation: { value: "auth-1" },
-                  amount: { cents: 4200 }, merchant: { value: "Risky Co" }, tags: [{ value: "high_risk" }])
-runtime.dispatch("Banking::CardPayment.Authorize", account: "b", authorisation: { value: "auth-2" },
-                  amount: { cents: 1500 }, merchant: { value: "Ordinary Co" })
+runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "a", authorisation: { value: "auth-1" },
+                                                           amount: { cents: 4200 }, merchant: { value: "Risky Co" }, tags: [{ value: "high_risk" }] })
+runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "b", authorisation: { value: "auth-2" },
+                                                           amount: { cents: 1500 }, merchant: { value: "Ordinary Co" } })
 
 runtime.query("Banking::CardPayment.Flagged").map { |row| row[:authorisation].value }
 # => ["auth-1"]
@@ -378,8 +378,8 @@ rented.authorization.to_h   # => { policy: "vault_access", tenant: "branch_code"
 Rent a box, then ask without naming a branch:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c1", branch_code: { value: "DOWNTOWN" },
-                  box_number: { value: 12 }, size: { value: "medium" })
+runtime.dispatch("Banking::SafeDepositBox.Rent", with: { customer: "c1", branch_code: { value: "DOWNTOWN" },
+                                                         box_number: { value: 12 }, size: { value: "medium" } })
 
 runtime.query("Banking::SafeDepositBox.Rented")   # ~> Unauthorized: declares authorize with tenant: branch_code — pass branch_code: to name which branch_code this ask is scoped to
 ```
@@ -564,8 +564,8 @@ something:
 ```ruby
 [["auth-10", 9000], ["auth-11", 7000], ["auth-12", 5000],
  ["auth-13", 3000], ["auth-14", 2000], ["auth-15", 1000]].each do |auth, cents|
-  runtime.dispatch("Banking::CardPayment.Authorize", account: "a", authorisation: { value: auth },
-                    amount: { cents: cents }, merchant: { value: "Merchant #{auth}" })
+  runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "a", authorisation: { value: auth },
+                                                             amount: { cents: cents }, merchant: { value: "Merchant #{auth}" } })
   runtime.dispatch("Banking::CardPayment.Capture", authorisation: { value: auth })
   runtime.dispatch("Banking::CardPayment.Dispute", authorisation: { value: auth }, disputed_by: "c1")
 end
@@ -722,10 +722,10 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Bookshelf::Novel.Publish", ref: { value: "n1" })
-runtime.dispatch("Bookshelf::Character.Introduce", ref: { value: "c1" }, novel: "n1")
-runtime.dispatch("Bookshelf::Character.Introduce", ref: { value: "c2" }, novel: "n1", superseded_by: { value: "c1" })
-runtime.dispatch("Bookshelf::Note.Write", ref: { value: "note1" }, novel: "n1")
+runtime.dispatch("Bookshelf::Novel.Publish", with: { ref: { value: "n1" } })
+runtime.dispatch("Bookshelf::Character.Introduce", with: { ref: { value: "c1" }, novel: "n1" })
+runtime.dispatch("Bookshelf::Character.Introduce", with: { ref: { value: "c2" }, novel: "n1", superseded_by: { value: "c1" } })
+runtime.dispatch("Bookshelf::Note.Write", with: { ref: { value: "note1" }, novel: "n1" })
 
 summary = runtime.query("Bookshelf.novel_summary", novel: "n1")
 

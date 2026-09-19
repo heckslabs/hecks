@@ -27,9 +27,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "lc-1" },
-                 name: { given: "Ada", family: "Byron" },
-                 email: { address: "ada@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "lc-1" },
+                                                       name: { given: "Ada", family: "Byron" },
+                                                       email: { address: "ada@example.com" } })
 account = Banking::Account.open!(customer: "lc-1", number: { value: "lc-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```

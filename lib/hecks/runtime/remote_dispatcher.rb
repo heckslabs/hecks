@@ -57,7 +57,17 @@ module Hecks
         @local = Dispatcher.new(registry)
       end
 
+      # Same deprecation as `Dispatcher#dispatch` — loose keyword facts warn;
+      # `to:`/`with:` do not.
       def dispatch(verb, saga_correlation: nil, **args)
+        Dispatcher.deprecate_loose_facts(args.except(:to, :with))
+        dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
+      end
+
+      # Same flat-facts wire form as `Dispatcher#dispatch_flat`.
+      def dispatch_flat(verb, args = {})
+        args = args.dup
+        saga_correlation = args.delete(:saga_correlation)
         domain, aggregate_name, = Naming.split_verb(verb) ||
                                   raise(UnknownVerb,
                                         RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
@@ -82,7 +92,7 @@ module Hecks
         # all.
         adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
         unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
-          return @local.dispatch(verb, saga_correlation: saga_correlation, **args)
+          return @local.dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
         end
 
         response = @client.dispatch(verb, args)

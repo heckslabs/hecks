@@ -77,7 +77,7 @@ module Hecks
               safe_call { as_caller(caller) { runtime.dry_run?(entry[:verb], **symbolize(args)) } }
               { "dry_run" => entry[:verb], "args" => args }
             else
-              outcome = safe_call { as_caller(caller) { runtime.dispatch(entry[:verb], **symbolize(args)) } }
+              outcome = safe_call { as_caller(caller) { runtime.dispatch_flat(entry[:verb], symbolize(args)) } }
               if outcome
                 record_outcome(catalog, entry, args)
                 @event_count += outcome.events.length

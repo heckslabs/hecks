@@ -29,9 +29,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "ty-1" },
-                 name: { given: "Grace", family: "Hopper" },
-                 email: { address: "grace@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "ty-1" },
+                                                       name: { given: "Grace", family: "Hopper" },
+                                                       email: { address: "grace@example.com" } })
 ```
 
 ## list_of

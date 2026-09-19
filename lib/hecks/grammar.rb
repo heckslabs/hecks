@@ -42,7 +42,7 @@ module Hecks
       JSON.parse(File.read(LEDGER)).fetch("steps").each do |step|
         args = symbolize(step.fetch("args"))
         begin
-          dispatcher.dispatch(step.fetch("verb"), **args)
+          dispatcher.dispatch_flat(step.fetch("verb"), args)
         rescue *Runtime::DOMAIN_REFUSALS => e
           raise Runtime::WiringError,
                 "the admission ledger refused at #{step['verb']} #{step['args']} — #{e.message}"

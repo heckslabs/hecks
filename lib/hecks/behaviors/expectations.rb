@@ -210,7 +210,7 @@ module Hecks
       # for a port operation directly instead of leaning on a refusal
       # that no longer happens.
       def dispatch_command(runtime, verb, args)
-        return runtime.dispatch(verb, **args) if port_operation?(runtime, verb)
+        return runtime.dispatch_flat(verb, args) if port_operation?(runtime, verb)
 
         invocation = begin
           Runtime::ReactionInvocation.build(registry: runtime.registry, verb: verb,
@@ -218,7 +218,7 @@ module Hecks
         rescue Runtime::UnknownVerb
           nil
         end
-        return runtime.dispatch(verb, **args) unless invocation
+        return runtime.dispatch_flat(verb, args) unless invocation
 
         if invocation.key?(:to)
           runtime.dispatch(verb, to: invocation[:to], with: invocation[:with])

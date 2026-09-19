@@ -131,9 +131,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "en-1" },
-                 name: { given: "Evelyn", family: "Boyd" },
-                 email: { address: "evelyn@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "en-1" },
+                                                       name: { given: "Evelyn", family: "Boyd" },
+                                                       email: { address: "evelyn@example.com" } })
 account = Banking::Account.open!(customer: "en-1", number: { value: "en-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 account.credit!(amount: { cents: 10_000 }, narrative: { text: "opening" })
@@ -345,8 +345,8 @@ reading, before `state == "posted"` (the entry's OWN field, no
 `parent.` needed) is ever reached:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "pa-1" },
-                 name: { given: "Parent", family: "Reader" }, email: { address: "pa@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "pa-1" },
+                                                       name: { given: "Parent", family: "Reader" }, email: { address: "pa@example.com" } })
 account = Banking::Account.open!(customer: "pa-1", number: { value: "pa-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 account.credit!(amount: { cents: 1_000 }, narrative: { text: "opening deposit" })
@@ -444,9 +444,9 @@ Points an entity at a real ROOT, the same way an aggregate's own `reference_to` 
 `Depot` — a real root of its own, not another piece:
 
 ```ruby
-runtime.dispatch("EntityReference::Depot.OpenDepot", code: { value: "dp-1" })
-runtime.dispatch("EntityReference::Depot.OpenDepot", code: { value: "dp-2" })
-runtime.dispatch("EntityReference::Manifest.OpenManifest", docket: { value: "mf-1" })
+runtime.dispatch("EntityReference::Depot.OpenDepot", with: { code: { value: "dp-1" } })
+runtime.dispatch("EntityReference::Depot.OpenDepot", with: { code: { value: "dp-2" } })
+runtime.dispatch("EntityReference::Manifest.OpenManifest", with: { docket: { value: "mf-1" } })
 runtime.dispatch("EntityReference::Manifest.AddCrate", manifest: "mf-1", slot: { value: 1 },
                  handler: { value: "Ada" }, depot: "dp-1", origin: "dp-1")
 ```

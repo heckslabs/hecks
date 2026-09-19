@@ -47,7 +47,7 @@ module Hecks
       entry = resolve(address)
       raise WrongVerbKind, "#{address.inspect} names a query; use #query" unless entry.command?
 
-      entry.dispatcher.dispatch(local_verb(entry), **args)
+      entry.dispatcher.dispatch_flat(local_verb(entry), args)
     end
 
     def query(address, **args)

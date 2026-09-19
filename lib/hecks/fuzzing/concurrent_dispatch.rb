@@ -288,7 +288,7 @@ module Hecks
       # kill a forked racer silently.
       def dispatch_one(runtime, step)
         args = (step["args"] || {}).transform_keys(&:to_sym)
-        runtime.dispatch(step["verb"], **args)
+        runtime.dispatch_flat(step["verb"], args)
         "succeeded"
       rescue *Hecks::Runtime::DOMAIN_REFUSALS, Hecks::Bluebook::Expression::EvaluationError
         "refused"

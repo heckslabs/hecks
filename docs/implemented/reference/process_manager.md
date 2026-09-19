@@ -47,9 +47,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "pm-1" },
-                 name: { given: "Katherine", family: "Johnson" },
-                 email: { address: "katherine@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "pm-1" },
+                                                       name: { given: "Katherine", family: "Johnson" },
+                                                       email: { address: "katherine@example.com" } })
 ```
 
 ## correlates_by

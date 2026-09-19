@@ -69,17 +69,17 @@ Fund a source account, freeze the destination, and ask for a transfer —
 money already left the source:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
-                  name: { given: "Nils", family: "Voss" }, email: { address: "nils@example.com" })
-runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "src" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
-runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "dst" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c1" },
+                                                       name: { given: "Nils", family: "Voss" }, email: { address: "nils@example.com" } })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "src" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "dst" },
+                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Account.Credit", number: "src", amount: { cents: 1000 }, narrative: { text: "opening balance" })
 runtime.dispatch("Banking::Account.FreezeAccount", number: "dst")
 
-runtime.dispatch("Banking::Transfer.Request", reference: { value: "t1" }, amount: { cents: 200 },
-                  narrative: { text: "rent" }, source: "src", destination: "dst")
+runtime.dispatch("Banking::Transfer.Request", with: { reference: { value: "t1" }, amount: { cents: 200 },
+                                                      narrative: { text: "rent" }, source: "src", destination: "dst" })
 
 Banking::Account.find("src").balance.to_h  # => { cents: 1000, currency: "USD" }
 ```

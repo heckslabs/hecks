@@ -94,9 +94,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "rm-1" },
-                 name: { given: "Sofia", family: "Kovalevskaya" },
-                 email: { address: "sofia@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "rm-1" },
+                                                       name: { given: "Sofia", family: "Kovalevskaya" },
+                                                       email: { address: "sofia@example.com" } })
 account = Banking::Account.open!(customer: "rm-1", number: { value: "rm-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 Banking::Account.open!(customer: "rm-1", number: { value: "rm-a2" },
@@ -124,11 +124,11 @@ second.dispute!(disputed_by: "rm-1")
   card.dispute!(disputed_by: "rm-1")
 end
 
-runtime.dispatch("ReadModelReference::Depot.OpenDepot", code: { value: "dp-1" })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-1" }, depot: "dp-1", region: { value: "north" }, weight: { value: 30 })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-2" }, depot: "dp-1", region: { value: "north" }, weight: { value: 20 })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-3" }, depot: "dp-1", region: { value: "north" }, weight: { value: 10 })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-4" }, depot: "dp-1", region: { value: "north" })
+runtime.dispatch("ReadModelReference::Depot.OpenDepot", with: { code: { value: "dp-1" } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-1" }, depot: "dp-1", region: { value: "north" }, weight: { value: 30 } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-2" }, depot: "dp-1", region: { value: "north" }, weight: { value: 20 } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-3" }, depot: "dp-1", region: { value: "north" }, weight: { value: 10 } })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-4" }, depot: "dp-1", region: { value: "north" } })
 ```
 
 ## description

@@ -187,7 +187,7 @@ module Hecks
 
       def submit_command(request, domain, aggregate, command, action)
         raw, envelope = submitted_command(request, aggregate, command)
-        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
+        result = @dispatcher.dispatch_flat("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", envelope)
         # L12 — the id is free-form (S3), so it must be percent-encoded as
         # a path segment here, not just interpolated raw.
         redirect("/#{domain}/#{aggregate.hecks_name}/#{Escape.path(result.id)}.html")
@@ -201,7 +201,7 @@ module Hecks
         return respond(405, "text/plain", "GET or POST only") unless request.post?
 
         _, envelope = submitted_command(request, aggregate, command)
-        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
+        result = @dispatcher.dispatch_flat("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", envelope)
         # id LAST — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         json(201, result.state.merge(id: result.id))
