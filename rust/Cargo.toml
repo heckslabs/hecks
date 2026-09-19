@@ -9,7 +9,9 @@
 # has; any other still-generated domain stays reachable via
 # `--no-default-features --features <name>`.
 [features]
-default = ["has_many_fixture"]
+default = ["embryonautfoundersapp"]
+lifeadelics = []
+embryonautfoundersapp = []
 generated_route_append = []
 generated_entity_no_identity = []
 generated_revalued_shape = []
