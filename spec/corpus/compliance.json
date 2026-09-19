@@ -1,9 +1,9 @@
 {
   "name": "compliance-parity",
-  "note": "Both aggregates through their full lifecycle once each — a frozen account cleared (no finding), a surrendered box escalated (a real finding) — proving Open/Clear/Escalate all work, not just the creating command.",
+  "note": "All three aggregates through their full lifecycle once each — a frozen account cleared (no finding), a surrendered box escalated (a real finding), a privacy marking cleared — proving Open/Clear/Escalate all work, not just the creating command.",
   "domain": "examples/compliance",
   "expectations": {
-    "events": 4
+    "events": 6
   },
   "steps": [
     {
@@ -30,6 +30,20 @@
       "args": {
         "branch_code": { "value": "DOWNTOWN" },
         "box_number": { "value": 12 }
+      }
+    },
+    {
+      "verb": "Compliance::PrivacyReview.Open",
+      "args": {
+        "domain": { "value": "Lifeadelics::Registration" },
+        "attribute_path": { "value": "attendee.medications" }
+      }
+    },
+    {
+      "verb": "Compliance::PrivacyReview.Clear",
+      "args": {
+        "domain": { "value": "Lifeadelics::Registration" },
+        "attribute_path": { "value": "attendee.medications" }
       }
     }
   ]

@@ -1,4 +1,6 @@
 require_relative "../naming"
+require_relative "../runtime/caller"
+require_relative "../ports/authorization"
 
 module Hecks
   module Facade
@@ -41,7 +43,7 @@ module Hecks
       # @param key [Symbol, String] the attribute name
       # @return [Object, nil] the value held in state (a scalar, a value object, a list,
       #   or a referenced record's id); `nil` when the field is unset or not in state
-      def [](key) = @state[key.to_sym]
+      def [](key) = redacted(key.to_sym)
 
       # Answers the record's state as a plain Hash with the bare identity under `:id`.
       #
@@ -59,7 +61,7 @@ module Hecks
       #
       # @return [Hash{Symbol => Object}] a new Hash of every state field by attribute
       #   name, plus `:id` holding the identity String
-      def to_h = @state.merge(id: @id)
+      def to_h = @state.to_h { |key, _| [key, redacted(key)] }.merge(id: @id)
 
       # Names the aggregate this record belongs to, in the form every dispatch verb and
       # event is addressed by.
@@ -120,7 +122,7 @@ module Hecks
       #   written yet
       # @raise [NoMethodError] if `name` is neither a key in state nor a declared field
       def method_missing(name, *args, **kwargs, &)
-        return @state[name] if @state.key?(name) || reader?(name)
+        return redacted(name) if @state.key?(name) || reader?(name)
 
         super
       end
@@ -132,6 +134,77 @@ module Hecks
       private
 
       def repository = @dispatcher.registry.repository(@domain, @ir)
+
+      # One field's value, with any Privacy::Marking-flagged leaf masked
+      # out unless the ambient caller holds a live Governance grant of
+      # the marking's own `role_required` — the read-side half of the
+      # Privacy framework member (lib/hecks/framework/bluebook/
+      # privacy.bluebook): a marking's presence is what makes a read
+      # redacted, not a separate flag this class carries itself.
+      #
+      # ALWAYS THE STRONG CHECK, never the weak string-only fallback
+      # `CommandRules::Authorization#refuse_role_mismatch` allows an
+      # unidentified caller — a read gate gone wrong is a leak, not a
+      # refused command, so an ambient caller with no `actor_id` (or no
+      # caller at all) is masked here, full stop, rather than waved
+      # through the way a self-asserted `role` string is for a command.
+      #
+      # ONE LEVEL OF NESTING ONLY — `attendee.medications` masks inside
+      # the returned `Runtime::Value` via its own `#with`; a marking two
+      # levels deep is not supported and is left unmasked rather than
+      # silently mishandled, since nothing in this corpus needs it yet.
+      #
+      # @param field [Symbol] the state key being read
+      # @return [Object, nil] `@state[field]`, or a copy with the marked leaf replaced by
+      #   the literal String `"[redacted]"` when the caller is not authorized to see it
+      def redacted(field)
+        raw = @state[field]
+        rows = marked_paths.select { |row| row[:attribute_path][:value].to_s.split(".", 2).first == field.to_s }
+        return raw if rows.empty?
+
+        rows.each do |row|
+          path = row[:attribute_path][:value].to_s
+          next if authorized_for?(row[:role_required][:value].to_s)
+
+          segments = path.split(".", 2)
+          if segments.size == 1
+            raw = "[redacted]"
+          elsif raw.is_a?(Runtime::Value)
+            raw = raw.with(segments[1], "[redacted]")
+          end
+        end
+
+        raw
+      end
+
+      # Every Privacy::Marking declared for this record's own aggregate — `[]` when the
+      # Privacy framework member is not attached in this boot at all, checked once and
+      # cheaply rather than paying for a query dispatch every read on a domain that never
+      # attached Privacy.
+      #
+      # @return [Array<Hash>] `Privacy::Marking.ForDomain`'s own rows for this `fqn`
+      def marked_paths
+        return @marked_paths if defined?(@marked_paths)
+        return @marked_paths = [] unless @dispatcher.registry.bluebook("Privacy")
+
+        @marked_paths = @dispatcher.query("Privacy::Marking.ForDomain", domain: fqn)
+      end
+
+      # Whether the ambient caller holds a live Governance grant of `role`, over this
+      # record's own domain — `false` outright for an unidentified caller or a domain
+      # with no authorization provider attached, never the weak fallback a command's own
+      # role check allows (see `redacted`'s own header for why).
+      #
+      # @param role [String] the marking's own `role_required`
+      # @return [Boolean] true only for an identified caller holding a live grant
+      def authorized_for?(role)
+        caller = Runtime::Caller.current
+        return false unless caller&.actor_id
+        return false unless @dispatcher.registry.authorization_provider_for(@domain)
+
+        Ports::Authorization.holds_role?(@dispatcher.registry, actor_id: caller.actor_id, role: role,
+                                                                 as_of: caller.as_of, scope: caller.scope)
+      end
 
       def reader?(name)
         !@ir.attribute(name).nil? || @ir.lifecycle&.field&.to_sym == name

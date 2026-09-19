@@ -3,4 +3,5 @@ pub mod metadata;
 pub mod registry;
 pub mod accountfreezereview;
 pub mod boxsurrenderreview;
+pub mod privacyreview;
 pub mod merged;
