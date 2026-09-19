@@ -35,7 +35,7 @@ impl crate::kernel::Fielded for FolderReference {
 
 impl FolderReference {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "FolderReference.value must match [^ \\t\\n\\r], got ", self.value))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "FolderReference", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -44,11 +44,11 @@ impl FolderReference {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "FolderReference"),
-            ("description", "a folder is referenced"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "FolderReference",
+            description: "a folder is referenced",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -70,10 +70,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "FolderReference does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "FolderReference",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FolderReference.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("FolderReference.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("FolderReference.value: expected String".to_string()) })? },
@@ -113,7 +115,7 @@ impl crate::kernel::Fielded for SlipReference {
 
 impl SlipReference {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "SlipReference.value must match [^ \\t\\n\\r], got ", self.value))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "SlipReference", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -122,11 +124,11 @@ impl SlipReference {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "SlipReference"),
-            ("description", "a slip is referenced"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "SlipReference",
+            description: "a slip is referenced",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -148,10 +150,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SlipReference does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "SlipReference",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SlipReference.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("SlipReference.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("SlipReference.value: expected String".to_string()) })? },
@@ -199,11 +203,11 @@ impl SlipAmount {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "SlipAmount"),
-            ("description", "a slip amount is positive"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "SlipAmount",
+            description: "a slip amount is positive",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -225,10 +229,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "SlipAmount does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "SlipAmount",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SlipAmount.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("SlipAmount.value expects Integer, got {}", x.inspect())))? },
@@ -383,18 +389,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["amount", "id", "reference"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Amend does not declare {} — it takes amount",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Amend",
+        unknown: &unknown,
+        declared: &["amount"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Amend"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "amount"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Amend",
+        absent: &absent,
+        declared: &["amount"],
+    }.render_args()));
 }
         let amount = SlipAmount::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SlipAmendEntityArgs.amount expects SlipAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         amount.check_invariants()?;
@@ -635,18 +643,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["reference", "id"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Open does not declare {} — it takes reference",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Open",
+        unknown: &unknown,
+        declared: &["reference"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["reference"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Open"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "reference"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Open",
+        absent: &absent,
+        declared: &["reference"],
+    }.render_args()));
 }
         let reference = FolderReference::from_json(&(match v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.reference expects FolderReference, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         reference.check_invariants()?;
@@ -709,7 +719,7 @@ pub fn dispatch_add_slip(
         ],
         None,
         |record| {
-        if record.slips.iter().any(|e| e.reference == args.reference.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Slip"), ("aggregate", "Folder"), ("identity", "reference.value"), ("offered", &format!("{:?}", args.reference.clone()))]))); }
+        if record.slips.iter().any(|e| e.reference == args.reference.clone()) { let offered = format!("{:?}", args.reference.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Slip", aggregate: "Folder", identity: "reference.value", offered: &[offered.as_str()] }.render_args())); }
         record.slips.push(Slip { reference: args.reference.clone(), amount: Some(args.amount.clone()) });
             Ok(())
         },
@@ -744,18 +754,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["reference", "amount", "id", "folder"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AddSlip does not declare {} — it takes reference, amount",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "AddSlip",
+        unknown: &unknown,
+        declared: &["reference", "amount"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["amount", "reference"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AddSlip"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "reference, amount"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "AddSlip",
+        absent: &absent,
+        declared: &["reference", "amount"],
+    }.render_args()));
 }
         let reference = SlipReference::from_json(&(match v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddSlipArgs.reference expects SlipReference, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         reference.check_invariants()?;

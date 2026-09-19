@@ -129,9 +129,9 @@ module Hecks
           return build(value_object, {}, aggregate) if value_object
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "numeric_field",
-                                      type: aggregate.hecks_name, field: attribute.name,
-                                      expected: attribute.type, offered: "nil")
+                RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                           type: aggregate.hecks_name, field: attribute.name,
+                                           expected: attribute.type, offered: "nil")
         end
 
         # A BARE PRIMITIVE IS TYPE-CHECKED AT THE BOUNDARY TOO (C3.8,
@@ -293,9 +293,9 @@ module Hecks
           return { value_object.attributes.first.name => value } if value_object.attributes.size == 1
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "value_object_shape",
-                                      name: name, type: value_object.hecks_name,
-                                      offered: Rendering.describe(value))
+                RefusalWording.render_site("TypeMismatch", "value_object_shape",
+                                           name: name, type: value_object.hecks_name,
+                                           offered: Rendering.describe(value))
         end
 
         # `build`'s own recursive twin of `for_attribute`'s single-level
@@ -403,9 +403,9 @@ module Hecks
             next if Bluebook::Expression::Evaluator.call_rule(invariant, fields)
 
             raise InvariantViolation,
-                  RefusalWording.render("InvariantViolation", "value_object_invariant",
-                                        name: value_object.hecks_name, description: invariant.description,
-                                        offered: canonical_fields(fields))
+                  RefusalWording.render_site("InvariantViolation", "value_object_invariant",
+                                             name: value_object.hecks_name, description: invariant.description,
+                                             offered: canonical_fields(fields))
           end
         end
 
@@ -583,10 +583,10 @@ module Hecks
           end
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "reference_wrong_shape",
-                                      command: command.hecks_name, attribute: attribute.name,
-                                      offered: reference_shape_description(offered),
-                                      known_by: known_by(attribute))
+                RefusalWording.render_site("TypeMismatch", "reference_wrong_shape",
+                                           command: command.hecks_name, attribute: attribute.name,
+                                           offered: reference_shape_description(offered),
+                                           known_by: known_by(attribute))
         end
 
         # "an object" for the Hash/Value shape — the ORIGINAL wording this
@@ -626,7 +626,7 @@ module Hecks
           fields = value.to_h
           return fields.values.first if fields.size == 1
 
-          raise TypeMismatch, RefusalWording.render("TypeMismatch", "multi_field_scalar", type: value.type_name)
+          raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "multi_field_scalar", type: value.type_name)
         end
 
         def from_identifier(aggregate, attribute, identifier)
@@ -639,7 +639,7 @@ module Hecks
             return build(value_object, { field.name => coerce_identifier(field, identifier) })
           end
 
-          raise TypeMismatch, RefusalWording.render("TypeMismatch", "composite_identity", type: value_object.hecks_name)
+          raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "composite_identity", type: value_object.hecks_name)
         end
 
         # Vendored fix, not (yet) upstream hecks (migration plan
@@ -716,9 +716,9 @@ module Hecks
                      end
           if mistyped
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "numeric_field",
-                                        type: owner.hecks_name, field: attribute.name,
-                                        expected: type, offered: Rendering.describe(value))
+                  RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                             type: owner.hecks_name, field: attribute.name,
+                                             expected: type, offered: Rendering.describe(value))
           end
 
           check_numeric_bounds(owner.hecks_name, attribute.name, value)
@@ -733,14 +733,14 @@ module Hecks
         private def check_numeric_bounds(type_name, field_name, given)
           if given.is_a?(Integer) && !INT64_RANGE.cover?(given)
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "integer_range",
-                                        type: type_name, field: field_name, offered: Rendering.describe(given))
+                  RefusalWording.render_site("TypeMismatch", "integer_range",
+                                             type: type_name, field: field_name, offered: Rendering.describe(given))
           end
           return unless given.is_a?(Float) && !given.finite?
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "non_finite_field",
-                                      type: type_name, field: field_name, offered: Rendering.describe(given))
+                RefusalWording.render_site("TypeMismatch", "non_finite_field",
+                                           type: type_name, field: field_name, offered: Rendering.describe(given))
         end
 
         # QualityControl BUG#41 — A VALUE OBJECT REFUSES A KEY IT DOES NOT
@@ -786,9 +786,9 @@ module Hecks
 
           declared = value_object.attributes.map(&:name)
           raise UnknownArgument,
-                RefusalWording.render("UnknownArgument", "unknown_args",
-                                      command: value_object.hecks_name, unknown: unknown.join(", "),
-                                      declared: declared.empty? ? "none" : declared.join(", "))
+                RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                           command: value_object.hecks_name, unknown: unknown,
+                                           declared: declared)
         end
 
         # C3.7 — A VALUE OBJECT IS A TYPED FIELD PRODUCT: every non-optional
@@ -810,9 +810,9 @@ module Hecks
             next unless fields[attribute.name].nil?
 
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "numeric_field",
-                                        type: value_object.hecks_name, field: attribute.name,
-                                        expected: attribute.type, offered: "nil")
+                  RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                             type: value_object.hecks_name, field: attribute.name,
+                                             expected: attribute.type, offered: "nil")
           end
         end
 
@@ -829,9 +829,9 @@ module Hecks
 
             unless given.is_a?(expected)
               raise TypeMismatch,
-                    RefusalWording.render("TypeMismatch", "numeric_field",
-                                          type: value_object.hecks_name, field: attribute.name,
-                                          expected: attribute.type, offered: Rendering.describe(given))
+                    RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                               type: value_object.hecks_name, field: attribute.name,
+                                               expected: attribute.type, offered: Rendering.describe(given))
             end
 
             # PRD 05 (numeric-boundary-coverage) — `given.is_a?(expected)`
@@ -903,9 +903,9 @@ module Hecks
             next unless composite || non_string_scalar
 
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "numeric_field",
-                                        type: value_object.hecks_name, field: attribute.name,
-                                        expected: attribute.type, offered: Rendering.describe(given))
+                  RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                             type: value_object.hecks_name, field: attribute.name,
+                                             expected: attribute.type, offered: Rendering.describe(given))
           end
         end
 
@@ -929,9 +929,9 @@ module Hecks
             next if given.is_a?(String) && Regexp.new(pattern).match?(given)
 
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "pattern_mismatch",
-                                        type: value_object.hecks_name, field: attribute.name,
-                                        pattern: pattern, offered: Rendering.describe(given))
+                  RefusalWording.render_site("TypeMismatch", "pattern_mismatch",
+                                             type: value_object.hecks_name, field: attribute.name,
+                                             pattern: pattern, offered: Rendering.describe(given))
           end
         end
       end

@@ -144,17 +144,17 @@ module Hecks
             offered = fields[identity]
             if offered.nil?
               raise TypeMismatch,
-                    RefusalWording.render("TypeMismatch", "numeric_field",
-                                          type: entity.hecks_name, field: identity,
-                                          expected: field&.type, offered: "nil")
+                    RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                               type: entity.hecks_name, field: identity,
+                                               expected: field&.type, offered: "nil")
             end
 
             if seen.include?(offered)
               raise AlreadyExists,
-                    RefusalWording.render("AlreadyExists", "entity_duplicate",
-                                          entity: entity.hecks_name, aggregate: aggregate.hecks_name,
-                                          identity: entity.identity_paths.join(", "),
-                                          offered: Rendering.describe(offered))
+                    RefusalWording.render_site("AlreadyExists", "entity_duplicate",
+                                               entity: entity.hecks_name, aggregate: aggregate.hecks_name,
+                                               identity: entity.identity_paths.join(", "),
+                                               offered: [Rendering.describe(offered)])
             end
             seen << offered
           end

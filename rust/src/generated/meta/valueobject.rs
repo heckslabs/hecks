@@ -55,10 +55,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RowCount does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "RowCount",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RowCount.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RowCount.value expects Integer, got {}", x.inspect())))? },
@@ -98,7 +100,7 @@ impl crate::kernel::Fielded for ValueObjectName {
 
 impl ValueObjectName {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ValueObjectName.value must match [^ \\t\\n\\r], got ", self.value))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "ValueObjectName", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -107,11 +109,11 @@ impl ValueObjectName {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "ValueObjectName"),
-            ("description", "a value object is named"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "ValueObjectName",
+            description: "a value object is named",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -133,10 +135,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ValueObjectName does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "ValueObjectName",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObjectName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("ValueObjectName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ValueObjectName.value: expected String".to_string()) })? },
@@ -190,9 +194,9 @@ impl crate::kernel::Fielded for ShapeField {
 
 impl ShapeField {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.name) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ShapeField.name must match [^ \\t\\n\\r], got ", self.name))); }
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.r#type) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ShapeField.type must match [^ \\t\\n\\r], got ", self.r#type))); }
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.list) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ShapeField.list must match [^ \\t\\n\\r], got ", self.list))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.name) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "ShapeField", field: "name", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.name).as_str() }.render_args())); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.r#type) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "ShapeField", field: "type", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.r#type).as_str() }.render_args())); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.list) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "ShapeField", field: "list", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.list).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("name"))))))), &ctx)?.truthy() {
@@ -201,11 +205,11 @@ impl ShapeField {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "ShapeField"),
-            ("description", "a field is named"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "ShapeField",
+            description: "a field is named",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
 {
@@ -216,11 +220,11 @@ impl ShapeField {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "ShapeField"),
-            ("description", "a field has a type"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "ShapeField",
+            description: "a field has a type",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
 {
@@ -231,11 +235,11 @@ impl ShapeField {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "ShapeField"),
-            ("description", "a field's list mode is specified"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "ShapeField",
+            description: "a field's list mode is specified",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -264,10 +268,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ShapeField does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "ShapeField",
+        unknown: &unknown,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
         Ok(Self {
         name: { let x = v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.name expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("ShapeField.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ShapeField.name: expected String".to_string()) })? },
@@ -316,8 +322,8 @@ impl crate::kernel::Fielded for Assertion {
 
 impl Assertion {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if let Some(__optional_value) = &self.description { if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &__optional_value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Assertion.description must match [^ \\t\\n\\r], got ", __optional_value))); } }
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.canonical) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Assertion.canonical must match [^ \\t\\n\\r], got ", self.canonical))); }
+        if let Some(__optional_value) = &self.description { if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &__optional_value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "Assertion", field: "description", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", __optional_value).as_str() }.render_args())); } }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.canonical) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "Assertion", field: "canonical", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.canonical).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description"))))))), &ctx)?.truthy() {
@@ -326,11 +332,11 @@ impl Assertion {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "Assertion"),
-            ("description", "an assertion description is present"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "Assertion",
+            description: "an assertion description is present",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
 {
@@ -341,11 +347,11 @@ impl Assertion {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "Assertion"),
-            ("description", "an assertion canonical form is present"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "Assertion",
+            description: "an assertion canonical form is present",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -368,10 +374,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["description", "canonical"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Assertion does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Assertion",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
         Ok(Self {
         description: match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Assertion.description expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Assertion.description: expected String".to_string()) })?) },
@@ -432,10 +440,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "MemberPosition does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "MemberPosition",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPosition.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("MemberPosition.value expects Integer, got {}", x.inspect())))? },
@@ -495,10 +505,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "MemberText does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "MemberText",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberText.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("MemberText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("MemberText.value: expected String".to_string()) })? },
@@ -540,7 +552,7 @@ impl crate::kernel::Fielded for Pair {
 
 impl Pair {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.key) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Pair.key must match [^ \\t\\n\\r], got ", self.key))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.key) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "Pair", field: "key", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.key).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("key"))))))), &ctx)?.truthy() {
@@ -549,11 +561,11 @@ impl Pair {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "Pair"),
-            ("description", "a pair key is present"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "Pair",
+            description: "a pair key is present",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -576,10 +588,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["key", "value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Pair does not declare {} — it takes key, value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Pair",
+        unknown: &unknown,
+        declared: &["key", "value"],
+    }.render_args()));
 }
         Ok(Self {
         key: { let x = v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.key expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Pair.key expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Pair.key: expected String".to_string()) })? },
@@ -640,10 +654,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Position does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Position",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
@@ -703,10 +719,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ValueObjectText does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "ValueObjectText",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObjectText.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("ValueObjectText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ValueObjectText.value: expected String".to_string()) })? },
@@ -979,18 +997,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["key", "value", "id", "aggregate", "name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Pair does not declare {} — it takes key, value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Pair",
+        unknown: &unknown,
+        declared: &["key", "value"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Pair"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "key, value"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Pair",
+        absent: &absent,
+        declared: &["key", "value"],
+    }.render_args()));
 }
         let key = MemberText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.key expects MemberText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         key.check_invariants()?;
@@ -1288,18 +1308,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["aggregate", "name", "position", "id"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes aggregate, name, position",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Declare",
+        unknown: &unknown,
+        declared: &["aggregate", "name", "position"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["aggregate", "name"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Declare"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "aggregate, name, position"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Declare",
+        absent: &absent,
+        declared: &["aggregate", "name", "position"],
+    }.render_args()));
 }
         let aggregate = { let x = v.get("aggregate").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("DeclareArgs.aggregate expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()) })? };
         let name = ValueObjectName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects ValueObjectName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
@@ -1425,18 +1447,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Field does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Field",
+        unknown: &unknown,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Field"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Field",
+        absent: &absent,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
         let name = ValueObjectName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.name expects ValueObjectName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         name.check_invariants()?;
@@ -1550,10 +1574,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["rows", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes rows",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Close",
+        unknown: &unknown,
+        declared: &["rows"],
+    }.render_args()));
 }
         let rows = match v.get("rows") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(RowCount::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &rows { v.check_invariants()?; }
@@ -1651,18 +1677,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Assert does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Assert",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Assert"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Assert",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
         let description = match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &description { v.check_invariants()?; }
@@ -1725,7 +1753,7 @@ pub fn dispatch_member(
         ],
         None,
         |record| {
-        if record.members.iter().any(|e| e.position == args.position.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Member"), ("aggregate", "ValueObject"), ("identity", "position.value"), ("offered", &format!("{:?}", args.position.clone()))]))); }
+        if record.members.iter().any(|e| e.position == args.position.clone()) { let offered = format!("{:?}", args.position.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Member", aggregate: "ValueObject", identity: "position.value", offered: &[offered.as_str()] }.render_args())); }
         record.members.push(Member { position: args.position.clone(), pairs: Vec::new() });
             Ok(())
         },
@@ -1759,18 +1787,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["position", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Member does not declare {} — it takes position",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Member",
+        unknown: &unknown,
+        declared: &["position"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["position"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Member"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "position"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Member",
+        absent: &absent,
+        declared: &["position"],
+    }.render_args()));
 }
         let position = MemberPosition::from_json(&(match v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberArgs.position expects MemberPosition, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         position.check_invariants()?;

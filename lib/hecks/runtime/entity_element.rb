@@ -84,16 +84,16 @@ module Hecks
       def element_of(root_aggregate, owner, entity, command_name, container, args, routed_identity = nil)
         entity_name = entity.hecks_name
         list_attr = owner.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
-                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
-                                                             aggregate: owner.hecks_name, entity: entity_name))
+                    raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_holds_no_list",
+                                                                  aggregate: owner.hecks_name, entity: entity_name))
 
         wants = unless routed_identity
                   entity.identity_paths.map do |path|
                     head = path.to_s.split(".").first.to_sym
                     raw  = args[head] ||
-                           raise(NotFound, RefusalWording.render("NotFound", "entity_element_no_identity",
-                                                                 command: command_name, entity: entity_name,
-                                                                 identity: Identity.reading(entity)))
+                           raise(NotFound, RefusalWording.render_site("NotFound", "entity_element_no_identity",
+                                                                      command: command_name, entity: entity_name,
+                                                                      identity: Identity.reading(entity)))
 
                     # AN IDENTITY OFFERED FOR ADDRESSING, NOT FOR STORAGE
                     # (BUG#3, found live by `bin/qa_sweep` — banking fuzz seed
@@ -136,7 +136,7 @@ module Hecks
                      end
                    end
         unless position
-          raise NotFound, RefusalWording.render(
+          raise NotFound, RefusalWording.render_site(
             "NotFound", "entity_element_missing",
             entity: entity_name, identity: Identity.reading(entity),
             wants: wants&.map { |_h, path, _want, raw| Identity.scalar(path, raw) }&.join(", "),

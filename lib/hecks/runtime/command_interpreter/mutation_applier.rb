@@ -302,10 +302,10 @@ module Hecks
           collision = Array(current).find { |element| heads.all? { |head| element[head] == fields[head] } }
           return unless collision
 
-          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "entity_duplicate",
-                                                     entity: entity.hecks_name, aggregate: aggregate.hecks_name,
-                                                     identity: Identity.reading(entity),
-                                                     offered: heads.map { |head| Rendering.describe(fields[head]) }.join(", ")))
+          raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "entity_duplicate",
+                                                          entity: entity.hecks_name, aggregate: aggregate.hecks_name,
+                                                          identity: Identity.reading(entity),
+                                                          offered: heads.map { |head| Rendering.describe(fields[head]) }))
         end
       end
     end

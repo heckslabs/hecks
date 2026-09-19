@@ -34,7 +34,8 @@
 // `QuerySpecification::Common::NullPolicy` (lib/hecks/ports/query/,
 // lib/hecks/query_specification/common/null_policy.rb) for exactly
 // what `apply_filtered_head_options` below ports — all read directly.
-use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal, RefusalSite};
+use super::refusal_wording::UnauthorizedTenantRequiredArgs;
+use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
 
 /// ONE `where` clause that HOPS through a reference (`account/status`,
 /// the DSL's own `/` operator — `QuerySpecification::HopPath`'s own
@@ -824,10 +825,9 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
     // run_cross_domain`'s own identical check for the full reasoning.
     if let Some(auth) = &def.authorization {
         if args.get(auth.tenant_field).is_none() {
-            return Err(Refusal::Unauthorized(RefusalSite::UnauthorizedTenantRequired.render(&[
-                ("query", auth.query_name),
-                ("field", auth.tenant_field),
-            ])));
+            return Err(Refusal::Unauthorized(
+                UnauthorizedTenantRequiredArgs { query: auth.query_name, field: auth.tenant_field }.render_args(),
+            ));
         }
     }
 

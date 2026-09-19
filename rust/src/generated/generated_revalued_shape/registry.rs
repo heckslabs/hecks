@@ -117,21 +117,23 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["venue", "id", "hangar", "code"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Repoint does not declare {} — it takes venue",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Repoint",
+        unknown: &unknown,
+        declared: &["venue"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["venue"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Repoint"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "venue"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Repoint",
+        absent: &absent,
+        declared: &["venue"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Repoint acts on an existing Hangar — pass code.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Repoint", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
               let args = crate::generated::generated_revalued_shape::hangar::RepointArgs::from_json(facts_json)?;
                       args.venue.check_invariants()?;
               crate::kernel::check_reference(&store.venue, &args.venue.value, "Venue", "code")?;
@@ -150,13 +152,15 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "hangar", "code"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Close",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing Hangar — pass code.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Close", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
               let args = crate::generated::generated_revalued_shape::hangar::CloseArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);
@@ -173,13 +177,15 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "hangar", "code"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reopen does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Reopen",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reopen acts on an existing Hangar — pass code.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reopen", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
               let args = crate::generated::generated_revalued_shape::hangar::ReopenArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);

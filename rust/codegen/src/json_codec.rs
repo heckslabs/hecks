@@ -289,6 +289,13 @@ pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_mana
 /// refuse_absent_arguments`, generated: every declared non-optional name
 /// the caller's JSON never mentions, SORTED, refused as `AbsentArgument`
 /// through the same wording site, before any field is built.
+///
+/// V3 — THE TYPED DOOR, byte-identical to what the Ruby generator emits.
+/// `RefusalSite::...render` is private to the generated vocabulary module
+/// now, so the only way in is the site's own `<Variant>Args` struct:
+/// leaving an argument out does not compile, and the "none" reading of an
+/// empty `declared` list is `render_args`' business (that argument's own
+/// `Vocabulary::RefusalSiteArgument` row), not this emitter's.
 fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String {
     let mut required: Vec<String> = attributes.iter().filter(|a| !crate::attr::optional(a)).map(|a| naming::rust_field(crate::attr::name(a))).collect();
     required.sort();
@@ -296,33 +303,34 @@ fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String
         return String::new();
     }
     let declared: Vec<String> = attributes.iter().map(|a| crate::attr::name(a).to_string()).collect();
-    let reading = if declared.is_empty() { "none".to_string() } else { declared.join(", ") };
     format!(
-        "let absent: Vec<&str> = [{}].into_iter().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[\n        (\"command\", {}),\n        (\"absent\", absent.join(\", \").as_str()),\n        (\"declared\", {}),\n    ])));\n}}\n",
+        "let absent: Vec<&str> = [{}].into_iter().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {{\n        command: {},\n        absent: &absent,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
         required.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
         naming::ruby_inspect_string(command_name),
-        naming::ruby_inspect_string(&reading),
+        declared.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
     )
 }
 
-/// Mirrors `json_codec.rb#emit_unknown_argument_check`'s own fallback,
-/// added the same time and for the same reason (that method's own
-/// comment, quoted here): `declared_names.join(", ")` used to be
-/// spliced straight into the template, correct for every command with
-/// at least one attribute but rendering the empty string — and trailing
-/// the sentence off mid-clause, "Close does not declare parcel — it
-/// takes " — for a command that declares NONE. `declared_reading`'s own
-/// "none" fallback (argument_gate.rb) never reached this path, because
-/// this check builds its wording directly rather than through
-/// `RefusalSite::UnknownArgumentUnknownArgs.render` the way
-/// `emit_absent_argument_check` (above) already does. Found live via
+/// Mirrors `json_codec.rb#emit_unknown_argument_check`. It used to splice
+/// `declared_names.join(", ")` straight into a hand-written `format!` of
+/// the template's own text — correct for every command with at least one
+/// attribute, but rendering the empty string, and trailing the sentence
+/// off mid-clause ("Close does not declare parcel — it takes ") for a
+/// command that declares NONE. `declared_reading`'s own "none" fallback
+/// (argument_gate.rb) never reached this path at all. Found live via
 /// `bin/qa_generated_domains` (BUG#134).
+///
+/// V3 retires the whole class rather than that one instance: no join, no
+/// sort, no "none" and no template text here any more — both lists go
+/// over RAW to `UnknownArgumentUnknownArgsArgs::render_args`, which reads
+/// the same `Vocabulary::RefusalSiteArgument` rows Ruby's own
+/// `RefusalWording.render_site` does.
 fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declared_names: &[String]) -> String {
-    let reading = if declared_names.is_empty() { "none".to_string() } else { declared_names.join(", ") };
     format!(
-        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    return Err(crate::kernel::Refusal::UnknownArgument(format!(\n        \"{command_name} does not declare {{}} — it takes {}\",\n        unknown.join(\", \")\n    )));\n}}\n",
+        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();\n    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {{\n        command: {},\n        unknown: &unknown,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
         known_keys.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
-        reading,
+        naming::ruby_inspect_string(command_name),
+        declared_names.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
     )
 }
 
@@ -679,7 +687,10 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
         .collect();
 
     let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
-    let admitted = rows.iter().map(|(_v, raw)| naming::ruby_inspect_string(raw)).collect::<Vec<_>>().join(", ");
+    // V3 — the member list goes over RAW; `admitted`'s own
+    // `Vocabulary::RefusalSiteArgument` row is what quotes and joins it,
+    // inside `InvariantViolationClosedSetMemberArgs::render_args`.
+    let admitted = format!("[{}]", rows.iter().map(|(_v, raw)| naming::ruby_inspect_string(raw)).collect::<Vec<_>>().join(", "));
     // BUG#14 — the SAME "numeric_field" wording `required_field_expr`
     // already gives every OTHER composite field's own missing-key case
     // ("{type}.{field} expects {expected}, got nil"), resolved here at
@@ -693,7 +704,7 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
             ("TmplKind", name),
             ("\"tmpl_field_name\"", naming::ruby_inspect_string(&field_name)),
             ("\"tmpl_closed_set_type\"", naming::ruby_inspect_string(&type_name)),
-            ("\"tmpl_closed_set_admitted\"", naming::ruby_inspect_string(&admitted)),
+            ("[\"tmpl_closed_set_member_a\"]", admitted),
             ("\"tmpl_null_field_message\"", naming::ruby_inspect_string(&null_message)),
         ],
         &[

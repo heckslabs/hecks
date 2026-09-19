@@ -87,14 +87,14 @@ module Hecks
         def self.of(aggregate, dotted)
           *entity_names, command_name = dotted.to_s.split(".")
           if entity_names.empty?
-            raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                     aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
+            raise UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_unknown",
+                                                          aggregate: aggregate.hecks_name, entity: dotted.to_s)
           end
 
           chain = walk(aggregate, entity_names)
           command = chain.last.command(command_name) ||
-                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
-                                                             entity: chain.last.hecks_name, command: command_name.inspect))
+                    raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_no_command",
+                                                                  entity: chain.last.hecks_name, command: command_name))
           new(entity_names: entity_names, chain: chain, command_name: command_name, command: command)
         end
 
@@ -110,8 +110,8 @@ module Hecks
           owner = aggregate
           entity_names.map do |name|
             found = owner.entities.find { |piece| piece.hecks_name == name } ||
-                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                             aggregate: owner.hecks_name, entity: name.inspect))
+                    raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_unknown",
+                                                                  aggregate: owner.hecks_name, entity: name))
             owner = found
             found
           end
@@ -387,14 +387,14 @@ module Hecks
         parent_id = route&.aggregate ||
                     Identity.of(aggregate, args) ||
                     Identity.from(aggregate, args, :id) ||
-                    raise(NotFound, RefusalWording.render("NotFound", "entity_parent_no_identity",
-                                                          command: command_name, aggregate: aggregate.hecks_name,
-                                                          entity: entity_name, identity: Identity.reading(aggregate)))
+                    raise(NotFound, RefusalWording.render_site("NotFound", "entity_parent_no_identity",
+                                                               command: command_name, aggregate: aggregate.hecks_name,
+                                                               entity: entity_name, identity: Identity.reading(aggregate)))
         found = repository.find(parent_id) ||
-                raise(NotFound, RefusalWording.render("NotFound", "record_missing",
-                                                      aggregate: aggregate.hecks_name,
-                                                      identity:  Identity.reading(aggregate),
-                                                      offered:   Rendering.describe(parent_id)))
+                raise(NotFound, RefusalWording.render_site("NotFound", "record_missing",
+                                                           aggregate: aggregate.hecks_name,
+                                                           identity:  Identity.reading(aggregate),
+                                                           offered:   Rendering.describe(parent_id)))
         found.dup
       end
 

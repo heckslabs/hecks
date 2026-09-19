@@ -119,7 +119,7 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
     let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
     let identity_lit = naming::ruby_inspect_string(&identity_reading);
     let guard = format!(
-        "let {local_var} = {rhs};\n        for (i, e) in {local_var}.iter().enumerate() {{ if {local_var}[..i].iter().any(|prior| prior.{id_field} == e.{id_field}) {{ return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[(\"entity\", {entity_lit}), (\"aggregate\", {aggregate_lit}), (\"identity\", {identity_lit}), (\"offered\", &format!(\"{{:?}}\", {offered_expr}))]))); }} }}\n        "
+        "let {local_var} = {rhs};\n        for (i, e) in {local_var}.iter().enumerate() {{ if {local_var}[..i].iter().any(|prior| prior.{id_field} == e.{id_field}) {{ let offered = format!(\"{{:?}}\", {offered_expr}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }} }}\n        "
     );
     (guard, local_var)
 }
@@ -538,7 +538,7 @@ fn emit_mutation_line_body(
                         let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
                         let identity_lit = naming::ruby_inspect_string(&identity_reading);
                         collision_guard = format!(
-                            "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[(\"entity\", {entity_lit}), (\"aggregate\", {aggregate_lit}), (\"identity\", {identity_lit}), (\"offered\", &format!(\"{{:?}}\", {id_rhs}))]))); }}\n        "
+                            "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ let offered = format!(\"{{:?}}\", {id_rhs}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }}\n        "
                         );
                     }
                 }
