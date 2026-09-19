@@ -60,6 +60,19 @@ module Hecks
         # command redeclaring the aggregate's own reference field under
         # a non-reference type, so only `resolve_state_references` (never
         # ported) can catch a dangling id.
+        # A RETROACTIVE CORRECTION, AND A ROLE-GATED COMMAND — both are
+        # declared forms this census could not see, on aggregates it was
+        # already measuring: `examples/banking` has carried `corrects`
+        # mutations and `role`-bearing commands the whole time, and
+        # `qa/stress_domains/corrections` exists FOR the first. Three
+        # stress domains' own NOTES.md record `bin/qa_domain_novelty`
+        # answering "no new pair" for a domain whose whole point was a
+        # shape this table did not name (case_escalation's is the
+        # bluntest: "read that as a gap in the census, not in this
+        # domain"). Entity commands count for both — BUG#30-33 and
+        # BUG#31 were all entity-level `corrects`.
+        "corrects"           => ->(a) { every_command(a).any? { |verb| corrects?(verb) } },
+        "role_gated"         => ->(a) { every_command(a).any? { |verb| !verb["role"].to_s.empty? } },
         "two_hop_given"      => ->(a) { two_hop_given?(a) },
         "multi_hop_where"    => ->(a) { multi_hop_where?(a) },
         "revalued_reference" => ->(a) { revalued_reference?(a) }
@@ -69,6 +82,13 @@ module Hecks
 
       def entities(aggregate)   = aggregate["entities"] || []
       def commands(aggregate)   = aggregate["commands"] || []
+
+      # ONE AGGREGATE'S COMMANDS, ITS PIECES' INCLUDED — a form carried by
+      # an entity command is carried by the aggregate that owns it, the
+      # same way `composite_piece`/`piece_lifecycle` already read pieces.
+      def every_command(aggregate) = commands(aggregate) + entities(aggregate).flat_map { |piece| commands(piece) }
+
+      def corrects?(verb) = (verb["mutations"] || []).any? { |change| change["op"].to_s == "corrects" }
       def attributes(aggregate) = aggregate["attributes"] || []
       def queries(aggregate)    = aggregate["queries"] || []
       def reference?(attribute) = attribute["type"].to_s.start_with?("Reference<")
