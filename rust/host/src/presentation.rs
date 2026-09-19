@@ -755,7 +755,7 @@ mod tests {
     /// actually seeds — the same position every console app but this
     /// one's own is in.
     fn relations_only() -> LineageConfig {
-        LineageConfig { domain: "Fixtures".to_string(), era: None }
+        LineageConfig { domain: "Fixtures".to_string(), era: None, mirrored: None }
     }
 
     async fn seed_head(client: &Mutex<Client>, relation: &str, id: &str, state: Value) {

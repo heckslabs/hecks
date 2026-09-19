@@ -299,7 +299,22 @@ async fn main() -> Result<(), Error> {
         // whichever of its four outcomes came back, the only part that
         // genuinely needs `client`/`ir`.
         let ordinal: i32 = match mint::decide_boot_action(&held, &my_label) {
-            mint::BootDecision::UseExisting { ordinal } => ordinal,
+            // ADOPTING AN ERA SOMEONE ELSE MINTED still has to provision
+            // what this binary is about to write into. Ruby does this on
+            // every boot, for every repository, "regardless of era" —
+            // this crate only ever did it while MINTING, so a host that
+            // matched an existing era's label wrote its first mutation
+            // into a head-snapshot table nobody had created. Found live
+            // on embryonautfoundersapp, whose era 2 was minted by Ruby
+            // under the pre-ADR-0059 unqualified names: every
+            // domain-qualified snapshot in that database stopped at era
+            // 1, and no write of any kind could succeed.
+            mint::BootDecision::UseExisting { ordinal } => {
+                mint::adopt_head_snapshots(&client, &domain, &aggregates, ordinal)
+                    .await
+                    .map_err(|e| format!("adopting era {ordinal} of {domain}: {e:#}"))?;
+                ordinal
+            }
             mint::BootDecision::HoldFirst => {
                 let source_text =
                     ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
@@ -370,7 +385,14 @@ async fn main() -> Result<(), Error> {
         None
     };
 
-    let lineage_config = Arc::new(journal::LineageConfig { domain, era });
+    // The mirrored set is the IR's own capable list, by qualified name
+    // — never "everything this kernel can mutate". A domain that binds
+    // everything to plain `Postgres` mirrors nothing, and its writes go
+    // to this crate's own journal alone, which is what `dispatch::read`
+    // replays anyway.
+    let mirrored: std::collections::BTreeSet<String> =
+        ir::lineage_capable_aggregates(ir).into_iter().map(|(qualified, _)| qualified).collect();
+    let lineage_config = Arc::new(journal::LineageConfig { domain, era, mirrored: Some(mirrored) });
 
     // Mutex, not a bare Arc<Client> -- dispatch::handle needs
     // Client::transaction (which takes &mut Client) to hold the
@@ -406,7 +428,14 @@ async fn main() -> Result<(), Error> {
             }
 
             if body.get("read").and_then(|v| v.as_bool()) == Some(true) {
-                let result = dispatch::read(&client, &wasm_path).await?;
+                // `{e:#}` — anyhow's alternate Display walks `source()`,
+                // which is the only way a `tokio_postgres` database
+                // error says anything at all: its own Display is the
+                // bare string "db error", and the real message
+                // ("relation ... does not exist") hangs off the chain.
+                // Without this a real outage reached CloudWatch as
+                // `{"errorMessage": "db error"}` and nothing else.
+                let result = dispatch::read(&client, &wasm_path).await.map_err(|e| format!("{e:#}"))?;
                 return Ok::<serde_json::Value, Error>(result);
             }
 
@@ -452,7 +481,8 @@ async fn main() -> Result<(), Error> {
                     &lineage_config,
                     invoker.as_ref(),
                 )
-                .await?
+                .await
+                .map_err(|e| format!("{e:#}"))?
             } else if let Some(facts) = body.get("with").cloned() {
                 if body.get("args").is_some() {
                     return Err::<serde_json::Value, Error>(
@@ -468,7 +498,8 @@ async fn main() -> Result<(), Error> {
                     &lineage_config,
                     invoker.as_ref(),
                 )
-                .await?
+                .await
+                .map_err(|e| format!("{e:#}"))?
             } else {
                 let args = body.get("args").cloned().unwrap_or_else(|| serde_json::json!({}));
                 dispatch::handle(
@@ -480,7 +511,8 @@ async fn main() -> Result<(), Error> {
                     &lineage_config,
                     invoker.as_ref(),
                 )
-                .await?
+                .await
+                .map_err(|e| format!("{e:#}"))?
             };
             Ok::<serde_json::Value, Error>(outcome.result)
         }

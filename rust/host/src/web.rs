@@ -2310,7 +2310,7 @@ mod tests {
     }
 
     fn checkout_config(era: i32) -> LineageConfig {
-        LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(era) }
+        LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(era), mirrored: None }
     }
 
     fn checkout_wasm_path() -> std::path::PathBuf {
