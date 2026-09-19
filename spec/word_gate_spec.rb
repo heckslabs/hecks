@@ -113,8 +113,9 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
      "MetaValidator.bootstrapping? gate RuleReference#lookup already relies on, " \
      "since the grammar table this module reads does not exist yet while it is " \
      "still being built" do
-    expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
-    Hecks::Bluebook::MetaValidator.grammar_registry # already booted; still true off-bootstrap
+    # bootstrapping? is nil, not false, in a process that has never booted the
+    # grammar — which is this example whenever the seed runs it first.
+    Hecks::Bluebook::MetaValidator.grammar_registry
     expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
   end
 

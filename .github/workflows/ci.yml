@@ -289,6 +289,7 @@ jobs:
   # `merge-queue-main` ruleset already names.
   rspec:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_impl
     # RUNS ONLY TO FAIL — 2026-09-14. A job skipped by its own `if:` needs
@@ -351,6 +352,7 @@ jobs:
   # check can't afford.
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: checks_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -386,6 +388,7 @@ jobs:
   # this wrapper is the first thing that makes it one.
   rspec_postgres_io:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_postgres_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -449,6 +452,7 @@ jobs:
   # light PR set was removed. spec/ci_summary_jobs_spec.rb pins the shape.
   rspec_postgres_io_parallel:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_postgres_io_parallel_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -510,6 +514,7 @@ jobs:
   # serially inside it.
   rspec_rust_io:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -550,6 +555,7 @@ jobs:
   # "bin/project_wasm, opted into the all-Rust pipeline" describe block.
   rspec_rust_io_build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job.
@@ -593,6 +599,7 @@ jobs:
   # target/wasmtime (real .wasm builds run under wasmtime).
   rspec_rust_io_deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job.
@@ -619,6 +626,7 @@ jobs:
   # for the rest of this lineage's own comment.
   rspec_rust_parser:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_parser_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -649,6 +657,7 @@ jobs:
   # for the rest of this lineage's own comment.
   rspec_rust_codegen:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_codegen_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -679,6 +688,7 @@ jobs:
   # for the rest of this lineage's own comment.
   rspec_rust_host:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_host_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -701,6 +711,7 @@ jobs:
 
   rspec_fuzzing:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job.
@@ -763,6 +774,7 @@ jobs:
   # that ran (and finished) first.
   runtime_changed:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job (and `stress_concurrency` below then also skips,
@@ -782,28 +794,32 @@ jobs:
           # it alone.
           fetch-depth: 0
 
-      # BASE — a pull request's own base commit when this run IS one
-      # (github.event.pull_request.base.sha), otherwise the merge queue's
-      # own base (github.event.merge_group.base_sha) when it's a
-      # `merge_group` run instead. FIXED alongside removing the `push:
-      # branches: [main]` trigger above (2026-08-28): this fallback used
-      # to read `github.event.before`, a push event field, and never had
-      # a `merge_group` case at all — meaning a queue run always hit the
-      # `-z` branch, read `github.event.before` as empty (that field
-      # doesn't exist on a `merge_group` event), and diffed against an
-      # empty BASE. Went unnoticed only because `push` was still around
-      # to run the real gate; now that `merge_group` is the ONLY
-      # non-`pull_request` trigger left, that gap would've meant this
-      # job silently never gating the merge-queue path at all.
+      # BASE — a pull request's own base commit when this run IS one,
+      # otherwise the merge group's merge-base with its target branch.
       - name: does this change touch lib/hecks/runtime/**?
         id: diff
         run: |
+          # A MERGE GROUP DIFFS AGAINST THE TARGET BRANCH, NEVER AGAINST
+          # `merge_group.base_sha`. base_sha is the PREVIOUS QUEUE ENTRY, so
+          # a PR queued behind another one diffs as its own files only — and
+          # the queue's HEADGREEN grouping merges the whole group on the
+          # last entry's run alone. #729 (docs only) rode behind a red #730
+          # that way on 2026-09-18: its gate skipped, its run went green,
+          # and both merged. The group's head carries every earlier entry,
+          # so its diff has to as well.
           BASE="${{ github.event.pull_request.base.sha }}"
-          if [ -z "$BASE" ]; then
-            BASE="${{ github.event.merge_group.base_sha }}"
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            BASE_REF="${{ github.event.merge_group.base_ref }}"
+            BASE="$(git merge-base "origin/${BASE_REF#refs/heads/}" "${{ github.sha }}")" || BASE=""
           fi
 
-          if git diff --name-only "$BASE" "${{ github.sha }}" | grep -q '^lib/hecks/runtime/'; then
+          CHANGED="$(git diff --name-only "$BASE" "${{ github.sha }}")" || {
+            echo "no usable diff against '$BASE' — running stress_concurrency rather than guessing" >&2
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          if echo "$CHANGED" | grep -q '^lib/hecks/runtime/'; then
             echo "touched=true" >> "$GITHUB_OUTPUT"
           else
             echo "touched=false" >> "$GITHUB_OUTPUT"
@@ -813,6 +829,7 @@ jobs:
     needs: runtime_changed
     if: needs.runtime_changed.outputs.touched == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     # Real Postgres, same discipline this workflow's own top comment
     # already holds the `rspec_postgres_io`/`rspec_rust_io` jobs to —

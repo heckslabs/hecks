@@ -28,11 +28,12 @@ spec/qa_open_pr_spec.rb:142.96
 spec/qa_postgres_migration_spec.rb:100.65
 spec/qa_sweep_adapter_parity_sqlite_spec.rb:17.60
 spec/qa_sweep_all_claims_and_modes_spec.rb:66.20
-spec/qa_sweep_all_concurrency_spec.rb:164.88
+spec/qa_sweep_all_concurrency_spec.rb:88.78
 spec/qa_sweep_all_dry_run_divergence_spec.rb:16.80
 spec/qa_sweep_all_lifecycle_spec.rb:81.97
 spec/qa_sweep_all_output_capture_spec.rb:43.89
 spec/qa_sweep_all_parity_wave_spec.rb:76.62
+spec/qa_sweep_all_pool_drain_spec.rb:76.10
 spec/qa_sweep_all_shrink_spec.rb:31.75
 spec/qa_sweep_concurrency_spec.rb:92.47
 spec/qa_sweep_era_boundary_spec.rb:14.89

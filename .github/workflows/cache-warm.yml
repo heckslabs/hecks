@@ -69,6 +69,7 @@ jobs:
   # toolchains need the target installed).
   warm_main_crate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     # `workflow_run` fires on ANY conclusion (success, failure, or
     # cancellation) of the named upstream workflow — this guard is what
@@ -114,6 +115,7 @@ jobs:
   # crate)" step exactly.
   warm_build_crate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     if: github.event.workflow_run.conclusion == 'success'
 
@@ -142,6 +144,7 @@ jobs:
   # (and every sibling spec's copy of it) runs.
   warm_parser_crate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     if: github.event.workflow_run.conclusion == 'success'
 
@@ -168,6 +171,7 @@ jobs:
   # the exact command spec/codegen_parity_spec.rb's build_codegen! runs.
   warm_codegen_crate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     if: github.event.workflow_run.conclusion == 'success'
 
@@ -194,6 +198,7 @@ jobs:
   # test` runs in that job).
   warm_lsp_crate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     if: github.event.workflow_run.conclusion == 'success'
 
@@ -222,6 +227,7 @@ jobs:
   # under rust/host already relies on without an explicit override.
   warm_host_crate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     if: github.event.workflow_run.conclusion == 'success'
 

@@ -51,6 +51,7 @@ jobs:
   # note this reads.
   ci_attestation_rspec:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     # Safe to skip outright on `push` (unlike `postgres_io_relevant_
     # changed`, which can't) — `rspec_shard`'s own `if:` short-circuits on
@@ -81,6 +82,7 @@ jobs:
   # file lists diverge and hundreds of examples silently never ran.
   rspec_shard:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     needs: ci_attestation_rspec
 
