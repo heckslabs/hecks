@@ -32,14 +32,14 @@ RSpec.describe "QueryInterpreter applies offset" do
   # 1-3 instead — a page that starts one row too early, indistinguishable
   # from a fencepost mistake unless you already know the right answer.
   def four_cards(runtime)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
     %w[s1 s2 s3 s4].each_with_index do |serial, i|
-      runtime.dispatch("Banking::ATMCard.Issue", account: "a1", serial: { value: serial },
+      runtime.dispatch_flat("Banking::ATMCard.Issue", account: "a1", serial: { value: serial },
                                                  daily_fee: { amount: (i + 1) * 1.0 })
-      runtime.dispatch("Banking::ATMCard.Activate", serial: { value: serial })
+      runtime.dispatch_flat("Banking::ATMCard.Activate", serial: { value: serial })
     end
   end
 

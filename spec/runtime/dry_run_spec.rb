@@ -35,8 +35,8 @@ RSpec.describe "Dispatcher#dry_run?" do
 
   it "returns true for a legal entity command, and persists nothing" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     result = runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b1", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
@@ -46,8 +46,8 @@ RSpec.describe "Dispatcher#dry_run?" do
 
   it "raises the same refusal a real dispatch would, for the same entity command" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     expect do
       runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
@@ -61,8 +61,8 @@ RSpec.describe "Dispatcher#dry_run?" do
   # not just a plain entity command.
   it "sees through delegates_to too — persists nothing from the delegated entity's own mutation" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     result = runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b3", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
@@ -77,8 +77,8 @@ RSpec.describe "Dispatcher#dry_run?" do
   # }` at all, not merely that it reacted and rescued something.
   it "never triggers a policy reaction — nothing was announced to react to" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b4", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
@@ -87,8 +87,8 @@ RSpec.describe "Dispatcher#dry_run?" do
 
   it "leaves a real dispatch working normally afterward — no residue from the dry run" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b5" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b5" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 5, rank: 5 })
     runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b5", with: { id: { value: "p1" }, to: { file: 6, rank: 6 } })

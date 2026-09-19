@@ -121,9 +121,9 @@ RSpec.describe "role-based command rejections" do
   # granted just by typing the right word.
   describe "an identified caller, checked against a real Governance grant" do
     def grant(runtime, actor_id:, role_name:)
-      runtime.dispatch("Governance::RoleAssignment.Assign",
-                       actor_id: { value: actor_id }, role_name: { value: role_name },
-                       scope: { value: "kitchen" }, starts_at: { value: "2026-01-01" })
+      runtime.dispatch_flat("Governance::RoleAssignment.Assign",
+                            actor_id: { value: actor_id }, role_name: { value: role_name },
+                            scope: { value: "kitchen" }, starts_at: { value: "2026-01-01" })
     end
 
     it "dispatches when the actor holds the command's role via a real assignment" do
@@ -200,9 +200,9 @@ RSpec.describe "role-based command rejections" do
     # an assignment granted for that exact scope.
     describe "scope — a bound assignment's own scope" do
       def grant_scoped(runtime, actor_id:, role_name:, scope:)
-        runtime.dispatch("Governance::RoleAssignment.Assign",
-                         actor_id: { value: actor_id }, role_name: { value: role_name },
-                         scope: { value: scope }, starts_at: { value: "2026-01-01" })
+        runtime.dispatch_flat("Governance::RoleAssignment.Assign",
+                              actor_id: { value: actor_id }, role_name: { value: role_name },
+                              scope: { value: scope }, starts_at: { value: "2026-01-01" })
       end
 
       it "dispatches unchanged when scope is not bound, regardless of the assignment's own scope" do

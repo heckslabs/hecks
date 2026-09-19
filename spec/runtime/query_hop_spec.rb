@@ -29,23 +29,23 @@ RSpec.describe "cross-aggregate query filtering" do
   let(:runtime) { boot_hop_chain }
 
   before do
-    runtime.dispatch("HopChain::Client.Register", name: { value: "Acme" })
-    runtime.dispatch("HopChain::Client.Register", name: { value: "Zombie Corp" })
-    runtime.dispatch("HopChain::Client.Churn", name: { value: "Zombie Corp" })
+    runtime.dispatch_flat("HopChain::Client.Register", name: { value: "Acme" })
+    runtime.dispatch_flat("HopChain::Client.Register", name: { value: "Zombie Corp" })
+    runtime.dispatch_flat("HopChain::Client.Churn", name: { value: "Zombie Corp" })
 
-    runtime.dispatch("HopChain::Engagement.Start", client: "Acme", reference: { value: "e-1" })
-    runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-1" })
-    runtime.dispatch("HopChain::Engagement.Start", client: "Zombie Corp", reference: { value: "e-2" })
-    runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-2" })
+    runtime.dispatch_flat("HopChain::Engagement.Start", client: "Acme", reference: { value: "e-1" })
+    runtime.dispatch_flat("HopChain::Engagement.Demo", reference: { value: "e-1" })
+    runtime.dispatch_flat("HopChain::Engagement.Start", client: "Zombie Corp", reference: { value: "e-2" })
+    runtime.dispatch_flat("HopChain::Engagement.Demo", reference: { value: "e-2" })
 
-    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-1", number: { value: "P-1" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-1" })
-    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-2" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", engagement: "e-1", number: { value: "P-1" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-1" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-2" })
     # No engagement at all — the command's own reference_to is optional
     # precisely so this state is reachable through the door.
-    runtime.dispatch("HopChain::Proposal.Draft", number: { value: "P-3" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-3" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", number: { value: "P-3" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-3" })
   end
 
   it "infers a hop comparison argument from the field it is compared with" do
@@ -89,9 +89,9 @@ RSpec.describe "cross-aggregate query filtering" do
   # as a "cycle." See spec/dsl_spec.rb for the seal-time proof that a
   # chain revisiting a type builds cleanly; this is the runtime half.
   it "answers a hop chain that revisits the same aggregate type" do
-    runtime.dispatch("HopChain::Node.Plant", label: { value: "root" })
-    runtime.dispatch("HopChain::Node.Plant", parent: "root", label: { value: "child" })
-    runtime.dispatch("HopChain::Node.Plant", parent: "child", label: { value: "grandchild" })
+    runtime.dispatch_flat("HopChain::Node.Plant", label: { value: "root" })
+    runtime.dispatch_flat("HopChain::Node.Plant", parent: "root", label: { value: "child" })
+    runtime.dispatch_flat("HopChain::Node.Plant", parent: "child", label: { value: "grandchild" })
 
     expect(ids("HopChain::Node.GrandparentLabelled", label: { value: "root" })).to eq(%w[grandchild])
   end
@@ -117,9 +117,9 @@ RSpec.describe "cross-aggregate query filtering" do
     end
 
     it "agree on the self-referential chain" do
-      runtime.dispatch("HopChain::Node.Plant", label: { value: "root" })
-      runtime.dispatch("HopChain::Node.Plant", parent: "root", label: { value: "child" })
-      runtime.dispatch("HopChain::Node.Plant", parent: "child", label: { value: "grandchild" })
+      runtime.dispatch_flat("HopChain::Node.Plant", label: { value: "root" })
+      runtime.dispatch_flat("HopChain::Node.Plant", parent: "root", label: { value: "child" })
+      runtime.dispatch_flat("HopChain::Node.Plant", parent: "child", label: { value: "grandchild" })
 
       args = { label: { value: "root" } }
       native    = runtime.query("HopChain::Node.GrandparentLabelled", **args).map { |r| r[:id] }.sort

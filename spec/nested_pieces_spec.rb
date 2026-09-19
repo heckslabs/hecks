@@ -51,8 +51,8 @@ RSpec.describe "NestedPieces" do
     runtime
     NestedPieces::Workspace.open!(reference: { value: "W1" })
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
-    runtime.dispatch("NestedPieces::Workspace.Board.AddCard",
-                     to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.AddCard",
+                          to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
 
     workspace = NestedPieces::Workspace.find("W1")
     board = workspace[:boards].find { |b| b[:number][:value] == 1 }
@@ -69,8 +69,8 @@ RSpec.describe "NestedPieces" do
     NestedPieces::Workspace.open!(reference: { value: "W1" })
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
 
-    runtime.dispatch("NestedPieces::Workspace.Board.AddCard",
-                     to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.AddCard",
+                          to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
 
     workspace = NestedPieces::Workspace.find("W1")
     board = workspace[:boards].find { |b| b[:number][:value] == 1 }
@@ -81,14 +81,14 @@ RSpec.describe "NestedPieces" do
     runtime
     NestedPieces::Workspace.open!(reference: { value: "W1" })
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
-    runtime.dispatch("NestedPieces::Workspace.Board.AddCard",
-                     to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.AddCard",
+                          to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
 
-    runtime.dispatch("NestedPieces::Workspace.Board.Label",
-                     to: { aggregate: "W1", entity: "1" }, label: { value: "Sprint 1" })
-    runtime.dispatch("NestedPieces::Workspace.Board.Card.Annotate",
-                     to:   { aggregate: "W1", entities: ["1", "1"] },
-                     note: { text: "done" })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.Label",
+                          to: { aggregate: "W1", entity: "1" }, label: { value: "Sprint 1" })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.Card.Annotate",
+                          to:   { aggregate: "W1", entities: ["1", "1"] },
+                          note: { text: "done" })
 
     workspace = NestedPieces::Workspace.find("W1")
     board = workspace[:boards].find { |b| b[:number][:value] == 1 }
@@ -121,8 +121,8 @@ RSpec.describe "NestedPieces" do
     NestedPieces::Workspace.open!(reference: { value: "W1" })
 
     expect do
-      runtime.dispatch("NestedPieces::Workspace.Board.Label",
-                       reference: { value: "W1" }, number: { value: 0 }, label: { value: "Sprint 1" })
+      runtime.dispatch_flat("NestedPieces::Workspace.Board.Label",
+                            reference: { value: "W1" }, number: { value: 0 }, label: { value: "Sprint 1" })
     end.to raise_error(Hecks::Runtime::NotFound, /number\.value 0/)
   end
 
@@ -142,9 +142,9 @@ RSpec.describe "NestedPieces" do
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
 
     expect do
-      runtime.dispatch("NestedPieces::Workspace.Board.Card.Annotate",
-                       reference: { value: "W1" }, number: { value: 1 }, sequence: { value: 0 },
-                       note: { text: "ghost" })
+      runtime.dispatch_flat("NestedPieces::Workspace.Board.Card.Annotate",
+                            reference: { value: "W1" }, number: { value: 1 }, sequence: { value: 0 },
+                            note: { text: "ghost" })
     end.to raise_error(Hecks::Runtime::NotFound, /sequence\.value 0/)
   end
 end

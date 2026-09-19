@@ -147,14 +147,14 @@ RSpec.describe "remove: on an entity-typed list" do
 
   it "removes an entity element from an aggregate-owned list by its own identity, not value equality" do
     dispatcher = boot
-    dispatcher.dispatch("EntityListRemove::Ledger.Open", reference: { value: "l1" })
-    dispatcher.dispatch("EntityListRemove::Ledger.Record", reference: "l1", amount: { cents: 500 })
-    dispatcher.dispatch("EntityListRemove::Ledger.Record", reference: "l1", amount: { cents: 200 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l1" })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l1", amount: { cents: 500 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l1", amount: { cents: 200 })
 
     entries = ledger_repository(dispatcher).find("l1")[:entries]
     expect(entries.map { |e| [e[:sequence].value, e[:amount].cents] }).to eq([[1, 500], [2, 200]])
 
-    dispatcher.dispatch("EntityListRemove::Ledger.Void", reference: "l1", sequence: { value: 2 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Void", reference: "l1", sequence: { value: 2 })
 
     entries = ledger_repository(dispatcher).find("l1")[:entries]
     expect(entries.map { |e| [e[:sequence].value, e[:amount].cents] }).to eq([[1, 500]])
@@ -162,10 +162,10 @@ RSpec.describe "remove: on an entity-typed list" do
 
   it "is a no-op, not an error, voiding a sequence that was never recorded" do
     dispatcher = boot
-    dispatcher.dispatch("EntityListRemove::Ledger.Open", reference: { value: "l2" })
-    dispatcher.dispatch("EntityListRemove::Ledger.Record", reference: "l2", amount: { cents: 100 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l2" })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l2", amount: { cents: 100 })
 
-    dispatcher.dispatch("EntityListRemove::Ledger.Void", reference: "l2", sequence: { value: 999 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Void", reference: "l2", sequence: { value: 999 })
 
     entries = ledger_repository(dispatcher).find("l2")[:entries]
     expect(entries.map { |e| e[:sequence].value }).to eq([1])
@@ -180,12 +180,12 @@ RSpec.describe "remove: on an entity-typed list" do
   # at all).
   it "reuses a freed identity on the next auto-mint (one past the highest HELD, not size + 1)" do
     dispatcher = boot
-    dispatcher.dispatch("EntityListRemove::Ledger.Open", reference: { value: "l3" })
-    dispatcher.dispatch("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 500 })
-    dispatcher.dispatch("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 200 })
-    dispatcher.dispatch("EntityListRemove::Ledger.Void", reference: "l3", sequence: { value: 2 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l3" })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 500 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 200 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Void", reference: "l3", sequence: { value: 2 })
 
-    dispatcher.dispatch("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 999 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l3", amount: { cents: 999 })
 
     entries = ledger_repository(dispatcher).find("l3")[:entries]
     expect(entries.map { |e| [e[:sequence].value, e[:amount].cents] }).to eq([[1, 500], [2, 999]])
@@ -193,17 +193,17 @@ RSpec.describe "remove: on an entity-typed list" do
 
   it "removes an element from an ENTITY-OWNED list (an entity's own list of another entity) by identity" do
     dispatcher = boot
-    dispatcher.dispatch("EntityListRemove::Ledger.Open", reference: { value: "l4" })
-    dispatcher.dispatch("EntityListRemove::Ledger.Record", reference: "l4", amount: { cents: 500 })
-    dispatcher.dispatch("EntityListRemove::Ledger.Entry.AddTag", reference: "l4", sequence: { value: 1 },
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Open", reference: { value: "l4" })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Record", reference: "l4", amount: { cents: 500 })
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Entry.AddTag", reference: "l4", sequence: { value: 1 },
                         label: { value: "urgent" })
-    dispatcher.dispatch("EntityListRemove::Ledger.Entry.AddTag", reference: "l4", sequence: { value: 1 },
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Entry.AddTag", reference: "l4", sequence: { value: 1 },
                         label: { value: "reviewed" })
 
     entry = ledger_repository(dispatcher).find("l4")[:entries].first
     expect(entry[:tags].map { |t| t[:label].value }).to eq(%w[urgent reviewed])
 
-    dispatcher.dispatch("EntityListRemove::Ledger.Entry.RemoveTag", reference: "l4", sequence: { value: 1 },
+    dispatcher.dispatch_flat("EntityListRemove::Ledger.Entry.RemoveTag", reference: "l4", sequence: { value: 1 },
                         label: { value: "urgent" })
 
     entry = ledger_repository(dispatcher).find("l4")[:entries].first

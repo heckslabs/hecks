@@ -745,7 +745,7 @@ RSpec.describe "the DSL surface" do
         Hecks::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      state = runtime.dispatch("Coerced::Holding.Open", id: "h1",
+      state = runtime.dispatch_flat("Coerced::Holding.Open", id: "h1",
                                kind: { name: "current" }, amount: { cents: 100, currency: "GBP" }).state
 
       expect(state[:kind]).to be_a(Hecks::Runtime::Value)
@@ -759,9 +759,9 @@ RSpec.describe "the DSL surface" do
         Hecks::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
-      first  = runtime.dispatch("Coerced::Holding.Open", id: "h1",
+      first  = runtime.dispatch_flat("Coerced::Holding.Open", id: "h1",
                                 kind: { name: "current" }, amount: { cents: 100, currency: "GBP" }).state[:kind]
-      second = runtime.dispatch("Coerced::Holding.Open", id: "h2",
+      second = runtime.dispatch_flat("Coerced::Holding.Open", id: "h2",
                                 kind: { name: "current" }, amount: { cents: 250, currency: "GBP" }).state[:kind]
 
       expect(first).to eq(second)
@@ -775,7 +775,7 @@ RSpec.describe "the DSL surface" do
       )
 
       expect do
-        runtime.dispatch("Coerced::Holding.Open", id: "h2",
+        runtime.dispatch_flat("Coerced::Holding.Open", id: "h2",
                          kind: { name: "offshore" }, amount: { cents: 100, currency: "GBP" })
       end
         .to raise_error(Hecks::Runtime::InvariantViolation, /current or savings/)
@@ -796,7 +796,7 @@ RSpec.describe "the DSL surface" do
       )
 
       expect do
-        runtime.dispatch("Coerced::Holding.Open", id: "h3",
+        runtime.dispatch_flat("Coerced::Holding.Open", id: "h3",
                          kind: { name: "current" }, amount: "a lot")
       end
         .to raise_error(Hecks::Runtime::TypeMismatch, /pass its fields as an object/)

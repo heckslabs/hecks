@@ -115,16 +115,16 @@ RSpec.describe "none_in_state against a lifecycle-backed target" do
 
   it "reads the target's own declared lifecycle field, not a hardcoded :state key" do
     runtime = boot_anti_join_lifecycle
-    runtime.dispatch("AntiJoinLifecycle::Claim.File", id: { value: "c1" })  # stays "held"
-    runtime.dispatch("AntiJoinLifecycle::Claim.File", id: { value: "c2" })
-    runtime.dispatch("AntiJoinLifecycle::Claim.Release", id: "c2")          # no longer "held"
+    runtime.dispatch_flat("AntiJoinLifecycle::Claim.File", id: { value: "c1" })  # stays "held"
+    runtime.dispatch_flat("AntiJoinLifecycle::Claim.File", id: { value: "c2" })
+    runtime.dispatch_flat("AntiJoinLifecycle::Claim.Release", id: "c2")          # no longer "held"
 
-    runtime.dispatch("AntiJoinLifecycle::Board.Open", id: { value: "b1" })
-    runtime.dispatch("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c1")
-    runtime.dispatch("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c2")
+    runtime.dispatch_flat("AntiJoinLifecycle::Board.Open", id: { value: "b1" })
+    runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c1")
+    runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "c2")
     # A claim that was never filed at all -- "no record in that state" reads
     # the same as "a record, but not in that state" -- same as the growth spec.
-    runtime.dispatch("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "nonexistent")
+    runtime.dispatch_flat("AntiJoinLifecycle::Board.Assign", id: "b1", claim_id: "nonexistent")
 
     rows = runtime.query("AntiJoinLifecycle::Board.Assignment.Unclaimed")
 

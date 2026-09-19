@@ -69,12 +69,12 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
   end
 
   def stuck_wire(runtime)
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
     runtime
   end
 

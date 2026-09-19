@@ -102,7 +102,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     steps.times do |i|
       slug = dispatchers.keys[random.rand(dispatchers.size)]
       ref = "seed#{seed}-step#{i}-#{random.hex(4)}"
-      dispatchers.fetch(slug).dispatch("Fuzzed::Widget.Make", ref: { value: ref })
+      dispatchers.fetch(slug).dispatch_flat("Fuzzed::Widget.Make", ref: { value: ref })
       expected[slug] << ref
     end
 

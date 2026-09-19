@@ -25,7 +25,7 @@ RSpec.describe "the language's own rules" do
   # cannot simply invent one. Reading it back off the dispatch result is the
   # only honest way to name a record in a later dispatch : the same derivation
   # the runtime just ran, not a second guess at what it must have computed.
-  def id_of(verb, **args) = @runtime.dispatch(verb, **args).instance.id
+  def id_of(verb, **args) = @runtime.dispatch_flat(verb, **args).instance.id
 
   before do
     @runtime = boot_meta
@@ -47,13 +47,13 @@ RSpec.describe "the language's own rules" do
   # ---- tier 1 : presence, as invariants on the value ------------------------
 
   it "refuses a chapter whose vision says nothing" do
-    expect { @runtime.dispatch("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
+    expect { @runtime.dispatch_flat("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /a vision says something/)
   end
 
   it "refuses an aggregate whose description says nothing" do
     expect do
-      @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
+      @runtime.dispatch_flat("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                                name: v("B"), description: v(""))
     end
       .to raise_error(Hecks::Runtime::InvariantViolation, /a description says something/)
@@ -83,7 +83,7 @@ RSpec.describe "the language's own rules" do
     # an InvariantViolation. The invariant still guards whitespace-only names
     # that would otherwise slip past `!value.to_s.empty?` alone, but can no
     # longer be reached by a plain empty string.
-    expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
+    expect { @runtime.dispatch_flat("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /ValueObjectName\.value must match/)
   end
 
@@ -286,7 +286,7 @@ RSpec.describe "the language's own rules" do
     @runtime.dispatch("Bluebook::ValueObject.Member", to: value_object_id, with: { position: { value: 0 } })
 
     expect do
-      @runtime.dispatch("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
+      @runtime.dispatch_flat("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
                         position: { value: 0 }, key: v(""), value: v("q"))
     end.to raise_error(Hecks::Runtime::GivenNotMet, /an admitted row binds a named field/)
   end

@@ -9,7 +9,8 @@ module Hecks
     # (`target`, a `Routing::Envelope` or nil), and every fact the caller did
     # or did not offer. Built once per dispatch by `Invocation.from_call`, the
     # only place the runtime interprets the shape of a call (`to:` vs `with:`
-    # vs loose keyword arguments, a port operation's reference attribute
+    # vs the flat facts hash `dispatch_flat` carries, a port operation's
+    # reference attribute
     # lifted into `to:`). `Runtime::Routing.envelope`/`.payload` delegate here
     # and no longer hold that logic themselves.
     #
@@ -21,8 +22,7 @@ module Hecks
     #   - `Invocation::Present` — the key was offered with a value
     #
     # Keys are kept exactly as offered: `with:` keys are symbolized (as they
-    # always were), loose keyword arguments keep whatever key the caller
-    # used. Undeclared keys a caller offered are kept too — refusing them is
+    # always were), a flat facts hash keeps whatever key the wire used. Undeclared keys a caller offered are kept too — refusing them is
     # still `refuse_unknown_arguments`' job, a dispatch step, not this one.
     #
     # PR I1 changes no behavior: every interpreter still reads `ctx.args`,
@@ -78,7 +78,7 @@ module Hecks
         end
       end
 
-      # The legacy args hash, byte for byte what `Routing.payload` returned
+      # The flat args hash, byte for byte what `Routing.payload` returned
       # before this type existed: offered keys in offered order, Absent keys
       # omitted, Null keys mapped to nil. A fresh Hash every call.
       def to_args
@@ -107,18 +107,18 @@ module Hecks
         # the point in that order where the caller always resolved it.
         # `aggregate:` is the owning aggregate construct, read for `:port`
         # only.
-        def from_call(verb, to:, with:, legacy:, receiver: :aggregate, entity_depth: 0, aggregate: nil, &declaring)
+        def from_call(verb, to:, with:, flat:, receiver: :aggregate, entity_depth: 0, aggregate: nil, &declaring)
           case receiver
           when :aggregate
             command = declaring.call
-            facts   = facts_for(command, with: with, legacy: legacy)
+            facts   = facts_for(command, with: with, flat: flat)
             new(verb: verb, target: route(to), facts: facts)
           when :entity
             target  = route(to, entity_depth: entity_depth)
             command = declaring.call
-            new(verb: verb, target: target, facts: facts_for(command, with: with, legacy: legacy))
+            new(verb: verb, target: target, facts: facts_for(command, with: with, flat: flat))
           when :port
-            port_call(verb, aggregate, declaring.call, to: to, with: with, legacy: legacy)
+            port_call(verb, aggregate, declaring.call, to: to, with: with, flat: flat)
           else
             raise ArgumentError, "unknown receiver #{receiver.inspect}"
           end
@@ -146,8 +146,8 @@ module Hecks
         # The offered facts for `declaring`, as Absent/Null/Present — offered
         # keys first, in offered order, then every declared attribute that was
         # not offered, as Absent.
-        def facts_for(declaring, with:, legacy:)
-          offered = offered_facts(declaring, with: with, legacy: legacy)
+        def facts_for(declaring, with:, flat:)
+          offered = offered_facts(declaring, with: with, flat: flat)
           facts = offered.each_with_object({}) do |(name, value), found|
             found[name] = value.nil? ? Null : Present.new(value: value)
           end
@@ -163,7 +163,7 @@ module Hecks
         # **The port operation shape** — formerly `Dispatcher#port_invocation`.
         #
         # A Reference-typed attribute naming the owning aggregate is routing,
-        # not a fact: lifted out of the loose kwargs into `to:` when no `to:`
+        # not a fact: lifted out of the flat facts into `to:` when no `to:`
         # was given. A `to:`-declared operation carries no Reference
         # attribute at all (PortOperationBuilder#initialize's own comment),
         # so its receiver is read — not removed — from the plain attribute
@@ -173,27 +173,27 @@ module Hecks
         # with attribute"; a real AbsentArgument confirmed this before `[]`
         # replaced `delete`). Composite identity is not attempted — `.first`
         # only, no domain in the corpus needs more for a port operation.
-        def port_call(verb, aggregate, operation, to:, with:, legacy:)
-          legacy = legacy.dup
+        def port_call(verb, aggregate, operation, to:, with:, flat:)
+          flat = flat.dup
           identity = operation.identity_attribute(aggregate.hecks_name)
-          if to.nil? && identity && legacy.key?(identity.name)
-            to = legacy.delete(identity.name)
+          if to.nil? && identity && flat.key?(identity.name)
+            to = flat.delete(identity.name)
           elsif to.nil? && operation.to == aggregate.hecks_name
             identity_name = Array(aggregate.identified_by).first
-            to = legacy[identity_name] if identity_name && legacy.key?(identity_name)
+            to = flat[identity_name] if identity_name && flat.key?(identity_name)
           end
 
           target = route(to)
           raise TypeMismatch, "#{operation.hecks_name} requires its receiving aggregate in to:" unless target
 
-          new(verb: verb, target: target, facts: facts_for(operation, with: with, legacy: legacy))
+          new(verb: verb, target: target, facts: facts_for(operation, with: with, flat: flat))
         end
 
         # BUG#7 — a non-Hash `to:` must be a String, matching Rust's
         # `RoutingEnvelope::from_json` (kernel/routing.rs), which refuses
         # anything neither a JSON string nor object before the domain payload
         # is examined. Surfaced on `examples/roster`'s `Mark`, whose own
-        # attribute is literally named `to`: a flat-kwargs dispatch steals
+        # attribute is literally named `to`: a flat-facts dispatch steals
         # that key into this parameter, and an out-of-range Integer used to be
         # accepted as the aggregate identity, leaving Mark's `to` fact absent
         # (AbsentArgument in Ruby, TypeMismatch in Rust). See
@@ -230,16 +230,16 @@ module Hecks
 
         # `with:` is deliberately strict: a caller choosing the explicit
         # envelope cannot smuggle receiver identity back into the payload,
-        # and may not mix it with loose keyword arguments. Without `with:`
-        # (nil or false) the loose keyword arguments are the facts, unread —
+        # and may not mix it with a flat facts hash. Without `with:`
+        # (nil or false) the flat facts are the facts, unread —
         # whether `to:` was given never enters this decision (BUG#17).
-        def offered_facts(declaring, with:, legacy:)
-          if with && !legacy.empty?
+        def offered_facts(declaring, with:, flat:)
+          if with && !flat.empty?
             raise TypeMismatch,
-                  "dispatch takes command facts in with:, not both with: and loose keyword arguments"
+                  "dispatch takes command facts in with:, not both with: and a flat facts hash"
           end
 
-          return legacy unless with
+          return flat unless with
           raise TypeMismatch, "with: must be a hash of command facts" unless with.is_a?(Hash)
 
           offered = with.transform_keys(&:to_sym)

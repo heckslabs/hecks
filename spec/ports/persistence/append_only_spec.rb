@@ -32,8 +32,8 @@ RSpec.describe Hecks::Ports::Persistence::AppendOnly do
   end
 
   it "forwards record_event to an adapter that implements it" do
-    runtime.dispatch("Pizzas::Order.CreatePizza",
-                     name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+    runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                          name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
 
     repository = runtime.registry.repository("Pizzas", runtime.registry.bluebooks["Pizzas"].aggregates.first)
 

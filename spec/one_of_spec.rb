@@ -22,9 +22,9 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "savings" }, daily_limit: { cents: 10_000 })
     end.not_to raise_error
   end
@@ -33,9 +33,9 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "gold" }, daily_limit: { cents: 10_000 })
     end.to raise_error(Hecks::Runtime::InvariantViolation,
                        'AccountKind admits "current", "savings", "reserve" — got "gold"')
@@ -59,9 +59,9 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "current" }, daily_limit: { cents: -1 })
     end.to raise_error(Hecks::Runtime::InvariantViolation,
                        'DailyLimit invariant violated — a daily limit is non-negative (given {"cents":-1})')
@@ -71,10 +71,10 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register",
-                       reference: { value: "CUST-0009" },
-                       name:      { given: "No", family: "Route" },
-                       email:     { address: "nowhere" })
+      runtime.dispatch_flat("Banking::Customer.Register",
+                            reference: { value: "CUST-0009" },
+                            name:      { given: "No", family: "Route" },
+                            email:     { address: "nowhere" })
     end.to raise_error(Hecks::Runtime::TypeMismatch,
                        'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end

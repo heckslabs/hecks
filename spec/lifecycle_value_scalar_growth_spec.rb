@@ -89,10 +89,10 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
 
   it "admits a SECOND transition once the field is already Value-wrapped by the first" do
     runtime = boot_lifecycle_value_scalar
-    runtime.dispatch("LifecycleValueScalarGrowth::Task.Open", id: { value: "t1" })
-    runtime.dispatch("LifecycleValueScalarGrowth::Task.Advance", id: "t1")
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Open", id: { value: "t1" })
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Advance", id: "t1")
 
-    expect { runtime.dispatch("LifecycleValueScalarGrowth::Task.Finish", id: "t1") }.not_to raise_error
+    expect { runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Finish", id: "t1") }.not_to raise_error
 
     task = repository_for(runtime).find("t1")
     expect(task[:status][:value]).to eq("done")
@@ -100,9 +100,9 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
 
   it "still refuses a transition from a state the field never held" do
     runtime = boot_lifecycle_value_scalar
-    runtime.dispatch("LifecycleValueScalarGrowth::Task.Open", id: { value: "t2" })
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Open", id: { value: "t2" })
 
-    expect { runtime.dispatch("LifecycleValueScalarGrowth::Task.Finish", id: "t2") }
+    expect { runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Finish", id: "t2") }
       .to raise_error(Hecks::Runtime::LifecycleRefused)
   end
 end

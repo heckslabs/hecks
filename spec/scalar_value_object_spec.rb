@@ -150,7 +150,7 @@ RSpec.describe "single-element value objects strictly answer .value" do
   describe "call-site scalar collapsing" do
     it "collapses a bare scalar into the sole field, real name and shorthand name alike" do
       runtime = boot_stickers
-      runtime.dispatch("ScalarValueObjects::Sticker.Print", ref: "S1", price: 7)
+      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S1", price: 7)
 
       sticker = ScalarValueObjects::Sticker.find("S1")
       expect(sticker.ref.to_h).to eq(value: "S1")
@@ -160,22 +160,22 @@ RSpec.describe "single-element value objects strictly answer .value" do
 
     it "keeps the explicit field-named spelling working unchanged" do
       runtime = boot_stickers
-      runtime.dispatch("ScalarValueObjects::Sticker.Print", ref: { value: "S2" }, price: { amount: 3 })
+      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: { value: "S2" }, price: { amount: 3 })
 
       expect(ScalarValueObjects::Sticker.find("S2").price.to_h).to eq(amount: 3)
     end
 
     it "collapses through a mutation too" do
       runtime = boot_stickers
-      runtime.dispatch("ScalarValueObjects::Sticker.Print", ref: "S3", price: 1)
-      runtime.dispatch("ScalarValueObjects::Sticker.Reprice", sticker: "S3", price: 12)
+      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S3", price: 1)
+      runtime.dispatch_flat("ScalarValueObjects::Sticker.Reprice", sticker: "S3", price: 12)
 
       expect(ScalarValueObjects::Sticker.find("S3").price.value).to eq(12)
     end
 
     it "still refuses a bare scalar for a genuinely multi-field value object" do
       runtime = boot_stickers
-      runtime.dispatch("ScalarValueObjects::Sticker.Print", ref: "S4", price: 2)
+      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S4", price: 2)
 
       # The fixture has no multi-field command argument on purpose (its
       # whole point is single-attribute shapes) — the refusal is pinned
@@ -192,8 +192,8 @@ RSpec.describe "single-element value objects strictly answer .value" do
 
     it "answers a bare-field query over each single-attribute shape" do
       runtime = boot_stickers
-      runtime.dispatch("ScalarValueObjects::Sticker.Print", ref: "S5", price: 40)
-      runtime.dispatch("ScalarValueObjects::Sticker.Print", ref: "S6", price: 50)
+      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S5", price: 40)
+      runtime.dispatch_flat("ScalarValueObjects::Sticker.Print", ref: "S6", price: 50)
 
       at_forty = runtime.query("ScalarValueObjects::Sticker.AtPrice", price: 40)
       expect(at_forty.map { |row| row[:ref].value }).to eq(["S5"])

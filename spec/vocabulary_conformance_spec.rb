@@ -250,12 +250,12 @@ RSpec.describe "the declared vocabularies" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
 
     Hecks::Runtime::CommandInterpreter.trace = []
-    runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
+    runtime.dispatch_flat("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
     creating_trace = Hecks::Runtime::CommandInterpreter.trace.dup
 
     Hecks::Runtime::CommandInterpreter.trace = []
-    runtime.dispatch("DispatchOrder::Widget.Close", label: { value: "x" })
+    runtime.dispatch_flat("DispatchOrder::Widget.Close", label: { value: "x" })
     acting_trace = Hecks::Runtime::CommandInterpreter.trace.dup
     Hecks::Runtime::CommandInterpreter.trace = nil
 
@@ -265,21 +265,21 @@ RSpec.describe "the declared vocabularies" do
 
   it "advance_lifecycle fires only when admissible_transition finds one" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
-    runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
+    runtime.dispatch_flat("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
 
     Hecks::Runtime::CommandInterpreter.trace = []
-    runtime.dispatch("DispatchOrder::Widget.Close", label: { value: "x" })
+    runtime.dispatch_flat("DispatchOrder::Widget.Close", label: { value: "x" })
     aggregate_trace = Hecks::Runtime::CommandInterpreter.trace.dup
     Hecks::Runtime::CommandInterpreter.trace = nil
 
     Hecks::Runtime::EntityInterpreter.trace = []
-    runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "x" }, sequence: { value: 1 },
+    runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "x" }, sequence: { value: 1 },
                       note: { value: "done note" })
     entity_transitioning_trace = Hecks::Runtime::EntityInterpreter.trace.dup
 
     Hecks::Runtime::EntityInterpreter.trace = []
-    runtime.dispatch("DispatchOrder::Widget.Part.Touch", label: { value: "x" }, sequence: { value: 1 },
+    runtime.dispatch_flat("DispatchOrder::Widget.Part.Touch", label: { value: "x" }, sequence: { value: 1 },
                       note: { value: "touched" })
     entity_acting_trace = Hecks::Runtime::EntityInterpreter.trace.dup
     Hecks::Runtime::EntityInterpreter.trace = nil

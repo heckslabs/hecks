@@ -31,7 +31,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
   let(:business) { runtime }
 
   def register_customer(runtime, reference: "C-1")
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Banking::Customer.Register",
       reference: { value: reference },
       name:      { given: "Dana", family: "Ng" },
@@ -40,18 +40,18 @@ RSpec.describe "the OIDC client projection's integration layer" do
   end
 
   def register_identity(runtime, identity_id:)
-    runtime.dispatch("Identity::Identity.Register", identity_id: { value: identity_id })
+    runtime.dispatch_flat("Identity::Identity.Register", identity_id: { value: identity_id })
   end
 
   def link_external(runtime, identity_id:, key:, issuer:, subject:)
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Identity::ExternalIdentifier.Link",
       identity: identity_id, key: { value: key }, issuer: { value: issuer }, subject: { value: subject }
     )
   end
 
   def grant(runtime, actor:, role:)
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Governance::RoleAssignment.Assign",
       actor_id: { value: actor }, role_name: { value: role },
       scope: { value: "Branch-1" }, starts_at: { value: "2026-01-01" }
@@ -77,7 +77,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
     grant(business, actor: identity.instance.id, role: "Compliance officer")
 
     result = authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") do
-      business.dispatch("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
+      business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
     end
 
     expect(result.events.map(&:name)).to eq(["CustomerSuspended"])
@@ -114,11 +114,11 @@ RSpec.describe "the OIDC client projection's integration layer" do
     grant(business, actor: identity.instance.id, role: "Compliance officer")
 
     via_google = authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") do
-      business.dispatch("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
+      business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
     end
     via_microsoft = authenticated_dispatch(business.registry, issuer: "microsoft", subject: "sub-1",
 role: "Compliance officer") do
-      business.dispatch("Banking::Customer.Reinstate", id: customer.instance.id)
+      business.dispatch_flat("Banking::Customer.Reinstate", id: customer.instance.id)
     end
 
     expect(via_google.events.map(&:name)).to eq(["CustomerSuspended"])

@@ -106,7 +106,7 @@ RSpec.describe "QualityControl" do
 
   def rows(query, **args) = runtime.query("QualityControl::#{query}", **args)
   def references(query, **args) = rows(query, **args).map { |row| row[:reference][:value] }
-  def check(sweep, verb, **args) = runtime.dispatch("QualityControl::Sweep.Check.#{verb}", id: sweep.id, **args)
+  def check(sweep, verb, **args) = runtime.dispatch_flat("QualityControl::Sweep.Check.#{verb}", id: sweep.id, **args)
 
   def a_target(reference = "banking", path = "examples/banking")
     runtime
@@ -317,7 +317,7 @@ RSpec.describe "QualityControl" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
 
-      expect { runtime.dispatch("QualityControl::Target.Release", id: target.id, now: { value: 1_000 }) }
+      expect { runtime.dispatch_flat("QualityControl::Target.Release", id: target.id, now: { value: 1_000 }) }
         .to raise_error(Hecks::Runtime::AbsentArgument)
     end
 
@@ -760,7 +760,7 @@ RSpec.describe "QualityControl" do
         title: { value: "as: is accepted and does not alias" },
         body: { value: "see the demonstration" }
       )
-      runtime.dispatch("QualityControl::Ticket.Submit", id: "TK-1")
+      runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
     end
 
     it "cannot be raised for a bug that does not exist" do
@@ -822,7 +822,7 @@ RSpec.describe "QualityControl" do
         repository: { value: "chrisyoung/hecksagain" },
         title: { value: "x" }, body: { value: "y" }
       )
-      runtime.dispatch("QualityControl::Ticket.Submit", id: "TK-1")
+      runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
 
       names = runtime.events.map(&:name)
       expect(names).to include("IssueFilingRefused", "TicketFilingRefused", "TicketRetried")
@@ -1083,7 +1083,7 @@ RSpec.describe "QualityControl" do
       runtime
 
       QualityControl::Clearance.start!(commit: { value: "abc1234" })
-      runtime.dispatch("QualityControl::Clearance.CI.Run", commit: "abc1234")
+      runtime.dispatch_flat("QualityControl::Clearance.CI.Run", commit: "abc1234")
 
       expect(rows("Clearance.All").first[:status]).to eq("green")
     end
@@ -1091,7 +1091,7 @@ RSpec.describe "QualityControl" do
     it "records a red run under the word the runtime actually hands back" do
       red = boot_quality_control(StubTracker, ci_adapter: RedCi)
       QualityControl::Clearance.start!(commit: { value: "def5678" })
-      red.dispatch("QualityControl::Clearance.CI.Run", commit: "def5678")
+      red.dispatch_flat("QualityControl::Clearance.CI.Run", commit: "def5678")
 
       expect(red.query("QualityControl::Clearance.Red").first[:summary][:value]).to include("2 failures")
     end

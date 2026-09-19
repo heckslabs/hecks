@@ -86,8 +86,8 @@ RSpec.describe Hecks::Runtime::Instance do
   it "fills both composite identity heads from args, not nil, when the creating command never redeclares them" do
     runtime = boot_composite_identity
 
-    runtime.dispatch("CompositeIdentityGrowth::Plot.PlantCrop",
-                     row: { value: 3 }, column: { value: 5 }, crop: "wheat")
+    runtime.dispatch_flat("CompositeIdentityGrowth::Plot.PlantCrop",
+                          row: { value: 3 }, column: { value: 5 }, crop: "wheat")
 
     plot = repository_for(runtime).all.first
     expect(plot).not_to be_nil
@@ -100,8 +100,8 @@ RSpec.describe Hecks::Runtime::Instance do
 
   it "still lets a SECOND command address the same record by its composite identity" do
     runtime = boot_composite_identity
-    runtime.dispatch("CompositeIdentityGrowth::Plot.PlantCrop",
-                     row: { value: 3 }, column: { value: 5 }, crop: "wheat")
+    runtime.dispatch_flat("CompositeIdentityGrowth::Plot.PlantCrop",
+                          row: { value: 3 }, column: { value: 5 }, crop: "wheat")
 
     plot = repository_for(runtime).all.first
     expect(plot.id).to include("3").and include("5")

@@ -66,12 +66,12 @@ RSpec.describe "durable saga/process-manager state" do
   end
 
   def stuck_wire(runtime)
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
     runtime
   end
 
@@ -87,11 +87,11 @@ RSpec.describe "durable saga/process-manager state" do
 
   it "deletes the checkpoint once a saga genuinely ends (the happy path, ends_on)" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
 
     expect(runtime.registry.saga_instances["Carry"]).to be_empty
     expect(runtime.registry.saga_persistence("Wire").each_saga.to_a).to eq([])
@@ -112,7 +112,7 @@ RSpec.describe "durable saga/process-manager state" do
 
   it "rehydration is a real no-op for a domain with nothing stuck" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
 
     reopened = boot_wire
     expect(reopened.registry.saga_instances["Carry"]).to be_empty
@@ -145,9 +145,9 @@ RSpec.describe "durable saga/process-manager state" do
       registry.verify!
       runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
-      runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-      runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-      runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+      runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+      runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+      runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
 
       # Ten threads all asking the same wire reference concurrently —
       # the correlation collides on every one. Exactly one may win
@@ -160,7 +160,7 @@ RSpec.describe "durable saga/process-manager state" do
       # mutation identically regardless of which adapter is behind it).
       threads = Array.new(10) do
         Thread.new do
-          runtime.dispatch("Wire::Wire.Ask", reference: { value: "race" }, amount: { cents: 1 },
+          runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "race" }, amount: { cents: 1 },
                            source: "left", destination: "right")
         rescue StandardError
           nil # a losing thread may see the destination already credited and refuse downstream — fine, not the point

@@ -35,14 +35,14 @@ RSpec.describe "the rebuild sweep" do
 
   it "seeds a projected field synchronously the moment a command saves the record" do
     runtime = boot
-    runtime.dispatch("ProjectedFields::Customer.Register", ref: { value: "c1" })
-    runtime.dispatch("ProjectedFields::Account.Open", customer: "c1", ref: { value: "a1" })
+    runtime.dispatch_flat("ProjectedFields::Customer.Register", ref: { value: "c1" })
+    runtime.dispatch_flat("ProjectedFields::Account.Open", customer: "c1", ref: { value: "a1" })
 
     account = runtime.registry.repository("ProjectedFields", runtime.registry.bluebook("ProjectedFields").aggregate("Account"))
                      .find("a1")
     expect(account[:customer_status]).to eq("active")
 
-    expect { runtime.dispatch("ProjectedFields::Account.CheckCustomerActive", ref: "a1") }
+    expect { runtime.dispatch_flat("ProjectedFields::Account.CheckCustomerActive", ref: "a1") }
       .not_to raise_error
   end
 
@@ -55,7 +55,7 @@ RSpec.describe "the rebuild sweep" do
   # touched."
   it "still refuses on a projected field a direct repository write never seeded" do
     runtime = boot
-    runtime.dispatch("ProjectedFields::Customer.Register", ref: { value: "c1b" })
+    runtime.dispatch_flat("ProjectedFields::Customer.Register", ref: { value: "c1b" })
 
     account_aggregate = runtime.registry.bluebook("ProjectedFields").aggregate("Account")
     repository = runtime.registry.repository("ProjectedFields", account_aggregate)
@@ -65,25 +65,25 @@ RSpec.describe "the rebuild sweep" do
 
     expect(repository.find("a1b").key?(:customer_status)).to be(false)
 
-    expect { runtime.dispatch("ProjectedFields::Account.CheckCustomerActive", ref: "a1b") }
+    expect { runtime.dispatch_flat("ProjectedFields::Account.CheckCustomerActive", ref: "a1b") }
       .to raise_error(Hecks::Runtime::ProjectionAbsent, /not yet projected/)
 
     changed = Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", account_aggregate)
     expect(changed).to eq(1)
 
-    expect { runtime.dispatch("ProjectedFields::Account.CheckCustomerActive", ref: "a1b") }
+    expect { runtime.dispatch_flat("ProjectedFields::Account.CheckCustomerActive", ref: "a1b") }
       .not_to raise_error
   end
 
   it "goes stale once the target moves, until something saves this record again or a sweep runs" do
     runtime = boot
-    runtime.dispatch("ProjectedFields::Customer.Register", ref: { value: "c3" })
-    runtime.dispatch("ProjectedFields::Account.Open", customer: "c3", ref: { value: "a3" })
+    runtime.dispatch_flat("ProjectedFields::Customer.Register", ref: { value: "c3" })
+    runtime.dispatch_flat("ProjectedFields::Account.Open", customer: "c3", ref: { value: "a3" })
 
     aggregate = runtime.registry.bluebook("ProjectedFields").aggregate("Account")
     repository = runtime.registry.repository("ProjectedFields", aggregate)
 
-    runtime.dispatch("ProjectedFields::Customer.Suspend", ref: "c3")
+    runtime.dispatch_flat("ProjectedFields::Customer.Suspend", ref: "c3")
 
     # **Stale on purpose** — this is the whole point of "kept fresh by a
     # seed-on-write plus a sweep for drift, rather than read live":
@@ -101,14 +101,14 @@ RSpec.describe "the rebuild sweep" do
     expect(changed).to eq(1)
     expect(repository.find("a3")[:customer_status]).to eq("suspended")
 
-    expect { runtime.dispatch("ProjectedFields::Account.CheckCustomerActive", ref: "a3") }
+    expect { runtime.dispatch_flat("ProjectedFields::Account.CheckCustomerActive", ref: "a3") }
       .to raise_error(Hecks::Runtime::GivenNotMet)
   end
 
   it "changes nothing, and saves nothing, on a sweep with no drift — already seeded at creation" do
     runtime = boot
-    runtime.dispatch("ProjectedFields::Customer.Register", ref: { value: "c4" })
-    runtime.dispatch("ProjectedFields::Account.Open", customer: "c4", ref: { value: "a4" })
+    runtime.dispatch_flat("ProjectedFields::Customer.Register", ref: { value: "c4" })
+    runtime.dispatch_flat("ProjectedFields::Account.Open", customer: "c4", ref: { value: "a4" })
 
     aggregate = runtime.registry.bluebook("ProjectedFields").aggregate("Account")
     # Already correct from `Open`'s own synchronous seed — a sweep

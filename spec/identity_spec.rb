@@ -36,7 +36,7 @@ RSpec.describe "Identity" do
   def register
     Hecks::Adapters::SequentialIdentity.reset!
     minted = Hecks::Ports::IdentityGeneration.uuid(runtime.registry)
-    runtime.dispatch("Identity::Identity.Register", identity_id: { value: minted })
+    runtime.dispatch_flat("Identity::Identity.Register", identity_id: { value: minted })
   end
 
   it "registers an identity minted through the identity-generation port, not a natural key" do
@@ -48,7 +48,7 @@ RSpec.describe "Identity" do
 
   it "links an external identifier to a real, previously-registered identity" do
     identity = register
-    result = runtime.dispatch(
+    result = runtime.dispatch_flat(
       "Identity::ExternalIdentifier.Link",
       identity: identity.instance.id,
       key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
@@ -60,7 +60,7 @@ RSpec.describe "Identity" do
 
   it "refuses to link an identifier to an identity that doesn't exist" do
     expect do
-      runtime.dispatch(
+      runtime.dispatch_flat(
         "Identity::ExternalIdentifier.Link",
         identity: "no-such-identity",
         key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
@@ -70,12 +70,12 @@ RSpec.describe "Identity" do
 
   it "lets more than one external identifier link to the same identity" do
     identity = register
-    google = runtime.dispatch(
+    google = runtime.dispatch_flat(
       "Identity::ExternalIdentifier.Link",
       identity: identity.instance.id,
       key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
     )
-    microsoft = runtime.dispatch(
+    microsoft = runtime.dispatch_flat(
       "Identity::ExternalIdentifier.Link",
       identity: identity.instance.id,
       key: { value: "microsoft:sub-1" }, issuer: { value: "microsoft" }, subject: { value: "sub-1" }
@@ -87,7 +87,7 @@ RSpec.describe "Identity" do
   describe "ResolvedBy" do
     it "finds the identity an authenticated (issuer, subject) pair resolves to" do
       identity = register
-      runtime.dispatch(
+      runtime.dispatch_flat(
         "Identity::ExternalIdentifier.Link",
         identity: identity.instance.id,
         key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }

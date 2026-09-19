@@ -131,7 +131,7 @@ RSpec.describe "a for_each policy's row id" do
   end
 
   def issue(runtime, serial, holder)
-    runtime.dispatch("FanKey::Chit.Issue", serial: { value: serial }, holder: { value: holder })
+    runtime.dispatch_flat("FanKey::Chit.Issue", serial: { value: serial }, holder: { value: holder })
   end
 
   it "reaches a trigger that acts on the fanned aggregate, by its bare reference key" do
@@ -140,7 +140,7 @@ RSpec.describe "a for_each policy's row id" do
     issue(runtime, "chit-2", "h1")
     issue(runtime, "chit-3", "h2")
 
-    runtime.dispatch("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
+    runtime.dispatch_flat("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
 
     fan = runtime.reactions.select { |row| row[:policy] == "VoidChitsOnAlarm" }
     expect(fan.map { |row| row[:for_row] }).to contain_exactly("chit-1", "chit-2")
@@ -156,7 +156,7 @@ RSpec.describe "a for_each policy's row id" do
     runtime = boot_keys
     issue(runtime, "chit-1", "h1")
 
-    runtime.dispatch("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
+    runtime.dispatch_flat("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
 
     # The refusal this asserts the absence of is the exact one the bug
     # produced: `Void does not declare chit_id — it takes `.

@@ -137,14 +137,14 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
     it "admits exactly one of two concurrent Debits that together overdraw the account (#{adapter_name})" do
       dir = adapter_name == "Heki" ? Dir.mktmpdir("hecks-heki-concurrency-") : nil
       dispatcher = boot_for(adapter_name, dir: dir)
-      dispatcher.dispatch("ConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
+      dispatcher.dispatch_flat("ConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
 
       install_race_window(account_repository(dispatcher).adapter)
 
       outcomes = Queue.new
       threads = Array.new(2) do
         Thread.new do
-          dispatcher.dispatch("ConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
+          dispatcher.dispatch_flat("ConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
           outcomes << :succeeded
         rescue Hecks::Runtime::GivenNotMet
           outcomes << :refused

@@ -74,7 +74,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
   end
 
   def grant(from:, to:, starts_at: "2026-01-01")
-    governance.dispatch(
+    governance.dispatch_flat(
       "Governance::RoleTransition.Grant",
       from_role: { value: from }, to_role: { value: to }, starts_at: { value: starts_at }
     )
@@ -94,10 +94,10 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
       # not hold it. The nested `as_caller` is what makes this dispatch
       # authorized at all.
       created = Hecks.as_caller(role: "Chef") do
-        business.dispatch("Pizzas::Order.CreatePizza", name: { value: "Margherita" }, **PIZZA_ARGS)
+        business.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: "Margherita" }, **PIZZA_ARGS)
       end
       Hecks.as_caller(role: "Chef") do
-        business.dispatch(
+        business.dispatch_flat(
           "Pizzas::Order.AddTopping", id: created.instance.id,
           topping: { value: "Basil" }, amount: { value: 1 }
         )
@@ -107,7 +107,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
       # nested block returns — proved by dispatching a "Customer"-only
       # command right here, still inside the outer as_caller, with no
       # nested block in the way.
-      purchased = business.dispatch(
+      purchased = business.dispatch_flat(
         "Pizzas::Order.Purchase", id: created.instance.id,
         customer_name: { value: "Dana" }, amount: { cents: 1200 }
       )
@@ -137,7 +137,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     expect do
       Hecks.as_caller(role: "Customer") do
         act_as(from: "Customer", to: "Chef", dispatched: dispatched) do
-          business.dispatch("Pizzas::Order.CreatePizza", name: { value: "Refused" }, **PIZZA_ARGS)
+          business.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: "Refused" }, **PIZZA_ARGS)
         end
       end
     end.to raise_error(/not authorized/)
@@ -151,7 +151,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     created = grant(from: "Customer", to: "Chef")
     expect(transition_granted?(from: "Customer", to: "Chef")).to be(true)
 
-    governance.dispatch("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-06-01" })
+    governance.dispatch_flat("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-06-01" })
 
     expect(transition_granted?(from: "Customer", to: "Chef")).to be(false)
   end
@@ -161,7 +161,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
 
     expect do
       Hecks.as_caller(role: "Customer") do
-        business.dispatch("Pizzas::Order.CreatePizza", name: { value: "NeverGranted" }, **PIZZA_ARGS)
+        business.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: "NeverGranted" }, **PIZZA_ARGS)
       end
     end.to raise_error(Hecks::Runtime::Unauthorized)
   end

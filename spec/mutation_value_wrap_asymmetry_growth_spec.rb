@@ -97,8 +97,8 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   it "increments a phantom (never-touched) VO-typed field on its FIRST mutation, not just later ones" do
     runtime = boot_value_wrap
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Open", id: { value: "b1" })
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b1")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Open", id: { value: "b1" })
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b1")
 
     breaker = repository_for(runtime).find("b1")
     expect(breaker[:count][:value]).to eq(1)
@@ -106,9 +106,9 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   it "keeps mutating correctly on the SECOND increment, once the field is no longer phantom" do
     runtime = boot_value_wrap
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Open", id: { value: "b2" })
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Open", id: { value: "b2" })
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
 
     breaker = repository_for(runtime).find("b2")
     expect(breaker[:count][:value]).to eq(2)
@@ -116,8 +116,8 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   it "multiplies a phantom field correctly on its first mutation too" do
     runtime = boot_value_wrap
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Open", id: { value: "b3" })
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Scale", id: "b3")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Open", id: { value: "b3" })
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Scale", id: "b3")
 
     breaker = repository_for(runtime).find("b3")
     # current starts at the raw, unwrapped 0 (never touched) -- 0 * 5 stays 0,

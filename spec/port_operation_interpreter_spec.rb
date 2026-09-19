@@ -52,7 +52,7 @@ RSpec.describe "a port operation, dispatched" do
   end
 
   def open_payment(dispatcher, id: "P1", cents: 4200)
-    dispatcher.dispatch("Payments::Payment.Open", payment_id: { value: id }, amount: { cents: cents })
+    dispatcher.dispatch_flat("Payments::Payment.Open", payment_id: { value: id }, amount: { cents: cents })
   end
 
   it "gates unknown arguments the same way a command does" do
@@ -144,7 +144,7 @@ RSpec.describe "a port operation, dispatched" do
     open_payment(dispatcher)
 
     expect do
-      dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Nonsense", payment_id: "P1")
+      dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Nonsense", flat: { payment_id: "P1" })
     end.to raise_error(Hecks::Runtime::UnknownVerb)
   end
 
@@ -153,7 +153,7 @@ RSpec.describe "a port operation, dispatched" do
     open_payment(dispatcher)
 
     expect do
-      dispatcher.dispatch_port("Payments", "Payment", "Nonsense", "Receive", payment_id: "P1")
+      dispatcher.dispatch_port("Payments", "Payment", "Nonsense", "Receive", flat: { payment_id: "P1" })
     end.to raise_error(Hecks::Runtime::UnknownVerb)
   end
 
@@ -189,7 +189,7 @@ RSpec.describe "a port operation, dispatched" do
       open_payment(dispatcher)
 
       expect do
-        dispatcher.dispatch("Payments::Payment.PaymentGateway.Nonsense", payment_id: "P1")
+        dispatcher.dispatch_flat("Payments::Payment.PaymentGateway.Nonsense", payment_id: "P1")
       end.to raise_error(Hecks::Runtime::UnknownVerb, /PaymentGateway has no operation "Nonsense"/)
     end
 
@@ -198,7 +198,7 @@ RSpec.describe "a port operation, dispatched" do
       open_payment(dispatcher)
 
       expect do
-        dispatcher.dispatch("Payments::Payment.NoSuchThing.Whatever", payment_id: "P1")
+        dispatcher.dispatch_flat("Payments::Payment.NoSuchThing.Whatever", payment_id: "P1")
       end.to raise_error(Hecks::Runtime::UnknownVerb, /Payment has no entity "NoSuchThing"/)
     end
   end

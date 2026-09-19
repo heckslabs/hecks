@@ -65,7 +65,7 @@ RSpec.describe "the operator domain" do
   # surface as a confusing direction-B failure two examples later.
   DISPATCHER = boot_expression
   REFUSALS = LEDGER["steps"].filter_map do |step|
-    DISPATCHER.dispatch(step["verb"], **symbolize(step["args"]))
+    DISPATCHER.dispatch_flat(step["verb"], **symbolize(step["args"]))
     nil
   rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
     "#{step['verb']} #{step['args']} — #{e.message}"
@@ -357,32 +357,32 @@ RSpec.describe "the operator domain" do
   describe "the gates, seen refusing" do
     it "refuses to admit an operator that does not read in every target" do
       throwaway = self.class.boot_expression
-      throwaway.dispatch("Expression::Operator.Propose",
-                         symbol: { value: "**" }, category: { value: "arithmetic" },
-                         precedence: { value: 6 }, arity: { value: 2 },
-                         grammar: { value: "inner" }, strategy: { value: "top_level_split" },
-                         position: { value: 9 })
+      throwaway.dispatch_flat("Expression::Operator.Propose",
+                              symbol: { value: "**" }, category: { value: "arithmetic" },
+                              precedence: { value: 6 }, arity: { value: 2 },
+                              grammar: { value: "inner" }, strategy: { value: "top_level_split" },
+                              position: { value: 9 })
 
-      expect { throwaway.dispatch("Expression::Operator.Admit", symbol: { value: "**" }) }
+      expect { throwaway.dispatch_flat("Expression::Operator.Admit", symbol: { value: "**" }) }
         .to raise_error(Hecks::Runtime::GivenNotMet,
                         /an operator must read in every target before it is admitted/)
     end
 
     it "refuses a rendering on a retired operator" do
       throwaway = self.class.boot_expression
-      throwaway.dispatch("Expression::Operator.Propose",
-                         symbol: { value: "**" }, category: { value: "arithmetic" },
-                         precedence: { value: 6 }, arity: { value: 2 },
-                         grammar: { value: "inner" }, strategy: { value: "top_level_split" },
-                         position: { value: 9 })
-      throwaway.dispatch("Expression::Operator.Render",
-                         symbol: { value: "**" }, target: { value: "ruby" }, form: { value: "a ** b" })
-      throwaway.dispatch("Expression::Operator.Admit",  symbol: { value: "**" })
-      throwaway.dispatch("Expression::Operator.Retire", symbol: { value: "**" })
+      throwaway.dispatch_flat("Expression::Operator.Propose",
+                              symbol: { value: "**" }, category: { value: "arithmetic" },
+                              precedence: { value: 6 }, arity: { value: 2 },
+                              grammar: { value: "inner" }, strategy: { value: "top_level_split" },
+                              position: { value: 9 })
+      throwaway.dispatch_flat("Expression::Operator.Render",
+                              symbol: { value: "**" }, target: { value: "ruby" }, form: { value: "a ** b" })
+      throwaway.dispatch_flat("Expression::Operator.Admit",  symbol: { value: "**" })
+      throwaway.dispatch_flat("Expression::Operator.Retire", symbol: { value: "**" })
 
       expect do
-        throwaway.dispatch("Expression::Operator.Render",
-                           symbol: { value: "**" }, target: { value: "go" }, form: { value: "a ** b" })
+        throwaway.dispatch_flat("Expression::Operator.Render",
+                                symbol: { value: "**" }, target: { value: "go" }, form: { value: "a ** b" })
       end.to raise_error(Hecks::Runtime::GivenNotMet, /a retired operator takes no new renderings/)
     end
 

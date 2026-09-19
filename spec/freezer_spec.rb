@@ -53,9 +53,9 @@ RSpec.describe Hecks::Freezer do
   describe "a value object, after a real dispatch" do
     let(:result) do
       runtime = boot_in_memory
-      runtime.dispatch("Pizzas::Order.CreatePizza",
-                       name:  { value: "Margherita" },
-                       pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
+      runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                            name:  { value: "Margherita" },
+                            pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
     end
 
     # **The bug this exists for**. `@fields.freeze` left the String inside a
@@ -90,9 +90,9 @@ RSpec.describe Hecks::Freezer do
   describe "an emitted event" do
     let(:runtime) { boot_in_memory }
     let(:event) do
-      runtime.dispatch("Pizzas::Order.CreatePizza",
-                       name:  { value: "Quattro" },
-                       pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
+      runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                            name:  { value: "Quattro" },
+                            pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
       runtime.events.last
     end
 
@@ -120,9 +120,9 @@ RSpec.describe Hecks::Freezer do
     # each one that stops changing.
     it "leaves the log itself appendable" do
       before = runtime.events.size
-      runtime.dispatch("Pizzas::Order.CreatePizza",
-                       name:  { value: "Capricciosa" },
-                       pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
+      runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                            name:  { value: "Capricciosa" },
+                            pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
 
       expect(runtime.events.size).to eq(before + 1)
     end
@@ -134,16 +134,16 @@ RSpec.describe Hecks::Freezer do
   describe "collections the domain hands back" do
     let(:runtime) do
       rt = boot_in_memory
-      rt.dispatch("Pizzas::Order.CreatePizza",
-                  name:  { value: "Frozen" },
-                  pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
+      rt.dispatch_flat("Pizzas::Order.CreatePizza",
+                       name:  { value: "Frozen" },
+                       pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
       rt
     end
     let(:aggregate)  { runtime.registry.bluebook("Pizzas").aggregate("Order") }
     let(:repository) { runtime.registry.repository("Pizzas", aggregate) }
 
     it "freezes an appended list through, not just the array" do
-      runtime.dispatch("Pizzas::Order.AddTopping", name: "Frozen",
+      runtime.dispatch_flat("Pizzas::Order.AddTopping", name: "Frozen",
                        topping: { value: "Basil" }, amount: { value: 2 })
       toppings = repository.find("Frozen").state[:toppings]
 
@@ -171,9 +171,9 @@ RSpec.describe Hecks::Freezer do
   describe "what is deliberately NOT frozen" do
     it "leaves an instance's state holder mutable, since a command's job is to change it" do
       runtime = boot_in_memory
-      result = runtime.dispatch("Pizzas::Order.CreatePizza",
-                                name:  { value: "Marinara" },
-                                pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
+      result = runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                                     name:  { value: "Marinara" },
+                                     pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
 
       expect(result.instance.to_h).not_to be_frozen
     end

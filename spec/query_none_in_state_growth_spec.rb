@@ -111,16 +111,16 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
 
   it "excludes an assignment whose claim IS in the named state, and keeps the rest" do
     runtime = boot_anti_join
-    runtime.dispatch("AntiJoinGrowth::Claim.File", id: { value: "c1" })  # stays "held"
-    runtime.dispatch("AntiJoinGrowth::Claim.File", id: { value: "c2" })
-    runtime.dispatch("AntiJoinGrowth::Claim.Release", id: "c2")          # no longer "held"
+    runtime.dispatch_flat("AntiJoinGrowth::Claim.File", id: { value: "c1" })  # stays "held"
+    runtime.dispatch_flat("AntiJoinGrowth::Claim.File", id: { value: "c2" })
+    runtime.dispatch_flat("AntiJoinGrowth::Claim.Release", id: "c2")          # no longer "held"
 
-    runtime.dispatch("AntiJoinGrowth::Board.Open", id: { value: "b1" })
-    runtime.dispatch("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "c1")
-    runtime.dispatch("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "c2")
+    runtime.dispatch_flat("AntiJoinGrowth::Board.Open", id: { value: "b1" })
+    runtime.dispatch_flat("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "c1")
+    runtime.dispatch_flat("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "c2")
     # A claim that was never filed at all — "no record in that state" reads
     # the same as "a record, but not in that state".
-    runtime.dispatch("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "nonexistent")
+    runtime.dispatch_flat("AntiJoinGrowth::Board.Assign", id: "b1", claim_id: "nonexistent")
 
     rows = runtime.query("AntiJoinGrowth::Board.Assignment.Unclaimed")
 

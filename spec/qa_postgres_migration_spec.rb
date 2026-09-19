@@ -143,14 +143,14 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     25.times do |i|
       n = i + 1
       freeze_expectation = "a frozen account refuses a second freeze, check #{n}"
-      @heki_runtime.dispatch("QualityControl::Sweep.Check", id:          sweep.id,
-                                                            subject:     { value: "Banking::Account.Freeze##{n}" },
-                                                            expectation: { value: freeze_expectation })
+      @heki_runtime.dispatch_flat("QualityControl::Sweep.Check", id:          sweep.id,
+                                                                 subject:     { value: "Banking::Account.Freeze##{n}" },
+                                                                 expectation: { value: freeze_expectation })
       if n.even?
-        @heki_runtime.dispatch("QualityControl::Sweep.Check.Held", id: sweep.id,
+        @heki_runtime.dispatch_flat("QualityControl::Sweep.Check.Held", id: sweep.id,
                                 sequence: { value: n }, observation: { value: "refused as expected, check #{n}" })
       else
-        @heki_runtime.dispatch("QualityControl::Sweep.Check.Surprised", id: sweep.id,
+        @heki_runtime.dispatch_flat("QualityControl::Sweep.Check.Surprised", id: sweep.id,
                                 sequence: { value: n }, observation: { value: "silently accepted, check #{n}" },
                                 target: { value: t1.id })
       end
