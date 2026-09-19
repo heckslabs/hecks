@@ -91,6 +91,19 @@ module Hecks
           @ports_by_name[port.name] = port
         end
 
+        # A TRANSLATED REACTION IS ALSO DECLARED IN THE HECKSAGON —
+        # `HecksagonBuilder#translates` builds an ordinary `Policy` (same
+        # shape, same `PolicyInterpreter` runtime, as one written inside a
+        # `policy` block in this chapter's own `.bluebook`) and attaches it
+        # here, after the chapter already exists, the same reasoning
+        # `add_port` gives one method up. Kept out of the bluebook itself
+        # on purpose: which FOREIGN domain's event this chapter reacts to
+        # is a wiring/context-mapping decision, not a fact the domain
+        # states about its own model.
+        def add_policy(policy)
+          @policies << policy
+        end
+
         # Every dispatchable name this chapter answers to, spelled exactly
         # as Dispatcher#dispatch takes it. Derived from the aggregates,
         # never declared — which is why Projections::OIDC can hold its own

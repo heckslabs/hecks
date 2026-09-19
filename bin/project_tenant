@@ -1,30 +1,35 @@
 #!/usr/bin/env ruby
 
-# **The tenant provisioner** — same split bin/project_deploy already draws
-# between validating a declared shape (lib/hecks/deploy's own
-# Tenant.Declare) and generating/acting on it (this script). Three
-# local, idempotent steps, in order: write the tenant's own
-# `environments/<slug>.world` overlay, boot the domain once under it
-# (proving it genuinely works, not just that the file parses — the
-# same "verified live" discipline every deploy in this codebase holds
-# itself to), then run the tenant_capable? gate against the result.
+# THE TENANT PROVISIONER — same split bin/project_deploy already draws
+# between VALIDATING a declared shape (lib/hecks/deploy's own
+# Tenant.Declare) and ACTING on it. The overlay write now lives behind
+# a real driven port (Deploy::Tenant.port "TenantProvisioning") instead
+# of inline script code — `TenantProvisioner` (lib/hecks/adapters/
+# driven/tenant_provisioner.rb) writes the `.world` overlay; this
+# script still does the boot-for-real + tenant_capable? gate itself,
+# deliberately NOT nested inside the adapter (see that adapter's own
+# header for why a boot running mid-dispatch, inside another boot's
+# own call stack, is a real, separate concern from writing one file).
 #
-# `Runtime.boot(dir, environment: slug)` (Registry#add_world's own
-# merge) is what actually makes this an overlay rather than a second,
-# competing domain declaration — see Runtime::Loader.boot's own
-# comment for the mechanism, and deploy.bluebook's own comment on
-# `Tenant` for why this stays a plain generator script rather than a
-# saga: every step here is already safe to re-run, so there is no
-# partial-progress state worth checkpointing.
+# `Deploy` and `Tenancy` are booted TOGETHER, into one shared registry
+# (Hecks.boot_files, not two separate `Hecks.boot` calls) — the
+# `translates` reaction in tenancy.hecksagon (on Tenant::
+# TenantProvisioned, trigger Tenant::Register) can only see across
+# domains loaded into the SAME registry; PolicyInterpreter scans every
+# bluebook the registry holds, not just the emitting one, but two
+# separate registries share nothing.
 #
-# The overlay replaces, not merges, the base persisted_by settings for
-# the same adapter — Registry#merge_worlds' own documented shallow-merge
-# shape (a key an overlay declares replaces that key's whole resolved
-# hash, it does not deep-merge field by field). So `--database` is
-# required here even when the base `.world` already names one — the
-# generated overlay is this tenant's own complete persisted_by
-# settings for the domain-level default bind, not a diff against the
-# base's.
+# THE OVERLAY REPLACES, NOT MERGES, THE BASE persisted_by SETTINGS FOR
+# THE SAME ADAPTER — Registry#merge_worlds' own documented shallow-merge
+# shape. So `--database` is REQUIRED here even when the base `.world`
+# already names one.
+#
+# A REFUSED REACTION IS NEVER RAISED — PolicyInterpreter#deliver
+# deliberately swallows a policy-triggered command's own refusal (it
+# would blow up the ORIGINAL caller's dispatch for a failure in a
+# DIFFERENT command it never asked to run). So this script confirms
+# the record actually landed by querying for it afterward, rather than
+# trusting that no exception means success.
 #
 #   bin/project_tenant <domain-directory> <slug> --domain=name --realm=name \
 #     --schema=name --database=name [--adapter=PostgresEra]
@@ -35,7 +40,6 @@ require "hecks"
 # own documented `--adapter=PostgresEra` option) needs the era
 # persistence plugin loaded; core no longer carries it unconditionally.
 require "hecks/ports/persistence/plugins/era"
-require "fileutils"
 require "optparse"
 
 directory = ARGV.shift
@@ -59,14 +63,24 @@ end
 domain_directory = File.expand_path(directory)
 File.directory?(domain_directory) or abort "no such domain directory: #{domain_directory}"
 
-# Validated, not hand-checked — dispatches into lib/hecks/deploy's
-# own Tenant.Declare (the same given/invariant machinery LambdaTarget's
-# own validation already is), before this script writes or connects to
-# anything.
-deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecks/deploy", __dir__))
+lib_hecks  = File.expand_path("../lib/hecks", __dir__)
+dispatcher = Hecks.boot_files(
+  [
+    File.join(lib_hecks, "deploy/bluebook/deploy.bluebook"),
+    File.join(lib_hecks, "deploy/bluebook/deploy.hecksagon"),
+    File.join(lib_hecks, "tenancy/bluebook/tenancy.bluebook"),
+    File.join(lib_hecks, "tenancy/bluebook/tenancy.hecksagon")
+  ],
+  install_facade: false
+)
+
+# VALIDATED, not hand-checked — the same given/invariant machinery
+# LambdaTarget's own validation already is, before anything is
+# provisioned.
 begin
-  deploy_dispatcher.dispatch(
+  dispatcher.dispatch(
     "Deploy::Tenant.Declare",
+    to:   slug,
     with: {
       slug:   { value: slug },
       domain: { value: options[:domain] },
@@ -78,38 +92,49 @@ rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "tenant #{slug.inspect} is invalid: #{e.message}"
 end
 
-# **The overlay itself** — a plain File.write, idempotent by construction
-# (re-running this script for the same tenant just rewrites the
-# identical content).
-overlay_path = File.join(domain_directory, "environments", "#{slug}.world")
-FileUtils.mkdir_p(File.dirname(overlay_path))
-File.write(overlay_path, <<~WORLD)
-  Hecks.world "#{options[:domain]}" do
-    realm "#{options[:realm]}"
-    persisted_by("#{options[:adapter]}") do
-      database "#{options[:database]}"
-      schema   "#{options[:schema]}"
-    end
-  end
-WORLD
+# THE ADAPTER RUNS HERE — writes the overlay only. Answers
+# TenantProvisioned or refuses ProvisioningRefused; either way this
+# call itself never raises.
+reactions = dispatcher.dispatch_port(
+  "Deploy", "Tenant", "TenantProvisioning", "Provision",
+  to:   slug,
+  with: {
+    database:  { value: options[:database] },
+    adapter:   { value: options[:adapter] },
+    directory: { value: domain_directory }
+  }
+)
 
+if reactions.map(&:name).include?("ProvisioningRefused")
+  refusal = reactions.find { |event| event.name == "ProvisioningRefused" }
+  abort "provisioning #{slug.inspect} was refused: #{refusal.payload[:refusal]}"
+end
+
+overlay_path = File.join(domain_directory, "environments", "#{slug}.world")
 puts "wrote #{overlay_path}"
 
-# **Booted once, for real** — PostgresEra#connect_for's own `CREATE SCHEMA
+# BOOTED ONCE, FOR REAL — PostgresEra#connect_for's own `CREATE SCHEMA
 # IF NOT EXISTS` (idempotent, same self-healing discipline every other
 # provisioning step in this adapter already holds itself to) means this
 # is also the schema's own provisioning step, not just a smoke test.
-dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
+target_dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
 puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
 
-# The gate, checked after a real boot — belt-and-suspenders: a domain
+# THE GATE, CHECKED AFTER A REAL BOOT — belt-and-suspenders: a domain
 # whose bound adapter cannot actually keep two tenants apart should
 # never reach this point silently. Checked per bluebook this registry
 # declares, not just the one named --domain, the same completeness
 # refuse_ungoverned_roles! already holds itself to across every
 # hecksagon a boot merges.
-dispatcher.registry.bluebooks.each_key do |name|
-  Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(dispatcher.registry, name)
+target_dispatcher.registry.bluebooks.each_key do |name|
+  Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(target_dispatcher.registry, name)
 end
 
-puts "#{options[:domain]} is tenant_capable? for #{slug.inspect} — safe to host alongside other tenants"
+# CONFIRMED BY QUERY, NOT BY ABSENCE OF AN EXCEPTION — see this
+# script's own header on why a policy's own refusal never raises.
+tenant = dispatcher.registry.repository("Tenancy", dispatcher.registry.bluebook("Tenancy").aggregate("Tenant"))
+                   .find(slug)
+tenant or abort "provisioning succeeded but #{slug.inspect} was never registered in Tenancy — " \
+                "check registry.reaction_log for a silently refused Register"
+
+puts "#{options[:domain]} is tenant_capable? for #{slug.inspect} — registered under realm #{options[:realm].inspect}"

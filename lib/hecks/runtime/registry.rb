@@ -16,7 +16,7 @@ module Hecks
 
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
                   :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex,
-                  :saga_dispatch_log, :policy_dispatch_log
+                  :saga_dispatch_log, :policy_dispatch_log, :bluebook_sources
 
       # @param root [String, nil] the booting project's root directory, the base
       #   a shared ports/adapters root and a `.world`'s own relative paths resolve
@@ -24,7 +24,8 @@ module Hecks
       def initialize(root: nil)
         @root         = root
         @bluebooks    = {}
-        @hecksagons   = {}
+        @bluebook_sources = {}
+        @hecksagons = {}
         @ports = {}
         @adapters     = {}
         @worlds       = {}
@@ -146,6 +147,23 @@ module Hecks
       # @param item [Bluebook::Chapter] the loaded, judged chapter
       # @return [Bluebook::Chapter] `item`, unchanged
       def add_bluebook(item) = @bluebooks[item.name] = item
+
+      # PROVENANCE, SIDE-CHANNEL — which real `.bluebook` file(s)
+      # contributed to a chapter name, never part of the exported IR (a
+      # boot-time loading fact, not a domain fact) and never Rust-mirrored
+      # (the same "additive, Ruby-only" shape `@translations` above already
+      # is). Legitimate accumulation (several files declaring the SAME
+      # chapter name on purpose — `lib/hecks/language/bluebook/*.bluebook`
+      # all open `Hecks.bluebook "Bluebook"`) pushes more than one path
+      # here too; that alone is not a problem. What this exists to let
+      # `refuse_cross_package_bluebook_merge!` (registry/verification.rb)
+      # catch is TWO UNRELATED PACKAGES accumulating into the same name by
+      # coincidence — a stale vendored fork's own copy of a real gem's
+      # chapter, still reachable on the load path, silently merging its
+      # aggregates into the real one via this exact accumulation mechanism.
+      def record_bluebook_source(name, path)
+        (@bluebook_sources[name.to_s] ||= []) << path
+      end
 
       # Merged, not replaced — recovered, not new (see Runtime::Loader
       # .boot's own comment for the provenance). A domain's hecksagon can
