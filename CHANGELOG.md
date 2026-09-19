@@ -7,6 +7,25 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`rust/host` answers the console's collection reads: `GET /api/:coll`
+and `GET /api/:coll/:id`.** Records come out of the kernel's own
+`instances` with the record's id beside its fields, exactly as
+`Handle#to_h` builds them; the collection key resolves through the same
+`collections.<Name>.key` config `/api/ui-schema` advertises, so a
+renamed collection (Engagement's own "pipeline") answers under the name
+the client was given and a `404 {"error":"NotFound"}` names the
+unknown one. `?query=<name>` runs one of the aggregate's OWN declared
+queries through the compiled kernel — a new `dispatch::query`, seeding
+from the existing snapshot read and running the kernel's `{"query"}`
+step — with its arguments taken from same-named params and shaped the
+way each one wires (a reference or primitive bare, a value object
+wrapped in its own single field). An unknown query name or a missing
+required argument degrades to the plain `.all()` rather than erroring,
+which is the Ruby engine's own rule. `?sort=`/`?direction=` honour the
+collection's own sortable config and only the shapes an ORDER BY can
+actually push down, sorting in memory here (there is no SQL to push
+into) with Postgres's own null placement.
+
 **`rust/host` answers the console's `/api/ui-schema` and `/api/schema`.**
 `UiSchema.build` ported to Rust, rule for rule: one live domain IR plus
 the presentation config in, the same nav / columns / detail fields /

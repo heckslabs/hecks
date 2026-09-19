@@ -251,7 +251,7 @@ async fn route(
     // refusal, from this host's own router, for a request the Ruby
     // engine answers with data.
     if path.starts_with("/api/") {
-        return api::route(domain_ir, method, path, session.as_ref(), client).await;
+        return api::route(domain_ir, method, path, query, session.as_ref(), client, wasm_path).await;
     }
 
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
@@ -1639,7 +1639,7 @@ fn parse_form(text: &str) -> HashMap<String, String> {
         .collect()
 }
 
-fn percent_decode(s: &str) -> String {
+pub(crate) fn percent_decode(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
