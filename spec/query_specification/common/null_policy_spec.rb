@@ -50,5 +50,13 @@ RSpec.describe Hecks::QuerySpecification::Common::NullPolicy do
       ordered = described_class.order(rows, direction: :desc) { |row| row[:v] }
       expect(ordered).to eq([{ v: 2 }, { v: 1 }, { v: nil }])
     end
+
+    it "treats an upper- or mixed-case direction the same as lowercase, matching #sql_order" do
+      rows = [{ v: 2 }, { v: nil }, { v: 1 }]
+      expect(described_class.order(rows, direction: "DESC") { |row| row[:v] })
+        .to eq(described_class.order(rows, direction: "desc") { |row| row[:v] })
+      expect(described_class.order(rows, direction: "Desc") { |row| row[:v] })
+        .to eq([{ v: 2 }, { v: 1 }, { v: nil }])
+    end
   end
 end

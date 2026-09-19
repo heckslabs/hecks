@@ -69,7 +69,7 @@ module Hecks
           @runtime = runtime
           @plan    = Plan.for(MetaValidator.grammar_registry)
           @chapter = runtime.query("Bluebook::Bluebook.Called", name: { value: chapter }).first or
-            raise NotFound, "the meta-domain holds no bluebook called #{chapter.inspect}"
+            raise Runtime::NotFound, "the meta-domain holds no bluebook called #{chapter.inspect}"
         end
 
         def to_h

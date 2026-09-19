@@ -185,19 +185,37 @@ module Hecks
     # because "what does this list actually hold" is a question any
     # append-shaped rule needs answered, not just this one.
     #
+    # Nothing in the DSL stops a value object and an entity nested under
+    # the same aggregate from sharing a `hecks_name` — they are declared
+    # through two separate collections with no cross-kind uniqueness
+    # check between them. A silent value-objects-before-entities pick
+    # would resolve such a pair the same way every time regardless of
+    # which one `list_field` actually names, so a genuine collision is
+    # refused instead, the same "never first-wins silently" call
+    # `EntityBuilder#install_closed_sets!` already makes for a same-named
+    # closed set.
+    #
     # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct
     #   declaring `list_field`
     # @param list_field [String, Symbol, #to_s] the name of the `list_of(...)` attribute
     # @return [Bluebook::Entity, Bluebook::ValueObject, nil] the construct
     #   `list_field` holds a list of, or nil if `list_field` names no attribute,
     #   isn't a list, or names no known value object or entity
+    # @raise [RuntimeError] if a value object and an entity both match `list_field`'s type
     def self.element_construct_for(construct, list_field)
       list_attr = owner_attribute(construct, list_field)
       return nil unless list_attr&.list?
 
-      pool = construct.respond_to?(:value_objects) ? construct.value_objects.dup : []
-      pool.concat(construct.entities) if construct.respond_to?(:entities)
-      pool.find { |c| c.hecks_name.to_s == list_attr.type.to_s }
+      value_objects = construct.respond_to?(:value_objects) ? construct.value_objects : []
+      entities      = construct.respond_to?(:entities) ? construct.entities : []
+      matches = (value_objects + entities).select { |c| c.hecks_name.to_s == list_attr.type.to_s }
+
+      if matches.size > 1
+        raise "#{construct.hecks_name}##{list_field} names #{list_attr.type}, held by both a value " \
+              "object and an entity — ambiguous, cannot resolve which one the list holds"
+      end
+
+      matches.first
     end
 
     # Either a raised exception or a differing export counts as unsafe
