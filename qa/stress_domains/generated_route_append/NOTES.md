@@ -889,3 +889,43 @@ generated domain that surprised; `QaGenerated` was renamed to
   "seeds_run": 4
 }
 ```
+
+## BUG#129 — dry run of an undeclared `with:` fact
+
+`GeneratedRouteAppend::Hangar.Open` called as a `dry_run` with `{code:
+"india", with: null}` answered `ok: false` in Ruby and `ok: true` in
+Rust — the BUG#16/#17 routing-key family (`to`/`with` reserved as the
+routing envelope's own keys, sniffed even when the caller means them as
+a flat, undeclared command fact), reached this time through the
+`dry_run` door rather than a real dispatch. Found by `bin/qa_sweep
+SW-generated_route_append-1789342558`, shrunk to 1 step
+(`repro_dry_run.json`, committed alongside BUG#128's own repro by #636).
+
+Investigated 2026-09-18: already fixed, no Ruby or Rust change needed.
+BUG#131 (commit `8a572881`, PR #639) gave `dry_run()`'s two call sites
+(`rust/src/kernel/cli.rs`) a dedicated `dry_run_command_input()` that
+wraps EVERY dry run's args as `{"with": args}` unconditionally — so
+`CommandInvocation::from_json` never again inspects a dry run's own flat
+facts for a `to`/`with` key at all, regardless of which reserved key a
+domain's own undeclared fact happens to collide with. That fix was
+written against `examples/roster`'s `to` collision
+(`roster_mark_dry_run_to_collision.json`); this bug's own `with`
+collision is the identical mechanism, one key over, and is closed by the
+same code — dry_run's own check now runs the same "undeclared argument"
+validation real dispatch already did.
+
+The two bugs' filing order was a race, not a sequencing bug: BUG#131
+merged at 2026-09-14 00:25:59 UTC; this bug was logged ~42 minutes later
+at 01:07:45 UTC by a sweep whose own branch was evidently cut before
+BUG#131 landed, so `bin/qa_log_bug`'s own demonstration check genuinely
+failed at the moment it ran — `git merge-base --is-ancestor 8a572881
+40bb41fb` confirms BUG#131's fix was already an ancestor of the commit
+that logged this bug by the time it merged into main, even though the
+demonstration wasn't re-run against that state before filing. Re-run
+today:
+
+```
+$ bundle exec ruby bin/rust_conformance qa/stress_domains/generated_route_append \
+    qa/stress_domains/generated_route_append/repro_dry_run.json build
+qa/stress_domains/generated_route_append / qa/stress_domains/generated_route_append/repro_dry_run.json: matches.
+```
