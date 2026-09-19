@@ -1,8 +1,8 @@
 //! Two functions ported out of `rust/project/mutations.rb` early — used by
-//! BOTH `types.rb`'s `emit_record` and `json_codec.rb`'s `emit_to_json_flat`
+//! both `types.rb`'s `emit_record` and `json_codec.rb`'s `emit_to_json_flat`
 //! /`emit_from_json_state`, so they live here rather than being duplicated.
 //! `mutations.rb` itself (the command-mutation codegen this stage does not
-//! port — see the report) is NOT ported; only these two self-contained
+//! port — see the report) is not ported; only these two self-contained
 //! predicates, whose only real dependency is `aggregate[:commands]`'s shape
 //! as already present in ir.json, moved over.
 
@@ -10,7 +10,7 @@ use crate::json::Json;
 use std::collections::HashMap;
 
 /// Argument names already claimed by an append (this command's own) — an
-/// append's element-field argument is never ALSO eligible to bare-name-
+/// append's element-field argument is never also eligible to bare-name-
 /// match an unrelated owner field that happens to share its name. Shared
 /// between `creates_owner` and `mutations.rs#identity_components`, which
 /// both need the identical exclusion set for the identical reason.
@@ -32,26 +32,26 @@ pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String>
     claimed
 }
 
-/// `creates_owner(aggregate, command, value_objects_by_name)` — REPLACES
-/// `command.get("references").is_none()` ALONE (and the coincidental bare-
-/// name matching `mutations.rs#identity_components` used to do) as the
-/// "does this command build the OWNER record from scratch" test.
+/// `creates_owner(aggregate, command, value_objects_by_name)` — replaces
+/// `command.get("references").is_none()` alone (and
+/// `mutations.rs#identity_components`'s coincidental bare-name matching)
+/// as the "does this command build the OWNER record from scratch" test.
 ///
 /// Ported directly from `rust/project/mutations.rb#creates_owner?` — read
 /// that function's own header for the full argument: `references.nil?` is
-/// honest whenever it's SET (a genuine `reference_to <owner>` really does
+/// honest whenever it's set (a genuine `reference_to <owner>` really does
 /// mean "acts on an existing one"), dishonest only when absent — and even
-/// then, the real test is NOT completeness (a creating command's generated
+/// then, the real test is not completeness (a creating command's generated
 /// struct Option-wraps every scalar field regardless, so an uncovered
 /// field just becomes `None` — `Pizzas::Order.CreatePizza`, zero
 /// mutations, is the corpus's plainest live proof). The real test: does
-/// this command supply — via a `:set` mutation OR a same-named argument
+/// this command supply — via a `:set` mutation or a same-named argument
 /// `record_fields` (commands.rb) copies straight across with no mutation
-/// at all — at least one of the owner's own REQUIRED (non-list, non-
+/// at all — at least one of the owner's own required (non-list, non-
 /// optional) fields, excluding any argument already claimed by an append
 /// (`append_claimed_names`, above — the same bare-name coincidence this
 /// whole fix exists to stop trusting blindly, e.g. `ValueObject.Member`'s
-/// own `position` feeding the appended MEMBER's `position`, never
+/// own `position` feeding the appended member's `position`, never
 /// `ValueObject`'s own unrelated field of the same name).
 pub fn creates_owner(aggregate: &Json, command: &Json, _value_objects_by_name: &HashMap<String, &Json>) -> bool {
     if command.get("references").is_some() {

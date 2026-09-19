@@ -2,7 +2,7 @@
 // (lib/hecks/runtime/value/coercion.rb) — `Attribute#list?` /
 // `for_attribute`'s `hydrate_entity_list` branch. At the
 // expression-evaluation layer a list-typed field is represented by its
-// own LENGTH ONLY (`Value::List(usize)`, `expr.rs`'s own header): real
+// own length only (`Value::List(usize)`, `expr.rs`'s own header): real
 // `given`/`ensures`/invariant text only ever asks `.size`/`.empty?` of a
 // list field as a whole (never indexes into an element by expression),
 // so there is nothing here beyond the two questions a bare length alone

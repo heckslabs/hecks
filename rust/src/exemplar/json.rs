@@ -1,11 +1,11 @@
-// EXEMPLAR shapes for rust/project/json_codec.rb — see mod.rs's own
+// Exemplar shapes for rust/project/json_codec.rb — see mod.rs's own
 // header. `closed_set_codec` is the to_json/from_json pair for
 // `types.rs`'s own `closed_set_enum` — the two are separate exemplar
 // items (matching separate Ruby functions, `emit_value_object`'s
-// closed-set branch vs `emit_closed_set_codec`) but operate on the SAME
+// closed-set branch vs `emit_closed_set_codec`) but operate on the same
 // enum type, so this file imports it rather than redeclaring it.
 //
-// TWO independent repeated slots inside ONE outer item — a to_json arm
+// Two independent repeated slots inside one outer item — a to_json arm
 // list and a from_json arm list, both driven by the same member rows but
 // rendered as different arm shapes — is exactly what `Exemplar.assemble`
 // (plural slots) exists for, where every other shape so far only needed
@@ -14,15 +14,15 @@
 // `from_json`'s final `other => ...` arm is `InvariantViolation`/
 // `closed_set_member` — `admit_member` (runtime/value/admission.rb), read
 // directly: a `one_of` membership check is an invariant on the value
-// object being BUILT, never a shape mismatch, so this is
+// object being built, never a shape mismatch, so this is
 // `InvariantViolation`, not the `TypeMismatch` this arm raised before this
 // migration. `admitted`/`offered` are both already `.inspect`-quoted the
 // way Ruby's own `admitted.map(&:inspect).join(", ")`/`offered.inspect`
 // are; the member list is baked in as codegen-time-known text
 // (`json_codec.rb`'s `emit_closed_set_codec` already resolved every
 // member at generation time), never re-derived from `TO_JSON_ARM` here.
-// Kept OUT of the fenced region below on purpose — every word here would
-// otherwise be baked into EVERY generated closed-set `from_json`, once
+// Kept out of the fenced region below on purpose — every word here would
+// otherwise be baked into every generated closed-set `from_json`, once
 // per enum, across every domain.
 #![allow(dead_code, unused_variables)]
 
@@ -34,19 +34,19 @@ use crate::exemplar::types::TmplKind;
 // the first time this was written nested inside one ("non-local `impl`
 // definition" — real, if harmless, lint noise this tree holds itself to
 // zero of).
-// TMPL:closed_set_codec BEGIN
+// Tmpl:closed_set_codec begin
 impl TmplKind {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
-            // TMPL:closed_set_codec:TO_JSON_ARM BEGIN
+            // Tmpl:closed_set_codec:TO_JSON_ARM begin
             TmplKind::TmplMemberA => "tmpl_member_a",
-            // TMPL:closed_set_codec:TO_JSON_ARM END
+            // Tmpl:closed_set_codec:TO_JSON_ARM end
         };
         crate::kernel::Json::obj(vec![("tmpl_field_name", crate::kernel::Json::str(member))])
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A `one_of` closed set is admission-checked on the RAW offered
+        // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
         // the sole attribute's slot (a bare Array, a Bool, anything), never
@@ -55,39 +55,40 @@ impl TmplKind {
         // `{"tmpl_field_name": ...}` shape's inner value if `v` is an
         // object, or `v` itself untouched if it isn't (matching
         // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only THEN is admission checked — a non-member value
+        // whatever). Only then is admission checked — a non-member value
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a MISSING field
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs BEFORE
+        // (runtime/value/coercion.rb) firing, and that check runs before
         // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a REQUIRED command argument of this type is translated
+        // `null` for a required command argument of this type is translated
         // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an EMPTY object — "build the value object from no fields at all",
+        // an empty object — "build the value object from no fields at all",
         // matching `Value::Coercion#nil_argument`'s own `build(value_object,
         // {}, aggregate)` exactly — so `v.dig` above finding nothing is
         // genuinely indistinguishable, at this point, from a Hash-shaped
         // caller argument that simply never named the sole field's own key
-        // either way: BOTH are that field's OWN absence, not a member
+        // either way: both are that field's own absence, not a member
         // mismatch.
-        // Before this fix, that absence still fell through to the admission
-        // match below, stringified as `Json::Null`'s own `ruby_to_s` (never
-        // a real member), so a required-but-omitted closed-set argument
-        // always misreported `InvariantViolation` where Ruby raises
-        // `TypeMismatch` ("{type}.{field} expects {expected}, got nil" —
-        // the same `numeric_field` wording `required_field_expr` already
-        // gives every OTHER composite field's own missing-key case).
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
         let candidate = v.dig("tmpl_field_name").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
             return Err(crate::kernel::Refusal::TypeMismatch("tmpl_null_field_message".to_string()));
         }
         match candidate.ruby_to_s().as_str() {
-            // TMPL:closed_set_codec:FROM_JSON_ARM BEGIN
+            // Tmpl:closed_set_codec:FROM_JSON_ARM begin
             "tmpl_member_a" => Ok(TmplKind::TmplMemberA),
-            // TMPL:closed_set_codec:FROM_JSON_ARM END
+            // Tmpl:closed_set_codec:FROM_JSON_ARM end
             _ => Err(crate::kernel::Refusal::InvariantViolation(
                 crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                     r#type: "tmpl_closed_set_type",
@@ -99,30 +100,30 @@ impl TmplKind {
         }
     }
 }
-// TMPL:closed_set_codec END
+// Tmpl:closed_set_codec end
 
 fn tmpl_json_value_placeholder() -> crate::kernel::Json {
     crate::kernel::Json::Null
 }
 
-// `to_json_field` — ONE `(key, value)` entry inside a `Json::Object(vec![
-// ...])` body. Reused verbatim by `closed_set_table_codec` below AND by
+// `to_json_field` — one `(key, value)` entry inside a `Json::Object(vec![
+// ...])` body. Reused verbatim by `closed_set_table_codec` below and by
 // the plain to_json shapes (`to_json_flat`/`to_json_state`, once that
-// wave lands) — deliberately NOT nested inside any one of them the way
+// wave lands) — deliberately not nested inside any one of them the way
 // `closed_set_enum:VARIANT` is nested inside `closed_set_enum`: nesting
 // would mean physically duplicating this shape's source into every
 // outer that wants it, two copies free to drift apart. A shape meant for
 // more than one outer stays a standalone top-level item; Ruby renders it
 // with plain `render_each`, adds whatever fixed indent the call site
-// needs (the same indent the ORIGINAL hand-interpolated string already
+// needs (the same indent the original hand-interpolated string already
 // baked in), and hands the joined block to the outer as an ordinary
 // substitution value — not through `compose`/`assemble`'s nested-slot
 // machinery, which is for a leaf one specific outer alone owns.
 fn tmpl_to_json_field_host() -> Vec<(String, crate::kernel::Json)> {
     vec![
-        // TMPL:to_json_field BEGIN
+        // Tmpl:to_json_field begin
         ("tmpl_field_name".to_string(), tmpl_json_value_placeholder()),
-        // TMPL:to_json_field END
+        // Tmpl:to_json_field end
     ]
 }
 
@@ -130,19 +131,19 @@ fn tmpl_to_json_field_host() -> Vec<(String, crate::kernel::Json)> {
 // own `closed_set_table`. `tmpl_to_json_fields_block()`/
 // `tmpl_from_json_conditions()` are the function-call placeholder idiom
 // (same as `tmpl_body_placeholder()`, reactions.rs) rather than a bare
-// identifier: Ruby's replacement text is ALREADY fully rendered+joined
+// identifier: Ruby's replacement text is already fully rendered+joined
 // (`to_json_field` above, joined and indented exactly the way the
 // original hand-built string did; a small condition-line shape below,
 // joined by " && "), handed in as a plain substitution value — not
 // `compose`/`assemble`'s nested-slot mechanism, because neither piece
 // needs auto-reindent (the to_json block's indent is fixed regardless of
-// nesting depth, matching the ORIGINAL code's own behavior byte-for-
+// nesting depth, matching the original code's own behavior byte-for-
 // byte; the from_json conditions render onto one line). The call's own
 // column-0 position (not indented like the rest of the method body) is
 // deliberate too — plain `render` never reindents a multi-line
 // replacement the way `compose` does, so the marker sits flush left and
 // each line of Ruby's already-8-space-prefixed block lands untouched.
-// A DIFFERENT placeholder type from `closed_set_codec`'s own `TmplKind`
+// A different placeholder type from `closed_set_codec`'s own `TmplKind`
 // above — real, since the two Ruby functions this file's shapes back
 // (`emit_closed_set_codec` vs `emit_closed_set_table_codec`) never fire
 // for the same value object (`types.rb`'s own `vo[:attributes].size > 1`
@@ -165,7 +166,7 @@ fn tmpl_from_json_conditions() -> bool {
     true
 }
 
-// TMPL:closed_set_table_codec BEGIN
+// Tmpl:closed_set_table_codec begin
 impl TmplTableRow {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
@@ -182,10 +183,10 @@ tmpl_to_json_fields_block()
         Err(crate::kernel::Refusal::TypeMismatch(format!("TmplTableRow: no member matches {:?}", v)))
     }
 }
-// TMPL:closed_set_table_codec END
+// Tmpl:closed_set_table_codec end
 
 // `tmpl_accessor_fn` — the function-call placeholder idiom again, this
-// time standing in for WHICHEVER of `Json::as_str`/`as_i64`/`as_f64`
+// time standing in for whichever of `Json::as_str`/`as_i64`/`as_f64`
 // the real field's scalar type resolves to (`SCALAR_JSON_ACCESSOR`,
 // json_codec.rb). A bare `crate::kernel::Json::tmpl_accessor` wouldn't
 // compile unsubstituted (no such associated item), so this shape gives
@@ -197,9 +198,9 @@ fn tmpl_accessor_fn(j: &crate::kernel::Json) -> Option<i64> {
 }
 
 fn tmpl_from_json_condition_host(v: &crate::kernel::Json, row: &TmplTableRow) -> bool {
-    // TMPL:closed_set_table_from_json_condition BEGIN
+    // Tmpl:closed_set_table_from_json_condition begin
     v.get("tmpl_field_name").and_then(tmpl_accessor_fn) == Some(row.tmpl_field)
-    // TMPL:closed_set_table_from_json_condition END
+    // Tmpl:closed_set_table_from_json_condition end
 }
 
 // `to_json_flat`/`from_json_flat` — the JSON boundary for value objects
@@ -209,7 +210,7 @@ fn tmpl_from_json_condition_host(v: &crate::kernel::Json, row: &TmplTableRow) ->
 // string-building, deliberately: they're low-risk, single-expression
 // assembly (matching `render_each`'s own `join_with` precedent), and the
 // real structural risk — getting an `impl`/struct-literal/match brace
-// wrong — lives in the OUTER skeletons here, not in which accessor
+// wrong — lives in the outer skeletons here, not in which accessor
 // method a scalar type resolves to.
 fn tmpl_rhs_placeholder() -> i64 {
     0
@@ -221,9 +222,9 @@ struct TmplFieldAssignmentHost {
 impl TmplFieldAssignmentHost {
     fn build() -> Self {
         Self {
-            // TMPL:field_assignment BEGIN
+            // Tmpl:field_assignment begin
             tmpl_ident: tmpl_rhs_placeholder(),
-            // TMPL:field_assignment END
+            // Tmpl:field_assignment end
         }
     }
 }
@@ -236,7 +237,7 @@ fn tmpl_to_json_field_block() -> (String, crate::kernel::Json) {
     (String::new(), crate::kernel::Json::Null)
 }
 
-// TMPL:to_json_flat BEGIN
+// Tmpl:to_json_flat begin
 impl TmplFlatType2 {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
@@ -244,7 +245,7 @@ tmpl_to_json_field_block()
         ])
     }
 }
-// TMPL:to_json_flat END
+// Tmpl:to_json_flat end
 
 struct TmplFlatType3 {
     tmpl_ident: i64,
@@ -254,29 +255,29 @@ fn tmpl_to_json_field_block_sparse() -> (String, crate::kernel::Json) {
     (String::new(), crate::kernel::Json::Null)
 }
 
-// `to_json_flat_sparse` — `to_json_flat`'s own OUTER assembly, with ONE
-// difference: a `(key, Json::Null)` entry is DROPPED rather than kept.
-// Every PER-FIELD expression stays byte-for-byte the SAME as the dense
+// `to_json_flat_sparse` — `to_json_flat`'s own outer assembly, with one
+// difference: a `(key, Json::Null)` entry is dropped rather than kept.
+// Every per-field expression stays byte-for-byte the same as the dense
 // form above (`json_codec.rb`'s own `emit_to_json_flat` never branches
-// its per-field logic on `sparse:` — only which of these two OUTER
-// templates wraps the result) — an `Option`-wrapped field that used to
-// serialize as `key: null` when unset now serializes as an ABSENT key
-// instead, matching Ruby's own `payload: args` (`kernel/mod.rs`'s own
+// its per-field logic on `sparse:` — only which of these two outer
+// templates wraps the result) — an `Option`-wrapped field serializes as
+// an absent key rather than `key: null` when unset, matching Ruby's own
+// `payload: args` (`kernel/mod.rs`'s own
 // comment on `Event::payload`, "Mirrors Ruby's payload: args"): Ruby's
-// args Hash never HAD the key at all when a caller left an optional
+// args Hash never had the key at all when a caller left an optional
 // argument out, so the event it emits doesn't either.
 //
-// COMMAND ARGS STRUCTS ONLY (json_codec.rb's own two `sparse: true`
+// Command args structs only (json_codec.rb's own two `sparse: true`
 // call sites, domain_generator.rb + commands.rb) — never aggregate/
-// entity RECORDS or value objects, which keep the dense form: a
-// persisted record legitimately HAS every declared field, `null`
+// entity records or value objects, which keep the dense form: a
+// persisted record legitimately has every declared field, `null`
 // correctly meaning "declared, not set" there. Safe specifically for
-// args because no REQUIRED (non-Option) field's own conversion ever
+// args because no required (non-Option) field's own conversion ever
 // produces `Json::Null` — every scalar/VO `to_json` returns a real
 // value for a value that exists — so this filter can only ever drop an
 // entry that came from a genuinely absent optional argument, never one
 // from a required field or an explicit domain value.
-// TMPL:to_json_flat_sparse BEGIN
+// Tmpl:to_json_flat_sparse begin
 impl TmplFlatType3 {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
@@ -287,21 +288,21 @@ impl TmplFlatType3 {
         )
     }
 }
-// TMPL:to_json_flat_sparse END
+// Tmpl:to_json_flat_sparse end
 
-// The unknown-argument-check preamble is EITHER a real, multi-line,
+// The unknown-argument-check preamble is either a real, multi-line,
 // already-fully-built block (`emit_unknown_argument_check`, unchanged
-// plain Ruby) OR empty — `from_json_state` (json_codec.rb) always
-// passes empty, since only an AGGREGATE command's own top-level args
+// plain Ruby) or empty — `from_json_state` (json_codec.rb) always
+// passes empty, since only an aggregate command's own top-level args
 // struct ever runs this check (json_codec.rb's own header). A no-op
 // `let` statement is the fixed default so the exemplar compiles
 // standalone; Ruby substitutes either this exact text or the real
 // check block, same reasoning as `fielded_flat`'s own conditional
-// `use crate::kernel::Value;` marker. This SAME shape backs BOTH
+// `use crate::kernel::Value;` marker. This same shape backs both
 // `emit_from_json_flat` and `emit_from_json_state` (json_codec.rb) —
 // structurally identical; only the preamble and each field's RHS
 // (plain Ruby, `field_assignment`'s own header) differ between them.
-// TMPL:from_json_flat BEGIN
+// Tmpl:from_json_flat begin
 impl TmplFlatType2 {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 let _tmpl_unknown_check_placeholder = ();
@@ -310,37 +311,37 @@ tmpl_ident: tmpl_rhs_placeholder(),
         })
     }
 }
-// TMPL:from_json_flat END
+// Tmpl:from_json_flat end
 
-// `extract_id` — an aggregate's OR AN ENTITY's own identity, read
+// `extract_id` — an aggregate's or an entity's own identity, read
 // straight off the incoming JSON step args (json_codec.rb's own header:
 // the three-tier chain `hydrate`'s own acting-command identity
 // resolution needs). `TIER1_LINE`, nested (not standalone like
 // `field_assignment`/`to_json_field`): single-use, only ever called from
-// ONE outer (`emit_extract_id`/`emit_extract_id_lenient`), so `compose`'s
+// one outer (`emit_extract_id`/`emit_extract_id_lenient`), so `compose`'s
 // auto-reindent is the right tool — no duplication risk when nothing else
 // ever wants this exact leaf.
 //
 // `tmpl_extract_id_name` (the method's own name) and `tmpl_id_coercion`
-// (the identity-scalar coercion it calls) are BOTH placeholders now —
-// BUG#140 — because this ONE shape backs TWO real generated methods on
+// (the identity-scalar coercion it calls) are both placeholders now —
+// BUG#140 — because this one shape backs two real generated methods on
 // the same Rust type: `extract_id` (strict — `to_id_component`, refuses a
-// blank scalar the same way a ROOT aggregate's own identity always has)
+// blank scalar the same way a root aggregate's own identity always has)
 // for aggregate hydrate and `emit_extract_id_lenient`'s own `extract_id_
 // lenient` (`to_id_component_lenient`, `json.rs`'s own header) for entity/
-// nested-entity ADDRESSING, where Ruby's `EntityElement#element_of` only
-// ever refuses a genuinely ABSENT identity key, never a present-but-blank
+// nested-entity addressing, where Ruby's `EntityElement#element_of` only
+// ever refuses a genuinely absent identity key, never a present-but-blank
 // one. Two real methods, never two conflicting `extract_id` definitions
-// on the same `impl` — the METHOD NAME has to vary too, not just the
+// on the same `impl` — the method name has to vary too, not just the
 // coercion it calls.
 struct TmplExtractIdType;
-// TMPL:extract_id BEGIN
+// Tmpl:extract_id begin
 impl TmplExtractIdType {
     pub fn tmpl_extract_id_name(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            // TMPL:extract_id:TIER1_LINE BEGIN
+            // Tmpl:extract_id:TIER1_LINE begin
             let c0 = v.dig("tmpl_path")?.tmpl_id_coercion().ok()?;
-            // TMPL:extract_id:TIER1_LINE END
+            // Tmpl:extract_id:TIER1_LINE end
             Some(tmpl_tier1_join_placeholder())
         })();
         let by_id_key = v.get("id").and_then(|j| j.tmpl_id_coercion().ok());
@@ -351,17 +352,17 @@ impl TmplExtractIdType {
         })
     }
 }
-// TMPL:extract_id END
+// Tmpl:extract_id end
 
 fn tmpl_tier1_join_placeholder() -> String {
     String::new()
 }
 
-// A placeholder-NAMED trait method, not a bare marker string — unlike
-// `tmpl_tier1_join_placeholder()` (a whole substituted CALL), `tmpl_id_
-// coercion` has to stay a real METHOD on `Json` (`.tmpl_id_coercion()`,
+// A placeholder-named trait method, not a bare marker string — unlike
+// `tmpl_tier1_join_placeholder()` (a whole substituted call), `tmpl_id_
+// coercion` has to stay a real method on `Json` (`.tmpl_id_coercion()`,
 // above) so the exemplar keeps compiling standalone with the placeholder
-// still in place; codegen substitutes just the method NAME text
+// still in place; codegen substitutes just the method name text
 // (`"tmpl_id_coercion" => "to_id_component"` or `"...lenient"`), the same
 // substring-substitution convention every other marker here uses.
 trait TmplIdCoercion {
@@ -375,48 +376,48 @@ impl TmplIdCoercion for crate::kernel::Json {
 
 // `extract_wants` — `element_of`'s own `wants` (entity_interpreter.rb),
 // for `dispatch_entity`'s `entity_element_missing` refusal message. The
-// SAME TIER1 dig `extract_id` above performs (an entity command's own
-// identity paths are ALWAYS present by the time this is worth computing —
+// same TIER1 dig `extract_id` above performs (an entity command's own
+// identity paths are always present by the time this is worth computing —
 // `element_of` raises `entity_element_no_identity` first if any part is
 // missing, so Ruby's own `wants` never falls back to an `id`/reference-key
-// tier the way `extract_id`'s THREE-tier chain does), joined with ", "
+// tier the way `extract_id`'s three-tier chain does), joined with ", "
 // rather than ":" — `wants.map { |_h, path, want| Identity.scalar(path,
 // want) }.join(", ")`, read directly. Infallible (`String`, not
-// `Result<String, Refusal>`): this is ONLY ever read for a refusal
-// MESSAGE, never to address a record, so a genuinely unreachable missing
+// `Result<String, Refusal>`): this is only ever read for a refusal
+// message, never to address a record, so a genuinely unreachable missing
 // part degrades to an empty string rather than a second way for dispatch
 // itself to fail.
 struct TmplExtractWantsType;
-// TMPL:extract_wants BEGIN
+// Tmpl:extract_wants begin
 impl TmplExtractWantsType {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
-            // TMPL:extract_wants:TIER1_LINE BEGIN
+            // Tmpl:extract_wants:TIER1_LINE begin
             let c0 = v.dig("tmpl_path")?.to_id_component().ok()?;
-            // TMPL:extract_wants:TIER1_LINE END
+            // Tmpl:extract_wants:TIER1_LINE end
             Some(tmpl_wants_join_placeholder())
         })()
         .unwrap_or_default()
     }
 }
-// TMPL:extract_wants END
+// Tmpl:extract_wants end
 
 fn tmpl_wants_join_placeholder() -> String {
     String::new()
 }
 
-// `self_identity` — the SAME dotted-path/join-with-":" shape as
+// `self_identity` — the same dotted-path/join-with-":" shape as
 // `extract_id`, applied to an already-constructed Rust value instead of
 // raw JSON (`self.field` in place of `v.get(...)`) — an entity
 // element's own identity, for `dispatch_entity`'s `matches` closure.
 struct TmplSelfIdentityType;
-// TMPL:self_identity BEGIN
+// Tmpl:self_identity begin
 impl TmplSelfIdentityType {
     pub fn identity(&self) -> String {
         tmpl_identity_body_placeholder()
     }
 }
-// TMPL:self_identity END
+// Tmpl:self_identity end
 
 fn tmpl_identity_body_placeholder() -> String {
     String::new()

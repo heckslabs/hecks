@@ -1,7 +1,7 @@
 //! `hecks-lsp` — a minimal Language Server Protocol front end for
 //! `.bluebook`/`.hecksagon` files, over stdio, speaking JSON-RPC by
 //! hand (see `rpc.rs`/`json.rs` for why no dependency was taken for
-//! either). SCOPE OF THIS FIRST CUT: diagnostics only —
+//! either). Scope of this first cut: diagnostics only —
 //! `publishDiagnostics` on open/change/save, sourced by shelling out to
 //! `rust/parser`'s own `hecks-parse chapter` (see `diagnostics.rs`'s own
 //! header for why a subprocess, not a library call). No completion, no
@@ -9,7 +9,7 @@
 //! those needs from `rust/parser` before it can be built the same
 //! subprocess way this crate's diagnostics are.
 //!
-//! ONE REQUEST AT A TIME, SYNCHRONOUS: an editor sends `didChange`
+//! **One request at a time, synchronous**: an editor sends `didChange`
 //! notifications far slower than a `hecks-parse` invocation takes to
 //! run, so there is no concurrency here to manage — see this crate's
 //! own Cargo.toml for why that keeps a dependency-free async runtime
@@ -187,7 +187,7 @@ impl Server {
                     );
                 }
                 // An unhandled notification (no id) is silently ignored, per
-                // spec — only unhandled REQUESTS owe the client a reply.
+                // spec — only unhandled requests owe the client a reply.
             }
         }
         true
@@ -367,7 +367,7 @@ fn lsp_symbol_kind(kind: outline::Kind) -> i64 {
 /// real URI this server is ever handed (this repo's own checkout paths
 /// have no spaces or non-ASCII characters), and the one thing that
 /// actually matters here (`find_definition`'s sibling-file search) only
-/// needs the DIRECTORY, which survives even if the filename portion
+/// needs the directory, which survives even if the filename portion
 /// were escaped.
 fn uri_to_path(uri: &str) -> Option<PathBuf> {
     uri.strip_prefix("file://").map(PathBuf::from)

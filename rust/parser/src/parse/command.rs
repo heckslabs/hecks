@@ -1,9 +1,9 @@
 //! The `Command` construct (`lib/hecks/bluebook/ir/command.rb`) — a
 //! verb declared on an aggregate or entity. `given` source-body capture
-//! through canonical.rs (BOTH spellings — `{ ... }` and `do ... end`, see
+//! through canonical.rs (both spellings — `{ ... }` and `do ... end`, see
 //! `parse::mod::source_body_text`'s own header), `sets`' four named forms
 //! (`to`/`append`/`increment`/`decrement`, the op-selection column
-//! `Argument#selects` names), and `emits` list capture. STAGE 4 adds
+//! `Argument#selects` names), and `emits` list capture. Stage 4 adds
 //! `ensures` (the postcondition sibling of `given`, identical `source`-body
 //! shape and canonicalization — confirmed real: `Account.Debit`'s own two
 //! `ensures`, `ScheduledPayment.Retry`'s one) and `provenance` (identical
@@ -22,10 +22,10 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Command.{word}"))
 }
 
-/// LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `command "Debit",
-/// from: "open"`, read off the CALLER's own argument gate (`aggregate::
+/// Lifecycle state as a command guard (S10, ADR 0025) — `command "Debit",
+/// from: "open"`, read off the caller's own argument gate (`aggregate::
 /// parse_body`'s / `entity::parse_body`'s own `command` arm — the
-/// `from:` keyword sits on the `command` CALL itself, one level above
+/// `from:` keyword sits on the `command` call itself, one level above
 /// this function's own body-parsing loop, the same reason `owner` is a
 /// parameter here rather than something this function reads off its own
 /// body). `kind: "literal"` in syntax.bluebook (one state or several,
@@ -58,44 +58,44 @@ pub fn parse_from(
     }
 }
 
-/// NO BLOCK IS A REFERENCE, NOT A FRESH DECLARATION (S10, ADR 0025 —
-/// `CommandBuilder#given`'s own comment: "the SAME word, the SAME shape
-/// ... minus the block"). `syntax.bluebook` declares exactly ONE keyword
+/// No block is a reference, not a fresh declaration (S10, ADR 0025 —
+/// `CommandBuilder#given`'s own comment: "the same word, the same shape
+/// ... minus the block"). `syntax.bluebook` declares exactly one keyword
 /// row for `given`/Command (`body: "source"`) — unlike `identified_by`,
-/// which gets a SECOND `body: "none"` row for its own no-block form —
-/// so this is a REAL, CONFIRMED grammar-table gap: the shared
+/// which gets a second `body: "none"` row for its own no-block form —
+/// so this is a real, confirmed grammar-table gap: the shared
 /// `word_gate`/`body_gate` in `parse::mod` would refuse a bare
 /// `given("customer is active")` outright ("was written with no body,
 /// expected: source"), confirmed live against banking.bluebook's own
 /// `Account.OpenAccount` before this function existed. Worked around
-/// HERE, locally, rather than by hand-patching the generated
+/// here, locally, rather than by hand-patching the generated
 /// `keywords.rs` (which `bin/project_parser_table` would silently
 /// overwrite the next time anyone regenerates it from syntax.bluebook —
 /// the real fix belongs in that table, one row, mirroring
 /// `identified_by`'s own two-row precedent, and is out of this slice's
 /// scope: `syntax.bluebook` lives under `lib/`).
 ///
-/// BYTE-EXACT PARITY NEEDS REAL RESOLUTION, not just "parses without
+/// Byte-exact parity needs real resolution, not just "parses without
 /// erroring" — confirmed by reading `spec/golden/ir/Banking.json`
 /// directly: `Account.Credit`'s own bare `given("customer is active")`
-/// emits the SAME `canonical: "customer.status == \"active\""` text
+/// emits the same `canonical: "customer.status == \"active\""` text
 /// Account's own aggregate-level precondition declares, not an empty or
 /// placeholder canonical. `CommandBuilder#reference_named_given` (Ruby)
 /// duplicates the resolved `Given` verbatim into the command's own
 /// `givens`; this mirrors that, resolving by `description` against
-/// whatever the OWNING aggregate OR ENTITY has declared `preconditions`
-/// SO FAR — the same textual-order dependency `AggregateBuilder#given`'s
-/// own comment names ("DECLARE BEFORE THE COMMANDS THAT REFERENCE IT"),
+/// whatever the owning aggregate or entity has declared `preconditions`
+/// **so far** — the same textual-order dependency `AggregateBuilder#given`'s
+/// own comment names ("declare before the commands that reference it"),
 /// automatically satisfied here since both `aggregate::parse_body` and
-/// `entity::parse_body` hand in their OWN `preconditions` Vec mid-walk,
+/// `entity::parse_body` hand in their own `preconditions` Vec mid-walk,
 /// already containing every `given` parsed earlier in the same source
-/// order (ADR 0028 gave entities their own `preconditions`, superseding
-/// the entity-commands-always-refuse behavior this comment used to
-/// describe). `entity_shared_givens` is the SECOND, cross-entity fallback
+/// order (ADR 0028 gives entities their own `preconditions`, so an
+/// entity command no longer always refuses). `entity_shared_givens` is
+/// the second, cross-entity fallback
 /// (`docs/resolution-rules/cross-entity-given.md`) — always empty for an
 /// aggregate-owned command.
 ///
-/// Peeks the next physical line WITHOUT consuming it unless it actually
+/// Peeks the next physical line without consuming it unless it actually
 /// matches (word `given`, `Opener::None`) — anything else (including a
 /// `given { ... }`/`given do ... end` fresh declaration, or any other
 /// word entirely) falls through untouched to the ordinary `next_line`
@@ -103,29 +103,29 @@ pub fn parse_from(
 /// `entity_shared_givens` — the cross-entity fallback pool
 /// `docs/resolution-rules/cross-entity-given.md` names, and
 /// `parse::entity`'s own header explains the threading of. Checked
-/// SECOND, only after `preconditions` (this command's own direct owner)
+/// second, only after `preconditions` (this command's own direct owner)
 /// comes up empty — via `.chain(...)`, the same priority Ruby's own
 /// `@named_givens[description] || @entity_shared_givens[description]`
 /// gives (own owner wins; the two never actually collide in practice,
-/// since a piece's OWN `preconditions` and its aggregate's shared pool
+/// since a piece's own `preconditions` and its aggregate's shared pool
 /// are populated from disjoint declaration sites, but the order still
 /// matches). Always `&[]` from `parse::aggregate`'s own call — an
-/// aggregate-owned command has no sibling PIECE to reach across.
-/// `preconditions` (for an AGGREGATE-owned command — see this function's
-/// own header) can itself hold a PENDING placeholder: `aggregate
+/// aggregate-owned command has no sibling piece to reach across.
+/// `preconditions` (for an aggregate-owned command — see this function's
+/// own header) can itself hold a pending placeholder: `aggregate
 /// ::try_reference_named_chapter_given`'s own bare chapter-wide
-/// reference, still unresolved when THIS command's own body is reached
+/// reference, still unresolved when this command's own body is reached
 /// (parsing runs top-to-bottom within one aggregate; the chapter-wide
 /// reference may need a file that hasn't loaded yet — see that
 /// function's own header). A placeholder is unambiguous here: an
-/// EXTRACTED `Given` never carries an empty `canonical` (Ruby's own
+/// extracted `Given` never carries an empty `canonical` (Ruby's own
 /// `build_rule` refuses a predicate that fails to extract; a chapter-wide
-/// PLACEHOLDER is deliberately built with `canonical: String::new()`, so
+/// placeholder is deliberately built with `canonical: String::new()`, so
 /// empty is a safe sentinel for "still pending" — never a real, resolved
 /// one). If the match is a placeholder, this returns `Pending` instead of
 /// cloning it — cloning now would freeze in the empty canonical
 /// permanently; `parse::chapter::parse_chapter`'s own final pass copies
-/// the AGGREGATE's own now-resolved precondition into this command's
+/// the aggregate's own now-resolved precondition into this command's
 /// `givens` slot once every file in the chapter has loaded.
 enum GivenLookup {
     Resolved(ir::Given),
@@ -155,7 +155,7 @@ fn try_reference_named_given(
     let description = super::positional_text(file, line.number, "given", &args, 1)?;
 
     // `preconditions.iter().position(...)` first — a placeholder needs
-    // its INDEX, not just the match, to defer correctly; falls back to
+    // its index, not just the match, to defer correctly; falls back to
     // `entity_shared_givens` (never holds a placeholder — only an
     // aggregate's own top-level bare reference can produce one, and an
     // entity's own commands never receive `aggregate.preconditions` at
@@ -192,10 +192,10 @@ fn try_reference_named_given(
     Ok(Some(resolved))
 }
 
-/// ONE ENTRY PER BARE `given(...)` a command left pending — `given_index`
-/// names where in THIS command's own `givens` the eventual real `Given`
+/// One entry per bare `given(...)` a command left pending — `given_index`
+/// names where in this command's own `givens` the eventual real `Given`
 /// gets copied in (`parse::chapter::parse_chapter`'s own final
-/// resolution pass, AFTER it has already resolved the owning aggregate's
+/// resolution pass, after it has already resolved the owning aggregate's
 /// `preconditions[precondition_index]` for real — the copy source).
 pub struct PendingCommandGiven {
     pub given_index: usize,
@@ -205,16 +205,16 @@ pub struct PendingCommandGiven {
 /// Parses a `command "Name" do ... end` body. `owner` is the aggregate
 /// (or, on an entity, the entity — not exercised by pizzas.bluebook,
 /// which declares every command directly on `Order`) this command is
-/// declared on — needed to tell `CommandBuilder#reference_to`'s SELF-
+/// declared on — needed to tell `CommandBuilder#reference_to`'s self-
 /// reference branch (`reference_to Order` on a command owned by `Order`)
 /// from a genuine cross-reference (`as:` given, or the target isn't the
 /// owner). `from` — see `parse_from`'s own header — is resolved by the
-/// CALLER (off the `command` call's own argument gate) and handed in
+/// caller (off the `command` call's own argument gate) and handed in
 /// already-built, the same way `owner` already is. `preconditions` — see
-/// `try_reference_named_given`'s own header — is the OWNING aggregate's
+/// `try_reference_named_given`'s own header — is the owning aggregate's
 /// own `given`s declared so far; always `&[]` for an entity's command.
 /// `owner_attributes` — `CommandBuilder#initialize`'s own
-/// `owner_attributes:` — the OWNING aggregate's (or entity's) own
+/// `owner_attributes:` — the owning aggregate's (or entity's) own
 /// `attribute`s declared so far (textual order — the same ordering
 /// caveat `preconditions` already carries), used by
 /// `resolve_implicit_attributes` below once this command's own body is
@@ -224,7 +224,7 @@ pub struct PendingCommandGiven {
 /// duck-typed `hecks_name`/`attributes` lets it stay — `AggregateBuilder#
 /// command`'s own `@value_objects + closed_sets + @entities`,
 /// `EntityBuilder#command`'s own `@owner_value_objects + @entities`, both
-/// SO-FAR slices the same way `owner_attributes` already is) — the owner's
+/// so-far slices the same way `owner_attributes` already is) — the owner's
 /// own constructs (value objects, then entities), used by
 /// `resolve_append_fields` to resolve an `append:` mutation's own list
 /// field element type.
@@ -246,7 +246,7 @@ pub fn parse_body(
         from,
         ..Default::default()
     };
-    // EVERY BARE `given(...)` THIS COMMAND ITSELF LEFT PENDING — see
+    // Every bare `given(...)` this command itself left pending — see
     // `GivenLookup::Pending`'s own comment; drained by `parse::aggregate
     // ::parse_body`'s own caller, bubbled up to `parse::chapter
     // ::parse_chapter`'s final resolution pass.
@@ -360,12 +360,12 @@ pub fn parse_body(
 }
 
 /// `CommandBuilder#resolve_implicit_attributes!` — dispatches each
-/// mutation, IN ITS OWN DECLARED ORDER, to the resolver matching its own
+/// mutation, in its own declared order, to the resolver matching its own
 /// op (`:set` -> `resolve_bare_set`, `:append` -> `resolve_append_fields`
 /// below), the same `case mutation.op when :set ... when :append ...`
 /// Ruby runs. Built as a two-pass plan (collect what each mutation needs
-/// FIRST, over an immutable borrow of `command.mutations`; mutate
-/// `command.attributes` SECOND) rather than mutating mid-iteration —
+/// first, over an immutable borrow of `command.mutations`; mutate
+/// `command.attributes` second) rather than mutating mid-iteration —
 /// `command.mutations` is read-only throughout this function, so nothing
 /// about the two-pass split changes behavior; it exists only so the
 /// borrow checker can see `mutations` and `attributes` (disjoint fields
@@ -436,7 +436,7 @@ fn state_ref(raw: &str) -> Option<String> {
 }
 
 /// `CommandBuilder#refuse_duplicate_targets!` — C4.2 (docs/semantics/
-/// bluebook-semantics.md): a command's effects are ONE UPDATE SET over
+/// bluebook-semantics.md): a command's effects are one update set over
 /// the pre-dispatch state, so a field written twice has no meaning to
 /// give. `delegate`/`corrects` name a command and an event, never a
 /// field, and are not counted. Same wording as Ruby's.
@@ -464,15 +464,15 @@ fn refuse_duplicate_targets(file: &str, line: usize, command: &ir::Command) -> P
     Ok(())
 }
 
-/// `CommandBuilder#resolve_bare_set!` — `sets :field` ALONE (the
+/// `CommandBuilder#resolve_bare_set!` — `sets :field` alone (the
 /// omittable case `build_mutation` below already resolves into
 /// `Mutation::Other { op: "set", source: Some(MutationSource::
 /// Argument(target)) }`, target == source by construction) already says
-/// the command accepts an argument named `:field`; requiring a SEPARATE
+/// the command accepts an argument named `:field`; requiring a separate
 /// `attribute :field, ...` line that retypes what the owning
 /// aggregate/entity already declared is the same redundancy S10's
 /// `given` reference already killed for preconditions. When the command
-/// hasn't declared its own `:field`, import the OWNER's already-parsed
+/// hasn't declared its own `:field`, import the owner's already-parsed
 /// `Attribute` verbatim (same `type_name`/`list`/`default`/`optional`/
 /// `pattern`/`admits` — every field `ir::Attribute` carries) instead of
 /// retyping it.
@@ -487,7 +487,7 @@ fn refuse_duplicate_targets(file: &str, line: usize, command: &ir::Command) -> P
 ///
 /// Declaration order matters here the same way it already does for
 /// `identified_by`/`given` — the owner's own attribute must already
-/// exist in `owner_attributes` by the time THIS function runs, which
+/// exist in `owner_attributes` by the time this function runs, which
 /// every real bluebook already satisfies (the aggregate/entity always
 /// declares its attributes before the commands that act on them) and
 /// which `aggregate::parse_body`/`entity::parse_body` both guarantee by
@@ -505,12 +505,12 @@ fn resolve_bare_set(
     }
 }
 
-/// The owner's own LIST attribute names its element type as TEXT
+/// The owner's own list attribute names its element type as text
 /// (`Attribute.type_name`, already unwrapped from `list_of(...)` at
 /// `parse::mod::resolve_type_expression`'s own `list_of` arm — the bare
 /// inner constant, never re-wrapped the way a reference's own
 /// `Reference<Target>` spelling is) — resolved against the owner's own
-/// constructs (value objects THEN entities, matching `AggregateBuilder#
+/// constructs (value objects then entities, matching `AggregateBuilder#
 /// command`'s own `@value_objects + closed_sets + @entities` order) by
 /// name. `CommandBuilder#element_type_for`'s own mirror.
 fn element_type_attributes<'a>(
@@ -535,24 +535,24 @@ fn element_type_attributes<'a>(
         .map(|entity| entity.attributes.as_slice())
 }
 
-/// `CommandBuilder#resolve_append_fields!` — ONE HOP DEEPER than
+/// `CommandBuilder#resolve_append_fields!` — one hop deeper than
 /// `resolve_bare_set` above: `sets :ledger, append: { narrative:
-/// :narrative, ... }` builds a NEW element of a LIST field, so a bare
+/// :narrative, ... }` builds a new element of a list field, so a bare
 /// self-referential field inside it (hash key equals its own value,
 /// `":field"` after rendering — see `ruby_value::render`'s own `Symbol`
 /// arm — the same shorthand `resolve_bare_set` already reads) resolves
-/// against the list field's own ELEMENT construct
+/// against the list field's own element construct
 /// (`element_type_attributes` above), not `owner_attributes` directly —
 /// the owner itself never stores `:narrative`, only the list element's
 /// own construct does.
 ///
-/// POSITION-PRESERVING, not appended at the end — the exported IR is
+/// Position-preserving, not appended at the end — the exported IR is
 /// array-order-sensitive, so this mutation's own fields are resolved as
-/// ONE CONTIGUOUS GROUP, in the mutation's own hash order, reinserted at
-/// whichever position the group's leftmost STILL-DECLARED member already
+/// one contiguous group, in the mutation's own hash order, reinserted at
+/// whichever position the group's leftmost still-declared member already
 /// occupies (or the end, if every member of the group is resolved). The
-/// `anchor` index is computed BEFORE any removal — nothing removed sits
-/// before it (it is the MIN index among the removed set), so it is
+/// `anchor` index is computed before any removal — nothing removed sits
+/// before it (it is the min index among the removed set), so it is
 /// already the correct insertion index into the POST-removal array with
 /// no adjustment needed; the Ruby method's own comment gives the full
 /// "why not append at the end" rationale (`Keyword#was`/`Argument#
@@ -624,9 +624,9 @@ fn resolve_append_fields(
     attributes.splice(insert_at..insert_at, group);
 }
 
-/// `CommandBuilder#reference_to` — SELF (`@references =`) when no `as:`
-/// was given AND the target's bare name equals the owner; otherwise a
-/// genuine CROSS-reference attribute (`build/references.rs`, the same
+/// `CommandBuilder#reference_to` — self (`@references =`) when no `as:`
+/// was given and the target's bare name equals the owner; otherwise a
+/// genuine cross-reference attribute (`build/references.rs`, the same
 /// mint every other `reference_to` caller shares).
 fn apply_reference_to(
     file: &str,
@@ -669,20 +669,20 @@ fn apply_reference_to(
 /// `op=clamp`/`op=remove` — `keywords.rs`'s own ArgumentRow table already
 /// declares all seven ; this list is the piece that actually reads them,
 /// so it has to stay in step by hand), and `to:` is now
-/// OMITTABLE: `sets :status` alone means "set :status from the argument
+/// omittable: `sets :status` alone means "set :status from the argument
 /// of the same name" — `CommandBuilder#sets`'s own omittable case
-/// (`named = { set: target } if named.empty?`). `to:` naming the SAME
+/// (`named = { set: target } if named.empty?`). `to:` naming the same
 /// symbol as the target is refused as redundant — `sets :x` alone
 /// already says that.
 ///
 /// `multiply:`/`clamp:`/`remove:` — vendored additions (command_builder.rb's
 /// own header comment: "not (yet) upstream hecks"). `multiply:` reads
 /// exactly like `increment:`/`decrement:` (an argument reference, resolved
-/// through the SAME Symbol-vs-Literal branch below). `clamp:`'s own source
+/// through the same Symbol-vs-Literal branch below). `clamp:`'s own source
 /// is always a literal `[min, max]` pair — `ruby_value::read` already parses
 /// an Array literal (see ruby_value.rs's own `read("[1, 2]")` test), so no
 /// special case is needed beyond naming the op. `remove:` matches an
-/// element by VALUE, sourced the same single-argument-or-literal way
+/// element by value, sourced the same single-argument-or-literal way
 /// increment/decrement/multiply already are.
 fn build_mutation(
     file: &str,
@@ -708,7 +708,7 @@ fn build_mutation(
         return Err(Diagnostic::new(file, line, format!("'sets :{target}' tries more than one operation at once — one mutation, one meaning")));
     }
 
-    // THE OMITTABLE CASE — no named op at all: `sets :target` alone
+    // **The omittable case** — no named op at all: `sets :target` alone
     // means "set :target from the argument of the same name".
     if named.is_empty() {
         return Ok(ir::Mutation::Other {
@@ -729,8 +729,8 @@ fn build_mutation(
     }
 
     let value = ruby_value::read(raw.trim());
-    // `to:` REPEATING THE TARGET, ONLY WHEN IT'S A SYMBOL NAMING A
-    // FIELD — a literal (`to: false`, ...) is a VALUE, never a
+    // `to:` repeating the target, only when it's a symbol naming a
+    // field — a literal (`to: false`, ...) is a value, never a
     // redundant name (`CommandBuilder#sets`'s own `to.is_a?(Symbol)`
     // guard — a bare `false`/`0`/... must never be mistaken for the
     // target's own name).
@@ -767,10 +767,10 @@ fn build_mutation(
 
 /// `CommandBuilder#delegates_to_impl` — `delegates_to "Entity.Command",
 /// with: { key: :arg, ... }`, a pure-passthrough mutation whose `target`
-/// is a DOTTED "Entity.Command" string (`kind: "text"`, positional 1 —
+/// is a dotted "Entity.Command" string (`kind: "text"`, positional 1 —
 /// `keywords.rs`'s own ArgumentRow for this word, unlike `sets`'s bare
 /// Symbol target) rather than an attribute name, and whose `with:` reads
-/// the SAME hash-literal shape `sets ..., append: {...}` already does
+/// the same hash-literal shape `sets ..., append: {...}` already does
 /// (`parse_hash_literal_pairs`, reused verbatim — both are `kind:
 /// "literal"` named arguments carrying a Ruby Hash of Symbol keys to
 /// Symbol/literal values). `with:` is omittable (Ruby's own `with: {}`
@@ -810,21 +810,21 @@ fn build_delegation(
 }
 
 /// `CommandBuilder#corrects_impl` — `corrects "Event", as: :binding,
-/// reason: "...", reverses: true`. Rides the SAME multi-binding `fields:`
+/// reason: "...", reverses: true`. Rides the same multi-binding `fields:`
 /// wire shape `Append`/`Delegate` do (`corrects_impl`'s own comment gives
 /// the full reasoning), but `as:`/`reason:`/`reverses:` are three
-/// separate NAMED arguments here rather than one combined hash like
+/// separate named arguments here rather than one combined hash like
 /// `delegates_to`'s `with:` — assembled into one `fields` list by hand,
 /// the same shape `sets_impl`'s own `KWARG_TO_OP` assembly is on the
 /// Ruby side.
 ///
-/// `as:` IS ALWAYS RENDERED AS A QUOTED STRING LITERAL, never a Symbol —
+/// `as:` is always rendered as a quoted string literal, never a Symbol —
 /// `corrects_impl`'s own comment: a bare Symbol field means "resolve
 /// this against one of the command's own declared attributes" elsewhere
 /// (`Append`/`Delegate`'s own fields), and `as:` names no such thing, so
 /// Ruby coerces it to a String (`as&.to_s`) before it ever reaches
 /// `Mutation#appended_fields`'s `Literal.render`. Absent (`nil`) renders
-/// bare, matching `Literal.render(nil) == "nil"` — the SAME "a number, a
+/// bare, matching `Literal.render(nil) == "nil"` — the same "a number, a
 /// boolean and nil are bare" rule `Literal`'s own header states, not a
 /// special case invented here.
 fn build_correction(
@@ -872,8 +872,8 @@ fn mutation_sign(op: &str) -> &'static str {
 }
 
 /// `{ name: :topping, amount: :amount }` -> `[("name", ":topping"),
-/// ("amount", ":amount")]`, in WRITTEN order — Ruby Hash literal syntax,
-/// braces included (this is an ARGUMENT VALUE, not a `source`-shaped
+/// ("amount", ":amount")]`, in written order — Ruby Hash literal syntax,
+/// braces included (this is an argument value, not a `source`-shaped
 /// block: the lexer only treats a `{` as an opener at paren-depth zero,
 /// and this one sits inside `sets`'s own parens).
 fn parse_hash_literal_pairs(text: &str) -> Vec<(String, String)> {

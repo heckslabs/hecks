@@ -1,0 +1,671 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Checks Rust comments against docs/COMMENT_STYLE_GUIDE_RUST.md.
+#
+# ## Modes
+#
+#   bin/standardize_comments_rust --report rust   # summary tables (default)
+#   bin/standardize_comments_rust --check  rust   # one line per violation, exit 1 if any
+#   bin/standardize_comments_rust --fix    rust   # rewrite the mechanical categories
+#
+# `--only all_caps,long_line` narrows any mode to the named categories and
+# `--json` swaps the report for machine-readable output.
+#
+# ## What `--fix` touches
+#
+# Only `all_caps` and `long_line` are mechanical. Every other category needs
+# someone to read the code, so the fixer leaves it alone.
+#
+# The prose rules (all_caps, bare_constant, design_history, unknown_capitals)
+# reuse the English-word list, acronym list, and proper-noun list from
+# `bin/standardize_comments`, so a name added to either language's exemptions
+# there is recognised here too.
+#
+# This script is not a CI gate. Nothing runs it automatically.
+
+require "json"
+require "optparse"
+require "set"
+load File.join(__dir__, "standardize_comments")
+
+# Checks a set of Rust files against docs/COMMENT_STYLE_GUIDE_RUST.md and,
+# for the mechanical categories, rewrites them to comply. Shares its prose
+# vocabulary (acronyms, proper nouns, the English word list, design-history
+# phrasing) with `CommentStyle`, the Ruby-side linter.
+module RustCommentStyle
+  MAX_LINE = CommentStyle::MAX_LINE
+  MAX_HEADING_WORDS = CommentStyle::MAX_HEADING_WORDS
+
+  CATEGORIES = {
+    "missing_doc"       => "public item has no /// doc comment",
+    "missing_module_doc" => "file has no //! module doc at its top",
+    "all_caps"          => "all-caps emphasis",
+    "long_bold"         => "bold heading over #{MAX_HEADING_WORDS} words reads as shouting",
+    "bare_constant"     => "capitalised word names a const/static in this file: backtick or lowercase it",
+    "unknown_capitals"  => "capitalised token is not an English word: backtick it or list it as an acronym",
+    "design_history"    => "narrates design history instead of citing an ADR",
+    "long_line"         => "comment line exceeds #{MAX_LINE} characters"
+  }.freeze
+
+  FIXABLE = %w[all_caps long_bold long_line].freeze
+
+  MARKER = %r{\A/{2,3}!?\s*}
+  DOC_LINE = %r{\A\s*(?:///(?!/)|//!)}
+  MOD_DOC_LINE = /\A\s*\/\/!/
+  ATTR_LINE = /\A\s*#\[/
+  BOLD_HEADING = /\A(\/{2,3}!?\s*(?:[-*]\s+)?)\*\*([^*]+)\*\*/
+  HEADING_END = CommentStyle::HEADING_END
+  GAP = CommentStyle::GAP
+  FILLER = CommentStyle::FILLER
+
+  # Trait impls whose method bodies are fixed by the trait's own contract, the
+  # same idea as Ruby's `to_s`/`inspect`/`==` exemption. A method here never
+  # takes `pub`, so it would not be flagged anyway, but `main` is listed
+  # explicitly since it is a `pub fn` an entry point, not an API.
+  SELF_EVIDENT_FNS = %w[main].to_set.freeze
+
+  # Vocabulary this codebase's Rust needs beyond `bin/standardize_comments`'s
+  # Ruby-focused lists: compiler/runtime jargon, AWS service acronyms, and
+  # the hecks-ecosystem project names its comments cross-reference.
+  RUST_ACRONYMS = %w[EOF RAII RHS SQS DLQ JIT LSP NFA DFA CR].to_set.freeze
+
+  RUST_PROPER_NOUNS = {
+    "EMBRYONAUT" => "Embryonaut", "LIFEADELICS" => "LifeAdelics"
+  }.freeze
+
+  RUST_EXTRA_WORDS = %w[
+    cardinality routability prepend safer diff diffed stats earliest unbracketed
+    variadic ordering orderings reenter dereference entrypoint wildcard
+    sandbox sandboxed unsandboxed expr enum codegen serialise serialises
+    preprocessing backslash
+  ].freeze
+
+  PUB_ITEM = /
+    \A\s*pub(?:\([^)]*\))?\s+
+    (?:async\s+|unsafe\s+|extern\s+"[^"]*"\s+|const\s+)*
+    (fn|struct|enum|trait|mod|type)\s+
+    ([A-Za-z_][A-Za-z0-9_]*)
+  /x
+
+  Violation = Struct.new(:path, :line, :category, :message)
+  Comment = Struct.new(:line, :col, :text, :full_line)
+
+  # Walks Rust source one character at a time, distinguishing code from line
+  # comments (`//`, `///`, `//!`), ordinary strings, raw strings (`r"..."`,
+  # `r#"..."#`, ...), and char literals, so a `//` inside any of those is
+  # never mistaken for a comment. Block comments (`/* */`) do not appear in
+  # this codebase's hand-written Rust and are not recognised.
+  class Tokenizer
+    # Lexes `source` for its line comments in one pass.
+    #
+    # @param source [String] Rust source
+    # @return [Array<Comment>]
+    def self.comments(source)
+      new(source).run
+    end
+
+    # @param source [String] Rust source to walk
+    def initialize(source)
+      @src = source
+      @len = source.length
+      @comments = []
+    end
+
+    # Walks the whole source once, collecting every line comment.
+    #
+    # @return [Array<Comment>]
+    def run
+      i = 0
+      line = 1
+      col = 0
+      while i < @len
+        c = @src[i]
+        case c
+        when "\n" then line += 1; col = 0; i += 1
+        when "/" then i, col = consume_slash(i, col, line)
+        when '"' then i, col, line = consume_string(i, col, line)
+        when "'" then i, col = consume_quote(i, col)
+        when "r" then i, col, line = consume_maybe_raw_string(i, col, line)
+        else i += 1; col += 1
+        end
+      end
+      @comments
+    end
+
+    private
+
+    def consume_slash(i, col, line)
+      return advance_plain(i, col) unless @src[i, 2] == "//"
+
+      finish = @src.index("\n", i) || @len
+      text = @src[i...finish]
+      last_newline = @src.rindex("\n", i.zero? ? 0 : i - 1)
+      prefix = last_newline && last_newline < i ? @src[(last_newline + 1)...i] : @src[0...i]
+      full_line = prefix.strip.empty?
+      @comments << Comment.new(line, col, text, full_line)
+      [finish, col + text.length]
+    end
+
+    def consume_string(i, col, line)
+      j = i + 1
+      while j < @len && @src[j] != '"'
+        j += (@src[j] == "\\" ? 2 : 1)
+      end
+      advance_span(i, j + 1, col, line)
+    end
+
+    def consume_quote(i, col)
+      match = @src[i..].match(/\A'(?:\\.|[^'\\\n]){1}'/)
+      match ? [i + match[0].length, col + match[0].length] : [i + 1, col + 1]
+    end
+
+    def consume_maybe_raw_string(i, col, line)
+      j = i + 1
+      hashes = 0
+      hashes += 1 while @src[j + hashes] == "#"
+      return [i + 1, col + 1, line] unless @src[j + hashes] == '"'
+
+      close = @src.index("\"#{'#' * hashes}", j + hashes + 1) || @len
+      advance_span(i, close + 1 + hashes, col, line)
+    end
+
+    def advance_span(from, to, col, line)
+      segment = @src[from...to]
+      newlines = segment.count("\n")
+      if newlines.positive?
+        col = segment.length - segment.rindex("\n") - 1
+        line += newlines
+      else
+        col += segment.length
+      end
+      [to, col, line]
+    end
+
+    def advance_plain(i, col)
+      [i + 1, col + 1]
+    end
+  end
+
+  # Folds Rust-specific jargon into the shared English word list once, so
+  # every stemming rule `Dictionary.english?` already knows (plurals,
+  # gerunds, past tense) applies to these words too.
+  CommentStyle::Dictionary.words&.merge(RUST_EXTRA_WORDS)
+
+  # One parsed `.rs` file and the violations found in it.
+  class SourceFile
+    attr_reader :path, :lines, :comments
+
+    # @param path [String] file to lint
+    # @param source [String, nil] contents, read from `path` when nil
+    def initialize(path, source = nil)
+      @path = path
+      @source = source || File.read(path)
+      @lines = @source.lines
+      @comments = generated? ? [] : Tokenizer.comments(@source)
+      @by_line = @comments.to_h { |c| [c.line, c] }
+      @open_spans = open_spans
+      @constants = code_constants
+    end
+
+    # Finds every place this file departs from the style guide.
+    #
+    # @param only [Array<String>, nil] categories to keep, all when nil
+    # @return [Array<Violation>]
+    def violations(only: nil)
+      return [] if generated?
+
+      found = text_violations + structure_violations
+      found = found.select { |v| only.include?(v.category) } if only
+      found.sort_by { |v| [v.line, v.category] }
+    end
+
+    # Rewrites the mechanical categories.
+    #
+    # @param only [Array<String>, nil] categories to fix, every fixable one when nil
+    # @return [String] the fixed source, or the original when nothing changed
+    def fixed(only: nil)
+      return @source if generated?
+
+      wanted = (only || FIXABLE) & FIXABLE
+      output = @lines.map.with_index(1) { |line, number| fix_line(line, number, wanted) }.join
+      output
+    end
+
+    # A generated file's comments belong to its generator: `bin/project_rust`
+    # and friends stamp this exact banner on line one.
+    #
+    # @return [Boolean]
+    def generated?
+      @lines.first.to_s.start_with?("// GENERATED by")
+    end
+
+    private
+
+    def open_spans
+      inside = false
+      @comments.each_with_object({}) do |comment, open|
+        above = @by_line[comment.line - 1]
+        continues = comment.full_line && above&.full_line && !above.text.match?(/\A\/{2,3}!?\s*\z/)
+        inside = false unless continues
+        open[comment.line] = inside
+        inside ^= comment.text.count("`").odd?
+      end
+    end
+
+    # SCREAMING_SNAKE names this file defines: `const`/`static` items, plus
+    # enum variants and macro-visible names that read the same way.
+    def code_constants
+      code_only = @source.dup
+      Tokenizer.comments(@source).each { |c| code_only[c.line - 1] ||= "" }
+      names = Set.new
+      code_only.scan(/\b(?:const|static)\s+(?:mut\s+)?([A-Z][A-Z0-9_]*)\b/) { |(n)| names << n }
+      code_only.scan(/"([A-Z][A-Z0-9_]{2,})"/) { |(n)| names << n }
+      names
+    end
+
+    def text_violations
+      @comments.flat_map do |comment|
+        caps_violations(comment) + constant_violations(comment) + unknown_violations(comment) +
+          bold_violations(comment) + history_violations(comment) + length_violations(comment)
+      end
+    end
+
+    def mask(comment)
+      text = comment.text
+      head = ""
+      if @open_spans[comment.line]
+        lead = text[MARKER].to_s.length
+        close = text.index("`", lead)
+        cut = close ? close + 1 : text.length
+        head = text[0, lead] + (FILLER * (cut - lead))
+        text = text[cut..]
+      end
+      body = text.gsub(CommentStyle::PROTECTED_SPANS) { |span| quoted_heading?(span) ? span : FILLER * span.length }
+      open = body.rindex("`")
+      body = body[0, open] + (FILLER * (body.length - open)) if open
+      head + body
+    end
+
+    def quoted_heading?(span)
+      return false unless span.start_with?('"') && !span.match?(CommentStyle::SQL_PHRASES)
+
+      capitals = span.scan(/\b[A-Z]{2,}\b/).size
+      capitals >= 3 || (capitals == 2 && !span.match?(/[a-z]/))
+    end
+
+    def caps_words(comment)
+      masked = mask(comment)
+      matches = []
+      masked.scan(CommentStyle::CAPS_WORD) { matches << Regexp.last_match }
+      sql = sql_keywords(comment, matches.map { |m| m[0] })
+      found = matches.filter_map do |match|
+        word = match[0]
+        next if word != "A" && (keep_capitals?(word) || sql.include?(word) || unknown?(word))
+
+        [match.begin(0), word, recase(word, sentence_start?(comment, masked, match.begin(0)))]
+      end
+      (drop_stray_articles(found) + possessives(masked)).sort_by(&:first)
+    end
+
+    def caps_violations(comment)
+      caps_words(comment).map { |_, word, replacement| Violation.new(path, comment.line, "all_caps", "#{word} -> #{replacement}") }
+    end
+
+    def constant_violations(comment)
+      words = mask(comment).scan(CommentStyle::CAPS_WORD).uniq
+      words.select { |w| @constants.include?(w) && !CommentStyle::ACRONYMS.include?(w) }
+           .map { |w| Violation.new(path, comment.line, "bare_constant", w) }
+    end
+
+    def unknown_violations(comment)
+      words = mask(comment).scan(CommentStyle::CAPS_WORD).uniq - ["A"]
+      words.reject { |w| keep_capitals?(w) }.select { |w| unknown?(w) }
+           .map { |w| Violation.new(path, comment.line, "unknown_capitals", w) }
+    end
+
+    def bold_violations(comment)
+      heading = comment.text[BOLD_HEADING, 2]
+      return [] unless heading && heading.split.size > MAX_HEADING_WORDS
+
+      [Violation.new(path, comment.line, "long_bold", "#{heading.split.size} words")]
+    end
+
+    def history_violations(comment)
+      masked = comment.text.gsub(/`[^`]*`/) { |span| " " * span.length }
+      pattern = CommentStyle::HISTORY.find { |candidate| masked.match?(candidate) }
+      return [] unless pattern
+
+      [Violation.new(path, comment.line, "design_history", %("#{masked[pattern]}"))]
+    end
+
+    def length_violations(comment)
+      length = @lines[comment.line - 1].to_s.chomp.length
+      return [] if length <= MAX_LINE
+
+      [Violation.new(path, comment.line, "long_line", "#{length} characters")]
+    end
+
+    def sql_keywords(comment, words)
+      bare = words.map { |w| w.sub(/'[A-Z]{1,2}\z/, "") } - ["A"]
+      strong = bare.select { |w| CommentStyle::SQL_STRONG.include?(w) }
+      weak = bare.select { |w| CommentStyle::SQL_WEAK.include?(w) }
+      database_file = path.match?(CommentStyle::SQL_PATH)
+      return bare.to_set if reads_as_sql?(bare, strong, weak, database_file)
+      return (strong + weak).to_set if comment.text.match?(CommentStyle::SQL_PHRASES)
+
+      database_file ? strong.to_set : Set.new
+    end
+
+    def reads_as_sql?(bare, strong, weak, database_file)
+      only_sql = bare.all? do |w|
+        [CommentStyle::SQL_STRONG, CommentStyle::SQL_WEAK, CommentStyle::SQL_NEUTRAL, CommentStyle::ACRONYMS].any? { |set| set.include?(w) }
+      end
+      return false unless only_sql
+
+      database_file ? (strong.any? || weak.any?) : (strong.any? && (strong + weak).size >= 2)
+    end
+
+    def possessives(masked)
+      found = []
+      masked.scan(/(?<=#{FILLER})'S\b/) { found << [Regexp.last_match.begin(0) + 1, "S", "s"] }
+      found
+    end
+
+    def drop_stray_articles(found)
+      found.each_with_index.reject do |(offset, word, _), index|
+        before = index.positive? ? found[index - 1] : nil
+        after = found[index + 1]
+        beside = (before && before[0] + before[1].length + 1 == offset && before[1] != "A") ||
+                 (after && after[0] == offset + 2 && after[1] != "A")
+        word == "A" && !beside
+      end.map(&:first)
+    end
+
+    def recase(word, sentence_start)
+      bare, suffix = word.split("'", 2)
+      proper = proper_name(bare)
+      return [proper, suffix&.downcase].compact.join("'") if proper
+
+      sentence_start ? word.capitalize : word.downcase
+    end
+
+    def proper_name(bare)
+      CommentStyle::PROPER_NOUNS[bare] || RUST_PROPER_NOUNS[bare]
+    end
+
+    def unknown?(word)
+      bare = word.split("'", 2).first
+      !CommentStyle::Dictionary.english?(word) && !proper_name(bare)
+    end
+
+    def keep_capitals?(word)
+      bare = word.sub(/'[A-Z]{1,2}\z/, "")
+      return false if CommentStyle::PROPER_NOUNS.key?(bare) || RUST_PROPER_NOUNS.key?(bare)
+
+      CommentStyle::ACRONYMS.include?(bare) || RUST_ACRONYMS.include?(bare) ||
+        @constants.include?(bare) || bare.match?(/\A[IVX]+\z/)
+    end
+
+    def sentence_start?(comment, masked, offset)
+      before = masked[0, offset].sub(MARKER, "")
+      return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/)
+      return true if before.match?(/\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/)
+
+      previous = comment.full_line ? @by_line[comment.line - 1] : nil
+      return true unless previous&.full_line
+
+      body = previous.text.sub(MARKER, "").strip
+      body.empty? || body.match?(/[.!?]["')\]]*\z/)
+    end
+
+    def fix_line(line, number, wanted)
+      comment = @by_line[number]
+      return line if comment.nil?
+
+      text = wanted.include?("all_caps") ? fix_caps(comment) : comment.text
+      text = unbold(text) if wanted.include?("long_bold")
+      code = line.byteslice(0, comment.col)
+      return wrap(code, text) if wanted.include?("long_line") && comment.full_line
+
+      "#{code}#{text}#{"\n" if line.end_with?("\n")}"
+    end
+
+    def unbold(text)
+      heading = text[BOLD_HEADING, 2]
+      return text unless heading && heading.split.size > MAX_HEADING_WORDS
+
+      text.sub(BOLD_HEADING) { "#{Regexp.last_match(1)}#{heading}" }
+    end
+
+    def fix_caps(comment)
+      text = comment.text.dup
+      found = caps_words(comment)
+      found.reverse_each { |offset, word, replacement| text[offset, word.length] = replacement }
+      first, last = heading_run(comment, found)
+      return text unless first
+
+      text.insert(last, "**").insert(first, "**")
+    end
+
+    def heading_run(comment, found)
+      masked = mask(comment)
+      return unless found.size >= 2 && paragraph_start?(comment, masked, found.first[0])
+
+      run = found.slice_when { |(a, word, _), (b, _, _)| !masked[(a + word.length)...b].match?(GAP) }.first
+      finish = run.last[0] + run.last[1].length
+      finish += 2 if masked[finish, 2] == "'s"
+      return unless run.size >= 2 && masked[finish..].match?(HEADING_END)
+      return if masked[run.first[0]...finish].split.size > MAX_HEADING_WORDS
+
+      [run.first[0], finish]
+    end
+
+    def paragraph_start?(comment, masked, offset)
+      return false if masked[0, offset].sub(MARKER, "").match?(/[[:alnum:]#{FILLER}]/)
+
+      above = comment.full_line ? @by_line[comment.line - 1] : nil
+      !above&.full_line || above.text.match?(/\A\/{2,3}!?\s*\z/)
+    end
+
+    # Splits one over-long prose comment line in two. Lines with no safe
+    # break point (a long URL, an unbroken code span) are left for a person.
+    def wrap(indent, text)
+      whole = "#{indent}#{text}\n"
+      return whole if whole.chomp.length <= MAX_LINE
+
+      lead = text[MARKER].to_s
+      cut = text[0, MAX_LINE - indent.length + 1].rindex(" ")
+      return whole if cut.nil? || cut <= lead.length || text[0, cut].count("`").odd?
+
+      "#{indent}#{text[0, cut].rstrip}\n#{wrap(indent, "#{lead}#{text[cut..].strip}")}"
+    end
+
+    # `pub` items with no `///` block directly above, and files with no `//!`
+    # module doc at the top. Attribute lines (`#[derive(...)]`, `#[cfg(...)]`)
+    # between the doc comment and the item are skipped, the same way Ruby
+    # skips nothing (Ruby has no attribute lines) but Rust needs to.
+    def structure_violations
+      (test_tree? ? [] : missing_doc_violations) + missing_module_doc_violation
+    end
+
+    def test_tree?
+      path.split("/").include?("tests")
+    end
+
+    def missing_doc_violations
+      in_test_cfg = false
+      depth_at_test_cfg = nil
+      depth = 0
+      violations = []
+      @lines.each_with_index do |raw, index|
+        line = raw
+        depth += line.count("{") - line.count("}")
+        if line.match?(/\A\s*#\[cfg\(test\)\]/)
+          in_test_cfg = true
+          depth_at_test_cfg = depth
+        elsif in_test_cfg && depth <= depth_at_test_cfg.to_i && !line.match?(/\A\s*#\[cfg\(test\)\]/)
+          in_test_cfg = false if depth < depth_at_test_cfg.to_i
+        end
+        next if in_test_cfg
+
+        match = PUB_ITEM.match(line)
+        next unless match
+        next if match[1] == "fn" && SELF_EVIDENT_FNS.include?(match[2])
+
+        line_number = index + 1
+        violations << Violation.new(path, line_number, "missing_doc", "#{match[1]} #{match[2]}") unless doc_above?(line_number)
+      end
+      violations
+    end
+
+    def doc_above?(line_number)
+      cursor = line_number - 1
+      cursor -= 1 while cursor.positive? && @lines[cursor - 1].to_s.match?(ATTR_LINE)
+      @lines[cursor - 1].to_s.match?(DOC_LINE)
+    end
+
+    def missing_module_doc_violation
+      return [] if test_tree?
+      return [] unless File.basename(path) == "mod.rs" || File.basename(path) == "lib.rs" || File.basename(path) == "main.rs"
+      return [] if @lines.first(3).any? { |l| l.match?(MOD_DOC_LINE) }
+
+      [Violation.new(path, 1, "missing_module_doc", File.basename(path))]
+    end
+  end
+
+  # Lints a set of paths and renders the result.
+  class Run
+    # @param paths [Array<String>] files or directories
+    # @param only [Array<String>, nil] categories to keep
+    def initialize(paths, only: nil)
+      @files = paths.flat_map { |p| File.directory?(p) ? rust_files(p) : [p] }.sort.uniq
+      @only = only
+    end
+
+    # Every violation across the whole file set, computed once.
+    #
+    # @return [Array<Violation>]
+    def violations
+      @violations ||= begin
+        found = @files.flat_map { |path| SourceFile.new(path).violations(only: @only) }
+        @only ? found.select { |v| @only.include?(v.category) } : found
+      end
+    end
+
+    # Rewrites every file's fixable categories in place.
+    #
+    # @return [Integer] number of files rewritten
+    def fix!
+      abort "fixing all_caps needs the word list CommentStyle::Dictionary uses" if wants_caps? && !CommentStyle::Dictionary.words
+
+      @files.count do |path|
+        original = File.read(path)
+        output = SourceFile.new(path, original).fixed(only: @only)
+        next false if output == original
+
+        File.write(path, output)
+        true
+      end
+    end
+
+    # Renders the summary tables `--report` prints.
+    #
+    # @param top [Integer] rows to show in the per-file table
+    # @return [String]
+    def report(top: 20)
+      by_file = violations.group_by(&:path)
+      [
+        "#{violations.size} violations in #{by_file.size} of #{@files.size} files\n",
+        "By category:", *category_rows,
+        "\nBy directory (top #{top}):", *directory_rows.first(top),
+        "\nWorst #{top} files:", *file_rows(by_file, top)
+      ].join("\n")
+    end
+
+    private
+
+    def wants_caps?
+      @only.nil? || @only.include?("all_caps")
+    end
+
+    def rust_files(dir)
+      Dir[File.join(dir, "**", "*.rs")].reject { |p| p.include?("/target/") }
+    end
+
+    def category_rows
+      counts = violations.group_by(&:category).transform_values(&:size)
+      CATEGORIES.map do |name, description|
+        suffix = FIXABLE.include?(name) ? " [fixable]" : ""
+        "  #{counts.fetch(name, 0).to_s.rjust(6)}  #{name.ljust(24)} #{description}#{suffix}"
+      end
+    end
+
+    def directory_rows
+      violations.group_by { |v| v.path.split("/")[0, 3].join("/") }
+                .sort_by { |_, list| -list.size }
+                .map { |dir, list| "  #{list.size.to_s.rjust(6)}  #{dir}" }
+    end
+
+    def file_rows(by_file, top)
+      by_file.sort_by { |_, list| -list.size }.first(top).map do |file, list|
+        category, worst = list.group_by(&:category).max_by { |_, group| group.size }
+        "  #{list.size.to_s.rjust(6)}  #{file}  (mostly #{category}: #{worst.size})"
+      end
+    end
+  end
+
+  # Builds the CLI's option parser, filling `options` as flags are seen.
+  #
+  # @param options [Hash] mutated in place as each flag is parsed
+  # @return [OptionParser]
+  def self.option_parser(options)
+    OptionParser.new do |opts|
+      opts.banner = "Usage: bin/standardize_comments_rust [--report|--check|--fix] [--only a,b] PATH..."
+      opts.on("--report", "summary tables (default)") { options[:mode] = :report }
+      opts.on("--check", "list every violation, exit 1 if any") { options[:mode] = :check }
+      opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(', ')}") { options[:mode] = :fix }
+      opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(', ')}") { |list| options[:only] = list }
+      opts.on("--json", "machine-readable output") { options[:json] = true }
+      opts.on("--top N", Integer, "rows in the worst-files table") { |n| options[:top] = n }
+    end
+  end
+
+  # Prints `--report`, `--check`, or `--json` output for a finished run.
+  #
+  # @param run [Run] the run whose violations to render
+  # @param options [Hash] parsed CLI options (`:mode`, `:json`, `:top`)
+  # @return [Integer] process exit status
+  def self.render(run, options)
+    found = run.violations
+    if options[:json]
+      puts JSON.pretty_generate(found.map(&:to_h))
+    elsif options[:mode] == :check
+      found.each { |v| puts "#{v.path}:#{v.line}: [#{v.category}] #{v.message}" }
+    else
+      puts run.report(top: options[:top])
+    end
+    options[:mode] == :check && found.any? ? 1 : 0
+  end
+
+  # The CLI entry point: parses `argv` and runs the requested mode.
+  #
+  # @param argv [Array<String>]
+  # @return [Integer] process exit status
+  def self.main(argv)
+    options = { mode: :report, top: 20 }
+    parser = option_parser(options)
+    paths = parser.parse(argv)
+    unknown = Array(options[:only]) - CATEGORIES.keys
+    abort "unknown categories: #{unknown.join(', ')}" unless unknown.empty?
+    abort parser.help if paths.empty?
+
+    run = Run.new(paths, only: options[:only])
+    case options[:mode]
+    when :fix then puts("rewrote #{run.fix!} files") || 0
+    else render(run, options)
+    end
+  end
+end
+
+exit RustCommentStyle.main(ARGV) if $PROGRAM_NAME == __FILE__

@@ -2,23 +2,23 @@
 //! own `.bluebook` DSL (see `/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`
 //! for the full 8-stage plan this crate is Stage 1 of).
 //!
-//! STAGE 1: crate skeleton, lexer, generated keyword table, and all four
+//! Stage 1: crate skeleton, lexer, generated keyword table, and all four
 //! parsing gates wired — with every per-construct handler
 //! (`parse::aggregate`, `parse::entity`, ...) stubbed to a clear
 //! `not_yet_implemented` diagnostic. The differential harness
 //! (`spec/parser_parity_spec.rb`, `spec/parser_coverage_spec.rb`) exists
-//! and runs GREEN, with an itemized pending list, before this parser
+//! and runs green, with an itemized pending list, before this parser
 //! implements anything real — that ordering is the plan's actual
 //! methodological difference from two previous, failed hand-written
 //! Rust bluebook parsers (see the plan's own framing).
 //!
-//! THE FOUR GATES every line goes through (see parse/mod.rs and lex.rs
+//! The four gates every line goes through (see parse/mod.rs and lex.rs
 //! for where each actually lives):
 //!   1. shape     — a line must be one of a small fixed set of forms;
 //!                  bare Ruby expressions/`if`/local assignment are hard
 //!                  errors (lex.rs::classify).
 //!   2. word      — the leading identifier must hit a row in the
-//!                  GENERATED `keywords.rs::KEYWORDS` table for the
+//!                  generated `keywords.rs::KEYWORDS` table for the
 //!                  current context (parse::word_gate).
 //!   3. body      — `none`/`keywords`/`source`/`rows` must match what
 //!                  actually follows (parse::body_gate).
@@ -26,7 +26,7 @@
 //!                  the declared `keywords.rs::ARGUMENTS` row(s)
 //!                  (parse::argument_gate).
 //!
-//! **NO LENIENT/BEST-EFFORT MODE, EVER.** An unrecognized construct is
+//! **No lenient/best-effort mode, ever.** An unrecognized construct is
 //! always a hard error, never silently skipped — see diag.rs's own
 //! header for why this is the single most important invariant here.
 
@@ -125,17 +125,17 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
 }
 
 /// `hecks-parse resolve --chapter <Name> <file.hecksagon>` — `{"domain":
-/// "<Name>", "uses_framework": [...]}`. STAGE 8: real, not a stub —
+/// "<Name>", "uses_framework": [...]}`. Stage 8: real, not a stub —
 /// `parse::chapter::resolve_uses_framework` walks every top-level
 /// `Hecks.hecksagon "..." do ... end` block in the file (fail-closed
 /// gated, exactly like `chapter`'s own `.hecksagon` handling), applies
 /// only the block whose own declared name matches `--chapter`, and
 /// returns every `uses_framework "X"` argument it names, in file order.
 ///
-/// `--chapter` is REQUIRED, a deliberate departure from the plan's own
+/// `--chapter` is required, a deliberate departure from the plan's own
 /// original `hecks-parse resolve <file.hecksagon>` sketch (no chapter
-/// argument at all): a single `.hecksagon` file can declare MORE THAN
-/// ONE `Hecks.hecksagon` block (banking.hecksagon's own shape — a
+/// argument at all): a single `.hecksagon` file can declare more than
+/// one `Hecks.hecksagon` block (banking.hecksagon's own shape — a
 /// `"Banking"` block plus sibling `"Governance"`/`"Identity"` blocks,
 /// see `parse::chapter`'s own header), so "the domain" isn't something
 /// this file can safely infer on its own — the caller (`bin/project_
@@ -176,7 +176,7 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse coverage` — prints the `(word, context)` pairs ACTUALLY
+/// `hecks-parse coverage` — prints the `(word, context)` pairs actually
 /// implemented, as a JSON array of `[word, context]` pairs, for
 /// `spec/parser_coverage_spec.rb` to compare against `syntax.bluebook`'s
 /// own declared set (minus a shrinking, itemized allowlist).
@@ -185,37 +185,37 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 /// `ir::*` fields for some real corpus member's own real usage of it —
 /// confirmed by `spec/parser_parity_spec.rb`'s byte-exact comparison
 /// against Ruby's own `ir.json`, not just "the word gates cleanly." A
-/// word this crate merely GATES but doesn't build real IR for (e.g.
+/// word this crate merely gates but doesn't build real IR for (e.g.
 /// `entity`) stays off this list — reporting it here would be exactly
 /// the kind of claim this whole plan exists to make impossible.
-/// `identified_by`'s bare-field form (ADR 0025's LIVE spelling, `build/
+/// `identified_by`'s bare-field form (ADR 0025's live spelling, `build/
 /// identity.rs::resolve_identity_field`) joined the legacy type-form in
 /// building real IR, so the pair stays listed on the same terms it
 /// always was. Grouped by construct, in the same order
 /// `parse::mod::dispatch_stub` maps contexts.
 ///
-/// STAGE 2 built the first block (pizzas.bluebook). STAGE 3 added the
-/// entries marked below. STAGE 4 (banking.bluebook — entities, composite
+/// Stage 2 built the first block (pizzas.bluebook). Stage 3 added the
+/// entries marked below. Stage 4 (banking.bluebook — entities, composite
 /// identity, process managers, read models with every query option,
 /// `provenance`, a nested `policy`, `belongs_to`, `on`'s blockless form —
 /// also confirmed by the concurrently-landed `compliance`/`interview`
 /// real corpus members, which this stage's own real construction work
-/// happened to fully cover too) adds the entries marked STAGE 4.
+/// happened to fully cover too) adds the entries marked stage 4.
 ///
-/// STAGE 6 (the self-hosted grammar itself,
+/// Stage 6 (the self-hosted grammar itself,
 /// `MetaValidator::GRAMMAR_FILES`'s discovered files parsed as one `Bluebook`
 /// chapter) adds `("list_of", "Type")`/`("one_of", "Type")` below,
-/// marked STAGE 6 — NOT new dispatch work (both have built real IR since
+/// marked stage 6 — not new dispatch work (both have built real IR since
 /// Stage 2/3, `resolve_type_expression`'s own header: pizzas.bluebook's
 /// `list_of(Topping)`, console_settings.bluebook's inline
-/// `one_of("good", ...)`), but a pre-existing BOOKKEEPING gap this stage
+/// `one_of("good", ...)`), but a pre-existing bookkeeping gap this stage
 /// closed while auditing every `(word, context)` pair the self-hosted
-/// grammar's own nine files genuinely exercise (every OTHER pair they
+/// grammar's own nine files genuinely exercise (every other pair they
 /// use — `aggregate`/`command`/`query`/`attribute`/`value_object`/
 /// `identified_by`/`reference_to`/`one_of`(ValueObject)/`member`/
 /// `invariant`/`given`/`sets`/`emits`/`role`/`goal`/`where`/`order_by`/
 /// `include`/`description`/`report`/`vision`/`core` in their various
-/// contexts — was ALREADY on this list). Confirmed by tracing every
+/// contexts — was already on this list). Confirmed by tracing every
 /// `next_line` dispatch while parsing the nine files for real (a
 /// temporary `eprintln!`, removed again once the audit was done) and
 /// cross-checking the traced set against this table by hand.
@@ -228,31 +228,31 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("generic", "Bluebook"),
     ("aggregate", "Bluebook"),
     ("policy", "Bluebook"),
-    ("process_manager", "Bluebook"), // STAGE 4
+    ("process_manager", "Bluebook"), // Stage 4
     ("provides", "Bluebook"),        // Phase 2a — `provides "authorization", ...`
     ("description", "Aggregate"),
-    ("provenance", "Aggregate"), // STAGE 4
+    ("provenance", "Aggregate"), // Stage 4
     ("identified_by", "Aggregate"),
     ("attribute", "Aggregate"),
     ("value_object", "Aggregate"),
     ("lifecycle", "Aggregate"),
-    ("entity", "Aggregate"), // STAGE 4
+    ("entity", "Aggregate"), // Stage 4
     ("query", "Aggregate"),
     ("command", "Aggregate"),
-    ("policy", "Aggregate"),       // STAGE 4
-    ("reference_to", "Aggregate"), // STAGE 3
-    ("belongs_to", "Aggregate"),   // STAGE 4
-    ("description", "Entity"),     // STAGE 4
-    ("identified_by", "Entity"),   // STAGE 4
-    ("attribute", "Entity"),       // STAGE 4
-    ("command", "Entity"),         // STAGE 4
-    ("query", "Entity"),           // STAGE 4
-    ("lifecycle", "Entity"),       // STAGE 4
+    ("policy", "Aggregate"),       // Stage 4
+    ("reference_to", "Aggregate"), // Stage 3
+    ("belongs_to", "Aggregate"),   // Stage 4
+    ("description", "Entity"),     // Stage 4
+    ("identified_by", "Entity"),   // Stage 4
+    ("attribute", "Entity"),       // Stage 4
+    ("command", "Entity"),         // Stage 4
+    ("query", "Entity"),           // Stage 4
+    ("lifecycle", "Entity"),       // Stage 4
     ("role", "Command"),
     ("goal", "Command"),
     ("reference_to", "Command"),
     ("given", "Command"),
-    ("ensures", "Command"), // STAGE 4
+    ("ensures", "Command"), // Stage 4
     ("sets", "Command"),
     // Parsed and byte-matched by parser parity (banking/chess), but never
     // listed here until the pending audit checked each pair in context.
@@ -272,39 +272,39 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("invariant", "ValueObject"),
     ("member", "OneOf"),
     ("transition", "Lifecycle"),
-    ("description", "Query"), // STAGE 3
+    ("description", "Query"), // Stage 3
     ("attribute", "Query"),
     ("where", "Query"),
     ("order_by", "Query"),
-    ("limit", "Query"),     // STAGE 4
-    ("authorize", "Query"), // STAGE 4
+    ("limit", "Query"),     // Stage 4
+    ("authorize", "Query"), // Stage 4
     ("on", "Policy"),
     ("trigger", "Policy"),
-    ("across", "Policy"),                // STAGE 4
+    ("across", "Policy"),                // Stage 4
     ("where", "Policy"),                 // chess, roster
     ("for_each", "Policy"),              // banking
-    ("correlates_by", "ProcessManager"), // STAGE 4
-    ("starts_on", "ProcessManager"),     // STAGE 4
-    ("ends_on", "ProcessManager"),       // STAGE 4
+    ("correlates_by", "ProcessManager"), // Stage 4
+    ("starts_on", "ProcessManager"),     // Stage 4
+    ("ends_on", "ProcessManager"),       // Stage 4
     ("transition", "ProcessManager"),    // banking, settlement (was `state`/`on`)
-    ("dispatch", "Handler"),             // STAGE 4
+    ("dispatch", "Handler"),             // Stage 4
     ("port", "Hecksagon"),
     ("operation", "DomainPort"),
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),
     ("emits", "PortOperation"),
-    ("read_model", "Bluebook"),    // STAGE 3
-    ("description", "ReadModel"),  // STAGE 3
-    ("include", "ReadModel"),      // STAGE 3
-    ("group_by", "ReadModel"),     // STAGE 3
+    ("read_model", "Bluebook"),    // Stage 3
+    ("description", "ReadModel"),  // Stage 3
+    ("include", "ReadModel"),      // Stage 3
+    ("group_by", "ReadModel"),     // Stage 3
     ("count", "ReadModel"), // real, this session — banking.bluebook's own DisputedPaymentCount
     ("median", "ReadModel"), // real, this session — banking.bluebook's own DisputedPaymentMedian
-    ("reference_to", "ReadModel"), // STAGE 4
-    ("where", "ReadModel"), // STAGE 4
-    ("order_by", "ReadModel"), // STAGE 4
-    ("limit", "ReadModel"), // STAGE 4
-    ("list_of", "Type"),    // STAGE 6 (bookkeeping — see this const's own header)
-    ("one_of", "Type"),     // STAGE 6 (bookkeeping — see this const's own header)
+    ("reference_to", "ReadModel"), // Stage 4
+    ("where", "ReadModel"), // Stage 4
+    ("order_by", "ReadModel"), // Stage 4
+    ("limit", "ReadModel"), // Stage 4
+    ("list_of", "Type"),    // Stage 6 (bookkeeping — see this const's own header)
+    ("one_of", "Type"),     // Stage 6 (bookkeeping — see this const's own header)
 ];
 
 fn run_coverage(_args: &[String]) -> Result<(), RunError> {

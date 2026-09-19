@@ -1,22 +1,22 @@
-//! `hecks-build` — Stage 8 CAPSTONE (a follow-up to
+//! `hecks-build` — Stage 8 capstone (a follow-up to
 //! `/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`,
 //! continuing directly from that plan's own Stage 8, which landed as
-//! `rust/project_rust_pipeline.rb` — an all-Rust PARSE+CODEGEN pipeline
+//! `rust/project_rust_pipeline.rb` — an all-Rust parse+codegen pipeline
 //! that was still itself a Ruby process, opt-in behind
 //! `HECKS_PARSER=rust HECKS_CODEGEN=rust bin/project_rust <domain>`).
 //!
-//! THIS CRATE DOES THE SAME JOB, but is itself a compiled Rust binary —
+//! This crate does the same job, but is itself a compiled Rust binary —
 //! a domain's `.bluebook` source goes from disk to a compiled artifact
-//! with NO Ruby process involved anywhere in the chain, not even for
+//! with no Ruby process involved anywhere in the chain, not even for
 //! orchestration. `rust/project_rust_pipeline.rb`'s own header is the
 //! literal specification this crate ports (`src/pipeline.rs` mirrors its
 //! `RustProjectPipeline.call` body step for step); read that file's own
 //! extensive comments for the full reasoning behind each step, which
-//! this crate deliberately does NOT re-derive, only re-implements.
+//! this crate deliberately does not re-derive, only re-implements.
 //!
-//! ARCHITECTURE (decided, not re-litigated here): this crate calls the
-//! EXISTING `hecks-parse` (`rust/parser/`) and `hecks-codegen`
-//! (`rust/codegen/`) binaries as SUBPROCESSES
+//! Architecture (decided, not re-litigated here): this crate calls the
+//! existing `hecks-parse` (`rust/parser/`) and `hecks-codegen`
+//! (`rust/codegen/`) binaries as subprocesses
 //! (`std::process::Command`, via `src/subprocess.rs`) — the same way
 //! `rust/project_rust_pipeline.rb` shells out to them via
 //! `Open3.capture3`/`system` today. Neither sibling crate is
@@ -27,7 +27,7 @@
 //! crate's own base commit is scoped to `rust/build/` and new spec
 //! files only).
 //!
-//! THE ONE GENUINELY NEW PIECE OF LOGIC (beyond pure orchestration):
+//! The one genuinely new piece of logic (beyond pure orchestration):
 //! `src/optional_pass.rs`, a Rust port of `RustProjection::Projector.
 //! mark_append_optional_fields!` (`rust/project/mutations.rb`) — see
 //! that module's own header for the full derivation and how it's
@@ -40,8 +40,8 @@
 //! `<domain>` is a path to a domain's own directory (e.g.
 //! `examples/pizzas`, `examples/banking`), the same argument shape
 //! `bin/project_rust <domain>` already takes — resolved relative to the
-//! CURRENT DIRECTORY, exactly like the Ruby original (this crate's own
-//! `src/root.rs` separately locates the hecks REPO root, by walking
+//! current directory, exactly like the Ruby original (this crate's own
+//! `src/root.rs` separately locates the hecks repo root, by walking
 //! up from the current directory looking for `hecks.gemspec`, for
 //! everything else it needs: `rust/parser`, `rust/codegen`, `rust/src/
 //! generated`, `rust/Cargo.toml`, `lib/hecks/framework/bluebook`,
@@ -49,7 +49,7 @@
 //!
 //! `--wasm` additionally cross-compiles for `wasm32-wasip1` (mirroring
 //! `bin/project_wasm`'s own invocation) once the native build succeeds.
-//! `--no-build` skips BOTH `cargo build` steps for the domain's own
+//! `--no-build` skips both `cargo build` steps for the domain's own
 //! compiled artifact, generating source only — useful for fast,
 //! repeated differential verification against the existing Ruby
 //! pipelines, which never build the domain artifact themselves either.

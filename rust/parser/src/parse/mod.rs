@@ -5,7 +5,7 @@
 //! before building any IR. See this crate's main.rs module doc for the
 //! full four-gate framing.
 //!
-//! STAGE 1'S ACTUAL BEHAVIOR: every line, at every nesting depth, is
+//! Stage 1'S actual behavior: every line, at every nesting depth, is
 //! gated for real — shape (lex.rs), word (this file's `word_gate`), body
 //! (`body_gate`), argument (`argument_gate`). A line that opens a `do`
 //! block recurses into its own `inner` context and keeps gating. The walk
@@ -36,7 +36,7 @@ use crate::keywords::{self, ArgumentRow, KeywordRow};
 use crate::lex::{self, Call, LineShape, Opener, SourceLine};
 use crate::ruby_value;
 
-/// THE WORD GATE. Every live `KeywordRow` for `(word, context)` — zero
+/// **The word gate**. Every live `KeywordRow` for `(word, context)` — zero
 /// rows is a hard error naming the legal alternatives, exactly the
 /// diagnostic shape the plan calls for ("a diagnostic naming legal
 /// alternatives when it doesn't [hit a row]").
@@ -46,11 +46,11 @@ pub fn word_gate<'a>(
     context: &'static str,
     line: usize,
 ) -> ParseResult<Vec<&'a KeywordRow>> {
-    // A RENAMED WORD ANSWERS BOTH SPELLINGS — `sets`/`then_set` is the
+    // **A renamed word answers both spellings** — `sets`/`then_set` is the
     // standing example (syntax.bluebook's own `was:` column, mirrored by
     // `spec/syntax_conformance_spec.rb`'s "answers every renamed word in
     // both its spellings"). Every real bluebook in the corpus, including
-    // pizzas.bluebook, is still written under the OLD spelling
+    // pizzas.bluebook, is still written under the old spelling
     // (`then_set`), so matching only `k.word == word` would refuse every
     // one of them — confirmed live, not a hypothetical gap. `k.was` is
     // never itself a live row (spec/syntax_conformance_spec.rb's "keeps
@@ -84,44 +84,44 @@ pub fn word_gate<'a>(
     Ok(candidates)
 }
 
-/// THE BODY GATE. `none`/`keywords`/`source`/`rows` must match what
+/// **The body gate**. `none`/`keywords`/`source`/`rows` must match what
 /// actually follows — picks, among the word-gated candidate rows, the one
 /// whose declared `body` is compatible with the `Opener` the lexer
 /// actually found. `identified_by` is the standing example of why this is
-/// its own gate and not folded into the word gate: the SAME word admits a
+/// its own gate and not folded into the word gate: the same word admits a
 /// `source` row (`identified_by { name.value }`) and `none` rows
 /// (`identified_by :name`, `identified_by PizzaName, as: :name`) in the
 /// same context, and only the body that actually follows disambiguates
 /// which was written.
 ///
-/// A `do ... end` OPENER IS ALSO `source`-COMPATIBLE, AND A `{ ... }`
-/// OPENER IS ALSO `keywords`/`rows`-COMPATIBLE — Ruby itself treats
-/// `{ ... }` and `do ... end` as the SAME block syntax (differing only in
+/// A `do ... end` opener is also `source`-compatible, and a `{ ... }`
+/// **opener is also `keywords`/`rows`-compatible** — Ruby itself treats
+/// `{ ... }` and `do ... end` as the same block syntax (differing only in
 /// precedence, never in what a method does with the block), so this
 /// crate's own choice of which body a word gets is never something the
-/// AUTHOR's choice of delimiter should be allowed to change.
+/// author's choice of delimiter should be allowed to change.
 /// `identified_by`'s own multi-path form (governance.bluebook's
 /// `RoleAssignment`/`RoleTransition`, console_settings.bluebook's
 /// `StateStyle`: `identified_by do actor_id.value; role_name.value; end`)
 /// is written with `do ... end` for a `source` body — but real, confirmed
-/// live syntax runs the OTHER direction too:
+/// live syntax runs the other direction too:
 /// `spec/fixtures/hop_chain.bluebook`'s own `value_object("Name") {
 /// attribute :value, String }` writes a `keywords` body (`value_object`'s
 /// own row, `body: "keywords"`) with `{ ... }`, refused outright before
 /// this widening ("'value_object' was written with a `{ ... }` block
 /// (expected one of: keywords)") even though it is exactly as legal as
 /// the `do ... end` spelling right below it in the very same file. But
-/// `syntax.bluebook` declares only ONE row per body kind per `(word,
+/// `syntax.bluebook` declares only one row per body kind per `(word,
 /// context)`, not a second one per delimiter. Safe to admit
-/// unconditionally in EITHER direction (not just for one word) because no
-/// `(word, context)` pair in the CURRENT table declares BOTH a `source`
+/// unconditionally in either direction (not just for one word) because no
+/// `(word, context)` pair in the current table declares both a `source`
 /// row and a `keywords`/`rows` row — confirmed by reading every `body:
 /// "source"` row directly (`identified_by`/Aggregate+Entity, `given`/
 /// Command, `invariant`/ValueObject, `ensures`/Command): each has at most
-/// a sibling `none` row, never a `keywords`/`rows` one, so widening EITHER
-/// opener's own compatibility here can never make an ALREADY-ambiguous
+/// a sibling `none` row, never a `keywords`/`rows` one, so widening either
+/// opener's own compatibility here can never make an already-ambiguous
 /// word gate on which body an opener means. If a future word ever
-/// declares both, THIS widening (not the KeywordRow order) becomes the
+/// declares both, this widening (not the KeywordRow order) becomes the
 /// tie-break — worth revisiting then, not guessed at now.
 pub fn body_gate<'a>(
     file: &str,
@@ -154,21 +154,21 @@ pub fn body_gate<'a>(
     )
 }
 
-/// A LIVE CROSS-CHECK against the self-hosted grammar table, mirroring
+/// A live cross-check against the self-hosted grammar table, mirroring
 /// Ruby's own `RuleReference#verify_resolves_via!` (lib/hecks/
 /// bluebook/dsl/rule_reference.rb) — each of the three hand-written
 /// bare-reference resolvers (`parse::aggregate::
 /// try_reference_named_chapter_given`, `parse::command::
 /// try_reference_named_given`, `parse::value_object::
-/// try_reference_named_invariant`) calls this FIRST, naming the
+/// try_reference_named_invariant`) calls this first, naming the
 /// primitive it is about to use. If `syntax.bluebook`'s own
 /// `resolves_via` for this exact (word, context) pair ever names
 /// something else, this is a real drift between the language's own
 /// self-description and its own implementation — caught here, not
 /// silently trusted.
 ///
-/// UNLIKE THE RUBY SIDE, no bootstrapping guard is needed:
-/// `keywords.rs` is a STATIC, pre-generated file
+/// Unlike the Ruby side, no bootstrapping guard is needed:
+/// `keywords.rs` is a static, pre-generated file
 /// (`bin/project_parser_table`) that already exists complete and
 /// correct before any Rust parsing code ever runs — Rust's own parser
 /// never bootstraps itself the way Ruby's self-hosting does (it never
@@ -207,26 +207,26 @@ pub(crate) fn kind_matches(declared: &str, actual: &str) -> bool {
     if declared == actual {
         return true;
     }
-    // `literal` is the WIDEST kind — syntax.bluebook's own ArgumentKind
-    // comment: "a default is written so its TYPE survives ... which is
+    // `literal` is the widest kind — syntax.bluebook's own ArgumentKind
+    // comment: "a default is written so its type survives ... which is
     // why it is not `text`." A Hash/Array literal survives its own type
     // exactly the same way a bare number or symbol does — confirmed live:
     // `sets :toppings, append: { name: :topping, amount: :amount }`
     // (pizzas.bluebook) declares `append:` as `kind: "literal"`, and the
     // value written there is a Hash, not a scalar. Only `constant` (a
-    // bareword TYPE name, e.g. `PizzaName`) is excluded — a type name is
+    // bareword type name, e.g. `PizzaName`) is excluded — a type name is
     // never what a `literal:`-kind argument means.
     declared == "literal" && actual != "constant"
 }
 
-/// A bare `word(...)` call shape whose leading word is itself a LIVE
+/// A bare `word(...)` call shape whose leading word is itself a live
 /// `Type`-context word (`list_of`, `one_of` — the only two `syntax.
 /// bluebook` currently declares there). `list_of(Topping)` fills a
 /// `kind: "constant"` argument position (an attribute's own type slot)
 /// even though it is lexically a call, not a bareword — confirmed real:
 /// `attribute :toppings, list_of(Topping)` (pizzas.bluebook) is refused
 /// outright without this, since `list_of(Topping)` does not start with an
-/// uppercase letter the way a bare constant does. Reads the SAME
+/// uppercase letter the way a bare constant does. Reads the same
 /// generated `KEYWORDS` table rather than hardcoding "list_of"/"one_of"
 /// as magic strings, so a future Type-context word is recognized here
 /// automatically.
@@ -307,7 +307,7 @@ fn is_number_token(t: &str) -> bool {
     true
 }
 
-/// A segment split at the top level of an argument list is NAMED when it
+/// A segment split at the top level of an argument list is named when it
 /// spells `identifier: value` (Ruby's keyword-argument convention this
 /// DSL writes throughout — `as: :name`, `optional: true`). Distinguished
 /// from a bare positional symbol (`:eq`, leading colon) by requiring the
@@ -336,7 +336,7 @@ pub struct ArgumentGateResult {
     pub named: Vec<(String, String)>,
 }
 
-/// THE ARGUMENT GATE. Positional/named count and lexical kind must match
+/// **The argument gate**. Positional/named count and lexical kind must match
 /// the declared `ArgumentRow`s for `(word, context)` — joined by
 /// `(word, context)` alone (never by which `KeywordRow` the body gate
 /// picked), matching syntax.bluebook's own comment on why `identified_by`
@@ -370,15 +370,15 @@ pub fn argument_gate(
         ));
     }
 
-    // A POSITIONAL `pairs` ROW (`at: "1", kind: "pairs"`) — two genuinely
+    // A positional `pairs` row (`at: "1", kind: "pairs"`) — two genuinely
     // different surface shapes share this one `kind`, split by
     // `pairs_shape` (see syntax.bluebook's own `PairsShape` comment):
     //
-    //   "fields"              ONE hash-rocket pair — `transition "Purchase"
+    //   "fields"              one hash-rocket pair — `transition "Purchase"
     //                         => "sold", from: "available"` — real corpus
     //                         syntax (examples/*/bluebook/*.bluebook), not
     //                         Ruby's `key: value` shorthand at all.
-    //   "verbatim"/"elements" MANY `identifier: value` segments merged
+    //   "verbatim"/"elements" many `identifier: value` segments merged
     //                         into one open map — `member code: "JPY",
     //                         minor_units: 0`.
     if let Some(pairs_row) = rows.iter().find(|r| r.kind == "pairs" && r.at == "1") {
@@ -401,7 +401,7 @@ pub fn argument_gate(
         let at = (idx + 1).to_string();
         let mut candidates: Vec<&&ArgumentRow> = rows.iter().filter(|r| r.at == at).collect();
         if candidates.is_empty() {
-            // A VARIADIC positional row (`group_by`'s own `*fields` —
+            // A variadic positional row (`group_by`'s own `*fields` —
             // syntax.bluebook's own `Argument.variadic` column comment)
             // repeats for every position beyond its own declared `at`,
             // the same "one row spells the kind of many" shape that
@@ -409,7 +409,7 @@ pub fn argument_gate(
             // (which never reaches this gate at all — its own repetition
             // is hand-parsed inside a nested Type-position expression,
             // `resolve_type_expression`). `group_by`'s repetition has to
-            // survive THIS gate directly, since it's an ordinary
+            // survive this gate directly, since it's an ordinary
             // top-level call, hence the explicit `variadic: "true"` flag
             // rather than an inferred one.
             if let Some(row) = rows.iter().find(|r| r.variadic == "true") {
@@ -471,25 +471,25 @@ pub fn argument_gate(
     })
 }
 
-/// `pairs_shape: "fields"` — exactly ONE hash-rocket pair
+/// `pairs_shape: "fields"` — exactly one hash-rocket pair
 /// (`"Purchase" => "sold"`), contributing two named sub-fields
 /// (`pair_key_fills`/`pair_value_fields`) to the record this keyword is
-/// already building. Every other top-level segment must EITHER be a plain
+/// already building. Every other top-level segment must either be a plain
 /// named argument this word separately declares (`from:`, in `transition`'s
-/// own case) OR — real, confirmed live by
+/// own case) or — real, confirmed live by
 /// `spec/fixtures/payments.bluebook`'s `transition from: "pending", to:
-/// "received"` — Ruby's OWN `identifier: value` hash-literal shorthand for
-/// THE SAME PAIR: `LifecycleBuilder#transition` (`lib/hecks/bluebook/
+/// "received"` — Ruby's own `identifier: value` hash-literal shorthand for
+/// **the same pair**: `LifecycleBuilder#transition` (`lib/hecks/bluebook/
 /// dsl/lifecycle_builder.rb`) receives one plain Hash and does not care how
 /// its entries were spelled — `{"Close" => "closed"}` and `{to:
 /// "received"}` are the identical Hash shape by the time Ruby's parser is
 /// done, `mapping.delete(:from)` peels off `from:` either way, and
-/// `mapping.each` turns the ONE remaining entry into a transition literally
+/// `mapping.each` turns the one remaining entry into a transition literally
 /// named after whatever key was left (`:to.to_s == "to"` here — a real,
 /// slightly odd-looking but byte-confirmed transition named "to", not a
 /// parser bug). So an unclaimed `identifier: value` segment (not `from:`,
 /// not any other row this word specifically declares) is reconstructed as
-/// the equivalent `"identifier" => value` text and folds into the SAME
+/// the equivalent `"identifier" => value` text and folds into the same
 /// `field_pairs`/"one pair required" accounting a real rocket segment
 /// would — nothing downstream (`lifecycle::parse_body`'s own
 /// `named_raw(&gated.args, "=>")`) needs a second code path for it.
@@ -553,13 +553,13 @@ fn argument_gate_fields_pairs(
     })
 }
 
-/// `pairs_shape: "verbatim"`/`"elements"` — MANY segments merged into one
+/// `pairs_shape: "verbatim"`/`"elements"` — many segments merged into one
 /// open map (`member code: "JPY", minor_units: 0`), distinguished from a
 /// more specific `named:` row (claimed individually) by not matching any
 /// such row's own name.
 ///
-/// TWO SEGMENT SHAPES, not one — `as_named`'s `identifier: value` handles
-/// the common case, but a key that is not a bare identifier (a DOTTED
+/// Two segment shapes, not one — `as_named`'s `identifier: value` handles
+/// the common case, but a key that is not a bare identifier (a dotted
 /// query path) cannot be spelled that way at all: Ruby itself requires a
 /// quoted symbol and hash-rocket syntax for it. Confirmed real, not
 /// hypothetical: `where(:"pizza.price_cents.cents" => { lt: :ceiling })`
@@ -721,7 +721,7 @@ pub(crate) fn split_top_level_rocket(segment: &str) -> (&str, &str) {
     (segment.trim(), "")
 }
 
-/// The FIELD NAME a `where`/`member` pair's own key names — a bare or
+/// The field name a `where`/`member` pair's own key names — a bare or
 /// quoted Ruby Symbol literal (`:status`, `:"pizza.price_cents.cents"`).
 /// This language's pairs-argument keys are always symbols (never a
 /// string, never a bareword), so anything else is a real refusal, not a
@@ -775,7 +775,7 @@ fn validate_named(
 }
 
 /// Maps a `KeywordRow.inner` context name (the body the word opens) to the
-/// per-construct module responsible for it, per the same BUILDER grouping
+/// per-construct module responsible for it, per the same builder grouping
 /// `spec/syntax_conformance_spec.rb` already uses (`OneOf` shares
 /// `ValueObjectBuilder`, `Handler` shares `ProcessManagerBuilder`,
 /// `PortOperation` shares `DomainPortBuilder`).
@@ -798,7 +798,7 @@ pub(crate) fn dispatch_stub(
         "ProcessManager" | "Handler" => process_manager::not_implemented(file, line, word),
         "ReadModel" => read_model::not_implemented(file, line, word),
         "DomainPort" | "PortOperation" => domain_port::not_implemented(file, line, word),
-        // WORLD IS DELIBERATELY UNMAPPED — its body is the open
+        // **World is deliberately unmapped** — its body is the open
         // verb-setting catch-all (syntax.bluebook's own NOT_A_WORD note
         // on WorldBuilder#method_missing). The two narrow open-vocabulary
         // escapes the plan names (`.hecksagon` adapter-bind,
@@ -816,10 +816,10 @@ pub(crate) fn dispatch_stub(
     }
 }
 
-/// The honest fallback for a WORD this parser doesn't (yet) build real IR
+/// The honest fallback for a word this parser doesn't (yet) build real IR
 /// for — reused by every Stage-2 construct parser (aggregate.rs,
 /// command.rs, ...) for whatever slice of its own grammar pizzas.bluebook
-/// doesn't exercise, so an unimplemented word fails with the EXACT same
+/// doesn't exercise, so an unimplemented word fails with the exact same
 /// diagnostic Stage 1's own generic `walk_body`/`dispatch_stub` already
 /// produced — `tests/gates.rs`'s still-Stage-1 fixtures (entity.bluebook,
 /// read_model.bluebook, process_manager.bluebook) depend on this wording
@@ -838,13 +838,13 @@ pub(crate) fn not_built_yet(
     }
 }
 
-/// ONE GATED LINE — shape, word, body, and argument gates all already
-/// run for real (see this module's own header), returned WITHOUT
+/// **One gated line** — shape, word, body, and argument gates all already
+/// run for real (see this module's own header), returned without
 /// consuming any nested body a `do`/`{` opener might introduce; the
 /// caller (a `parse::<construct>::parse_body` function) decides whether
 /// it implements that nested construct and, if so, recurses itself. This
-/// is the Stage 2 REPLACEMENT for `handle_call` above for constructs this
-/// crate now actually builds IR for. STAGE 8: `handle_call`/`walk_body`
+/// is the Stage 2 replacement for `handle_call` above for constructs this
+/// crate now actually builds IR for. Stage 8: `handle_call`/`walk_body`
 /// are no longer called by anything — `main.rs::run_resolve` (their
 /// last real caller) now builds real IR too
 /// (`parse::chapter::resolve_uses_framework`), and every fixture
@@ -856,7 +856,7 @@ pub(crate) struct GatedLine<'src> {
     pub line: SourceLine<'src>,
     pub call: Call,
     // Always `'static` regardless of the source text's own lifetime —
-    // every `KeywordRow` lives in the GENERATED `keywords::KEYWORDS`
+    // every `KeywordRow` lives in the generated `keywords::KEYWORDS`
     // slice, which is itself `'static`.
     pub row: &'static KeywordRow,
     pub args: ArgumentGateResult,
@@ -865,7 +865,7 @@ pub(crate) struct GatedLine<'src> {
 /// Reads and gates the next line inside `context`, from `*pos`. `None`
 /// means `end` was found (and consumed) — the body is over. `Some` means
 /// a legal call was found (shape/word/body/argument gates all passed);
-/// `*pos` has advanced past the line ITSELF, never past any nested body.
+/// `*pos` has advanced past the line itself, never past any nested body.
 pub(crate) fn next_line<'src>(
     file: &str,
     lines: &[SourceLine<'src>],
@@ -927,7 +927,7 @@ fn positional_raw<'a>(
         })
 }
 
-/// A required TEXT (quoted-string) positional argument, unquoted —
+/// A required text (quoted-string) positional argument, unquoted —
 /// `aggregate "Widget"`, `given("description")`, `role "Chef"`.
 pub(crate) fn positional_text(
     file: &str,
@@ -943,8 +943,8 @@ pub(crate) fn positional_text(
     })
 }
 
-/// A required SYMBOL positional argument, stripped of its leading colon —
-/// `attribute :name`, `sets :toppings`, `order_by :name`. Handles BOTH
+/// A required symbol positional argument, stripped of its leading colon —
+/// `attribute :name`, `sets :toppings`, `order_by :name`. Handles both
 /// bare (`:name`) and quoted (`:"a.b"`) spellings — the quoted form is
 /// real, dotted-path syntax a bare identifier cannot spell
 /// (`correlates_by :"reference.value"`, `process_manager`'s own required
@@ -967,9 +967,9 @@ pub(crate) fn positional_symbol(
     })
 }
 
-/// The bare name out of a symbol TOKEN as WRITTEN in source — `:name` ->
+/// The bare name out of a symbol token as written in source — `:name` ->
 /// `name`, `:"a.b"` -> `a.b`. Distinct from `ruby_value::read`, which
-/// reads back a Symbol from a RENDERED wire value (`Literal.render`'s own
+/// reads back a Symbol from a rendered wire value (`Literal.render`'s own
 /// output) rather than source syntax; the two never overlap, but neither
 /// alone covers what a `kind: "symbol"` argument may actually look like
 /// at the syntax layer.
@@ -982,7 +982,7 @@ fn symbol_text(raw: &str) -> Option<String> {
     }
 }
 
-/// A CONSTANT (bareword type name) positional argument, raw — `attribute
+/// A constant (bareword type name) positional argument, raw — `attribute
 /// :pizza, Pizza`. Never quoted, never colon-prefixed; taken verbatim.
 pub(crate) fn positional_constant<'a>(
     file: &str,
@@ -994,11 +994,11 @@ pub(crate) fn positional_constant<'a>(
     positional_raw(file, line, word, args, at).map(|s| s.trim())
 }
 
-/// A COMMAND-REFERENCE positional argument — `trigger Account::Debit`
-/// (a bare command constant, `kind: "constant"`) or the LEGACY quoted
+/// A command-reference positional argument — `trigger Account::Debit`
+/// (a bare command constant, `kind: "constant"`) or the legacy quoted
 /// spelling `trigger "Account.Debit"` (`kind: "text"`, still accepted by
 /// Ruby under `MetaValidator.shadow_parsing?`) — both declared as
-/// argument rows for the SAME `fills` slot (`trigger`'s own
+/// argument rows for the same `fills` slot (`trigger`'s own
 /// `trigger_command`, `dispatch`'s own `command_name`), so `argument_
 /// gate` already admits either lexical shape here; this just derives the
 /// same text `Hecks::Naming.command_ref` derives from whichever one
@@ -1014,7 +1014,7 @@ pub(crate) fn positional_command_ref(
     Ok(crate::build::naming::command_ref(raw))
 }
 
-/// A PROCESS MANAGER'S OWN EVENT-REFERENCE positional argument —
+/// A process manager's own event-reference positional argument —
 /// `starts_on Transfer::TransferRequested` / `ends_on Transfer::
 /// TransferSettled` (a bare event constant, `kind: "constant"`) or the
 /// legacy quoted spelling (`kind: "text"`) — both declared as argument
@@ -1034,7 +1034,7 @@ pub(crate) fn positional_event_name_ref(
     Ok(crate::build::naming::event_name_ref(raw))
 }
 
-/// A NAMED argument's raw captured text, if the call gave one —
+/// A named argument's raw captured text, if the call gave one —
 /// `as: :name`, `optional: true`, `to: "sold"`.
 pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<&'a str> {
     args.named
@@ -1043,7 +1043,7 @@ pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<
         .map(|(_, v)| v.as_str())
 }
 
-/// A NAMED CONSTANT argument — `to: Payment`. Same shape as
+/// A named constant argument — `to: Payment`. Same shape as
 /// `positional_constant`: raw captured text, trimmed, no further
 /// coercion — a bareword's target name is resolved downstream
 /// (`naming::demodulise`), never here.
@@ -1051,14 +1051,14 @@ pub(crate) fn named_constant<'a>(args: &'a ArgumentGateResult, name: &str) -> Op
     named_raw(args, name).map(|s| s.trim())
 }
 
-/// A NAMED SYMBOL argument, stripped of its leading colon — `as: :name`.
+/// A named symbol argument, stripped of its leading colon — `as: :name`.
 /// See `positional_symbol`'s own comment on `symbol_text` — same
 /// bare-or-quoted handling, named-argument side.
 pub(crate) fn named_symbol(args: &ArgumentGateResult, name: &str) -> Option<String> {
     named_raw(args, name).and_then(|raw| symbol_text(raw.trim()))
 }
 
-/// A NAMED TEXT argument, unquoted — none of pizzas.bluebook's own named
+/// A named text argument, unquoted — none of pizzas.bluebook's own named
 /// arguments happen to be plain quoted text (every `text`-kind named
 /// argument the corpus uses is `pattern:`/`admits:`, neither exercised),
 /// kept for the same completeness `build/naming.rs` documents elsewhere.
@@ -1069,7 +1069,7 @@ pub(crate) fn named_text(args: &ArgumentGateResult, name: &str) -> Option<String
     })
 }
 
-/// A NAMED FLAG (`true`/`false`) argument — `optional: true`.
+/// A named flag (`true`/`false`) argument — `optional: true`.
 pub(crate) fn named_flag(args: &ArgumentGateResult, name: &str) -> bool {
     named_raw(args, name)
         .map(|raw| raw.trim() == "true")
@@ -1078,27 +1078,27 @@ pub(crate) fn named_flag(args: &ArgumentGateResult, name: &str) -> bool {
 
 /// `AttributeCollector#attribute` (attribute_collector.rb) — shared by
 /// every context that admits a bare `attribute` line (Aggregate, Command,
-/// ValueObject, Query, PortOperation — the SAME shape, per
+/// ValueObject, Query, PortOperation — the same shape, per
 /// `spec/syntax_conformance_spec.rb`'s own reading of `attribute`'s
 /// declared rows). Position 2 (the type) defaults to `String` when
 /// absent, matching `attribute(name, type = String, ...)`'s own Ruby
 /// default.
 ///
-/// Returns the attribute alongside an OPTIONAL synthesized closed-set
+/// Returns the attribute alongside an optional synthesized closed-set
 /// value object (`Some` only when the type position was an inline
 /// `one_of(...)`) — see `resolve_type_expression`'s own header for why
-/// this is always RETURNED but only sometimes KEPT: only
+/// this is always returned but only sometimes kept: only
 /// `parse::aggregate`'s own caller folds it into the owning aggregate's
 /// `value_objects`; every other caller (`parse::command`/`parse::query`/
 /// `parse::value_object`/`parse::domain_port`) discards it, mirroring
 /// `AttributeCollector#synthesise_closed_set`'s own callers exactly
 /// (`build/closed_sets.rs`'s own header names each one by name).
-/// The RAW text of a `source`-shaped body, regardless of which of the two
+/// The raw text of a `source`-shaped body, regardless of which of the two
 /// legal spellings wrote it — `{ ... }` (`Opener::BraceBlock`, already
 /// captured by the lexer at classify-time) or `do ... end`
 /// (`Opener::DoBlock`, needing `lex::capture_do_block_body` to consume
 /// the raw lines up to the matching `end` — `body_gate`'s own comment
-/// explains why BOTH are legal for the same declared `source` row).
+/// explains why both are legal for the same declared `source` row).
 /// Shared by every `source`-shaped word this parser builds real IR for —
 /// `identified_by`'s block form (`parse::aggregate`), `given`
 /// (`parse::command`), `invariant` (`parse::value_object`) — so a future
@@ -1118,23 +1118,23 @@ pub(crate) fn source_body_text(
     }
 }
 
-/// Dispatches a NESTED `keywords`/`rows` body to `parse`, regardless of
+/// Dispatches a nested `keywords`/`rows` body to `parse`, regardless of
 /// which of the two legal block delimiters wrote it — `do ... end`
 /// (`Opener::DoBlock`, whose body already lives in `lines`/`*pos` as
 /// ordinary physical lines, closed by a real `end` line the caller's own
 /// `next_line`/`walk_body` loop already knows how to find) or `{ ... }`
-/// (`Opener::BraceBlock`, captured whole on the SAME physical line as the
+/// (`Opener::BraceBlock`, captured whole on the same physical line as the
 /// opening call, real and confirmed live:
 /// `spec/fixtures/hop_chain.bluebook`'s own `value_object("Name") {
 /// attribute :value, String }` — `body_gate`'s own widening, this file's
 /// header, already lets either delimiter reach a `keywords`/`rows` row,
 /// but every per-construct `parse_body` function (`value_object::
 /// parse_body` etc.) walks `(lines, pos)` directly and knows nothing
-/// about `Opener` at all). This is the ONE place that difference gets
+/// about `Opener` at all). This is the one place that difference gets
 /// absorbed — a `BraceBlock`'s captured text is split into synthetic
 /// one-statement-per-line `SourceLine`s (`brace_body_statements`, below)
 /// terminated by a synthetic `"end"`, so `parse` never needs its own
-/// second code path for it, and every OTHER construct that grows this
+/// second code path for it, and every other construct that grows this
 /// same need later reuses this unchanged.
 pub(crate) fn parse_nested_body<T>(
     file: &str,
@@ -1164,7 +1164,7 @@ pub(crate) fn parse_nested_body<T>(
 /// A captured `{ ... }` body's raw text, split into one statement per
 /// top-level (not inside quotes/braces/brackets/parens) `;` — real Ruby
 /// allows `;`-separated statements on one physical line inside a block,
-/// and a single-line `{ ... }` body has no OTHER way to hold more than
+/// and a single-line `{ ... }` body has no other way to hold more than
 /// one. Only the one-statement case is exercised by any real corpus
 /// member today (`value_object("Name") { attribute :value, String }`),
 /// but the general form costs nothing extra to build correctly alongside
@@ -1219,25 +1219,25 @@ fn brace_body_statements(body: &str) -> Vec<String> {
     statements
 }
 
-/// DEFERRED CONSTRUCTION — the Rust-side equivalent of `AggregateBuilder`/
+/// **Deferred construction** — the Rust-side equivalent of `AggregateBuilder`/
 /// `EntityBuilder`'s own `@pending_entities`/`@pending_commands`/
 /// `@pending_queries` + `#drain_pending!` (Ruby, `dsl/aggregate_builder.rb`/
-/// `dsl/entity_builder.rb`). Ruby QUEUES an unevaluated block and only
+/// `dsl/entity_builder.rb`). Ruby queues an unevaluated block and only
 /// `instance_eval`s it later, once the owning aggregate/entity's own
 /// `instance_eval` has fully finished — so a nested `entity`/`command`/
 /// `query`'s own resolution logic (an entity's `identified_by` single-
 /// field-value-object auto-unwrap, a command's `sets :list, append:
-/// {...}` element-type lookup against a SIBLING entity, a command's own
-/// bare `given(...)` precondition reference) sees the owner's COMPLETE
+/// {...}` element-type lookup against a sibling entity, a command's own
+/// bare `given(...)` precondition reference) sees the owner's complete
 /// `value_objects`/`entities`/`preconditions`, not just whatever was
 /// declared textually before that line.
 ///
 /// Rust has no unevaluated block to defer — `entity`/`command`/`query`
 /// are `keywords`-shaped bodies, walked line-by-line straight out of
 /// `lines`/`*pos`. The equivalent move: on hitting one of these three
-/// words, DON'T recurse into the body yet. Record where it starts
-/// (`body_start`) and, for a `do ... end` opener, SKIP past it —
-/// `lex::capture_do_block_body` (already used elsewhere to CAPTURE a
+/// words, don't recurse into the body yet. Record where it starts
+/// (`body_start`) and, for a `do ... end` opener, skip past it —
+/// `lex::capture_do_block_body` (already used elsewhere to capture a
 /// `source`-shaped body's raw text) does exactly the "purely textual
 /// do/end depth tracking" this needs, reused here just to advance `*pos`
 /// past the block without interpreting it; its own returned text is
@@ -1255,7 +1255,7 @@ pub(crate) struct PendingBody {
     body_start: usize,
 }
 
-/// Called the instant `entity`/`command`/`query`'s own OPENING line has
+/// Called the instant `entity`/`command`/`query`'s own opening line has
 /// been gated (`*pos` already past that line) — see `PendingBody`'s own
 /// header. `opener`/`line_number` come off that same gated line.
 pub(crate) fn defer_body(
@@ -1277,11 +1277,11 @@ pub(crate) fn defer_body(
 }
 
 /// The drained counterpart of `defer_body` — parses a deferred body for
-/// real, dispatching through the SAME `parse_nested_body` every other
+/// real, dispatching through the same `parse_nested_body` every other
 /// `keywords`/`rows`-body construct already uses (so a `{ ... }`-opened
 /// entity/command/query gets the identical synthetic-line treatment
 /// `value_object`'s own arm does, with no second code path). `lines`
-/// must be the SAME slice `defer_body` was called against — `body_start`
+/// must be the same slice `defer_body` was called against — `body_start`
 /// is an index into it, meaningless against any other.
 pub(crate) fn build_deferred<T>(
     file: &str,
@@ -1303,14 +1303,14 @@ pub(crate) fn build_deferred<T>(
 /// The `identified_by` forms this parser actually resolves/refuses —
 /// shared by `parse::aggregate` and `parse::entity`, since
 /// `AttributeCollector#resolve_identity_field!`/`#resolve_identity_type!`
-/// is the SAME module both `AggregateBuilder` and `EntityBuilder`
+/// is the same module both `AggregateBuilder` and `EntityBuilder`
 /// include, and `EntityBuilder#identified_by` is (per its own comment)
 /// `AggregateBuilder`'s method line for line. See
-/// `build/identity.rs`'s own header for why the TYPE form is a
-/// DERIVATION while `Paths` (the SOURCE-shaped block form, either
-/// spelling) is not: its body already IS the identity, captured raw and
+/// `build/identity.rs`'s own header for why the type form is a
+/// derivation while `Paths` (the source-shaped block form, either
+/// spelling) is not: its body already is the identity, captured raw and
 /// canonicalized, never resolved against already-declared attributes.
-/// `Fields` is the LIVE form (ADR 0025) — one or more bare symbols,
+/// `Fields` is the live form (ADR 0025) — one or more bare symbols,
 /// each resolved against its own already-declared attribute at
 /// `build/identity.rs::resolve_identity_field`.
 pub(crate) enum PendingIdentity {
@@ -1333,13 +1333,13 @@ pub(crate) enum PendingIdentity {
 }
 
 /// `AggregateBuilder#identified_by`/`EntityBuilder#identified_by` — the
-/// THREE forms Ruby's own single method distinguishes: a bareword
-/// starting uppercase is a value object (the LEGACY TYPE form,
+/// three forms Ruby's own single method distinguishes: a bareword
+/// starting uppercase is a value object (the legacy type form,
 /// `identified_by PizzaName, as: :name`, `Opener::None`); one or more
-/// starting lowercase are Symbols, the FIELD form (`identified_by
-/// :field, :field_two`, `Opener::None`, VARIADIC — syntax.bluebook's own
+/// starting lowercase are Symbols, the field form (`identified_by
+/// :field, :field_two`, `Opener::None`, variadic — syntax.bluebook's own
 /// `identified_by` argument row, `variadic: "true"`, the same column
-/// `group_by`'s does); a BLOCK — spelled either `identified_by { ... }`
+/// `group_by`'s does); a block — spelled either `identified_by { ... }`
 /// (`Opener::BraceBlock`) or `identified_by do ... end`
 /// (`Opener::DoBlock`) — is a real `ValueObject` body. Its deterministic
 /// type name is supplied by the aggregate/entity caller and the resulting
@@ -1398,11 +1398,11 @@ pub(crate) fn parse_identified_by(
     }
 }
 
-/// The bare name out of a positional symbol TOKEN, already known (by the
+/// The bare name out of a positional symbol token, already known (by the
 /// generic argument gate's own `kind_matches` check) to be `kind:
 /// "symbol"` — a thin wrapper over `symbol_text` for a caller iterating
 /// `args.positional` directly rather than through `positional_symbol`'s
-/// own single-index lookup (VARIADIC — `identified_by` may take any
+/// own single-index lookup (variadic — `identified_by` may take any
 /// number, so there is no single `at` to ask for).
 fn positional_symbol_text(file: &str, line: usize, word: &str, raw: &str) -> ParseResult<String> {
     let trimmed = raw.trim();
@@ -1422,7 +1422,7 @@ pub(crate) fn build_attribute(
     args: &ArgumentGateResult,
 ) -> ParseResult<(ir::Attribute, Option<ir::ValueObject>)> {
     let name = positional_symbol(file, line, word, args, 1)?;
-    // THE TYPE POSITION IS ALWAYS A BARE CONSTANT, ALWAYS REQUIRED (S3,
+    // The type position is always a bare constant, always required (S3,
     // ADR 0025) — no mint default, refused rather than silently filled
     // with "String".
     let (_, text) = args
@@ -1436,10 +1436,10 @@ pub(crate) fn build_attribute(
     let pattern = named_text(args, "pattern");
     let admits = named_text(args, "admits");
     // `AttributeCollector#attribute`'s own `refuse_unshared_pattern(name,
-    // pattern) if pattern` — called BEFORE the attribute is built, at
+    // pattern) if pattern` — called before the attribute is built, at
     // declaration time, exactly the fail-closed spot Ruby itself refuses
     // in. Confirmed real: banking.bluebook's own `EmailAddress` value
-    // object declares a pattern that MUST pass this (spelled with
+    // object declares a pattern that must pass this (spelled with
     // explicit ranges for exactly this reason, per its own comment).
     if let Some(pat) = &pattern {
         if let Some(rejection) = crate::build::pattern_subset::validate(pat) {
@@ -1468,23 +1468,23 @@ pub(crate) fn build_attribute(
     ))
 }
 
-/// An attribute's own TYPE POSITION — almost always a bare constant
+/// An attribute's own type position — almost always a bare constant
 /// (`Pizza`, `Integer`), but `list_of(Topping)` is real, exercised
 /// syntax (pizzas.bluebook's own `attribute :toppings, list_of(Topping)`)
-/// that reads as a CALL, not a bareword. `type_context_call_word` already
+/// that reads as a call, not a bareword. `type_context_call_word` already
 /// widened `classify_lexical_kind` to accept this at the argument-gate
 /// level; this is where the call actually gets unwrapped into
 /// `(inner_type, list: true)`.
 ///
 /// `one_of(...)` is the type-position's other live word (same `Type`
-/// context) — STAGE 3: real, confirmed by console_settings.bluebook's
+/// context) — stage 3: real, confirmed by console_settings.bluebook's
 /// own `StateStyle.tone`/`Collection.identity_strategy`
 /// (`attribute :tone, one_of("good", "warn", "danger", "muted",
 /// "accent"), optional: true`). Desugars exactly like
 /// `AttributeCollector#synthesise_closed_set`: the field's own name
 /// (`field_name`) becomes the synthesized value object's Pascal-cased
 /// name (`build/closed_sets.rs`), and the attribute's own type is that
-/// name — the VALUE OBJECT itself is handed back to the caller, which
+/// name — the value object itself is handed back to the caller, which
 /// decides whether to keep it (see `build_attribute`'s own header).
 pub(crate) fn resolve_type_expression(
     file: &str,
@@ -1537,7 +1537,7 @@ pub(crate) fn resolve_type_expression(
             line,
             format!("{word}'s inline {other}(...) type"),
         )),
-        // THE QUOTED-TEXT FORM IS GONE (S3, ADR 0025 — "the type position
+        // The quoted-text form is gone (S3, ADR 0025 — "the type position
         // takes a bare constant, always required"). It existed only as a
         // forward-reference workaround (`attribute :name, "Name"`, ahead
         // of `value_object("Name") do ... end` declared later in the same
@@ -1566,8 +1566,8 @@ pub(crate) fn resolve_type_expression(
 /// recursing through an entire nested body with nothing left to build —
 /// is where Stage 1 honestly stops: `Diagnostic::not_yet_implemented`.
 ///
-/// FIRST ERROR ABORTS, deliberately (see the plan's own non-goals on
-/// parser error recovery) — this returns on the FIRST gate failure or
+/// First error aborts, deliberately (see the plan's own non-goals on
+/// parser error recovery) — this returns on the first gate failure or
 /// first not-yet-implemented construct, at any depth.
 pub fn walk_body(
     file: &str,
@@ -1627,10 +1627,10 @@ fn handle_call(
                     )
                 })?;
             walk_body(file, lines, pos, inner_context)?;
-            // The ENTIRE nested body (`inner_context`) gated successfully
+            // The entire nested body (`inner_context`) gated successfully
             // with no leaf construct left unimplemented inside it — still
             // not implemented at Stage 1 (build/*.rs and ir.rs are stubs,
-            // see their own headers), so the construct JUST RECURSED INTO
+            // see their own headers), so the construct just recursed into
             // is the honest failure point, not the outer `context` that
             // merely opened it.
             Err(dispatch_stub(inner_context, file, line.number, &call.word))

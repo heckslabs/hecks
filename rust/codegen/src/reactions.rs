@@ -24,7 +24,7 @@ pub fn policy_event_name(on_event: &str) -> String {
     }
 }
 
-/// ── THE POLICY TABLE.
+/// ── **The policy table**.
 pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json], aggregates: &[Json]) -> String {
     let fns = where_fns(policies);
     let rows = local_policy_rows(domain_name, policies, aggregates);
@@ -96,7 +96,7 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
         .collect()
 }
 
-/// Every policy `local_policy_rows` filters OUT, represented instead of
+/// Every policy `local_policy_rows` filters out, represented instead of
 /// dropped — extracted so `emit_merged_cross_domain_policy_table` (below)
 /// can reuse it per-source, exactly the way `rust/project/reactions.rb`'s
 /// own `cross_domain_policy_rows` is shared by `emit_cross_domain_policy_
@@ -132,7 +132,7 @@ fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String>
         .collect()
 }
 
-/// ── THE CROSS-DOMAIN POLICY TABLE.
+/// ── **The cross-domain policy table**.
 pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json]) -> String {
     let rows = cross_domain_policy_rows(domain_name, policies);
 
@@ -149,7 +149,7 @@ pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, po
     )
 }
 
-/// ONE CHAPTER'S OWN POLICIES, for a merged-table call — the direct port
+/// One chapter's own policies, for a merged-table call — the direct port
 /// of `rust/project/reactions.rb`'s own `{domain_name:, policies:,
 /// aggregates:}` source hash. `aggregates` rides along for
 /// `local_policy_rows`' own fan-out addressing key; unused by the
@@ -161,21 +161,21 @@ pub struct PolicySource<'a> {
     pub aggregates: &'a [Json],
 }
 
-/// ── THE MERGED POLICY TABLE — `bin/project_rust`'s own `merged.rs`,
-/// spanning the target domain AND every framework/vendored chapter it
+/// ── **The merged policy table** — `bin/project_rust`'s own `merged.rs`,
+/// spanning the target domain and every framework/vendored chapter it
 /// attaches, mirroring `rust/project/reactions.rb`'s own
-/// `emit_merged_policy_table` byte for byte. RECOVERS THE SAME
-/// DOCUMENTED, DELIBERATE GAP that function's own header names:
-/// `run_full` (`main.rs`) used to build `merged.rs`'s policy table from
-/// the TARGET domain's own policies alone — correct only because no
-/// attached framework chapter (Governance/Identity, today) declares any
+/// `emit_merged_policy_table` byte for byte. Recovers the same
+/// documented, deliberate gap that function's own header names:
+/// building `merged.rs`'s policy table from `run_full` (`main.rs`)'s
+/// target-domain policies alone is correct only when no attached
+/// framework chapter (Governance/Identity, today) declares any
 /// policies of its own; a vendored chapter that does would see its
 /// policies compiled into its own standalone `registry.rs` table but
-/// never folded into the ONE table `kernel::orchestrate` actually reads
-/// at runtime, the identical silent-drop bug the Ruby side found live
+/// never folded into the one table `kernel::orchestrate` actually reads
+/// at runtime — the identical silent-drop bug the Ruby side found live
 /// against a real deployed second chapter. Each source runs through the
-/// IDENTICAL `local_policy_rows` a standalone chapter's own table already
-/// uses, so a policy's own `target_verb` is qualified against ITS OWN
+/// identical `local_policy_rows` a standalone chapter's own table already
+/// uses, so a policy's own `target_verb` is qualified against its own
 /// `domain_name`/`aggregates`, never the target's.
 pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
     let rows: Vec<String> = sources.iter().flat_map(|source| local_policy_rows(source.domain_name, source.policies, source.aggregates)).collect();
@@ -192,7 +192,7 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
     }
 }
 
-/// ── THE MERGED CROSS-DOMAIN POLICY TABLE — same recovery as
+/// ── **The merged cross-domain policy table** — same recovery as
 /// `emit_merged_policy_table` above, same documented gap, same reason
 /// (Governance/Identity declare no cross-domain policies either, so this
 /// half was equally invisible until a vendored chapter needed it).
@@ -216,7 +216,7 @@ fn with_value_parsed(raw: &str) -> Literal {
     literal::read(raw)
 }
 
-/// A parsed `with:` literal to a Rust expression BUILDING the equivalent
+/// A parsed `with:` literal to a Rust expression building the equivalent
 /// `Json` value.
 fn json_literal_expr(value: &Literal) -> String {
     match value {
@@ -246,7 +246,7 @@ fn ruby_float_text(n: f64) -> String {
 // compensates`/`Hecks::Bluebook::DispatchSpec#compensates`,
 // `lib/hecks/bluebook/process_manager.rb`): absent/`null` on the IR
 // (`Json::get` already reads both as `None`) emits `None`; a nested
-// object recurses through THIS SAME function one level in. Mirrors
+// object recurses through this same function one level in. Mirrors
 // rust/project/reactions.rb's own `emit_dispatch_spec` exactly — never
 // nested further than one level on the Ruby side (a compensation is not
 // itself compensable), so this recursion bottoms out in at most one
@@ -275,7 +275,7 @@ fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<St
 }
 
 /// One `with:` binding, resolved to a `WithValue` — a bare Symbol is a
-/// RUNTIME reference; anything else is a LITERAL, emitted as its own tiny
+/// runtime reference; anything else is a literal, emitted as its own tiny
 /// `fn() -> Json` (`literal_fns` collects these).
 fn emit_with_value(exemplar: &Exemplar, raw: &str, literal_fns: &mut Vec<String>) -> String {
     let parsed = with_value_parsed(raw);
@@ -300,7 +300,7 @@ fn emit_handler(exemplar: &Exemplar, handler: &Json, literal_fns: &mut Vec<Strin
     )
 }
 
-/// ── THE PROCESS MANAGER TABLE.
+/// ── **The process manager table**.
 pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]) -> String {
     let mut literal_fns: Vec<String> = Vec::new();
     let pm_exprs: Vec<String> = process_managers
@@ -350,7 +350,7 @@ pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<St
     exemplar.render("reference_key_table", &[("\"tmpl_qualified\" => Some(\"tmpl_key\"),", arms.join("\n"))])
 }
 
-/// "DOES THIS VERB CREATE THE RECORD IT ADDRESSES" — `orchestrate.rs`'s
+/// "Does this verb create the record it addresses" — `orchestrate.rs`'s
 /// own routing split (`split_routed_args`) needs this before it can
 /// decide whether a policy/saga-triggered dispatch's projected args
 /// should have their addressing key promoted into `to:` at all —
@@ -374,9 +374,9 @@ pub fn emit_creates_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) ->
     exemplar.render("creates_table", &[("\"tmpl_verb\" => true,", arms.join("\n"))])
 }
 
-/// THE SINGLE-COMPONENT IDENTITY HEAD `orchestrate.rs`'s own routing
+/// The single-component identity head `orchestrate.rs`'s own routing
 /// split tries first — `rust/project/reactions.rb`'s own `emit_identity_
-/// head_table` header has the full argument, including why a COMPOSITE
+/// head_table` header has the full argument, including why a composite
 /// identity is a real, documented gap here rather than silently assumed
 /// to work.
 pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
@@ -397,10 +397,10 @@ pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntr
 
 /// Port of `rust/project/reactions.rb`'s own `emit_entity_identity_head_
 /// table` (BUG#10) — see that function's own header for the full
-/// argument: the SAME single-component restriction `emit_identity_head_
-/// table` (above) already carries, one level down, for an ENTITY's own
+/// argument: the same single-component restriction `emit_identity_head_
+/// table` (above) already carries, one level down, for an entity's own
 /// declared identity rather than its owning aggregate's. Keyed by
-/// "Domain::Aggregate.Entity" — a TWO-level-deep entity command (BUG#11)
+/// "Domain::Aggregate.Entity" — a two-level-deep entity command (BUG#11)
 /// never resolves through this table, deliberately.
 pub fn emit_entity_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let arms: Vec<String> = aggregates
@@ -439,7 +439,7 @@ pub fn emit_command_attributes_table(exemplar: &Exemplar, aggregates: &[Aggregat
     exemplar.render("command_attributes_table", &[("\"tmpl_verb\" => &[\"tmpl_attr\"],", arms.join("\n"))])
 }
 
-/// `for_each` — THE FAN-OUT'S OWN QUERY, qualified here rather than in
+/// `for_each` — the fan-out's own query, qualified here rather than in
 /// the kernel: `Behaviour::Policy#for_each_route` resolves the bare
 /// "Aggregate.query" spelling against the policy's own domain, and that
 /// resolution is a fact about the source.
@@ -452,7 +452,7 @@ fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
     format!("Some({})", naming::ruby_inspect_string(&qualified))
 }
 
-/// THE NAME A MATCHED ROW'S ID IS MINTED UNDER — the TARGET COMMAND'S
+/// The name a matched row's ID is minted under — the target command's
 /// question, not the aggregate's. `Behaviour::Command#addressing_key_for`
 /// is the rule; this is that rule read off the exported IR, and
 /// `spec/codegen_parity_spec.rb` holds it byte-identical to
@@ -567,11 +567,11 @@ mod tests {
 
         // The target domain's own policy, qualified against its own domain.
         assert!(table.contains("target_verb: \"Orders::Invoice.Open\""));
-        // ALSO a vendored chapter's own same-domain policy, qualified
-        // against ITS domain — the fixed gap.
+        // Also a vendored chapter's own same-domain policy, qualified
+        // against its domain — the fixed gap.
         assert!(table.contains("policy_name: \"OnPaymentConfirmedByProcessor\""));
         assert!(table.contains("target_verb: \"Payments::Payment.Succeed\""));
-        // A vendored chapter's own CROSS-domain policy is excluded —
+        // A vendored chapter's own cross-domain policy is excluded —
         // that one belongs to the cross-domain table instead.
         assert!(!table.contains("OnPaymentFailed"));
     }

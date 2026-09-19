@@ -18,8 +18,8 @@ pub fn reference_key(type_name: &str) -> String {
 /// `text.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/,
 /// '\1_\2').downcase` — the two sequential gsubs collapse to one combined
 /// rule for a single forward pass: insert `_` before an uppercase letter
-/// when the previous character is lowercase/digit (rule 2), OR the
-/// previous character is uppercase AND the next character is lowercase
+/// when the previous character is lowercase/digit (rule 2), or the
+/// previous character is uppercase and the next character is lowercase
 /// (rule 1 — the "acronym, then a new word starts" case).
 pub fn snake(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();

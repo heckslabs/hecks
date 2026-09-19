@@ -4,12 +4,12 @@
 //! `emit_comparison` directly, arm for arm. This generator no longer
 //! parses `canonical` text at all: the one parse happened at IR emission
 //! (in Ruby's `Evaluator.parse`, behind `AstJson`), and both generators
-//! transcribe the SAME tree. The former `rust/codegen/src/expr/` — a
+//! transcribe the same tree. The former `rust/codegen/src/expr/` — a
 //! hand-ported second parser of the expression sublanguage — is gone
 //! with it, and so is the drift class it carried.
 //!
-//! A LITERAL-array `include?` haystack never reaches here — `AstJson.
-//! emit_include` already rewrote it into an OR of equalities at emission
+//! A literal-array `include?` haystack never reaches here — `AstJson.
+//! emit_include` already rewrote it into an or of equalities at emission
 //! (see that file's comment), so the `include` arm only ever sees a real
 //! field/string haystack.
 
@@ -68,7 +68,7 @@ pub fn emit_ast(node: &Json) -> String {
         "last" => format!("Expr::Last({})", boxed("receiver")),
         // Every op `AstJson::OPS` names has an arm above — this firing
         // means the roster grew an op this generator has no rendering
-        // for yet (a real bug in THIS file), or the input isn't an ast
+        // for yet (a real bug in this file), or the input isn't an ast
         // at all. Hard failure, never a silent Unsupported case.
         other => panic!("unhandled ast op {other:?} — no Rust rendering exists for it in this generator (rust/codegen/src/expr_emitter.rs#emit_ast)"),
     }

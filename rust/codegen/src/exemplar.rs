@@ -5,8 +5,8 @@
 //! this port follows its algorithm and comments directly rather than
 //! reinventing the mechanism.
 //!
-//! Deliberately NOT sharing code with `exemplar.rb` (impossible — cross-
-//! language) but sharing the SAME DATA (`rust/src/exemplar/*.rs`, read at
+//! Deliberately not sharing code with `exemplar.rb` (impossible — cross-
+//! language) but sharing the same data (`rust/src/exemplar/*.rs`, read at
 //! runtime by both, never duplicated into this crate) — the one thing
 //! that actually needs to stay in sync between the two codegens is which
 //! literal shapes exist and what they say, and that's a file both read,
@@ -112,7 +112,7 @@ impl Exemplar {
     }
 
     /// General splice — mirrors `exemplar.rb#assemble`: nested slots
-    /// filled (each reindented by its OWN marker's position) BEFORE the
+    /// filled (each reindented by its own marker's position) before the
     /// outer substitutions run, so an outer marker can never accidentally
     /// match text that came from an already-rendered slot.
     pub fn assemble(&self, outer_id: &str, outer_subs: &[(&str, String)], slots: &[(&str, String)]) -> String {

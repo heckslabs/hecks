@@ -2,18 +2,18 @@
 // (projection.json: `.empty?`, `.size` — two symbols, two interpreter
 // nodes sharing one category) — `Resolver::Empty`/`Resolver::Size`
 // (resolver.rb), read directly: both ask a question about a value's own
-// LENGTH, differing only in whether the answer is a boolean or a count.
-// Routed straight through the two attribute shapes that HAVE a length —
+// length, differing only in whether the answer is a boolean or a count.
+// Routed straight through the two attribute shapes that have a length —
 // `attribute_shapes::scalar` (a `Str` value's own character count) and
 // `attribute_shapes::list` (a list field's already-bare length) — rather
 // than reimplemented here; this file's own job is only "which shape
 // answered, and what to say when none did."
 //
-// EVERY `Value` VARIANT IS NAMED BELOW, NONE LEFT TO A WILDCARD. The
+// Every `Value` variant is named below, none left to a wildcard. The
 // four that don't support `.empty?`/`.size` (`Int`, `Float`, `Bool`,
 // `Nil`) are refused explicitly, one arm each, rather than behind a
 // catch-all `_ =>` — the same reasoning `expr.rs`'s own header gives for
-// `dispatch_operator`'s enum match: if `Value` ever grows a SEVENTH
+// `dispatch_operator`'s enum match: if `Value` ever grows a seventh
 // variant (a new attribute-representation shape at the `Value` level,
 // not merely a new `AttributeShape`/`OperatorCategory` name), a wildcard
 // here would silently decide "refuse it" for a case nobody actually

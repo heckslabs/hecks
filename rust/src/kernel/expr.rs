@@ -1,35 +1,35 @@
-// HAND-WRITTEN, ONCE, GENERIC — a direct structural port of
+// **Hand-written, once, generic** — a direct structural port of
 // `Hecks::Bluebook::Expression::Evaluator` and `::Resolver`
 // (docs/implemented/guides/running-a-runtime.md's "The expression grammar"), not a
 // reimplementation of parsing. bin/project_rust parses real canonical
-// `given`/`ensures`/invariant text with the REAL Ruby parser and emits
-// `Expr` DATA literals from that AST; the only thing written here is
-// INTERPRETATION — `Evaluator#interpret`/`Resolver#interpret`, ported.
+// `given`/`ensures`/invariant text with the real Ruby parser and emits
+// `Expr` data literals from that AST; the only thing written here is
+// interpretation — `Evaluator#interpret`/`Resolver#interpret`, ported.
 //
 // This is what replaces compiling each expression to bespoke Rust
-// boolean source: one generic `interpret()` walks ANY expression this
+// boolean source: one generic `interpret()` walks any expression this
 // grammar can produce, driven by data a generator emits, the same way
 // `CommandInterpreter` is one Ruby method that walks any command's IR
 // rather than one method per command shape.
 //
-// THIS FILE IS A ROUTER, NOT WHERE THE LOGIC LIVES. Every real
+// This file is a router, not where the logic lives. Every real
 // interpretation rule — what `+` does, what `.empty?` does on a list vs
 // a string, what a `:composite` field's dotted lookup does — is in
 // `expression_operators/<category>.rs` or `attribute_shapes/<shape>.rs`,
 // one file per capability, named after the exact vocabulary
 // `bin/ir --meta` (attribute shapes) and `lib/hecks/bluebook/
 // expression/projection.json` (operator categories) already use for it.
-// `interpret`'s own match handles ONLY the leaves no capability file
+// `interpret`'s own match handles only the leaves no capability file
 // owns (literals, `Lookup`) plus `dispatch_operator`, below, which is
-// EXHAUSTIVE OVER THE GENERATED `OperatorCategory` ENUM WITH NO
-// WILDCARD ARM ON PURPOSE: `bin/project_kernel_capabilities` regenerates
+// exhaustive over the generated `OperatorCategory` enum with no
+// wildcard arm on purpose: `bin/project_kernel_capabilities` regenerates
 // that enum straight from the live Ruby grammar (`OperatorCategory`'s
 // own header names the exact call), so the day a `given`/`ensures`/
 // invariant clause gains a new kind of operator, this match stops
 // compiling until a real arm — and the file it calls into — exists for
 // it. A `_ =>` arm here would silently swallow that day instead,
 // routing the new category into whatever arm happened to sit above it,
-// compiling cleanly while quietly interpreting the new capability WRONG.
+// compiling cleanly while quietly interpreting the new capability wrong.
 // That failure mode is the entire reason this refactor exists, so this
 // match must never grow one back.
 
@@ -37,12 +37,12 @@ use super::Refusal;
 use crate::kernel::attribute_shapes::composite;
 use crate::kernel::expression_operators::{self, comparison, OperatorCategory};
 
-// ── VALUE — the dynamic runtime value an expression evaluates to.
+// ── Value — the dynamic runtime value an expression evaluates to.
 // Mirrors what Ruby's `Resolver#interpret` can return (Integer/Float/
 // String/true/false/nil), plus one addition: `List(usize)`. Real corpus
 // expressions only ever ask `.size`/`.empty?` of a list-typed field,
 // never index into its elements by expression — so a list field
-// surfaces as its length, not its contents. Each variant IS one of the
+// surfaces as its length, not its contents. Each variant is one of the
 // four `AttributeShape`s once resolved to a runtime value: `Int`/
 // `Float`/`Str`/`Bool` are `:scalar`, `List` is `:list`, `Nil` is
 // `:optional` (see `attribute_shapes/*.rs` for the shape-owned behavior
@@ -56,14 +56,14 @@ pub enum Value {
     List(usize),
     Nil,
     /// A real, fully-materialised list of `Value`s — distinct from
-    /// `List(usize)` (a length-only reading of a FIELD; see this enum's
+    /// `List(usize)` (a length-only reading of a field; see this enum's
     /// own header) — produced by an `ArrayLiteral` (`Resolver::
     /// ArrayLiteral`, `[a, b]`, `Expr::Array` below) or a `.split` call.
     /// `expression_operators::text::split` produces it;
     /// `expression_operators::positional` (`.first`/`.last`) is its main
-    /// consumer. NOT how a literal-array `.include?` haystack reaches
+    /// consumer. Not how a literal-array `.include?` haystack reaches
     /// the kernel — `rust/project/expr_emitter.rb`'s own `emit_include`
-    /// rewrites that specific shape into an OR-of-equalities at codegen
+    /// rewrites that specific shape into an or-of-equalities at codegen
     /// time instead (see its header for why), so this variant never
     /// needs to carry `.include?`'s own membership test.
     Array(Vec<Value>),
@@ -72,7 +72,7 @@ pub enum Value {
 impl Value {
     /// Ruby's `Evaluator.truthy?`: `!value.nil? && value != false`. Kept
     /// here, not split per-shape — every `Value` variant answers this the
-    /// same generic way regardless of WHICH shape produced it, unlike
+    /// same generic way regardless of which shape produced it, unlike
     /// `numeric`/`to_s`/`size`/`empty?`, which genuinely differ shape by
     /// shape and live in `attribute_shapes/*.rs` instead.
     pub fn truthy(&self) -> bool {
@@ -80,7 +80,7 @@ impl Value {
     }
 }
 
-// ── FIELD / FIELDED — the lookup surface every generated struct (value
+// ── **Field / fielded** — the lookup surface every generated struct (value
 // object or aggregate record, and command args structs) implements. A
 // dotted `Lookup` path walks this: the first segment resolves against
 // args-then-instance (see `lookup`, below); every later segment walks a
@@ -95,7 +95,7 @@ pub enum Field<'a> {
 pub trait Fielded {
     fn field(&self, name: &str) -> Option<Field<'_>>;
 
-    /// A BARE (undotted) `Lookup` terminating on THIS object rather than
+    /// A bare (undotted) `Lookup` terminating on this object rather than
     /// one of its own fields — `Resolver#unwrap_scalar`'s own "not a
     /// single-field VO" fallthrough (resolver.rb, read directly): Ruby
     /// returns the whole thing as-is (a Hash), still comparable/testable
@@ -111,16 +111,16 @@ pub trait Fielded {
     /// identity comparison instead of an unrepresentable object-to-object
     /// one — two references are the same reference iff they resolved to
     /// the same id, the identical fact `Value::Str` equality already
-    /// tests for every OTHER string field in this grammar.
+    /// tests for every other string field in this grammar.
     fn as_scalar(&self) -> Option<Value> {
         None
     }
 
-    /// THE ELEMENTS of a list-typed field, for the enumeration operators
+    /// The elements of a list-typed field, for the enumeration operators
     /// (`expression_operators/enumeration.rs` — `.any?`/`.none?`/`.all?`/
     /// `.find { |x| ... }`). `field` answers a list as `Value::List(len)`
     /// — the length, which is all `.size`/`.empty?` ever asked (see
-    /// `Value`'s own header) — and stays that way; this is the SECOND
+    /// `Value`'s own header) — and stays that way; this is the second
     /// reading of the same field, its members one by one, each a
     /// `Field` exactly as a nested lookup would see it (`Nested` for a
     /// value object or entity element, `Value` for a scalar list). The
@@ -135,7 +135,7 @@ pub trait Fielded {
 
 /// `attrs.merge(node.param.to_sym => element)` — `Resolver::
 /// interpret_with_element` (resolver/block_predicates.rb), read
-/// directly: a block's own parameter is bound by MERGING it into the
+/// directly: a block's own parameter is bound by merging it into the
 /// args side for the predicate's evaluation, so it is checked before
 /// every real argument and every instance field, and an argument that
 /// happens to share the parameter's name is shadowed the identical way
@@ -179,7 +179,7 @@ impl Fielded for NoFields {
 }
 
 /// `args.merge(old: old)` — `CommandRules::Admissibility#enforce_ensures`,
-/// read directly. `ensures` runs with the SAME `attrs` a `given` would,
+/// read directly. `ensures` runs with the same `attrs` a `given` would,
 /// plus one merged key: `old`, the instance as it stood before
 /// `apply_mutations` ran. `old` is checked first, the same order Ruby's
 /// own `Hash#merge` gives it precedence in — a real argument named `old`
@@ -207,7 +207,7 @@ impl<'a> Fielded for WithOld<'a> {
 }
 
 /// C2.3 (docs/semantics/bluebook-semantics.md) — inside an `ensures` the
-/// SETTLED STATE comes first: an argument that shares a field's name
+/// settled state comes first: an argument that shares a field's name
 /// does not shadow the candidate (it does in a `given`, C2.2). Ruby's
 /// `Admissibility#enforce_ensures` drops such arguments from the rule's
 /// scope (`args.reject { |name, _| subject.key?(name) }`); this adapter
@@ -234,11 +234,11 @@ impl<'a> Fielded for StateFirst<'a> {
 }
 
 /// `attrs.merge(parent: parent.state …)` — `Admissibility#enforce_givens`
-/// and `#enforce_ensures`, read directly: an ENTITY command's own
+/// and `#enforce_ensures`, read directly: an entity command's own
 /// predicates read the owning record under one name, `parent`, on the
 /// args side. Built by `dispatch::apply_entity_command` for a
 /// delegating door (see its own header for why the routing layer's
-/// `parent_deref` snapshot is not enough there); merged AFTER `old`
+/// `parent_deref` snapshot is not enough there); merged after `old`
 /// exactly as Ruby's own `merge` order gives `old` precedence.
 pub struct WithParent<'a> {
     pub args: &'a dyn Fielded,
@@ -261,12 +261,12 @@ impl<'a> Fielded for WithParent<'a> {
     }
 }
 
-// `Comparison` used to be defined here; it now lives in
-// `expression_operators::comparison` (the "comparison" category owns the
-// algebra it's named for) and is re-exported at this same path so every
-// call site — hand-written or generated (`rust/project/expr_emitter.rb`
-// emits `crate::kernel::Comparison { .. }` literals directly) — keeps
-// working unchanged.
+// `Comparison` lives in `expression_operators::comparison` (the
+// "comparison" category owns the algebra it's named for) and is
+// re-exported at this same path so every call site — hand-written or
+// generated (`rust/project/expr_emitter.rb` emits
+// `crate::kernel::Comparison { .. }` literals directly) — keeps working
+// unchanged.
 pub use comparison::Comparison;
 
 /// `BLOCK_PREDICATE_MODES` (resolver/block_predicates.rb): the three
@@ -291,7 +291,7 @@ impl BlockMode {
     }
 }
 
-// ── EXPR — the full Evaluator + Resolver AST as one recursive Rust enum.
+// ── Expr — the full Evaluator + Resolver AST as one recursive Rust enum.
 // Every variant corresponds to exactly one real Ruby node type:
 // Evaluator::{Or,And,Not,Compare,Include,Resolve} and Resolver::
 // {IntegerLiteral,FloatLiteral,StringLiteral,BoolLiteral,NilLiteral,
@@ -333,9 +333,9 @@ pub enum Expr {
     /// first element the predicate accepts, projected through `path`
     /// (empty for a bare `.find { }`), or nil when nothing matches.
     Find { receiver: Box<Expr>, param: &'static str, predicate: Box<Expr>, path: &'static [&'static str] },
-    /// `[a, b, c]` — `Resolver::ArrayLiteral`. A LEAF, like `Int`/`Str`/
-    /// `Nil` above, not an expression-ledger OPERATOR — see expression.
-    /// bluebook's own "WHAT IS NOT HERE" comment on the `Operator`
+    /// `[a, b, c]` — `Resolver::ArrayLiteral`. A leaf, like `Int`/`Str`/
+    /// `Nil` above, not an expression-ledger operator — see expression.
+    /// bluebook's own "what is not here" comment on the `Operator`
     /// aggregate: a literal's spelling doesn't differ per target the
     /// way an operation's might, so `interpret`'s leaf match handles
     /// this directly rather than routing it through `category_of`/
@@ -354,9 +354,9 @@ pub enum Expr {
     Presence { receiver: Box<Expr>, negated: bool },
     /// `receiver.set?` / `receiver.unset?` — `Resolver::Assignment`, the
     /// same one-node-per-symbol-pair shape as `Presence` immediately
-    /// above, for a DELIBERATELY narrower question: `!receiver.is_nil()`,
+    /// above, for a deliberately narrower question: `!receiver.is_nil()`,
     /// full stop — not `Presence`'s own Rails-standard emptiness (nil/
-    /// false, or an EMPTY String/Array, are blank). An assigned-but-empty
+    /// false, or an empty String/Array, are blank). An assigned-but-empty
     /// value is `.set?`, not `.unset?`, unlike `.present?`'s own reading
     /// of the identical value — see `expression_operators::presence`'s
     /// own header for the full reasoning.
@@ -383,8 +383,8 @@ pub struct EvalContext<'a> {
     pub instance: &'a dyn Fielded,
 }
 
-/// THE ROUTER. Leaves (literals, `Lookup`) are handled directly — they
-/// aren't expression OPERATORS at all (`projection.json`'s own operator
+/// **The router**. Leaves (literals, `Lookup`) are handled directly — they
+/// aren't expression operators at all (`projection.json`'s own operator
 /// list contains no literal/lookup entries), so they have no
 /// `OperatorCategory` to route through. Everything else falls to
 /// `dispatch_operator`, below.
@@ -403,7 +403,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 }
 
 /// Which `OperatorCategory` a non-leaf `Expr` variant belongs to — a
-/// plain, hand-written association (this enum's variant NAMES are
+/// plain, hand-written association (this enum's variant names are
 /// generated; which `Expr` node maps to which of them is not, since
 /// `Expr` itself is hand-written and grows only when this file is
 /// edited). The trailing leaf arm can't actually be reached — `interpret`
@@ -430,8 +430,8 @@ fn category_of(expr: &Expr) -> OperatorCategory {
     }
 }
 
-/// THE CENTRAL DISPATCH POINT — see this file's own header. Exhaustive
-/// over `OperatorCategory` with NO wildcard `_ =>` arm: regenerate
+/// **The central dispatch point** — see this file's own header. Exhaustive
+/// over `OperatorCategory` with no wildcard `_ =>` arm: regenerate
 /// `expression_operators::OperatorCategory`
 /// (bin/project_kernel_capabilities) with a variant added or removed and
 /// this match stops compiling until a matching arm — and the
@@ -505,7 +505,7 @@ pub(crate) fn lookup_items<'a>(path: &str, ctx: &EvalContext<'a>, op: &str) -> R
 
     if rest.is_empty() {
         // `Resolver#fetch`: attrs first when the key exists there, state
-        // second — decided by the FIELD's presence, so an argument that
+        // second — decided by the field's presence, so an argument that
         // is not a list refuses rather than silently falling through to
         // a same-named instance list.
         let side: &'a dyn Fielded = if ctx.args.field(head).is_some() { ctx.args } else { ctx.instance };

@@ -59,10 +59,10 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
     let mut arms: Vec<String> = arms.iter().map(|a| format!("            {a}")).collect();
     arms.extend(extra_arms.iter().cloned());
     // `arms.any? { |arm| arm.include?('Value') }` — checked against the
-    // FULL, already-assembled arm list (declared arms + extra_arms
+    // full, already-assembled arm list (declared arms + extra_arms
     // together), not tracked incrementally per branch while building —
     // found live, byte-diffing against Ruby's real output: a plain
-    // scalar arm (`fielded_arm_scalar`) ALSO emits `Value::...` text, and
+    // scalar arm (`fielded_arm_scalar`) also emits `Value::...` text, and
     // an incremental per-branch tracker that only flagged the list/
     // optional branches (this function's own first draft) missed it.
     let uses_value = arms.iter().any(|a| a.contains("Value"));
@@ -152,12 +152,12 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
 }
 
 /// Port of fielded.rb's `as_scalar_expr` — `Resolver#unwrap_scalar`: a
-/// struct with exactly ONE attribute reads as that attribute's value,
+/// struct with exactly one attribute reads as that attribute's value,
 /// whatever it is named (single-element value objects strictly answer
 /// `.value` — relaxed from the old name-gated `== "value"` check in
 /// lockstep with the Ruby projector and the Ruby oracle's own
 /// `unwrap_scalar`; see fielded.rb's `as_scalar_expr` for the full
-/// account). Only a genuine SCALAR leaf unwraps — a sole attribute
+/// account). Only a genuine scalar leaf unwraps — a sole attribute
 /// that is itself a value object already answered `None` through the
 /// match's own `_` floor, so gating on `effective_scalar_type` changes
 /// no runtime answer; it emits the honest literal `None` instead of a

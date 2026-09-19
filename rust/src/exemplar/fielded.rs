@@ -1,10 +1,10 @@
-// EXEMPLAR shapes for rust/project/fielded.rb — see mod.rs's own header.
+// Exemplar shapes for rust/project/fielded.rb — see mod.rs's own header.
 //
-// `Fielded::field`'s per-attribute match arm has SIX distinct real
+// `Fielded::field`'s per-attribute match arm has six distinct real
 // shapes, driven by `ShapeField`'s own `list`/`optional` axes crossed
 // against whether the field is a scalar or a nested value object —
 // `emit_fielded_flat`'s own header names the same six; `emit_fielded_
-// record`'s blanket-Option-wrap collapses to the SAME four of them
+// record`'s blanket-Option-wrap collapses to the same four of them
 // (its `scalar`/`nested` arms reuse flat's `optional_scalar`/
 // `optional_nested` shapes verbatim, since every record field is
 // Option-wrapped regardless of the IR's own `optional:` flag). Plus a
@@ -14,18 +14,18 @@
 //
 // All seven are standalone top-level leaves, not nested inside either
 // outer skeleton (`fielded_flat`/`fielded_record`, below) — reused
-// across BOTH outers, so nesting would mean physically duplicating each
+// across both outers, so nesting would mean physically duplicating each
 // one's source into both (`json.rs`'s `to_json_field` header explains
-// the same choice at length). Each host below exists ONLY to give its
+// the same choice at length). Each host below exists only to give its
 // one arm a real, differently-shaped field to operate on; none of the
 // seven need to coexist on one real struct, so each gets its own small
 // host type rather than forcing one shared struct into seven
 // incompatible shapes at once.
 //
-// TWO markers per arm, not one — `"tmpl_field"` (the quoted match
+// Two markers per arm, not one — `"tmpl_field"` (the quoted match
 // pattern, a JSON key) and `tmpl_ident` (the bare `self.` field access,
 // a Rust identifier) — because `naming.rb`'s own `rust_field`/
-// `rust_ident_field` are NOT always the same string: a field literally
+// `rust_ident_field` are not always the same string: a field literally
 // named after a Rust keyword (`type`, `match`, ...) gets `r#type` as its
 // identifier while the JSON key stays plain `"type"`. Conflating the two
 // into one marker would put the escaped `r#`-identifier inside the
@@ -45,9 +45,9 @@ impl TmplListOptionalHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // TMPL:fielded_arm_list_optional BEGIN
+            // Tmpl:fielded_arm_list_optional begin
             "tmpl_field" => self.tmpl_ident.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),
-            // TMPL:fielded_arm_list_optional END
+            // Tmpl:fielded_arm_list_optional end
             _ => None,
         }
     }
@@ -61,9 +61,9 @@ impl TmplListHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // TMPL:fielded_arm_list BEGIN
+            // Tmpl:fielded_arm_list begin
             "tmpl_field" => Some(Field::Value(Value::List(self.tmpl_ident.len()))),
-            // TMPL:fielded_arm_list END
+            // Tmpl:fielded_arm_list end
             _ => None,
         }
     }
@@ -77,9 +77,9 @@ impl TmplOptionalScalarHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // TMPL:fielded_arm_optional_scalar BEGIN
+            // Tmpl:fielded_arm_optional_scalar begin
             "tmpl_field" => self.tmpl_ident.as_ref().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).or(Some(Field::Value(Value::Nil))),
-            // TMPL:fielded_arm_optional_scalar END
+            // Tmpl:fielded_arm_optional_scalar end
             _ => None,
         }
     }
@@ -99,9 +99,9 @@ impl TmplOptionalNestedHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // TMPL:fielded_arm_optional_nested BEGIN
+            // Tmpl:fielded_arm_optional_nested begin
             "tmpl_field" => self.tmpl_ident.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            // TMPL:fielded_arm_optional_nested END
+            // Tmpl:fielded_arm_optional_nested end
             _ => None,
         }
     }
@@ -114,9 +114,9 @@ impl TmplScalarHost {
     fn arm(&self) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         match "x" {
-            // TMPL:fielded_arm_scalar BEGIN
+            // Tmpl:fielded_arm_scalar begin
             "tmpl_field" => Some(Field::Value(tmpl_value_expr_placeholder(&self.tmpl_ident))),
-            // TMPL:fielded_arm_scalar END
+            // Tmpl:fielded_arm_scalar end
             _ => None,
         }
     }
@@ -129,9 +129,9 @@ impl TmplNestedHost {
     fn arm(&self) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         match "x" {
-            // TMPL:fielded_arm_nested BEGIN
+            // Tmpl:fielded_arm_nested begin
             "tmpl_field" => Some(Field::Nested(&self.tmpl_ident)),
-            // TMPL:fielded_arm_nested END
+            // Tmpl:fielded_arm_nested end
             _ => None,
         }
     }
@@ -145,9 +145,9 @@ impl TmplLifecycleHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // TMPL:fielded_lifecycle_arm BEGIN
+            // Tmpl:fielded_lifecycle_arm begin
             "tmpl_field" => Some(Field::Value(Value::Str(self.tmpl_ident.clone()))),
-            // TMPL:fielded_lifecycle_arm END
+            // Tmpl:fielded_lifecycle_arm end
             _ => None,
         }
     }
@@ -167,9 +167,9 @@ impl TmplCorrectsFlagHost {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match "x" {
-            // TMPL:fielded_corrects_flag_arm BEGIN
+            // Tmpl:fielded_corrects_flag_arm begin
             "tmpl_field" => Some(Field::Value(Value::Bool(self.tmpl_ident))),
-            // TMPL:fielded_corrects_flag_arm END
+            // Tmpl:fielded_corrects_flag_arm end
             _ => None,
         }
     }
@@ -178,28 +178,28 @@ impl TmplCorrectsFlagHost {
 // The two outer skeletons. Unlike `to_json_field`'s own outer (json.rs),
 // a bare function-call marker can't stand in for "zero or more match
 // arms" — a match arm is `pattern => expr,`, not an expression on its
-// own, so the marker here is the WHOLE placeholder arm line
+// own, so the marker here is the whole placeholder arm line
 // (`"tmpl_arms_placeholder" => tmpl_arms_block(),`), matched and
 // replaced wholesale the same way `TmplRow { ... }`'s own whole-span
 // markers work elsewhere. Ruby supplies the fully rendered, already-
-// 12-space-indented real arm block in its place (matching the ORIGINAL
+// 12-space-indented real arm block in its place (matching the original
 // hand-built string's own fixed indent, not an auto-reindented one —
 // see json.rs's `closed_set_table_codec` header for why plain `render`
 // is correct here, not `compose`/`assemble`). The marker line itself
-// sits at COLUMN 0 below, not indented like its match-arm siblings —
+// sits at column 0 below, not indented like its match-arm siblings —
 // `render` never reindents a multi-line replacement, so any leading
-// whitespace on the marker's OWN line would double up with Ruby's
+// whitespace on the marker's own line would double up with Ruby's
 // already-indented block on its first line only (found live: the first
 // arm came out 24 spaces deep, every arm after it 12).
-// TWO DIFFERENT placeholder types, not one — `impl Fielded for X` twice
-// on the SAME type is a duplicate-impl error regardless of the fact the
+// Two different placeholder types, not one — `impl Fielded for X` twice
+// on the same type is a duplicate-impl error regardless of the fact the
 // two real Ruby functions never fire for the same struct (json.rs's
 // `TmplTableRow`-vs-`TmplKind` split is the same story).
 fn tmpl_arms_block() -> Option<crate::kernel::Field<'static>> {
     None
 }
 
-// THE ITEMS HALF — `Fielded::items` (kernel/expr.rs), the elements of a
+// **The items half** — `Fielded::items` (kernel/expr.rs), the elements of a
 // list-typed field for the enumeration operators (`.any?`/`.none?`/
 // `.all?`/`.find { |x| … }`), beside `field`'s own `Value::List(len)`
 // reading of the same attribute. Four arm shapes: the element is either
@@ -213,7 +213,7 @@ fn tmpl_items_block() -> Option<Vec<crate::kernel::Field<'static>>> {
 }
 
 // `Fielded::as_scalar` — `Resolver#unwrap_scalar`, read directly: an
-// object with exactly ONE declared attribute READS AS that attribute's
+// object with exactly one declared attribute reads as that attribute's
 // value, whatever it is named (a chess piece's `color == "white"`, its
 // Color a single-field closed set; a `Money{amount}` its amount —
 // single-element value objects strictly answer `.value`). Rendered as
@@ -233,9 +233,9 @@ impl TmplItemsNestedHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // TMPL:fielded_items_arm_list_nested BEGIN
+            // Tmpl:fielded_items_arm_list_nested begin
             "tmpl_field" => Some(self.tmpl_ident.iter().map(|v| Field::Nested(v)).collect()),
-            // TMPL:fielded_items_arm_list_nested END
+            // Tmpl:fielded_items_arm_list_nested end
             _ => None,
         }
     }
@@ -249,9 +249,9 @@ impl TmplItemsScalarHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // TMPL:fielded_items_arm_list_scalar BEGIN
+            // Tmpl:fielded_items_arm_list_scalar begin
             "tmpl_field" => Some(self.tmpl_ident.iter().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).collect()),
-            // TMPL:fielded_items_arm_list_scalar END
+            // Tmpl:fielded_items_arm_list_scalar end
             _ => None,
         }
     }
@@ -265,9 +265,9 @@ impl TmplItemsOptionalNestedHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // TMPL:fielded_items_arm_list_optional_nested BEGIN
+            // Tmpl:fielded_items_arm_list_optional_nested begin
             "tmpl_field" => self.tmpl_ident.as_ref().map(|items| items.iter().map(|v| Field::Nested(v)).collect()),
-            // TMPL:fielded_items_arm_list_optional_nested END
+            // Tmpl:fielded_items_arm_list_optional_nested end
             _ => None,
         }
     }
@@ -281,9 +281,9 @@ impl TmplItemsOptionalScalarHost {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match "x" {
-            // TMPL:fielded_items_arm_list_optional_scalar BEGIN
+            // Tmpl:fielded_items_arm_list_optional_scalar begin
             "tmpl_field" => self.tmpl_ident.as_ref().map(|items| items.iter().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).collect()),
-            // TMPL:fielded_items_arm_list_optional_scalar END
+            // Tmpl:fielded_items_arm_list_optional_scalar end
             _ => None,
         }
     }
@@ -292,27 +292,27 @@ impl TmplItemsOptionalScalarHost {
 struct TmplFlatType;
 struct TmplRecordType;
 
-// The marker for the CONDITIONAL `use crate::kernel::Value;` (present
+// The marker for the conditional `use crate::kernel::Value;` (present
 // only when at least one real arm actually needs it) is the real
 // statement text itself, not a `tmpl_`-prefixed token — a bare
 // identifier there wouldn't compile unsubstituted, and unlike every
-// other marker this one is SAFE to leave un-caught by the leftover-scan
+// other marker this one is safe to leave un-caught by the leftover-scan
 // if a caller ever forgot it: the worst case is an always-present,
 // harmless unused import (every generated file already tolerates
 // `unused_imports` warnings — `#![allow(dead_code, unused_variables)]`
 // doesn't even silence them, and the build already carries dozens from
 // unrelated generated files). Ruby substitutes either this exact text
 // (no-op) or an empty string, mirroring the original's own conditional
-// interpolation — including that a FALSE condition leaves a genuinely
-// BLANK line behind, not a removed one.
-// `#[allow(unused_imports)]` sits BEFORE the fence, not inside it — real
-// substituted output DOES use `Field`/`Value` (the real arms reference
-// them); only this UNSUBSTITUTED exemplar's own placeholder arm doesn't,
+// interpolation — including that a false condition leaves a genuinely
+// blank line behind, not a removed one.
+// `#[allow(unused_imports)]` sits before the fence, not inside it — real
+// substituted output does use `Field`/`Value` (the real arms reference
+// them); only this unsubstituted exemplar's own placeholder arm doesn't,
 // since `tmpl_arms_block()` already returns `Option<Field>` without
 // naming `Field` bare. An attribute before `// TMPL: BEGIN` silences the
 // warning here without becoming part of what gets extracted.
 #[allow(unused_imports)]
-// TMPL:fielded_flat BEGIN
+// Tmpl:fielded_flat begin
 impl crate::kernel::Fielded for TmplFlatType {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -336,10 +336,10 @@ impl crate::kernel::Fielded for TmplFlatType {
         tmpl_as_scalar_placeholder()
     }
 }
-// TMPL:fielded_flat END
+// Tmpl:fielded_flat end
 
 #[allow(unused_imports)]
-// TMPL:fielded_record BEGIN
+// Tmpl:fielded_record begin
 impl crate::kernel::Fielded for TmplRecordType {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
@@ -362,4 +362,4 @@ impl crate::kernel::Fielded for TmplRecordType {
         tmpl_as_scalar_placeholder()
     }
 }
-// TMPL:fielded_record END
+// Tmpl:fielded_record end

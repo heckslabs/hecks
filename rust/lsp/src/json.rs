@@ -11,7 +11,7 @@
 //! Two differences from `rust/build/src/json.rs`'s own copy, both
 //! because this crate's job is different (speaking JSON-RPC, not
 //! round-tripping `ir.json` byte-for-byte):
-//!   - `write` is COMPACT (no newlines/indentation) — an LSP message's
+//!   - `write` is compact (no newlines/indentation) — an LSP message's
 //!     `Content-Length` header must match its body's exact byte count,
 //!     and there is no spec or client expectation to pretty-print here,
 //!     unlike `emit.rs`'s deliberate byte-exact match against

@@ -1,8 +1,8 @@
 //! The `Policy` construct (`lib/hecks/bluebook/ir/policy.rb`,
 //! `Hecks::Bluebook::DSL::PolicyBuilder`) — `on`/`trigger` filling
 //! `on_event`/`trigger_command`. Confirmed real: pizzas.bluebook's own
-//! `OnPizzaPaymentReceived`, declared directly on the CHAPTER (never
-//! inside an `aggregate` — a policy written on an aggregate is HOISTED
+//! `OnPizzaPaymentReceived`, declared directly on the chapter (never
+//! inside an `aggregate` — a policy written on an aggregate is hoisted
 //! onto the chapter by `AggregateBuilder#policy`, `hoisted onto the
 //! chapter by the builder` per `IR::Policy`'s own `aggregate` accessor —
 //! not exercised here, since nothing in pizzas.bluebook writes one that
@@ -19,11 +19,11 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Policy.{word}"))
 }
 
-// STAGE 4: `across` (a cross-domain policy's `target_domain`) —
+// Stage 4: `across` (a cross-domain policy's `target_domain`) —
 // confirmed real: banking.bluebook's own `NotifyOnClosure`/
 // `ReviewOnFreeze`/`ReviewOnBoxSurrender`/`FlagKeyReturn`. Also newly
-// real: a policy declared INSIDE an `aggregate` (Account's own
-// `ReviewOnFreeze`) — `parse::aggregate` calls this SAME `parse_body`
+// real: a policy declared inside an `aggregate` (Account's own
+// `ReviewOnFreeze`) — `parse::aggregate` calls this same `parse_body`
 // and hoists the result onto the chapter itself, mirroring
 // `AggregateBuilder#policy`'s own hoist.
 
@@ -74,9 +74,9 @@ pub fn parse_body(
                     &gated.args,
                     1,
                 )?);
-                // STAGE 4: `trigger`'s own `with:` — the projection
+                // Stage 4: `trigger`'s own `with:` — the projection
                 // between an event's shape and its trigger's. Read by
-                // the SAME parser `dispatch`'s own `with:` uses; the two
+                // the same parser `dispatch`'s own `with:` uses; the two
                 // are the same word in two places, and reading them two
                 // ways is how they would drift.
                 policy.with_spec = super::process_manager::parse_with_pairs_opt(&gated.args);
@@ -91,7 +91,7 @@ pub fn parse_body(
                 )?);
                 policy.expect_undelivered = super::named_flag(&gated.args, "expect_undelivered");
             }
-            // STAGE 4: `for_each` (fan-out — one `trigger` per row a
+            // Stage 4: `for_each` (fan-out — one `trigger` per row a
             // declared query answers) — newly real: banking.bluebook's
             // own `FreezeAccountsOnSuspension`, which is what a
             // suspension needs to reach every account a customer holds.
@@ -99,7 +99,7 @@ pub fn parse_body(
             // field and the `for_each` JSON key; only this arm was
             // missing, so nothing about the wire format changes.
             //
-            // STAGE 5: `where` — confirmed real: roster.bluebook's own
+            // Stage 5: `where` — confirmed real: roster.bluebook's own
             // `OnSeatAssignedHonorFront` (`where { number.value == 1 }`,
             // a literal `with:`, not a payload field — see roster's own
             // comment). Same extraction/canonicalization

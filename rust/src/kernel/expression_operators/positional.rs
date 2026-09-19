@@ -5,17 +5,17 @@
 // duck-typed on "responds to first/last" in Ruby, which this kernel
 // reads as two real shapes rather than one duck type — a `Value::Array`
 // (an `ArrayLiteral` or a `.split` result, elements already known) and a
-// `Lookup` naming a real list-typed FIELD (the corpus origin case:
+// `Lookup` naming a real list-typed field (the corpus origin case:
 // `legs.first`, an itinerary's departure leg — resolver.rb's own
 // comment on `First`).
 //
 // A field-list's elements are read via `lookup_items` (the same second
 // reading `expression_operators::enumeration` already uses for `.any?`/
 // `.find`'s own receiver) rather than `Value::List(usize)` — that shape
-// is LENGTH ONLY (`expr.rs`'s own header), nothing to take a first/last
-// element FROM. Only a SCALAR-element list collapses to a `Value` this
+// is length only (`expr.rs`'s own header), nothing to take a first/last
+// element from. Only a scalar-element list collapses to a `Value` this
 // way; a list of composite entities (`Field::Nested`) has no `Value`
-// shape to return as — refused BY NAME, the same "not generated yet"
+// shape to return as — refused by name, the same "not generated yet"
 // wording `membership.rs`'s own Array-haystack gap already uses, rather
 // than silently misrepresenting an object as some scalar it isn't.
 //

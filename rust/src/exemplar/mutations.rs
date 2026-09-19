@@ -1,5 +1,5 @@
-// EXEMPLAR shapes for rust/project/mutations.rb — see mod.rs's own
-// header. Every shape here is a single generated STATEMENT line
+// Exemplar shapes for rust/project/mutations.rb — see mod.rs's own
+// header. Every shape here is a single generated statement line
 // (`record.field = ...;`, `record.field.push(...);`, one arithmetic
 // block) — the same single-line-statement risk class as constraints.rs's
 // `admits_check`/`pattern_check`, not the multi-branch structural risk
@@ -7,7 +7,7 @@
 // (`mutation_set_rhs`, `append_field_rhs`, `arithmetic_amount_expr`,
 // mutations.rb) stay plain Ruby, same scoping call as json_codec.rb's
 // own scalar-accessor helpers — the structural risk lives in getting the
-// STATEMENT shape right, not in which field a value came from. Every
+// statement shape right, not in which field a value came from. Every
 // host below takes `record: &mut Tmpl...` as a plain parameter, not
 // `&mut self` — the real generated mutation closures all operate on a
 // `record` binding (`kernel::dispatch`'s own mutation closure
@@ -24,9 +24,9 @@ fn tmpl_fields_placeholder() -> TmplElement {
     TmplElement { tmpl_field: 0 }
 }
 fn tmpl_mutation_append_host(record: &mut TmplRecordHost) {
-    // TMPL:mutation_append BEGIN
+    // Tmpl:mutation_append begin
     record.tmpl_field.push(tmpl_fields_placeholder());
-    // TMPL:mutation_append END
+    // Tmpl:mutation_append end
 }
 
 struct TmplScalarHost2 {
@@ -36,27 +36,27 @@ fn tmpl_rhs_placeholder2() -> i64 {
     0
 }
 fn tmpl_mutation_set_plain_host(record: &mut TmplScalarHost2) {
-    // TMPL:mutation_set_plain BEGIN
+    // Tmpl:mutation_set_plain begin
     record.tmpl_field = tmpl_rhs_placeholder2();
-    // TMPL:mutation_set_plain END
+    // Tmpl:mutation_set_plain end
 }
 
 fn tmpl_optional_rhs_placeholder() -> Option<i64> {
     None
 }
 fn tmpl_mutation_set_unwrap_or_default_host(record: &mut TmplScalarHost2) {
-    // TMPL:mutation_set_unwrap_or_default BEGIN
+    // Tmpl:mutation_set_unwrap_or_default begin
     record.tmpl_field = tmpl_optional_rhs_placeholder().unwrap_or_default();
-    // TMPL:mutation_set_unwrap_or_default END
+    // Tmpl:mutation_set_unwrap_or_default end
 }
 
 struct TmplOptionScalarHost {
     tmpl_field: Option<i64>,
 }
 fn tmpl_mutation_set_wrapped_host(record: &mut TmplOptionScalarHost) {
-    // TMPL:mutation_set_wrapped BEGIN
+    // Tmpl:mutation_set_wrapped begin
     record.tmpl_field = Some(tmpl_rhs_placeholder2());
-    // TMPL:mutation_set_wrapped END
+    // Tmpl:mutation_set_wrapped end
 }
 
 struct TmplArithmeticHost {
@@ -69,18 +69,18 @@ fn tmpl_updated_placeholder() -> i64 {
     0
 }
 fn tmpl_mutation_arithmetic_host(record: &mut TmplArithmeticHost) {
-    // TMPL:mutation_arithmetic BEGIN
+    // Tmpl:mutation_arithmetic begin
     { let current = tmpl_current_placeholder(); record.tmpl_field = tmpl_updated_placeholder(); }
-    // TMPL:mutation_arithmetic END
+    // Tmpl:mutation_arithmetic end
 }
 
-// BUG#32 (QualityControl ledger) — `remove:` against an ENTITY-typed
+// BUG#32 (QualityControl ledger) — `remove:` against an entity-typed
 // list, matched by the entity's own identity field (`tmpl_id_field`)
 // rather than whole-element equality (`Runtime::EntityElement.
 // list_element_match?`'s own comment, Ruby side, gives the full
 // reasoning: an entity is a plain struct, never one comparable whole
 // value the way a value object is). `retain` keeps every element whose
-// identity DOESN'T match the offered value — the inverse of the
+// identity doesn't match the offered value — the inverse of the
 // `reject { |element| element == value }` shape Ruby's own
 // `MutationApplier#removed`/`EntityElement#removed_from_element` share.
 struct TmplRemoveElement {
@@ -93,7 +93,7 @@ fn tmpl_remove_match_placeholder() -> i64 {
     0
 }
 fn tmpl_mutation_remove_host(record: &mut TmplRemoveHost) {
-    // TMPL:mutation_remove BEGIN
+    // Tmpl:mutation_remove begin
     record.tmpl_field.retain(|item| item.tmpl_id_field != tmpl_remove_match_placeholder());
-    // TMPL:mutation_remove END
+    // Tmpl:mutation_remove end
 }

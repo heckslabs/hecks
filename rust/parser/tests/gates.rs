@@ -1,24 +1,24 @@
 //! Integration tests — drives the actual `hecks-parse` binary as a
 //! subprocess against `tests/fixtures/*`, the same "shell out and check
 //! the real exit code/stderr" discipline `spec/parser_parity_spec.rb`
-//! (Ruby side) uses. Stage 1's core claim (every fixture fails CLOSED
+//! (Ruby side) uses. Stage 1's core claim (every fixture fails closed
 //! with a real, named diagnostic — never silently succeeds, never
 //! panics, never claims coverage it doesn't have) still holds for every
-//! construct this crate has NOT built real IR for yet. STAGE 2 shrinks
+//! construct this crate has not built real IR for yet. Stage 2 shrinks
 //! `STILL_PENDING` below the same way `spec/parser_parity_spec.rb`'s own
 //! `PENDING_MEMBERS`/`spec/parser_coverage_spec.rb`'s own
 //! `STAGE_1_PENDING` shrink — `command.bluebook`/`query.bluebook`/
 //! `value_object.bluebook`/`policy.bluebook`/`lifecycle.bluebook` now
-//! parse for REAL (see `now_implemented_fixtures_parse_for_real` below),
+//! parse for real (see `now_implemented_fixtures_parse_for_real` below),
 //! since `parse::command`/`parse::query`/`parse::value_object`/
-//! `parse::policy`/`parse::lifecycle` all stopped being stubs. STAGE 4
+//! `parse::policy`/`parse::lifecycle` all stopped being stubs. Stage 4
 //! adds `process_manager.bluebook` to that same list (`parse::
-//! process_manager`, previously fully stubbed). ADR 0025's identity
+//! process_manager` implements it in full). ADR 0025's identity
 //! slice (S1, docs/dsl-work-slices.md) closes the last two:
-//! `aggregate.bluebook`/`entity.bluebook` exercised `identified_by`'s
-//! bare-FIELD form, previously the one remaining `not_yet_implemented`
-//! diagnostic this crate raised on purpose — `build/identity.rs::
-//! resolve_identity_field` builds real IR for it now, so both fixtures
+//! `aggregate.bluebook`/`entity.bluebook` exercise `identified_by`'s
+//! bare-field form — the last `not_yet_implemented` diagnostic this
+//! crate raised on purpose — `build/identity.rs::
+//! resolve_identity_field` now builds real IR for it, so both fixtures
 //! moved to `now_implemented_fixtures_parse_for_real` below and the
 //! `still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct`
 //! test that pinned their failure is gone — nothing is still pending.
@@ -42,7 +42,7 @@ fn run(args: &[&str]) -> Output {
 #[test]
 fn now_implemented_fixtures_parse_for_real() {
     // Stage 2 taught `parse::command`/`parse::query`/`parse::value_object`/
-    // `parse::policy`/`parse::lifecycle` to build real IR; STAGE 3 adds
+    // `parse::policy`/`parse::lifecycle` to build real IR; stage 3 adds
     // `parse::read_model` (`read_model`'s own `description`/`include`/
     // `group_by`) — all six fixtures (unlike the ones above) now succeed
     // outright: exit 0, and stdout is real, non-empty `ir.json`, not a
@@ -54,7 +54,7 @@ fn now_implemented_fixtures_parse_for_real() {
         ("policy.bluebook", "FixturePolicy"),
         ("lifecycle.bluebook", "FixtureLifecycle"),
         ("read_model.bluebook", "FixtureReadModel"),
-        ("process_manager.bluebook", "FixtureProcessManager"), // STAGE 4
+        ("process_manager.bluebook", "FixtureProcessManager"), // Stage 4
         // ADR 0025 identity slice (S1) — `identified_by`'s bare-field
         // form, the one remaining not-yet-implemented diagnostic.
         ("aggregate.bluebook", "FixtureAggregate"),
@@ -250,17 +250,17 @@ fn aggregate_port_operation_does_not_declare_its_receiver_as_a_fact() {
     );
 }
 
-// STAGE 8: `hecks-parse resolve --chapter <Name> <file.hecksagon>` is
-// now REAL (`parse::chapter::resolve_uses_framework`, built for
+// Stage 8: `hecks-parse resolve --chapter <Name> <file.hecksagon>` is
+// now real (`parse::chapter::resolve_uses_framework`, built for
 // `bin/project_rust`'s own opt-in Rust orchestration path) — these two
-// fixtures used to be genuine `not yet implemented` cases (resolve was
-// a Stage 1 stub that always failed, regardless of input) and are now
-// genuine SUCCESS cases instead, the same shift
+// fixtures are genuine success cases rather than `not yet implemented`
+// ones, since resolve is no longer a stub that always fails regardless
+// of input — the same shift
 // `now_implemented_fixtures_parse_for_real` above already documents for
 // `chapter`. Also confirms the CLI contract change itself: `resolve`
-// now REQUIRES `--chapter` (a deliberate departure from the plan's own
+// now requires `--chapter` (a deliberate departure from the plan's own
 // original one-argument sketch — `main.rs::run_resolve`'s own header
-// has the full reasoning), so a missing `--chapter` is a USAGE error
+// has the full reasoning), so a missing `--chapter` is a usage error
 // (exit 2), not a parse error (exit 1).
 #[test]
 fn hecksagon_fixtures_resolve_for_real() {
@@ -326,7 +326,7 @@ fn resolve_without_chapter_is_a_usage_error_not_a_parse_error() {
 fn a_real_grammar_violation_is_a_hard_error_not_a_stub() {
     // A deliberately malformed file — `aggregate` is not a word `File`
     // context admits (it's `bluebook`'s own inner Aggregate context) —
-    // must be refused by the WORD gate itself, distinctly worded from
+    // must be refused by the word gate itself, distinctly worded from
     // "not yet implemented".
     let dir = std::env::temp_dir().join(format!("hecks_parse_gate_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -391,7 +391,7 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
         stdout.contains("[\"port\", \"Hecksagon\"]"),
         "expected port/Hecksagon covered, got: {stdout}"
     );
-    // STAGE 3: `read_model` now has a real `parse::read_model` of its
+    // Stage 3: `read_model` now has a real `parse::read_model` of its
     // own (console_settings.bluebook's own `Styles`/`Curated`). ADR 0025
     // reverts the word from `report`.
     assert!(
@@ -406,7 +406,7 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
         stdout.contains("[\"group_by\", \"ReadModel\"]"),
         "expected group_by/ReadModel covered, got: {stdout}"
     );
-    // STAGE 4: `entity`/`process_manager` now have real `parse_body`s of
+    // Stage 4: `entity`/`process_manager` now have real `parse_body`s of
     // their own (banking.bluebook's own `LedgerEntry`/`Settlement`, and
     // the concurrently-landed `compliance`/`interview` real corpus
     // members this stage's own work happened to fully cover too).
@@ -422,8 +422,8 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
         stdout.contains("[\"dispatch\", \"Handler\"]"),
         "expected dispatch/Handler covered, got: {stdout}"
     );
-    // STILL not covered — the bare-FIELD `identified_by` form has no
-    // real corpus member exercising it yet, so `Entity`'s OWN coverage
+    // Still not covered — the bare-field `identified_by` form has no
+    // real corpus member exercising it yet, so `Entity`'s own coverage
     // stays partial (real for the six words banking.bluebook's pieces
     // actually use, not a blanket claim).
     assert!(

@@ -1,4 +1,4 @@
-// THE "enumeration" OPERATOR CATEGORY — `.any?`/`.none?`/`.all?` and
+// **The "enumeration" operator category** — `.any?`/`.none?`/`.all?` and
 // `.find`, each taking a `{ |param| predicate }` block; the port of
 // `Resolver#evaluate_block_predicate`/`#found_of`
 // (lib/hecks/bluebook/expression/resolver/block_predicates.rb), read
@@ -9,10 +9,10 @@
 // is one, three deep — asked to be projected to Rust and the generator
 // refused with "unhandled resolver node BlockPredicate". A block's
 // parameter is bound by `Bound` (expr.rs) exactly as Ruby merges it
-// into attrs; the receiver's ELEMENTS come from `Fielded::items`, the
+// into attrs; the receiver's elements come from `Fielded::items`, the
 // second reading of a list field beside `Value::List(len)`.
 //
-// Every element's outcome is computed BEFORE the aggregation, not
+// Every element's outcome is computed before the aggregation, not
 // short-circuited — Ruby's own `collection.map { … }` then `.all?`/
 // `.any?`/`.none?` does the same, so an evaluation error on the third
 // element surfaces identically in both runtimes.
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn the_parameter_shadows_a_same_named_field_only_inside_the_block() {
         // `number` on the instance is 99; inside the block `number` is
-        // NOT the parameter (the parameter is `s`), so it still reads 99
+        // not the parameter (the parameter is `s`), so it still reads 99
         // — while `s.number` reads the element's own.
         let shadow = Expr::BlockPredicate {
             mode: BlockMode::Any,
@@ -212,7 +212,7 @@ mod tests {
     fn nested_blocks_see_the_outer_parameter() {
         // seats.any? { |s| s.taken == false && seats.none? { |o| o.number == s.number + 1 } }
         // — the free seat (2) is followed by seat 3, so this is false;
-        // the inner block reads BOTH its own `o` and the outer `s`.
+        // the inner block reads both its own `o` and the outer `s`.
         let inner = Expr::BlockPredicate {
             mode: BlockMode::None,
             receiver: Box::new(Expr::Lookup("seats")),

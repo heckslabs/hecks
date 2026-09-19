@@ -2,7 +2,7 @@
 //! `rust/project_rust_pipeline.rb`'s own `header_chapter_name`, framework
 //! member lookup (`Hecks::Framework.members`), and the self-hosted
 //! grammar's own nine-file list (`Hecks::Bluebook::MetaValidator::
-//! GRAMMAR_FILES`). NONE of this executes a `.bluebook`/`.hecksagon`
+//! GRAMMAR_FILES`). None of this executes a `.bluebook`/`.hecksagon`
 //! file's own DSL body — every function here is plain text scanning or a
 //! directory listing, the same "not a `Kernel.load`" distinction that
 //! file's own header draws out at length.
@@ -29,7 +29,7 @@ pub fn bluebook_files(directory: &Path) -> Result<Vec<PathBuf>, String> {
 
 /// `header_chapter_name` (Ruby) — the declared chapter name off a
 /// `.bluebook` file's own `Hecks.bluebook "Name"` header line, found by
-/// PLAIN TEXT SCANNING (the same technique `spec/parser_parity_spec.rb::
+/// plain text scanning (the same technique `spec/parser_parity_spec.rb::
 /// chapter_name_of` and the Ruby pipeline this crate replaces both
 /// already use) — never by parsing or executing the file.
 pub fn header_chapter_name(path: &Path) -> Result<String, String> {
@@ -60,7 +60,7 @@ fn extract_quoted(rest: &str) -> Option<String> {
 }
 
 /// `Hecks::Framework.members` (`lib/hecks/framework.rb`) — a
-/// DIRECTORY LISTING, not a hand-kept list (that file's own header: "a
+/// directory listing, not a hand-kept list (that file's own header: "a
 /// member added here and forgotten in a list would be a member
 /// `uses_framework` could never find"). Named by file stem, pascal-cased
 /// (`Naming.pascal`, `lib/hecks/naming.rb`), matching the one-to-one

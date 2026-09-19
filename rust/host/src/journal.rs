@@ -1,5 +1,5 @@
-// THE REHYDRATE-AND-REPLAY JOURNAL — flat and DELIBERATELY non-era-
-// aware, domain-agnostic: one table for the WHOLE domain's command
+// **The rehydrate-and-replay journal** — flat and deliberately non-era-
+// aware, domain-agnostic: one table for the whole domain's command
 // history, not one per aggregate. This journal alone has no era/lineage
 // concept (by design, not by gap — see the generic lineage read/write
 // functions further down this file for the part of this crate that
@@ -7,7 +7,7 @@
 // commands (that knowledge lives only inside the compiled `.wasm`
 // module, which this crate treats as opaque) — so filtering "which
 // prior commands matter for this one" isn't something rust/host can
-// safely do on its own. Replaying the FULL log on every invocation is
+// safely do on its own. Replaying the full log on every invocation is
 // the simplest correct answer for a company-internal tool with modest
 // total event volume; see docs/implemented/decisions/0018-rehydrate-replay-lambda-
 // host.md for the full tradeoff.
@@ -16,7 +16,7 @@
 // prior journal row was, by construction, a command that succeeded the
 // first time it was dispatched — replaying the exact same steps against
 // the exact same (empty-start) kernel must produce the exact same
-// result again. So the ONLY step in a full replay that can legitimately
+// result again. So the only step in a full replay that can legitimately
 // end up in `refusals` is the newest one, appended last. That's the
 // entire correctness argument `append_if_accepted` below leans on.
 
@@ -35,10 +35,10 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             )",
         )
         .await?;
-    // A SINGLE-ROW cache of the kernel's own last "instances" output —
+    // A single-row cache of the kernel's own last "instances" output —
     // `boolean PRIMARY KEY DEFAULT true CHECK (id)` is the standard
     // Postgres one-row-table trick (only `true` can ever satisfy both
-    // the PK and the CHECK, so a second row is structurally impossible).
+    // the PK and the check, so a second row is structurally impossible).
     // See `load_snapshot`/`save_snapshot` below for what this is for.
     client
         .batch_execute(
@@ -49,9 +49,9 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             )",
         )
         .await?;
-    // ADDITIVE, on an existing table a live domain may already have a
+    // Additive, on an existing table a live domain may already have a
     // row in — `sagas_backfilled` is the one-time latch `load_snapshot`'s
-    // own doc comment explains; `DEFAULT false` on the ALTER means every
+    // own doc comment explains; `DEFAULT false` on the alter means every
     // pre-existing row (a domain with real history from before saga
     // durability shipped) reads `false` exactly once, the correct
     // "not backfilled yet" answer, without any separate migration step.
@@ -60,7 +60,7 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             "ALTER TABLE hecks_lambda_snapshot ADD COLUMN IF NOT EXISTS sagas_backfilled boolean NOT NULL DEFAULT false",
         )
         .await?;
-    // LIVE PROCESS-MANAGER STATE — one row per in-flight saga instance,
+    // **Live process-manager state** — one row per in-flight saga instance,
     // not a single-row cache like hecks_lambda_snapshot above: sagas are
     // numerous, long-lived, and mostly independent (many concurrent,
     // unrelated correlations), so a shared blob would force every
@@ -83,10 +83,10 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             )",
         )
         .await?;
-    // ADDITIVE, on an existing table a live domain may already have rows
+    // Additive, on an existing table a live domain may already have rows
     // in — same `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` idiom
     // `sagas_backfilled` above already uses. `completed_compensations` is
-    // `SagaInterpreter#checkpoint`'s own per-instance, DYNAMIC ledger
+    // `SagaInterpreter#checkpoint`'s own per-instance, dynamic ledger
     // (`orchestrate.rs`'s own `SagaInstance::completed_compensations`,
     // kernel/cli.rs's own `"sagas"`/`"saga_snapshot"` seed/snapshot
     // shape) — `DEFAULT '[]'::jsonb` means every pre-existing row (a
@@ -98,7 +98,7 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             "ALTER TABLE hecks_lambda_sagas ADD COLUMN IF NOT EXISTS completed_compensations jsonb NOT NULL DEFAULT '[]'::jsonb",
         )
         .await?;
-    // A CROSS-DOMAIN DELIVERY THAT NEVER GOT THROUGH, durably — see
+    // A cross-domain delivery that never got through, durably — see
     // `record_dead_letter`'s own header for the full argument (this
     // table exists so that fact survives past the one Lambda invocation
     // that hit it, not just this crate's own stdout/CloudWatch log
@@ -126,13 +126,13 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
 
 /// A cross-domain reaction that exhausted every retry `lambda_client::
 /// deliver_with_retry` attempted and still never reached its target —
-/// recorded durably, in the SAME Postgres this crate already depends on
+/// recorded durably, in the same Postgres this crate already depends on
 /// regardless of deploy target (not an AWS-native SQS/DLQ — the retry/
 /// dead-letter mechanism this function is half of lives entirely above
 /// the `LambdaInvoker` trait boundary, so it applies the same way to any
 /// implementer, Amazon or otherwise; see `lambda_client.rs`'s own
-/// header). Written OUTSIDE the main command's own transaction —
-/// `dispatch::handle` only ever reaches this AFTER that transaction has
+/// header). Written outside the main command's own transaction —
+/// `dispatch::handle` only ever reaches this after that transaction has
 /// already committed (the same "best-effort, after the fact, never
 /// rolls back the local write" rule cross-domain delivery already holds
 /// itself to) — so a dead letter failing to record is its own concern,
@@ -162,7 +162,7 @@ pub async fn record_dead_letter<C: GenericClient>(
 ///
 /// Generic over `GenericClient` (implemented by both `Client` and
 /// `Transaction<'_>`) so `dispatch::handle` can run this — and `append`
-/// below — inside the SAME transaction that holds the advisory lock
+/// below — inside the same transaction that holds the advisory lock
 /// serializing concurrent invocations. See dispatch.rs's own comment
 /// for why that matters.
 pub async fn load_steps<C: GenericClient>(client: &C) -> anyhow::Result<Vec<serde_json::Value>> {
@@ -183,9 +183,9 @@ pub async fn load_steps<C: GenericClient>(client: &C) -> anyhow::Result<Vec<serd
         .collect())
 }
 
-/// Only the steps AFTER `ordinal` — what still needs replaying on top
+/// Only the steps after `ordinal` — what still needs replaying on top
 /// of a snapshot that was taken as of that ordinal. Normally empty:
-/// `save_snapshot` runs in the SAME transaction as `append`, so the
+/// `save_snapshot` runs in the same transaction as `append`, so the
 /// snapshot is current after every single successful command. Non-empty
 /// only if a snapshot write was ever skipped (there's no code path that
 /// does today) — "replay the tail since the last known-good seed" is
@@ -221,11 +221,11 @@ pub struct Snapshot {
 /// handle` falls back to `Store::new()`/an empty seed, exactly today's
 /// behavior for a brand-new domain).
 ///
-/// `sagas_backfilled` is a ONE-TIME LATCH, not a live fact — it answers
+/// `sagas_backfilled` is a one-time latch, not a live fact — it answers
 /// "has this domain's snapshot row ever been written by code that knows
 /// about `hecks_lambda_sagas`," never "does `hecks_lambda_sagas` happen
 /// to be empty right now." That distinction matters: a saga table being
-/// empty is the ORDINARY case (most invocations have no saga in flight
+/// empty is the ordinary case (most invocations have no saga in flight
 /// — `end_saga` deletes on completion), so triggering a full replay off
 /// bare emptiness would force one on every such invocation forever, not
 /// once. The latch is what makes this a genuine one-time backfill:
@@ -258,14 +258,14 @@ pub async fn append<C: GenericClient>(
 
 /// Upserts the one-row cache — `ordinal` is the journal row this
 /// `seed` already reflects (i.e. replaying nothing after it, against
-/// this seed, reproduces the current world). Called in the SAME
+/// this seed, reproduces the current world). Called in the same
 /// transaction as the `append` whose ordinal it's given, right after a
 /// command is accepted — see dispatch.rs.
 ///
-/// ALWAYS writes `sagas_backfilled = true` — unconditionally, not
-/// conditionally on whether IT was the backfilling write. Once this
+/// Always writes `sagas_backfilled = true` — unconditionally, not
+/// conditionally on whether it was the backfilling write. Once this
 /// column exists at all, every future snapshot write was produced by
-/// saga-aware code, so every future READ of this row should find the
+/// saga-aware code, so every future read of this row should find the
 /// latch already set; only a row written before this column existed
 /// (or never written at all) reads `false`.
 pub async fn save_snapshot<C: GenericClient>(client: &C, ordinal: i64, seed: &serde_json::Value) -> anyhow::Result<()> {
@@ -290,7 +290,7 @@ pub struct SagaRow {
 }
 
 /// Every live saga instance for this domain — read once per invocation,
-/// before `cli::run`, and used to seed the kernel's in-memory `sagas`
+/// before `cli::run`, to seed the kernel's in-memory `sagas`
 /// map. A full-table read, not windowed: only currently in-flight
 /// instances have rows at all (`end_saga` deletes on completion), so
 /// there's no meaningful "since ordinal X" the way `load_steps_after`
@@ -316,7 +316,7 @@ pub async fn load_sagas<C: GenericClient>(client: &C) -> anyhow::Result<Vec<Saga
 
 /// Upserts one live saga instance's current state — called once per
 /// `(process_manager, correlation)` key present in the kernel's
-/// post-run `saga_snapshot`, in the SAME transaction as `append`/
+/// post-run `saga_snapshot`, in the same transaction as `append`/
 /// `save_snapshot`. Must run against `&txn`, never a post-commit
 /// connection the way `record_dead_letter` deliberately does — a saga
 /// checkpoint that committed independently of the triggering command's
@@ -358,27 +358,27 @@ pub async fn delete_saga<C: GenericClient>(
     Ok(())
 }
 
-// ── THE RUBY-SHAPED LINEAGE JOURNAL — an ADDITIONAL write path, not a
+// ── **The Ruby-shaped lineage journal** — an additional write path, not a
 // replacement for the flat log above. `hecks_lambda_journal` remains
 // the sole source `dispatch::handle` rehydrates from; the functions
 // below write each accepted command's own mutations (the kernel's new
-// "mutations" output field, adf38fd) into the SAME per-aggregate,
+// "mutations" output field, adf38fd) into the same per-aggregate,
 // era-partitioned schema Ruby's own PostgresEra adapter uses
 // (lib/hecks/adapters/driven/postgres_era.rb + postgres_era/lineage.rb) —
 // same table names, same era fence — so the two runtimes can point at
-// the SAME database and a human/Ruby tooling reading it sees this
+// the same database and a human/Ruby tooling reading it sees this
 // runtime's writes the same way Ruby's own `head_view` already
 // presents them.
 //
-// rust/host never PROVISIONS this schema — no CREATE TABLE, no era
+// rust/host never provisions this schema — no CREATE TABLE, no era
 // mint, no RLS policy. That's Ruby's LineageManager's job alone (it
 // needs the bluebook parser and translation-rule DSL this crate
 // deliberately doesn't have — ADR 0007). `current_era` below is a
-// boot-time READ, refusing cleanly if Ruby hasn't provisioned the
-// configured domain yet OR if this checkout's own era has since been
+// boot-time read, refusing cleanly if Ruby hasn't provisioned the
+// configured domain yet or if this checkout's own era is now
 // superseded by a later mint — a real, Rust-side staleness check, but
-// one that only ever needs to run ONCE per process lifetime, at boot.
-// A write for a stale era ALSO refuses through Postgres's own RLS row
+// one that only ever needs to run once per process lifetime, at boot.
+// A write for a stale era also refuses through Postgres's own RLS row
 // policy (`hecks_current_era`, postgres/lineage/mint_transaction.rb) —
 // that's not redundant with the boot check, it's the second layer that
 // still matters for a process that was current when it booted and got
@@ -386,14 +386,14 @@ pub async fn delete_saga<C: GenericClient>(
 // execution environment can outlive the deploy that supersedes it).
 // Neither layer duplicates the other's actual logic: the boot check
 // reads `hecks_eras` once and compares an ordinal; the RLS policy is a
-// row-level Postgres CHECK this crate never evaluates itself.
+// row-level Postgres check this crate never evaluates itself.
 
 /// Which domain journal this deployed binary writes as, and which era —
 /// operational facts, like Ruby's own `settings[:domain]`/`settings[:era]`,
 /// never computed or embedded by this crate itself (main.rs reads/derives
 /// them from `HECKS_DOMAIN` and its own boot-time mint decision).
 ///
-/// `domain` is ALWAYS present — `dispatch::handle`'s own advisory lock
+/// `domain` is always present — `dispatch::handle`'s own advisory lock
 /// (dispatch.rs's own header) needs it regardless of lineage capability,
 /// every deployed domain has exactly one. `era` is `None` for a domain
 /// with nothing lineage-capable bound and no Google auth configured
@@ -402,14 +402,14 @@ pub async fn delete_saga<C: GenericClient>(
 pub struct LineageConfig {
     pub domain: String,
     pub era: Option<i32>,
-    /// WHICH AGGREGATES GET MIRRORED into Ruby's era-shaped head
+    /// Which aggregates GET mirrored into Ruby's era-shaped head
     /// snapshots — the IR's own `lineage.capable_aggregates`, by
     /// qualified name. `None` means "every one", which is what every
     /// caller meant before this field existed.
     ///
-    /// IT IS NOT THE SAME QUESTION AS `era`, and conflating the two was
+    /// It is not the same question as `era`, and conflating the two was
     /// a real production outage. `era` is `Some` whenever the lineage
-    /// SUBSYSTEM is provisioned at all — and ADR 0034 turns that on for
+    /// subsystem is provisioned at all — and ADR 0034 turns that on for
     /// any domain with Google auth configured, because `auth.rs`'s own
     /// Member sessions need `hecks_eras` present regardless of what
     /// anything binds to. That said nothing about whether a given
@@ -494,7 +494,7 @@ fn word_boundary(s: &str) -> String {
 }
 
 /// `aggregate.storage_name` (ir/aggregate.rb:96: `Naming.snake(@name)`)
-/// — `@name` is the aggregate's own short Pascal name WITHIN its
+/// — `@name` is the aggregate's own short Pascal name within its
 /// bluebook, never domain-qualified, so this demodulizes a
 /// `MutationRecord.aggregate` value like `"Banking::Customer"` (the
 /// kernel's own qualified form, orchestrate.rs's `rsplit("::")`
@@ -506,7 +506,7 @@ fn storage_name(qualified_aggregate: &str) -> String {
 
 /// `PG::Connection.quote_ident`'s own rule: wrap in double quotes,
 /// double any embedded double quote. Every identifier this module
-/// builds from a domain/aggregate NAME (never from caller-controlled
+/// builds from a domain/aggregate name (never from caller-controlled
 /// data) goes through this before reaching a `CREATE`/table-name
 /// position — table names can't be bound as query parameters.
 pub(crate) fn quote_ident(name: &str) -> String {
@@ -518,23 +518,23 @@ fn journal_table(domain: &str) -> String {
 }
 
 /// Postgres's own NAMEDATALEN-1 limit: an identifier over 63 bytes is
-/// silently TRUNCATED, never refused — ported verbatim from Ruby's
+/// silently truncated, never refused — ported verbatim from Ruby's
 /// `Lineage::POSTGRES_IDENTIFIER_LIMIT` (postgres_era/lineage.rb). Two
 /// different overlong names sharing their first 63 bytes would collide
 /// again, at a longer length — the exact same failure mode
 /// `qualified_name` below exists to close for `storage_name` alone.
 const POSTGRES_IDENTIFIER_LIMIT: usize = 63;
 
-/// The SAME algorithm `Lineage#qualified_name` (lineage.rb) applies —
+/// The same algorithm `Lineage#qualified_name` (lineage.rb) applies —
 /// kept in exact lockstep (same 63-byte limit, same 8-hex-char SHA256
 /// suffix) so Ruby and Rust, writing the same aggregate against the
 /// same database, always agree on which physical relation that is.
-/// This is the fix for docs/decisions/0059: `head_view`/
-/// `head_snapshot_table` below used to be qualified by `storage_name`
-/// alone, so two different domains bound to PostgresEra against the
-/// SAME database, each declaring an aggregate whose own name
-/// snake_cases to the same storage_name, derived the exact same
-/// physical relations — silently sharing (and, on Ruby's own
+/// Qualifying `head_view`/`head_snapshot_table` below by domain, not by
+/// `storage_name` alone (docs/decisions/0059), is what keeps two
+/// different domains bound to PostgresEra against the same database
+/// from colliding: without the domain qualifier, two domains whose
+/// aggregates snake_case to the same storage_name would derive the
+/// exact same physical relations — silently sharing (and, on Ruby's own
 /// `ensure_first_head!`, clobbering) each other's data. Human-readable
 /// in the ordinary case; only a long domain + suffix combination
 /// degrades to the hashed, truncated form.
@@ -554,15 +554,15 @@ fn head_snapshot_table(domain: &str, qualified_aggregate: &str, era: i32) -> Str
     qualified_name(domain, &format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era))
 }
 
-/// The boot-time gate — but "does this ordinal have a row" was never
-/// the real question, and used to be all this asked. `hecks_eras` is
+/// The boot-time gate answers "which ordinal is the highest one on file
+/// for this domain," not "does this ordinal have a row." `hecks_eras` is
 /// append-only (a superseded era's row never gets deleted — era history
 /// is a fact, same as everything else this system holds), so a bare
-/// existence check would happily pass a STALE checkout: HECKS_ERA
-/// pointing at an ordinal that once was current but has since been
-/// superseded by a later mint. That stale checkout would go on writing
+/// existence check would happily pass a stale checkout: HECKS_ERA
+/// pointing at an ordinal that was current once but is now superseded
+/// by a later mint. That stale checkout would go on writing
 /// into `hecks_lambda_journal` (this file's own top header: flat,
-/// domain-wide, NO era column at all) completely unrefused for any
+/// domain-wide, no era column at all) completely unrefused for any
 /// command that doesn't happen to touch a lineage-capable aggregate —
 /// Ruby's own RLS fence (`hecks_current_era`, mint_transaction.rb) only
 /// guards the era-partitioned lineage tables below, not this one. This
@@ -570,7 +570,7 @@ fn head_snapshot_table(domain: &str, qualified_aggregate: &str, era: i32) -> Str
 /// instead (postgres/lineage/era_store.rb: `held.last[:ordinal]`, eras
 /// read ordinal-ascending) — ordinals are minted strictly increasing
 /// (`minter.rb`: `ordinal = latest[:ordinal] + 1`, never reused, never
-/// decremented), so the highest one on file for a domain IS the live
+/// decremented), so the highest one on file for a domain is the live
 /// one, and `MAX`/`ORDER BY ... LIMIT 1` is exactly that fact, not an
 /// approximation of it. `None` means `hecks_eras` has never heard of
 /// this domain at all — nothing minted yet.
@@ -594,7 +594,7 @@ pub struct Mutation<'a> {
     pub state: &'a serde_json::Value,
 }
 
-/// The SAME two-step append `PostgresEra#append` (postgres_era.rb:176-201)
+/// The same two-step append `PostgresEra#append` (postgres_era.rb:176-201)
 /// does for a live Ruby write: journal INSERT first (era-tagged,
 /// `RETURNING ordinal`), then a head-snapshot upsert guarded by
 /// `WHERE ordinal < EXCLUDED.ordinal` (never regress a snapshot from
@@ -612,7 +612,7 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     // `dispatch::handle`'s own call site (dispatch.rs) already checks
     // `config.era.is_some()` before ever reaching here, for an ordinary
     // business mutation on a lineage-free domain — this `bail!` is the
-    // defensive backstop for any OTHER caller (today, only `auth.rs`,
+    // defensive backstop for any other caller (today, only `auth.rs`,
     // which never calls this unless Google auth is configured, and
     // configuring it is exactly what makes `main.rs`'s own boot gate
     // guarantee `era` is `Some` in the first place).
@@ -637,12 +637,12 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     let snapshot = head_snapshot_table(&config.domain, mutation.aggregate, era);
     let storage = storage_name(mutation.aggregate);
 
-    // NAMED, NOT BARE. `tokio_postgres::Error`'s own `Display` for a
+    // **Named, not bare**. `tokio_postgres::Error`'s own `Display` for a
     // database error is the literal string "db error" and nothing else
     // — the real message ("relation ... does not exist") lives on its
     // `source()`. A `?` straight out of here therefore reached the
     // Lambda runtime as `{"errorMessage": "db error"}`, with CloudWatch
-    // showing only START/END/REPORT: an outage whose cause could not be
+    // showing only start/end/report: an outage whose cause could not be
     // read from anywhere the operator could see, and which took an RDS
     // error-log download to identify. Every statement below now says
     // which relation it was writing; `main.rs` formats the whole chain
@@ -676,36 +676,36 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     Ok(())
 }
 
-// ── GENERIC LINEAGE READS — the READ half of what `append_lineage_
+// ── **Generic lineage reads** — the read half of what `append_lineage_
 // mutation` above already is for writes: one function, any lineage-
-// capable aggregate, not a hand-typed one per aggregate. Reads the SAME
-// `<storage>_head` VIEW Ruby's own `Adapters::Postgres#all`/`#find`
+// capable aggregate, not a hand-typed one per aggregate. Reads the same
+// `<storage>_head` view Ruby's own `Adapters::Postgres#all`/`#find`
 // already read (`lineage.head_view(table)`, postgres/lineage/head_
 // compiler.rb) — a plain view Ruby's LineageManager compiles at mint
 // time, era-union and every rename/move/convert/drop already folded in
 // via SQL (`hecks_tr_*` helpers, head_compiler.rb's own `compile_rules`)
-// BEFORE this crate ever sees a row. That is what makes this safe and
+// before this crate ever sees a row. That is what makes this safe and
 // simple: neither function below needs to know a single thing about
-// eras, translations, or shape drift — reading the head view IS reading
+// eras, translations, or shape drift — reading the head view is reading
 // "the current, already-translated truth," by construction, the exact
 // same guarantee auth.rs's own `member_row_by_email`/`member_rows`
 // already leaned on for the one aggregate (`Embryonaut::Member`) that
-// needed it BEFORE this was generic. Those two functions are thin
+// needed it before this was generic. Those two functions are thin
 // wrappers over these now (auth.rs) — proof this generalizes, not just
 // a parallel implementation.
 //
-// DELIBERATELY NOT WIRED INTO `dispatch::handle`/`dispatch::read`'s OWN
+// Deliberately not wired into `dispatch::handle`/`dispatch::read`'s own
 // rehydrate-replay seed. That seed is fed to the WASM kernel alongside
-// RAW HISTORICAL STEPS (verb+args exactly as originally dispatched,
+// raw historical steps (verb+args exactly as originally dispatched,
 // journal.rs's own top header) — a full cold replay re-plays every one
-// of those steps from scratch, in whatever shape they were RECORDED
-// under. Overlaying an already-translated (possibly NEWER-shaped) head
-// state into the SEED a cold replay starts from would make the kernel
+// of those steps from scratch, in whatever shape they were recorded
+// under. Overlaying an already-translated (possibly newer-shaped) head
+// state into the seed a cold replay starts from would make the kernel
 // see an id as already present while also replaying the very step that
 // first creates it — a real, new "AlreadyExists" false refusal, not a
 // fix. A lineage-capable aggregate is architecturally the same case
 // Ruby's own `CommandInterpreter` already treats specially: bound to
-// Postgres, it is dispatched OUTSIDE the in-memory replay engine
+// Postgres, it is dispatched outside the in-memory replay engine
 // entirely (`InMemoryRepository` is Ruby's Memory adapter's own
 // concept, never reached for a Postgres-bound aggregate) — never
 // blended into it. rust/host's own Member handling (auth.rs) already
@@ -720,10 +720,10 @@ pub(crate) fn head_view(domain: &str, storage_name: &str) -> String {
 /// Every live row for one lineage-capable aggregate, already translated
 /// to its current shape — `member_rows`'s own query (auth.rs), made
 /// generic over `storage_name` instead of hard-typed to `"member_head"`.
-/// `domain` (docs/decisions/0059) is what makes this the SAME physical
+/// `domain` (docs/decisions/0059) is what makes this the same physical
 /// relation `append_lineage_mutation`/Ruby's own `PostgresEra` wrote to
 /// — never merely "whichever aggregate happens to share this
-/// storage_name in ANY domain".
+/// storage_name in any domain".
 pub async fn read_lineage_head_all<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -752,7 +752,7 @@ pub async fn read_lineage_head_by_id<C: GenericClient>(
     Ok(row.map(|r| r.get(0)))
 }
 
-// ── ERA/APPROVAL READS — the part of `hecks_eras`/`hecks_approvals`
+// ── **Era/approval reads** — the part of `hecks_eras`/`hecks_approvals`
 // a boot-time drift check (and, later, a mint executor) needs to read
 // for itself, rather than trusting an externally-supplied HECKS_ERA.
 // Ports of era_store.rb's own `eras`/`approval_for`/`last_ordinal`.
@@ -775,7 +775,7 @@ pub struct HeldEra {
 /// tamper-evidence guarantee `EraStore#verify_integrity!`'s own header
 /// names. `held_digest IS NULL` (a row from before the integrity
 /// column existed) is accepted unverified, matching Ruby's own
-/// behavior for that case — but this function does NOT replicate
+/// behavior for that case — but this function does not replicate
 /// Ruby's own write-side backfill of that column (`backfill_frozen_
 /// facts!`): a Rust-minted era always writes `held_digest` from the
 /// start, so there is no legacy gap for this read path to repair, only
@@ -862,11 +862,11 @@ mod lineage_tests {
     use super::*;
     use tokio_postgres::NoTls;
 
-    // MINTS A REAL ERA 2 — via Ruby's own LineageManager, not this
+    // Mints a real era 2 — via Ruby's own LineageManager, not this
     // crate's own writes, against a scratch database with a genuinely
     // fenced (non-superuser) app role. Proves the central claim
     // `append_lineage_mutation`'s own header makes: staleness is
-    // refused by Postgres's OWN RLS row policy
+    // refused by Postgres's own RLS row policy
     // (`hecks_current_era`, mint_transaction.rb), not by any check this
     // crate performs itself. See tests/fixtures/mint_stale_era.rb,
     // itself a close port of
@@ -889,7 +889,7 @@ mod lineage_tests {
             .expect("run mint_stale_era.rb -- is `ruby` on PATH?");
         assert!(status.success(), "mint_stale_era.rb failed -- see its own stderr above");
 
-        // Connect AS the fenced app role -- the exact connection shape
+        // Connect as the fenced app role -- the exact connection shape
         // a real deployed rust/host uses (never the table owner, which
         // bypasses RLS by default and would prove nothing).
         let (client, connection) =
@@ -912,7 +912,7 @@ mod lineage_tests {
         .await;
         assert!(accepted.is_ok(), "writing under the CURRENT era should succeed: {accepted:?}");
 
-        // The SUPERSEDED era -- refused by Postgres's own RLS policy.
+        // The superseded era -- refused by Postgres's own RLS policy.
         let stale_era = LineageConfig { domain: "Ledger".to_string(), era: Some(1), mirrored: None };
         let refused = append_lineage_mutation(
             &client,
@@ -928,10 +928,10 @@ mod lineage_tests {
         );
     }
 
-    // held_eras/approval_for/last_ordinal — proven against a REAL
+    // held_eras/approval_for/last_ordinal — proven against a real
     // compute-migrated era Ruby minted, not a synthetic fixture. Reuses
     // mint_and_seed_lineage_compute.rb (rust/host/tests/fixtures/), the
-    // same script the differential-parity spec drives — the ONE thing
+    // same script the differential-parity spec drives — the one thing
     // in this whole codebase that has ever driven the real approval
     // gate outside bin/translation_audit itself, so a real, non-empty
     // hecks_approvals row is guaranteed to exist by the time this test
@@ -984,26 +984,26 @@ mod lineage_tests {
         assert!(!approval.edge_digest.is_empty());
         // Era 1 wrote two records (a, b) before the approval was
         // recorded — reviewed_ordinal binds to the journal's high-water
-        // mark AT THAT MOMENT (record_approval!'s own last_ordinal
+        // mark at that moment (record_approval!'s own last_ordinal
         // call), so it must be at least 2, never 0.
         assert!(approval.reviewed_ordinal >= 2, "reviewed_ordinal should reflect era 1's real writes: {}", approval.reviewed_ordinal);
 
         // Era 1's two writes plus era 2's one (via owner, post-mint) —
-        // last_ordinal reads the SAME journal both the mint and the
+        // last_ordinal reads the same journal both the mint and the
         // approval bind to, so it must have advanced past the approval's
         // own reviewed_ordinal by at least the one post-mint write.
         let ordinal = last_ordinal(&client, "LedgerCompute").await.expect("last_ordinal");
         assert!(ordinal > approval.reviewed_ordinal, "the journal should have advanced since the approval was reviewed: {ordinal} vs {}", approval.reviewed_ordinal);
     }
 
-    // THE BOOT-GATE CASE THE TEST ABOVE DOESN'T COVER: this crate's OWN
-    // read, before any write is even attempted. `current_era` has to
-    // tell a genuinely-unminted domain apart from a MINTED-BUT-STALE
-    // one (an ordinal that once was current and still has a row, but
-    // has since been superseded) — a bare existence check (what this
-    // function replaced) can't distinguish those, and main.rs's boot
-    // gate needs to: one case means "mint this domain", the other means
-    // "redeploy with a newer HECKS_ERA". No Ruby/RLS involved here on
+    // The boot-gate case the test above doesn't cover: this crate's own
+    // read, before any write is even attempted. `current_era` tells a
+    // genuinely-unminted domain apart from a minted-but-stale
+    // one (an ordinal that was current once, still has a row, but is
+    // now superseded) — a bare existence check can't distinguish those,
+    // and main.rs's boot gate needs to: one case means "mint this
+    // domain", the other means "redeploy with a newer HECKS_ERA". No
+    // Ruby/RLS involved here on
     // purpose — this is a plain SQL fact this crate reads for itself,
     // proven against a minimal fixture table, same as
     // dispatch::tests::provision_lineage's own reasoning for why that's
@@ -1060,10 +1060,10 @@ mod lineage_tests {
         );
     }
 
-    // THE GENERIC READ PATH, proven against an aggregate that is NOT
+    // The generic read path, proven against an aggregate that is not
     // Member — the whole point of pulling `member_row_by_email`/
     // `member_rows`'s own query shape out into `read_lineage_head_by_id`/
-    // `read_lineage_head_all`. Builds the head view BY HAND the way
+    // `read_lineage_head_all`. Builds the head view by hand the way
     // Ruby's `HeadCompiler#ensure_first_head!` would for a fresh era 1
     // (a plain `SELECT id, state FROM <storage>_head_snapshot_1`) rather
     // than reproducing Ruby's whole mint path — this test's own question

@@ -1,7 +1,7 @@
 //! Bridges one open `.bluebook`/`.hecksagon` buffer to `hecks-parse` and
 //! back to an LSP `Diagnostic` array.
 //!
-//! DELIBERATELY A SUBPROCESS, NOT A LIBRARY CALL: `rust/parser` ships
+//! Deliberately a subprocess, not a library call: `rust/parser` ships
 //! only a `[[bin]]` target, on purpose (its own Cargo.toml: "this crate
 //! reads bytes and writes JSON text by hand ... no dependency earns its
 //! way past std", and its own workspace-isolation comment rules out
@@ -11,12 +11,12 @@
 //! crates stays a stable, subprocess-only sibling of `rust/parser`
 //! rather than a thing that could accidentally start sharing (and so
 //! coupling to) its internals. The real, load-bearing side effect: this
-//! LSP's diagnostics get MORE ACCURATE for free as `hecks-parse` itself
+//! LSP's diagnostics get more accurate for free as `hecks-parse` itself
 //! grows past its current Stage — nothing here needs to change when a
 //! stub in `rust/parser/src/parse/*.rs` becomes real.
 //!
-//! ONE DIAGNOSTIC PER RUN: `hecks-parse chapter` stops at the first
-//! error (`parse::chapter`'s own doc comment: "Stops at the FIRST
+//! **One diagnostic per run**: `hecks-parse chapter` stops at the first
+//! error (`parse::chapter`'s own doc comment: "Stops at the first
 //! diagnostic"), so this can only ever publish zero or one diagnostic
 //! per document per run — a real limitation inherited from the parser's
 //! own fail-fast design, not something this crate works around. Once
@@ -24,9 +24,9 @@
 //! `run` only needs to map `Vec<Diagnostic>` instead of `Option<Diagnostic>`
 //! — everything else here already speaks in terms of a list.
 //!
-//! NO COLUMN INFORMATION: `Diagnostic` (`rust/parser/src/diag.rs`) only
-//! ever names a file and a LINE, never a column — so every diagnostic
-//! this crate publishes underlines the FULL line, not a precise span.
+//! **No column information**: `Diagnostic` (`rust/parser/src/diag.rs`) only
+//! ever names a file and a line, never a column — so every diagnostic
+//! this crate publishes underlines the full line, not a precise span.
 //! Good enough for "something on this line is wrong, click through to
 //! read why" (the message and `expected` list carry the real content);
 //! real squiggle precision needs `rust/parser` to start tracking columns
@@ -138,8 +138,8 @@ fn parse_diagnostic_line(line: &str, path: &Path) -> Option<FileDiagnostic> {
 }
 
 /// Where `hecks-parse` lives, checked in order: an explicit override
-/// (for a checkout laid out differently, or CI), then PATH (once/if this
-/// is ever `cargo install`'d), then the two paths a `cargo build`
+/// (for a checkout laid out differently, or CI), then `PATH` (once/if
+/// this is ever `cargo install`'d), then the two paths a `cargo build`
 /// (debug) or `cargo build --release` from `rust/parser/` actually
 /// produces — the common case while both crates are developed side by
 /// side out of this same checkout.

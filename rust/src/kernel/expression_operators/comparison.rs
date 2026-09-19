@@ -9,11 +9,11 @@
 // needs to print which of the six symbols produced a given `Comparison`,
 // only what it computes).
 //
-// `sign_test.rs` REUSES `apply`/`Comparison` from here rather than
+// `sign_test.rs` reuses `apply`/`Comparison` from here rather than
 // re-deriving the same primitives a second time — the identical reuse
 // `Resolver.sign_test_node`'s own `Evaluator::OPERATORS.find` performs on
 // the Ruby side (a sign test is sugar for comparing against literal 0
-// through this SAME algebra, not a separate one).
+// through this same algebra, not a separate one).
 //
 // `expr.rs`'s `category_of` guarantees `interpret` below is only ever
 // called with `Compare` — see `logical.rs`'s header for why the trailing
@@ -41,8 +41,8 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 }
 
 /// The algebra itself, on values already resolved — mirrors
-/// `Evaluator.apply` exactly: OR the two primitives together, negate if
-/// the operator says to. Public so `sign_test.rs` can apply the SAME
+/// `Evaluator.apply` exactly: or the two primitives together, negate if
+/// the operator says to. Public so `sign_test.rs` can apply the same
 /// primitives against the literal 0 rather than re-deriving
 /// positive?/negative?/zero? by hand a second time.
 pub fn apply(op: &Comparison, lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
@@ -62,7 +62,7 @@ fn less_than(lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
 }
 
 /// `pub(crate)`, not private — `membership.rs`'s own `Value::Array`
-/// haystack arm reuses this SAME numeric-coerced equality (`Evaluator#
+/// haystack arm reuses this same numeric-coerced equality (`Evaluator#
 /// includes?`'s own `Array` branch: `found.any? { |item| equal?(item,
 /// wanted) }`) rather than re-deriving it a second time.
 pub(crate) fn values_equal(lhs: &Value, rhs: &Value) -> bool {
