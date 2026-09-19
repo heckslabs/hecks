@@ -89,6 +89,28 @@ RSpec.describe Hecks::Adapters::Heki do
 
       expect(File.exist?(File.join(@dir, "order.heki"))).to be true
     end
+
+    it "#project answers a Runtime::Instance on save, like every other adapter" do
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { name: { value: "Margherita" } })
+      projected = adapter.project(entry)
+
+      expect(projected).to be_a(Hecks::Runtime::Instance)
+      expect(projected.id).to eq("p1")
+    end
+
+    it "#project answers the removed Runtime::Instance on delete, or nil when none was held" do
+      adapter.save(instance("p1", name: { value: "Doomed" }))
+      # `append` before `project`, in that order, the same pairing `#delete` itself uses —
+      # `#project` alone would leave the still-journalled save entry to resurrect the record
+      # on the next `read`'s `replay_journal`.
+      delete_entry = Hecks::Ports::Persistence::Entry.new(operation: "delete", id: "p1", state: nil)
+      adapter.append(delete_entry)
+      deleted = adapter.project(delete_entry)
+
+      expect(deleted).to be_a(Hecks::Runtime::Instance)
+      expect(deleted.id).to eq("p1")
+      expect(adapter.project(delete_entry)).to be_nil
+    end
   end
 
   describe "crash safety and concurrency" do

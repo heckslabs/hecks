@@ -118,18 +118,29 @@ module Hecks
       # this one last read it, and mutating *its* stale copy would
       # overwrite that write on disk rather than layer on top of it.
       #
+      # On a delete, though, the record `current.delete` finds is already
+      # gone: every caller (`#delete` above, `AppendOnly#delete`) appends
+      # before it projects, so the fresh read above has already replayed
+      # this very entry off the journal. What the memoized `store` last
+      # held — from before this call — is read up front, for the return
+      # value only; it plays no part in what gets written.
+      #
       # @param entry [Persistence::Entry] the save or delete to materialize
-      # @return [Persistence::Entry] `entry`, unchanged
+      # @return [Runtime::Instance, nil] on a save, the newly stored record; on a delete, the
+      #   removed record, or nil when no record had that id
       def project(entry)
+        removed = entry.delete? ? store[entry.id] : nil
         current = read
         if entry.save?
           current[entry.id] = Ports::Persistence::StateCodec.encode(@aggregate, entry.state)
+          projected = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
         else
           current.delete(entry.id)
+          projected = removed && instance(entry.id, removed)
         end
         write(current)
         @store = current
-        entry
+        projected
       end
 
       # Journals and projects an instance's state under the file lock.

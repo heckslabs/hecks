@@ -298,6 +298,13 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:history]["order"].length).to eq(2)
       expect(result[:history]["order"].map { |entry| entry[:operation] }).to eq(%w[save save])
     end
+
+    it "answers an empty history, not a crash, for an aggregate nothing has been written to" do
+      result = described_class.history(runtime: runtime)
+
+      expect(result[:ok]).to be true
+      expect(result[:history]["order"]).to eq([])
+    end
   end
 
   describe ".behaviors" do
