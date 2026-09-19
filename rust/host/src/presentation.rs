@@ -113,24 +113,47 @@ async fn load_from_relations(client: &Mutex<Client>, config: &LineageConfig) -> 
 /// `None` for a kernel that does not carry this chapter at all, which
 /// is every domain but a console app.
 ///
-/// ONE CALL ANSWERS BOTH QUESTIONS. `dispatch::query` seeds from
-/// `dispatch::read`, so its output carries the whole current instance
-/// map alongside the query's own result; the query itself is only ever
-/// asked as the PROBE. A kernel that knows the read model answers with
-/// one entry in `queries`; one that does not answers with an empty
-/// `queries` and a refusal naming it ("... is not generated for this
-/// domain"), which is the honest signal — and the reason this asks the
-/// kernel rather than reading an environment variable or a file name
-/// that could be stale.
+/// THE READ FIRST, THE PROBE ONLY IF IT IS AMBIGUOUS — and that order
+/// is what keeps this cheap on the path every console screen takes.
+///
+/// `dispatch::read` answers from the snapshot alone when the snapshot
+/// is current, with NO wasm invocation at all; a domain that has any
+/// ConsoleSettings row is therefore answered by one SELECT. Only an
+/// EMPTY answer is ambiguous — "this kernel has no such chapter" and
+/// "it has the chapter and nobody has saved yet" look identical from
+/// the instance map — and only then is the chapter's own
+/// `ConsoleSettings.Styles` read model run as a probe. A kernel that
+/// knows it answers with one entry in `queries`; one that does not
+/// answers with an empty `queries` and a refusal naming it ("... is not
+/// generated for this domain"), which is the honest signal, and the
+/// reason this asks the kernel rather than reading an environment
+/// variable or a file name that could be stale.
+///
+/// Reading `/api/presentation` used to be three `to_regclass` probes
+/// and a SELECT; making it a guaranteed wasm run instead would have
+/// been a real regression on a first paint, which asks for `/api/me`,
+/// `/api/ui-schema` and `/api/presentation` before it draws anything.
 pub(crate) async fn kernel_rows(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<Option<KernelRows>> {
-    let probe = dispatch::query(client, wasm_path, &format!("{CONFIG_DOMAIN}.Styles"), json!({})).await?;
-    let answered = probe.get("queries").and_then(|q| q.as_array()).is_some_and(|q| !q.is_empty());
-    if !answered {
-        return Ok(None);
+    let state = dispatch::read(client, wasm_path).await?;
+    let rows = bucket(state.get("instances"));
+    if !rows.is_empty() {
+        return Ok(Some(rows));
     }
 
+    // Empty either way — ask the kernel which kind of empty this is.
+    let probe = dispatch::query(client, wasm_path, &format!("{CONFIG_DOMAIN}.Styles"), json!({})).await?;
+    let answered = probe.get("queries").and_then(|q| q.as_array()).is_some_and(|q| !q.is_empty());
+    if answered {
+        Ok(Some(rows))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Every ConsoleSettings record in an instance map, split by aggregate.
+fn bucket(instances: Option<&Value>) -> KernelRows {
     let mut rows = KernelRows::default();
-    let Some(instances) = probe.get("instances").and_then(|i| i.as_object()) else { return Ok(Some(rows)) };
+    let Some(instances) = instances.and_then(|i| i.as_object()) else { return rows };
     for (key, state) in instances {
         // `"ConsoleSettings::StateStyle#Event:open"` — the kernel's own
         // instance key, `Domain::Aggregate#id`. The id is kept because
@@ -153,7 +176,7 @@ pub(crate) async fn kernel_rows(client: &Mutex<Client>, wasm_path: &Path) -> any
             _ => {}
         }
     }
-    Ok(Some(rows))
+    rows
 }
 
 /// Every ConsoleSettings record this kernel holds, bucketed by
@@ -170,6 +193,12 @@ pub(crate) struct KernelRows {
 }
 
 impl KernelRows {
+    /// No row of any of the three kinds — the one answer that cannot
+    /// tell a kernel without this chapter from one nobody has saved to.
+    fn is_empty(&self) -> bool {
+        self.states.is_empty() && self.collections.is_empty() && self.overview.is_empty()
+    }
+
     pub(crate) fn state_ids(&self) -> BTreeSet<&str> {
         self.state_ids.iter().map(String::as_str).collect()
     }
@@ -739,6 +768,31 @@ mod tests {
             .execute(&format!("INSERT INTO {relation} (id, state) VALUES ($1, $2)"), &[&id, &state])
             .await
             .unwrap();
+    }
+
+    // WHICH KIND OF EMPTY — the one question the instance map alone
+    // cannot answer, and the only case that costs a second call. Both
+    // of these run against a real compiled kernel, because "does this
+    // wasm know this read model" is not a thing a fixture can fake.
+
+    #[tokio::test]
+    async fn a_kernel_that_carries_the_chapter_but_holds_no_rows_answers_some_empty() {
+        let client = crate::dispatch::tests::scratch_db("hecks_host_presentation_chapter_no_rows").await;
+        let wasm = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+
+        let rows = kernel_rows(&client, &wasm).await.expect("a read").expect("the chapter is compiled in");
+
+        assert!(rows.states.is_empty());
+        assert!(rows.collections.is_empty());
+        assert!(rows.overview.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_kernel_without_the_chapter_answers_none_so_the_relations_are_read_instead() {
+        let client = crate::dispatch::tests::scratch_db("hecks_host_presentation_no_chapter").await;
+        let wasm = crate::dispatch::tests::wasm_path();
+
+        assert!(kernel_rows(&client, &wasm).await.expect("a read").is_none());
     }
 
     #[tokio::test]
