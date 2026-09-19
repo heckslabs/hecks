@@ -2,13 +2,14 @@
 
 # THE TENANT PROVISIONER — same split bin/project_deploy already draws
 # between VALIDATING a declared shape (lib/hecks/deploy's own
-# Tenant.Declare) and ACTING on it. The acting half now lives behind a
-# real driven port (Deploy::Tenant.port "TenantProvisioning") instead
+# Tenant.Declare) and ACTING on it. The overlay write now lives behind
+# a real driven port (Deploy::Tenant.port "TenantProvisioning") instead
 # of inline script code — `TenantProvisioner` (lib/hecks/adapters/
-# driven/tenant_provisioner.rb) does the file-write/boot/gate work
-# this script used to do by hand, and this script's own job shrinks to
-# "declare, provision, confirm" — three dispatch calls, no direct file
-# IO or booting of its own.
+# driven/tenant_provisioner.rb) writes the `.world` overlay; this
+# script still does the boot-for-real + tenant_capable? gate itself,
+# deliberately NOT nested inside the adapter (see that adapter's own
+# header for why a boot running mid-dispatch, inside another boot's
+# own call stack, is a real, separate concern from writing one file).
 #
 # `Deploy` and `Tenancy` are booted TOGETHER, into one shared registry
 # (Hecks.boot_files, not two separate `Hecks.boot` calls) — the
@@ -91,11 +92,9 @@ rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "tenant #{slug.inspect} is invalid: #{e.message}"
 end
 
-# THE ADAPTER RUNS HERE — writes the overlay, boots the target domain
-# for real (also provisioning the schema, PostgresEra#connect_for's
-# own idempotent `CREATE SCHEMA IF NOT EXISTS`), and runs the
-# tenant_capable? gate. Answers TenantProvisioned or refuses
-# ProvisioningRefused; either way this call itself never raises.
+# THE ADAPTER RUNS HERE — writes the overlay only. Answers
+# TenantProvisioned or refuses ProvisioningRefused; either way this
+# call itself never raises.
 reactions = dispatcher.dispatch_port(
   "Deploy", "Tenant", "TenantProvisioning", "Provision",
   to:   slug,
@@ -107,7 +106,25 @@ if reactions.map(&:name).include?("ProvisioningRefused")
   abort "provisioning #{slug.inspect} was refused: #{refusal.payload[:refusal]}"
 end
 
-puts "provisioned #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
+overlay_path = File.join(domain_directory, "environments", "#{slug}.world")
+puts "wrote #{overlay_path}"
+
+# BOOTED ONCE, FOR REAL — PostgresEra#connect_for's own `CREATE SCHEMA
+# IF NOT EXISTS` (idempotent, same self-healing discipline every other
+# provisioning step in this adapter already holds itself to) means this
+# is also the schema's own provisioning step, not just a smoke test.
+target_dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
+puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
+
+# THE GATE, CHECKED AFTER A REAL BOOT — belt-and-suspenders: a domain
+# whose bound adapter cannot actually keep two tenants apart should
+# never reach this point silently. Checked per bluebook this registry
+# declares, not just the one named --domain, the same completeness
+# refuse_ungoverned_roles! already holds itself to across every
+# hecksagon a boot merges.
+target_dispatcher.registry.bluebooks.each_key do |name|
+  Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(target_dispatcher.registry, name)
+end
 
 # CONFIRMED BY QUERY, NOT BY ABSENCE OF AN EXCEPTION — see this
 # script's own header on why a policy's own refusal never raises.

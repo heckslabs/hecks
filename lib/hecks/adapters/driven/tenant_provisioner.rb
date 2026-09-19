@@ -8,15 +8,24 @@ module Hecks
     # `bin/project_tenant` and behind a real driven port
     # (`Deploy::Tenant.port "TenantProvisioning"`) instead — the same
     # hexagonal reasoning `GithubChecks` already gives for its own
-    # port: real, impure, side-effecting work (file IO, booting a
-    # process) belongs in an adapter, not in a bare script or a command
+    # port: real, impure, side-effecting work (writing the overlay
+    # file) belongs in an adapter, not in a bare script or a command
     # handler. `Deploy::Tenant`'s own `asks "Provision"` operation calls
     # `#provision` and turns whatever it returns into `TenantProvisioned`,
     # or whatever it raises into `ProvisioningRefused` — see
     # `PortOperationInterpreter#ask`'s own "every failure is an answer"
     # comment for why nothing here needs its own rescue.
     #
-    # RETURNS A HASH SHAPED LIKE `Tenancy::Tenant.Register`'s OWN
+    # DELIBERATELY DOES NOT BOOT THE TARGET DOMAIN — that step (proving
+    # it boots for real, running the tenant_capable? gate) stays in
+    # `bin/project_tenant` itself, called AFTER this operation answers,
+    # not nested inside it. Booting a whole domain from inside an
+    # adapter method that is itself running mid-dispatch (this port
+    # operation) is a real, separate concern from writing one file, and
+    # keeping the two apart avoids a nested `Hecks.boot` call ever
+    # running inside another boot's own dispatch call stack.
+    #
+    # RETURNS A HASH SHAPED LIKE `Tenancy::Tenant.Register`'S OWN
     # ARGUMENTS, on purpose — `tenancy.hecksagon`'s own `translates`
     # reaction forwards an answered event's payload verbatim, so this
     # adapter's own return value IS the translation from Deploy's
@@ -39,11 +48,6 @@ module Hecks
             end
           end
         WORLD
-
-        dispatcher = Hecks.boot(domain_directory, environment: slug[:value] || slug, install_facade: false)
-        dispatcher.registry.bluebooks.each_key do |name|
-          Runtime::TenantCheck.refuse_unless_tenant_capable!(dispatcher.registry, name)
-        end
 
         { slug: slug, domain: domain, realm: realm, schema: schema }
       end
