@@ -31,11 +31,13 @@ module Hecks
   #
   #   an export takes a declaration and its bindings and answers
   #   something that is the domain, running elsewhere — rust/project.rb's
-  #   generated crate, the WASM artifact, the SAM template
-  #   bin/project_deploy renders. It needs the `.world`/`.hecksagon` a
-  #   projection never looks at, because a running system has to know how
-  #   it is wired. That is the whole reason bin/project_deploy cannot use
-  #   this protocol: `call(bluebook:, options:)` has no channel for it.
+  #   generated crate, the WASM artifact, the CloudFormation template
+  #   `lib/hecks/projections/deploy` renders. It needs the
+  #   `.world`/`.hecksagon` a projection never looks at, because a
+  #   running system has to know how it is wired. A target that needs
+  #   this declares `needs_world: true` (`Target#projects_as`) and reads
+  #   `options.fetch(:world)`; `Projector.call`'s own `world:` keyword is
+  #   what carries it, merged into `options` before the target ever runs.
   #
   #   a state projection takes records — a domain after dispatch — and is
   #   a read-model question wearing the same word.
@@ -88,17 +90,21 @@ module Hecks
     # @param bluebook [Bluebook::Behaviour::Chapter, Hecks::IR] the chapter or
     #   IR-emitting construct to project
     # @param options [Hash] projector-specific options, passed through unchanged
+    # @param world [Bluebook::World, nil] the domain's `.world`/`.hecksagon` bindings,
+    #   required by an export (`needs_world: true`); nil for an ordinary projection.
+    #   Merged into `options[:world]` before the target runs — the target never
+    #   receives it as a separate argument.
     # @return [Object] whatever the projector's own `call` returns: typically a
     #   `Hash`/`String` artifact, or a `Hash{String => String}` file tree
     # @raise [UnknownProjector] if no projector is registered under `name`
     # @raise [WrongConstruct] if `bluebook` lacks a capability or aggregate the
-    #   projector requires
-    def call(name, bluebook:, options: {})
+    #   projector requires, or if the projector needs `world:` and none is given
+    def call(name, bluebook:, options: {}, world: nil)
       projector = registry.fetch(name.to_sym) do
         raise UnknownProjector, "no projector registered for #{name.inspect} — registered: #{registered.sort.inspect}"
       end
-      admits!(name, projector, bluebook)
-      projector.call(bluebook: bluebook, options: options)
+      admits!(name, projector, bluebook, world)
+      projector.call(bluebook: bluebook, options: world ? options.merge(world: world) : options)
     end
 
     # Refuses `construct` if it lacks a capability or declared aggregate
@@ -116,13 +122,17 @@ module Hecks
     # @param name [String, Symbol] the projector's registered key, used in the message
     #   when refusing
     # @param projector [Module, Class, #call] the target being checked; consulted for
-    #   `projection_requires` and `projection_declares` when it answers them
+    #   `projection_requires`, `projection_declares`, and `projection_needs_world?` when
+    #   it answers them
     # @param construct [Bluebook::Behaviour::Chapter, Hecks::IR] the chapter or
     #   IR-emitting construct offered to the projector
+    # @param world [Bluebook::World, nil] the `world:` given to `Projector.call`, checked
+    #   against the target's own `needs_world:` declaration
     # @return [void]
-    # @raise [WrongConstruct] if `construct` lacks a required capability, or the
-    #   chapter it is declares no aggregate the projector needs
-    def admits!(name, projector, construct)
+    # @raise [WrongConstruct] if `construct` lacks a required capability, the chapter it
+    #   is declares no aggregate the projector needs, or the projector needs `world:`
+    #   and `world` is nil
+    def admits!(name, projector, construct, world = nil)
       needed = projector.respond_to?(:projection_requires) ? projector.projection_requires : []
       missing = needed.reject { |capability| capable?(construct, capability) }
       unless missing.empty?
@@ -133,11 +143,15 @@ module Hecks
 
       declared = projector.respond_to?(:projection_declares) ? projector.projection_declares : []
       absent   = declared.reject { |named| construct.aggregate(named) }
-      return if absent.empty?
+      unless absent.empty?
+        raise WrongConstruct,
+              "#{name.inspect} needs a chapter declaring #{absent.join(' and ')}; " \
+              "#{construct.name} declares no such aggregate."
+      end
 
-      raise WrongConstruct,
-            "#{name.inspect} needs a chapter declaring #{absent.join(' and ')}; " \
-            "#{construct.name} declares no such aggregate."
+      return unless projector.respond_to?(:projection_needs_world?) && projector.projection_needs_world? && world.nil?
+
+      raise WrongConstruct, "#{name.inspect} needs .world/.hecksagon bindings — pass world: to Projector.call."
     end
 
     # Tells whether `construct` has the capability `admits!` requires of it.
