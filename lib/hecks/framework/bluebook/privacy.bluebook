@@ -1,0 +1,77 @@
+Hecks.bluebook "Privacy" do
+  vision "Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI."
+  supporting
+
+  # A DOMAIN ATTACHING THIS NEVER MARKS ITSELF — `Mark`'s `role
+  # "Deployment"` matches every other wiring-time command in this
+  # codebase (`Hecksagon::UsesFramework`, `Tenancy::Tenant.Register`):
+  # something outside the domain's own bluebook decides a field is
+  # sensitive, the same way persistence binds are a wiring decision
+  # and not baked into an aggregate's own declaration.
+  aggregate "Marking" do
+    description "One attribute of one domain's own aggregate, flagged sensitive — and the role required to read it unredacted."
+
+    attribute :domain,         MarkingDomain
+    attribute :attribute_path, AttributePath
+    attribute :category,       Category
+    attribute :role_required,  RoleName
+
+    identified_by :domain, :attribute_path
+
+    value_object "MarkingDomain" do
+      attribute :value, String
+      invariant("a marking names the domain it applies to") { !value.to_s.empty? }
+    end
+
+    # DOTTED, same convention Forms' own `Field#path` and a query's
+    # cross-object `where` clause already use — `"attendee.medications"`,
+    # not a bare leaf name, so a marking can reach into a nested value
+    # object rather than only a top-level attribute.
+    value_object "AttributePath" do
+      attribute :value, String
+      invariant("a marking names an attribute path") { !value.to_s.empty? }
+    end
+
+    # OPEN-ENDED ON PURPOSE — "pii", "phi", whatever else a consuming
+    # domain finds itself needing, none of it enumerated here. This
+    # bluebook is the mechanism (mark, gate, redact); it does not also
+    # own the vocabulary of sensitivity categories that exist in the
+    # world.
+    value_object "Category" do
+      attribute :value, String
+      invariant("a marking is categorized") { !value.to_s.empty? }
+    end
+
+    value_object "RoleName" do
+      attribute :value, String
+      invariant("reading a marked field unredacted requires a named role") { !value.to_s.empty? }
+    end
+
+    command "Mark" do
+      role "Deployment"
+      goal "Flag one attribute of a domain's own aggregate as sensitive, gating who may read it unredacted"
+
+      attribute :domain,         MarkingDomain
+      attribute :attribute_path, AttributePath
+      attribute :category,       Category
+      attribute :role_required,  RoleName
+
+      emits Marked
+    end
+
+    command "Unmark" do
+      role "Deployment"
+      goal "Remove a sensitivity flag from an attribute"
+
+      reference_to Marking
+
+      emits Unmarked
+    end
+
+    query "ForDomain" do
+      description "Every marking declared for one domain, read by whatever gates or redacts that domain's own records."
+      attribute :domain, MarkingDomain
+      where(domain: :domain)
+    end
+  end
+end

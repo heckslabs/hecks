@@ -1,0 +1,25 @@
+{
+  "name": "privacy-parity",
+  "note": "Mark one attribute of a foreign domain's aggregate sensitive, then unmark it — proves Mark/Unmark both work end to end, composite identity (domain, attribute_path) included.",
+  "expectations": {
+    "events": 2
+  },
+  "steps": [
+    {
+      "verb": "Privacy::Marking.Mark",
+      "args": {
+        "domain": { "value": "Lifeadelics::Registration" },
+        "attribute_path": { "value": "attendee.medications" },
+        "category": { "value": "phi" },
+        "role_required": { "value": "Privacy officer" }
+      }
+    },
+    {
+      "verb": "Privacy::Marking.Unmark",
+      "args": {
+        "domain": { "value": "Lifeadelics::Registration" },
+        "attribute_path": { "value": "attendee.medications" }
+      }
+    }
+  ]
+}
