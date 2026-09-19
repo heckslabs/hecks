@@ -1564,7 +1564,7 @@ mod tests {
         )
         .await;
         let (wasm, ir) = console_fixture();
-        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1) };
+        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
         let invoker = crate::lambda_client::NeverInvoker;
 
         // Nothing saved yet — every section empty, the same answer the
@@ -1634,7 +1634,7 @@ mod tests {
         )
         .await;
         let (wasm, ir) = console_fixture();
-        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1) };
+        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
         let invoker = crate::lambda_client::NeverInvoker;
 
         let mut bad = every_state_styled();
@@ -1662,7 +1662,7 @@ mod tests {
         let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_bad_body").await;
         crate::dispatch::tests::provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event"]).await;
         let (wasm, ir) = console_fixture();
-        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1) };
+        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
 
         let refused = presentation_save(
             &ir,
@@ -1687,7 +1687,7 @@ mod tests {
         crate::dispatch::tests::provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
         let wasm = crate::dispatch::tests::wasm_path();
         let ir = banking_ir();
-        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1) };
+        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
 
         let refused = presentation_save(
             &ir,
@@ -1713,7 +1713,7 @@ mod tests {
         crate::dispatch::tests::provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
         let wasm = crate::dispatch::tests::wasm_path();
         let ir = banking_ir();
-        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1) };
+        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
         let invoker = crate::lambda_client::NeverInvoker;
 
         let created = collection_create(

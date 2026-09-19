@@ -332,6 +332,17 @@ pub async fn handle(
                 .get("aggregate")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("mutation record missing \"aggregate\": {mutation}"))?;
+            // ONLY WHAT THE IR CALLS LINEAGE-CAPABLE. `era.is_some()`
+            // above says the lineage SUBSYSTEM exists; it does not say
+            // this particular aggregate has an era-shaped mirror to
+            // write into. `mint` provisions head snapshots for exactly
+            // the capable set, so mirroring anything outside it upserts
+            // into a relation nobody ever created — see
+            // `LineageConfig::mirrored`'s own comment for the live
+            // outage that was.
+            if !config.mirrors(aggregate) {
+                continue;
+            }
             let id = mutation
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -639,15 +650,108 @@ pub(crate) mod tests {
             let snapshot_table = journal::qualified_name(domain, &format!("{}_head_snapshot_{era}", journal::snake(name)));
             client
                 .batch_execute(&format!(
-                    "CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"
+                    "CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, \
+                     operation text NOT NULL DEFAULT 'save', state jsonb)"
                 ))
                 .await
                 .unwrap();
         }
     }
 
+    /// THE LIVE OUTAGE, PINNED. `era.is_some()` and "this aggregate has
+    /// an era-shaped mirror" are different questions, and treating them
+    /// as one killed every write embryonautfoundersapp ever attempted:
+    /// ADR 0034 turns the lineage subsystem on for any domain with
+    /// Google auth, so `era` was `Some(2)`, while its IR declared
+    /// `capable_aggregates: []`, so `mint` had provisioned no head
+    /// snapshot for anything. The first mutation upserted into a
+    /// relation nobody had ever created.
+    #[tokio::test]
+    async fn a_domain_whose_ir_declares_nothing_lineage_capable_mirrors_nothing_and_still_writes() {
+        let client = scratch_db("rust_host_mirrors_nothing").await;
+        {
+            let guard = client.lock().await;
+            // The era exists and its journal is partitioned — but NO
+            // head snapshot for Customer, exactly as `mint` leaves a
+            // domain with an empty capable set.
+            guard.batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)").await.unwrap();
+            guard.execute("INSERT INTO hecks_eras (domain, ordinal, held_text) VALUES ('Banking', 1, 'test')", &[]).await.unwrap();
+            guard
+                .batch_execute(
+                    "CREATE TABLE IF NOT EXISTS hecks_journal_banking (ordinal bigserial PRIMARY KEY, era int NOT NULL, \
+                     aggregate text NOT NULL, aggregate_id text NOT NULL, operation text NOT NULL, state jsonb)",
+                )
+                .await
+                .unwrap();
+        }
+        let wasm = wasm_path();
+        let invoker = crate::lambda_client::NeverInvoker;
+        let open = register("CUST-1");
+
+        // Mirroring everything — the behaviour before this field existed
+        // — is the outage: there is no head snapshot to upsert into.
+        let everything = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
+        let refused = handle_facts(&client, &wasm, "Banking::Customer.Register", open.clone(), None, &everything, &invoker).await;
+        let message = match refused {
+            Ok(_) => panic!("expected the missing-relation failure"),
+            Err(e) => format!("{e:#}"),
+        };
+        assert!(message.contains("banking_customer_head_snapshot_1"), "names the relation it could not write: {message}");
+        assert!(message.contains("does not exist"), "carries the database's own words: {message}");
+        assert!(message.contains("Banking::Customer"), "names the record: {message}");
+
+        // Mirroring what the IR actually declares — nothing — writes
+        // cleanly, into this crate's own journal.
+        let declared = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: Some(std::collections::BTreeSet::new()),
+        };
+        let outcome = handle_facts(&client, &wasm, "Banking::Customer.Register", open, None, &declared, &invoker)
+            .await
+            .expect("writes");
+        assert!(outcome.accepted, "{}", outcome.result);
+
+        let guard = client.lock().await;
+        let journalled: i64 = guard.query_one("SELECT count(*) FROM hecks_lambda_journal", &[]).await.unwrap().get(0);
+        assert_eq!(journalled, 1, "durable in this crate's own journal, which is what `read` replays");
+        let mirror: Option<String> =
+            guard.query_one("SELECT to_regclass('banking_customer_head_snapshot_1')::text", &[]).await.unwrap().get(0);
+        assert!(mirror.is_none(), "and no mirror was invented for an aggregate the IR never called capable");
+    }
+
+    /// The other half: an aggregate the IR DOES call capable is still
+    /// mirrored, unchanged.
+    #[tokio::test]
+    async fn an_aggregate_the_ir_declares_capable_is_still_mirrored() {
+        let client = scratch_db("rust_host_mirrors_the_capable_one").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: Some(["Banking::Customer".to_string()].into_iter().collect()),
+        };
+
+        handle_facts(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-2"),
+            None,
+            &config,
+            &crate::lambda_client::NeverInvoker,
+        )
+        .await
+        .expect("writes");
+
+        let guard = client.lock().await;
+        let mirrored: i64 =
+            guard.query_one("SELECT count(*) FROM banking_customer_head_snapshot_1", &[]).await.unwrap().get(0);
+        assert_eq!(mirrored, 1);
+    }
+
     fn test_config(domain: &str, era: i32) -> LineageConfig {
-        LineageConfig { domain: domain.to_string(), era: Some(era) }
+        LineageConfig { domain: domain.to_string(), era: Some(era), mirrored: None }
     }
 
     pub(crate) fn wasm_path() -> std::path::PathBuf {

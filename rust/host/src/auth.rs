@@ -847,7 +847,7 @@ mod tests {
         std::env::set_var("HECKS_MEMBERSHIP_AGGREGATE", "Member");
         let domain_ir = member_domain_ir();
         let db = scratch_member_db("hecks_host_auth_test_append_member").await;
-        let config = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1) };
+        let config = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None };
         {
             let guard = db.lock().await;
             // ordinal 0 -- BELOW anything the fresh journal's own

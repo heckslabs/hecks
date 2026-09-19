@@ -20,6 +20,7 @@
 // end up in `refusals` is the newest one, appended last. That's the
 // entire correctness argument `append_if_accepted` below leans on.
 
+use anyhow::Context;
 use sha2::{Digest, Sha256};
 use tokio_postgres::{Client, GenericClient};
 
@@ -401,6 +402,38 @@ pub async fn delete_saga<C: GenericClient>(
 pub struct LineageConfig {
     pub domain: String,
     pub era: Option<i32>,
+    /// WHICH AGGREGATES GET MIRRORED into Ruby's era-shaped head
+    /// snapshots — the IR's own `lineage.capable_aggregates`, by
+    /// qualified name. `None` means "every one", which is what every
+    /// caller meant before this field existed.
+    ///
+    /// IT IS NOT THE SAME QUESTION AS `era`, and conflating the two was
+    /// a real production outage. `era` is `Some` whenever the lineage
+    /// SUBSYSTEM is provisioned at all — and ADR 0034 turns that on for
+    /// any domain with Google auth configured, because `auth.rs`'s own
+    /// Member sessions need `hecks_eras` present regardless of what
+    /// anything binds to. That said nothing about whether a given
+    /// aggregate has an era-shaped mirror to write into. A domain whose
+    /// every aggregate binds to plain `Postgres` declares
+    /// `capable_aggregates: []`, so `mint` provisions no head snapshots
+    /// at all — while `era` was `Some`, so every write tried to upsert
+    /// one anyway and died on `relation ... does not exist`. Found live:
+    /// embryonautfoundersapp, whose `hecks_lambda_journal` was empty
+    /// because no write it ever attempted could succeed.
+    pub mirrored: Option<std::collections::BTreeSet<String>>,
+}
+
+impl LineageConfig {
+    /// Is this aggregate's mutation mirrored into the era-shaped head
+    /// snapshots? Asked by qualified name (`"ConsoleSettings::StateStyle"`),
+    /// which is exactly what `ir::lineage_capable_aggregates` returns
+    /// and what a kernel mutation record carries.
+    pub fn mirrors(&self, qualified_aggregate: &str) -> bool {
+        match &self.mirrored {
+            None => true,
+            Some(capable) => capable.contains(qualified_aggregate),
+        }
+    }
 }
 
 /// `Naming.snake` (lib/hecks/naming.rb:30-35), ported verbatim — a
@@ -604,6 +637,16 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     let snapshot = head_snapshot_table(&config.domain, mutation.aggregate, era);
     let storage = storage_name(mutation.aggregate);
 
+    // NAMED, NOT BARE. `tokio_postgres::Error`'s own `Display` for a
+    // database error is the literal string "db error" and nothing else
+    // — the real message ("relation ... does not exist") lives on its
+    // `source()`. A `?` straight out of here therefore reached the
+    // Lambda runtime as `{"errorMessage": "db error"}`, with CloudWatch
+    // showing only START/END/REPORT: an outage whose cause could not be
+    // read from anywhere the operator could see, and which took an RDS
+    // error-log download to identify. Every statement below now says
+    // which relation it was writing; `main.rs` formats the whole chain
+    // with `{:#}`, so the source travels with it.
     let row = client
         .query_one(
             &format!(
@@ -613,7 +656,8 @@ pub async fn append_lineage_mutation<C: GenericClient>(
             ),
             &[&era, &storage, &mutation.id, &mutation.operation, &mutation.state],
         )
-        .await?;
+        .await
+        .with_context(|| format!("journalling {} #{} into {journal} at era {era}", mutation.aggregate, mutation.id))?;
     let ordinal: i64 = row.get(0);
 
     client
@@ -626,7 +670,8 @@ pub async fn append_lineage_mutation<C: GenericClient>(
             ),
             &[&mutation.id, &ordinal, &mutation.state],
         )
-        .await?;
+        .await
+        .with_context(|| format!("upserting {} #{} into {snapshot}", mutation.aggregate, mutation.id))?;
 
     Ok(())
 }
@@ -858,7 +903,7 @@ mod lineage_tests {
         let state = serde_json::json!({ "cents": 100 });
 
         // The era this checkout speaks -- allowed.
-        let current_era = LineageConfig { domain: "Ledger".to_string(), era: Some(2) };
+        let current_era = LineageConfig { domain: "Ledger".to_string(), era: Some(2), mirrored: None };
         let accepted = append_lineage_mutation(
             &client,
             &current_era,
@@ -868,7 +913,7 @@ mod lineage_tests {
         assert!(accepted.is_ok(), "writing under the CURRENT era should succeed: {accepted:?}");
 
         // The SUPERSEDED era -- refused by Postgres's own RLS policy.
-        let stale_era = LineageConfig { domain: "Ledger".to_string(), era: Some(1) };
+        let stale_era = LineageConfig { domain: "Ledger".to_string(), era: Some(1), mirrored: None };
         let refused = append_lineage_mutation(
             &client,
             &stale_era,
@@ -1048,7 +1093,7 @@ mod lineage_tests {
             .await
             .unwrap();
 
-        let config = LineageConfig { domain: "Fixtures".to_string(), era: Some(1) };
+        let config = LineageConfig { domain: "Fixtures".to_string(), era: Some(1), mirrored: None };
         client
             .batch_execute("CREATE TABLE IF NOT EXISTS hecks_journal_fixtures (ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL, aggregate_id text NOT NULL, operation text NOT NULL, state jsonb)")
             .await
