@@ -8,7 +8,7 @@
 // by instances()) need no import, but save() does.
 use crate::kernel::Repository;
 
-// `Clone` — a DRY RUN (`cli::run`'s `{"dry_run": …}` step, `cli::serve`'s
+// `Clone` — a dry run (`cli::run`'s `{"dry_run": …}` step, `cli::serve`'s
 // `snapshot`/`restore`) dispatches against a throwaway copy of the whole
 // store: givens, mutations, ensures all run for real, nothing is kept.
 #[derive(Clone)]
@@ -65,10 +65,10 @@ if let Some(id) = key.strip_prefix("Governance::RoleTransition#") {
     }
 }
 
-/// `AggregateScan` — kernel/repository.rs's own trait, given a REAL
+/// `AggregateScan` — kernel/repository.rs's own trait, given a real
 /// per-aggregate body here: one `if` per aggregate this domain declared,
 /// the same "Domain::Aggregate" prefix `instances()`'s own dump arms
-/// already use, each returning that ONE aggregate's own (id, to_json())
+/// already use, each returning that one aggregate's own (id, to_json())
 /// listing straight off its repository's `entries()`. Falls through to
 /// the trait's own default (`None`) for any prefix that matches none of
 /// them — kernel/cli.rs turns that into a clean "unknown aggregate"
@@ -144,12 +144,12 @@ pub fn dispatch_by_name(
     }
 }
 
-/// Ruby's own event payload is `payload: args` — the WHOLE hash the
+/// Ruby's own event payload is `payload: args` — the whole hash the
 /// caller passed to `dispatch`, not filtered to the command's own
 /// declared attributes (an identity-reference argument like
 /// `number:` is not a declared `CreditArgs` field, and still shows
 /// up on `AccountCredited`'s payload). `args.to_json()` inside each
-/// generated `dispatch_*` only ever sees the NARROWED, typed args
+/// generated `dispatch_*` only ever sees the narrowed, typed args
 /// struct, so it structurally can't reproduce that — this replaces
 /// whatever payload the generated dispatch built with the raw,
 /// unfiltered `args_json` this router itself received, after the
