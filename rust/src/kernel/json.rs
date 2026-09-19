@@ -163,11 +163,28 @@ impl Json {
     /// `numeric_field` template: `"{type}.{field} expects {expected},
     /// got {offered}"` — `offered` is `value.inspect`, read directly). A
     /// String gets quoted (the same escaping `write_escaped_string`
-    /// already does for the wire format); a number/bool prints bare;
-    /// `nil`/arrays/objects are never actually offered where this is
-    /// called (an Integer/Float-typed field's own wrong-shape value is
-    /// always a scalar or explicit JSON `null` in practice) but fall
-    /// back to something reasonable rather than panicking.
+    /// already does for the wire format); a number/bool prints bare.
+    ///
+    /// An Array IS actually offered here in practice — BUG#144: a
+    /// single-attribute closed-set (`one_of`) value object auto-wraps
+    /// any bare, non-Hash argument into its one attribute's slot
+    /// untouched (`Value.fields_for`'s own coercion, admission.rb's own
+    /// comment), so `Chess::Game.DeclineDraw given by: [5, 4]` hands
+    /// `admit_member` the raw Array `[5, 4]` as `offered`, and Ruby's
+    /// `Array#inspect` — called on that raw Array, `admission.rb`'s
+    /// `offered.inspect` — spells it `"[5, 4]"`, comma AND a space, each
+    /// element inspected the same recursive way. `to_json_string`'s own
+    /// compact wire format (`"[5,4]"`, no space) is NOT that, so it
+    /// can no longer be the fallback for this case.
+    ///
+    /// An Object stays on the `to_json_string` fallback below: the one
+    /// call site that offers a Hash-shaped value here
+    /// (`admit_declared_set`) only ever does so for a value already
+    /// rendered/compared as compact JSON on the Ruby side too (`given
+    /// {"file":830,"rank":514}`, not `Hash#inspect`'s own `=>`-arrow
+    /// spelling), so `to_json_string` is already the correct match for
+    /// THAT shape — this is a per-type fix, not a switch to one
+    /// unified format.
     pub fn inspect(&self) -> String {
         match self {
             Json::Str(s) => {
@@ -176,12 +193,23 @@ impl Json {
                 out
             }
             Json::Null => "nil".to_string(),
-            // Num/Bool/Array/Object — `to_json_string`'s own rendering
-            // already matches Ruby's `.inspect` for a number or bool
-            // (no quotes, same digit formatting `write`'s own fract==0.0
-            // branch already gives); arrays/objects are never actually
-            // offered here in practice, so this is a reasonable fallback
-            // rather than a precise match for THAT case.
+            Json::Array(items) => {
+                let mut out = String::from("[");
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    out.push_str(&item.inspect());
+                }
+                out.push(']');
+                out
+            }
+            // Num/Bool/Object — `to_json_string`'s own rendering already
+            // matches Ruby's `.inspect` for a number or bool (no quotes,
+            // same digit formatting `write`'s own fract==0.0 branch
+            // already gives), and for Object matches what this call
+            // site's own Hash case already renders on the Ruby side too
+            // (see this method's own doc comment, above).
             _ => self.to_json_string(),
         }
     }
