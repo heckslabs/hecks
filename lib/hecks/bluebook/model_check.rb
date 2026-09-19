@@ -127,20 +127,28 @@ module Hecks
       #   sibling wiring file, if the caller loaded one
       # @param known_domains [Set<String>, nil] every bluebook/hecksagon
       #   name the caller has booted anywhere in this corpus scan
+      # @param global_emitted_events [Set<String>, nil] every bare event
+      #   name any domain the caller has booted this run emits — lets a
+      #   same-domain-target policy (e.g. one built by `translates`)
+      #   reacting to a genuinely foreign event avoid a false `deaf_policy`
+      #   finding; `nil` (every pre-existing call site) keeps today's
+      #   single-domain-only check
       # @param rust_target [Boolean] whether this domain has a real Rust
       #   target, raising `rust_reserved_name` findings to error
       # @param strict [Boolean] whether to raise every `rust_reserved_name`
       #   finding to error regardless of `rust_target`
       # @return [Array<Finding>] every finding this bluebook triggers,
       #   across its lifecycles, sagas, policies, and Rust-reserved names
-      def call(bluebook, hecksagon: nil, known_domains: nil, rust_target: false, strict: false)
+      def call(bluebook, hecksagon: nil, known_domains: nil, global_emitted_events: nil, rust_target: false, strict: false)
         findings = []
         bluebook.aggregates.each do |aggregate|
           findings.concat(lifecycle_findings(aggregate, aggregate))
           aggregate.entities.each { |entity| findings.concat(lifecycle_findings(aggregate, entity)) }
         end
         bluebook.process_managers.each { |process_manager| findings.concat(saga_findings(bluebook, process_manager)) }
-        bluebook.policies.each { |policy| findings.concat(policy_findings(bluebook, policy, hecksagon, known_domains)) }
+        bluebook.policies.each do |policy|
+          findings.concat(policy_findings(bluebook, policy, hecksagon, known_domains, global_emitted_events))
+        end
         findings.concat(rust_reserved_name_findings(domain_name: bluebook.name,
                                                     aggregate_names: bluebook.aggregates.map(&:hecks_name),
                                                     rust_target: rust_target, strict: strict))
@@ -635,7 +643,7 @@ module Hecks
       # @return [Array<Finding>] every `deaf_policy`/`unknown_trigger`
       #   finding this policy triggers, or `cross_domain_policy_findings`'s
       #   own return for a cross-domain policy
-      def policy_findings(bluebook, policy, hecksagon, known_domains)
+      def policy_findings(bluebook, policy, hecksagon, known_domains, global_emitted_events = nil)
         return cross_domain_policy_findings(policy, hecksagon, known_domains) if policy.target_domain
 
         emitted = emitted_events(bluebook)
@@ -652,7 +660,18 @@ module Hecks
         # prior aggregate-scoped policy (ReviewOnFreeze) is also cross-domain
         # (`across "Compliance"`), which exits this method one line above
         # before the mismatch is ever reached.
-        unless emitted.include?(policy.event_name)
+        # `global_emitted_events` — a `translates` (hecksagon-level)
+        # reaction is BUILT as the exact same same-domain-target `Policy`
+        # an ordinary `policy` block is (no `target_domain`, so it never
+        # reaches `cross_domain_policy_findings` above), but its whole
+        # point is to react to a FOREIGN domain's own event — this
+        # domain's own `emitted_events(bluebook)` was never going to
+        # contain it. Checked only as a FALLBACK, after the local check
+        # already failed, so a real same-domain typo still gets flagged
+        # exactly as before whenever the caller has no cross-domain set
+        # to offer (nil — every existing call site, unchanged) or the
+        # event genuinely isn't emitted anywhere this run examined.
+        unless emitted.include?(policy.event_name) || global_emitted_events&.include?(policy.event_name)
           findings << Finding.new(kind: :deaf_policy, severity: :error, subject: policy.name,
                                   message: "on #{policy.on_event.inspect}, which no command in this domain emits")
         end
