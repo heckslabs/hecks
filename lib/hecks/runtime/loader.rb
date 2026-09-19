@@ -188,7 +188,7 @@ module Hecks
         settings = registry.world(domain)&.for_verb("dispatched_by") || {}
         return Dispatcher.new(registry) unless settings[:adapter] == "Lambda"
 
-        RemoteDispatcher.new(registry, region: settings.fetch(:region, "us-east-1"))
+        RemoteDispatcher.new(registry, region: settings.fetch(:region, "us-east-1"), function: settings[:function])
       end
 
       # THE DOOR IS INSTALLED HERE, NOT STAMPED. This used to write the
