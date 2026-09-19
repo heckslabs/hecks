@@ -93,17 +93,26 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
 
 /// Every live `state` document for one ConsoleSettings aggregate.
 ///
-/// TWO CANDIDATE NAMES, IN ORDER. docs/decisions/0059 domain-qualifies
-/// every head relation (`console_settings_state_style_head`), which is
-/// what `journal::head_view` derives today and what a freshly-minted
-/// ConsoleSettings chapter therefore has. Rows minted BEFORE that
-/// decision still sit in the unqualified relation Ruby used to derive
-/// (`state_style_head`) — and the console app that wrote them vendors
-/// its own older copy of the runtime, so it is still writing there.
-/// Checking both, qualified first, is what lets this read the real
-/// config either side of that rename instead of silently reporting an
-/// empty one; it is a resolution step, not a fallback that hides an
-/// error (a relation that exists but fails to read still errors).
+/// THREE CANDIDATE NAMES, IN ORDER, because three different Ruby
+/// runtimes have written these rows and each derived its own relation
+/// name — all three answering the same two columns (`id`, `state`
+/// jsonb), which is the only part this module actually depends on.
+///
+///   1. `console_settings_state_style_head` — the era head view as
+///      docs/decisions/0059 qualifies it, what `journal::head_view`
+///      derives today.
+///   2. `state_style_head` — the same view before that decision, which
+///      is where the real live rows are: the console app that wrote
+///      them runs its own older copy of the runtime.
+///   3. `state_style` — the flat table today's `Adapters::Postgres`
+///      creates and reads for a `persisted_by("Postgres")` binding
+///      (`table = aggregate.storage_name`), i.e. where a console
+///      booted against current hecks would put them.
+///
+/// First one that exists wins. This is a resolution step, not a
+/// fallback that hides an error: a relation that exists but fails to
+/// read still errors, and an empty answer is only ever reported for a
+/// domain with none of the three.
 async fn read_head_states<C: GenericClient>(client: &C, storage_name: &str) -> anyhow::Result<Vec<Value>> {
     for relation in head_view_candidates(CONFIG_DOMAIN, storage_name) {
         if !relation_exists(client, &relation).await? {
@@ -117,17 +126,12 @@ async fn read_head_states<C: GenericClient>(client: &C, storage_name: &str) -> a
     Ok(Vec::new())
 }
 
-/// Pure, and tested as such: the qualified name this runtime derives,
-/// then the unqualified one Ruby derived before docs/decisions/0059.
-/// Deduplicated, so a domain whose qualification is a no-op never
-/// probes the same relation twice.
+/// Pure, and tested as such. Deduplicated, so a domain whose own
+/// qualification happens to be a no-op never probes one relation twice.
 fn head_view_candidates(domain: &str, storage_name: &str) -> Vec<String> {
-    let qualified = journal::head_view(domain, storage_name);
-    let legacy = format!("{storage_name}_head");
-    if qualified == legacy {
-        return vec![qualified];
-    }
-    vec![qualified, legacy]
+    let mut candidates = vec![journal::head_view(domain, storage_name), format!("{storage_name}_head"), storage_name.to_string()];
+    candidates.dedup();
+    candidates
 }
 
 /// `to_regclass` resolves through the connection's own `search_path`
@@ -375,10 +379,14 @@ mod tests {
     // `PresentationConfig.load` builds out of the same rows.
 
     #[test]
-    fn head_view_candidates_tries_the_qualified_name_then_the_pre_0059_one() {
+    fn head_view_candidates_cover_every_relation_a_ruby_runtime_has_written_these_rows_to() {
         assert_eq!(
             head_view_candidates("ConsoleSettings", "state_style"),
-            vec!["console_settings_state_style_head".to_string(), "state_style_head".to_string()]
+            vec![
+                "console_settings_state_style_head".to_string(),
+                "state_style_head".to_string(),
+                "state_style".to_string()
+            ]
         );
     }
 
