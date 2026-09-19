@@ -552,7 +552,7 @@ pub async fn query(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use tokio_postgres::NoTls;
 
@@ -563,7 +563,7 @@ mod tests {
     // to. Uniquely named per test (not one shared scratch DB) so
     // `cargo test`'s default parallelism doesn't race two tests
     // against the same journal table.
-    async fn scratch_db(name: &str) -> Mutex<Client> {
+    pub(crate) async fn scratch_db(name: &str) -> Mutex<Client> {
         let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
             .await
             .expect("connect to postgres");
@@ -598,7 +598,7 @@ mod tests {
     // current_era's own query only ever reads domain/ordinal, so a
     // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
     // runs for real.
-    async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
+    pub(crate) async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
         // `int`, matching Ruby's real DDL (era_store.rb's `ordinal int
         // NOT NULL`, provisioning.rb's `era int NOT NULL`) exactly —
         // LineageConfig::era is i32 for the same reason: tokio_postgres
@@ -650,7 +650,7 @@ mod tests {
         LineageConfig { domain: domain.to_string(), era: Some(era) }
     }
 
-    fn wasm_path() -> std::path::PathBuf {
+    pub(crate) fn wasm_path() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.wasm")
     }
 
