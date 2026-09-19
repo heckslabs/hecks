@@ -33,8 +33,7 @@
       "verb": "Privacy::SubjectKey.Shred",
       "args": {
         "domain": { "value": "Lifeadelics::Registration" },
-        "subject_id": { "value": "attendee-482" },
-        "occurred_at": { "value": 1758000000 }
+        "subject_id": { "value": "attendee-482" }
       }
     }
   ]

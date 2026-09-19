@@ -90,7 +90,6 @@ Hecks.bluebook "Privacy" do
     attribute :domain,        KeyDomain
     attribute :subject_id,    SubjectId
     attribute :key_reference, KeyReference
-    attribute :shredded_at,   Timestamp, optional: true
 
     identified_by :domain, :subject_id
 
@@ -109,8 +108,11 @@ Hecks.bluebook "Privacy" do
       invariant("a key carries the vault's own opaque reference to it") { !value.to_s.empty? }
     end
 
-    value_object "Timestamp" do
-      attribute :value, Integer
+    # `Shred`'s own guard against running twice — the same mechanism
+    # `Compliance::PrivacyReview`'s `Clear`/`Escalate` already use rather
+    # than an optional timestamp plus a hand-written `given`.
+    lifecycle :status, default: "active" do
+      transition "Shred" => "shredded", from: "active"
     end
 
     command "Issue" do
@@ -139,11 +141,6 @@ Hecks.bluebook "Privacy" do
       goal "Mark this subject's key destroyed, so its ciphertext is recorded as permanently unrecoverable"
 
       reference_to SubjectKey
-      attribute :occurred_at, Timestamp
-
-      given("not already shredded") { shredded_at.unset? }
-
-      sets :shredded_at, to: :occurred_at
 
       emits SubjectKeyShredded
     end
