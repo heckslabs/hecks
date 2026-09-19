@@ -134,8 +134,12 @@ subagent's judgments:
 2. **If genuine:** promote it, `bin/qa_generated_domains --promote
    <finding-dir> --name <stress_domain_name>` (the report's `promote:`
    line). That copies the minimal domain into `qa/stress_domains/`, renamed,
-   with a NOTES.md. Then follow the printed next steps, `target.identify`
-   last. The next sweep of that target surprises the ordinary way, and the
+   with a NOTES.md. Then follow the printed next steps, `bin/qa_seed_targets`
+   last — it derives the rotation from the corpus
+   (`Hecks::Corpus.rotation_targets`), so a promoted domain is a target by
+   virtue of being on disk, and nobody has to remember an `identify` line.
+   Forgetting it is how ten stress domains went unswept. The next sweep of
+   that target surprises the ordinary way, and the
    "On a finding" section above applies from there: the failing test, then
    `bin/qa_log_bug`.
 3. **If an artifact of the generator itself:** say so in your report. A

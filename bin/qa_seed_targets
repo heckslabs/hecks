@@ -43,24 +43,25 @@ require "hecks"
 # has to be loaded before `Hecks.boot` for a real (non-Memory) adapter.
 require "hecks/ports/persistence/plugins/era"
 require "hecks/fuzzing"
+require "hecks/corpus"
 
 ROOT       = File.expand_path("..", __dir__)
 DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
 
 # reference => path, relative to the repository root exactly the way
-# `Target.path` is stored and `bin/qa_sweep` resolves it.
-SEED = {
-  "pizzas"          => "examples/pizzas",
-  "banking"         => "examples/banking",
-  "chess"           => "examples/chess",
-  "compliance"      => "examples/compliance",
-  "roster"          => "examples/roster",
-  "directory"       => "examples/directory",
-  "waybill"         => "qa/stress_domains/waybill",
-  "nested_pieces"   => "qa/stress_domains/nested_pieces",
-  "ledger_ordering" => "qa/stress_domains/ledger_ordering",
-  "quality_control" => "qa/bluebook"
-}.freeze
+# `Target.path` is stored and `bin/qa_sweep` resolves it — DISCOVERED,
+# not typed. This was a literal hash, and it had gone stale the way a
+# hand-kept list of something the filesystem already knows always does:
+# it named three of the thirteen stress domains, so `case_escalation`,
+# `corrections`, `lease_clock`, `referral_chain`, `tenant_ledger` and all
+# five promoted `generated_*` domains had never been swept once —
+# authored, argued for in their own NOTES.md, and invisible to the
+# rotation, because a `Target` row is what puts a domain in it.
+# `Hecks::Corpus.rotation_targets` reads the corpus instead (that
+# method's own comment has the rest), so a domain added under `examples/`
+# or `qa/stress_domains/` joins the rotation the next time this runs,
+# with no second edit anywhere.
+SEED = Hecks::Corpus.rotation_targets(root: ROOT)
 
 runtime = begin
   Hecks.boot(DOMAIN_DIR)

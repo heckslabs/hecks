@@ -145,6 +145,29 @@ module Hecks
       members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
     end
 
+    # THE LEDGER SWEEPS ITSELF — its own chapter is a domain like any
+    # other, and the one rotation member that is neither an example nor a
+    # stress domain.
+    ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
+
+    # WHAT THE QA ROTATION IS MADE OF — every example and stress domain
+    # this repository owns, plus the ledger, as `reference => repo-relative
+    # path`: exactly the shape `Target.path` is stored in.
+    #
+    # DERIVED, BECAUSE THE HAND-KEPT VERSION SILENTLY WENT STALE.
+    # `bin/qa_seed_targets` carried a literal list naming three of the
+    # thirteen stress domains; the other ten were authored, argued for in
+    # their own NOTES.md, several promoted by `bin/qa_generated_domains
+    # --promote` — and never swept once, because a `Target` row is what
+    # puts a domain in the rotation and nothing tied that list to the
+    # corpus. Promotion only ever PRINTED the `target.identify` line for a
+    # human to run.
+    def rotation_targets(root: ROOT)
+      members(:example, :stress, root: root)
+        .to_h { |member| [member.stem, member.path.delete_prefix("#{root}/")] }
+        .merge(ROTATION_LEDGER)
+    end
+
     # EVERY BOOTABLE DOMAIN IN THE PROJECT, not a hand-kept list — any
     # directory holding a `.bluebook` no ROUTE sends elsewhere, a
     # `bluebook/` folder standing for the domain directory around it.
