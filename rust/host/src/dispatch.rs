@@ -521,8 +521,38 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
     Ok(serde_json::from_str(&output)?)
 }
 
+/// A DECLARED QUERY, ANSWERED — the kernel's own `{"query"}` step
+/// shape (rust/src/kernel/cli.rs), run against current state.
+///
+/// Seeds from `read` above rather than replaying history itself, which
+/// is what keeps this honest about cost AND about correctness: `read`
+/// already owns the snapshot fast path and the self-healing tail
+/// replay, so a query sees exactly the state a read would report, and
+/// pays one wasm invocation at most (none of the replay `handle` does,
+/// since nothing is written).
+///
+/// `question` is the qualified `Domain::Aggregate.QueryName` Ruby's own
+/// `Dispatcher#query` takes; `args` is the same argument hash, value
+/// objects wrapped the way the kernel's own arg check expects. Returns
+/// the kernel's whole output — the caller reads `["queries"][0]`, which
+/// carries either `rows` or an `error`, exactly as a refused query step
+/// reports it (`rows: null` plus `error`, never a bare absence).
+pub async fn query(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    question: &str,
+    args: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
+    let state = read(client, wasm_path).await?;
+    let seed = state.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
+    let input = serde_json::json!({ "seed": seed, "steps": [{ "query": question, "args": args }] }).to_string();
+    let owned_wasm_path = wasm_path.to_path_buf();
+    let output = tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
+    Ok(serde_json::from_str(&output)?)
+}
+
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use tokio_postgres::NoTls;
 
@@ -533,7 +563,7 @@ mod tests {
     // to. Uniquely named per test (not one shared scratch DB) so
     // `cargo test`'s default parallelism doesn't race two tests
     // against the same journal table.
-    async fn scratch_db(name: &str) -> Mutex<Client> {
+    pub(crate) async fn scratch_db(name: &str) -> Mutex<Client> {
         let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
             .await
             .expect("connect to postgres");
@@ -568,7 +598,7 @@ mod tests {
     // current_era's own query only ever reads domain/ordinal, so a
     // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
     // runs for real.
-    async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
+    pub(crate) async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
         // `int`, matching Ruby's real DDL (era_store.rb's `ordinal int
         // NOT NULL`, provisioning.rb's `era int NOT NULL`) exactly —
         // LineageConfig::era is i32 for the same reason: tokio_postgres
@@ -620,7 +650,7 @@ mod tests {
         LineageConfig { domain: domain.to_string(), era: Some(era) }
     }
 
-    fn wasm_path() -> std::path::PathBuf {
+    pub(crate) fn wasm_path() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.wasm")
     }
 
@@ -630,6 +660,51 @@ mod tests {
             "name": { "given": "Ada", "family": "Lovelace" },
             "email": { "address": "ada@example.com" }
         })
+    }
+
+    // `query` above, end to end through the real compiled kernel: a
+    // declared query, answered against whatever state the journal
+    // currently holds — the read path `/api/:coll?query=<name>` needs
+    // (api.rs), which is the console's own live query picker.
+    #[tokio::test]
+    async fn a_declared_query_answers_against_current_state() {
+        let client = scratch_db("rust_host_dispatch_test_query").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0100"), None, &config, &lambda_client::NeverInvoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("registering a customer should succeed");
+
+        // `Customer.Suspended` is `where status == "suspended"` — a
+        // freshly registered customer is active, so the query has to
+        // answer with a real, EMPTY row set, not everything.
+        let before = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.unwrap();
+        assert_eq!(before["queries"][0]["query"], "Banking::Customer.Suspended");
+        assert_eq!(before["queries"][0]["rows"].as_array().expect("rows").len(), 0);
+
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Suspend",
+            serde_json::json!({ "reference": "CUST-0100", "standing": { "value": "watch" } }),
+            None,
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("suspending a customer should succeed");
+
+        let after = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.unwrap();
+        let rows = after["queries"][0]["rows"].as_array().expect("rows");
+        assert_eq!(rows.len(), 1, "the suspended customer should be the one row: {after}");
+        assert_eq!(rows[0]["id"], "CUST-0100");
     }
 
     #[tokio::test]

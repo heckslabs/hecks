@@ -801,6 +801,21 @@ end
 # same kind of union `--self-consistency true` makes, forcing the wave
 # on regardless of what the dial says today.
 enabled_modes |= [:persistence_parity] if force_parity_wave
+
+# ENABLED IS NOT THE SAME AS BUILT. `TargetCapabilities::RUNNABLE_MODES`
+# names the modes this script can actually run; `MODE_REQUIREMENTS` names
+# what each mode would NEED. A dial (or `--modes`) naming a mode with no
+# code behind it used to sail straight through `resolve` and print on the
+# `resolved modes:` line — two of them sat `true` in qa/settings.yml for
+# real sweeps, so the report advertised comparisons nobody had written and
+# no Check was ever logged for them. Refused here, before a target is
+# claimed, rather than resolved into a line that reads like coverage.
+unrunnable = enabled_modes - Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES
+unless unrunnable.empty?
+  abort "enabled mode(s) #{unrunnable.join(',')} have no implementation in bin/qa_sweep " \
+        "(Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES is what exists). Set them false in " \
+        "qa/settings.yml, or drop them from --modes, until the code lands."
+end
 structural_boundary =
   defined?(QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY) ? QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY : []
 
@@ -1699,7 +1714,21 @@ def ruby_only_outcome(domain_path, steps, modes:)
   end
   outcomes
 rescue StandardError => e
-  { ruby_only: [{ field: "crash", detail: "#{e.class}: #{e.message}" }] }
+  # THE CRASH IS ONE MODE'S FINDING, NOT EVERY OTHER MODE'S ABSENCE.
+  # `run_one_seed` logs one Check per KEY of this hash, so collapsing to
+  # `{ ruby_only: … }` meant `self_consistency`/`adapter_parity_sqlite`
+  # logged NOTHING for this seed — the ledger quietly holding fewer checks
+  # than the sweep's own `resolved modes:` line claimed. Each other enabled
+  # mode gets an explicit not-run entry instead, so the seed reads as what
+  # it was: one crash, and the rest never reached.
+  crashed = { ruby_only: [{ field: "crash", detail: "#{e.class}: #{e.message}" }] }
+  %i[self_consistency adapter_parity_sqlite].each do |mode|
+    next unless modes.include?(mode)
+
+    crashed[mode] = [{ field:  "not_checked",
+                       detail: "the Ruby replay crashed before #{mode} ran — #{e.class}: #{e.message}" }]
+  end
+  crashed
 end
 
 def log_check!(sweep, subject:, expectation:)
@@ -1891,9 +1920,23 @@ end
 def era_boundary_check(domain_path)
   result = Hecks::Fuzzing::EraBoundary.diverged_ancestor_writes(domain_path)
   unless result[:checked]
+    # NOTHING TO AUDIT vs COULD NOT AUDIT. Both used to return `clean:
+    # true` with `observation: "not checked — …"`, which this script then
+    # logged as a HELD Check: a refused connection or a `Lineage` defect
+    # counted toward `sweep.made` and the target's clean streak, reading in
+    # the ledger exactly like an audit that ran and found nothing.
+    # `:not_applicable` (no lineage to audit at all) now logs NO Check —
+    # a note, since there was never anything to check. `:error` is a
+    # finding, the same discipline `persistence_parity_outcome`'s own
+    # `[:crash, ...]` already keeps for an operational failure mid-sweep.
+    if result[:kind] == :not_applicable
+      return { mode: :era_boundary, skip: true, observation: "not applicable — #{result[:reason]}" }
+    end
+
     return { mode: :era_boundary, subject: "[era_boundary] #{File.basename(domain_path)} — ancestor-era audit",
-              expectation: MODE_EXPECTATIONS.fetch(:era_boundary), divergences: [], clean: true,
-              observation: "not checked — #{result[:reason]}" }
+             expectation: MODE_EXPECTATIONS.fetch(:era_boundary),
+             divergences: [{ field: "era_boundary_unchecked", detail: result[:reason] }], clean: false,
+             observation: "could not audit — #{result[:reason]}" }
   end
 
   divergences =
@@ -2113,8 +2156,14 @@ begin
   # entirely (it never shares a primary seat with anything: see
   # `SEEDLESS_MODES`), gated only on the mode being active at all and on
   # nothing having surprised yet.
-  if surprise.nil? && active_modes.include?(:era_boundary)
-    check    = era_boundary_check(domain_path)
+  check = era_boundary_check(domain_path) if surprise.nil? && active_modes.include?(:era_boundary)
+  # A target with no lineage to audit logs NO Check — see
+  # `era_boundary_check`'s own comment on why holding one was a lie.
+  if check && check[:skip]
+    puts "  era boundary: #{check[:observation]} — no Check logged"
+    check = nil
+  end
+  if check
     sweep    = log_check!(sweep, subject: check[:subject], expectation: check[:expectation])
     sequence = sweep.checks.last[:sequence][:value]
     if check[:clean]

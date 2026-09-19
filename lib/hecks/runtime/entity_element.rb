@@ -303,15 +303,17 @@ module Hecks
       # do it, the comment this replaces having been written before that
       # domain existed. `element_type` naming an entity rather than a
       # value object falls through to `fields` unchanged, same as
-      # before — `MutationApplier#entity_element`'s own identity-minting/
-      # collision-checking fallback still isn't mirrored here (nothing
-      # in this corpus needs auto-minting at THIS depth — Card supplies
-      # its own identity in the append mapping — and collision-checking
-      # a nested entity is its own separate, unfixed question) — but
-      # BUG#12's fix (below) is: every declared attribute the append
-      # mapping doesn't name gets its own default the same way a fresh
-      # aggregate's own attributes already do (`Instance.defaults`),
-      # whichever branch built `fields`.
+      # before — `MutationApplier#entity_element`'s own identity-minting
+      # fallback still isn't mirrored here (nothing in this corpus needs
+      # auto-minting at THIS depth — Card supplies its own identity in
+      # the append mapping) — but its COLLISION-CHECKING fallback now is
+      # (BUG#145, `check_entity_collision`, below — see its own call
+      # site's comment for why "collision-checking a nested entity is its
+      # own separate, unfixed question," this comment's own prior wording,
+      # stopped being true). BUG#12's fix (below) is likewise shared:
+      # every declared attribute the append mapping doesn't name gets its
+      # own default the same way a fresh aggregate's own attributes
+      # already do (`Instance.defaults`), whichever branch built `fields`.
       def appended_to_element(aggregate, entity, element, mutation, args)
         fields       = mutation.source.transform_values { |source| resolve_element_append_source(source, element, args) }
         element_type = entity.attribute(mutation.target)&.type
@@ -331,7 +333,38 @@ module Hecks
             # rule `EntityBuilder#entity_impl` builds the tree with in
             # the first place.
             nested_entity = entity.entities.find { |piece| piece.hecks_name == element_type.to_s }
-            nested_entity ? fill_declared_defaults(aggregate, nested_entity, fields) : fields
+            if nested_entity
+              # BUG#145 — `MutationApplier#entity_element`'s own
+              # `check_entity_collision` call (one hop up, an AGGREGATE's
+              # own entity list) never had a twin here: a nested entity's
+              # own identity is ALWAYS caller-supplied at this depth
+              # (`Card.sequence` rides the append mapping directly — no
+              # nested-entity auto-mint exists anywhere in this corpus,
+              # see this method's own header), so this is unconditional,
+              # unlike `#entity_element`'s own auto-mint/collision `if`/
+              # `else` split — there is no auto-mint branch here to skip.
+              # Found live: `qa/stress_domains/nested_pieces`'s own
+              # differential sweep, `Board.AddCard` dispatched twice under
+              # the same `sequence` — Ruby silently appended a second
+              # `Card`, Rust's generated code (`rust/project/mutations.rb`'s
+              # `emit_mutation_line_body`, which never splits an
+              # aggregate-owned append from an entity-owned one the way
+              # this runtime's two separate methods do) already refused
+              # `AlreadyExists` for both depths.
+              # `entity` (the OWNER — `Board`), not `aggregate` (the ROOT
+              # — `Workspace`), is what the refusal names as "on {…}" —
+              # `check_entity_collision`'s first argument is only ever
+              # used for that one naming purpose (`owner.hecks_name`,
+              # below), matching Rust's own generated wording exactly
+              # (`rust/project/mutations.rb`'s own `collision_guard`
+              # passes the entity's DECLARING construct's name the same
+              # way — "a Card already exists on Board", never "…on
+              # Workspace").
+              check_entity_collision(entity, nested_entity, element[mutation.target], fields)
+              fill_declared_defaults(aggregate, nested_entity, fields)
+            else
+              fields
+            end
           end
         Freezer.deep(Array(element[mutation.target]) + [appended])
       end
@@ -418,6 +451,57 @@ module Hecks
         return false unless head
 
         element.is_a?(Hash) && element[head] == value
+      end
+
+      # BUG#13 (PR #549) — THE SAME CHECK #hydrate GIVES EVERY CREATING
+      # AGGREGATE COMMAND (`repository.find(id)`,
+      # `command_interpreter.rb`), one level down. Originally lived in
+      # `MutationApplier` (mutation_applier.rb), called only from
+      # `#entity_element` — an AGGREGATE's own entity list (`Workspace.
+      # boards`, `Ledger.entries`). Moved here (BUG#145) so `#appended_
+      # to_element`, above — an ENTITY's own nested entity list one hop
+      # further in (`Board.cards`) — can share it too, rather than
+      # reimplementing it a second time the same way `#list_element_
+      # match?` already avoids that split for `remove:`.
+      #
+      # Reached, at the aggregate-owned call site, only on the two
+      # branches that do NOT auto-mint: a CALLER-SUPPLIED identity (the
+      # field is already in the append's own field map) or a COMPOSITE
+      # one (`entity.identified_by` is nil for those — Runtime::
+      # Identified#derive_identity). Neither used to check the sibling
+      # list at all: a second LogVisit with the same date+sequence, or a
+      # second IssueKey with the same serial, appended a silent
+      # duplicate — worse than an ordinary duplicate row, because
+      # `EntityElement#element_of`'s own `find_index` always matches the
+      # FIRST match, so the second becomes permanently unaddressable by
+      # any later command. At the entity-owned call site (`#appended_to_
+      # element`), there is no auto-mint branch at all — every caller
+      # reaches this unconditionally, since a nested entity's own
+      # identity is always caller-supplied in this corpus.
+      #
+      # Auto-minted (aggregate-owned) entities never reach here —
+      # `identity_heads` for them is still checked at mint time by
+      # construction (`current.size + 1` can only repeat if something
+      # `remove:`s from the list between mints, which no real domain does
+      # today), so they can't be flagged by mistake.
+      # `owner` — the DECLARING construct named in the "…already exists on
+      # {owner}" wording: the root aggregate at the aggregate-owned call
+      # site (`Workspace`, `Ledger`), the immediately-enclosing entity at
+      # the entity-owned one (`Board` — never the root `Workspace` two
+      # hops up). Used for that naming purpose ONLY (`owner.hecks_name`) —
+      # never for `Value`/namespace resolution, which is why an `Entity`
+      # (not just an `Aggregate`) is a valid thing to pass here.
+      def check_entity_collision(owner, entity, current, fields)
+        heads = entity.identity_heads
+        return if heads.empty?
+
+        collision = Array(current).find { |element| heads.all? { |head| element[head] == fields[head] } }
+        return unless collision
+
+        raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "entity_duplicate",
+                                                        entity: entity.hecks_name, aggregate: owner.hecks_name,
+                                                        identity: Identity.reading(entity),
+                                                        offered: heads.map { |head| Rendering.describe(fields[head]) }))
       end
     end
   end
