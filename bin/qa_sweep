@@ -801,6 +801,21 @@ end
 # same kind of union `--self-consistency true` makes, forcing the wave
 # on regardless of what the dial says today.
 enabled_modes |= [:persistence_parity] if force_parity_wave
+
+# ENABLED IS NOT THE SAME AS BUILT. `TargetCapabilities::RUNNABLE_MODES`
+# names the modes this script can actually run; `MODE_REQUIREMENTS` names
+# what each mode would NEED. A dial (or `--modes`) naming a mode with no
+# code behind it used to sail straight through `resolve` and print on the
+# `resolved modes:` line — two of them sat `true` in qa/settings.yml for
+# real sweeps, so the report advertised comparisons nobody had written and
+# no Check was ever logged for them. Refused here, before a target is
+# claimed, rather than resolved into a line that reads like coverage.
+unrunnable = enabled_modes - Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES
+unless unrunnable.empty?
+  abort "enabled mode(s) #{unrunnable.join(',')} have no implementation in bin/qa_sweep " \
+        "(Hecks::Fuzzing::TargetCapabilities::RUNNABLE_MODES is what exists). Set them false in " \
+        "qa/settings.yml, or drop them from --modes, until the code lands."
+end
 structural_boundary =
   defined?(QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY) ? QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY : []
 
