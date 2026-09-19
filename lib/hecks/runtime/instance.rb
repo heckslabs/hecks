@@ -30,14 +30,35 @@ module Hecks
       # `#hydrate_complete_state`/`#hydrate_prior_or_initial`, each already
       # holding it when they mint a brand-new record). See
       # `materialize_identity!` for why a composite identity needs it.
-      def initialize(aggregate:, id:, state: nil, args: nil)
+      #
+      # `hydrate:` — ON BY DEFAULT, and every existing caller keeps getting
+      # exactly what it always got: `state` re-walked through
+      # `hydrate_with_defaults` (declared defaults filled, every attribute
+      # re-coerced through `Value.for_attribute`, an entity list's every
+      # element rebuilt and re-validated). `false` is for exactly one
+      # caller (`Adapters::Memory#build_instance`, judge-bootstrapping
+      # only — see its own header) that already knows `state` needs none
+      # of that: it is a shallow dup of an ALREADY-hydrated, ALREADY-
+      # validated live `Instance`'s own state, not a raw value pulled off
+      # a wire. Skipping the re-walk is what turns a `list_of` entity's Nth
+      # save from O(N) (re-hydrating every element saved so far, for every
+      # save) into O(1) — the quadratic cost `Adapters::Memory`'s own
+      # header traces start to finish. `CodecBoundary.check_state!` still
+      # runs either way ; only the re-hydration is skipped.
+      def initialize(aggregate:, id:, state: nil, args: nil, hydrate: true)
         @aggregate = aggregate
         @id        = id
         # Inside a persistence adapter call this refuses undecoded stored
         # state (Ports::Persistence::CodecBoundary); everywhere else, no-op.
         Ports::Persistence::CodecBoundary.check_state!(aggregate, state) if state
-        @state     = state ? self.class.hydrate_with_defaults(aggregate, state) : self.class.defaults(aggregate)
-        @version   = nil
+        @state = if !hydrate
+                   state || self.class.defaults(aggregate)
+                 elsif state
+                   self.class.hydrate_with_defaults(aggregate, state)
+                 else
+                   self.class.defaults(aggregate)
+                 end
+        @version = nil
         materialize_identity!(args)
       end
 
