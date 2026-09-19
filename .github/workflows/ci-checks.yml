@@ -357,6 +357,30 @@ jobs:
       - name: "rust coverage: every generated module"
         run: bundle exec bin/corpus --rust-coverage
 
+      # THE SAME SIX, AGAINST hecks-codegen's MANIFEST (ADR 0054a, B2).
+      # `--codegen=rust` regenerates each domain's manifest.json with
+      # rust/codegen from the same committed ir.json into a scratch dir,
+      # then runs the identical analysis and the identical, unchanged
+      # ALLOWLIST. BOTH paths stay gated here permanently: the Ruby
+      # generator (rust/project) remains the default producer of the Rust
+      # port, and hecks-codegen is held to it by these parity gates.
+      # embryonaut has no committed manifest (fallback mode), so it reads
+      # the committed snapshot in both modes — see bin/rust_coverage's own
+      # header.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
+      - name: "rust coverage (hecks-codegen): pizzas, embryonaut, governance, identity, banking, meta"
+        run: |
+          bundle exec bin/rust_coverage pizzas --codegen=rust
+          bundle exec bin/rust_coverage embryonaut --codegen=rust
+          bundle exec bin/rust_coverage governance --codegen=rust
+          bundle exec bin/rust_coverage identity --codegen=rust
+          bundle exec bin/rust_coverage banking --codegen=rust
+          bundle exec bin/rust_coverage meta --codegen=rust
+
       # THE KERNEL HALF of the same guarantee. bin/project_kernel_
       # capabilities' own enums (AttributeShape/OperatorCategory) already
       # make an exhaustive match over them a compile error the moment the
