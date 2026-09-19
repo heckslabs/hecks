@@ -10,12 +10,18 @@ require "yaml"
 #
 # Each wrapper's `if:` now also runs (and fails) when its `_impl` skipped
 # but its own skip condition did NOT hold. This pins that shape: no wrapper
-# lets `skipped` through without a condition, the condition is an
-# expression (never a constant), and every call gated on the light PR set
-# (PR #666) names that same condition as an expected skip.
+# lets `skipped` through without a condition, and the condition is an
+# expression, never a constant.
+#
+# A wrapper whose call has NO event it legitimately skips on writes the
+# other legal shape instead — `always() && <impl>.result != 'success'`,
+# tolerating no skip at all — and then must not claim a skip is expected.
+# `rspec_postgres_io_parallel` is the only one: since the light PR set was
+# removed (2026-09-18) every other call skips exactly on the cache-warming
+# `push`, and that one skips nowhere. Nothing here may name a label: the
+# `full-ci` label went with the light PR set.
 RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
   CI_YML = File.join(InMemoryDomain::ROOT, ".github/workflows/ci.yml")
-  LIGHT_SET = "github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')".freeze
 
   def self.jobs = YAML.load_file(CI_YML).fetch("jobs")
 
@@ -42,20 +48,35 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     it "#{name} lets #{job.fetch('needs')}'s skip through only when its own skip condition holds" do
       impl = job.fetch("needs")
       condition = skip_condition(job)
-      expect(condition).not_to be_nil,
-                               "#{name}'s if: must be `always() && !(needs.#{impl}.result == 'success' || " \
-                               "(needs.#{impl}.result == 'skipped' && (<skip condition>)))`, got #{job['if'].inspect}"
-      expect(condition).to include("github.event_name"), "#{name}: the skip condition must be an expression, not a constant"
-
       step = job.fetch("steps").first
-      expect(step.dig("env", "SKIP_EXPECTED")).to eq("${{ #{condition} }}")
+
+      if condition.nil?
+        expect(job.fetch("if")).to eq("always() && needs.#{impl}.result != 'success'"),
+                                   "#{name}'s if: must be either `always() && !(needs.#{impl}.result == 'success' || " \
+                                   "(needs.#{impl}.result == 'skipped' && (<skip condition>)))` or, when nothing about " \
+                                   "#{impl} ever legitimately skips, `always() && needs.#{impl}.result != 'success'`; " \
+                                   "got #{job['if'].inspect}"
+        expect(step.dig("env", "SKIP_EXPECTED")).to be_nil,
+                                                    "#{name} tolerates no skip at all, so it must not claim one is expected"
+      else
+        expect(condition).to include("github.event_name"), "#{name}: the skip condition must be an expression, not a constant"
+        expect(step.dig("env", "SKIP_EXPECTED")).to eq("${{ #{condition} }}")
+      end
+
       expect(step.fetch("run")).to include("exit 1")
       expect(step.fetch("run")).not_to include("exit 0"), "#{name} runs only to fail — its step must never pass"
+    end
+  end
 
-      call_if = self.class.jobs.fetch(impl)["if"].to_s
-      if call_if.include?("full-ci")
-        expect(condition).to include(LIGHT_SET),
-                             "#{impl} skips on the light PR set (its own if: #{call_if}), so #{name} must expect that skip"
+  # The light PR set (PR #666) is gone: every job runs on `pull_request`
+  # again. Nothing may gate on the label that used to put a PR back on the
+  # full set, or the gap it opened — a job that never ran on the PR failing
+  # in the merge queue and ejecting the batch — comes straight back.
+  it "gates no job on the retired full-ci label" do
+    [CI_YML, File.join(InMemoryDomain::ROOT, ".github/workflows/ci-checks.yml")].each do |path|
+      YAML.load_file(path).fetch("jobs").each do |name, job|
+        expect(job["if"].to_s).not_to include("full-ci"),
+                                      "#{File.basename(path)}'s #{name} still gates on the retired full-ci label: #{job['if']}"
       end
     end
   end
