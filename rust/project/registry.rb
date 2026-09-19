@@ -52,6 +52,43 @@ module RustProjection
       Exemplar.render("role_check", '"TmplRole"' => role.inspect, '"TmplCommandName"' => command_name.to_s.inspect)
     end
 
+    # `kernel::ArgumentGates` FOR ONE COMMAND (roadmap D2) — the struct
+    # literal `decode_aggregate_arguments`/`decode_entity_arguments`
+    # (rust/src/kernel/dispatch.rs) call one field of per declared
+    # argument-gate step, in `AggregateStep::ORDER`/`EntityStep::ORDER`.
+    # NOTHING here names that order: the first three fields are the
+    # command's own generated gate functions (`Projector.emit_argument_
+    # gates`, json_codec.rb), `normalize_args` is its `from_json` plus the
+    # VO invariant/admits/pattern checks that used to be spliced after it
+    # (R3), and the last two are the role and reference checks that used
+    # to be emitted as bare lines further down the arm.
+    #
+    # Closures, not plain function references, for the last two: both
+    # need `store`, which only exists at this router level.
+    def emit_argument_gates_literal(args_path, invariant_check_lines, role_line, reference_lines)
+      normalize = ["let args = #{args_path}::from_json(v)?;", *Array(invariant_check_lines).map { |line| squeeze(line) }, "Ok(args)"].join(" ")
+      role = role_line ? "&|| { #{squeeze(role_line)} Ok(()) }" : "&|| Ok(())"
+      references =
+        if reference_lines.empty?
+          "&|_args: &#{args_path}| Ok(())"
+        else
+          "&|args: &#{args_path}| { #{reference_lines.map { |line| squeeze(line) }.join(' ')} Ok(()) }"
+        end
+
+      "crate::kernel::ArgumentGates { " \
+        "decode_arguments: &#{args_path}::decode_arguments, " \
+        "refuse_unknown_arguments: &#{args_path}::refuse_unknown_arguments, " \
+        "refuse_absent_arguments: &#{args_path}::refuse_absent_arguments, " \
+        "normalize_args: &|v: &crate::kernel::Json| { #{normalize} }, " \
+        "refuse_role_mismatch: #{role}, " \
+        "resolve_references: #{references} }"
+    end
+
+    # An emitted check is a whole statement, sometimes several lines and
+    # indented for the line-per-statement body it used to sit in; inside a
+    # closure it is one expression among others.
+    def squeeze(text) = text.to_s.split("\n").map(&:strip).reject(&:empty?).join(" ")
+
     def emit_reference_check(check)
       ident = rust_ident_field(check[:field])
       target_subs = { '"TmplTarget"' => check[:target_name].inspect, '"tmpl_heads"' => check[:heads].inspect }
@@ -274,172 +311,83 @@ module RustProjection
             "crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { " \
             "command: #{c[:name].to_s.inspect}, aggregate: #{a[:record].to_s.inspect}, " \
             "identity: #{Array(a[:identified_by]).join(', ').inspect} }.render_args()"
-          # BUG#56 (qa/bluebook/quality_control.bluebook) — an ACTING
-          # command's own `id_line`, below, already validates an explicit
-          # `to:`'s route depth EAGERLY, ahead of `role_line` — matching
-          # Ruby's own `Dispatcher#dispatch`, which resolves `Routing.
-          # envelope(to)` unconditionally, for EVERY aggregate command,
-          # creating or acting alike, strictly before `@commands.call`
-          # (the door to `CommandInterpreter`'s own `DISPATCH_ORDER`,
-          # `refuse_role_mismatch` included) ever runs. A CREATING
-          # command's own generated `dispatch_*` function (`commands.rb`)
-          # already runs the SAME `route.require_depth(0)?` check — but
-          # only INTERNALLY, deep inside its own `Hydrate::Create`/
-          # `Hydrate::Act` decision, built as an ARGUMENT to `crate::
-          # kernel::dispatch(...)` — and this router only ever calls that
-          # generated function (`dispatch_call`, below) AFTER `check_role`
-          # has already run, above. A caller offering an explicit,
-          # wrong-depth `to:` (an entity route on an aggregate-level
-          # creating command, say — undeclared, route-shaped, the exact
-          # `routing_key` adversarial mutation `Adversary::ROUTING_SHAPES`
-          # produces) alongside an unauthorized actor used to refuse
-          # `Unauthorized` here, where Ruby had already refused
-          # `TypeMismatch` on the route itself before ever reaching a role
-          # check at all — confirmed live, `Governance::RoleTransition.
-          # Grant`, `bin/qa_sweep banking --seeds 40 --adversarial 0.3
-          # --role-draw 0.25`. This line closes that gap the same way
-          # `id_line` already does for an acting command: eagerly, ahead
-          # of everything else in this arm — a plain validation, not an
-          # identity computation (a creating command's own identity comes
-          # from its declared attributes, never from `route`), so nothing
-          # is bound from it.
-          creating_route_precheck_line = "if let Some(route) = route { route.require_depth(0)?; }"
-          # `collision_key` — BUG#54 (qa/bluebook/quality_control.bluebook)
-          # — a WIRE-KEY COLLISION `structural_precheck_line` (BUG#23)
-          # can't reach: `LedgerOrdering::Folder.AddSlip`'s bare
-          # `reference_to Folder` addresses the aggregate through this
-          # `id_line` using `a[:identified_by]`'s own head name
-          # (`reference` — no `as:` mints a separate wire key) — the SAME
-          # wire key `AddSlip` also separately declares as its own typed
-          # argument (`attribute :reference, SlipReference`, a DIFFERENT
-          # value-object type than the aggregate's own identity type). A
-          # malformed `reference` (`null`, `{}`, or `{value: ""}` — every
-          # shape `extract_id` itself refuses, directly or through
-          # `to_id_component`'s own empty-string guard, R4) makes
-          # `extract_id` fail to resolve ANY identity (BUG#20's own case)
-          # and `id_line` below wraps that into `NotFound` before `#{c[:
-          # args_struct]}::from_json` — the one place `SlipReference`'s
-          # own `required`/pattern check on this SAME key would raise
-          # `TypeMismatch` — ever runs. Ruby's `normalize_args` types
-          # EVERY declared attribute (`reference` included, regardless of
-          # it ALSO being this command's addressing key) unconditionally
-          # before `hydrate`, so it always reaches `TypeMismatch` first;
-          # `id_line`'s ordering can't, structurally, for this collision.
+          # BUG#56 (qa/bluebook/quality_control.bluebook) — the gap the
+          # line below first closed, for a CREATING command: an explicit,
+          # wrong-depth `to:` alongside an unauthorized actor refused
+          # `Unauthorized` here where Ruby had already refused
+          # `TypeMismatch` on the route itself (confirmed live,
+          # `Governance::RoleTransition.Grant`, `bin/qa_sweep banking
+          # --seeds 40 --adversarial 0.3 --role-draw 0.25`). A creating
+          # command's own generated `dispatch_*` runs the same
+          # `require_depth(0)?` INTERNALLY, but only once this router has
+          # already called it — far too late.
+          # ROUTE DEPTH, EAGERLY, FOR EVERY AGGREGATE COMMAND — Ruby's own
+          # `Invocation.route` (invocation.rb) validates `to:` inside
+          # `Invocation.from_call`, strictly before `@commands.call` opens
+          # `CommandInterpreter::DISPATCH_ORDER` at all, so an explicit
+          # wrong-depth route refuses `TypeMismatch` on its OWN terms
+          # ahead of every argument gate. A CREATING command already
+          # emitted exactly this line (BUG#56); an ACTING one used to fold
+          # the same check into `id_line`, which now runs AFTER the gates
+          # (see `gates_line`), so the check is hoisted here for both
+          # rather than moving with it.
           #
-          # `collision_key` finds this predicate's ONE colliding attribute
-          # (`a[:identified_by]` is exactly one head AND that head's
-          # plain name is among `c[:attributes]`) — `nil` for every
-          # command in the real corpus and every OTHER command in this
-          # stress domain today (confirmed: no aggregate-level acting
-          # command anywhere else bare-references its owner AND
-          # redeclares that SAME name as its own attribute; verified by
-          # grepping every `identified_by`/`reference_to`/`attribute`
-          # triple in `examples/` and `qa/stress_domains/`) — so `id_line`
-          # below takes its ORIGINAL, UNCHANGED shape, and generated
-          # output is BYTE-IDENTICAL, for every command but this one.
-          #
-          # When the predicate DOES hold, `id_line` no longer wraps
-          # `extract_id`'s failure straight into `NotFound` — it tries
-          # this command's OWN, already-generated argument pipeline
-          # FIRST, inside `extract_id`'s own `Err` arm: the identical
-          # `#{c[:args_struct]}::from_json(facts_json)` call `*extra_
-          # lines, "let args = ..."` already makes two lines down, PLUS
-          # this command's own `invariant_check_lines` (the identical
-          # `args.<field>.check_invariants()?` calls this match arm's
-          # body already runs after `args::from_json` succeeds) — spliced
-          # in VERBATIM, not re-derived, so there is zero risk of drift
-          # between this early copy and the real one. Only if THAT
-          # produces no refusal at all does the code fall through to the
-          # ORIGINAL `NotFound`/`acting_no_identity` wording. This closes
-          # every malformed shape `extract_id` itself can ever refuse on
-          # (not just `null`/`{}}`, a narrower version of this fix tried
-          # first and found insufficient — BUG#54's own adversarial
-          # mutation family also produces a THIRD shape, a syntactically
-          # well-formed `{value: ""}` that `to_id_component`'s own R4
-          # empty-string guard refuses at `extract_id` while `Slip
-          # Reference`'s own pattern still fails it identically) WITHOUT
-          # having to enumerate them: `extract_id` failing at all is
-          # exactly the one condition needed, since `extract_id`'s own
-          # composite-identity path and this command's own value-object
-          # field read the EXACT SAME underlying JSON — whenever one
-          # cannot find a usable value neither can the other, so this can
-          # never turn a case where Ruby's `normalize_args` silently
-          # succeeds (deferring to a real `hydrate` `NotFound`, matching
-          # what `id_line` already answered before this fix) into a
-          # wrongly-surfaced argument refusal instead.
-          #
-          # That "only inside `extract_id`'s OWN failure arm" gate is
-          # deliberate, not incidental: it is what keeps this from being
-          # either of the two shapes already tried here and reverted —
-          #   1. NOT BUG#4's own first attempt (PR #529's commit message)
-          #      — deferring EXISTENCE-CHECKING broadly past argument
-          #      parsing for every command; the happy path (`extract_id`
-          #      resolving an identity, the overwhelming majority of
-          #      calls) is entirely untouched — this only ever runs
-          #      inside the ALREADY-failing arm, and only ever for the
-          #      one command matching the collision predicate above.
-          #   2. NOT BUG#38's own first attempt (this file's `entity_
-          #      commands` header, domain_generator.rb) — running a
-          #      declared argument's OWN value-object coercion UNGATED,
-          #      on the happy path, before `extract_id` runs at all,
-          #      which surfaced a separate, still-open bug (BUG#41: a
-          #      single-attribute value object's own `from_json` refuses
-          #      `UnknownArgument` on an object with an extra key BEFORE
-          #      its own missing-field check). This fix's own early
-          #      argument pipeline runs STRICTLY AFTER `extract_id` has
-          #      ALREADY failed — an input shaped so BUG#41's own gap
-          #      could fire here (an extra key on an object that is ALSO
-          #      missing the field `extract_id` itself needs) was ALREADY
-          #      going to diverge from Ruby before this fix (as `NotFound`
-          #      instead of whatever Ruby's `normalize_args` truly raises,
-          #      the exact BUG#54 shape) — this fix can only ever trade
-          #      one already-wrong answer for BUG#41's own, separately-
-          #      catalogued one on that narrow slice, never break a case
-          #      that agreed before it.
-          identity_heads = Array(a[:identified_by]).map { |path| path.split(".").first }
-          collision_key = (!c[:creates] && identity_heads.length == 1 && c[:attributes].include?(identity_heads.first)) ? identity_heads.first : nil
+          # ONE SHAPE THIS STILL DOES NOT REPRODUCE, unchanged by D2 and
+          # pre-existing: on Ruby's EXPLICIT-envelope form
+          # (`dispatch(verb, to:, with:)`, `:aggregate` receiver),
+          # `Invocation.offered_facts` runs its OWN `with:`-strictness —
+          # unknown then absent — BEFORE `route(to)`, so a call that is
+          # both wrong-depth AND carries an undeclared `with:` key refuses
+          # `UnknownArgument` there. Rust parses the routing envelope in
+          # `CommandInvocation::from_json` before any of this, so it
+          # refuses the route first. Every corpus and matrix step uses the
+          # loose-keyword form, where Ruby validates `to:` first and the
+          # two agree.
+          route_precheck_line = "if let Some(route) = route { route.require_depth(0)?; }"
           not_found_expr = "crate::kernel::Refusal::NotFound(#{acting_no_identity_args})"
+          # IDENTITY RESOLUTION IS PART OF HYDRATE, AND NOW RUNS AFTER
+          # EVERY ARGUMENT GATE (roadmap D2) — Ruby resolves an acting
+          # command's record inside `step_hydrate` (`hydrate_existing`,
+          # command_interpreter.rb), which `AggregateDispatchOrder` places
+          # after `normalize_args`/`refuse_role_mismatch`/`resolve_
+          # references`; this `extract_id` is that same resolution. It
+          # used to run FIRST in this arm, ahead of `#{c[:args_struct]}::
+          # from_json`, which is what BUG#23's standalone `structural_
+          # precheck` splice, BUG#38/#136's discarded `_args_precheck`
+          # and BUG#54's `collision_fallback` were each patching around,
+          # one command shape at a time: a malformed identity argument
+          # short-circuited into `NotFound` before the argument that was
+          # unknown, absent, or ill-typed was ever judged. With the gates
+          # running first, unconditionally, all three patches are gone —
+          # `collision_key`'s aggregate-identity/argument wire-key
+          # collision included, since `normalize_args` now always types
+          # every declared attribute before this line is reached.
           id_line =
             if c[:creates]
-              creating_route_precheck_line
-            elsif collision_key
-              collision_fallback = ["let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;", *c[:invariant_check_lines], "return Err(#{not_found_expr});"].join(" ")
-              "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => match #{mod_path}::#{a[:record]}::extract_id(facts_json) { Ok(resolved) => resolved, Err(_) => { #{collision_fallback} } }, };"
+              nil
             else
-              "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| #{not_found_expr})?, };"
+              "let id = match route { Some(route) => route.aggregate().to_string(), None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| #{not_found_expr})?, };"
             end
-          # BUG#23 (qa/bluebook/quality_control.bluebook) — Ruby's own
-          # `DISPATCH_ORDER` runs `refuse_unknown_arguments`/`refuse_
-          # absent_arguments` structurally BEFORE `hydrate`, but `id_line`
-          # just above (an ACTING command's own identity resolution) used
-          # to run BEFORE `#{c[:args_struct]}::from_json` — the ONE place
-          # those structural checks lived — every single time, so a
-          # malformed `id`/`to:` (a route-shaped `{aggregate:, entities:}`
-          # value offered where the command declares a plain scalar
-          # identity, say) short-circuited the whole dispatch via `extract_
-          # id`'s own `?`/`NotFound`-wrap before a missing OTHER argument
-          # was ever checked — Ruby and Rust then refused DIFFERENT KINDS
-          # for the identical malformed command. `Projector.structural_
-          # precheck` (json_codec.rb) builds the IDENTICAL unknown/absent-
-          # argument check text `#{c[:args_struct]}::from_json` already
-          # runs internally — run a SECOND time, standalone, here, against
-          # the raw `facts_json` `v` is bound to, BEFORE `id_line`. Nil for
-          # a CREATING command (`domain_generator.rb`'s own gate on this
-          # field: `id_line` above is never emitted for one either, so
-          # there is no race for this to close there). Deliberately
-          # redundant with the copy still inside `#{c[:args_struct]}::
-          # from_json` itself (unchanged) rather than replacing it — the
-          # same "can only ever refuse SOONER with the exact kind `from_
-          # json` would have produced anyway, never diverge from it" shape
-          # `invariant_check_lines` below already established for R3 (see
-          # that field's own comment) — NOT the reordering BUG#4 (PR #529)
-          # already tried and reverted: `id_line` itself still runs in
-          # exactly the same place, unchanged; this only adds an EARLIER,
-          # narrower gate ahead of it, scoped to a command's own declared
-          # argument shape, never to record existence.
-          structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
-          role_line = emit_role_check(c[:role], c[:name])
-          reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
+          # THE ARGUMENT GATES, HANDED TO THE KERNEL (roadmap D2) — one
+          # generated function per declared argument-gate step, called by
+          # `kernel::decode_aggregate_arguments` in `AggregateStep::ORDER`
+          # (dispatch.rs). This arm no longer decides which of them wins:
+          # reordering `refuse_unknown_arguments`/`refuse_absent_
+          # arguments`/`normalize_args`/`refuse_role_mismatch`/`resolve_
+          # references` in vocabulary.bluebook reorders the refusals with
+          # no change here at all, which is the whole point — the old
+          # shape spelled that order out three times over (the standalone
+          # `structural_precheck` splice, the preamble inside `from_json`,
+          # and the physical order of the emitted lines).
+          #
+          # `refuse_role_mismatch`/`resolve_references` are closures
+          # rather than plain function references because they need
+          # `store` (every OTHER aggregate's own repo) — the same reason
+          # `owner_deref`/`command_deref` below are computed at this
+          # router level instead of inside the generated `dispatch_*`
+          # function. They are done borrowing it well before `dispatch_
+          # call` takes its own `&mut`.
+          gates_line = "let args = crate::kernel::decode_aggregate_arguments(facts_json, &#{emit_argument_gates_literal("#{mod_path}::#{c[:args_struct]}", c[:invariant_check_lines], emit_role_check(c[:role], c[:name]), c[:reference_checks].map { |check| emit_reference_check(check) })})?;"
           # ANGLE-8's write-side tenant boundary (PR #595) — COMPUTED right
           # after the plain existence checks above, matching Ruby's own
           # `resolve_state_references` order (`validate_reference_values`
@@ -507,17 +455,12 @@ module RustProjection
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  structural_precheck_line,
-                  id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
-                  # R3 FIX (docs/audits/2026-08-11-bug-triage.md) — VO
-                  # invariant/admits/pattern BEFORE role_line/reference_lines,
-                  # matching Ruby's own DISPATCH_ORDER (this file's own
-                  # header, above, on why role/references are emitted here
-                  # rather than inside the generated dispatch fn itself;
-                  # `domain_generator.rb`'s own comment on `invariant_check_
-                  # lines` has the full argument for why this is safe to run
-                  # a second time, redundantly, inside that fn too).
-                  *c[:invariant_check_lines], role_line, *reference_lines, tenant_boundary_check_line,
+                  route_precheck_line,
+                  gates_line,
+                  # IDENTITY AFTER THE GATES — `id_line`'s own comment,
+                  # above; `extra_lines` reads a creating command's bare
+                  # identity-extra heads, identity too, so it moves with it.
+                  id_line, *extra_lines, tenant_boundary_check_line,
                   *deref_lines,
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)
@@ -536,8 +479,10 @@ module RustProjection
       entity_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         a[:entity_commands].map do |c|
-          role_line = emit_role_check(c[:role], c[:name])
-          reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
+          # THE ARGUMENT GATES (roadmap D2) — see `registry_commands`'
+          # own `gates_line`, above, for the whole argument;
+          # `kernel::decode_entity_arguments` walks `EntityStep::ORDER`.
+          gates_line = "let args = crate::kernel::decode_entity_arguments(facts_json, &#{emit_argument_gates_literal("#{mod_path}::#{c[:args_struct]}", c[:invariant_check_lines], emit_role_check(c[:role], c[:name]), c[:reference_checks].map { |check| emit_reference_check(check) })})?;"
           dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))"
 
           # `element_wants` — `entity_element_missing`'s one genuinely
@@ -594,48 +539,20 @@ module RustProjection
           # `extract_id`/`extract_wants` pair against `facts_json` when
           # unrouted, matching the aggregate arm's own `id_line` fallback.
           #
-          # BUG#38 FIX — `structural_precheck_line`, the SAME BUG#23
-          # standalone gate the aggregate arm's own `structural_precheck_
-          # line` already runs (this file's header on that fix, above),
-          # spliced INSIDE this `match route`'s route-less `None` arm
-          # specifically, BEFORE its own `extract_id` calls. Without it, a
-          # malformed `id` (a route-shaped `{aggregate:, entities:}` value
-          # where the entity declares a plain scalar identity) always
-          # short-circuited via `extract_id`'s own `?` before an unrelated
-          # undeclared argument on the SAME call was ever checked,
-          # refusing `TypeMismatch` where Ruby's `ArgumentGate` (which
-          # always runs BEFORE `locate_element`) refuses `UnknownArgument`
-          # first.
+          # ARGUMENT GATES BEFORE IDENTITY (roadmap D2) — this arm used to
+          # splice a standalone `structural_precheck` and a discarded
+          # `_args_precheck` INSIDE the route-less `None` branch, to beat
+          # the two `extract_id` calls below (BUG#38, BUG#136). Both are
+          # gone: `gates_line` above runs every declared argument gate,
+          # for a routed and an unrouted call alike, and identity is only
+          # resolved afterwards — which is Ruby's own order (`normalize_
+          # args` precedes `hydrate_parent`/`locate_element`).
           #
-          # SCOPED TO THE `None` ARM ONLY — NOT, like the aggregate arm's
-          # own `id_line`, spliced before the WHOLE `match route` — this
-          # is the one place entity dispatch genuinely differs from it.
-          # `id_line`'s own `Some(route) => route.require_depth(0)?` can
-          # NEVER itself refuse: an aggregate command's routed depth is
-          # always 0, and the ONE shape that ever reaches this router with
-          # an explicit but WRONG-shaped `to:` (the `routing_key` fuzz
-          # mutation's `scalar` case) parses into a route with ZERO
-          # entities either way, satisfying depth 0 trivially — so
-          # `structural_precheck_line`'s placement relative to `id_line`
-          # was never actually observable there. An entity command's own
-          # `Some(route) => route.require_depth(1)?` (or `require_depth(2)`
-          # one hop deeper) is NOT trivially satisfied by that same zero-
-          # entity route — confirmed live (`qa/stress_domains/nested_
-          # pieces`, `Workspace.Board.AddCard` with a scalar `to:`
-          # mutation): Ruby resolves an EXPLICITLY given `to:` entirely
-          # independently of `facts`/`ArgumentGate` (`Routing.envelope`
-          # runs off `to:` alone, never touching the command's own
-          # declared-argument shape), so a wrong-depth explicit route
-          # refuses on ITS OWN terms, `TypeMismatch`, before Ruby's
-          # absent-argument check on the UNRELATED `facts` payload is ever
-          # reached — moving `structural_precheck_line` ahead of the
-          # WHOLE match (a first attempt at this exact fix) refused
-          # `AbsentArgument` instead, a genuine new divergence this
-          # narrower placement avoids. Ruby's `ArgumentGate` and
-          # `locate_element` only ever share the SAME data (`facts`) in
-          # the route-LESS case, which is the only case this fix needs to
-          # reorder at all.
-          structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
+          # The eager `route.require_depth(1)?` that now leads the body
+          # keeps the ONE ordering that fix had to respect: Ruby resolves
+          # an EXPLICITLY given `to:` in `Invocation.route`, entirely
+          # independently of `facts`, so a wrong-depth route refuses
+          # `TypeMismatch` on its own terms before any argument gate.
           # BUG#132 (qa/bluebook/quality_control.bluebook) — the SAME
           # BUG#20 fix the aggregate arm's own `id_line` already applies
           # (this file's header, above: wrap `extract_id`'s raw `Err`
@@ -655,65 +572,24 @@ module RustProjection
           # declared `optional: true` (line 100 of examples/roster/
           # bluebook/roster.bluebook, not a routing source — an entity's
           # own identity is always read off `extract_id`/route, never
-          # this optional echo argument), so `structural_precheck_line`
-          # above (unknown/absent-argument names only) never fires for
-          # this shape and both `extract_id` calls run unguarded. Ruby
+          # this optional echo argument), so the argument gates
+          # (unknown/absent-argument names only, for this shape) all pass
+          # and both `extract_id` calls run on a clean payload. Ruby
           # refuses `NotFound` ("Retire acts on a Roster's Member — pass
           # name.value:"); Rust refused `TypeMismatch` ("Roster: no
           # identity found (tried name.value, id, roster)") instead — a
-          # DIFFERENT gap than BUG#38/#126 (both about `structural_
-          # precheck_line`'s own PLACEMENT relative to `extract_id`, an
-          # argument-existence-check ordering issue): here the structural
-          # precheck runs, passes cleanly (nothing IS unknown or absent-
-          # required), and it is `extract_id`'s own failure that was never
+          # DIFFERENT gap than BUG#38/#126 (both about the argument
+          # gates' own PLACEMENT relative to `extract_id`, an
+          # argument-existence-check ordering issue, since settled by
+          # roadmap D2): here every gate passes cleanly (nothing IS
+          # unknown or absent-required), and it is `extract_id`'s own
+          # failure that was never
           # wrapped for this arm at all — roster's committed Rust output
           # was not stale (byte-identical to what `bin/project_rust
           # examples/roster` produces on this same commit; roster is
           # already in `.github/workflows/ci-checks.yml`'s regen list).
           entity_parent_no_identity_message = "#{c[:name]} acts on a #{a[:record]}'s #{c[:entity_name]} — pass #{Array(a[:identified_by]).join(', ')}:"
           entity_element_no_identity_message = "#{c[:name]} acts on one #{c[:entity_name]} — pass #{c[:entity_identity_reading]}:"
-          # BUG#136 (qa/bluebook/quality_control.bluebook) — `structural_
-          # precheck_line`, above, only ever catches an unknown/absent
-          # ARGUMENT NAME; it never runs a declared argument's own VALUE-
-          # OBJECT coercion (a declared identity-echo attribute — `id`,
-          # say, `optional: true`, not a routing source — offered a
-          # route-shaped `{aggregate:, entities:}` value where its own VO
-          # type declares a plain `value:` field). Ruby's `normalize_args`
-          # (`coerce_declared_arguments`, interpreting.rb) runs that
-          # coercion BEFORE `hydrate_parent`/`locate_element` for EVERY
-          # entity command, unconditionally — so a malformed value there
-          # refuses `UnknownArgument` (BUG#41's own check-unknown-fields-
-          # before-missing-field ordering) before identity is ever
-          # resolved. This route-less `None` arm used to run BOTH
-          # `extract_id` calls (parent, then element) BEFORE
-          # `#{c[:args_struct]}::from_json` ever touched the SAME
-          # declared attribute, so a malformed identity-echo value always
-          # short-circuited via `extract_id`'s own failure (wrapped into
-          # `NotFound` by BUG#132/#135, `TypeMismatch` before that) —
-          # never reaching its own VO-level unknown-key check at all.
-          # `domain_generator.rb`'s own header on `structural_precheck`
-          # (this command's own IR field, above) explains why THAT
-          # narrower fix (BUG#38) deliberately stopped short of this: at
-          # the time, running a declared argument's own VO coercion ahead
-          # of `extract_id` on the happy path surfaced BUG#41 (a single-
-          # attribute value object's own `from_json` didn't check for an
-          # unknown key at all) as a NEW divergence. BUG#41 is now fixed
-          # (PR #623) — `Value::Coercion#check_unknown_fields` on the
-          # Ruby side and this SAME `from_json`'s own generated unknown-
-          # key check on the Rust side now agree — so re-running the full
-          # `#{c[:args_struct]}::from_json(facts_json)` early, here, ahead
-          # of both `extract_id` calls, can no longer reintroduce that
-          # gap. The result is discarded (`_args_precheck`) — this is
-          # purely for its `?` early-error-propagation side effect,
-          # exactly the "deliberately redundant, never diverging" shape
-          # `registry_commands`' own R3 splice and BUG#54's own
-          # `collision_fallback` already established (this file's own
-          # header, above) — the REAL `args` binding two lines down,
-          # unchanged, still runs unconditionally for both `Some(route)`
-          # and `None` and is what dispatch actually uses. Scoped to the
-          # `None` arm alone, same as `structural_precheck_line` — the
-          # `Some(route)` branch's identity never goes through `extract_
-          # id` at all, so it was never part of this gap.
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
@@ -733,11 +609,9 @@ module RustProjection
                   # `identity()` equals it. `parent_id` stays on the
                   # STRICT `extract_id` — a ROOT aggregate's own identity
                   # (`to_id_component_lenient`'s own header explains why).
-                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_element_no_identity_message.inspect}.to_string()))?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
-                  "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
-                  # R3 FIX — see the aggregate arm's own identical comment,
-                  # above.
-                  *c[:invariant_check_lines], role_line, *reference_lines,
+                  "if let Some(route) = route { route.require_depth(1)?; }",
+                  gates_line,
+                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_element_no_identity_message.inspect}.to_string()))?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
                   "let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id);",
                   "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
                   "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id) { command_deref.push((\"parent\", parent_node)); }",
@@ -770,23 +644,17 @@ module RustProjection
       nested_entity_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         Array(a[:nested_entity_commands]).map do |c|
-          role_line = emit_role_check(c[:role], c[:name])
-          reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
+          # THE ARGUMENT GATES (roadmap D2) — see `registry_commands`'
+          # own `gates_line`, above, for the whole argument;
+          # `kernel::decode_entity_arguments` walks `EntityStep::ORDER`.
+          gates_line = "let args = crate::kernel::decode_entity_arguments(facts_json, &#{emit_argument_gates_literal("#{mod_path}::#{c[:args_struct]}", c[:invariant_check_lines], emit_role_check(c[:role], c[:name]), c[:reference_checks].map { |check| emit_reference_check(check) })})?;"
           dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))"
 
-          # BUG#38 FIX — see the one-level `entity_arms`' own identical
-          # header, above, including WHY this is scoped to the route-less
-          # `None` arm alone (spliced INSIDE it, before its own
-          # `extract_id` calls) rather than before the whole `match route`
-          # the way a first attempt at this fix (reverted) tried: an
-          # explicit but wrong-depth `to:` refuses on its OWN terms in
-          # `Some(route)`, independently of `facts`, before Ruby's
-          # absent-argument check on that unrelated payload is ever
-          # reached. `nil` (never spliced in) when `unrouted_supported` is
-          # false: the `else` branch below always requires an explicit
-          # route and never calls `extract_id` against raw `facts_json`
-          # at all, so there is no route-less arm here for this to close.
-          structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
+          # ARGUMENT GATES BEFORE IDENTITY (roadmap D2) — see the one-hop
+          # `entity_arms`' own identical note, above: no standalone
+          # precheck and no discarded `_args_precheck` any more, and the
+          # eager `route.require_depth(2)?` keeps an explicit wrong-depth
+          # route refusing ahead of them all.
           # BUG#132 — see `entity_arms`'s own identical fix, above: the
           # SAME unwrapped `extract_id(facts_json)?` gap, one nesting hop
           # deeper. `parent_id` wraps into `entity_parent_no_identity`
@@ -801,13 +669,6 @@ module RustProjection
           entity_parent_no_identity_message = "#{c[:name]} acts on a #{a[:record]}'s #{c[:entity_name]}.#{c[:nested_name]} — pass #{Array(a[:identified_by]).join(', ')}:"
           hop1_no_identity_message = "#{c[:name]} acts on one #{c[:entity_name]} — pass #{c[:entity_identity_reading]}:"
           hop2_no_identity_message = "#{c[:name]} acts on one #{c[:nested_name]} — pass #{c[:nested_identity_reading]}:"
-          # BUG#136 — see `entity_arms`'s own identical fix, above, for
-          # the full reasoning: the SAME early, discarded `#{c[:args_struct]}::
-          # from_json` precheck, one nesting hop deeper, spliced ahead of
-          # BOTH `extract_id` calls in the route-less `None` arm only —
-          # `Some(route)`'s identity never goes through `extract_id` and
-          # the `else` branch (unrouted unsupported) never calls it
-          # against raw `facts_json` at all, so neither needed this.
           # BUG#140 — `hop1_id`/`hop2_id` both now resolve through
           # `extract_id_lenient`, not `extract_id`: `EntityElement#
           # locate_chain` runs `element_of` once per chain entry
@@ -818,17 +679,17 @@ module RustProjection
           # the strict `extract_id`.
           route_binding =
             if c[:unrouted_supported]
-              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let _args_precheck = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?; let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop1_no_identity_message.inspect}.to_string()))?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop2_no_identity_message.inspect}.to_string()))?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
+              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop1_no_identity_message.inspect}.to_string()))?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop2_no_identity_message.inspect}.to_string()))?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
             else
-              "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?; route.require_depth(2)?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();"
+              "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();"
             end
 
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
+                  "if let Some(route) = route { route.require_depth(2)?; }",
+                  gates_line,
                   route_binding,
-                  "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
-                  *c[:invariant_check_lines], role_line, *reference_lines,
                   # BUG#40 fix — see `entity_arms`'s own identical comment,
                   # above: the top-level PARENT aggregate's own
                   # `#{AGGREGATE}_PROJECTED_FIELDS` is what `seed_projections_

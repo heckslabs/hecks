@@ -12,13 +12,13 @@
 //
 // NOT GENERIC HERE, BUT NOT MISSING EITHER: role checking (`check_role`,
 // repository.rs, ADR 0019) and reference resolution (`check_reference`,
-// repository.rs) both live in the GENERATED `registry.rs`/`merged.rs` call
-// sites, not in this hand-written generic dispatch function — the one
-// place with access to every OTHER aggregate's repo, not just this
-// command's own, for reference checks, and the natural place to read a
-// command's own declared `role:` for role checks. This function stays
-// generic by construction: nothing here needs to change per command shape
-// for either check to already be enforced.
+// repository.rs) are generated per command — the router is the one place
+// with access to every OTHER aggregate's repo, not just this command's
+// own — but they are no longer emitted as bare lines in whatever order
+// the router happened to write them: the router hands them to
+// `decode_aggregate_arguments`/`decode_entity_arguments` below as two
+// fields of `ArgumentGates`, and the loop calls them in the position
+// `refuse_role_mismatch`/`resolve_references` hold in the declared order.
 
 //
 // THE ORDER ITSELF IS NOT WRITTEN IN THIS FILE. `dispatch`,
@@ -28,10 +28,19 @@
 // AggregateDispatchOrder/EntityDispatchOrder by bin/project_rust_vocabulary)
 // — and `match` every step exhaustively, with no wildcard arm, so a step the
 // language gains fails to compile here (E0004) until it is given an arm.
-// Steps generated router code still performs before `dispatch` is entered
-// (argument decoding and gating, role, references) are explicit no-op arms;
-// `aggregate_step_site`/`entity_step_site`, at the bottom of this file, name
-// where each one actually runs today.
+// The argument-gate steps (decode_arguments through resolve_references) are
+// no-op arms in `dispatch`/`dispatch_entity`: they run in
+// `decode_aggregate_arguments`/`decode_entity_arguments`, below — the SAME
+// kind of loop over the SAME `ORDER`, calling one generated hook per step
+// (`ArgumentGates`). They are a separate loop only because identity
+// resolution needs the decoded facts and `resolve_references`/
+// `refuse_role_mismatch` need the whole `Store` (every other aggregate's
+// repo) — which the router can lend a closure but `dispatch` cannot hold
+// while it also holds `&mut` this aggregate's own repo. Reordering the
+// argument gates in vocabulary.bluebook reorders their refusals with no
+// generator change; a gate moved past `hydrate` fails the const assertions
+// at the bottom of this file. `aggregate_step_site`/`entity_step_site` name
+// where every step runs.
 
 use super::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent};
 use super::refusal_wording::{
@@ -319,12 +328,10 @@ where
     for step in AggregateStep::ORDER {
         #[deny(clippy::wildcard_enum_match_arm)]
         match step {
-            // Performed by the GENERATED router (`registry.rb`/`registry.rs`)
-            // before this function is entered — `CommandInvocation::from_json`,
-            // the standalone `structural_precheck`, `<Args>::from_json`,
-            // `invariant_check_lines`, `check_role`, `check_reference`. Their
-            // position cannot move into this loop until a generated
-            // `decode_arguments` exists (roadmap D2). See `aggregate_step_site`.
+            // Already run, in this same declared order, by
+            // `decode_aggregate_arguments` — the router calls it before it
+            // resolves identity and enters this function. See
+            // `aggregate_step_site`.
             AggregateStep::DecodeArguments
             | AggregateStep::RefuseUnknownArguments
             | AggregateStep::RefuseAbsentArguments
@@ -808,8 +815,8 @@ where
     fn run(&mut self, step: EntityStep, record: &mut T) -> Result<(), Refusal> {
         #[deny(clippy::wildcard_enum_match_arm)]
         match step {
-            // Performed by the GENERATED router before any kernel function
-            // is entered — see `entity_step_site`; roadmap D2.
+            // Already run, in declared order, by `decode_entity_arguments`
+            // before the router resolves identity — see `entity_step_site`.
             EntityStep::DecodeArguments
             | EntityStep::RefuseUnknownArguments
             | EntityStep::RefuseAbsentArguments
@@ -992,8 +999,9 @@ where
     for step in EntityStep::ORDER {
         #[deny(clippy::wildcard_enum_match_arm)]
         match step {
-            // Performed by the GENERATED router before this function is
-            // entered — see `entity_step_site`; roadmap D2.
+            // Already run, in declared order, by `decode_entity_arguments`
+            // before the router resolves identity and enters this function —
+            // see `entity_step_site`.
             EntityStep::DecodeArguments
             | EntityStep::RefuseUnknownArguments
             | EntityStep::RefuseAbsentArguments
@@ -1046,6 +1054,120 @@ where
 const HYDRATED: &str = "the declared order hydrates before any step that reads the record (const-asserted in this file)";
 const LOCATED: &str = "the declared order locates the element before any step that reads it (const-asserted in this file)";
 const ONCE: &str = "each declared step appears exactly once in its ORDER";
+const NORMALIZED: &str = "the declared order normalizes arguments before resolving references (const-asserted in this file)";
+
+/// THE ARGUMENT GATES, AS GENERATED HOOKS (roadmap D2) — one hook per
+/// argument-gate step of the vocabulary's dispatch orders: Ruby's
+/// `ArgumentGate#refuse_unknown_arguments`/`#refuse_absent_arguments`,
+/// `Interpreting#normalize_args`, `CommandRules#refuse_role_mismatch`/
+/// `#resolve_references`. The router (`rust/project/registry.rb`,
+/// `rust/codegen/src/registry.rs`) builds one per command out of that
+/// command's generated `<Args>` functions (`json_codec.rb#emit_argument_gates`)
+/// and its role/reference checks, and hands it to `decode_aggregate_arguments`
+/// or `decode_entity_arguments`, which call the hooks in DECLARED order.
+/// Nothing generated names that order, so reordering these steps in
+/// vocabulary.bluebook reorders which refusal wins with no generator change.
+///
+/// `decode_arguments` checks the facts are an object — Ruby's
+/// `step_decode_arguments` has nothing left to do because `Invocation`
+/// already decoded them (roadmap I2 moves that decode into this step).
+/// `normalize_args` answers the typed `<Args>`; `resolve_references` reads it.
+pub struct ArgumentGates<'g, A> {
+    pub decode_arguments: &'g dyn Fn(&Json) -> Result<(), Refusal>,
+    pub refuse_unknown_arguments: &'g dyn Fn(&Json) -> Result<(), Refusal>,
+    pub refuse_absent_arguments: &'g dyn Fn(&Json) -> Result<(), Refusal>,
+    pub normalize_args: &'g dyn Fn(&Json) -> Result<A, Refusal>,
+    pub refuse_role_mismatch: &'g dyn Fn() -> Result<(), Refusal>,
+    pub resolve_references: &'g dyn Fn(&A) -> Result<(), Refusal>,
+}
+
+/// The argument-gate steps the aggregate and entity orders share, so one
+/// body (`ArgumentGates::run`) serves both loops.
+#[derive(Debug, Clone, Copy)]
+enum ArgumentGate {
+    DecodeArguments,
+    RefuseUnknownArguments,
+    RefuseAbsentArguments,
+    NormalizeArgs,
+    RefuseRoleMismatch,
+    ResolveReferences,
+}
+
+impl<A> ArgumentGates<'_, A> {
+    fn run(&self, gate: ArgumentGate, facts: &Json, args: &mut Option<A>) -> Result<(), Refusal> {
+        match gate {
+            ArgumentGate::DecodeArguments => (self.decode_arguments)(facts),
+            ArgumentGate::RefuseUnknownArguments => (self.refuse_unknown_arguments)(facts),
+            ArgumentGate::RefuseAbsentArguments => (self.refuse_absent_arguments)(facts),
+            ArgumentGate::NormalizeArgs => {
+                *args = Some((self.normalize_args)(facts)?);
+                Ok(())
+            }
+            ArgumentGate::RefuseRoleMismatch => (self.refuse_role_mismatch)(),
+            ArgumentGate::ResolveReferences => (self.resolve_references)(args.as_ref().expect(NORMALIZED)),
+        }
+    }
+}
+
+/// `AggregateStep::ORDER`'s argument gates over one aggregate command's facts:
+/// the normalized `<Args>`, or the first refusal in declared order. Every
+/// other step is `dispatch`'s, entered once the router has resolved identity.
+pub fn decode_aggregate_arguments<A>(facts: &Json, gates: &ArgumentGates<'_, A>) -> Result<A, Refusal> {
+    let mut args = None;
+    for step in AggregateStep::ORDER {
+        #[deny(clippy::wildcard_enum_match_arm)]
+        let gate = match step {
+            AggregateStep::DecodeArguments => ArgumentGate::DecodeArguments,
+            AggregateStep::RefuseUnknownArguments => ArgumentGate::RefuseUnknownArguments,
+            AggregateStep::RefuseAbsentArguments => ArgumentGate::RefuseAbsentArguments,
+            AggregateStep::NormalizeArgs => ArgumentGate::NormalizeArgs,
+            AggregateStep::RefuseRoleMismatch => ArgumentGate::RefuseRoleMismatch,
+            AggregateStep::ResolveReferences => ArgumentGate::ResolveReferences,
+            AggregateStep::Hydrate
+            | AggregateStep::EnforceGivens
+            | AggregateStep::AdmissibleTransition
+            | AggregateStep::AssignCreationAttributes
+            | AggregateStep::ApplyMutations
+            | AggregateStep::AdvanceLifecycle
+            | AggregateStep::DelegateToEntity
+            | AggregateStep::EnforceEnsures
+            | AggregateStep::EnforceInvariants
+            | AggregateStep::Save
+            | AggregateStep::Emit => continue,
+        };
+        gates.run(gate, facts, &mut args)?;
+    }
+    Ok(args.expect(NORMALIZED))
+}
+
+/// `EntityStep::ORDER`'s argument gates over one entity command's facts — see
+/// `decode_aggregate_arguments`. Every other step is `dispatch_entity`'s.
+pub fn decode_entity_arguments<A>(facts: &Json, gates: &ArgumentGates<'_, A>) -> Result<A, Refusal> {
+    let mut args = None;
+    for step in EntityStep::ORDER {
+        #[deny(clippy::wildcard_enum_match_arm)]
+        let gate = match step {
+            EntityStep::DecodeArguments => ArgumentGate::DecodeArguments,
+            EntityStep::RefuseUnknownArguments => ArgumentGate::RefuseUnknownArguments,
+            EntityStep::RefuseAbsentArguments => ArgumentGate::RefuseAbsentArguments,
+            EntityStep::NormalizeArgs => ArgumentGate::NormalizeArgs,
+            EntityStep::RefuseRoleMismatch => ArgumentGate::RefuseRoleMismatch,
+            EntityStep::ResolveReferences => ArgumentGate::ResolveReferences,
+            EntityStep::HydrateParent
+            | EntityStep::LocateElement
+            | EntityStep::EnforceGivens
+            | EntityStep::AdmissibleTransition
+            | EntityStep::ApplyMutations
+            | EntityStep::AdvanceLifecycle
+            | EntityStep::EnforceEnsures
+            | EntityStep::EnforceInvariants
+            | EntityStep::Save
+            | EntityStep::Emit => continue,
+        };
+        gates.run(gate, facts, &mut args)?;
+    }
+    Ok(args.expect(NORMALIZED))
+}
 
 /// A step's index in `AggregateStep::ORDER`, usable in a const context.
 const fn aggregate_position(step: AggregateStep) -> usize {
@@ -1090,6 +1212,16 @@ const _: () = {
     // `old_snapshot` is taken in ApplyMutations; an EnforceEnsures before it
     // would see none and skip every ensures.
     assert!(aggregate_position(A::ApplyMutations) < aggregate_position(A::EnforceEnsures));
+    // The router resolves identity only after `decode_aggregate_arguments`
+    // returns, so every argument gate must be declared ahead of `hydrate`;
+    // `resolve_references` reads the `<Args>` `normalize_args` produced.
+    assert!(aggregate_position(A::DecodeArguments) < hydrate);
+    assert!(aggregate_position(A::RefuseUnknownArguments) < hydrate);
+    assert!(aggregate_position(A::RefuseAbsentArguments) < hydrate);
+    assert!(aggregate_position(A::NormalizeArgs) < hydrate);
+    assert!(aggregate_position(A::RefuseRoleMismatch) < hydrate);
+    assert!(aggregate_position(A::ResolveReferences) < hydrate);
+    assert!(aggregate_position(A::NormalizeArgs) < aggregate_position(A::ResolveReferences));
 
     use EntityStep as E;
     let hydrate_parent = entity_position(E::HydrateParent);
@@ -1104,21 +1236,27 @@ const _: () = {
     assert!(entity_position(E::EnforceGivens) < entity_position(E::ApplyMutations));
     assert!(entity_position(E::AdmissibleTransition) < entity_position(E::ApplyMutations));
     assert!(entity_position(E::ApplyMutations) < entity_position(E::EnforceEnsures));
+    // See the aggregate half: identity (parent, then element) is resolved
+    // only after `decode_entity_arguments` returns.
+    assert!(entity_position(E::DecodeArguments) < hydrate_parent);
+    assert!(entity_position(E::RefuseUnknownArguments) < hydrate_parent);
+    assert!(entity_position(E::RefuseAbsentArguments) < hydrate_parent);
+    assert!(entity_position(E::NormalizeArgs) < hydrate_parent);
+    assert!(entity_position(E::RefuseRoleMismatch) < hydrate_parent);
+    assert!(entity_position(E::ResolveReferences) < hydrate_parent);
+    assert!(entity_position(E::NormalizeArgs) < entity_position(E::ResolveReferences));
 };
 
-/// Where a declared dispatch step is actually performed in the Rust port
-/// today. The dispatch loops above follow this mapping; every
-/// `GeneratedRouter` step is roadmap D2's scope (a generated
-/// `decode_arguments` that the kernel's loop calls in declared position).
+/// Where a declared dispatch step is actually performed in the Rust port.
+/// The dispatch loops above follow this mapping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepSite {
     /// An arm of the kernel's own dispatch loop does the work.
     Kernel,
-    /// Generated router code (`rust/project/registry.rb`,
-    /// `rust/codegen/src/registry.rs`, and the `from_json` it calls —
-    /// `rust/project/json_codec.rb`, `rust/codegen/src/json_codec.rs`) does
-    /// it before the kernel is entered. The loop's arm is a no-op.
-    GeneratedRouter,
+    /// `decode_aggregate_arguments`/`decode_entity_arguments` call this
+    /// step's generated hook (`ArgumentGates`) in its declared position,
+    /// before the router resolves identity. `dispatch`'s own arm is a no-op.
+    ArgumentGate,
     /// Folded into a generated closure the kernel already calls in another
     /// step's arm (named here). The loop's own arm is a no-op.
     FoldedInto(AggregateStepOrEntityStep),
@@ -1137,18 +1275,17 @@ pub enum AggregateStepOrEntityStep {
 pub const fn aggregate_step_site(step: AggregateStep) -> StepSite {
     use AggregateStep as A;
     match step {
-        // `CommandInvocation::from_json` + `<Args>::from_json`.
-        A::DecodeArguments => StepSite::GeneratedRouter,
-        // Standalone `structural_precheck` (acting commands, before `id_line`)
-        // and again inside `<Args>::from_json`'s unknown/absent-key check.
-        A::RefuseUnknownArguments | A::RefuseAbsentArguments => StepSite::GeneratedRouter,
-        // `<Args>::from_json`'s coercion + `invariant_check_lines`.
-        A::NormalizeArgs => StepSite::GeneratedRouter,
-        // `role_line` → `kernel::check_role`.
-        A::RefuseRoleMismatch => StepSite::GeneratedRouter,
-        // `reference_lines` → `kernel::check_reference`; the tenant boundary
-        // is computed there too but APPLIED in the kernel's `Save` arm.
-        A::ResolveReferences => StepSite::GeneratedRouter,
+        // `<Args>::decode_arguments` (the facts are an object).
+        A::DecodeArguments => StepSite::ArgumentGate,
+        // `<Args>::refuse_unknown_arguments`/`<Args>::refuse_absent_arguments`.
+        A::RefuseUnknownArguments | A::RefuseAbsentArguments => StepSite::ArgumentGate,
+        // `<Args>::from_json`'s coercion + the router's invariant checks.
+        A::NormalizeArgs => StepSite::ArgumentGate,
+        // `kernel::check_role`.
+        A::RefuseRoleMismatch => StepSite::ArgumentGate,
+        // `kernel::check_reference`; the router computes the tenant boundary
+        // after it, but the kernel's `Save` arm APPLIES it.
+        A::ResolveReferences => StepSite::ArgumentGate,
         A::Hydrate => StepSite::Kernel,
         A::EnforceGivens => StepSite::Kernel,
         A::AdmissibleTransition => StepSite::Kernel,
@@ -1171,14 +1308,13 @@ pub const fn aggregate_step_site(step: AggregateStep) -> StepSite {
 pub const fn entity_step_site(step: EntityStep) -> StepSite {
     use EntityStep as E;
     match step {
-        // `CommandInvocation::from_json` + `<EntityArgs>::from_json`.
-        E::DecodeArguments => StepSite::GeneratedRouter,
-        // Route-less `None` arm's standalone `structural_precheck` (BUG#38),
-        // before `extract_id`, and again inside `<EntityArgs>::from_json`.
-        E::RefuseUnknownArguments | E::RefuseAbsentArguments => StepSite::GeneratedRouter,
-        E::NormalizeArgs => StepSite::GeneratedRouter,
-        E::RefuseRoleMismatch => StepSite::GeneratedRouter,
-        E::ResolveReferences => StepSite::GeneratedRouter,
+        // The `<EntityArgs>` functions and checks named in
+        // `aggregate_step_site`, through `decode_entity_arguments`.
+        E::DecodeArguments => StepSite::ArgumentGate,
+        E::RefuseUnknownArguments | E::RefuseAbsentArguments => StepSite::ArgumentGate,
+        E::NormalizeArgs => StepSite::ArgumentGate,
+        E::RefuseRoleMismatch => StepSite::ArgumentGate,
+        E::ResolveReferences => StepSite::ArgumentGate,
         E::HydrateParent => StepSite::Kernel,
         E::LocateElement => StepSite::Kernel,
         E::EnforceGivens => StepSite::Kernel,
@@ -1196,12 +1332,13 @@ pub const fn entity_step_site(step: EntityStep) -> StepSite {
 // generated from vocabulary.bluebook; adding a step there and re-running
 // bin/project_rust_vocabulary adds a variant, and every `match step` in this
 // file — `dispatch`, `ElementHalf::run`, `dispatch_entity`,
+// `decode_aggregate_arguments`, `decode_entity_arguments`,
 // `aggregate_step_site`, `entity_step_site` — has no wildcard arm, so rustc
 // refuses the crate with E0004 (non-exhaustive patterns) naming the new
 // variant. The `#[deny(clippy::wildcard_enum_match_arm)]` on each keeps a
 // later `_ =>` from quietly defeating that under clippy. The tests below pin
 // the mapping's current shape so a step silently moving between the kernel
-// and generated code is a reviewed diff, not a drift.
+// loop and the argument-gate loop is a reviewed diff, not a drift.
 #[cfg(test)]
 mod step_order_tests {
     use super::*;
@@ -1253,19 +1390,85 @@ mod step_order_tests {
     }
 
     #[test]
-    fn generated_router_steps_all_precede_the_first_kernel_step() {
-        // D2's premise: everything still in generated code runs before the
-        // kernel is entered, so it all sits ahead of the first kernel step.
+    fn argument_gates_all_precede_the_first_kernel_step() {
+        // The router resolves identity between the two loops, so every
+        // argument gate sits ahead of the first kernel step.
         let first_kernel = AggregateStep::ORDER.iter().position(|s| aggregate_step_site(*s) == StepSite::Kernel).unwrap();
         for step in AggregateStep::ORDER {
-            if aggregate_step_site(step) == StepSite::GeneratedRouter {
-                assert!(step.position() < first_kernel, "{} runs in generated code but is declared after hydrate", step.step());
+            if aggregate_step_site(step) == StepSite::ArgumentGate {
+                assert!(step.position() < first_kernel, "{} is an argument gate but is declared after hydrate", step.step());
             }
         }
         let first_kernel = EntityStep::ORDER.iter().position(|s| entity_step_site(*s) == StepSite::Kernel).unwrap();
         for step in EntityStep::ORDER {
-            if entity_step_site(step) == StepSite::GeneratedRouter {
-                assert!(step.position() < first_kernel, "{} runs in generated code but is declared after hydrate_parent", step.step());
+            if entity_step_site(step) == StepSite::ArgumentGate {
+                assert!(step.position() < first_kernel, "{} is an argument gate but is declared after hydrate_parent", step.step());
+            }
+        }
+    }
+
+    use std::cell::RefCell;
+
+    /// Hooks that record which step ran, refusing at the steps named in `refuse`.
+    fn recorded<R>(refuse: &[&'static str], body: impl FnOnce(&ArgumentGates<'_, i64>) -> R) -> (R, Vec<&'static str>) {
+        let ran = RefCell::new(Vec::new());
+        let hit = |step: &'static str| -> Result<(), Refusal> {
+            ran.borrow_mut().push(step);
+            if refuse.contains(&step) {
+                Err(Refusal::TypeMismatch(step.to_string()))
+            } else {
+                Ok(())
+            }
+        };
+        let decode = |_: &Json| hit("decode_arguments");
+        let unknown = |_: &Json| hit("refuse_unknown_arguments");
+        let absent = |_: &Json| hit("refuse_absent_arguments");
+        let normalize = |_: &Json| hit("normalize_args").map(|()| 7);
+        let role = || hit("refuse_role_mismatch");
+        let references = |args: &i64| {
+            assert_eq!(*args, 7, "resolve_references reads what normalize_args produced");
+            hit("resolve_references")
+        };
+        let gates = ArgumentGates {
+            decode_arguments: &decode,
+            refuse_unknown_arguments: &unknown,
+            refuse_absent_arguments: &absent,
+            normalize_args: &normalize,
+            refuse_role_mismatch: &role,
+            resolve_references: &references,
+        };
+        let result = body(&gates);
+        (result, ran.into_inner())
+    }
+
+    #[test]
+    fn the_argument_gate_loops_call_every_hook_in_declared_order() {
+        let facts = Json::Object(Vec::new());
+        let (result, ran) = recorded(&[], |gates| decode_aggregate_arguments(&facts, gates));
+        assert_eq!(result.unwrap(), 7);
+        let declared: Vec<&str> =
+            AggregateStep::ORDER.iter().filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate).map(|s| s.step()).collect();
+        assert_eq!(ran, declared);
+
+        let (result, ran) = recorded(&[], |gates| decode_entity_arguments(&facts, gates));
+        assert_eq!(result.unwrap(), 7);
+        let declared: Vec<&str> =
+            EntityStep::ORDER.iter().filter(|s| entity_step_site(**s) == StepSite::ArgumentGate).map(|s| s.step()).collect();
+        assert_eq!(ran, declared);
+    }
+
+    #[test]
+    fn the_earliest_declared_violated_gate_wins_and_later_hooks_never_run() {
+        let facts = Json::Object(Vec::new());
+        let gates: Vec<&'static str> =
+            AggregateStep::ORDER.iter().filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate).map(|s| s.step()).collect();
+        for (i, earlier) in gates.iter().enumerate() {
+            for later in &gates[i + 1..] {
+                let (result, ran) = recorded(&[earlier, later], |g| decode_aggregate_arguments(&facts, g));
+                assert_eq!(result.unwrap_err().to_string(), Refusal::TypeMismatch(earlier.to_string()).to_string());
+                assert_eq!(ran.last(), Some(earlier));
+                let (result, _) = recorded(&[earlier, later], |g| decode_entity_arguments(&facts, g));
+                assert_eq!(result.unwrap_err().to_string(), Refusal::TypeMismatch(earlier.to_string()).to_string());
             }
         }
     }
