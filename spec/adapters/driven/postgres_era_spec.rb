@@ -326,7 +326,7 @@ status: "sold"))
       expect(where("pizza.price_cents.cents", "lte", 1200)).to eq(%w[p1 p3])
     end
 
-    # Note: on semantics, not just mechanics: `contains` on a plain scalar
+    # NOTE: on semantics, not just mechanics: `contains` on a plain scalar
     # field means substring everywhere now — the reference (in-memory)
     # interpreter's `contains?` (query_interpreter.rb) reads the same way,
     # having previously read `contains` as CSV/list membership even for a

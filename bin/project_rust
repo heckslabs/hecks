@@ -580,7 +580,7 @@ else
       f.puts "// it whenever any other domain feature is present)."
       non_default_domains.combination(2).each do |a, b|
         f.puts "#[cfg(all(feature = #{a.inspect}, feature = #{b.inspect}))]"
-        # Note: plain `a`/`b`/`domains.join` here, never `.inspect` — this
+        # NOTE: plain `a`/`b`/`domains.join` here, never `.inspect` — this
         # whole line is already inside one Rust string literal
         # (`compile_error!("...")`); embedding another `.inspect`'s own
         # `"quoted"` form would nest unescaped double quotes and produce

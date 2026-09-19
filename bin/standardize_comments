@@ -96,7 +96,8 @@ module CommentStyle
   SQL_PATH = %r{sql|postgres|/d1|_era|/era|lineage|outbox|schema|persistence}
 
   PROTECTED_SPANS = Regexp.union(
-    /`[^`]*`/, /"[^"]*"/, /'[^'\s]*'/, %r{\b[a-z]+://\S+}, SQL_PHRASES
+    /`[^`]*`/, /"[^"]*"/, /'[^'\s]*'/, %r{\b[a-z]+://\S+}, SQL_PHRASES,
+    /\b(?:NOTE|OPTIMIZE|HACK|REVIEW):/
   ).freeze
 
   CAPS_WORD = /
