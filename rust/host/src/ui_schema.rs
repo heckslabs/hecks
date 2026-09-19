@@ -400,7 +400,7 @@ fn hop_column(entry: &Value, fields: &[Value], by_name: &HashMap<&str, &Value>, 
 
 /// `Lifecycle#states` — the default state, then every state some
 /// transition targets, deduplicated in that order.
-fn lifecycle_states(aggregate: &Value) -> Vec<String> {
+pub(crate) fn lifecycle_states(aggregate: &Value) -> Vec<String> {
     let Some(lifecycle) = lifecycle(aggregate) else { return Vec::new() };
     let mut states = Vec::new();
     if let Some(default) = lifecycle.get("default").and_then(|v| v.as_str()) {
@@ -765,15 +765,15 @@ pub fn agg_name(aggregate: &Value) -> &str {
     aggregate.get("name").and_then(|v| v.as_str()).unwrap_or("")
 }
 
-fn attr_name(attribute: &Value) -> &str {
+pub(crate) fn attr_name(attribute: &Value) -> &str {
     attribute.get("name").and_then(|v| v.as_str()).unwrap_or("")
 }
 
-fn type_of(attribute: &Value) -> &str {
+pub(crate) fn type_of(attribute: &Value) -> &str {
     attribute.get("type").and_then(|v| v.as_str()).unwrap_or("")
 }
 
-fn array<'a>(value: &'a Value, field: &str) -> &'a [Value] {
+pub(crate) fn array<'a>(value: &'a Value, field: &str) -> &'a [Value] {
     value.get(field).and_then(|v| v.as_array()).map(|a| a.as_slice()).unwrap_or(&[])
 }
 
@@ -795,11 +795,11 @@ pub fn find_attribute<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value>
     array(aggregate, "attributes").iter().find(|a| attr_name(a) == name)
 }
 
-fn find_value_object<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
+pub(crate) fn find_value_object<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
     array(aggregate, "value_objects").iter().find(|v| v.get("name").and_then(|n| n.as_str()) == Some(name))
 }
 
-fn find_entity<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
+pub(crate) fn find_entity<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
     array(aggregate, "entities").iter().find(|e| e.get("name").and_then(|n| n.as_str()) == Some(name))
 }
 
@@ -814,11 +814,11 @@ pub fn reference_target(ty: &str) -> Option<String> {
     ty.strip_prefix("Reference<")?.strip_suffix('>').map(String::from)
 }
 
-fn is_reference(attribute: &Value) -> bool {
+pub(crate) fn is_reference(attribute: &Value) -> bool {
     reference_target(type_of(attribute)).is_some()
 }
 
-fn is_list(attribute: &Value) -> bool {
+pub(crate) fn is_list(attribute: &Value) -> bool {
     attribute.get("list").and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
