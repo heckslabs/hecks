@@ -748,8 +748,14 @@ jobs:
       # "standard battery" + determinism check alone, against a suite
       # that's otherwise ~50ms/example) — enough to be worth its own
       # runner. The two Postgres-backed specs above are the exception.
+      #
+      # ONE WORKER PER CORE — this was a single process on a 4-vCPU runner
+      # (216s). Every example here is fixed-seed, so how the files are
+      # dealt out changes nothing about what runs. The two Postgres-backed
+      # files each create their own uniquely named scratch database and no
+      # role, so they can overlap; locally 262 examples went 100s -> 46s.
       - name: "rspec: fuzzing (property replay)"
-        run: bundle exec rspec spec/fuzzing --tag fuzzing
+        run: bundle exec parallel_rspec spec/fuzzing -n 4 -o "--tag fuzzing"
 
   # A FOURTH JOB, gated rather than run on every push/PR the way the
   # `rspec*`/`checks` jobs above are — bin/stress_concurrency_specs's own
