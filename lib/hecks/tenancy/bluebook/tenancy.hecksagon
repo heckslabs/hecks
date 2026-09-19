@@ -14,15 +14,17 @@ Hecks.hecksagon "Tenancy" do
   # PortOperationInterpreter#ask's `ctx.args.merge(spread(answer))`),
   # so the whole payload forwarded verbatim carries two fields
   # `Register` never declares and gets refused outright.
-  # KNOWN GAP, OUT OF SCOPE HERE — `bin/model_check`'s own `deaf_policy`
-  # check only understands the OPPOSITE cross-domain shape (a policy
-  # dispatching INTO a foreign domain via `across`, acknowledged by
-  # `subscribe`); a policy REACTING to a foreign event while dispatching
-  # locally (this one) has no matching acknowledgment mechanism yet, so
-  # checking Tenancy in isolation flags this as deaf even though it
-  # fires for real (see spec/hecksagon_translates_spec.rb). Neither
-  # `deploy` nor `tenancy` is in `Hecks::Corpus::MODEL_CHECK_KINDS`, so
-  # the real sweep never reaches this false positive either way.
+  # CHECKED TOGETHER, NOT IN ISOLATION — `bin/model_check`'s own
+  # `deaf_policy` check only sees ONE domain's own emitted events by
+  # default, which would flag this reaction as deaf (it reacts to a
+  # FOREIGN event, not one Tenancy itself emits). Fixed by
+  # `global_emitted_events:`, a cross-domain set `bin/model_check`
+  # builds across every target it boots in one run — run `bin/model_check
+  # lib/hecks/deploy lib/hecks/tenancy` (both targets, one invocation),
+  # not each directory separately, or this reads as a false positive
+  # again. Neither `deploy` nor `tenancy` is in
+  # `Hecks::Corpus::MODEL_CHECK_KINDS`, so the automatic sweep never
+  # reaches this at all, checked or not.
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned
     trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }

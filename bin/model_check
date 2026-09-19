@@ -91,13 +91,14 @@ end
 # @return [Boolean] false if an allowlist entry is stale (no longer found); otherwise true
 #   if there are no unresolved error-severity findings (allowlisted or warning-only ones
 #   don't count), false if there is at least one
-def examine(name, registry, known_domains: nil)
+def examine(name, registry, known_domains: nil, global_emitted_events: nil)
   puts "── #{name}"
 
   rust_target = Hecks::Fuzzing::TargetCapabilities.rust_feature?(name, File.join(ROOT, "rust"))
   chapters = registry.bluebooks.values
   findings = chapters.flat_map do |chapter|
     Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), known_domains: known_domains,
+                                              global_emitted_events: global_emitted_events,
                                               rust_target: rust_target, strict: STRICT)
   end
 
@@ -156,11 +157,29 @@ require "hecks/fuzzing/target_capabilities"
 # `--strict` — a `rust_reserved_name` finding is an error for every target,
 # not only for those with a Rust (Cargo feature) target.
 STRICT = !ARGV.delete("--strict").nil?
-domain_arg = ARGV.shift
+domain_args = ARGV.dup
+ARGV.clear
 
-if domain_arg
-  registry = boot(Hecks::Corpus.bluebook_dir(domain_arg.chomp("/")) || domain_arg)
-  ok = examine(File.basename(domain_arg.chomp("/")), registry)
+if domain_args.any?
+  # MULTIPLE DIRECTORIES, ONE CROSS-DOMAIN CHECK — the same two-pass
+  # shape the corpus sweep below already uses, scoped to just the given
+  # targets. Exists because `deploy`/`tenancy` (a `translates` reaction
+  # crossing between them) are deliberately outside `MODEL_CHECK_KINDS`
+  # and so never swept automatically; checking them together needs an
+  # explicit `bin/model_check lib/hecks/deploy lib/hecks/tenancy`. A
+  # single argument is just the n=1 case of this same path — no
+  # behavior change for the pre-existing one-directory form.
+  booted = domain_args.map do |domain_arg|
+    [File.basename(domain_arg.chomp("/")), boot(Hecks::Corpus.bluebook_dir(domain_arg.chomp("/")) || domain_arg)]
+  end
+  known_domains = booted.flat_map { |_, registry| registry.bluebooks.keys + registry.hecksagons.keys }.to_set
+  global_emitted_events = booted.flat_map do |_, registry|
+    registry.bluebooks.values.flat_map { |chapter| Hecks::Bluebook::ModelCheck.emitted_events(chapter) }
+  end.to_set
+
+  ok = booted.reduce(true) do |all_ok, (name, registry)|
+    examine(name, registry, known_domains: known_domains, global_emitted_events: global_emitted_events) && all_ok
+  end
 else
   # **Every corpus kind** — examples, grammar chapters, framework members, the
   # QA ledger, stress domains and fixtures — read from the one table
@@ -182,8 +201,13 @@ else
   # this target domain exist anywhere in the corpus" on its own.
   booted = targets.map { |name, source| [name, boot(source)] }
   known_domains = booted.flat_map { |_, registry| registry.bluebooks.keys + registry.hecksagons.keys }.to_set
+  global_emitted_events = booted.flat_map do |_, registry|
+    registry.bluebooks.values.flat_map { |chapter| Hecks::Bluebook::ModelCheck.emitted_events(chapter) }
+  end.to_set
 
-  ok = booted.reduce(true) { |all_ok, (name, registry)| examine(name, registry, known_domains: known_domains) && all_ok }
+  ok = booted.reduce(true) do |all_ok, (name, registry)|
+    examine(name, registry, known_domains: known_domains, global_emitted_events: global_emitted_events) && all_ok
+  end
   ok = examine_language && ok
 end
 
