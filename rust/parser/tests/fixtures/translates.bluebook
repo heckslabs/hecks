@@ -1,0 +1,26 @@
+# One hand-written case for `translates` (Hecksagon context) — the local
+# half of the reaction, an ordinary chapter/aggregate/command with
+# nothing translates-specific about it. `translates.hecksagon` is the
+# sibling file that reacts to a FOREIGN domain's event and triggers
+# `Tenant::Register` below, the same way `port_routing.bluebook`/
+# `port_routing.hecksagon` split a `port` fixture across the two files.
+Hecks.bluebook "FixtureTranslates" do
+  aggregate "Tenant" do
+    identified_by :slug
+    attribute :slug,   String
+    attribute :domain, String
+
+    command "Register" do
+      role "Deployment"
+      goal "Register a tenant a foreign domain already provisioned"
+
+      attribute :slug,   String
+      attribute :domain, String
+
+      sets :slug
+      sets :domain
+
+      emits "TenantRegistered"
+    end
+  end
+end

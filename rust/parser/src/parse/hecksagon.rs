@@ -14,6 +14,7 @@
 //! gap) — named here as tracked Stage 2+ work rather than guessed at.
 
 use super::domain_port;
+use super::policy;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, LineShape, Opener, SourceLine};
@@ -112,7 +113,7 @@ pub fn apply(
         if let LineShape::Call(call) = lex::classify(file, &line)? {
             if !matches!(
                 call.word.as_str(),
-                "port" | "subscribe" | "uses_framework" | "end"
+                "port" | "subscribe" | "uses_framework" | "translates" | "end"
             ) {
                 *pos += 1;
                 if matches!(call.opener, Opener::DoBlock { .. }) {
@@ -138,6 +139,30 @@ pub fn apply(
                     let name =
                         super::positional_text(file, gated.line.number, "port", &gated.args, 1)?;
                     let _ = domain_port::parse_body(file, lines, pos, &name, None)?;
+                }
+                // `translates "Name" do on Foreign::Event; trigger Local.Command; end` —
+                // a cross-domain reaction WIRED HERE (Hecksagon context) instead of the
+                // sibling `.bluebook`'s own `policy` block, but building the EXACT SAME
+                // `ir::Policy` shape (`HecksagonBuilder#translates` -> `PolicyBuilder.build`
+                // -> `Chapter#add_policy`, Ruby side) — reuses `policy::parse_body`
+                // wholesale, zero new IR fields. Pushed straight onto the already-built
+                // `bluebook.policies` (mirrors `Chapter#add_policy`'s own `@policies <<`,
+                // which runs on the SAME already-registered, already-built chapter this
+                // Hecksagon file mutates — see this module's own header), so a
+                // `translates` block lands after every aggregate- and chapter-level
+                // policy the sibling `.bluebook` file already contributed, in file
+                // order, the same "declared after the model, in Hecksagon" position
+                // `add_port`'s own `port` arm just above gives a bare root port.
+                "translates" => {
+                    let name = super::positional_text(
+                        file,
+                        gated.line.number,
+                        "translates",
+                        &gated.args,
+                        1,
+                    )?;
+                    let built = policy::parse_body(file, lines, pos, &name)?;
+                    bluebook.policies.push(built);
                 }
                 // `uses_framework "Governance"`/`subscribe "..."` —
                 // ACCEPTED AND IGNORED, per the plan's own finding #5:
