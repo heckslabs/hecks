@@ -1,5 +1,17 @@
 Hecks.hecksagon "CheckoutFixture" do
   uses_framework "Governance"
+  # ATTACHED SO THIS FIXTURE'S OWN `.wasm` CARRIES THE CONSOLE'S CHAPTER —
+  # `PUT /api/presentation` (api.rs) dispatches real `ConsoleSettings::*`
+  # commands through the kernel, so the routes' tests need a kernel that
+  # actually has that chapter compiled in. It is attached the same way a
+  # real console app attaches it (embryonautfoundersapp's own
+  # `.hecksagon`), not through a second, fixture-only path. It is also
+  # the only in-repo domain that attaches ConsoleSettings at all, which
+  # is what makes `rust/src/generated/consolesettings/` a directory
+  # `bin/regen_codegen_domains` regenerates and CI's own drift check
+  # covers, instead of one that only ever existed on whichever machine
+  # last built a real console app's deploy artifact.
+  uses_framework "ConsoleSettings"
 
   CheckoutFixture::Event.persisted_by("PostgresEra")
   CheckoutFixture::Registration.persisted_by("PostgresEra")
@@ -32,4 +44,19 @@ end
 Hecks.hecksagon "Governance" do
   Governance::RoleAssignment.persisted_by("Memory")
   Governance::RoleTransition.persisted_by("Memory")
+end
+
+# ConsoleSettings' own sibling binding — `BindingPolicy.resolve` looks an
+# aggregate up by ITS OWN domain name, never by whoever attached it, the
+# same reason Governance gets its own block above. Memory here (not
+# PostgresEra): this fixture's console rows are whatever a test just
+# dispatched, never anything a previous run left behind.
+Hecks.hecksagon "ConsoleSettings" do
+  # `StateStyle.Declare` declares `role "Console"` — a declared role is
+  # only real access control once Governance is attached to check it
+  # against, the same reason CheckoutFixture attaches it above.
+  uses_framework "Governance"
+  ConsoleSettings::StateStyle.persisted_by("Memory")
+  ConsoleSettings::Collection.persisted_by("Memory")
+  ConsoleSettings::Overview.persisted_by("Memory")
 end

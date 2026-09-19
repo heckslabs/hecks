@@ -83,7 +83,7 @@ module Hecks
       # while dispatch coerces, so checkout_fixture's VO-reading given
       # reads as wrongly admitted.
       Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web.rs", "checkout_fixture",
-                "the Rust host's checkout fixture, pinned by its web tests")
+                "the Rust host's checkout fixture, pinned by its web and /api tests")
     ].freeze
 
     module_function
