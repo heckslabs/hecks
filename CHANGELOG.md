@@ -7,6 +7,25 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**`rust/host` answers the console's writes: `POST /api/:coll` and
+`POST /api/:coll/:id/:command`.** A create runs the aggregate's one
+creating command, with the two things the console does around it that
+the domain itself cannot — minting an identity nobody should be asked
+to type (`slug` from another submitted field, `sequence` from the
+records already there) and checking a precondition a creating command's
+own `given` cannot express, because a `given` only reads its own
+aggregate. Both are the same config `/api/ui-schema` already tells the
+client about, so the picker only offers what the server will accept. A
+command against an existing record is matched by the snake_cased name
+the ui-schema handed the client, refusing an unknown record before an
+unknown command exactly as the Ruby engine does. A refused command
+comes back `422 {"error": <refusal class>, "message": ...}` — the
+kernel names the same classes Ruby's `DOMAIN_REFUSALS` does, so that
+envelope agrees name for name. The one strategy that cannot be ported
+says so: `identity: {strategy: port}` delegates to the domain's own
+`identity_assignment` adapter, Ruby this host has no runtime for, and
+refuses with `501` rather than dispatching without the field.
+
 **`rust/host` answers the console's collection reads: `GET /api/:coll`
 and `GET /api/:coll/:id`.** Records come out of the kernel's own
 `instances` with the record's id beside its fields, exactly as

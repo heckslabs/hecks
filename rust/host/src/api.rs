@@ -32,6 +32,8 @@
 
 use crate::auth::Session;
 use crate::dispatch;
+use crate::journal::LineageConfig;
+use crate::lambda_client::LambdaInvoker;
 use crate::presentation;
 use crate::ui_schema;
 use crate::web::{percent_decode, respond};
@@ -55,9 +57,12 @@ pub async fn route(
     method: &str,
     path: &str,
     query: &HashMap<String, String>,
+    raw_body: &str,
     session: Option<&Session>,
     client: &Mutex<Client>,
     wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
 ) -> Value {
     match (method, path) {
         ("GET", "/api/me") => ok(&me(session)),
@@ -115,6 +120,12 @@ pub async fn route(
             match (method, segments.as_slice()) {
                 ("GET", [collection]) => collection_index(domain_ir, collection, query, client, wasm_path).await,
                 ("GET", [collection, id]) => record_show(domain_ir, collection, id, client, wasm_path).await,
+                ("POST", [collection]) => {
+                    collection_create(domain_ir, collection, raw_body, client, wasm_path, config, invoker).await
+                }
+                ("POST", [collection, id, command]) => {
+                    command_route(domain_ir, collection, id, command, raw_body, client, wasm_path, config, invoker).await
+                }
                 _ => not_found(&format!("no API route for {method} {path}")),
             }
         }
@@ -268,7 +279,7 @@ async fn named_query_rows(
         Ok(result) => result,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
-    let answered = result.get("queries").and_then(|v| v.as_array()).and_then(|queries| queries.first());
+    let answered = result.get("queries").and_then(|v| v.as_array()).and_then(|queries| queries.first()).cloned();
     let Some(answered) = answered else {
         return internal_error(&format!("the kernel answered no query step for {question}"));
     };
@@ -276,16 +287,12 @@ async fn named_query_rows(
         Some(rows) => ok(rows),
         // A REFUSED QUERY, not a missing one — the Ruby engine lets the
         // domain refusal out as a 422 through its own DOMAIN_REFUSALS
-        // handler, which names the refusal CLASS. The kernel reports a
-        // refusal as a message string only (cli.rs keeps
-        // `refusal.to_string()`), so the class name is the one part of
-        // that envelope this host cannot reproduce; the status and the
-        // message are the Ruby engine's own.
-        None => refusal(
-            422,
-            "Refused",
-            answered.get("error").and_then(|v| v.as_str()).unwrap_or("the query was refused"),
-        ),
+        // handler, naming the refusal CLASS. A refused query step also
+        // lands in the kernel's own top-level `refusals` array, which
+        // carries that class as `kind` — so the whole envelope is the
+        // Ruby one, read through the same `domain_refusal` a refused
+        // COMMAND goes through.
+        None => domain_refusal(&result),
     }
 }
 
@@ -330,6 +337,408 @@ fn value_object_field(aggregate: &Value, type_name: &str) -> Option<String> {
         .find(|v| v.get("name").and_then(|n| n.as_str()) == Some(type_name))?;
     let first = value_object.get("attributes").and_then(|v| v.as_array())?.first()?;
     first.get("name").and_then(|v| v.as_str()).map(String::from)
+}
+
+// ---- POST /api/:coll, POST /api/:coll/:id/:command -------------------
+
+/// `POST /api/:coll` — the aggregate's ONE creating command, with the
+/// two things the console does around it that the domain itself
+/// cannot: minting an identity nobody should be asked to type
+/// (`apply_identity!`), and checking a precondition a creating
+/// command's own `given` has no way to express, because a `given` can
+/// only read its own aggregate (`check_preconditions!`). Both are
+/// config, not code — the same `collections.<Name>.identity` /
+/// `.preconditions` entries `/api/ui-schema` already tells the client
+/// about, so the picker only offers what the server will accept.
+#[allow(clippy::too_many_arguments)]
+async fn collection_create(
+    domain_ir: &Value,
+    collection: &str,
+    raw_body: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
+    let presentation = match presentation::load(client).await {
+        Ok(presentation) => presentation,
+        Err(e) => return internal_error(&e.to_string()),
+    };
+    let aggregate = match resolve_collection(domain_ir, &presentation, collection) {
+        Ok(aggregate) => aggregate,
+        Err(refusal) => return refusal,
+    };
+    let mut args = match parsed_body(raw_body) {
+        Ok(args) => args,
+        Err(refusal) => return refusal,
+    };
+    let name = ui_schema::agg_name(aggregate);
+    let Some(creating) = ui_schema::commands(aggregate).into_iter().find(|c| ui_schema::creates(c)) else {
+        return not_found(&format!("{name} declares no creating command"));
+    };
+
+    let records = match read_records(domain_ir, aggregate, client, wasm_path).await {
+        Ok(records) => records,
+        Err(refusal) => return refusal,
+    };
+    if let Err(refusal) = apply_identity(&presentation, aggregate, &mut args, records.len()) {
+        return refusal;
+    }
+    if let Err(refusal) = check_preconditions(domain_ir, &presentation, aggregate, &args, client, wasm_path).await {
+        return refusal;
+    }
+
+    let verb = format!("{}::{name}.{}", domain_name(domain_ir), command_name(creating));
+    let outcome = match dispatch::handle_facts(client, wasm_path, &verb, args, None, config, invoker).await {
+        Ok(outcome) => outcome,
+        Err(e) => return internal_error(&format!("{e:#}")),
+    };
+    if !outcome.accepted {
+        return domain_refusal(&outcome.result);
+    }
+    // The id this call's OWN command targeted — the first mutation of
+    // the last step, never whichever mutation happens to sit last
+    // there (a policy or saga firing as a side effect pushes further
+    // mutations onto the same step). Same rule web.rs's own
+    // `own_command_target_id` follows, and for the same bug.
+    let id = created_id(&outcome.result).unwrap_or_default();
+    created_record(domain_ir, aggregate, &outcome.result, &id)
+}
+
+/// `POST /api/:coll/:id/:command` — a mutating (or state-independent
+/// — `Contract.Revise`, `RecurringPayment.AdvanceCycle`) command
+/// against an existing record.
+///
+/// ORDER MATTERS, and it is the Ruby engine's order: find the record
+/// first (404 if there is none), then check the command name against
+/// what this aggregate can actually dispatch (404 if it can't), then
+/// dispatch. A caller that gets both wrong is told about the record
+/// first, the same way.
+#[allow(clippy::too_many_arguments)]
+async fn command_route(
+    domain_ir: &Value,
+    collection: &str,
+    id: &str,
+    command: &str,
+    raw_body: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
+    let presentation = match presentation::load(client).await {
+        Ok(presentation) => presentation,
+        Err(e) => return internal_error(&e.to_string()),
+    };
+    let aggregate = match resolve_collection(domain_ir, &presentation, collection) {
+        Ok(aggregate) => aggregate,
+        Err(refusal) => return refusal,
+    };
+    let name = ui_schema::agg_name(aggregate);
+    let records = match read_records(domain_ir, aggregate, client, wasm_path).await {
+        Ok(records) => records,
+        Err(refusal) => return refusal,
+    };
+    if !records.iter().any(|(record_id, _)| record_id == id) {
+        return not_found(&format!("no {name} found for id {id:?}"));
+    }
+    let Some(declared) = dispatchable_command(aggregate, command) else {
+        return not_found(&format!("{name} declares no command named {command:?}"));
+    };
+    let args = match parsed_body(raw_body) {
+        Ok(args) => args,
+        Err(refusal) => return refusal,
+    };
+
+    let verb = format!("{}::{name}.{}", domain_name(domain_ir), command_name(declared));
+    let outcome = match dispatch::handle_routed(client, wasm_path, &verb, json!(id), args, None, config, invoker).await {
+        Ok(outcome) => outcome,
+        Err(e) => return internal_error(&format!("{e:#}")),
+    };
+    if !outcome.accepted {
+        return domain_refusal(&outcome.result);
+    }
+    created_record(domain_ir, aggregate, &outcome.result, id)
+}
+
+/// `JSON_DOOR.validate_command!` — checked against what a `Handle` can
+/// actually dispatch, which is every command EXCEPT the creating one
+/// (that one lives on the aggregate itself, reached through
+/// `POST /api/:coll`). Accepting it here would pass this gate clean
+/// and then fail as something far less legible.
+///
+/// The URL carries the snake_cased command name (`accept`,
+/// `advance_cycle`) — the same spelling `/api/ui-schema` hands the
+/// client in every transition's own `command:` — so the match is
+/// against `Naming.snake` of each declared name, never the declared
+/// name itself.
+fn dispatchable_command<'a>(aggregate: &'a Value, wanted: &str) -> Option<&'a Value> {
+    ui_schema::commands(aggregate)
+        .into_iter()
+        .filter(|command| !ui_schema::creates(command))
+        .find(|command| ui_schema::snake(command_name(command)) == wanted)
+}
+
+fn command_name(command: &Value) -> &str {
+    command.get("name").and_then(|v| v.as_str()).unwrap_or("")
+}
+
+fn domain_name(domain_ir: &Value) -> &str {
+    domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("")
+}
+
+/// `parsed_body` — an empty body is an empty argument hash (a
+/// no-argument command posts nothing), and anything that isn't JSON
+/// refuses the way the Ruby engine refuses it.
+///
+/// A body that parses but isn't an OBJECT refuses the same way. Ruby
+/// reaches `public_send(command, **args)` with it and dies of a
+/// TypeError — a 500 whose message is about Ruby, not about the
+/// request; this names the real problem at the status code that
+/// describes it.
+fn parsed_body(raw: &str) -> Result<Value, Value> {
+    if raw.trim().is_empty() {
+        return Ok(json!({}));
+    }
+    match serde_json::from_str::<Value>(raw) {
+        Ok(Value::Object(body)) => Ok(Value::Object(body)),
+        _ => Err(refusal(400, "MalformedBody", "request body is not valid JSON")),
+    }
+}
+
+/// The command's own target id: the FIRST mutation of the LAST step.
+fn created_id(result: &Value) -> Option<String> {
+    result
+        .get("mutations")?
+        .as_array()?
+        .last()?
+        .as_array()?
+        .first()?
+        .get("id")?
+        .as_str()
+        .map(String::from)
+}
+
+/// The record as it stands after the command — the same materialized
+/// shape every read route answers with, read straight out of the
+/// kernel's own post-dispatch `instances` rather than re-reading the
+/// journal.
+fn created_record(domain_ir: &Value, aggregate: &Value, result: &Value, id: &str) -> Value {
+    let key = format!("{}::{}#{id}", domain_name(domain_ir), ui_schema::agg_name(aggregate));
+    match result.get("instances").and_then(|instances| instances.get(&key)) {
+        Some(state) => ok(&with_id(id, state)),
+        // Accepted, but this host cannot see the record it just wrote
+        // — a real inconsistency, never a 200 with an empty body.
+        None => internal_error(&format!("{key} was accepted but is not in the resulting state")),
+    }
+}
+
+/// A REFUSED COMMAND, IN THE RUBY ENGINE'S OWN ENVELOPE — `422` with
+/// `{"error": <refusal class>, "message": <its message>}`. The kernel
+/// names the same classes Ruby does (`kind()`: GivenNotMet,
+/// InvariantViolation, AlreadyExists, NotFound, Unauthorized …, all of
+/// them `Runtime::` classes in `DOMAIN_REFUSALS`), so this envelope is
+/// the Ruby one key for key and name for name.
+///
+/// The LAST refusal, not the first: `dispatch::handle` replays the
+/// whole rehydrated history, and every step before this call's own
+/// already succeeded once.
+fn domain_refusal(result: &Value) -> Value {
+    let last = result.get("refusals").and_then(|r| r.as_array()).and_then(|refusals| refusals.last());
+    let Some(last) = last else { return refusal(422, "Refused", "the command was refused") };
+    refusal(
+        422,
+        last.get("kind").and_then(|v| v.as_str()).unwrap_or("Refused"),
+        last.get("error").and_then(|v| v.as_str()).unwrap_or("the command was refused"),
+    )
+}
+
+// ---- identity minting ------------------------------------------------
+
+/// A CODE, MINTED — not typed. `collections.<Name>.identity` names one
+/// of the creating command's own attributes and how to fill it without
+/// asking: `slug` lowercases and hyphenates another submitted field's
+/// value (a client's name becomes its reference); `sequence` counts the
+/// records already there and mints the next prefixed, zero-padded one
+/// (a proposal's number). The hand-written Founder App did this in its
+/// own JS, off the browser's already-loaded item count — it happens
+/// server-side for the same reason everything else did: one true
+/// answer, not one a client has to keep in sync.
+///
+/// Only fires when the field is genuinely missing. `/api/ui-schema`
+/// leaves it out of the create form entirely, but a direct API call
+/// that supplies one is left alone rather than overwritten.
+fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, existing: usize) -> Result<(), Value> {
+    let name = ui_schema::agg_name(aggregate);
+    let Some(rule) = presentation.get("collections").and_then(|c| c.get(name)).and_then(|c| c.get("identity")) else {
+        return Ok(());
+    };
+    let Some(field) = rule.get("field").and_then(|v| v.as_str()) else { return Ok(()) };
+    if args.get(field).is_some() {
+        return Ok(());
+    }
+    let Some(wire_key) = identity_wire_key(aggregate, field) else { return Ok(()) };
+
+    let minted = match rule.get("strategy").and_then(|v| v.as_str()) {
+        Some("slug") => {
+            let source = rule.get("source").and_then(|v| v.as_str()).unwrap_or("");
+            Some(slugify(&dig_source(args, source)))
+        }
+        Some("sequence") => {
+            let prefix = rule.get("prefix").and_then(|v| v.as_str()).unwrap_or("");
+            let pad = rule.get("pad").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
+            Some(format!("{prefix}{:0>pad$}", existing + 1))
+        }
+        // NEITHER MECHANICAL — the `port` strategy delegates to the
+        // domain's own `identity_assignment` adapter, a Ruby object
+        // this host has no runtime for at all (ADR 0007: rust/host has
+        // no port/adapter interpreter and is not getting one). Skipping
+        // it silently would dispatch WITHOUT the identity field and
+        // surface as a confusing domain refusal about a missing
+        // argument; refusing names the real reason.
+        Some("port") => {
+            return Err(not_implemented(
+                "this collection mints its identity through the domain's own identity_assignment port, which this                  host has no adapter runtime to call — create through the Ruby console engine, or configure a slug                  or sequence strategy instead",
+            ))
+        }
+        _ => None,
+    };
+    let Some(minted) = minted.filter(|value| !value.is_empty()) else { return Ok(()) };
+    if let Some(object) = args.as_object_mut() {
+        object.insert(field.to_string(), json!({ wire_key: minted }));
+    }
+    Ok(())
+}
+
+/// The wire key an identity value has to be wrapped in — whatever the
+/// target value object's own single attribute is actually called. This
+/// domain always spells it "value"; nothing here assumes that.
+fn identity_wire_key(aggregate: &Value, field: &str) -> Option<String> {
+    let attribute = ui_schema::find_attribute(aggregate, field)?;
+    let ty = attribute.get("type").and_then(|v| v.as_str())?;
+    if ui_schema::reference_target(ty).is_some() {
+        return None;
+    }
+    value_object_field(aggregate, ty)
+}
+
+fn dig_source(args: &Value, source: &str) -> String {
+    match args.get(source) {
+        Some(Value::Object(fields)) => fields.values().next().map(scalar_to_string).unwrap_or_default(),
+        Some(value) => scalar_to_string(value),
+        None => String::new(),
+    }
+}
+
+fn scalar_to_string(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
+/// `slugify` — lowercase, every run of non-alphanumerics to a single
+/// hyphen, trimmed, and never empty (an unsluggable source becomes
+/// "record" rather than an identity of no characters at all).
+fn slugify(text: &str) -> String {
+    let mut slug = String::new();
+    for character in text.trim().to_lowercase().chars() {
+        if character.is_ascii_alphanumeric() {
+            slug.push(character);
+        } else if !slug.ends_with('-') {
+            slug.push('-');
+        }
+    }
+    let slug = slug.trim_matches('-').to_string();
+    if slug.is_empty() {
+        "record".to_string()
+    } else {
+        slug
+    }
+}
+
+// ---- preconditions ---------------------------------------------------
+
+/// WHERE "always via a demoed Engagement / an accepted Proposal" STOPS
+/// BEING A COMMENT — except it is DATA (`collections.<Name>.
+/// preconditions`), not a hand-written table naming one domain's own
+/// aggregates. A creating command's own `given` can only read its own
+/// aggregate, which is exactly why this lives in the driving adapter
+/// rather than the bluebook.
+async fn check_preconditions(
+    domain_ir: &Value,
+    presentation: &Value,
+    aggregate: &Value,
+    args: &Value,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+) -> Result<(), Value> {
+    let name = ui_schema::agg_name(aggregate);
+    let rules = presentation
+        .get("collections")
+        .and_then(|c| c.get(name))
+        .and_then(|c| c.get("preconditions"))
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    if rules.is_empty() {
+        return Ok(());
+    }
+
+    let instances = dispatch::read(client, wasm_path).await.map_err(|e| internal_error(&format!("{e:#}")))?;
+    let instances = instances.get("instances").cloned().unwrap_or_else(|| json!({}));
+
+    for rule in &rules {
+        check_precondition(domain_ir, aggregate, rule, args, &instances)?;
+    }
+    Ok(())
+}
+
+fn check_precondition(domain_ir: &Value, aggregate: &Value, rule: &Value, args: &Value, instances: &Value) -> Result<(), Value> {
+    let Some(field) = rule.get("field").and_then(|v| v.as_str()) else { return Ok(()) };
+    // A missing required reference is the command's own validation to
+    // refuse, not this one's.
+    let Some(target_id) = args.get(field).and_then(|v| v.as_str()) else { return Ok(()) };
+    // Config named a field that isn't a reference at all — caught at
+    // save time by the console's own validation, not at dispatch time.
+    let Some(target_name) = ui_schema::find_attribute(aggregate, field)
+        .and_then(|attribute| attribute.get("type"))
+        .and_then(|v| v.as_str())
+        .and_then(ui_schema::reference_target)
+    else {
+        return Ok(());
+    };
+
+    let key = format!("{}::{target_name}#{target_id}", domain_name(domain_ir));
+    let Some(target) = instances.get(&key) else {
+        return Err(precondition_failed(
+            rule,
+            &format!("no {} with that id", target_name.to_lowercase()),
+        ));
+    };
+
+    let Some(expected) = rule.get("state").and_then(|v| v.as_str()) else { return Ok(()) };
+    let target_aggregate = ui_schema::aggregates(domain_ir).into_iter().find(|a| ui_schema::agg_name(a) == target_name);
+    // Config named a state precondition against an aggregate with no
+    // lifecycle — again a save-time concern, not a dispatch-time one.
+    let Some(state_field) = target_aggregate
+        .and_then(|a| a.get("lifecycle").cloned())
+        .filter(|l| !l.is_null())
+        .and_then(|l| l.get("field").and_then(|v| v.as_str()).map(String::from))
+    else {
+        return Ok(());
+    };
+
+    let actual = target.get(&state_field).and_then(|v| v.as_str()).unwrap_or("");
+    if actual == expected {
+        return Ok(());
+    }
+    Err(precondition_failed(rule, &format!("{target_name} is at {actual}, not {expected}")))
+}
+
+fn precondition_failed(rule: &Value, derived: &str) -> Value {
+    refusal(422, "PreconditionFailed", rule.get("message").and_then(|v| v.as_str()).unwrap_or(derived))
 }
 
 // ---- sorting ---------------------------------------------------------
@@ -811,6 +1220,351 @@ mod tests {
         // inspects it.
         let refusal = not_found(&format!("no {} found for id {:?}", "Client", "acme"));
         assert_eq!(body(&refusal), json!({"error": "NotFound", "message": "no Client found for id \"acme\""}));
+    }
+
+    // ---- write routes ------------------------------------------------
+
+    #[test]
+    fn an_empty_body_is_an_empty_argument_hash_and_anything_unparseable_refuses() {
+        assert_eq!(parsed_body(""), Ok(json!({})));
+        assert_eq!(parsed_body("   "), Ok(json!({})));
+        assert_eq!(parsed_body(r#"{"name":{"value":"Acme"}}"#), Ok(json!({"name": {"value": "Acme"}})));
+
+        let refusal = parsed_body("not json").expect_err("a malformed body refuses");
+        assert_eq!(refusal["statusCode"], 400);
+        assert_eq!(body(&refusal), json!({"error": "MalformedBody", "message": "request body is not valid JSON"}));
+        // A body that parses but isn't an object has no arguments to
+        // splat — refused the same way rather than dispatched.
+        assert!(parsed_body("[1,2,3]").is_err());
+    }
+
+    #[test]
+    fn a_command_name_matches_the_snake_case_spelling_the_ui_schema_handed_the_client() {
+        let aggregate = json!({
+            "name": "RecurringPayment",
+            "commands": [
+                {"name": "Schedule", "references": null, "attributes": []},
+                {"name": "AdvanceCycle", "references": "RecurringPayment", "attributes": []}
+            ]
+        });
+
+        assert_eq!(command_name(dispatchable_command(&aggregate, "advance_cycle").expect("declared")), "AdvanceCycle");
+        // The CREATING command is reachable through POST /api/:coll,
+        // never here — accepting it would pass this gate and then fail
+        // as something far less legible.
+        assert!(dispatchable_command(&aggregate, "schedule").is_none());
+        assert!(dispatchable_command(&aggregate, "nope").is_none());
+    }
+
+    #[test]
+    fn a_refused_command_carries_the_kernels_own_refusal_class_and_message() {
+        let result = json!({"refusals": [
+            {"verb": "X.Y", "error": "an earlier one", "kind": "AlreadyExists"},
+            {"verb": "X.Y", "error": "a proposal is only accepted once", "kind": "LifecycleRefused"}
+        ]});
+
+        let refusal = domain_refusal(&result);
+        assert_eq!(refusal["statusCode"], 422);
+        // The LAST refusal — `handle` replays the whole rehydrated
+        // history, so everything before this call's own step already
+        // succeeded once.
+        assert_eq!(
+            body(&refusal),
+            json!({"error": "LifecycleRefused", "message": "a proposal is only accepted once"})
+        );
+    }
+
+    #[test]
+    fn the_created_id_is_this_commands_own_target_never_a_reactions() {
+        let result = json!({"mutations": [
+            [{"aggregate": "Client", "id": "earlier"}],
+            [{"aggregate": "Proposal", "id": "P-004"}, {"aggregate": "Engagement", "id": "a-policy-fired"}]
+        ]});
+
+        assert_eq!(created_id(&result), Some("P-004".to_string()));
+    }
+
+    // ---- identity minting --------------------------------------------
+
+    fn client_with_identity(identity: Value) -> (Value, Value) {
+        let aggregate = json!({
+            "name": "Client",
+            "identified_by": ["reference.value"],
+            "attributes": [
+                {"name": "reference", "type": "ClientReference", "list": false, "optional": false},
+                {"name": "name", "type": "ClientName", "list": false, "optional": false},
+                {"name": "owner", "type": "Reference<Member>", "list": false, "optional": true}
+            ],
+            "value_objects": [
+                {"name": "ClientReference", "attributes": [{"name": "value", "type": "String"}], "closed_set": false, "members": []},
+                {"name": "ClientName", "attributes": [{"name": "value", "type": "String"}], "closed_set": false, "members": []}
+            ],
+            "entities": [], "commands": [], "queries": [], "lifecycle": null
+        });
+        let presentation = json!({"collections": {"Client": {"identity": identity}}});
+        (aggregate, presentation)
+    }
+
+    #[test]
+    fn a_slug_identity_is_minted_from_another_submitted_field() {
+        let (aggregate, presentation) = client_with_identity(json!({"field": "reference", "strategy": "slug", "source": "name"}));
+        let mut args = json!({"name": {"value": "Acme Corp."}});
+
+        apply_identity(&presentation, &aggregate, &mut args, 0).expect("slugging never refuses");
+
+        assert_eq!(args["reference"], json!({"value": "acme-corp"}));
+    }
+
+    #[test]
+    fn a_sequence_identity_counts_the_records_already_there_and_pads_to_the_configured_width() {
+        let (aggregate, presentation) =
+            client_with_identity(json!({"field": "reference", "strategy": "sequence", "prefix": "C-", "pad": 4}));
+        let mut args = json!({"name": {"value": "Acme"}});
+
+        apply_identity(&presentation, &aggregate, &mut args, 41).expect("sequencing never refuses");
+
+        assert_eq!(args["reference"], json!({"value": "C-0042"}));
+    }
+
+    #[test]
+    fn an_identity_the_caller_supplied_is_left_exactly_as_it_came() {
+        let (aggregate, presentation) = client_with_identity(json!({"field": "reference", "strategy": "slug", "source": "name"}));
+        let mut args = json!({"reference": {"value": "chosen-by-hand"}, "name": {"value": "Acme"}});
+
+        apply_identity(&presentation, &aggregate, &mut args, 0).expect("supplied identities never refuse");
+
+        assert_eq!(args["reference"], json!({"value": "chosen-by-hand"}));
+    }
+
+    #[test]
+    fn an_identity_rule_naming_a_reference_field_mints_nothing_rather_than_guessing_a_wire_shape() {
+        let (aggregate, presentation) = client_with_identity(json!({"field": "owner", "strategy": "slug", "source": "name"}));
+        let mut args = json!({"name": {"value": "Acme"}});
+
+        apply_identity(&presentation, &aggregate, &mut args, 0).expect("no refusal");
+
+        assert!(args.get("owner").is_none(), "{args}");
+    }
+
+    // The one identity strategy this host genuinely cannot run: it
+    // delegates to the domain's own identity_assignment ADAPTER, Ruby
+    // code this crate has no runtime for. Refusing names the reason;
+    // skipping silently would dispatch without the field and surface
+    // as a confusing "absent argument" from the kernel.
+    #[test]
+    fn a_port_identity_strategy_refuses_in_its_own_words_rather_than_dispatching_without_one() {
+        let (aggregate, presentation) = client_with_identity(json!({"field": "reference", "strategy": "port"}));
+        let mut args = json!({"name": {"value": "Acme"}});
+
+        let refusal = apply_identity(&presentation, &aggregate, &mut args, 0).expect_err("the port strategy refuses");
+
+        assert_eq!(refusal["statusCode"], 501);
+        assert!(
+            body(&refusal)["message"].as_str().expect("a message").contains("identity_assignment"),
+            "{refusal}"
+        );
+    }
+
+    #[test]
+    fn slugify_matches_the_console_engines_own_rules() {
+        assert_eq!(slugify("Acme Corp."), "acme-corp");
+        assert_eq!(slugify("  Hello,   World!  "), "hello-world");
+        assert_eq!(slugify("...."), "record");
+        assert_eq!(slugify(""), "record");
+    }
+
+    // ---- preconditions ------------------------------------------------
+
+    fn precondition_domain() -> Value {
+        json!({
+            "name": "EmbryonautFoundersApp",
+            "aggregates": [
+                {
+                    "name": "Contract",
+                    "identified_by": ["number.value"],
+                    "attributes": [
+                        {"name": "number", "type": "ContractNumber", "list": false, "optional": false},
+                        {"name": "proposal_id", "type": "Reference<Proposal>", "list": false, "optional": false}
+                    ],
+                    "value_objects": [{"name": "ContractNumber", "attributes": [{"name": "value", "type": "String"}],
+                                       "closed_set": false, "members": []}],
+                    "entities": [], "commands": [], "queries": [], "lifecycle": null
+                },
+                {
+                    "name": "Proposal",
+                    "identified_by": ["number.value"],
+                    "attributes": [], "value_objects": [], "entities": [], "commands": [], "queries": [],
+                    "lifecycle": {"field": "status", "default": "drafted", "transitions": []}
+                }
+            ]
+        })
+    }
+
+    fn contract() -> Value {
+        precondition_domain()["aggregates"][0].clone()
+    }
+
+    #[test]
+    fn a_precondition_passes_when_the_target_is_already_in_the_named_state() {
+        let instances = json!({"EmbryonautFoundersApp::Proposal#P-001": {"status": "accepted"}});
+        let rule = json!({"field": "proposal_id", "state": "accepted"});
+
+        assert!(check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances).is_ok());
+    }
+
+    #[test]
+    fn a_precondition_refuses_when_the_target_is_in_some_other_state() {
+        let instances = json!({"EmbryonautFoundersApp::Proposal#P-001": {"status": "sent"}});
+        let rule = json!({"field": "proposal_id", "state": "accepted"});
+
+        let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances)
+            .expect_err("a proposal that isn't accepted refuses");
+
+        assert_eq!(refusal["statusCode"], 422);
+        assert_eq!(
+            body(&refusal),
+            json!({"error": "PreconditionFailed", "message": "Proposal is at sent, not accepted"})
+        );
+    }
+
+    #[test]
+    fn a_precondition_uses_its_own_configured_message_when_it_has_one() {
+        let rule = json!({"field": "proposal_id", "state": "accepted", "message": "the proposal hasn't been accepted yet"});
+        let instances = json!({"EmbryonautFoundersApp::Proposal#P-001": {"status": "sent"}});
+
+        let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances)
+            .expect_err("refuses");
+
+        assert_eq!(body(&refusal)["message"], "the proposal hasn't been accepted yet");
+    }
+
+    #[test]
+    fn a_precondition_refuses_a_reference_to_a_record_that_does_not_exist_at_all() {
+        let rule = json!({"field": "proposal_id", "state": "accepted"});
+
+        let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "ghost"}), &json!({}))
+            .expect_err("refuses");
+
+        assert_eq!(body(&refusal), json!({"error": "PreconditionFailed", "message": "no proposal with that id"}));
+    }
+
+    #[test]
+    fn a_precondition_says_nothing_about_a_reference_the_caller_left_out() {
+        // A missing REQUIRED reference is the command's own validation
+        // to refuse, in the domain's own words — not this check's.
+        let rule = json!({"field": "proposal_id", "state": "accepted"});
+
+        assert!(check_precondition(&precondition_domain(), &contract(), &rule, &json!({}), &json!({})).is_ok());
+    }
+
+    #[test]
+    fn a_precondition_naming_a_field_that_is_not_a_reference_simply_does_not_fire() {
+        let rule = json!({"field": "number", "state": "accepted"});
+
+        assert!(check_precondition(&precondition_domain(), &contract(), &rule, &json!({"number": "C-001"}), &json!({})).is_ok());
+    }
+
+    // ---- both write routes, end to end --------------------------------
+    //
+    // Everything above this point is a pure decision tested in
+    // isolation. This one runs the two POST routes for real: a
+    // throwaway Postgres, the real compiled banking kernel, and
+    // banking's own generated IR — the same three pieces `dispatch.rs`'s
+    // own tests use, reached through its test helpers rather than a
+    // second copy of them.
+    //
+    // The scratch database has no ConsoleSettings relations at all, so
+    // the presentation config reads back empty and the collection key
+    // is the derived one ("customers") — which is exactly the shape
+    // every domain but the one console app is in.
+
+    fn banking_ir() -> Value {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
+        serde_json::from_str(&std::fs::read_to_string(path).expect("bin/project_wasm writes banking.ir.json beside the wasm"))
+            .expect("valid IR")
+    }
+
+    #[tokio::test]
+    async fn a_record_is_created_then_commanded_then_read_back_through_the_api_routes() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_write_routes").await;
+        crate::dispatch::tests::provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let wasm = crate::dispatch::tests::wasm_path();
+        let ir = banking_ir();
+        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1) };
+        let invoker = crate::lambda_client::NeverInvoker;
+
+        let created = collection_create(
+            &ir,
+            "customers",
+            r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#,
+            &client,
+            &wasm,
+            &lineage,
+            &invoker,
+        )
+        .await;
+
+        assert_eq!(created["statusCode"], 200, "{created}");
+        let record = body(&created);
+        assert_eq!(record["id"], "CUST-9001");
+        assert_eq!(record["reference"]["value"], "CUST-9001");
+
+        // …and it is there to read, both ways.
+        let index = collection_index(&ir, "customers", &params(&[]), &client, &wasm).await;
+        assert_eq!(body(&index).as_array().expect("an array").len(), 1);
+        let shown = record_show(&ir, "customers", "CUST-9001", &client, &wasm).await;
+        assert_eq!(body(&shown)["id"], "CUST-9001");
+
+        // A command against it, named the snake_case way
+        // /api/ui-schema hands it to the client.
+        let suspended = command_route(
+            &ir,
+            "customers",
+            "CUST-9001",
+            "suspend",
+            r#"{"standing":{"value":"watch"}}"#,
+            &client,
+            &wasm,
+            &lineage,
+            &invoker,
+        )
+        .await;
+
+        assert_eq!(suspended["statusCode"], 200, "{suspended}");
+        assert_eq!(body(&suspended)["status"], "suspended");
+
+        // The SAME command again is a real domain refusal — 422 in the
+        // Ruby engine's envelope, carrying the kernel's own refusal
+        // class, not a generic error.
+        let again = command_route(
+            &ir,
+            "customers",
+            "CUST-9001",
+            "suspend",
+            r#"{"standing":{"value":"watch"}}"#,
+            &client,
+            &wasm,
+            &lineage,
+            &invoker,
+        )
+        .await;
+
+        assert_eq!(again["statusCode"], 422, "{again}");
+        let refused = body(&again);
+        assert!(!refused["error"].as_str().expect("a refusal class").is_empty(), "{refused}");
+        assert!(!refused["message"].as_str().expect("a message").is_empty(), "{refused}");
+
+        // An unknown command, and an unknown record, both refuse the
+        // way JsonDoor refuses them.
+        let unknown_command =
+            command_route(&ir, "customers", "CUST-9001", "nope", "", &client, &wasm, &lineage, &invoker).await;
+        assert_eq!(unknown_command["statusCode"], 404);
+        assert_eq!(body(&unknown_command)["message"], "Customer declares no command named \"nope\"");
+
+        let unknown_record =
+            command_route(&ir, "customers", "ghost", "suspend", "", &client, &wasm, &lineage, &invoker).await;
+        assert_eq!(unknown_record["statusCode"], 404);
+        assert_eq!(body(&unknown_record)["message"], "no Customer found for id \"ghost\"");
     }
 
     #[test]
