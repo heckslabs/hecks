@@ -7,11 +7,24 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-19
+
+141 commits since v1.3.0. `rust/host` gains the console's own `/api/*`
+surface end to end (`/api/me`, `/api/ui-schema`, `/api/schema`,
+collection reads and writes, presentation reads) plus the write path
+for `PUT /api/presentation`, an unauthenticated JSON request now gets a
+`401` instead of a login redirect, and a `deployed_to("AwsLambda")`
+domain can name its own stack prefix and function name for a stack that
+predates either convention. Loose keyword facts to `dispatch` are
+deprecated (I3); the keyword door itself now closes in 1.5.0, not
+1.4.0, since this release ships the warning without yet removing what
+it warns about. Full detail below.
+
 **Deprecated: command facts as loose keyword arguments to `dispatch`.**
 `runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
 amount: { cents: 100 })` still works and now warns once per call site;
 pass the facts as `with: { ... }` with the receiver's identity in `to:`
-instead. Removal is 1.4.0 (`Hecks::Runtime::Dispatcher::
+instead. Removal is 1.5.0 (`Hecks::Runtime::Dispatcher::
 LEGACY_ARGS_REMOVAL`). One bag holding both the route and the payload is
 the shape behind nine past routing bugs, and `Runtime::Invocation` now
 reads every call's shape in one place — this closes the door that made

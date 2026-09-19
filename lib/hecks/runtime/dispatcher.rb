@@ -152,7 +152,7 @@ module Hecks
         dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, legacy_args: legacy_args)
       end
 
-      LEGACY_ARGS_REMOVAL = "1.4.0".freeze
+      LEGACY_ARGS_REMOVAL = "1.5.0".freeze
       LEGACY_ARGS_WARNING =
         "passing command facts to dispatch as loose keyword arguments is deprecated and will be removed in " \
         "hecks #{LEGACY_ARGS_REMOVAL} — pass them as `with: { ... }`, with the receiver identity in `to:` " \

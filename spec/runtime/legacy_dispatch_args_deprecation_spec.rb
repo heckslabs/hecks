@@ -12,7 +12,8 @@ RSpec.describe "Loose keyword facts in dispatch (deprecated)" do
   LEGACY_DISPATCH_PIZZA_FACTS = { name:  { value: "Margherita" },
                                   pizza: { price_cents: { cents: 1200 }, size: { value: "large" } } }.freeze
   LEGACY_DISPATCH_WARNING =
-    /passing command facts to dispatch as loose keyword arguments is deprecated and will be removed in hecks 1\.4\.0/
+    /passing command facts to dispatch as loose keyword arguments is deprecated and will be removed in hecks #{
+      Regexp.escape(Hecks::Runtime::Dispatcher::LEGACY_ARGS_REMOVAL)}/
 
   let(:runtime) do
     registry = Hecks::Runtime::Registry.new
@@ -50,7 +51,7 @@ RSpec.describe "Loose keyword facts in dispatch (deprecated)" do
   end
 
   it "names the removal release in Dispatcher::LEGACY_ARGS_REMOVAL" do
-    expect(Hecks::Runtime::Dispatcher::LEGACY_ARGS_REMOVAL).to eq("1.4.0")
+    expect(Hecks::Runtime::Dispatcher::LEGACY_ARGS_REMOVAL).to eq("1.5.0")
   end
 
   it "warns once per call site, at that site, and still dispatches" do
