@@ -6,7 +6,7 @@ require "tempfile"
 # the fallback when no adapter implements :query) already had
 # none_in_state -- Ports::Query::InMemory#holds? ("the path that
 # actually runs for a memory- or heki-backed aggregate query" per its
-# own existing comment) never had a matching case, so an ORDINARY
+# own existing comment) never had a matching case, so an ordinary
 # aggregate-level none_in_state where-clause against a Memory-backed
 # aggregate silently fell to the else branch (held == want, an id
 # string against "Aggregate:state", never equal) and excluded every
@@ -97,15 +97,17 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
 
   it "excludes an aggregate-level row whose claim IS in the named state, and keeps the rest" do
     runtime = boot_aggregate_anti_join
-    runtime.dispatch("AggregateAntiJoinGrowth::Claim.File", id: { value: "c1" }) # stays "held"
-    runtime.dispatch("AggregateAntiJoinGrowth::Claim.File", id: { value: "c2" })
-    runtime.dispatch("AggregateAntiJoinGrowth::Claim.Release", id: "c2")         # no longer "held"
+    # stays "held"
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.File", id: { value: "c1" })
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.File", id: { value: "c2" })
+    # no longer "held"
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.Release", id: "c2")
 
-    runtime.dispatch("AggregateAntiJoinGrowth::Board.Open", id: { value: "b1" }, claim_id: "c1")
-    runtime.dispatch("AggregateAntiJoinGrowth::Board.Open", id: { value: "b2" }, claim_id: "c2")
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b1" }, claim_id: "c1")
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b2" }, claim_id: "c2")
     # A claim that was never filed at all — "no record in that state" reads
     # the same as "a record, but not in that state".
-    runtime.dispatch("AggregateAntiJoinGrowth::Board.Open", id: { value: "b3" }, claim_id: "nonexistent")
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b3" }, claim_id: "nonexistent")
 
     rows = runtime.query("AggregateAntiJoinGrowth::Board.Unclaimed")
 

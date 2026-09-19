@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_tick_fixture"
 
-# `bin/qa_tick`, PROVEN AGAINST THE REAL THING — see `spec/qa_tick_dirty_
+# `bin/qa_tick`, proven against the real thing — see `spec/qa_tick_dirty_
 # tree_spec.rb`'s own header. One of four sibling files split out of the
 # original `qa_tick_spec.rb` on 2026-09-18. Own throwaway database:
 # `hecks_qa_tick_operational_error_spec`.

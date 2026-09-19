@@ -2,8 +2,8 @@ require "spec_helper"
 require "yaml"
 
 # Proves spec/support/ci_skip_backstop.rb's tables are live, not prose:
-# an ALLOWED entry's destination job exists and runs the call site's spec
-# file; every entry (ALLOWED or UNROUTED_BUGS) still matches a real `skip`
+# an `ALLOWED` entry's destination job exists and runs the call site's spec
+# file; every entry (`ALLOWED` or `UNROUTED_BUGS`) still matches a real `skip`
 # call site, so a fixed bug or a deleted skip forces its entry out.
 RSpec.describe CiSkipBackstop do
   WORKFLOWS = File.join(InMemoryDomain::ROOT, ".github/workflows")

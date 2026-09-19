@@ -1,7 +1,7 @@
 require "rubocop"
-# NOT "rubocop/rspec/support" — see fallback_hash_lookup_spec.rb's identical
+# Not "rubocop/rspec/support" — see fallback_hash_lookup_spec.rb's identical
 # comment: that file's top-level `RSpec.configure { config.include CopHelper;
-# ... }` installs CopHelper's `registry` method onto EVERY example group the
+# ... }` installs CopHelper's `registry` method onto every example group the
 # instant it's required, which collided with unrelated specs elsewhere in
 # this suite that define their own `registry`. Requiring the two mixins
 # directly and including them only in this describe block keeps this cop's
@@ -37,7 +37,7 @@ RSpec.describe RuboCop::Cop::Hecks::ThreadSharedIvarMutation do
   # prepend.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
-  # THE TWO CLASSES THE USER NAMED, SCOPED BY SHORT CLASS NAME (see the
+  # The two classes the user named, scoped by short class name (see the
   # cop's own comment on why full-namespace resolution isn't attempted) —
   # `class Dispatcher` inside `module Hecks; module Runtime; ... end; end`
   # is exactly this codebase's own actual layout for both

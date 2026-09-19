@@ -14,7 +14,7 @@ require_relative "../../rust/project/exemplar"
 #
 # Without `wrap_if_optional`, `scalar_field_expr` handed these two
 # checks a bare `Option<String>` field — `pattern::matches`/an
-# `.contains` call both want `&str`, which is a REAL Rust compile
+# `.contains` call both want `&str`, which is a real Rust compile
 # error the moment a domain author writes this combination, not a
 # hypothetical.
 RSpec.describe RustProjection::Projector do
@@ -29,8 +29,8 @@ RSpec.describe RustProjection::Projector do
 
       expect(generated).to start_with("if let Some(__optional_value) = &self.description { ")
       expect(generated).to end_with(" }")
-      # The wrapped check itself reads the REBOUND reference, never the
-      # raw Option — this is the exact line that used to fail to compile.
+      # The wrapped check itself reads the rebound reference, never the
+      # raw Option — the raw form is the exact line that fails to compile.
       expect(generated).to include("crate::kernel::pattern::matches(")
       expect(generated).to include("&__optional_value")
       expect(generated).not_to include("&self.description)")

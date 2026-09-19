@@ -1,13 +1,14 @@
 require "hecks"
 
-# `AppendOnly#record_event` used to be an endless method with a trailing
+# `AppendOnly#record_event` as an endless method with a trailing
 # `if` modifier — `def record_event(event) = @adapter.record_event(event)
-# if @adapter.respond_to?(:record_event)`. That modifier binds to the
-# WHOLE `def`, not just its body, so it evaluated `@adapter.respond_to?`
-# against `@adapter` at class-body time (still nil, before any instance
-# exists) and silently skipped defining the method at all — the exact
+# if @adapter.respond_to?(:record_event)` — would break: that modifier
+# binds to the whole `def`, not just its body, so it would evaluate
+# `@adapter.respond_to?` against `@adapter` at class-body time (still nil,
+# before any instance exists) and silently skip defining the method at
+# all — the exact
 # gotcha `events` right above it in append_only.rb already carries a
-# comment warning about. Every adapter's OWN `record_event` (Memory,
+# comment warning about. Every adapter's own `record_event` (Memory,
 # Postgres, PostgresEra, Sqlite, D1) was, and is, written correctly;
 # `emission.rb`'s `repository.record_event(event) if
 # repository.respond_to?(:record_event)` simply never reached them,
@@ -32,8 +33,8 @@ RSpec.describe Hecks::Ports::Persistence::AppendOnly do
   end
 
   it "forwards record_event to an adapter that implements it" do
-    runtime.dispatch("Pizzas::Order.CreatePizza",
-                     name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+    runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                          name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
 
     repository = runtime.registry.repository("Pizzas", runtime.registry.bluebooks["Pizzas"].aggregates.first)
 

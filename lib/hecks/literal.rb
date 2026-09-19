@@ -1,31 +1,31 @@
 module Hecks
-  # THE ONE SPELLING FOR A CAPTURED RUBY LITERAL ON THE WIRE.
+  # The one spelling for a captured Ruby literal on the wire.
   #
   # Several `to_h` fields hold a value the author wrote in a bluebook —
   # `where(status: { eq: "open" })`, `then_set append: { direction: { value:
   # "credit" } }`, `dispatch ... with: { number: :source }`, an attribute's
-  # `default:` — as TEXT, because the export has to stand on its own and a
+  # `default:` — as text, because the export has to stand on its own and a
   # String field cannot say "this one was a Symbol". Every such field is the
   # same question and now gets the same answer.
   #
   # It was three answers before, and they disagreed on both axes that matter.
-  # `Mutation#appended_fields` spelled a Symbol BARE and everything else
-  # `inspect`; `QuerySpecification.render_value` spelled a Symbol with a COLON
+  # `Mutation#appended_fields` spelled a Symbol bare and everything else
+  # `inspect`; `QuerySpecification.render_value` spelled a Symbol with a colon
   # and everything else `to_s`. So `:amount` crossed as "amount" in a mutation
   # and ":amount" in a saga binding — the same value, two spellings, and each
   # reader had to know which field it was looking at. Worse, `to_s`/`inspect`
-  # on a Hash is Ruby's OWN rendering, which moved under us: 3.3 writes
+  # on a Hash is Ruby's own rendering, which moved under us: 3.3 writes
   # `{:value=>"credit"}` and 3.4 writes `{value: "credit"}` for the identical
   # Hash, so the wire format was silently pinned to an interpreter version.
   #
-  # SELF-DESCRIBING IS THE RULE, stated once here rather than inherited from
+  # Self-describing is the rule, stated once here rather than inherited from
   # whatever `inspect` happens to do: a symbol wears its colon, a string wears
   # its quotes, a hash wears `{key: value}` braces, a list wears its brackets,
   # and a number, a boolean and nil are bare. `read` is the exact inverse, and
   # is the only thing that should ever take one of these strings apart.
-  # A MUTATION SOURCE THAT READS THE RECORD'S OWN STATE — `sets :positions,
+  # A mutation source that reads the record's own state — `sets :positions,
   # append: { knights: state(:knights) }`. A bare Symbol in a mutation
-  # source always names a command ARGUMENT (and imports it as one when
+  # source always names a command argument (and imports it as one when
   # the target's own field carries the same name — `CommandBuilder
   # #resolve_append_fields!`); before this there was no way to say "the
   # value this field already holds", so a command could not snapshot its
@@ -43,6 +43,12 @@ module Hecks
   module Literal
     module_function
 
+    # Turns a Ruby value into its self-describing wire spelling.
+    #
+    # @param value [Object] value to render: nil, Symbol, String, StateRef, true,
+    #   false, Integer, Float, Hash, or Array (recursively)
+    # @return [String] the self-describing spelling `read` can parse back
+    # @raise [ArgumentError] if `value` is a type with no pinned literal spelling
     def render(value)
       case value
       when nil    then "nil"
@@ -67,6 +73,9 @@ module Hecks
     # `return`; splitting them into named predicates would just rename
     # each line without changing what it does, and would separate this
     # method from the `render` it is the deliberate mirror of.
+    # @param text [String, #to_s] wire spelling produced by `render`, or a bare word
+    # @return [Object] nil, true, false, Integer, Float, Symbol, StateRef, String,
+    #   Hash, or Array — or `text` itself, stripped, when it matches no known spelling
     # rubocop:disable-next Metrics/CyclomaticComplexity
     # rubocop:disable-next Metrics/PerceivedComplexity
     def read(text)
@@ -87,12 +96,28 @@ module Hecks
 
     ESCAPED = { '"' => '\\"', "\\" => "\\\\" }.freeze
 
+    # Wraps `text` in double quotes, escaping embedded quotes and backslashes.
+    #
+    # @param text [String] raw text to quote
+    # @return [String] the quoted, escaped spelling
     def quote(text) = "\"#{text.gsub(/["\\]/) { |char| ESCAPED[char] }}\""
 
+    # Tells whether `raw` is a double-quoted literal.
+    #
+    # @param raw [String] wire text to check
+    # @return [Boolean]
     def quoted?(raw) = raw.length >= 2 && raw.start_with?('"') && raw.end_with?('"')
 
+    # Strips the surrounding quotes from a quoted literal and unescapes it.
+    #
+    # @param raw [String] a quoted literal, as `quoted?` would confirm
+    # @return [String] the unescaped text inside the quotes
     def unquote(raw) = raw[1..-2].gsub(/\\(.)/) { ::Regexp.last_match(1) }
 
+    # Parses a `{key: value, ...}` wire literal.
+    #
+    # @param raw [String] text starting with `{` and ending with `}`
+    # @return [Hash{Symbol => Object}] the parsed hash, values read recursively via `read`
     def read_hash(raw)
       split_items(raw[1..-2]).to_h do |item|
         key, _, held = item.partition(":")
@@ -100,12 +125,19 @@ module Hecks
       end
     end
 
+    # Parses a `[value, ...]` wire literal.
+    #
+    # @param raw [String] text starting with `[` and ending with `]`
+    # @return [Array<Object>] the parsed values, each read recursively via `read`
     def read_array(raw) = split_items(raw[1..-2]).map { |item| read(item) }
 
-    # Split on the commas that are actually SEPARATORS — never one inside a
+    # Split on the commas that are actually separators — never one inside a
     # quoted string or a nested brace/bracket. Scanned rather than
     # `String#split(", ")`, which tore `"a, b"` in half and lost the second
     # field of anything nested.
+    #
+    # @param body [String] the text between a literal's outer braces or brackets
+    # @return [Array<String>] each item's raw text, stripped, with empty items dropped
     def split_items(body)
       items = []
       current = +""

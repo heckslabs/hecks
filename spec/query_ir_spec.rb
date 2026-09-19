@@ -23,24 +23,24 @@ RSpec.describe Hecks::QueryIR do
       expect(currency[:locations]).to contain_exactly("Account::Money (declared)", "Account::PositiveMoney (declared)")
     end
 
-    # THE TRICKIEST PART OF THIS TOOL — a rule's OWN OBJECT IDENTITY
+    # **The trickiest part of this tool** — a rule's own object identity
     # carries no signal by the time any caller reads the registry.
     # `MetaValidator.call` (S14) judges every bluebook by dispatching
     # its own IR into the self-hosted grammar, then rebuilds the whole
     # graph fresh from flat rows (`Assembly.call`) — so a bare
     # `given("x")` reference and its owner's own block declaration,
-    # the SAME Ruby object at DSL build time, are already two distinct
+    # the same Ruby object at DSL build time, are already two distinct
     # objects by the time `collect_rules` reads them back. Verified
-    # live: `Account`'s OWN "customer is active" given, referenced
+    # live: `Account`'s own "customer is active" given, referenced
     # bare by `Account.Open`/`Account.Credit`/etc., comes back as N
-    # distinct objects, not one — this dedup has to work WITHOUT
+    # distinct objects, not one — this dedup has to work without
     # identity, by recognising that every one of those commands shares
-    # the SAME OWNER (`Account`), which already carries its own
+    # the same owner (`Account`), which already carries its own
     # "(declared)" entry for it.
     #
-    # `Account`'s "customer is active" is also NOT the whole story:
+    # `Account`'s "customer is active" is also not the whole story:
     # `SafeDepositBox` and `OnboardingCase` each independently declare
-    # their OWN "customer is active" with the identical canonical text
+    # their own "customer is active" with the identical canonical text
     # — three genuinely separate declarations, real corpus duplication
     # the tool is right to surface (`bin/query_ir duplicates`'s own
     # live output lists all three). This test scopes to `Account`
@@ -56,7 +56,8 @@ RSpec.describe Hecks::QueryIR do
           (r.location == "Account (declared)" || r.location.start_with?("Account."))
       end
 
-      expect(account_given.size).to be > 1 # Account's own declaration, plus every command that references it
+      # Account's own declaration, plus every command that references it
+      expect(account_given.size).to be > 1
 
       groups = described_class.duplicates(domains: [File.join(InMemoryDomain::ROOT, "examples/banking")], include_meta: false)
       customer_active = groups.find do |g|
@@ -67,7 +68,7 @@ RSpec.describe Hecks::QueryIR do
 
       # It shows up at all (SafeDepositBox/OnboardingCase's own
       # independent declarations make it a real group) — and, since S12
-      # (ADR 0025) has every one of them read through a LOCAL field
+      # (ADR 0025) has every one of them read through a local field
       # named `customer_status` (each its own `projects`, not a shared
       # reference), the three aggregates' independently-declared givens
       # now carry byte-identical canonical text too, not just the same
@@ -79,12 +80,12 @@ RSpec.describe Hecks::QueryIR do
       expect(account_given.map(&:location) - customer_active[:locations]).to be_empty
     end
 
-    # THE NEGATIVE CASE the corpus test above can't isolate on its own
+    # The negative case the corpus test above can't isolate on its own
     # (Account's "customer is active" always shows up, because
     # SafeDepositBox/OnboardingCase genuinely duplicate it too) —
     # `declaration_count` (the private tally `duplicates` filters on)
     # exercised directly: one owner's own declaration plus every
-    # command under THAT SAME owner referencing it by name is ONE real
+    # command under that same owner referencing it by name is one real
     # declaration, not N, and does not clear the ">1" bar alone.
     it "counts one owner's declaration plus its own commands' references as a single declaration" do
       rules = [
@@ -126,7 +127,7 @@ RSpec.describe Hecks::QueryIR do
     end
 
     # Reconstruction's hand-typed aggregate(row)/entity(row) are the
-    # ONLY two — every other construct genuinely has no method for this
+    # only two — every other construct genuinely has no method for this
     # touchpoint to ask about, so it must read `nil` ("does not apply"),
     # never collapse into `false` ("not done yet") — those mean
     # different things to someone reading this mid-round.

@@ -35,16 +35,20 @@ module Hecks
       attr_accessor :last_suite
 
       # `Kernel.load`s one `.behaviors` file and returns its suite, with
-      # NO test actually executed yet — the cheap half, split out so a
+      # no test actually executed yet — the cheap half, split out so a
       # caller that only needs to know what tests exist (the rspec shim,
       # naming its `it`s at collection time) doesn't pay for running them
       # until it actually wants to. `Behaviors.loading_path` is bound only
       # for the duration of the load, and `last_suite` is reset to nil
-      # BEFORE it — a file that loads without ever calling
+      # before it — a file that loads without ever calling
       # `Hecks.behaviors` is unambiguously a parse error, never a stale
       # suite from whatever loaded before it in a sweep (a real bug in a
       # prior port of this idea: compared only against nil, so after the
       # first successful file in a sweep it stayed non-nil forever).
+      # @param path [String] the `.behaviors` file's path
+      # @return [Behaviors::ParseResult] `suite` holding the built `BehaviorsSuite` and
+      #   `parse_error` nil on success; `suite` nil and `parse_error` a String describing
+      #   a raised exception, or the file loading without calling `Hecks.behaviors`
       def parse(path)
         path = File.expand_path(path)
         previous_path = loading_path
@@ -66,6 +70,11 @@ module Hecks
       end
 
       # One `.behaviors` file → `FileResult`, every test actually run.
+      #
+      # @param path [String] the `.behaviors` file's path
+      # @return [Behaviors::FileResult] `parse_error` and empty `runs` on a parse
+      #   failure; otherwise `parse_error` nil and `runs` one `Expectations::Result`
+      #   per test
       def run(path)
         parsed = parse(path)
         return FileResult.new(path: parsed.path, parse_error: parsed.parse_error, runs: []) if parsed.parse_error
@@ -78,12 +87,22 @@ module Hecks
       # it actually found — a sweep that goes green without saying how
       # much it looked at is indistinguishable from one that found
       # nothing to look at.
+      #
+      # @param dir [String] the directory to search, recursively, for `.behaviors` files
+      # @return [Behaviors::SweepResult] `files_swept` the count found, `files` one
+      #   `FileResult` per file, and `summary` the aggregate counts `summarize` returns
       def run_all(dir)
         files = Dir.glob(File.join(dir, "**", "*.behaviors"))
         results = files.map { |path| run(path) }
         SweepResult.new(root: dir, files_swept: files.size, files: results, summary: summarize(results))
       end
 
+      # Tallies a sweep's results into counts by outcome.
+      #
+      # @param results [Array<Behaviors::FileResult>] the swept files' results
+      # @return [Hash{Symbol => Integer}] `:files` the file count, `:parse_errors` files
+      #   that failed to parse, `:total` tests actually run across every file, `:passed`,
+      #   `:failed` and `:errored` counting each `Expectations::Result#status`
       def summarize(results)
         runs = results.flat_map(&:runs)
         {

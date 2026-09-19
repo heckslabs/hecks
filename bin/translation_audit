@@ -4,19 +4,19 @@
 # passes the new era's types, invariants, and lifecycle. Layer 2: the
 # compiled SQL and the port's reference transform agree on every path a
 # compute doesn't own, and the id set is conserved (or, under a rekey,
-# the record COUNT is — see layer_two.rb's own comment for why). Layer
-# 3: a before/after sample of real records for HUMAN approval — for a
+# the record count is — see layer_two.rb's own comment for why). Layer
+# 3: a before/after sample of real records for human approval — for a
 # compute or rekey rule, the only verification there is. The same
 # layers run inside every era mint; this tool runs them standalone,
-# including over a PENDING edge before anything is minted.
+# including over a pending edge before anything is minted.
 #
-# EVERY SAMPLE BELOW IS A PLAIN SELECT — this tool never writes to the
+# Every sample below is a plain SELECT — this tool never writes to the
 # journal, a matview, or hecks_eras (the one exception, `--approve`,
-# writes to hecks_approvals ALONE, and only after every sample above has
+# writes to hecks_approvals alone, and only after every sample above has
 # already printed); a mint stays refused until a human runs it again.
 # And what it reads is not a second, hand-kept-in-sync guess at what a
 # real mint will materialize: `translated_latest` (head_compiler.rb)
-# reads through `head_body_sql`, the SAME layered-or-full choice
+# reads through `head_body_sql`, the same layered-or-full choice
 # `compile_head!` makes at actual mint time. A discrepancy between what
 # this preview shows and what a real mint later produces for the
 # identical edge is a bug in `head_body_sql`'s own callers agreeing to
@@ -87,7 +87,7 @@ if held_shape == current_shape
   end
   chain = manager.edge_chain(registry, bluebook, eras, latest[:label])
 else
-  # a pending edge: audit it BEFORE any mint
+  # a pending edge: audit it before any mint
   manager.ensure_named!(lineage, latest)
   latest = lineage.eras.last
   era = latest[:ordinal] + 1
@@ -143,7 +143,7 @@ end
 needs_approval = edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
 if needs_approval && approve
   # The approval binds to what was reviewed, on both axes: this edge's
-  # parsed content, and the journal as it stands RIGHT NOW — the same
+  # parsed content, and the journal as it stands right now — the same
   # journal the samples above were computed from. It lives in the
   # database, not the repo: only the database can bind to the data.
   lineage.record_approval!(

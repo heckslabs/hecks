@@ -17,12 +17,28 @@ module Hecks
         :unresolved_dependencies,
         keyword_init: true
       ) do
+        # Reports whether every owner field this command could touch is a known,
+        # deterministic write.
+        #
+        # @return [Boolean] `complete_state`
         def complete_state? = complete_state
+
+        # Reports whether the command needs no prior state at all (implies `complete_state?`).
+        #
+        # @return [Boolean] `state_independent`
         def state_independent? = state_independent
 
+        # Chooses the dispatch strategy this plan's proof and the adapter's own
+        # capabilities together allow.
+        #
         # Capability negotiation is correctness-first: an optimization is
         # selected only when both the semantic proof and adapter capability
         # are present. This is planning data only; no runtime path calls it yet.
+        #
+        # @param capabilities [Array<String, Symbol>] the repository's declared capabilities
+        # @return [Symbol] `DependencyPlanning::ATOMIC_PUT` when the plan is complete,
+        #   state-independent, and the adapter declares that capability;
+        #   `DependencyPlanning::TRANSACTIONAL_FALLBACK` otherwise
         def strategy_for(capabilities: [])
           return TRANSACTIONAL_FALLBACK unless complete_state? && state_independent?
           return TRANSACTIONAL_FALLBACK unless capabilities.map(&:to_sym).include?(ATOMIC_PUT)
@@ -38,13 +54,27 @@ module Hecks
       module ExpressionReads
         module_function
 
+        # Finds every dotted path a canonical expression reads, without evaluating it.
+        #
         # Read the same parsed canonical-expression nodes the evaluator uses.
         # A generic Struct walk keeps this additive when the expression grammar
         # gains a composed node; only Lookup nodes carry domain dependencies.
+        #
+        # @param canonical [String] the canonical expression text, such as a rule's `canonical`
+        # @return [Array<String>] the dotted paths the expression reads
         def paths(canonical)
           collect(Bluebook::Expression::Evaluator.parse(canonical), Set.new)
         end
 
+        # Walks one parsed expression node, collecting the dotted paths it reads.
+        #
+        # @param node [Object] a node from `Bluebook::Expression::Evaluator.parse` — a
+        #   `Bluebook::Expression::Resolver::Lookup`, a `Bluebook::Expression::Resolver::
+        #   BlockPredicate`, a `Struct` composed of further nodes, an `Array` of them, or any
+        #   other value (a literal), which contributes no paths
+        # @param bound_names [Set<String>] names locally bound by an enclosing block
+        #   predicate's own parameter, excluded from the result rather than reported as reads
+        # @return [Array<String>] the dotted paths read under `node`, excluding `bound_names`
         def collect(node, bound_names)
           case node
           when Bluebook::Expression::Resolver::Lookup
@@ -74,12 +104,12 @@ module Hecks
         STATEFUL_MUTATIONS = %i[append increment decrement multiply clamp remove].freeze
 
         # `root_aggregate:` — Wave 8's own audit surfaced a real bug here,
-        # not merely a missing feature: for an ENTITY-owned command,
+        # not merely a missing feature: for an entity-owned command,
         # `EntityInterpreter` calls this with `aggregate:` set to the
-        # ENTITY itself (`element_interpreter.rb`'s own `Analyzer.call
+        # entity itself (`element_interpreter.rb`'s own `Analyzer.call
         # (aggregate: entity, command:)`), so `owner_fields` was always
         # the entity's own attribute set. A `given`/`ensures` reading
-        # `parent.X` legitimately means the ROOT aggregate's own field —
+        # `parent.X` legitimately means the root aggregate's own field —
         # a genuinely different owner — but `classify_path`'s `:parent`
         # branch checked that read against `owner_fields` (the entity's),
         # which can never contain a root-level field, so every entity
@@ -87,8 +117,20 @@ module Hecks
         # unresolved regardless of correctness. Defaults to `aggregate`
         # (a no-op) for the plain-aggregate case — `CommandInterpreter`'s
         # own call site never needed to change.
+        #
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct the command
+        #   is dispatched against; an entity for an entity-owned command
+        # @param command [Bluebook::Command] the command to analyze
+        # @param root_aggregate [Bluebook::Aggregate] the owning aggregate a `parent.*` read
+        #   resolves against; defaults to `aggregate` for a plain-aggregate command
+        # @return [Hecks::Runtime::DependencyPlanning::Plan] the derived, frozen plan
         def self.call(aggregate:, command:, root_aggregate: aggregate) = new(aggregate, command, root_aggregate).call
 
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct the command
+        #   is dispatched against
+        # @param command [Bluebook::Command] the command to analyze
+        # @param root_aggregate [Bluebook::Aggregate] the owning aggregate `parent.*` reads
+        #   resolve against; defaults to `aggregate`
         def initialize(aggregate, command, root_aggregate = aggregate)
           @aggregate = aggregate
           @command = command
@@ -96,10 +138,10 @@ module Hecks
           @owner_fields << aggregate.lifecycle.field.to_sym if aggregate.lifecycle
           @root_owner_fields = root_aggregate.attributes.to_set(&:name)
           @root_owner_fields << root_aggregate.lifecycle.field.to_sym if root_aggregate.lifecycle
-          # `projects` FIELDS (S12, ADR 0025) ARE OWNER STATE TOO — a
+          # `projects` fields (S12, ADR 0025) are owner state too — a
           # `given`/`ensures` reading one (e.g. `customer_status ==
           # "active"`) is reading this record's own stored field, same
-          # as any attribute, even though nothing here WRITES it via a
+          # as any attribute, even though nothing here writes it via a
           # declared mutation (`CommandInterpreter#seed_projected_fields`
           # populates it outside this analysis entirely). Left out of
           # `known_writes` deliberately: `add_preservation_reads` then
@@ -107,7 +149,7 @@ module Hecks
           # a partial mutation, which is exactly right — a projected
           # field's freshness comes from the interpreter reseeding it on
           # save, not from anything a caller-supplied write set carries.
-          # Applies to BOTH `owner_fields` and `root_owner_fields` — an
+          # Applies to both `owner_fields` and `root_owner_fields` — an
           # entity's own `parent.*` read can name the root aggregate's
           # projected field just as easily as one of its real attributes
           # (`Banking::Withdrawal.Dispute`'s own `parent.account_customer_
@@ -126,6 +168,9 @@ module Hecks
           @unresolved = Set.new
         end
 
+        # Runs the analysis and derives the command's dependency plan.
+        #
+        # @return [Hecks::Runtime::DependencyPlanning::Plan] the derived, frozen plan
         def call
           analyze_initial_state
           analyze_mutations
@@ -237,7 +282,7 @@ module Hecks
           end
         end
 
-        # KNOWN, HARMLESS GAP: `corrects ..., as: :name`'s bound name
+        # Known, harmless gap: `corrects ..., as: :name`'s bound name
         # (admissibility.rb's `enforce_correction_target`/`enforce_givens`/
         # `enforce_ensures`) isn't special-cased here the way `:old`/
         # `:parent` are — a given/ensures referencing it falls through to
@@ -247,7 +292,7 @@ module Hecks
         # `hydrate_existing` path instead of the `ATOMIC_PUT` fast path.
         # Not a correctness bug — `as:`'s runtime binding (a plain `attrs`
         # merge, exactly like `old:`'s) resolves and evaluates correctly
-        # regardless of what this STATIC analysis concludes — just a real,
+        # regardless of what this static analysis concludes — just a real,
         # deliberately-left optimization gap: closing it would mean
         # threading "which names this command declares as correction
         # bindings" into the Analyzer, which doesn't have that per-command
@@ -258,9 +303,9 @@ module Hecks
           name = head.to_sym
 
           if name == :parent
-            # `root_owner_fields` — NOT `owner_fields`. For an entity-owned
-            # command `owner_fields` is the ENTITY's own attribute set;
-            # `parent.X` always means the ROOT aggregate's own field, a
+            # `root_owner_fields` — not `owner_fields`. For an entity-owned
+            # command `owner_fields` is the entity's own attribute set;
+            # `parent.X` always means the root aggregate's own field, a
             # genuinely different owner (`root_aggregate:`'s own header,
             # above, has the full bug this fixes). Identical for a plain
             # aggregate command, where root_aggregate defaults to aggregate

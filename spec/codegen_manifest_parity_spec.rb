@@ -5,24 +5,24 @@ require "open3"
 require_relative "../rust/project"
 require_relative "fixtures/codegen_manifest/gap_families"
 
-# THE COVERAGE MANIFEST, BOTH GENERATORS.
+# **The coverage manifest, both generators**.
 #
 # `bin/rust_coverage` and the differential fuzzer read each gap's
 # `construct` (and people read its `reason`) out of
 # `rust/src/generated/<domain>/manifest.json`. This holds `hecks-codegen`'s
 # `manifest.json` (rust/codegen/src/manifest.rs) byte-identical to
-# `RustProjection::DomainGenerator.call`'s own, for EVERY manifest-mode
+# `RustProjection::DomainGenerator.call`'s own, for every manifest-mode
 # domain — every directory under rust/src/generated that carries a
 # committed `manifest.json` — plus a copy of banking with every construct
 # family planted (the corpus itself generates everything, so its manifests
 # carry no gaps to compare).
 #
-# Both generators read the SAME IR: the committed `ir.json`. Ruby's
+# Both generators read the same IR: the committed `ir.json`. Ruby's
 # `DomainGenerator.call` runs first (its derivation passes,
 # `mark_append_optional_fields!`/`derive_reverses_mutations!`, are
 # idempotent on an already-derived `ir.json`), then that same Hash is
 # written out for `hecks-codegen domain` — the identical order
-# `spec/codegen_parity_spec.rb` uses. This compares the two GENERATORS,
+# `spec/codegen_parity_spec.rb` uses. This compares the two generators,
 # not the committed tree's freshness (CI's drift check owns that).
 RSpec.describe "Rust codegen manifest parity (hecks-codegen manifest.json)", :io do
   MANIFEST_PARITY_CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
@@ -35,7 +35,7 @@ RSpec.describe "Rust codegen manifest parity (hecks-codegen manifest.json)", :io
                              .freeze
 
   # domain => reason the two manifests still differ. A mismatch for any
-  # domain NOT listed fails below; an entry here whose manifests now
+  # domain not listed fails below; an entry here whose manifests now
   # match fails too, so this list can only ever shrink honestly.
   MANIFEST_KNOWN_GAPS = {}.freeze
 

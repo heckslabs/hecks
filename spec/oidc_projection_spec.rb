@@ -1,7 +1,7 @@
 require "hecks"
 require "hecks/fuzzing/isolated_boot"
 
-# §11'S INTEGRATION LAYER — everything BETWEEN a verified OIDC token and
+# §11'S integration layer — everything between a verified OIDC token and
 # an authorized dispatch. What "verified" means (redirect, code exchange,
 # JWT/JWKS signature checking against a live provider) is deliberately
 # out of scope: real, security-critical, external-dependency work,
@@ -14,11 +14,11 @@ require "hecks/fuzzing/isolated_boot"
 # `lookup_external` is `Ports::IdentityResolution.resolve` ; `role_for`
 # is folded into the same check `Ports::Authorization.holds_role?`
 # already makes for `act_as` — the model here is "does this identity
-# hold the ONE role this command needs," not a single role-per-identity
+# hold the one role this command needs," not a single role-per-identity
 # lookup, since `RoleAssignment` already supports an actor holding
 # several roles at once.
 #
-# THE REAL, SHIPPED WIRING, same as governance_authorization_spec.rb —
+# The real, shipped wiring, same as governance_authorization_spec.rb —
 # Banking's own `.hecksagon` already declares `uses_framework
 # "Governance"` and `uses_framework "Identity"`, so a plain `Hecks.boot`
 # has both in the same registry, and `Fuzzing::IsolatedBoot` keeps a
@@ -31,7 +31,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
   let(:business) { runtime }
 
   def register_customer(runtime, reference: "C-1")
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Banking::Customer.Register",
       reference: { value: reference },
       name:      { given: "Dana", family: "Ng" },
@@ -40,25 +40,25 @@ RSpec.describe "the OIDC client projection's integration layer" do
   end
 
   def register_identity(runtime, identity_id:)
-    runtime.dispatch("Identity::Identity.Register", identity_id: { value: identity_id })
+    runtime.dispatch_flat("Identity::Identity.Register", identity_id: { value: identity_id })
   end
 
   def link_external(runtime, identity_id:, key:, issuer:, subject:)
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Identity::ExternalIdentifier.Link",
       identity: identity_id, key: { value: key }, issuer: { value: issuer }, subject: { value: subject }
     )
   end
 
   def grant(runtime, actor:, role:)
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Governance::RoleAssignment.Assign",
       actor_id: { value: actor }, role_name: { value: role },
       scope: { value: "Branch-1" }, starts_at: { value: "2026-01-01" }
     )
   end
 
-  # THE APPLICATION-LEVEL COMPOSITION — not new library code, the same
+  # The application-level composition — not new library code, the same
   # discipline `act_as_spec.rb`'s own helper follows: verified claims in,
   # a scoped dispatch out, refusing before the block ever runs if either
   # step says no.
@@ -77,7 +77,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
     grant(business, actor: identity.instance.id, role: "Compliance officer")
 
     result = authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") do
-      business.dispatch("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
+      business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
     end
 
     expect(result.events.map(&:name)).to eq(["CustomerSuspended"])
@@ -114,11 +114,11 @@ RSpec.describe "the OIDC client projection's integration layer" do
     grant(business, actor: identity.instance.id, role: "Compliance officer")
 
     via_google = authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") do
-      business.dispatch("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
+      business.dispatch_flat("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
     end
     via_microsoft = authenticated_dispatch(business.registry, issuer: "microsoft", subject: "sub-1",
 role: "Compliance officer") do
-      business.dispatch("Banking::Customer.Reinstate", id: customer.instance.id)
+      business.dispatch_flat("Banking::Customer.Reinstate", id: customer.instance.id)
     end
 
     expect(via_google.events.map(&:name)).to eq(["CustomerSuspended"])

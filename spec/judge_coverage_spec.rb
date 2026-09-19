@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# Every VERB the language declares must be OFFERED to it.
+# Every verb the language declares must be offered to it.
 #
 # A rule the judge never dispatches input to cannot fire. That has now happened
 # three times in this validator. Five rules were declared and unreachable after
@@ -9,22 +9,23 @@ require "spec_helper"
 # validation untouched, so any rule about them was decoration. This spec was
 # written to catch the third, and did not, because it guarded only `*.Declare`:
 # thirteen verbs — among them `Command.Argument` and `ValueObject.Field`, so a
-# command's own arguments and a value object's own fields were NEVER judged —
+# command's own arguments and a value object's own fields were never judged —
 # sat declared and unreachable underneath a green guard.
 #
 # So the map is gone. Nothing here is hand-kept any more: the expectation is
-# DERIVED from the language, and a verb the language declares is a verb the
+# derived from the language, and a verb the language declares is a verb the
 # judge owes an offer. Adding a command to bluebook.bluebook without teaching
 # the judge to offer it is exactly the failure this catches, and now it catches
 # it at the grain of the verb rather than the grain of the category.
 #
-# `experiment/replay.rb` used to catch this indirectly: it rebuilt the IR from
-# the meta-domain and diffed, so a dropped category stopped matching. That is a
-# lot of machinery to answer a question this asks directly, and the reconstruction
-# half was never needed for validation. This replaces it.
+# `experiment/replay.rb`, since removed, caught this only indirectly: it
+# rebuilt the IR from the meta-domain and diffed, so a dropped category
+# stopped matching. That is a lot of machinery to answer a question this asks
+# directly, and the reconstruction half was never needed for validation. This
+# replaces it.
 RSpec.describe "the judge's coverage of the language" do
   # Banking is the only corpus member carrying every category at once.
-  # Booted ONCE per file — `dispatch` in the examples below always goes
+  # Booted once per file — `dispatch` in the examples below always goes
   # through a `Spy` double, never the real banking runtime, so nothing
   # here ever mutates and a shared boot is safe.
   before(:context) do
@@ -44,7 +45,7 @@ RSpec.describe "the judge's coverage of the language" do
     # itself (MetaValidator::ATTACHED_GRAMMAR_DIR) — no separate boot.
     @paging = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
     # `Bluebook.Provide` — Governance is the one real chapter that declares
-    # `provides "authorization"`, and Banking only ATTACHES it through its
+    # `provides "authorization"`, and Banking only attaches it through its
     # hecksagon, so the framework member is judged on its own, the same
     # way Paging is.
     @governance = Hecks::Framework.chapter("Governance")
@@ -52,7 +53,7 @@ RSpec.describe "the judge's coverage of the language" do
     # real user of `Entity.Holds` today: `Handler.dispatches, list_of
     # (Dispatch)` (S17, ADR 0026) is a piece nested inside a piece, and no
     # aggregate/entity in Banking or Paging declares one of its own.
-    # `Entity.Holds` is genuinely dispatched every time ANY bluebook is
+    # `Entity.Holds` is genuinely dispatched every time any bluebook is
     # judged, though — `MetaValidator.grammar_registry` bootstraps by
     # judging "Bluebook" against itself, and that boot is what this spec
     # file's own `before(:context)` just triggered by loading Banking at
@@ -117,14 +118,14 @@ RSpec.describe "the judge's coverage of the language" do
     spy.verbs
   end
 
-  # BANKING ALONE, now — it used to declare no query options, so
-  # `Query.Option` and `ReadModel.Option` were never offered and this gate
-  # called them decoration (correctly: a verb nothing dispatches carries
-  # rules that cannot fire). The fix was to exercise them somewhere rather
-  # than excuse them; that used to mean unioning in `reflex.bluebook`
-  # (the one chapter that declared every option a query or read_model can
-  # carry), but banking now carries both itself — `Account.Overdrawn`'s
-  # `freshness`/`use_index`, `SafeDepositBox.Rented`'s
+  # Banking alone, now. A domain that declares no query options leaves
+  # `Query.Option` and `ReadModel.Option` never offered, and this gate would
+  # call them decoration (correctly: a verb nothing dispatches carries
+  # rules that cannot fire). The fix is to exercise them somewhere rather
+  # than excuse them — banking now carries both itself instead of the
+  # union with `reflex.bluebook` (the one chapter that declared every
+  # option a query or read_model can carry) this once needed —
+  # `Account.Overdrawn`'s `freshness`/`use_index`, `SafeDepositBox.Rented`'s
   # `authorize`/`consistency`, `ComplianceDashboard`'s own
   # `freshness`/`use_index` — so the union is gone with it.
   def offered_verbs
@@ -138,13 +139,13 @@ RSpec.describe "the judge's coverage of the language" do
   # leaves them out by construction rather than by exclusion list. Vocabulary
   # declares no commands, so it contributes nothing and needs no special case —
   # it is static declaration read from the IR by spec/vocabulary_conformance_spec.
-  # S14, ADR 0026 — "Syntax" is named here for the SAME reason
+  # S14, ADR 0026 — "Syntax" is named here for the same reason
   # "Vocabulary" always was (it declares no commands, so `.commands`
-  # would find it empty anyway — but Syntax now DOES declare real
+  # would find it empty anyway — but Syntax now does declare real
   # commands): its own data is dispatched by `SyntaxBoot`, a dedicated,
   # separate mechanism that seeds the language's own grammar table from
   # its own still-static seed rows — never by `Judge`'s own walk, which
-  # only ever finds an EMPTY `keywords`/`arguments` list on the raw,
+  # only ever finds an empty `keywords`/`arguments` list on the raw,
   # statically-built "Syntax" node (no real domain, including the meta-
   # domain itself, ever declares Syntax data through the ordinary DSL).
   META_ONLY_AGGREGATES = %w[Vocabulary Syntax].freeze
@@ -159,7 +160,7 @@ RSpec.describe "the judge's coverage of the language" do
   # S17, ADR 0026 — Member is a genuine entity now, nested under
   # ValueObject rather than its own root aggregate, so its own commands no
   # longer show up in `aggregate.commands` — they are in `aggregate.
-  # entities.first.commands`, and the judge reaches them through a DOTTED
+  # entities.first.commands`, and the judge reaches them through a dotted
   # verb (`ValueObject.Member.Pair`, `Judge#verb_for`), never a bare one.
   # Recurses — `Dispatch`, inside `Handler`, nests two levels deep, not
   # one, and `entity_verbs` walks a nested entity's own further-nested
@@ -195,12 +196,12 @@ RSpec.describe "the judge's coverage of the language" do
   end
 
   it "declares every aggregate before it details any of them" do
-    # An aggregate's attributes are offered AFTER every aggregate exists, not after
+    # An aggregate's attributes are offered after every aggregate exists, not after
     # the ones that happen to be written above it. Banking survives the old order
     # by luck — Customer is declared above Account, which is the only reason
     # Account#customer_id could ever point at anything.
     #
-    # This is what lets a reference be a REFERENCE: `points_at` can resolve against
+    # This is what lets a reference be a reference: `points_at` can resolve against
     # a head declared later in the file. Pinned here because the ordering is
     # invisible until that lands, and an invariant nothing watches is one somebody
     # optimises away.

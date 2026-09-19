@@ -10,6 +10,15 @@ module Hecks
       # loading, and the smaller checks are also called piecemeal by the
       # repository factory.
       module Verification
+        # Runs the whole wiring gate against this registry's loaded bluebooks,
+        # hexagons, ports and adapters.
+        #
+        # @return [Runtime::Registry] self
+        # @raise [Runtime::WiringError] if a bind names an undeclared aggregate, an
+        #   adapter cannot satisfy its port's verb or declared `answers`, a world
+        #   setting names a field its adapter does not declare, the default adapter
+        #   is unusable, or a command declares a role with no authorization provider
+        #   attached
         def verify!
           verify_default_adapter!
           verify_singleton_port_answers!
@@ -22,11 +31,11 @@ module Hecks
               # A domain-level default (§0) — `persisted_by "Heki"` bare,
               # applying to whichever aggregates don't override it — names
               # no aggregate of its own, so there's nothing to look up in
-              # the bluebook for THIS row specifically. Still validate its
+              # the bluebook for this row specifically. Still validate its
               # own adapter/verb shape (the same reason
               # `verify_default_adapter!` checks the framework-wide
               # default the same way, aggregate-less). Coverage of real
-              # aggregates that only resolve THROUGH this default comes
+              # aggregates that only resolve through this default comes
               # from their own dispatch-time `BindingPolicy.resolve` —
               # deliberately not required to be exhaustive here, the same
               # leniency this method already extended to any aggregate
@@ -51,6 +60,13 @@ module Hecks
           self
         end
 
+        # Checks that the framework-wide default persistence adapter (used by any
+        # aggregate left out of an explicit bind list) is itself wired correctly.
+        #
+        # @return [Runtime::Registry] self
+        # @raise [Runtime::WiringError] if the default adapter cannot satisfy the
+        #   persistence port's verb, is missing a declared `answers` method, or has
+        #   no Ruby implementation
         def verify_default_adapter!
           name = Ports::Persistence::DEFAULT_ADAPTER
 
@@ -69,6 +85,14 @@ module Hecks
                 "aggregate with no bind could not be given one: #{e.message}"
         end
 
+        # Checks that `bind`'s adapter implements the port it names and satisfies
+        # the verb the bind declares.
+        #
+        # @param bind [Bluebook::Bind] the bind to check
+        # @return [void]
+        # @raise [Runtime::WiringError] if `bind`'s adapter is unknown, declares an
+        #   unknown port, is missing a declared `answers` method, or cannot satisfy
+        #   `bind`'s own verb
         def check_verb(bind)
           port = port_for(bind)
           check_answers(port, bind.adapter)
@@ -79,13 +103,20 @@ module Hecks
                 "and cannot satisfy #{bind.verb}"
         end
 
-        # THE METHOD CONTRACT A `.port` FILE'S `verb`/`signal` NEVER
-        # CARRIED — an adapter can name the right port, satisfy the right
+        # The method contract a `.port` file's `verb`/`signal` never
+        # carried — an adapter can name the right port, satisfy the right
         # verb, and admit every `.world` setting `check_settings` checks,
         # and still be missing the one method a live dispatch will
         # actually call. `answers` is optional per port (an empty list is
         # today's pre-existing behavior, unchecked), so this only ever
         # tightens a port that opted in.
+        #
+        # @param port [Bluebook::Port] the port whose declared `answers` methods
+        #   `adapter_name` must respond to
+        # @param adapter_name [String] the adapter's declared name to check
+        # @return [void]
+        # @raise [Runtime::WiringError] if `adapter_name` has no Ruby implementation,
+        #   or its implementation does not respond to one of `port.answers`
         def check_answers(port, adapter_name)
           answers = Array(port.answers)
           return if answers.empty?
@@ -100,7 +131,7 @@ module Hecks
                 "#{answers.map(&:inspect).join(', ')}"
         end
 
-        # THE NINE SINGLETON PORTS' OWN GAP — `persistence`, `projection`
+        # **The nine singleton ports' own gap** — `persistence`, `projection`
         # and `loading` are per-aggregate bindings, checked above through
         # every real `bind` a hexagon declares; a singleton port
         # (`clock`, `authorization`, …) is never bound to an aggregate at
@@ -109,12 +140,18 @@ module Hecks
         # already refuses zero or multiple implementations, live, at
         # first dispatch — that stays exactly as-is here (0 or 2+ is
         # ambiguity, not a method-contract question, and asserting every
-        # declared port MUST have exactly one adapter would wrongly
+        # declared port must have exactly one adapter would wrongly
         # refuse a boot that simply never wires a port it doesn't use).
-        # This only ever tightens the ONE case those checks don't cover:
+        # This only ever tightens the one case those checks don't cover:
         # exactly one adapter, wired, missing a method `answers` names.
         PER_AGGREGATE_PORTS = %w[persistence projection loading].freeze
 
+        # Checks every singleton port (not per-aggregate-bound) with exactly one
+        # wired adapter against its own declared `answers` methods.
+        #
+        # @return [Runtime::Registry] self
+        # @raise [Runtime::WiringError] if a singleton port's one wired adapter is
+        #   missing one of its declared `answers` methods
         def verify_singleton_port_answers!
           @ports.each_value do |port|
             next if PER_AGGREGATE_PORTS.include?(port.name)
@@ -128,6 +165,16 @@ module Hecks
           self
         end
 
+        # Checks that every setting `settings` declares (besides `:adapter`) is a
+        # field `bind`'s adapter actually admits.
+        #
+        # @param bind [Bluebook::Bind] the bind naming the adapter to check against;
+        #   a no-op if its adapter is unknown
+        # @param settings [Hash{Symbol => Object}] the world's declared settings for
+        #   this bind
+        # @return [void]
+        # @raise [Runtime::WiringError] if `settings` declares a field `bind`'s
+        #   adapter does not declare
         def check_settings(bind, settings)
           adapter = @adapters[bind.adapter]
           return unless adapter
@@ -142,6 +189,12 @@ module Hecks
                 "Add the field to the adapter, or remove it from the world."
         end
 
+        # Finds the port `bind`'s adapter declares.
+        #
+        # @param bind [Bluebook::Bind] the bind naming the adapter to look up
+        # @return [Bluebook::Port] the port `bind`'s adapter declares
+        # @raise [Runtime::WiringError] if `bind` names an unknown adapter, or one
+        #   declaring an unknown port
         def port_for(bind)
           adapter = @adapters[bind.adapter]
           raise WiringError, "unknown adapter #{bind.adapter.inspect}" unless adapter
@@ -150,6 +203,12 @@ module Hecks
             raise(WiringError, "adapter #{bind.adapter} declares unknown port #{adapter.port.inspect}")
         end
 
+        # Finds the Ruby module implementing the adapter declared `name`.
+        #
+        # @param name [String] the adapter's declared name, such as `"PostgresEra"`
+        # @return [Module] the adapter module or class under `Hecks::Adapters`
+        # @raise [Runtime::WiringError] if no Ruby implementation named `name` exists
+        #   under `Hecks::Adapters`
         def adapter_class(name)
           Adapters.const_get(name)
         rescue NameError
@@ -159,28 +218,28 @@ module Hecks
 
         private
 
-        # `role` IS REAL ACCESS CONTROL ONLY WHEN GOVERNANCE CAN CHECK IT
-        # AGAINST SOMETHING — a command that declares a role but whose
+        # `role` is real access control only when governance can check it
+        # against something — a command that declares a role but whose
         # domain never attaches Governance would leave that role forever
         # unchecked, exactly the defect ADR 0025 §9 names ("role gates
         # access control by exact string equality ... Governance ...
-        # connected to none of it"). Checked here, at `verify!` — RECOVERED
-        # and MOVED, not new: this used to run per-block, at HECKSAGON
-        # build time (Bluebook::DSL::HecksagonBuilder#build), which broke
-        # the moment a domain could be split across multiple hecksagon
+        # connected to none of it"). Checked here, at `verify!` — recovered
+        # and moved, not new: running this per-block, at hecksagon
+        # build time (Bluebook::DSL::HecksagonBuilder#build), breaks
+        # the moment a domain is split across multiple hecksagon
         # blocks (base + an `environments/<name>.hecksagon` overlay,
         # Runtime::Loader.boot's `environment:` — see its own comment for
         # the recovery provenance): every block but the one declaring
         # `uses_framework "Governance"` would be refused there, even
         # though `Registry#add_hecksagon` merges every block for a domain
-        # into ONE Hecksagon before anything ever dispatches against it.
-        # Checking the MERGED result once, here, after every file for
+        # into one Hecksagon before anything ever dispatches against it.
+        # Checking the merged result once, here, after every file for
         # this domain has loaded, is both more permissive (no need to
         # repeat `uses_framework` in every file) and strictly more
         # correct (a check against an incomplete, not-yet-merged
         # hecksagon can never see the real final shape).
         #
-        # A PROVIDER IS RECOGNISED BY ITS DECLARATION, NOT ITS NAME —
+        # A provider is recognised by its declaration, not its name —
         # `authorization_provider_for` answers for the domain's own
         # chapter too, so Governance (which declares `provides
         # "authorization"`) passes here because of what it declares, and
@@ -211,7 +270,7 @@ module Hecks
           providers.map { |name| "uses_framework #{name.inspect}" }.join(" or ")
         end
 
-        # Every command this domain declares, an aggregate's own AND every
+        # Every command this domain declares, an aggregate's own and every
         # entity nested inside one — the same reach `refuse_role_mismatch`
         # itself needs at dispatch time, just walked ahead of time here.
         def commands_in(bluebook_ir)
@@ -286,7 +345,7 @@ module Hecks
         # 0025 named for an unchecked `role`, here applied to saga
         # durability instead.
         #
-        # A WARNING, NOT A REFUSAL — unlike `refuse_ungoverned_roles!`,
+        # A warning, not a refusal — unlike `refuse_ungoverned_roles!`,
         # running sagas on a store with no `save_saga` is legitimate on
         # purpose in a fast in-memory test/dev boot (this project's own
         # `saga_durability_spec.rb` boots a process manager on `Memory`
@@ -294,13 +353,13 @@ module Hecks
         # refusing the boot outright would break a choice an author made
         # deliberately. What a deploy needs is for the gap to be loud and
         # undeniable, not for local dev/test to become impossible.
-        # THE OUTBOX'S TWIN OF `warn_undurable_sagas!` — a domain that
+        # The outbox's twin of `warn_undurable_sagas!` — a domain that
         # declares anything a commit could owe a reaction to (a policy
         # listening to one of its events, or a process manager) but is
         # bound to an adapter with no outbox (`AppendOnly#outbox?`) gets
         # reactions the pre-outbox way: run inline, lost on a crash
         # between commit and reaction. A warning, not a refusal, for the
-        # reason `warn_undurable_sagas!` gives — and Memory HAS an outbox
+        # reason `warn_undurable_sagas!` gives — and Memory has an outbox
         # (in-process, like everything else it holds), so a dev/test
         # boot stays quiet; this speaks up for the file/remote adapters
         # that persist state durably but hand reactions to nothing.

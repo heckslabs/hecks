@@ -4,8 +4,8 @@ require "open3"
 require "tmpdir"
 require_relative "support/rust_conformance_helpers"
 
-# `bin/rust_conformance` COMPARES DRY RUNS. Before this, a `{"dry_run":
-# verb}` step's answer was invisible to the script, so a dry-run split
+# `bin/rust_conformance` compares dry runs. Without that, a `{"dry_run":
+# verb}` step's answer would be invisible to the script, so a dry-run split
 # `bin/qa_sweep` had found (`Hecks::Fuzzing::Differential` compares
 # `dry_runs`) could not be given a failing demonstration for
 # `bin/qa_log_bug`.
@@ -13,7 +13,7 @@ require_relative "support/rust_conformance_helpers"
 # The fixture is the one `spec/qa_sweep_all_report_and_parity_spec.rb`
 # already proves the sweep's own dry-run surface with:
 # `qa_sweep_all_dry_run_fixture`'s hand-written binary answers empty
-# instances/events/refusals plus one PHANTOM dry run per `"dry_run":` step,
+# instances/events/refusals plus one phantom dry run per `"dry_run":` step,
 # so a dry-run script disagrees on `dry_runs` and on nothing else.
 RSpec.describe "bin/rust_conformance", :io do
   # Helper methods, not constants: a constant assigned inside a describe

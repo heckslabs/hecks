@@ -1,0 +1,986 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Checks Ruby comments against docs/COMMENT_STYLE_GUIDE.md.
+#
+# ## Modes
+#
+#   bin/standardize_comments --report lib/hecks   # summary tables (default)
+#   bin/standardize_comments --check  lib/hecks   # one line per violation, exit 1 if any
+#   bin/standardize_comments --fix    lib/hecks   # rewrite the mechanical categories
+#
+# `--only all_caps,long_line` narrows any mode to the named categories and
+# `--json` swaps the report for machine-readable output.
+#
+# ## What `--fix` touches
+#
+# Only `all_caps` and `long_line` are mechanical. Every other category needs
+# someone to read the code, so the fixer leaves it alone. A fix is written
+# only when the file's non-comment token stream is unchanged afterwards.
+#
+# This script is not a CI gate. Nothing runs it automatically.
+
+require "English"
+require "json"
+require "optparse"
+require "ripper"
+
+# Checks a set of Ruby files against docs/COMMENT_STYLE_GUIDE.md and,
+# for the mechanical categories, rewrites them to comply.
+module CommentStyle
+  MAX_LINE = 100
+  LONG_CLASS_DOC = 25
+  MAX_HEADING_WORDS = 6
+
+  CATEGORIES = {
+    "undocumented_method"    => "public method has no doc comment",
+    "missing_param"          => "doc comment lacks @param for a parameter",
+    "missing_return"         => "doc comment lacks @return",
+    "missing_raise"          => "method raises but doc comment lacks @raise",
+    "undocumented_class"     => "class or module has no doc comment",
+    "unstructured_class_doc" => "long class doc has no ## section headers",
+    "missing_summary"        => "doc comment has tags but no lead sentence",
+    "all_caps"               => "all-caps emphasis",
+    "long_bold"              => "bold heading over #{MAX_HEADING_WORDS} words reads as shouting",
+    "bare_constant"          => "capitalised word names something in this file's code: backtick or lowercase it",
+    "unknown_capitals"       => "capitalised token is not an English word: backtick it or list it as an acronym",
+    "design_history"         => "narrates design history instead of citing an ADR",
+    "long_line"              => "comment line exceeds #{MAX_LINE} characters"
+  }.freeze
+
+  FIXABLE = %w[all_caps long_bold long_line].freeze
+
+  # Initialisms and keywords that are correctly written in capitals.
+  ACRONYMS = %w[
+    ARGV ARN AZ ECR ES FSM GVL IAM IGW IPC IRB LLM MB MVCC NAT OOM RDS SG SIGKILL SIGTERM STDIO TOML
+    UI VCS VM VPC WASI
+    ABC ACID ADR API ASC ASCII AST AWS BFS BYPASSRLS CAS CDN CEO CI CLI CPU CRUD CSRF CSS CSV CTE DB DBA DDD DDL
+    DELETE DESC DFS DML DNS DSL ENV ERB ERD FIFO FIXME FK FQN GC GET GIN HMAC HTML HTTP HTTPS ID INSERT IO IR ISO
+    JS JSON JSONB JSONL JWKS JWT LIFO LRU MCP MDN MRI MVP NAMEDATALEN NIL NULL OIDC OK ORM OS
+    PATCH PG PID PK PM POSIX POST PR PRAGMA PRD PUT QA QC RAM RBAC README REPL REST RLS RNG RPC RUBYOPT
+    SAM SAVEPOINT SDK SELECT SHA SME SQL SSH SSL SSM SW STDERR STDIN STDOUT TCP TLA TLS TOCTOU TODO TTL UID UL
+    URI URL UTC UTF UUID VO WASM XML YAML
+  ].to_set.freeze
+
+  # Names whose correct spelling is neither all-caps nor all-lowercase.
+  PROPER_NOUNS = {
+    "CLOUDFLARE" => "Cloudflare", "OAUTH" => "OAuth", "RSPEC" => "RSpec", "JAVASCRIPT" => "JavaScript",
+    "GITHUB" => "GitHub", "GOOGLE" => "Google", "GRAPHVIZ" => "Graphviz", "HECKS" => "Hecks",
+    "POSTGRES" => "Postgres", "POSTGRESQL" => "PostgreSQL", "PUMA" => "Puma", "RAILS" => "Rails",
+    "RUBY" => "Ruby", "RUST" => "Rust", "SQLITE" => "SQLite"
+  }.freeze
+
+  # Multi-word SQL is protected as a phrase, because the individual keywords
+  # (`FROM`, `WHERE`, `TABLE`) are also ordinary English emphasis targets.
+  SQL_PHRASES = Regexp.union(
+    /\bINSERT INTO\b/, /\bSELECT\b.*?\bFROM\b/, /\bORDER BY\b/, /\bGROUP BY\b/,
+    /\bON CONFLICT\b(?: DO (?:NOTHING|UPDATE))?/, /\bDO NOTHING\b/, /\bFOR (?:UPDATE|SHARE)\b/,
+    /\bSKIP LOCKED\b/, /\b(?:PRIMARY|FOREIGN) KEY\b/, /\bIS(?: NOT)? NULL\b/, /\bNOT NULL\b/,
+    /\bCREATE (?:UNIQUE )?(?:TABLE|INDEX|POLICY|ROLE|SCHEMA|TRIGGER|FUNCTION)\b/,
+    /\bALTER (?:TABLE|ROLE|SCHEMA)\b/, /\bDROP (?:TABLE|COLUMN|INDEX|SCHEMA|POLICY)\b/,
+    /\bADD (?:COLUMN|CONSTRAINT)\b/, /\bDELETE FROM\b/, /\bUNION ALL\b/, /\bSET LOCAL\b/,
+    /\bBEGIN (?:IMMEDIATE|EXCLUSIVE|DEFERRED)\b/, /\bROW LEVEL SECURITY\b/,
+    /\bCREATE \.\.\. PARTITION OF\b/, /\bPARTITION OF\b/, /\bIF (?:NOT )?EXISTS\b/,
+    /\b(?:LEFT|INNER|OUTER|CROSS) JOIN\b/, /\bLIMIT \d+\b/, /\bOWNER TO\b/, /\b(?:on|in|onto) PATH\b/
+  ).freeze
+
+  # SQL keywords that are rarely English emphasis. Kept in capitals on a line
+  # that reads as SQL, and always kept in a file that talks to a database.
+  SQL_STRONG = %w[
+    ALTER ATTACH BEGIN CASCADE COMMIT CONCURRENTLY DETACH DISTINCT FORCE GRANT LIMIT MATERIALIZED
+    NULLS OFFSET PARTITION RETURNING REVOKE ROLLBACK SERIALIZABLE VACUUM
+  ].to_set.freeze
+
+  # SQL keywords that are also everyday emphasis targets (`FROM`, `FIRST`, `SET`).
+  SQL_WEAK = %w[
+    COLUMN CONSTRAINT CREATE DEFAULT DROP EXCLUSIVE EXISTS FIRST FROM INDEX JOIN LAST LOCK LOGIN
+    NOBYPASSRLS NOCREATEDB NOCREATEROLE NOLOGIN NOSUPERUSER OWNER POLICY
+    REFERENCES ROLE SCHEMA SET SHARE TABLE TRANSACTION TRIGGER UNION UNIQUE UPDATE VALUES VIEW WHERE
+  ].to_set.freeze
+
+  SQL_NEUTRAL = %w[ALL AND AS BY FOR IN IS NOT OF ON OR TO].to_set.freeze
+
+  SQL_PATH = %r{sql|postgres|/d1|_era|/era|lineage|outbox|schema|persistence}
+
+  PROTECTED_SPANS = Regexp.union(
+    /`[^`]*`/, /"[^"]*"/, /'[^'\s]*'/, %r{\b[a-z]+://\S+}, SQL_PHRASES,
+    /\b(?:NOTE|OPTIMIZE|HACK|REVIEW):/
+  ).freeze
+
+  CAPS_WORD = /
+    (?<![\w:.\#@$'])
+    (?:A|[A-Z]{2,}(?:'[A-Z]{1,2})?)
+    (?![\w(]|'(?!s\b|\s|$)|-[a-z](?<=POST-.)|::|\.\w|\#\d|\s*=(?![=~>])|\s*\u2190)
+  /x
+
+  HISTORY = [
+    /\bused to\b/i, /\bwas originally\b/i, /\boriginally (?:was|were|used|lived|named|called)\b/i,
+    /\bpreviously\b/i, /\bformerly\b/i, /\bhistorically\b/i, /\bstale as of\b/i,
+    /\b(?:was|were|been|got) renamed\b/i, /\brenamed from\b/i, /\bhas since\b/i,
+    /\bbefore (?:this|the) (?:change|fix|refactor|split|rename|pr|commit|patch)\b/i, /\bBefore this, /,
+    /\ban? earlier (?:version|revision|draft|pass)\b/i, /\bwhen this was (?:written|added)\b/i,
+    /\b(?:in|since|by|after|before|until) (?:PR )?\#\d{2,}/i, /\bPR \#?\d{2,}\b/
+  ].freeze
+
+  DIRECTIVE = /\A#\s*(?:rubocop:|frozen_string_literal:|encoding:|coding:|shareable_constant|typed:|!)/
+
+  SELF_EVIDENT = %w[
+    to_s to_str to_sym to_h to_a to_proc inspect hash eql? == === <=> method_missing
+    respond_to_missing? pretty_print
+  ].to_set.freeze
+
+  # Stands in for a protected span so it still reads as a word, not a gap.
+  FILLER = "\u00A7"
+
+  # What may sit between the words of one all-caps heading run.
+  GAP = %r{\A(?:[\s,/&'\-\d]|#{FILLER}|[A-Z]{2,})*\z}
+
+  # A bold phrase opening a comment line, after an optional bullet.
+  BOLD_HEADING = /\A(#+\s*(?:[-*]\s+)?)\*\*([^*]+)\*\*/
+
+  # What ends a heading run: an em dash, or sentence punctuation.
+  HEADING_END = /\A(?:\s+—|[.:!?](?:\s|\z))/
+
+  CODE_NOISE = %i[on_comment on_sp on_nl on_ignored_nl].freeze
+
+  Violation = Struct.new(:path, :line, :category, :message)
+  MethodDef = Struct.new(:name, :line, :params, :visibility, :raises, :block_param)
+  TypeDef = Struct.new(:fqn, :line, :namespace_only)
+  Comment = Struct.new(:line, :col, :text, :full_line)
+
+  # Decides whether a capitalised token is an English word being shouted.
+  # Anything else (an initialism, an identifier, a product name) keeps its
+  # capitals and is reported for a person to look at.
+  module Dictionary
+    WORDS = "/usr/share/dict/words"
+
+    # Technical vocabulary the system word list lacks.
+    EXTRA = %w[
+      adversarial allowlist anymore app apps arg args arity async backend backtrace baseline
+      boolean bootable bootstrapping bluebook byte callee canonicalized changelog checklist
+      checkpoint codebase codemod config database dataset dedupe deduped enqueue evaluator
+      filename fixpoint formatting frontend glob grep handover hardcoded hecksagon heredoc held
+      hoc hostname idempotency idempotent inline keyword landmine lifecycle lookup mapping
+      memoised memoized memoizes metadata metaprogrammed monkeypatch monorepo multi mutex
+      namespace noop numeric op ops parameterized params pathname payload plugin postcondition
+      pre reachability reentrant refactor regex regexes rekey rekeyed repo restartable retrofit
+      reusable roadmap rollup runtime shortcut standalone stringified struct subprocess
+      subprocesses subroutine substring superuser symlink sync timestamp tmp tmpl touchpoint
+      trickiest triggerable tuple undecoded unsanitized untargeted upsert username webhook
+      widget workaround worklist worklists
+    ].freeze
+
+    SUFFIXES = [
+      ["", ""], ["s", ""], ["es", ""], ["ed", ""], ["d", ""], ["ing", ""], ["ing", "e"], ["ies", "y"],
+      ["ied", "y"], ["ly", ""], ["er", ""], ["est", ""], ["ier", "y"], ["ised", "ized"], ["ise", "ize"],
+      ["isation", "ization"], ["our", "or"], ["lling", "ling"], ["lled", "led"]
+    ].freeze
+
+    module_function
+
+    # Loads and memoizes the system word list, once per process.
+    #
+    # @return [Set<String>, nil] lower-case word list, or nil when this machine has none
+    def words
+      return @words if defined?(@words)
+
+      @words = File.exist?(WORDS) ? Set.new(File.foreach(WORDS, chomp: true).map(&:downcase)).merge(EXTRA) : nil
+    end
+
+    # Checks a capitalized token against the word list, stripped and stemmed.
+    #
+    # @param word [String] a token, in any case, possibly a contraction
+    # @return [Boolean] true for an English word, and always true with no word list to consult
+    def english?(word)
+      return true unless words
+
+      bare = word.downcase.sub(/n't\z/, "").sub(/'.*\z/, "")
+      SUFFIXES.any? do |suffix, replacement|
+        next false unless bare.end_with?(suffix)
+
+        stem = bare.delete_suffix(suffix) + replacement
+        words.include?(stem) || words.include?(stem.sub(/(.)\1\z/, '\1'))
+      end
+    end
+  end
+
+  # Class and module names defined under `lib/`, keyed by their shouted form.
+  #
+  # @return [Hash{String => String}] such as `"POSTGRESERA" => "PostgresEra"`
+  def self.class_names
+    @class_names ||= Dir["lib/**/*.rb"].each_with_object({}) do |file, names|
+      File.read(file).scan(/^\s*(?:class|module)\s+([A-Z]\w*)/) do |(name)|
+        names[name.upcase] ||= name if name.match?(/[a-z]/)
+      end
+    end
+  end
+
+  # Lexes `source` and drops every comment and whitespace token.
+  #
+  # @param source [String] Ruby source
+  # @return [Array<String>] every token that is not a comment or whitespace
+  def self.code_tokens(source)
+    Ripper.lex(source).reject { |token| CODE_NOISE.include?(token[1]) }.map { |token| token[2] }
+  end
+
+  # One parsed source file and the violations found in it.
+  class SourceFile
+    attr_reader :path, :lines, :comments
+
+    # @param path [String] file to lint
+    # @param source [String, nil] contents, read from `path` when nil
+    def initialize(path, source = nil)
+      @path = path
+      @source = source || File.read(path)
+      @lines = @source.lines
+      @comments = lex_comments
+      @by_line = @comments.to_h { |c| [c.line, c] }
+      @open_spans = open_spans
+      @constants = code_words
+    end
+
+    # Finds every place this file departs from the style guide.
+    #
+    # @param only [Array<String>, nil] categories to keep, all when nil
+    # @return [Array<Violation>]
+    def violations(only: nil)
+      return [] if generated?
+
+      found = text_violations + (test_file? ? [] : structure_violations)
+      found = found.select { |v| only.include?(v.category) } if only
+      found.sort_by { |v| [v.line, v.category] }
+    end
+
+    # Rewrites the mechanical categories.
+    #
+    # @param only [Array<String>, nil] categories to fix, every fixable one when nil
+    # @return [String] the fixed source, or the original when nothing changed
+    # @raise [RuntimeError] if the rewrite would alter a non-comment token
+    def fixed(only: nil)
+      return @source if generated?
+
+      wanted = (only || FIXABLE) & FIXABLE
+      output = @lines.map.with_index(1) { |line, number| fix_line(line, number, wanted) }.join
+      return @source if output == @source
+
+      unchanged = CommentStyle.code_tokens(@source) == CommentStyle.code_tokens(output)
+      raise "#{path}: fix would change code, refusing" unless unchanged
+
+      output
+    end
+
+    # Parses this file's structure once and caches it.
+    #
+    # @return [Array<TypeDef>] every class and module opened in this file
+    def types
+      test_file? || generated? ? [] : structure.last
+    end
+
+    # A generated file's comments belong to its generator, and its
+    # `GENERATED ... DO NOT EDIT` banner is a convention tools recognise.
+    #
+    # @return [Boolean]
+    def generated?
+      @lines.first(8).join.match?(/\bgenerated\b.*?\bdo not edit\b/im)
+    end
+
+    # Helpers defined inside a spec are test scaffolding, not API, so the
+    # doc-tag categories skip them. The prose categories still apply.
+    #
+    # @return [Boolean]
+    def test_file?
+      path.end_with?("_spec.rb")
+    end
+
+    # Answers whether a `class`/`module` has its own doc comment.
+    #
+    # @param type [TypeDef]
+    # @return [Boolean] whether a comment block sits directly above the definition
+    def documented?(type)
+      !doc_above(type.line).empty?
+    end
+
+    private
+
+    def lex_comments
+      Ripper.lex(@source).filter_map do |(line, col), type, text, _|
+        next unless type == :on_comment
+
+        prefix = @lines[line - 1].byteslice(0, col)
+        Comment.new(line, col, text.chomp, prefix.strip.empty?)
+      end
+    end
+
+    def text_violations
+      @comments.flat_map do |comment|
+        next [] if comment.text.match?(DIRECTIVE)
+
+        caps_violations(comment) + constant_violations(comment) + unknown_violations(comment) +
+          bold_violations(comment) + history_violations(comment) + length_violations(comment)
+      end
+    end
+
+    # All-caps names in this file's code: constants, heredoc delimiters, and
+    # strings that are nothing but one such name (`ENV["PATH"]`).
+    def code_words
+      Ripper.lex(@source).each_with_object(Set.new) do |(_, type, text, _), words|
+        case type
+        when :on_const, :on_tstring_content then words << text if text.match?(/\A[A-Z][A-Z0-9_]+\z/)
+        when :on_heredoc_beg, :on_heredoc_end then words.merge(text.scan(/[A-Z][A-Z0-9_]+/))
+        end
+      end
+    end
+
+    def unknown_violations(comment)
+      words = mask(comment).scan(CAPS_WORD).uniq - ["A"]
+      words.reject { |word| keep_capitals?(word) }.select { |word| unknown?(word) }.map do |word|
+        Violation.new(path, comment.line, "unknown_capitals", word)
+      end
+    end
+
+    def bold_violations(comment)
+      heading = comment.text[BOLD_HEADING, 2]
+      return [] unless heading && heading.split.size > MAX_HEADING_WORDS
+
+      [Violation.new(path, comment.line, "long_bold", "#{heading.split.size} words")]
+    end
+
+    def caps_violations(comment)
+      caps_words(comment).map do |_, word, replacement|
+        Violation.new(path, comment.line, "all_caps", "#{word} -> #{replacement}")
+      end
+    end
+
+    # A capitalised word that is also a constant defined in this file could be
+    # either prose or a reference, so it is reported rather than rewritten.
+    def constant_violations(comment)
+      words = mask(comment).scan(CAPS_WORD).uniq
+      words.select { |word| @constants.include?(word) && !ACRONYMS.include?(word) }.map do |word|
+        Violation.new(path, comment.line, "bare_constant", word)
+      end
+    end
+
+    def history_violations(comment)
+      masked = comment.text.gsub(/`[^`]*`/) { |span| " " * span.length }
+      pattern = HISTORY.find { |candidate| masked.match?(candidate) }
+      return [] unless pattern
+
+      [Violation.new(path, comment.line, "design_history", %("#{masked[pattern]}"))]
+    end
+
+    def length_violations(comment)
+      length = @lines[comment.line - 1].chomp.length
+      return [] if length <= MAX_LINE
+
+      [Violation.new(path, comment.line, "long_line", "#{length} characters")]
+    end
+
+    # @return [Array<Array(Integer, String, String)>] offset, word, replacement
+    def caps_words(comment)
+      masked = mask(comment)
+      matches = []
+      masked.scan(CAPS_WORD) { matches << Regexp.last_match }
+      sql = sql_keywords(comment, matches.map { |match| match[0] })
+      found = matches.filter_map do |match|
+        word = match[0]
+        next if word != "A" && (keep_capitals?(word) || sql.include?(word) || unknown?(word))
+
+        [match.begin(0), word, recase(word, sentence_start?(comment, masked, match.begin(0)))]
+      end
+      (drop_stray_articles(found) + possessives(masked)).sort_by(&:first)
+    end
+
+    # The comment with every span that must keep its capitals blanked out. A
+    # backtick span can wrap across lines, so whether this line opens inside
+    # one comes from the lines above it.
+    def mask(comment)
+      text = comment.text
+      head = ""
+      if @open_spans[comment.line]
+        lead = text[/\A#+\s*/].length
+        close = text.index("`", lead)
+        cut = close ? close + 1 : text.length
+        head = text[0, lead] + (FILLER * (cut - lead))
+        text = text[cut..]
+      end
+      body = text.gsub(PROTECTED_SPANS) { |span| quoted_heading?(span) ? span : FILLER * span.length }
+      open = body.rindex("`")
+      body = body[0, open] + (FILLER * (body.length - open)) if open
+      head + body
+    end
+
+    # Which lines begin inside a backtick span opened earlier in the paragraph.
+    def open_spans
+      inside = false
+      @comments.each_with_object({}) do |comment, open|
+        above = @by_line[comment.line - 1]
+        continues = comment.full_line && above&.full_line && !above.text.match?(/\A#+\s*\z/)
+        inside = false unless continues
+        open[comment.line] = inside
+        inside ^= comment.text.count("`").odd?
+      end
+    end
+
+    # Capitalised SQL keywords to leave alone on this line. A keyword such as
+    # `FROM` or `SET` is only SQL when the rest of the line reads as SQL too.
+    def sql_keywords(comment, words)
+      bare = words.map { |word| word.sub(/'[A-Z]{1,2}\z/, "") } - ["A"]
+      strong = bare.select { |word| SQL_STRONG.include?(word) }
+      weak = bare.select { |word| SQL_WEAK.include?(word) }
+      database_file = path.match?(SQL_PATH)
+      return bare.to_set if reads_as_sql?(bare, strong, weak, database_file)
+      return (strong + weak).to_set if comment.text.match?(SQL_PHRASES)
+
+      database_file ? strong.to_set : Set.new
+    end
+
+    def reads_as_sql?(bare, strong, weak, database_file)
+      only_sql = bare.all? do |word|
+        [SQL_STRONG, SQL_WEAK, SQL_NEUTRAL, ACRONYMS].any? { |set| set.include?(word) }
+      end
+      return false unless only_sql
+
+      database_file ? (strong.any? || weak.any?) : (strong.any? && (strong + weak).size >= 2)
+    end
+
+    # `Finding`'s: the capital follows a code span, so `CAPS_WORD` never sees it.
+    def possessives(masked)
+      found = []
+      masked.scan(/(?<=#{FILLER})'S\b/) { found << [Regexp.last_match.begin(0) + 1, "S", "s"] }
+      found
+    end
+
+    # An "A" is only emphasis when a word beside it is being fixed too.
+    def drop_stray_articles(found)
+      found.each_with_index.reject do |(offset, word, _), index|
+        before = index.positive? ? found[index - 1] : nil
+        after = found[index + 1]
+        beside = (before && before[0] + before[1].length + 1 == offset && before[1] != "A") ||
+                 (after && after[0] == offset + 2 && after[1] != "A")
+        word == "A" && !beside
+      end.map(&:first)
+    end
+
+    # A quoted run of capitals is another comment's heading, not a literal.
+    def quoted_heading?(span)
+      return false unless span.start_with?('"') && !span.match?(SQL_PHRASES)
+
+      capitals = span.scan(/\b[A-Z]{2,}\b/).size
+      capitals >= 3 || (capitals == 2 && !span.match?(/[a-z]/))
+    end
+
+    def recase(word, sentence_start)
+      bare, suffix = word.split("'", 2)
+      proper = proper_name(bare)
+      return [proper, suffix&.downcase].compact.join("'") if proper
+
+      sentence_start ? word.capitalize : word.downcase
+    end
+
+    # A shouted product or class name (`POSTGRESERA`) gets its real spelling
+    # back. An English word that is also a class name (`VALUE`) stays prose.
+    def proper_name(bare)
+      PROPER_NOUNS[bare] || (CommentStyle.class_names[bare] unless Dictionary.english?(bare))
+    end
+
+    # Neither English nor a known name, so lowercasing it would be a guess.
+    def unknown?(word)
+      bare = word.split("'", 2).first
+      !Dictionary.english?(word) && !proper_name(bare)
+    end
+
+    def keep_capitals?(word)
+      bare = word.sub(/'[A-Z]{1,2}\z/, "")
+      return false if PROPER_NOUNS.key?(bare)
+
+      ACRONYMS.include?(bare) || @constants.include?(bare) || bare.match?(/\A[IVX]+\z/)
+    end
+
+    def sentence_start?(comment, masked, offset)
+      before = masked[0, offset].sub(/\A#+\s*/, "")
+      return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/)
+      return true if before.match?(/\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/)
+      return false if masked[0, offset].match?(/\A#\s{3,}/)
+
+      previous = comment.full_line ? @by_line[comment.line - 1] : nil
+      return true unless previous&.full_line
+
+      body = previous.text.sub(/\A#+\s*/, "").strip
+      body.empty? || body.match?(/[.!?]["')\]]*\z/)
+    end
+
+    def fix_line(line, number, wanted)
+      comment = @by_line[number]
+      return line if comment.nil? || comment.text.match?(DIRECTIVE)
+
+      text = wanted.include?("all_caps") ? fix_caps(comment) : comment.text
+      text = unbold(text) if wanted.include?("long_bold")
+      code = line.byteslice(0, comment.col)
+      return wrap(code, text) if wanted.include?("long_line") && comment.full_line
+
+      "#{code}#{text}#{"\n" if line.end_with?("\n")}"
+    end
+
+    def unbold(text)
+      heading = text[BOLD_HEADING, 2]
+      return text unless heading && heading.split.size > MAX_HEADING_WORDS
+
+      text.sub(BOLD_HEADING) { "#{Regexp.last_match(1)}#{heading}" }
+    end
+
+    def fix_caps(comment)
+      text = comment.text.dup
+      found = caps_words(comment)
+      found.reverse_each { |offset, word, replacement| text[offset, word.length] = replacement }
+      first, last = heading_run(comment, found)
+      return text unless first
+
+      text.insert(last, "**").insert(first, "**")
+    end
+
+    # An all-caps run that opens a paragraph and stops at a dash or a full stop
+    # is that paragraph's heading, so it becomes bold rather than plain text.
+    #
+    # @return [Array(Integer, Integer), nil] start and end offsets of the run
+    def heading_run(comment, found)
+      masked = mask(comment)
+      return unless found.size >= 2 && paragraph_start?(comment, masked, found.first[0])
+
+      run = found.slice_when { |(a, word, _), (b, _, _)| !masked[(a + word.length)...b].match?(GAP) }.first
+      finish = run.last[0] + run.last[1].length
+      finish += 2 if masked[finish, 2] == "'s"
+      return unless run.size >= 2 && masked[finish..].match?(HEADING_END)
+      return if masked[run.first[0]...finish].split.size > MAX_HEADING_WORDS || documents_method?(comment)
+
+      [run.first[0], finish]
+    end
+
+    # The first line above a `def` has to be a sentence about the method, so a
+    # heading there stays plain text.
+    def documents_method?(comment)
+      line = comment.line
+      line += 1 while @by_line[line + 1]&.full_line
+      @lines[line].to_s.match?(/\A\s*(?:\w+\s+)?def\s/)
+    end
+
+    def paragraph_start?(comment, masked, offset)
+      return false if masked[0, offset].sub(/\A#+\s*/, "").match?(/[[:alnum:]#{FILLER}]/)
+
+      above = comment.full_line ? @by_line[comment.line - 1] : nil
+      !above&.full_line || above.text.match?(/\A#+\s*\z/)
+    end
+
+    # Splits one over-long prose comment line in two. Lines with no safe
+    # break point (a long URL, an unbroken code span) are left for a person.
+    def wrap(indent, text)
+      whole = "#{indent}#{text}\n"
+      return whole if whole.chomp.length <= MAX_LINE
+
+      lead = text[/\A#+\s*/]
+      lead += "  " if text.match?(/\A#+\s*@\w/)
+      cut = text[0, MAX_LINE - indent.length + 1].rindex(" ")
+      return whole if cut.nil? || cut <= lead.length || text[0, cut].count("`").odd?
+
+      "#{indent}#{text[0, cut].rstrip}\n#{wrap(indent, "#{lead}#{text[cut..].strip}")}"
+    end
+
+    def structure_violations
+      methods, types = structure
+      methods.flat_map { |m| method_violations(m) } + types.flat_map { |t| long_doc_violations(t) }
+    end
+
+    def structure
+      @structure ||= begin
+        walker = Walker.new
+        sexp = Ripper.sexp(@source)
+        walker.walk(sexp, Walker::Scope.new([], :public)) if sexp
+        [walker.methods, walker.types]
+      end
+    end
+
+    def doc_above(line)
+      block = []
+      cursor = line - 1
+      while (comment = @by_line[cursor]) && comment.full_line
+        block.unshift(comment.text)
+        cursor -= 1
+      end
+      block
+    end
+
+    def method_violations(method)
+      return [] unless method.visibility == :public
+
+      doc = doc_above(method.line).join("\n")
+      if doc.empty?
+        return [] if SELF_EVIDENT.include?(method.name)
+
+        return [Violation.new(path, method.line, "undocumented_method", "##{method.name}")]
+      end
+      return [] if doc.match?(/@api private|@private|:nodoc:|\(see (?:`[^`]+`|#\w)[^)]*\)\W*\z/m)
+
+      tag_violations(method, doc)
+    end
+
+    def tag_violations(method, doc)
+      param_violations(method, doc) + summary_violations(method, doc) + outcome_violations(method, doc)
+    end
+
+    def param_violations(method, doc)
+      found = method.params.reject { |name| doc.match?(/@(?:param|option)\s+(?:\[[^\]\n]*\]\s*)?#{Regexp.escape(name)}\b/) }
+                    .map { |name| violation(method, "missing_param", "lacks @param #{name}") }
+      block = method.block_param
+      if block && !doc.match?(/@yield|@param\s+(?:\[[^\]\n]*\]\s*)?#{Regexp.escape(block)}\b/)
+        found << violation(method, "missing_param", "lacks @yield for &#{block}")
+      end
+      found
+    end
+
+    def summary_violations(method, doc)
+      found = []
+      found << violation(method, "missing_summary", "") if tags_only?(doc) && method.name != "initialize"
+      if heading_lead?(doc)
+        found << violation(method, "missing_summary",
+                           "opens with a bold heading: add a verb-first lead sentence above it")
+      end
+      found
+    end
+
+    def outcome_violations(method, doc)
+      found = []
+      returns = method.name == "initialize" || method.name.end_with?("=") || doc.include?("@return")
+      found << violation(method, "missing_return", "") unless returns
+      found << violation(method, "missing_raise", "") if method.raises && !doc.include?("@raise")
+      found
+    end
+
+    def tags_only?(doc)
+      lead_line(doc).start_with?("@")
+    end
+
+    # A bold heading is a paragraph title, not a sentence about the method.
+    def heading_lead?(doc)
+      lead_line(doc).start_with?("**")
+    end
+
+    def lead_line(doc)
+      doc.lines.map { |line| line.sub(/\A\s*#+\s?/, "").strip }.reject(&:empty?).first.to_s
+    end
+
+    def violation(method, category, detail)
+      Violation.new(path, method.line, category, "##{method.name} #{detail}".strip)
+    end
+
+    def long_doc_violations(type)
+      doc = doc_above(type.line)
+      return [] if doc.length <= LONG_CLASS_DOC || doc.any? { |l| l.match?(/\A#\s*##+ /) }
+
+      [Violation.new(path, type.line, "unstructured_class_doc", "#{type.fqn} (#{doc.length} lines)")]
+    end
+  end
+
+  # Walks a Ripper s-expression collecting method and type definitions
+  # along with the visibility each method ends up with.
+  class Walker
+    Scope = Struct.new(:nesting, :visibility)
+
+    attr_reader :methods, :types
+
+    # @return [void]
+    def initialize
+      @methods = []
+      @types = []
+      @private_names = Set.new
+    end
+
+    # Visits one Ripper node, recording any method or type it defines.
+    #
+    # @param node [Array, Object] Ripper s-expression node
+    # @param scope [Scope] enclosing lexical scope
+    # @return [void]
+    def walk(node, scope)
+      return unless node.is_a?(Array)
+
+      case node[0]
+      when :class then open_type(node[1], node[3], scope)
+      when :module then open_type(node[1], node[2], scope)
+      when :sclass then walk_body(node[2], Scope.new(scope.nesting, :public))
+      when :def then record(node[1], node[2], node[3], scope.visibility)
+      when :defs then record(node[3], node[4], node[5], :public)
+      when :vcall, :var_ref then switch_visibility(node, scope)
+      when :command, :method_add_arg then visibility_call?(node, scope) || walk_children(node, scope)
+      else walk_children(node, scope)
+      end
+    end
+
+    private
+
+    def walk_children(node, scope)
+      node.each { |child| walk(child, scope) if child.is_a?(Array) }
+    end
+
+    # `private :name` can follow the definition, so it is applied once the
+    # whole body has been seen.
+    def walk_body(body, scope)
+      first = @methods.length
+      outer = @private_names
+      @private_names = Set.new
+      walk_children(body, scope) if body.is_a?(Array)
+      @methods[first..].each { |m| m.visibility = :private if @private_names.include?(m.name) }
+      @private_names = outer
+    end
+
+    def open_type(const, body, scope)
+      nesting = scope.nesting + [const_name(const)]
+      statements = body.is_a?(Array) && body[0] == :bodystmt ? Array(body[1]) : []
+      namespace = statements.all? { |s| !s.is_a?(Array) || %i[class module void_stmt].include?(s[0]) }
+      @types << TypeDef.new(nesting.join("::"), line_of(const), namespace)
+      walk_body(body, Scope.new(nesting, :public))
+    end
+
+    def const_name(node)
+      node.flatten.grep(String).join("::")
+    end
+
+    def line_of(node)
+      position = node.flatten.each_cons(2).find { |a, b| a.is_a?(Integer) && b.is_a?(Integer) }
+      position ? position[0] : 0
+    end
+
+    def switch_visibility(node, scope)
+      case node[1].is_a?(Array) ? node[1][1] : nil
+      when "private", "protected" then scope.visibility = :private
+      when "public", "module_function" then scope.visibility = :public
+      end
+    end
+
+    def visibility_call?(node, scope)
+      head = node[0] == :command ? node[1] : node.dig(1, 1)
+      return false unless head.is_a?(Array) && head[0] == :@ident
+      return false unless %w[private protected private_class_method].include?(head[1])
+
+      arguments = node[0] == :command ? node[2] : node.dig(2, 1)
+      Array(arguments.is_a?(Array) ? arguments[1] : nil).each do |argument|
+        next unless argument.is_a?(Array)
+
+        case argument[0]
+        when :def then record(argument[1], argument[2], argument[3], :private)
+        when :defs then record(argument[3], argument[4], argument[5], :private)
+        when :symbol_literal, :dyna_symbol
+          @private_names << argument.flatten.grep(String).last
+        else walk(argument, scope)
+        end
+      end
+      true
+    end
+
+    def record(name_node, params, body, visibility)
+      names, block = parameter_names(params)
+      @methods << MethodDef.new(name_node[1], name_node[2][0], names, visibility, raises?(body), block)
+    end
+
+    def parameter_names(params)
+      params = params[1] if params.is_a?(Array) && params[0] == :paren
+      return [[], nil] unless params.is_a?(Array) && params[0] == :params
+
+      _, required, optional, rest, post, keywords, keyrest, block = params
+      names = idents(required) + Array(optional).map { |pair| pair[0][1] } + splat_name(rest) +
+              idents(post) + Array(keywords).map { |pair| pair[0][1].chomp(":") } + splat_name(keyrest)
+      [names, splat_name(block).first]
+    end
+
+    def idents(list)
+      Array(list).select { |item| item.is_a?(Array) && item[0] == :@ident }.map { |item| item[1] }
+    end
+
+    # `rest`/`keyrest`/`block` are each either nil, an unnamed splat (`*`, `**`, `&`), or a
+    # one-element `[:@ident, name, pos]` node wrapping the name.
+    def splat_name(node)
+      node.is_a?(Array) && node[1].is_a?(Array) ? [node[1][1]] : []
+    end
+
+    def raises?(node)
+      return false unless node.is_a?(Array)
+      return false if %i[def defs].include?(node[0])
+
+      call = %i[command fcall vcall].include?(node[0]) && node[1].is_a?(Array) && node[1][1] == "raise"
+      call || node.any? { |child| raises?(child) }
+    end
+  end
+
+  # Lints a set of paths and renders the result.
+  class Run
+    # @param paths [Array<String>] files or directories
+    # @param only [Array<String>, nil] categories to keep
+    def initialize(paths, only: nil)
+      @files = paths.flat_map { |p| File.directory?(p) ? ruby_files(p) : [p] }.sort.uniq
+      @only = only
+    end
+
+    # Files whose code differs from `ref`, comments and whitespace aside.
+    #
+    # @param ref [String] git revision to compare the working tree against
+    # @return [Array<String>] paths whose non-comment token stream changed
+    def code_changed_since(ref)
+      @files.select do |path|
+        before = IO.popen(["git", "show", "#{ref}:#{path}"], err: File::NULL, &:read)
+        next false unless $CHILD_STATUS.success?
+
+        CommentStyle.code_tokens(before) != CommentStyle.code_tokens(File.read(path))
+      end
+    end
+
+    # Every violation across the whole file set, computed once.
+    #
+    # @return [Array<Violation>]
+    def violations
+      @violations ||= begin
+        sources = @files.map { |path| SourceFile.new(path) }
+        found = sources.flat_map { |source| source.violations(only: @only) } + undocumented_types(sources)
+        @only ? found.select { |v| @only.include?(v.category) } : found
+      end
+    end
+
+    # Rewrites every file's fixable categories in place.
+    #
+    # @return [Integer] number of files rewritten
+    def fix!
+      wants_caps = @only.nil? || @only.include?("all_caps")
+      abort "fixing all_caps needs the word list at #{Dictionary::WORDS}" if wants_caps && !Dictionary.words
+
+      @files.count do |path|
+        original = File.read(path)
+        output = SourceFile.new(path, original).fixed(only: @only)
+        next false if output == original
+
+        File.write(path, output)
+        true
+      end
+    end
+
+    # Renders the summary tables `--report` prints.
+    #
+    # @param top [Integer] rows to show in the per-file table
+    # @return [String]
+    def report(top: 20)
+      by_file = violations.group_by(&:path)
+      [
+        "#{violations.size} violations in #{by_file.size} of #{@files.size} files\n",
+        "By category:", *category_rows,
+        "\nBy directory (top #{top}):", *directory_rows.first(top),
+        "\nWorst #{top} files:", *file_rows(by_file, top)
+      ].join("\n")
+    end
+
+    private
+
+    # `.rb` files, plus extensionless scripts (`bin/*`) with a Ruby shebang.
+    def ruby_files(dir)
+      scripts = Dir[File.join(dir, "**", "*")].select do |path|
+        File.file?(path) && File.extname(path).empty? && File.open(path, &:gets).to_s.match?(/\A#!.*ruby/)
+      end
+      Dir[File.join(dir, "**", "*.rb")] + scripts
+    end
+
+    def category_rows
+      counts = violations.group_by(&:category).transform_values(&:size)
+      CATEGORIES.map do |name, description|
+        suffix = FIXABLE.include?(name) ? " [fixable]" : ""
+        "  #{counts.fetch(name, 0).to_s.rjust(6)}  #{name.ljust(24)} #{description}#{suffix}"
+      end
+    end
+
+    def directory_rows
+      violations.group_by { |v| v.path.split("/")[0, 3].join("/") }
+                .sort_by { |_, list| -list.size }
+                .map { |dir, list| "  #{list.size.to_s.rjust(6)}  #{dir}" }
+    end
+
+    def file_rows(by_file, top)
+      by_file.sort_by { |_, list| -list.size }.first(top).map do |file, list|
+        category, worst = list.group_by(&:category).max_by { |_, group| group.size }
+        "  #{list.size.to_s.rjust(6)}  #{file}  (mostly #{category}: #{worst.size})"
+      end
+    end
+
+    # A type reopened across files counts as documented if any opening is.
+    def undocumented_types(sources)
+      openings = sources.flat_map { |s| s.types.reject(&:namespace_only).map { |t| [s, t] } }
+      openings.group_by { |_, type| type.fqn }.filter_map do |fqn, group|
+        next if group.any? { |source, type| source.documented?(type) }
+
+        source, type = group.first
+        Violation.new(source.path, type.line, "undocumented_class", fqn)
+      end
+    end
+  end
+
+  # Builds the CLI's option parser, filling `options` as flags are seen.
+  #
+  # @param options [Hash] mutated in place as each flag is parsed
+  # @return [OptionParser]
+  def self.option_parser(options)
+    OptionParser.new do |opts|
+      opts.banner = "Usage: bin/standardize_comments [--report|--check|--fix] [--only a,b] PATH..."
+      opts.on("--report", "summary tables (default)") { options[:mode] = :report }
+      opts.on("--check", "list every violation, exit 1 if any") { options[:mode] = :check }
+      opts.on("--fix", "rewrite fixable categories: #{FIXABLE.join(', ')}") { options[:mode] = :fix }
+      opts.on("--only LIST", Array, "limit to: #{CATEGORIES.keys.join(', ')}") { |list| options[:only] = list }
+      opts.on("--code-unchanged REF", "exit 1 if any file's code (not comments) differs from REF") do |ref|
+        options[:mode] = :code_unchanged
+        options[:ref] = ref
+      end
+      opts.on("--json", "machine-readable output") { options[:json] = true }
+      opts.on("--top N", Integer, "rows in the worst-files table") { |n| options[:top] = n }
+    end
+  end
+
+  # Prints `--report`, `--check`, or `--json` output for a finished run.
+  #
+  # @param run [Run] the run whose violations to render
+  # @param options [Hash] parsed CLI options (`:mode`, `:json`, `:top`)
+  # @return [Integer] process exit status
+  def self.render(run, options)
+    found = run.violations
+    if options[:json]
+      puts JSON.pretty_generate(found.map(&:to_h))
+    elsif options[:mode] == :check
+      found.each { |v| puts "#{v.path}:#{v.line}: [#{v.category}] #{v.message}" }
+    else
+      puts run.report(top: options[:top])
+    end
+    options[:mode] == :check && found.any? ? 1 : 0
+  end
+
+  # The CLI entry point: parses `argv` and runs the requested mode.
+  #
+  # @param argv [Array<String>]
+  # @return [Integer] process exit status
+  def self.main(argv)
+    options = { mode: :report, top: 20 }
+    parser = option_parser(options)
+    paths = parser.parse(argv)
+    unknown = Array(options[:only]) - CATEGORIES.keys
+    abort "unknown categories: #{unknown.join(', ')}" unless unknown.empty?
+    abort parser.help if paths.empty?
+
+    run = Run.new(paths, only: options[:only])
+    case options[:mode]
+    when :fix then puts("rewrote #{run.fix!} files") || 0
+    when :code_unchanged then report_code_changes(run.code_changed_since(options[:ref]))
+    else render(run, options)
+    end
+  end
+
+  # Prints `--code-unchanged`'s verdict.
+  #
+  # @param changed [Array<String>] paths `Run#code_changed_since` flagged
+  # @return [Integer] process exit status
+  def self.report_code_changes(changed)
+    changed.each { |path| puts "#{path}: code changed, not just comments" }
+    puts "code unchanged" if changed.empty?
+    changed.empty? ? 0 : 1
+  end
+end
+
+exit CommentStyle.main(ARGV) if $PROGRAM_NAME == __FILE__

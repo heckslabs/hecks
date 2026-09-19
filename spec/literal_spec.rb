@@ -3,7 +3,7 @@ require "spec_helper"
 # The wire spelling itself, held still.
 #
 # Every other spec that touches these strings reaches them through a domain
-# boot, so the only thing pinning the FORMAT was a golden file — and a golden
+# boot, so the only thing pinning the format was a golden file — and a golden
 # regenerates. This is the claim: these exact spellings, on any Ruby. The
 # renderings this replaced were `Hash#inspect` and `Symbol#to_s`, which meant
 # the wire format quietly said whatever the interpreter said — 3.3 spells the
@@ -37,12 +37,12 @@ RSpec.describe Hecks::Literal do
     end
 
     # The exact regression `render_value`'s old `.to_s`-for-everything
-    # collapse produced: a numeric-LOOKING string wears its own quotes on
+    # collapse produced: a numeric-looking string wears its own quotes on
     # the wire rather than being indistinguishable from the bare digits a
-    # real Integer renders as ("007" used to cross the wire as the text
-    # `007`, identical to what `7` itself would have written, and came
-    # back an Integer on the other side — `where code == "007"` then
-    # matched nothing).
+    # real Integer renders as ("007" would otherwise cross the wire as the
+    # text `007`, identical to what `7` itself would have written, and come
+    # back an Integer on the other side — `where code == "007"` would then
+    # match nothing).
     it "quotes a numeric-looking string differently from the number itself" do
       expect(described_class.render("007")).to eq('"007"')
       expect(described_class.render(7)).to eq("7")
@@ -57,7 +57,7 @@ RSpec.describe Hecks::Literal do
       end
     end
 
-    # `{}` renders "{}" and reads back as nil-free but EMPTY — asserted apart
+    # `{}` renders "{}" and reads back as nil-free but empty — asserted apart
     # from the loop above only because an empty Hash and an empty Array are the
     # two values whose spellings a naive splitter turns into a one-item list.
     it "reads an empty object back as an empty object" do
@@ -71,7 +71,7 @@ RSpec.describe Hecks::Literal do
       expect(described_class.read('{note: "a, b", other: 1}')).to eq(note: "a, b", other: 1)
     end
 
-    # M15 — an EMBEDDED QUOTE inside an object literal's own string field.
+    # M15 — an embedded quote inside an object literal's own string field.
     # `quote`/`unquote` escape and unescape it (`ESCAPED`), and `split_items`
     # tracks `quoting`/`escaping` state char by char rather than splitting on a
     # bare `"`, so `{text: "a \"quoted\" word"}` neither ends the field early
@@ -85,8 +85,8 @@ RSpec.describe Hecks::Literal do
       expect(described_class.read(described_class.render(value))).to eq(value)
     end
 
-    # THE SAME SHAPE ONE FIELD LATER — an embedded quote must not corrupt a
-    # SIBLING field's own read either, which a naive quote-blind scanner
+    # **The same shape one field later** — an embedded quote must not corrupt a
+    # sibling field's own read either, which a naive quote-blind scanner
     # (ending the string at the first `"` it sees) would have done by
     # treating the field's own closing quote as the embedded one and reading
     # everything after it — including the next field's name — as more text.
@@ -103,7 +103,7 @@ RSpec.describe Hecks::Literal do
     end
 
     # The read-side half of the same regression: a real render'd numeric
-    # string round-trips as the STRING it was, not the Integer its digits
+    # string round-trips as the string it was, not the Integer its digits
     # happen to spell.
     it "reads a rendered numeric-looking string back as a string, not a number" do
       expect(described_class.read(described_class.render("007"))).to eq("007")

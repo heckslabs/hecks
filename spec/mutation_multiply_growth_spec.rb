@@ -75,8 +75,8 @@ RSpec.describe "mutation op multiply" do
 
   it "scales a value-object field by the given factor" do
     runtime = boot_mutation_multiply
-    runtime.dispatch("MutationMultiplyGrowth::Organ.Open", id: { value: "o1" }, strength: { value: 1.0 })
-    runtime.dispatch("MutationMultiplyGrowth::Organ.Decay", id: "o1", factor: { value: 0.98 })
+    runtime.dispatch_flat("MutationMultiplyGrowth::Organ.Open", id: { value: "o1" }, strength: { value: 1.0 })
+    runtime.dispatch_flat("MutationMultiplyGrowth::Organ.Decay", id: "o1", factor: { value: 0.98 })
 
     organ = repository_for(runtime).find("o1")
     expect(organ[:strength][:value]).to be_within(0.0001).of(0.98)

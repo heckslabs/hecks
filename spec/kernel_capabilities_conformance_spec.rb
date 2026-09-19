@@ -8,7 +8,7 @@ require "hecks/grammar"
 # the checked-in generated files to those ground truths the way
 # spec/vocabulary_conformance_spec.rb holds other tables to their own
 # live constants. Item #8, whole-project table-unification survey:
-# confirmed CURRENT (zero drift) when investigated, but the investigation
+# confirmed current (zero drift) when investigated, but the investigation
 # itself found no automated gate — exactly the same shape item #2's real,
 # 39-vs-42-entry refusal-wording drift went unnoticed for. This closes
 # that gap the same way: read the checked-in file's own `pub mod <name>;`
@@ -37,8 +37,8 @@ RSpec.describe "kernel capability tables (bin/project_kernel_capabilities)" do
                                        "Grammar.admitted_operators — run bin/project_kernel_capabilities"
   end
 
-  # A GENERATED mod.rs is dead weight without a hand-written file for
-  # each `pub mod` line to resolve — the SAME "unresolved module" gate
+  # A generated mod.rs is dead weight without a hand-written file for
+  # each `pub mod` line to resolve — the same "unresolved module" gate
   # this generator's own header describes bin/rust_kernel_coverage
   # checking mechanically, held here too so this spec alone (without
   # needing a Rust toolchain) already catches the cheap half of it.

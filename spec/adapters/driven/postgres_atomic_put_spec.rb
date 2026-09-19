@@ -9,7 +9,7 @@ RSpec.describe "Postgres atomic_put persistence", :io do
   end
 
   # A bare dbname ("postgres", the local default) is not a conninfo string —
-  # PG.connect(database) alone hands it to libpq as a HOST, not a database
+  # PG.connect(database) alone hands it to libpq as a host, not a database
   # name, and fails to resolve. Same dual-branch declared.start_with?(...)
   # PG.connect(declared) : PG.connect(dbname: declared) the real adapter
   # under test already uses (lib/hecks/adapters/driven/postgres.rb

@@ -1,12 +1,12 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# THE QA LEDGER, EXERCISED THE WAY IT WILL ACTUALLY BE USED.
+# The QA ledger, exercised the way it will actually be used.
 #
 # Booted against Memory rather than the chapter's own Postgres binding — a
 # spec that wrote to the real ledger would leave it different after every run,
 # which is the one thing a durable store must not do to its own test. Only the
-# WIRING is swapped; the chapter under test is the file the tool boots.
+# wiring is swapped; the chapter under test is the file the tool boots.
 #
 # Written through the facade: a creating verb is a module method returning the
 # record in hand, every other verb is a method on that record. Queries and
@@ -16,7 +16,7 @@ RSpec.describe "QualityControl" do
   QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
 
   class StubTracker
-    # THE ADAPTER RETURNS WHAT THE ANSWERING COMMAND TAKES. The answer is
+    # The adapter returns what the answering command takes. The answer is
     # spread into the event payload, and a policy re-enters with that
     # payload verbatim — so these keys are `Ticket.Filed`'s arguments, in the
     # shape the runtime coerces.
@@ -27,8 +27,8 @@ RSpec.describe "QualityControl" do
     def file(**) = raise IOError, "the token expired"
   end
 
-  # CI, BOTH WAYS. A green suite ANSWERS with the summary `Clearance.Passed`
-  # takes; a red one REFUSES, and the runtime hands that refusal to
+  # CI, both ways. A green suite answers with the summary `Clearance.Passed`
+  # takes; a red one refuses, and the runtime hands that refusal to
   # `Clearance.Failed` under the key `refusal` — which is why that command
   # declares `refusal` and not `summary`. Nothing but running it says whether
   # those two words line up.
@@ -40,7 +40,7 @@ RSpec.describe "QualityControl" do
     def run(**) = raise "suite red against abc1234: 1335 examples, 2 failures"
   end
 
-  # A FIXED CLOCK, WHICH IS THE WHOLE REASON THE CLOCK IS A PORT. A staleness
+  # A fixed clock, which is the whole reason the clock is a port. A staleness
   # rule read against the real clock is untestable — the spec would either
   # sleep for fifteen minutes or never exercise the rule at all. Bound to this,
   # it is three lines.
@@ -106,7 +106,7 @@ RSpec.describe "QualityControl" do
 
   def rows(query, **args) = runtime.query("QualityControl::#{query}", **args)
   def references(query, **args) = rows(query, **args).map { |row| row[:reference][:value] }
-  def check(sweep, verb, **args) = runtime.dispatch("QualityControl::Sweep.Check.#{verb}", id: sweep.id, **args)
+  def check(sweep, verb, **args) = runtime.dispatch_flat("QualityControl::Sweep.Check.#{verb}", id: sweep.id, **args)
 
   def a_target(reference = "banking", path = "examples/banking")
     runtime
@@ -142,7 +142,7 @@ RSpec.describe "QualityControl" do
 
     def target = @target ||= a_target("banking")
 
-    # THE FRICTION THIS REMOVED. Every claim used to want
+    # **The friction this removed**. Without it, every claim would want
     # `now.value=$(date +%s) window.value=900` typed in front of it, which is a
     # shell incantation an agent gets wrong by pasting a stale number.
     it "fills now from the clock when the caller leaves it out" do
@@ -153,7 +153,7 @@ RSpec.describe "QualityControl" do
       expect(JSON.parse(text).dig("state", "claimed_at", "value")).to eq(1_000)
     end
 
-    # SO A SPEC OR A CALLER REPRODUCING A MOMENT IS BELIEVED. The door supplies
+    # So a spec or a caller reproducing a moment is believed. The door supplies
     # only what was omitted.
     it "believes an explicit time over the clock" do
       target
@@ -162,9 +162,9 @@ RSpec.describe "QualityControl" do
       expect(JSON.parse(text).dig("state", "claimed_at", "value")).to eq(55)
     end
 
-    # THE HOLE THIS CLOSED. `window` was an argument, so any agent could take a
+    # **The hole this closed**. `window` was an argument, so any agent could take a
     # live claim from any other by asking with a window of one second — the
-    # guard read a number the CALLER supplied and dutifully agreed.
+    # guard read a number the caller supplied and dutifully agreed.
     it "does not let a claimer name the window it is judged against" do
       target
       _, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
@@ -201,10 +201,10 @@ RSpec.describe "QualityControl" do
 
     let(:sweep) { a_sweep }
 
-    # THE ONE THING A QUERY CANNOT DO IS COUNT. `Bug.Open` answers rows and
-    # leaves the arithmetic to whoever is reading; a tally IS the arithmetic,
-    # and it is grouped by the LIFECYCLE state — which no `attribute` declares
-    # and `group_by` used to refuse.
+    # The one thing a query cannot do is count. `Bug.Open` answers rows and
+    # leaves the arithmetic to whoever is reading; a tally is the arithmetic,
+    # and it is grouped by the lifecycle state — which no `attribute` declares
+    # and which `group_by` admits rather than refuses.
     it "counts every bug under what became of it" do
       one = a_logged_bug("BUG#1")
       a_logged_bug("BUG#2")
@@ -227,7 +227,7 @@ RSpec.describe "QualityControl" do
       expect(by_submitter["agent-two"].keys).to eq(["BUG#2"])
     end
 
-    # REACHABLE FROM THE ONLY DOOR THERE IS. The dispatcher has always
+    # Reachable from the only door there is. The dispatcher has always
     # answered a report; the projected CLI never listed one, so a caller with
     # no Ruby could not ask for the one reading that counts.
     it "is a question the command line offers" do
@@ -263,7 +263,7 @@ RSpec.describe "QualityControl" do
       expect(rows("Sweep.Check.ForSubject", subject: { value: "compliance" })).to be_empty
     end
 
-    # TWO AGENTS, ONE CHAPTER. The lifecycle is the lock: one transition
+    # **Two agents, one chapter**. The lifecycle is the lock: one transition
     # wins, the other is refused and takes the next chapter.
     it "gives a chapter to one agent and refuses the other" do
       target = a_target
@@ -276,7 +276,7 @@ RSpec.describe "QualityControl" do
       end.to raise_error(Hecks::Runtime::GivenNotMet, /not taken from the agent holding it/)
     end
 
-    # AND THE FAILURE MODE EVERY LOCK HAS. An agent that dies holds the
+    # And the failure mode every lock has. An agent that dies holds the
     # chapter forever unless the claim can go stale.
     it "lets the next agent take a claim whose holder has gone quiet" do
       target = a_target
@@ -317,13 +317,13 @@ RSpec.describe "QualityControl" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
 
-      expect { runtime.dispatch("QualityControl::Target.Release", id: target.id, now: { value: 1_000 }) }
+      expect { runtime.dispatch_flat("QualityControl::Target.Release", id: target.id, now: { value: 1_000 }) }
         .to raise_error(Hecks::Runtime::AbsentArgument)
     end
 
-    # THE FORMULA ITSELF, AGAINST REAL DISPATCH — `Hecks::Fuzzing::
+    # **The formula itself, against real dispatch** — `Hecks::Fuzzing::
     # RotationPriority.pick` is exercised directly (no ledger needed) in
-    # spec/rotation_priority_spec.rb; this proves the SAME rows really
+    # spec/rotation_priority_spec.rb; this proves the same rows really
     # come back out of a booted `Target.Rotation` carrying a
     # `yield_score` a caller can feed it.
     it "picks the higher-yield target over the merely-older one, below the floor" do
@@ -369,7 +369,7 @@ RSpec.describe "QualityControl" do
   # only places this file reaches past it": `Target::Release` trusts
   # whatever `next_streak` it is given, exactly as it already trusts
   # `now`, so what is actually under test here is that trust threading
-  # correctly — the FIELD landing where it should, and `Check::Surprised`'s
+  # correctly — the field landing where it should, and `Check::Surprised`'s
   # own sticky bit surviving a `Remake` — not a reimplementation of
   # `bin/qa_sweep`'s own widening formula (that lives in, and is tested
   # against, `bin/qa_sweep` itself).
@@ -412,11 +412,11 @@ RSpec.describe "QualityControl" do
       expect(target.clean_streak.to_h).to eq(value: 0)
     end
 
-    # THE STICKY BIT `next_streak`'s OWN COMMENT DESCRIBES — a check
+    # The sticky bit `next_streak`'s own comment describes — a check
     # `Surprised` once and then resolved (`Remake` back to "made", then
     # `Held`) still shows the sweep once surprised, which is what a real
-    # caller reads to decide `next_streak` is 0 rather than +1, EVEN
-    # THOUGH the check's own CURRENT `outcome` by the time anyone looks
+    # caller reads to decide `next_streak` is 0 rather than +1, even
+    # though the check's own current `outcome` by the time anyone looks
     # is "held" — indistinguishable from a check that was never anything
     # else, if `ever_surprised` did not exist.
     it "remembers a check was ever surprised, even after Remake resolves it clean" do
@@ -449,7 +449,7 @@ RSpec.describe "QualityControl" do
 
   # ── the other queue ──────────────────────────────────────────────────
 
-  # SWEEPING IS NOT THE ONLY WAY TO GET WORK. An agent that is not sweeping
+  # Sweeping is not the only way to GET work. An agent that is not sweeping
   # takes the next open bug off the queue and fixes that instead — so a bug
   # is claimed for the same reason a chapter is.
   describe "taking a bug off the queue" do
@@ -487,7 +487,7 @@ RSpec.describe "QualityControl" do
       expect(bug.held_by.to_h).to eq(value: "agent-two")
     end
 
-    # HOLDING IS ORTHOGONAL TO THE FIX. An agent picks up a bug that is
+    # **Holding is orthogonal to the fix**. An agent picks up a bug that is
     # already `investigating` without moving it, which is why the claim is a
     # `given` here and a lifecycle edge on Target.
     it "does not move the fix along" do
@@ -520,7 +520,7 @@ RSpec.describe "QualityControl" do
       expect(sweep.made.to_h).to eq(value: 1)
     end
 
-    # `surprising` IS NOT `failed` — it covers the crash and the quiet
+    # `surprising` is not `failed` — it covers the crash and the quiet
     # divergence without prejudging which, and the quiet one is the point.
     it "separates what the chapter promised from what surprised" do
       sweep = a_sweep
@@ -579,7 +579,7 @@ RSpec.describe "QualityControl" do
 
   # ── the one absolute rule ────────────────────────────────────────────
 
-  # A GATE CAN BE WAIVED; AN ARGUMENT CANNOT. "No bug without the test that
+  # A gate can be waived; an argument cannot. "No bug without the test that
   # proves it" is a required argument for exactly that reason.
   describe "no bug without evidence" do
     it "cannot be logged without the test that proves it" do
@@ -661,7 +661,7 @@ RSpec.describe "QualityControl" do
   end
 
   describe "the backlog of where to look next" do
-    # SAME FRICTION `Target.Claim` ALREADY REMOVED, for the same reason — see
+    # Same friction `Target.Claim` already removed, for the same reason — see
     # "the clock" describe block above. Only the CLI door fills an omitted
     # argument from the clock port; the facade's own Ruby method (used
     # everywhere else in this file) always wants it named, the same way
@@ -760,7 +760,7 @@ RSpec.describe "QualityControl" do
         title: { value: "as: is accepted and does not alias" },
         body: { value: "see the demonstration" }
       )
-      runtime.dispatch("QualityControl::Ticket.Submit", id: "TK-1")
+      runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
     end
 
     it "cannot be raised for a bug that does not exist" do
@@ -775,16 +775,16 @@ RSpec.describe "QualityControl" do
       end.to raise_error(Hecks::Runtime::NotFound)
     end
 
-    # THE DOMAIN DOES THE ASKING. `Raise` records the intent; the policy fires
+    # **The domain does the asking**. `Raise` records the intent; the policy fires
     # the port; the adapter answers; a second policy records what came back.
     #
-    # FIXED: `trigger Ticket::IssueTracker::File` — a policy triggering an
-    # `asks`/`tells` PORT OPERATION (three segments: aggregate, port,
+    # Fixed: `trigger Ticket::IssueTracker::File` — a policy triggering an
+    # `asks`/`tells` port operation (three segments: aggregate, port,
     # operation) rather than a plain command (two segments: aggregate,
-    # command) used to never resolve. `Naming.command_ref`'s bare-constant
-    # rewrite (only the LAST `::` becomes `.`) turns this into
+    # command) would otherwise never resolve. `Naming.command_ref`'s bare-constant
+    # rewrite (only the last `::` becomes `.`) turns this into
     # "Ticket::IssueTracker.File", which `Naming.split_verb` now folds any
-    # LEFTOVER `::` past the already-resolved domain boundary into the
+    # leftover `::` past the already-resolved domain boundary into the
     # dot-joined command path instead of capping at two pieces — recovering
     # "Ticket.IssueTracker.File", the same shape a working port dispatch
     # already used. `ReactionInvocation#resolve_target` gained a matching
@@ -800,7 +800,7 @@ RSpec.describe "QualityControl" do
       expect(rows("Ticket.Filed").first[:number][:value]).to eq(43)
     end
 
-    # EVERY FAILURE IS AN ANSWER — the raise from the far side becomes the
+    # **Every failure is an answer** — the raise from the far side becomes the
     # refusal the chapter named, and the retry policy takes it from there.
     it "turns a dead token into the refusal it named, and asks again" do
       runtime = boot_quality_control(RefusingTracker)
@@ -822,7 +822,7 @@ RSpec.describe "QualityControl" do
         repository: { value: "chrisyoung/hecksagain" },
         title: { value: "x" }, body: { value: "y" }
       )
-      runtime.dispatch("QualityControl::Ticket.Submit", id: "TK-1")
+      runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
 
       names = runtime.events.map(&:name)
       expect(names).to include("IssueFilingRefused", "TicketFilingRefused", "TicketRetried")
@@ -832,7 +832,7 @@ RSpec.describe "QualityControl" do
 
   # ── which pull requests are ours ──────────────────────────────────────
 
-  # THE WORKLIST `bin/qa_pr_check` NOW READS INSTEAD OF SEARCHING. A patch
+  # The worklist `bin/qa_pr_check` now reads instead of searching. A patch
   # is recorded the moment its number, branch and commit are already known
   # — at `gh pr create` — not rediscovered afterward by guessing at a
   # branch prefix or a title convention.
@@ -889,7 +889,7 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
-    # THE DUPLICATE CHECK — the same shape `Ticket.ForBug` already gives
+    # **The duplicate check** — the same shape `Ticket.ForBug` already gives
     # for an issue, restated here rather than shared (this file's own
     # habit for a per-aggregate query).
     it "finds every patch ever opened for one bug" do
@@ -901,7 +901,7 @@ RSpec.describe "QualityControl" do
       expect(numbers).to contain_exactly(538, 540)
     end
 
-    # THE WHOLE POINT: the worklist carries the commit already, so nothing
+    # **The whole point**: the worklist carries the commit already, so nothing
     # downstream has to ask GitHub to find it, or guess which Bug a commit
     # belongs to.
     it "carries the commit that makes checking it a lookup, not a guess" do
@@ -927,10 +927,10 @@ RSpec.describe "QualityControl" do
 
   # ── deliberate work, landed ───────────────────────────────────────────
 
-  # `Patch`'S SIBLING, NOT A SECOND DOOR INTO IT — a real PR that names no
+  # `Patch`'s sibling, not a second door into it — a real PR that names no
   # `Bug` because nothing was proven wrong: a domain-modeling addition, a
   # tool, this very aggregate. `Open` records the PR is real; `Land` is
-  # what puts a commit on the record worth watching, and it is a SEPARATE
+  # what puts a commit on the record worth watching, and it is a separate
   # command on purpose (see the aggregate's own header comment) — a fresh
   # `Land` is also how a `needs_fix` row gets a second chance.
   describe "tracking deliberate work" do
@@ -992,11 +992,11 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
-    # REAL, NOT HYPOTHETICAL — PR #543 (a deliberate proof-only PR, never
-    # meant to merge) was closed by a human the moment its point was made,
+    # **Real, not hypothetical** — a deliberate proof-only PR, never
+    # meant to merge, closed by a human the moment its point was made,
     # while still sitting at "opened" in this ledger: `bin/qa_pr_check`
     # never got a chance to dispatch `Land` at all. `retire_if_settled?`
-    # dispatches `Close` the instant `gh pr view` reports CLOSED, whatever
+    # dispatches `Close` the instant `gh pr view` reports closed, whatever
     # this ledger's own status says — this is the case `Merge`/`Close`
     # being `from: ["landed", "needs_fix"]` alone (missing "opened") let
     # crash with an uncaught `LifecycleRefused` instead of retiring
@@ -1018,7 +1018,7 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
-    # A DELIBERATE CITATION IS REAL, NOT REQUIRED — `Angle.Build` already
+    # A deliberate citation is real, not required — `Angle.Build` already
     # marks a lead resolved-by-building-something; this is the other half
     # of that same loop, readable from the improvement's own side.
     it "can cite the angle it fulfills, and be found by it" do
@@ -1042,7 +1042,7 @@ RSpec.describe "QualityControl" do
 
   # ── is it safe to ship ───────────────────────────────────────────────
 
-  # NOT A QUESTION ABOUT NOW — a record about a commit. CI went green at two
+  # **Not a question about now** — a record about a commit. CI went green at two
   # o'clock; you have pushed twice since; the green belongs to what it ran
   # against, and the new commit simply has none of its own.
   describe "clearance" do
@@ -1065,7 +1065,7 @@ RSpec.describe "QualityControl" do
     it "keeps what the run actually said when it went red" do
       runtime
       run = QualityControl::Clearance.start!(commit: { value: "0d85613" })
-      # `refusal`, NOT `summary` — the argument is named for where it comes
+      # `refusal`, not `summary` — the argument is named for where it comes
       # from. A refused ask hands its policy the word `refusal`, so the
       # command that records a red run has to take that word or never fire;
       # `then_set` is what puts it in the `summary` this query reads.
@@ -1074,7 +1074,7 @@ RSpec.describe "QualityControl" do
       expect(rows("Clearance.Red").first[:summary][:value]).to include("5 failures")
     end
 
-    # THE GATE, DRIVEN END TO END BY THE PORT rather than by hand. The two
+    # The gate, driven end to end by the port rather than by hand. The two
     # tests above dispatch `Passed`/`Failed` directly, which proves the
     # chapter but not the wiring — and the wiring is where this broke: the
     # refusal arrives under a key the command must already declare, and
@@ -1083,7 +1083,7 @@ RSpec.describe "QualityControl" do
       runtime
 
       QualityControl::Clearance.start!(commit: { value: "abc1234" })
-      runtime.dispatch("QualityControl::Clearance.CI.Run", commit: "abc1234")
+      runtime.dispatch_flat("QualityControl::Clearance.CI.Run", commit: "abc1234")
 
       expect(rows("Clearance.All").first[:status]).to eq("green")
     end
@@ -1091,7 +1091,7 @@ RSpec.describe "QualityControl" do
     it "records a red run under the word the runtime actually hands back" do
       red = boot_quality_control(StubTracker, ci_adapter: RedCi)
       QualityControl::Clearance.start!(commit: { value: "def5678" })
-      red.dispatch("QualityControl::Clearance.CI.Run", commit: "def5678")
+      red.dispatch_flat("QualityControl::Clearance.CI.Run", commit: "def5678")
 
       expect(red.query("QualityControl::Clearance.Red").first[:summary][:value]).to include("2 failures")
     end
@@ -1100,7 +1100,7 @@ RSpec.describe "QualityControl" do
   # ── noticing when a fix stops holding ───────────────────────────────
 
   # `BugCiWatch` — nothing dispatches `Bug.Regress` by hand here. It
-  # starts the moment a bug is fixed, watches for the FIRST clearance
+  # starts the moment a bug is fixed, watches for the first clearance
   # answer against that exact commit, and acts (or doesn't) entirely on
   # its own.
   describe "the CI watch" do
@@ -1120,7 +1120,7 @@ RSpec.describe "QualityControl" do
       expect(runtime.sagas).to include(hash_including(process_manager: "BugCiWatch", dispatch: "Bug.Regress", delivered: true))
     end
 
-    # GREEN NEEDS NOBODY. The instance just ends — `ends_on` deletes it the
+    # **Green needs nobody**. The instance just ends — `ends_on` deletes it the
     # moment `ClearanceGiven` arrives for this commit, same as any other
     # process manager's own terminal event.
     it "just ends when the commit comes back green — nothing left to watch for" do
@@ -1133,8 +1133,8 @@ RSpec.describe "QualityControl" do
       expect(runtime.registry.saga_instances["BugCiWatch"]).to be_empty
     end
 
-    # THE WHOLE REASON THIS CORRELATES BY COMMIT AND NOT BY BUG: a red run
-    # against somebody ELSE's commit must never touch this bug.
+    # The whole reason this correlates by commit and not by bug: a red run
+    # against somebody else's commit must never touch this bug.
     it "ignores a clearance against an unrelated commit" do
       fixed_bug("4f2a19c")
 
@@ -1172,7 +1172,7 @@ RSpec.describe "QualityControl" do
                                                       dispatch: "Improvement.Regress", delivered: true))
     end
 
-    # GREEN NEEDS NOBODY — same reading `BugCiWatch`'s own spec already
+    # **Green needs nobody** — same reading `BugCiWatch`'s own spec already
     # gives: the instance just ends, `ends_on` deletes it the moment
     # `ClearanceGiven` arrives for this commit.
     it "just ends when the commit comes back green — nothing left to watch for" do
@@ -1185,8 +1185,8 @@ RSpec.describe "QualityControl" do
       expect(runtime.registry.saga_instances["ImprovementCiWatch"]).to be_empty
     end
 
-    # THE WHOLE REASON THIS CORRELATES BY COMMIT, NOT BY THE IMPROVEMENT'S
-    # OWN REFERENCE: a red run against somebody ELSE's commit must never
+    # The whole reason this correlates by commit, not by the improvement's
+    # own reference: a red run against somebody else's commit must never
     # touch this record.
     it "ignores a clearance against an unrelated commit" do
       landed_improvement("4f2a19c")
@@ -1197,8 +1197,8 @@ RSpec.describe "QualityControl" do
       expect(QualityControl::Improvement.find(9001).status).to eq("landed")
     end
 
-    # THE WHOLE REASON `Open` AND `Land` ARE TWO COMMANDS: a fresh `Land`
-    # after `needs_fix` fires `ImprovementLanded` again, the SAME event
+    # The whole reason `Open` and `Land` are two commands: a fresh `Land`
+    # after `needs_fix` fires `ImprovementLanded` again, the same event
     # `starts_on` names, so the watch picks the new commit back up on its
     # own — proven here against a real, synthetic `Clearance` for the new
     # sha, not merely asserted.
@@ -1221,12 +1221,12 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # TAGS — PUT ON, REPLACED, AND FOUND AGAIN.
+  # Tags — PUT on, replaced, and found again.
   describe "tags" do
     let(:sweep) { a_sweep }
 
     def a_bug_tagged(reference, *tags)
-      # `sweep` FIRST, because Ruby evaluates the receiver before the
+      # `sweep` first, because Ruby evaluates the receiver before the
       # arguments — `QualityControl::Bug` would be resolved before the boot
       # that defines it.
       holder = sweep
@@ -1253,7 +1253,7 @@ RSpec.describe "QualityControl" do
       expect(references("Bug.Tagged", tag: { value: "frame" })).to be_empty
     end
 
-    # REPLACES RATHER THAN APPENDS, and the spec says so out loud because it
+    # Replaces rather than appends, and the spec says so out loud because it
     # is the one surprising thing about the verb. There is no append in this
     # language; `Tag` takes the whole set.
     it "replaces the set, so a tag can be taken off" do
@@ -1277,7 +1277,7 @@ RSpec.describe "QualityControl" do
 
   # ── a surprised chapter waits for a person ───────────────────────────
 
-  # `suspended` — the state `held` used to stand in for. Nothing here
+  # `suspended` — its own state, distinct from `held`. Nothing here
   # dispatches `Target.Suspend` by hand: `SuspendOnSurprise` (the
   # chapter's own foot) does it, from the `target` a surprising check
   # restates, and that is the whole claim under test.
@@ -1311,7 +1311,7 @@ RSpec.describe "QualityControl" do
         .to raise_error(Hecks::Runtime::AbsentArgument, /target/)
     end
 
-    # NO STALE-CLAIM ARITHMETIC REACHES A SUSPENDED CHAPTER — that is the
+    # No stale-claim arithmetic reaches a suspended chapter — that is the
     # difference from `held`, and the reason the state exists.
     it "cannot be claimed, however old the suspension, and comes back only through Release" do
       target, sweep = held_target_with_open_sweep
@@ -1418,7 +1418,7 @@ RSpec.describe "QualityControl" do
       expect(references("Bug.Waived")).to eq([bug.id])
     end
 
-    # THE PIN. The invariant grammar reads literals, not constants, so
+    # **The pin**. The invariant grammar reads literals, not constants, so
     # `WaivedBy` spells "qa_sweep" out where `bin/qa_sweep` reads
     # `AUTOMATED_ENGINEER` — this is what keeps the two from drifting.
     it "refuses exactly the identity the loop runs as" do
@@ -1477,7 +1477,7 @@ RSpec.describe "QualityControl" do
 
   # ── the pile still owed the bigger call ───────────────────────────────
 
-  # `Untriaged` is the pile nobody has judged YET; this is the pile
+  # `Untriaged` is the pile nobody has judged yet; this is the pile
   # somebody already judged too big to fix on the spot, and has not since
   # been closed out. Before this query existed, getting this answer meant
   # dispatching `Bug.All` and filtering client-side.
@@ -1516,9 +1516,9 @@ RSpec.describe "QualityControl" do
       expect(references("Bug.NeedsJudgment")).to contain_exactly("BUG#1", "BUG#2")
     end
 
-    # FIXED COUNTS AS STILL OWED, ON PURPOSE. A fix landing does not
+    # Fixed counts as still owed, on purpose. A fix landing does not
     # retroactively answer the bigger judgment call that was made about
-    # it — the bug is not RESOLVED until `Verify` or `Withdraw` says so.
+    # it — the bug is not resolved until `Verify` or `Withdraw` says so.
     it "keeps a bigger-triaged bug once it is fixed and not yet verified" do
       bug = a_bug(a_sweep)
       bug = bug.triage!(disposition: { value: "bigger" })
@@ -1625,7 +1625,7 @@ RSpec.describe "QualityControl" do
       expect(numbers("Improvement.OpenedSince", 9_000)).to eq([3])
     end
 
-    # A ROW FROM BEFORE THE FIELD EXISTED hydrates at the epoch, and the
+    # A row from before the field existed hydrates at the epoch, and the
     # epoch is before any midnight `bin/qa_open_pr` ever counts from.
     it "never counts a PR recorded at the epoch against a later day" do
       open_patch(a_fixed_bug, 1, 0)
@@ -1663,7 +1663,7 @@ RSpec.describe "QualityControl" do
   describe "the dials" do
     before { runtime }
 
-    # THE REAL TABLE'S OWN BOUNDARIES — `spec/sweep_depth_spec.rb` proves
+    # **The real table's own boundaries** — `spec/sweep_depth_spec.rb` proves
     # the function against a table it passes in; this pins the dial.
     it "widen the sweep at exactly the fifth and the twentieth clean release" do
       depth = ->(streak) { Hecks::Fuzzing::SweepDepth.for_streak(streak, tiers: QualityControlDials::WIDENING_TIERS) }

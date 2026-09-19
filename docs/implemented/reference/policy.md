@@ -149,7 +149,7 @@ where a policy adds a condition of its own.
 is the only act here — nothing mentions compliance at the call site:
 
 ```ruby
-runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "po-a1" })
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "po-a1" })
 runtime.registry.reaction_log.last[:on]  # => "AccountFrozen"
 ```
 

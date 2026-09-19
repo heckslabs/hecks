@@ -19,16 +19,16 @@ RSpec.describe "a process manager" do
   end
 
   def funded(runtime = boot_wire)
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
     runtime
   end
 
   it "carries a wire end to end — exact cents, exact states — and retires" do
     runtime = funded
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
 
     expect(Wire::Drawer.find("left").cents.to_h).to  eq(cents: 7_500)
     expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
@@ -42,25 +42,26 @@ RSpec.describe "a process manager" do
 
   it "remembers the opening payload — the credit leg reads a destination no event carried" do
     runtime = funded
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 100 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 100 }, source: "left", destination: "right")
 
     expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 100)
   end
 
-  # A refused leg UNWINDS the legs that already happened. Nobody has to notice.
+  # A refused leg unwinds the legs that already happened. Nobody has to notice.
   #
-  # This test used to assert the opposite and call it "the compensation puts the
-  # money back" — but it was the TEST that put the money back, by hand, on the
-  # line after asserting the drawer was short. Between those two dispatches the
+  # Asserting the opposite and calling it "the compensation puts the
+  # money back" would be wrong — it would be the test itself putting the
+  # money back, by hand, on the line after asserting the drawer was short.
+  # Between those two dispatches the
   # thousand was nowhere: taken from the source, refused by the destination, and
   # no part of the system trying to recover it. A drawer that cannot be paid into
   # is an ordinary Tuesday. Money vanishing because of it is not.
   it "unwinds a refused leg on its own, without anyone noticing" do
     runtime = funded
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-2" }, amount: { cents: 1_000 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-2" }, amount: { cents: 1_000 }, source: "left", destination: "right")
 
     # The refusal is still recorded — a fact about the domain, not a crash.
     expect(runtime.sagas).to include(
@@ -73,23 +74,24 @@ RSpec.describe "a process manager" do
     expect(Wire::Wire.find("wire-2").status).to eq("returned")
   end
 
-  # `begin_saga` used to seed a fresh instance's own memory with the
-  # starting event's own `.payload` directly — the SAME Hash object, not a
-  # copy. A `remember` written mid-saga (or any other future write into
-  # `instance[:memory]`) would then be, silently, ALSO a write into an
-  # event that had already happened and been logged — retroactively
-  # adding a field nothing announced. `.dup` on the way in breaks the
-  # alias without changing what the saga's own memory actually holds.
+  # Without `.dup`, seeding a fresh instance's own memory in `begin_saga`
+  # with the starting event's own `.payload` directly — the same Hash
+  # object, not a copy — would mean a `remember` written mid-saga (or any
+  # other future write into `instance[:memory]`) is, silently, also a
+  # write into an event that had already happened and been logged —
+  # retroactively adding a field nothing announced. `.dup` on the way in
+  # breaks the alias without changing what the saga's own memory actually
+  # holds.
   it "seeds a fresh saga's own memory as a COPY of the starting event's payload, never the same object" do
     runtime = funded
     # A refused leg unwinds rather than ending (see the example above),
     # so this instance survives long enough to inspect directly — a wire
     # that lands cleanly ends immediately and is reaped from
     # `saga_instances` before there is anything left to check.
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
-    result = runtime.dispatch("Wire::Wire.Ask",
-                              reference: { value: "wire-2" }, amount: { cents: 1_000 },
-                              source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "right" })
+    result = runtime.dispatch_flat("Wire::Wire.Ask",
+                                   reference: { value: "wire-2" }, amount: { cents: 1_000 },
+                                   source: "left", destination: "right")
 
     started  = result.events.find { |event| event.name == "WireAsked" }
     instance = runtime.registry.saga_instances["Carry"]["wire-2"]
@@ -100,7 +102,7 @@ RSpec.describe "a process manager" do
 
   it "ignores an uncorrelated event — a manual Take is just a take" do
     runtime = funded
-    runtime.dispatch("Wire::Drawer.Take", number: { value: "left" }, amount: { cents: 500 })
+    runtime.dispatch_flat("Wire::Drawer.Take", number: { value: "left" }, amount: { cents: 500 })
 
     expect(runtime.sagas).to be_empty
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 9_500)
@@ -109,7 +111,7 @@ RSpec.describe "a process manager" do
   # Same split as the policy interpreter, proven end to end through the same
   # `Dispatcher#dispatch` a real caller uses: `Wire.Ask` has already
   # succeeded and persisted `WireAsked` by the time the procedure's own
-  # first leg (`Wire::Drawer.Take`) runs, and a genuine defect in THAT leg
+  # first leg (`Wire::Drawer.Take`) runs, and a genuine defect in that leg
   # must not reach back and fail `Ask`'s own dispatch.
   #
   # `reenter` is overridden on this one `runtime`, not stubbed with a
@@ -117,10 +119,10 @@ RSpec.describe "a process manager" do
   # `spec/runtime/policy_spec.rb`'s equivalent test: only the one verb this
   # test means to break is intercepted, everything else runs unmodified.
   #
-  # This leg is the FIRST one — nothing was ever taken — so once retries are
+  # This leg is the first one — nothing was ever taken — so once retries are
   # exhausted there is genuinely nothing for the compensating leg to put
-  # back. The next test crashes the SECOND leg instead, where there is.
-  # One instrumented dispatch, several facts about its SAME outcome
+  # back. The next test crashes the second leg instead, where there is.
+  # One instrumented dispatch, several facts about its same outcome
   # (the stderr message, bounded retry count, saga log entries, final
   # states of both the wire and the money) — all following from one
   # crashing leg, which splitting would force re-triggering repeatedly.
@@ -140,9 +142,9 @@ RSpec.describe "a process manager" do
 
     result = nil
     expect do
-      result = runtime.dispatch("Wire::Wire.Ask",
-                                reference: { value: "wire-defect" }, amount: { cents: 500 },
-                                source: "left", destination: "right")
+      result = runtime.dispatch_flat("Wire::Wire.Ask",
+                                     reference: { value: "wire-defect" }, amount: { cents: 500 },
+                                     source: "left", destination: "right")
     end.to output(/Carry.*wire-defect.*Drawer\.Take.*after 4 attempts.*boom/m).to_stderr
 
     expect(result.events.map(&:name)).to eq(["WireAsked"])
@@ -161,7 +163,7 @@ RSpec.describe "a process manager" do
     expect(take_log.last).to include(delivered: false, defect: true, defect_compensated: true,
                                      error_class: "NoMethodError")
 
-    # Compensation is ATTEMPTED now — the defect path always unwinds once
+    # Compensation is attempted now — the defect path always unwinds once
     # retries are exhausted — but this leg is the first one: the instance is
     # still in "asked", the compensating leg is declared from "carrying",
     # and the mismatch means it finds nothing to put back rather than
@@ -172,7 +174,7 @@ RSpec.describe "a process manager" do
     expect(runtime.registry.saga_instances["Carry"]["wire-defect"][:state]).to eq("asked")
   end
 
-  # The crash lands on the SECOND leg instead — `Take` already ran for real,
+  # The crash lands on the second leg instead — `Take` already ran for real,
   # so there is real money out of "left" by the time the credit leg starts
   # failing. Once MAX_DEFECT_RETRIES is exhausted, `unwind` runs the exact
   # same compensating leg a domain refusal would trigger, and the money
@@ -191,9 +193,9 @@ RSpec.describe "a process manager" do
     end
 
     expect do
-      runtime.dispatch("Wire::Wire.Ask",
-                       reference: { value: "wire-crash" }, amount: { cents: 1_000 },
-                       source: "left", destination: "right")
+      runtime.dispatch_flat("Wire::Wire.Ask",
+                            reference: { value: "wire-crash" }, amount: { cents: 1_000 },
+                            source: "left", destination: "right")
     end.to output(/Carry.*wire-crash.*Drawer\.Put.*after 4 attempts.*boom/m).to_stderr
 
     expect(attempts).to eq(Hecks::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
@@ -210,12 +212,12 @@ RSpec.describe "a process manager" do
 
   # The reaction-depth ceiling isn't a domain decision either, but unlike a
   # crash there's nothing ambiguous about it — the leg unambiguously did not
-  # run — so it unwinds on the FIRST hit, no retry involved. Stubbed rather
-  # than actually built five deep : the THIRD `reaction_depth_reached?` check
+  # run — so it unwinds on the first hit, no retry involved. Stubbed rather
+  # than actually built five deep : the third `reaction_depth_reached?` check
   # in this chain is the credit leg's own (1: Take, 2: Wire.Moved, 3:
   # Drawer.Put into "right"), so tripping only that one leaves Take free to
   # actually run — real money to put back — and leaves the compensating
-  # leg's own two dispatches free to run too, proving this produces a REAL
+  # leg's own two dispatches free to run too, proving this produces a real
   # compensation, not just a logged, inert refusal-shaped record.
   it "unwinds when the reaction-depth ceiling is hit, not just when the domain refuses" do
     runtime = funded
@@ -225,9 +227,9 @@ RSpec.describe "a process manager" do
       checks == 3
     end
 
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-ceiling" }, amount: { cents: 1_000 },
-                     source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-ceiling" }, amount: { cents: 1_000 },
+                          source: "left", destination: "right")
 
     expect(runtime.sagas).to include(
       hash_including(process_manager: "Carry", instance: "wire-ceiling", dispatch: "Drawer.Put",
@@ -240,12 +242,12 @@ RSpec.describe "a process manager" do
 
   it "records an event that arrives in the wrong phase, and does not advance" do
     runtime = funded
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-3" }, amount: { cents: 100 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-3" }, amount: { cents: 100 }, source: "left", destination: "right")
     # No manual Wire.Returned any more — the refused leg unwinds on its own, and
     # the compensation's own Put emits PutIn while the procedure sits in
-    # "returned". Which IS the wrong phase, arriving without being arranged.
+    # "returned". Which is the wrong phase, arriving without being arranged.
 
     expect(runtime.sagas).to include(
       hash_including(on: "PutIn", advanced: false,
@@ -253,23 +255,23 @@ RSpec.describe "a process manager" do
     )
   end
 
-  # M22 — a logged advance's own `from:`/`to:` used to be re-derived from
-  # `handler.from_state`/`handler.to_state` A SECOND TIME, after the real
-  # mutation already happened — the SAME handler object `Properties.
+  # M22 — a logged advance's own `from:`/`to:` re-derived from
+  # `handler.from_state`/`handler.to_state` a second time, after the real
+  # mutation already happened, would use the same handler object `Properties.
   # saga_advances_follow_declared_handlers` (fuzzing/properties.rb) walks
   # to build its own "declared edges" list, so the logged pair could never
   # disagree with that list no matter what the runtime actually stored: it
-  # was the identical fact, read twice. This intercepts `handler_for` to
-  # make that second read answer something ELSE ("a_second_read_would_
-  # answer_this_instead") from the FIRST read's own real, correct value
+  # would be the identical fact, read twice. This intercepts `handler_for` to
+  # make that second read answer something else ("a_second_read_would_
+  # answer_this_instead") from the first read's own real, correct value
   # ("asked", the declared self-loop `"WireAsked" => "asked", from:
   # "asked"`) — the shape of bug this fix closes: any future defect that
   # divides "what got stored" from "what the handler says" now surfaces in
-  # the log immediately, because the log is read back FROM the instance,
+  # the log immediately, because the log is read back from the instance,
   # never from a second call to the handler.
   #
   # `to_state_calls` proves the mechanism directly: the fixed interpreter
-  # calls `handler.to_state` exactly ONCE (to perform the mutation) and
+  # calls `handler.to_state` exactly once (to perform the mutation) and
   # never again to build the log entry — the old code's own two-calls
   # shape is exactly the coupling this test would catch.
   it "logs the saga instance's own real transition, not a second read of the handler that decided it" do
@@ -291,16 +293,16 @@ RSpec.describe "a process manager" do
       event == "WireAsked" ? stub_handler : real_handler_for.call(event, state)
     end
 
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-log-fidelity" }, amount: { cents: 500 },
-                     source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-log-fidelity" }, amount: { cents: 500 },
+                          source: "left", destination: "right")
 
     entry = runtime.sagas.find { |s| s[:process_manager] == "Carry" && s[:on] == "WireAsked" && s[:advanced] }
 
     # The handler's own `to_state` was consulted exactly once — for the
     # real mutation — never again to build the log entry.
     expect(to_state_calls).to eq(1)
-    # So the log carries the value the instance was ACTUALLY moved to
+    # So the log carries the value the instance was actually moved to
     # (the first, real read)…
     expect(entry[:to]).to eq(real_to_state)
     # …never a second, different read of the same handler — the shape of
@@ -327,25 +329,25 @@ RSpec.describe "a lifecycle" do
 
   it "is born at its default — the field exists before any transition" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "d" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "d" })
 
     expect(Wire::Drawer.find("d").status).to eq("open")
   end
 
   it "applies the transition the command names" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "d" })
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "d" })
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "d" })
 
     expect(Wire::Drawer.find("d").status).to eq("shut")
   end
 
   it "refuses a move the machine does not admit, in so many words" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "d" })
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "d" })
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "d" })
 
-    expect { runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" }) }
+    expect { runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "d" }) }
       .to raise_error(Hecks::Runtime::LifecycleRefused,
                       'Shut refused — status is "shut", and Shut moves it only from "open"')
   end
@@ -354,14 +356,14 @@ RSpec.describe "a lifecycle" do
     runtime = boot_wire
     # the drawers have to exist — a wire between accounts that were never
     # opened is not a wire, and the runtime now says so
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "a" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "b" })
-    runtime.dispatch("Wire::Wire.Ask", reference: { value: "w" }, amount: { cents: 1 }, source: "a", destination: "b")
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "a" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "b" })
+    runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w" }, amount: { cents: 1 }, source: "a", destination: "b")
 
-    # The message now names the declared PATH ("reference.value"), not just its
+    # The message now names the declared path ("reference.value"), not just its
     # head — more precise than the bare field name, and what `identity_reading`
     # quotes for every construct now, not something special-cased for Wire.
-    expect { runtime.dispatch("Wire::Wire.Returned", wire: "missing") }
+    expect { runtime.dispatch_flat("Wire::Wire.Returned", wire: "missing") }
       .to raise_error(Hecks::Runtime::NotFound, /no Wire with reference\.value "missing"/)
   end
 end

@@ -12,6 +12,13 @@ module Hecks
       # to the router, pinned to this specific FQN version rather than
       # the router's default resolution.
       class OptionsProxy
+        # @param router [Router] router to dispatch resolved calls through
+        # @param realm [String, nil] realm segment of the FQN this proxy pins
+        # @param domain [String] domain segment of the FQN this proxy pins
+        # @param aggregate [String, nil] aggregate segment, or nil for a domain-level query
+        # @param options [Hash{Symbol => Object}] the `.options(...)` call's keywords; only
+        #   `:version` is accepted
+        # @raise [ArgumentError] if `options` has a key other than `:version`
         def initialize(router:, realm:, domain:, aggregate:, options:)
           unknown = options.keys - [:version]
           raise ArgumentError, "unknown router options: #{unknown.join(', ')}" unless unknown.empty?
@@ -45,10 +52,16 @@ module Hecks
         end
       end
 
+      # @param router [Router] router whose current routes get Ruby constants and methods
       def initialize(router)
         @router = router
       end
 
+      # Installs every current-version route as a namespace constant/method,
+      # plus the aggregate `find`/`all`/`count`/`events`/`repository` door and
+      # short `Aggregate.verb` shortcuts.
+      #
+      # @return [self]
       def install!
         current_entries.each { |entry| install_namespace_entry(entry) }
         install_shortcuts!
@@ -77,16 +90,16 @@ module Hecks
         end
       end
 
-      # `.find`/`.all`/`.count`/`.events`/`.repository` — the SAME read/CRUD
+      # `.find`/`.all`/`.count`/`.events`/`.repository` — the same read/CRUD
       # surface `Facade::Surface::AggregateDoor` gives a plain `Hecks
       # .boot`, missing here until now: `install_namespace_entry` above
-      # installs ONE method per declared VERB, so an aggregate with no
+      # installs one method per declared verb, so an aggregate with no
       # commands or queries of its own shape (or simply never asked for
       # a `find`-shaped query) had no way to look up one record by id
       # through the router surface at all — real gap, hit live building
       # a `List` aggregate meant to be read this way. Grouped by
       # (realm, domain, aggregate) rather than installed per-verb,
-      # because unlike a command or query this is the SAME five methods
+      # because unlike a command or query this is the same five methods
       # regardless of which verb happened to trigger this aggregate's
       # own namespace module into existing.
       def install_aggregate_doors!

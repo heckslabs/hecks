@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::Sqlite do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # Booted ONCE per file — only used to read the static "Order" IR back
+  # Booted once per file — solely to read the static "Order" IR back
   # out; every real mutation below goes to the adapter's own per-example
   # tmpdir database (the `around` above), so a shared boot is safe.
   before(:context) { @aggregate = boot_in_memory.registry.bluebook("Pizzas").aggregate("Order") }

@@ -1,15 +1,15 @@
 module Hecks
   module Runtime
-    # THE OUT-OF-BAND HALF OF `projects` (S12, ADR 0025 — "Consistency
+    # The out-of-band half of `projects` (S12, ADR 0025 — "Consistency
     # across aggregate boundaries"). A projected field is never written
     # by the command that reads it — nothing at dispatch time takes a
     # live cross-aggregate read the way `CommandRules::References
     # #dereference` still does — so this is the one place a projected
     # field's value actually gets copied over: walk every record of the
-    # OWNING aggregate, resolve each of its own `projected_fields`
+    # owning aggregate, resolve each of its own `projected_fields`
     # through the reference it names, and `save` the local copy.
     #
-    # EXPLICIT AND CALLABLE, NOT AUTOMATIC — no on-boot detection of a
+    # **Explicit and callable, not automatic** — no on-boot detection of a
     # freshly-declared `projects` with no held-era precedent, no
     # generated `Policy#for_each` reaction keeping it live in real
     # time as the target changes. Both are real extensions this same
@@ -19,7 +19,7 @@ module Hecks
     # needs — proven to work end to end before either automatic
     # trigger is built on top of it.
     #
-    # NEEDS NO NEW ADAPTER CAPABILITY. `find`/`all`/`save` are the same
+    # **Needs no new adapter capability**. `find`/`all`/`save` are the same
     # three primitives every real adapter already answers identically
     # (`Ports::Persistence::AppendOnly#save` — append, then project,
     # the same for Memory/Postgres/SQLite/D1/Heki) — confirmed by
@@ -32,6 +32,12 @@ module Hecks
       # `save` only runs when a projected value would differ from what
       # is already stored, so re-running a sweep with nothing having
       # moved on the target side touches the append log not at all.
+      #
+      # @param registry [Runtime::Registry] the booted registry to read repositories from
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose `projected_fields` to
+      #   refresh
+      # @return [Integer] the number of records actually changed and saved
       def call(registry, domain, aggregate)
         return 0 if aggregate.projected_fields.empty?
 
@@ -39,6 +45,16 @@ module Hecks
         repository.all.count { |record| refresh(registry, domain, aggregate, record, repository) }
       end
 
+      # Refreshes one record's own projected fields in place, saving it if any changed.
+      #
+      # @param registry [Runtime::Registry] the booted registry to read the target's
+      #   repository from
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate `record` is an instance of
+      # @param record [Runtime::Instance] the record to refresh, mutated in place
+      # @param repository [Ports::Persistence::AppendOnly] the repository to save `record`
+      #   through when it changes
+      # @return [Boolean] true if any projected field's value changed and `record` was saved
       def refresh(registry, domain, aggregate, record, repository)
         changed = false
 
@@ -55,10 +71,22 @@ module Hecks
         changed
       end
 
+      # Reads the current value of one projected field's remote target field.
+      #
       # `nil` when the reference itself does not resolve in this
       # chapter (a cross-domain target left "unfollowed" the same way
       # References#dereference already leaves one) or when the record
       # names no target at all — an optional reference nobody set.
+      #
+      # @param registry [Runtime::Registry] the booted registry to read the target's
+      #   repository from
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate declaring `field`
+      # @param record [Runtime::Instance] the record holding the reference to follow
+      # @param field [Bluebook::ProjectedField] the projected field to resolve
+      # @return [Object, nil] the target record's own `field.remote_field` value; nil if the
+      #   reference type does not resolve, the record names no target, or the target record
+      #   cannot be found
       def remote_value(registry, domain, aggregate, record, field)
         target = aggregate.attribute(field.reference)&.type&.resolve
         return nil unless target

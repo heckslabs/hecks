@@ -6,7 +6,7 @@ require_relative "../../fixtures/broken_clock"
 # respond to. `Port#answers` (port_builder.rb) declares it; `verify!`'s
 # own `check_answers`/`verify_singleton_port_answers!` (registry/
 # verification.rb) is what turns a bare `NoMethodError`, discovered live
-# on the FIRST real dispatch that needed the time, into a `WiringError`
+# on the first real dispatch that needed the time, into a `WiringError`
 # a boot refuses to start with — the same shape `check_settings` already
 # gives a `.world` field the adapter never declared.
 RSpec.describe "Port#answers, checked at verify!" do

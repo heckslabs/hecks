@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# THE RUST-FACING CORPUS, PRINTED — for callers that aren't Ruby (CI
+# **The Rust-facing corpus, printed** — for callers that aren't Ruby (CI
 # workflow steps) and for a person asking "what does CI walk?".
 # Everything here reads `Hecks::Corpus` (lib/hecks/corpus.rb), so a
 # workflow never hand-lists a domain again.
@@ -17,10 +17,20 @@ require "hecks/corpus"
 
 ROOT = Hecks::Corpus::ROOT
 
+# Strips this repo's own root prefix from an absolute path, for display.
+#
+# @param path [String] an absolute path under `ROOT`
+# @return [String] `path` relative to `ROOT`
 def relative(path) = path.delete_prefix("#{ROOT}/")
 
-# name => [passed?, output] for each module — subprocesses, a few at a
+# Runs `bin/rust_coverage` over each generated module, a few subprocesses at a
 # time: each is a separate `bundle exec` boot.
+#
+# @param modules [Array<String>] generated module names, as returned by
+#   `Hecks::Corpus.generated_modules`
+# @return [Hash{String => Array(Boolean, String)}] each module name mapped to
+#   whether its `bin/rust_coverage` run exited successfully, and its combined
+#   stdout/stderr
 def coverage_results(modules)
   queue = Queue.new
   modules.each { |name| queue << name }
@@ -38,6 +48,10 @@ def coverage_results(modules)
   results
 end
 
+# Runs `bin/rust_coverage` over every generated module and reports the result;
+# exits nonzero if any non-pending module fails, or any pending one now passes.
+#
+# @return [void]
 def rust_coverage!
   modules = Hecks::Corpus.generated_modules
   pending = Hecks::Corpus::RUST_COVERAGE_PENDING

@@ -12,7 +12,7 @@ require "hecks/doc/reference"
 #
 #     bin/reference        (or GOLDEN=rewrite this spec)
 #
-# The second gate is COVERAGE: a live (admitted or deprecated) word with
+# The second gate is coverage: a live (admitted or deprecated) word with
 # no prose is a word the language ships undocumented, and that is a
 # failure, not a TODO.
 RSpec.describe "the DSL reference" do
@@ -40,14 +40,14 @@ RSpec.describe "the DSL reference" do
                        missing.join("\n  ")
   end
 
-  # THE THIRD GATE, and the one the other two cannot stand in for. Prose
+  # The third gate, and the one the other two cannot stand in for. Prose
   # is a declaration, and a declaration nothing runs cannot disagree with
   # the runtime it describes — this repository has shipped a documented
   # word with no runtime path behind it twice (`read_model`'s
   # where/order_by/limit/offset, and `role`/`goal` on a command), and in
   # both cases the sentences were perfectly good sentences.
   #
-  # PRESENCE ONLY. That the examples PASS is spec/reference_doctest_spec
+  # **Presence only**. That the examples pass is spec/reference_doctest_spec
   # .rb's question, over the same pages. Both are needed and neither is
   # the other: a fence that has never run proves nothing, and a page of
   # passing fences can still leave half the language unexemplified.

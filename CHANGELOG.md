@@ -7,11 +7,43 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Removed (1.5.0): command facts as loose keyword arguments to
+`dispatch`.** Deprecated in 1.3.x, gone here: `dispatch(verb, to:, with:,
+saga_correlation:)` takes no `**legacy_args` any more, and neither does
+`dispatch_port(domain, aggregate, port, operation, to:, with:, flat:)`.
+A loose fact is now refused by Ruby itself, by name — "unknown keywords:
+:name, :pizza". Pass the receiver's identity in `to:` and the command's
+facts in `with:`. Code holding a bag of DATA rather than written keywords
+— corpus JSON, a decoded webhook, the CLI and JSON doors, a reaction with
+no `with:` projection — calls `Dispatcher#dispatch_flat(verb, args)` (or
+`dispatch_port(..., flat: args)`), which is the wire form and is NOT
+going anywhere; it routes exactly as the keyword door did.
+`Invocation.from_call`'s own `legacy:` parameter is `flat:` now, the same
+rename all the way down through `Routing.payload`, because that is what
+it always was once the keyword spelling was gone. With no caller left,
+`Hecks::Deprecation`, `bin/codemod_legacy_dispatch_args` and its recorder
+go too — the codemod's whole job was draining this one deprecation, and
+the next deprecation can lift the helper back out of this commit's
+parent.
+
+## [1.4.0] - 2026-09-19
+
+141 commits since v1.3.0. `rust/host` gains the console's own `/api/*`
+surface end to end (`/api/me`, `/api/ui-schema`, `/api/schema`,
+collection reads and writes, presentation reads) plus the write path
+for `PUT /api/presentation`, an unauthenticated JSON request now gets a
+`401` instead of a login redirect, and a `deployed_to("AwsLambda")`
+domain can name its own stack prefix and function name for a stack that
+predates either convention. Loose keyword facts to `dispatch` are
+deprecated (I3); the keyword door itself now closes in 1.5.0, not
+1.4.0, since this release ships the warning without yet removing what
+it warns about. Full detail below.
+
 **Deprecated: command facts as loose keyword arguments to `dispatch`.**
 `runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
 amount: { cents: 100 })` still works and now warns once per call site;
 pass the facts as `with: { ... }` with the receiver's identity in `to:`
-instead. Removal is 1.4.0 (`Hecks::Runtime::Dispatcher::
+instead. Removal is 1.5.0 (`Hecks::Runtime::Dispatcher::
 LEGACY_ARGS_REMOVAL`). One bag holding both the route and the payload is
 the shape behind nine past routing bugs, and `Runtime::Invocation` now
 reads every call's shape in one place — this closes the door that made

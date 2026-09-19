@@ -7,53 +7,61 @@ require_relative "../naming"
 
 module Hecks
   module Fuzzing
-    # A GENERATED SEQUENCE, RACED FOR REAL — `spec/adapters/driven/
+    # **A generated sequence, raced for real** — `spec/adapters/driven/
     # postgres_era_concurrent_dispatch_spec.rb` proves ADR 0036's own fix
     # (a real `pg_advisory_xact_lock` serializes a PostgresEra-bound
-    # dispatch across separate OS processes) against ONE hand-authored
-    # fixture and ONE hand-picked conflicting pair (two `$6,000` Debits
-    # against a `$10,000` account). This module asks the SAME question —
+    # dispatch across separate OS processes) against one hand-authored
+    # fixture and one hand-picked conflicting pair (two `$6,000` Debits
+    # against a `$10,000` account). This module asks the same question —
     # does the cross-process write lock actually serialize concurrent
-    # writers? — of an ARBITRARY generated sequence against a REAL target
+    # writers? — of an arbitrary generated sequence against a real target
     # domain, so the practice's own adversarial generator gets to pick the
     # conflict instead of a human picking it once and never again.
     #
-    # THE MECHANISM, GENERALIZED FROM THAT SPEC RATHER THAN REDERIVED: a
-    # command step partway through a generated sequence is chosen as the
-    # RACE STEP; every step before it is SETUP (replayed once, sequentially,
-    # to bring a fresh disposable schema to the state the race step expects
-    # to act against); the race step is then dispatched TWICE — once from
-    # each of two real, separate, forked OS processes racing against that
-    # SAME schema, no artificial gating, whichever the scheduler favors.
+    # ## The mechanism
     #
-    # THE ORACLE IS THE SAME PAIR, DISPATCHED SEQUENTIALLY, NOT A
-    # HARDCODED EXPECTATION — unlike the hand-authored spec (which can
+    # Generalized from that spec rather than rederived: a
+    # command step partway through a generated sequence is chosen as the
+    # race step; every step before it is setup (replayed once, sequentially,
+    # to bring a fresh disposable schema to the state the race step expects
+    # to act against); the race step is then dispatched twice — once from
+    # each of two real, separate, forked OS processes racing against that
+    # same schema, no artificial gating, whichever the scheduler favors.
+    #
+    # ## The oracle
+    #
+    # The same pair, dispatched sequentially, not a
+    # hardcoded expectation — unlike the hand-authored spec (which can
     # assert `%w[refused succeeded]` because it knows its own fixture's
     # business rule), this module has no idea whether an arbitrary
     # generated race step conflicts with itself at all. So it asks the
-    # DOMAIN: replay the identical setup on a SEPARATE fresh schema, then
-    # dispatch the SAME race step twice, one after the other, in one
+    # domain: replay the identical setup on a separate fresh schema, then
+    # dispatch the same race step twice, one after the other, in one
     # process, with no contention at all — genuinely correct by
     # construction, since nothing else can touch that schema while it
     # runs. Two conflicting writes settle as {"succeeded", "refused"};
     # two independent ones settle as {"succeeded", "succeeded"}; either
-    # way, THAT is the multiset the concurrent pair must also produce if
+    # way, that is the multiset the concurrent pair must also produce if
     # the write lock actually serializes them — order does not matter
-    # (which real racer wins a genuine race is never controlled), the SET
+    # (which real racer wins a genuine race is never controlled), the set
     # of outcomes does.
     #
-    # WHAT A BROKEN LOCK LOOKS LIKE HERE: the concurrent pair settling as
+    # ## What a broken lock looks like here
+    #
+    # The concurrent pair settling as
     # {"succeeded", "succeeded"} where the sequential oracle says
     # {"succeeded", "refused"} — two processes each hydrated the
     # pre-write state, neither saw the other's write, and the second
     # commit landed as a silent lost update instead of failing its own
-    # `given`. That is the EXACT corruption class ADR 0036 fixed for
+    # `given`. That is the exact corruption class ADR 0036 fixed for
     # PostgresEra and `postgres_concurrent_dispatch_spec.rb` still
     # documents, unfixed, for plain Postgres.
     #
-    # NOT A REPLACEMENT for the hand-authored spec — that spec proves the
+    # ## Not a replacement for the hand-authored spec
+    #
+    # That spec proves the
     # mechanism once, precisely, with controlled gating so the assertion
-    # is deterministic; this module proves the SAME mechanism holds for
+    # is deterministic; this module proves the same mechanism holds for
     # whatever a real domain's own generated sequences throw at it, with
     # no gating (a genuine, ungated race), on every sweep this mode runs.
     module ConcurrentDispatch
@@ -61,8 +69,8 @@ module Hecks
 
       COMMAND_STEP = ->(step) { step["verb"] && !step["query"] && !step["dry_run"] }
 
-      # ONE DIVERGENCE LIST, THE SAME SHAPE EVERY OTHER MODE IN THIS
-      # PRACTICE PRODUCES — `[]` when nothing was found (including the
+      # One divergence list, the same shape every other mode in this
+      # practice produces — `[]` when nothing was found (including the
       # legitimate "this seed's generated sequence has no command step to
       # race at all" case: a sequence of pure queries/dry-runs has nothing
       # to concurrently dispatch, and that is not a finding).
@@ -71,20 +79,29 @@ module Hecks
       # (`bin/qa_sweep`'s own `persistence_parity_database`, reused here
       # for the identical reason: a container, not the thing that's
       # unique per run). `race_schema:`/`reference_schema:` are two
-      # DIFFERENT disposable schema names this ONE call owns for its own
+      # different disposable schema names this one call owns for its own
       # duration — the caller creates neither ahead of time (both are
       # wiped fresh by the boots below) and drops both afterward, the
       # same lifecycle `persistence_parity_schema` already has.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param steps [Array<Hash>] a generated sequence's own steps, any-keyed (normalized
+      #   to String keys internally)
+      # @param database [String] the shared, never-dropped scratch database to connect to
+      # @param race_schema [String] a disposable schema name for the two racing processes
+      # @param reference_schema [String] a disposable schema name for the sequential oracle
+      # @return [Array<Hash>] `[]` if nothing raceable was found or no divergence occurred;
+      #   otherwise one or more `field:`-keyed divergence findings
       def check(domain_path, steps, database:, race_schema:, reference_schema:)
         normalized = steps.map { |step| step.transform_keys(&:to_s) }
         lockable, probe_errors = lockable_verbs(domain_path, normalized, database: database, schema: reference_schema)
         race_index = pick_race_index(normalized, lockable)
         unless race_index
-          # `[]` HERE MEANS "NOTHING TO RACE", AND MUST ONLY EVER MEAN THAT.
+          # `[]` here means "nothing to race", and must only ever mean that.
           # A sequence of pure queries/dry-runs is a legitimate clean
-          # result; a probe that raised for every verb is not — that one
-          # used to produce the identical `[]` and be logged as a clean
-          # concurrency Check (see `lockable_verbs`).
+          # result; a probe that raised for every verb is not — see
+          # `lockable_verbs`, whose own `probe_errors` half exists so this
+          # branch can tell the two apart rather than answering `[]` for both.
           return [] if probe_errors.empty?
 
           return [{ field:  "concurrency_unraceable",
@@ -103,7 +120,7 @@ module Hecks
         [{ field: "process", detail: "#{e.class}: #{e.message}" }]
       end
 
-      # THE COMMAND STEP CLOSEST TO THE MIDDLE OF THE SEQUENCE — not the
+      # The command step closest to the middle of the sequence — not the
       # first (racing a bare identity-creation with no setup at all is a
       # legitimate, useful case, so index 0 is not excluded) and not
       # chosen for any domain-specific reason: a mid-sequence step has, on
@@ -112,14 +129,20 @@ module Hecks
       # sequence has no command step at all (every step a query or a dry
       # run) — nothing here for this seed to race.
       #
-      # `lockable_verbs` — OPTIONAL, but `check` always passes one: the
-      # set of verbs whose OWN aggregate is actually bound to an adapter
-      # that declares `:cross_process_lock` in THIS domain (see
+      # `lockable_verbs` — optional, but `check` always passes one: the
+      # set of verbs whose own aggregate is actually bound to an adapter
+      # that declares `:cross_process_lock` in this domain (see
       # `lockable_verbs` below for why this can't be assumed just because
-      # the domain binds SOME of its own aggregates to PostgresEra).
+      # the domain binds some of its own aggregates to PostgresEra).
       # Racing anything outside that set is not a legitimate race at
       # all — nil when nothing eligible is left, same as the "no command
       # step" case, never a finding of its own.
+      #
+      # @param steps [Array<Hash>] a normalized (String-keyed) generated sequence
+      # @param lockable_verbs [Array<String>, nil] the verbs eligible to race, as
+      #   `lockable_verbs` returns; nil to consider every command step eligible
+      # @return [Integer, nil] the index of the chosen race step, or nil if no eligible
+      #   command step exists
       def pick_race_index(steps, lockable_verbs = nil)
         command_indices = steps.each_index.select { |i| COMMAND_STEP.call(steps[i]) }
         command_indices = command_indices.select { |i| lockable_verbs.include?(steps[i]["verb"]) } if lockable_verbs
@@ -128,19 +151,19 @@ module Hecks
         command_indices[command_indices.size / 2]
       end
 
-      # WHICH OF THIS SEQUENCE'S OWN COMMAND VERBS ARE EVEN CANDIDATES TO
-      # RACE — BUG#142 (SW-quality_control-1789768606's own first real
+      # Which of this sequence's own command verbs are even candidates to
+      # race — BUG#142 (SW-quality_control-1789768606's own first real
       # concurrency run, seed 3): a domain that `persisted_by("PostgresEra")`
-      # binds ITS OWN aggregates is not thereby binding a framework
+      # binds its own aggregates is not thereby binding a framework
       # member it merely `uses_framework`s — `hecksagon_builder.rb`'s own
-      # `uses_framework` loads only that member's SHAPE, never its
+      # `uses_framework` loads only that member's shape, never its
       # persistence (see `examples/banking/bluebook/banking.hecksagon`'s
-      # own comment: a framework member's aggregates need a SIBLING
-      # hecksagon, registered under THAT member's own name, or
+      # own comment: a framework member's aggregates need a sibling
+      # hecksagon, registered under that member's own name, or
       # `Ports::Persistence::BindingPolicy.default_binding` silently
       # gives them "Memory" — no hecksagon registered under that name at
       # all, so `resolve`'s own `missing_binding` refusal (which only
-      # fires when a hecksagon EXISTS for that domain and simply omits
+      # fires when a hecksagon exists for that domain and simply omits
       # this aggregate) never gets a chance to say so).
       # `qa/bluebook/quality_control.hecksagon` attaches `Governance` via
       # `uses_framework` with no such sibling — `Governance::
@@ -152,7 +175,7 @@ module Hecks
       # correct any write lock is; that is a guaranteed false positive,
       # not evidence of a broken lock.
       #
-      # Boots the SAME PostgresEra-rebound copy the race itself boots
+      # Boots the same PostgresEra-rebound copy the race itself boots
       # (`boot_preserving_schema` — structural inspection only, nothing
       # dispatched, so the schema it's given is left exactly as it found
       # it) and asks each distinct command verb's own resolved repository
@@ -162,14 +185,22 @@ module Hecks
       # even in play for that aggregate. A verb this boot can't resolve
       # at all (a malformed adversarial verb, say) is conservatively
       # excluded, not raced on a guess.
-      # ANSWERS `[lockable, probe_errors]`. The errors half exists because
-      # the probe below rescues to `false`: a verb that cannot be RESOLVED
+      # Answers `[lockable, probe_errors]`. The errors half exists because
+      # the probe below rescues to `false`: a verb that cannot be resolved
       # is indistinguishable, from the outside, from one that resolves fine
       # and simply declares no `:cross_process_lock`. If resolution broke
       # for every verb (a renamed capability symbol, a wiring change),
       # `lockable` came back empty, `check` returned `[]`, and the sweep
-      # logged a CLEAN concurrency Check for a race that never happened.
+      # logged a clean concurrency Check for a race that never happened.
       # `check` reports that case now instead of holding it.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param steps [Array<Hash>] a normalized (String-keyed) generated sequence
+      # @param database [String] the shared, never-dropped scratch database to connect to
+      # @param schema [String] a disposable schema name for the structural-inspection boot
+      # @return [Array(Array<String>, Array<String>)] `[lockable, probe_errors]` — the
+      #   command verbs bound to a `:cross_process_lock`-declaring adapter, and one
+      #   `"verb: Class: message"` entry per verb whose resolution raised
       def lockable_verbs(domain_path, steps, database:, schema:)
         verbs = steps.select { |step| COMMAND_STEP.call(step) }.map { |step| step["verb"] }.uniq
         lockable = []
@@ -183,6 +214,15 @@ module Hecks
         [lockable, probe_errors]
       end
 
+      # Answers whether `verb`'s own resolved repository declares a cross-process lock.
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted,
+      #   structural-inspection-only runtime to resolve `verb` against
+      # @param verb [String] the command verb to check
+      # @param probe_errors [Array<String>] mutated in place: appended with
+      #   `"verb: Class: message"` if resolving `verb` raises
+      # @return [Boolean] whether `verb`'s aggregate resolves and declares
+      #   `:cross_process_lock`; false (with an appended probe error) if resolution raises
       def verb_cross_process_lockable?(runtime, verb, probe_errors = [])
         domain, aggregate_name, = Naming.split_verb(verb)
         return false unless domain && aggregate_name
@@ -193,13 +233,24 @@ module Hecks
         repository = runtime.registry.repository(domain, aggregate)
         repository.capabilities.include?(:cross_process_lock)
       rescue StandardError => e
-        # STILL `false` — a verb this boot cannot resolve is not raced on a
-        # guess — but no longer SILENT: `check` needs to tell "nothing here
+        # Still `false` — a verb this boot cannot resolve is not raced on a
+        # guess — but no longer silent: `check` needs to tell "nothing here
         # declares a cross-process lock" from "asking broke".
         probe_errors << "#{verb}: #{e.class}: #{e.message}"
         false
       end
 
+      # Compares the sequential oracle's outcomes against the two racing
+      # processes' own outcomes, and reports any crash or disagreement.
+      #
+      # @param race_step [Hash] the race step, String-keyed
+      # @param reference [Array<String>] the sequential oracle's two outcomes,
+      #   `"succeeded"`, `"refused"`, or `"crashed:..."`
+      # @param concurrent [Array<String>] the two racing processes' own outcomes,
+      #   the same shape as `reference`
+      # @return [Array<Hash>] `[]` if the two multisets agree and neither side crashed;
+      #   otherwise one or more `field:`-keyed divergence findings (`"concurrency_crash"`
+      #   or `"concurrency_race"`)
       def divergences_for(race_step, reference, concurrent)
         crashes = (reference + concurrent).select { |outcome| outcome.start_with?("crashed:") }.uniq
         return crashes.map { |c| { field: "concurrency_crash", verb: race_step["verb"], detail: c } } if crashes.any?
@@ -212,10 +263,18 @@ module Hecks
                    "#{reference.sort} — the cross-process write lock did not correctly serialize this write" }]
       end
 
-      # THE ORACLE — one boot, one process, the setup then the race step
-      # TWICE in immediate succession. Nothing else ever touches this
+      # The oracle — one boot, one process, the setup then the race step
+      # twice in immediate succession. Nothing else ever touches this
       # schema while this runs, so whatever the domain itself settles on
       # is correct by construction, not asserted.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param setup_steps [Array<Hash>] the normalized steps replayed once, sequentially,
+      #   before the race step
+      # @param race_step [Hash] the normalized step dispatched twice in immediate succession
+      # @param database [String] the shared, never-dropped scratch database to connect to
+      # @param schema [String] this oracle's own disposable schema name
+      # @return [Array<String>] the two outcomes `dispatch_one` recorded, in dispatch order
       def reference_outcomes(domain_path, setup_steps, race_step, database:, schema:)
         outcomes = []
         IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
@@ -227,35 +286,44 @@ module Hecks
         outcomes
       end
 
-      # THE RACE ITSELF — setup runs ONCE, sequentially, in THIS process
+      # The race itself — setup runs once, sequentially, in this process
       # (the same `IsolatedBoot.call` wipe-then-boot every other mode
-      # here already uses), and only THEN do the two real racers run.
-      # Each racer boots its OWN fresh copy of the domain against the
-      # SAME now-populated schema — `boot_preserving_schema`, below,
+      # here already uses), and only then do the two real racers run.
+      # Each racer boots its own fresh copy of the domain against the
+      # same now-populated schema — `boot_preserving_schema`, below,
       # deliberately skips the wipe `IsolatedBoot.call` always does, or
       # the setup this line just wrote would be gone before either racer
       # ever dispatched anything.
       #
-      # REAL, SEPARATE OS PROCESSES, NOT `Thread.new` — `postgres_era_
+      # Real, separate OS processes, not `Thread.new` — `postgres_era_
       # concurrent_dispatch_spec.rb`'s own header explains why:
       # `Runtime::AggregateLock`'s in-process registry would fully (and
-      # misleadingly) serialize two THREADS sharing one process even with
+      # misleadingly) serialize two threads sharing one process even with
       # the cross-process lock fix reverted. Only two genuinely separate
       # OS processes exercise the gap this check exists to catch.
       #
-      # `Process.spawn`, NOT `Process.fork` — `bin/qa_sweep`'s own
+      # `Process.spawn`, not `Process.fork` — `bin/qa_sweep`'s own
       # top-of-file comment on `--all` names the identical hazard this
-      # sidesteps: by the time a `concurrency` seed runs, THIS process
+      # sidesteps: by the time a `concurrency` seed runs, this process
       # already holds the QualityControl ledger's own live PostgresEra
       # connection (this module's own caller, `bin/qa_sweep`, booted it
       # long before any seed ran). `Process.fork` duplicates every open
       # file descriptor, SSL session state included — confirmed live
       # while wiring this mode up: forking directly from here corrupted
-      # the LEDGER's own connection the moment either racer child exited,
-      # surfacing on the NEXT unrelated ledger write, nowhere near this
+      # the ledger's own connection the moment either racer child exited,
+      # surfacing on the next unrelated ledger write, nowhere near this
       # method's own code. `bin/qa_concurrency_racer` is this method's own
       # worker, one real `ruby` process per racer — read that script's own
       # header for the rest of this reasoning.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param setup_steps [Array<Hash>] the normalized steps replayed once, sequentially,
+      #   before the two racers spawn
+      # @param race_step [Hash] the normalized step both racer processes dispatch
+      # @param database [String] the shared, never-dropped scratch database to connect to
+      # @param schema [String] this race's own disposable schema name, shared by both racers
+      # @return [Array<String>] the two racers' own outcomes, in `Process.wait` order;
+      #   `"crashed:no output from bin/qa_concurrency_racer"` for a racer that printed nothing
       def concurrent_outcomes(domain_path, setup_steps, race_step, database:, schema:)
         IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
           dispatch_all!(Hecks.boot(copy), setup_steps)
@@ -281,11 +349,16 @@ module Hecks
         end
       end
 
-      # ONE STEP, ONE OUTCOME — never raises: a declared domain refusal is
+      # One step, one outcome — never raises: a declared domain refusal is
       # "refused" (the expected, ordinary answer a `given`/invariant can
       # give), anything else escaping is "crashed:<class>: <message>", a
       # genuine finding this module's own caller surfaces rather than lets
       # kill a forked racer silently.
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted runtime
+      #   to dispatch against
+      # @param step [Hash] the normalized (String-keyed) step to dispatch
+      # @return [String] `"succeeded"`, `"refused"`, or `"crashed:<class>: <message>"`
       def dispatch_one(runtime, step)
         args = (step["args"] || {}).transform_keys(&:to_sym)
         runtime.dispatch_flat(step["verb"], args)
@@ -296,12 +369,21 @@ module Hecks
         "crashed:#{e.class}: #{e.message}"
       end
 
-      # SETUP TOLERATES AN ORDINARY REFUSAL (a generated sequence's own
+      # Dispatches every step in order, raising the first time one crashes.
+      #
+      # Setup tolerates an ordinary refusal (a generated sequence's own
       # earlier step can legitimately refuse — every other mode in this
       # practice already replays a prefix that way) but never a crash: an
       # unexpected exception during setup means the schema this race is
       # about to run against is in an unknown state, which is itself
       # worth surfacing, not silently racing anyway.
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted runtime
+      #   to dispatch against
+      # @param steps [Array<Hash>] the normalized steps to dispatch, in order
+      # @return [void]
+      # @raise [RuntimeError] if any step's own `dispatch_one` outcome is a crash, naming
+      #   the step's verb and outcome
       def dispatch_all!(runtime, steps)
         steps.each do |step|
           outcome = dispatch_one(runtime, step)
@@ -309,19 +391,30 @@ module Hecks
         end
       end
 
-      # THE SAME COPY-AND-REBIND `IsolatedBoot.call(..., adapter:
-      # :postgres_era, ...)` DOES, MINUS THE SCHEMA WIPE — deliberately
-      # NOT reusing `IsolatedBoot.rebind_to_postgres_era!` itself, which
+      # Boots a `PostgresEra`-rebound copy of the domain against an
+      # existing schema, without wiping it first.
+      #
+      # The same copy-and-rebind `IsolatedBoot.call(..., adapter:
+      # :postgres_era, ...)` does, minus the schema wipe — deliberately
+      # not reusing `IsolatedBoot.rebind_to_postgres_era!` itself, which
       # bundles `ensure_postgres_era_schema!`'s own `DROP SCHEMA` into the
       # same call with no way to opt out (see that method's own header:
       # the wipe is the "zero-history guarantee every other adapter mode
-      # already gives," exactly the guarantee THIS caller must NOT have —
+      # already gives," exactly the guarantee this caller must not have —
       # the whole point of a race is booting against what setup already
       # wrote). `copy_dereferencing`/`rewrite_bindings!` are the same two
       # public steps that method itself calls first; only the `.world`
       # this writes is duplicated from it, not re-derived, because the
       # shape a `PostgresEra`-bound copy's `.world` needs is exactly that
       # method's own, one step short.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param database [String] the PostgresEra database name to bind the copy to
+      # @param schema [String] the existing PostgresEra schema name to bind the copy to,
+      #   left exactly as found
+      # @yield [copy] runs against the rebound copy
+      # @yieldparam copy [String] filesystem path to the rebound domain copy
+      # @return [Object] the block's own result
       def boot_preserving_schema(domain_path, database:, schema:)
         Dir.mktmpdir("hecks-concurrency") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))
@@ -333,6 +426,14 @@ module Hecks
         end
       end
 
+      # Writes a `.world` file binding every hecksagon-named member in
+      # `copy` to `database`/`schema`, replacing any other `.world` file
+      # the copy already carries.
+      #
+      # @param copy [String] filesystem path to the domain copy to rewrite
+      # @param database [String] the PostgresEra database name to write into the `.world` file
+      # @param schema [String] the PostgresEra schema name to write into the `.world` file
+      # @return [void]
       def write_postgres_era_world!(copy, database:, schema:)
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |hecksagon_path|
           names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten.uniq

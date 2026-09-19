@@ -16,9 +16,13 @@ RSpec.describe "Banking's generated account machine" do
     end
   end
 
+  # dispatch_flat's own name costs 5 characters `dispatch` didn't (I3
+  # removal) — over RSpec/ExampleLength's line-count cap only because of
+  # that rename, not because this example grew any real new behavior.
+  # rubocop:disable-next RSpec/ExampleLength
   it "preserves the account balance invariant across deterministic command traces" do
-    # Booted ONCE, not once per seed — each seed only ever collides with
-    # ITSELF (a distinct customer ref and a distinct account number), so
+    # Booted once, not once per seed — each seed only ever collides with
+    # itself (a distinct customer ref and a distinct account number), so
     # 20 independent traces can run against one shared runtime instead of
     # 20 fresh ~100ms boots. The invariant this checks is per-account
     # (`stored` below is looked up by this seed's own account number),
@@ -26,9 +30,9 @@ RSpec.describe "Banking's generated account machine" do
     runtime = boot_banking
 
     20.times do |seed|
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c#{seed}" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c#{seed}" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c#{seed}", number: { value: "a#{seed}" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c#{seed}", number: { value: "a#{seed}" },
                                                 kind: { name: "current" }, daily_limit: { cents: 1_000 })
       model = 0
       random = Random.new(seed)
@@ -39,8 +43,9 @@ RSpec.describe "Banking's generated account machine" do
         before = model
 
         begin
-          runtime.dispatch("Banking::Account.#{verb}", number: { value: "a#{seed}" }, amount: { cents: amount, currency: "USD" },
-                                                        narrative: { text: "generated #{seed}" })
+          runtime.dispatch_flat("Banking::Account.#{verb}",
+                                number: { value: "a#{seed}" }, amount: { cents: amount, currency: "USD" },
+                                narrative: { text: "generated #{seed}" })
           model += verb == "Credit" ? amount : -amount
         rescue Hecks::Runtime::GivenNotMet, Hecks::Runtime::InvariantViolation
           model = before
@@ -54,22 +59,22 @@ RSpec.describe "Banking's generated account machine" do
     end
   end
 
-  # NEGATIVE CONTROL for MutationApplier#check_entity_collision — LedgerEntry
+  # Negative control for MutationApplier#check_entity_collision — LedgerEntry
   # is `identified_by :sequence`, but Credit/Debit's own `sets :ledger,
   # append: { amount: ..., narrative: ... }` never names `sequence`, so it
-  # always takes the AUTO-MINT branch (`current.size + 1`), never the
-  # collision-checked one. Two IDENTICAL Credits (same amount, same
+  # always takes the auto-mint branch (`current.size + 1`), never the
+  # collision-checked one. Two identical Credits (same amount, same
   # narrative — everything but the auto-minted sequence collides) must both
   # land, not be refused as duplicates.
   it "never flags an auto-minted entity list as colliding, even with identical repeated writes" do
     runtime = boot_banking
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 1_000 })
 
     3.times do
-      runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
+      runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
                                                    narrative: { text: "same narrative every time" })
     end
 

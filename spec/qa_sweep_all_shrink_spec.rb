@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` — SHRINKING. One of seven sibling files split out
+# `bin/qa_sweep --all` — shrinking. One of seven sibling files split out
 # of the original `qa_sweep_all_spec.rb` (Phase 2 of the CI speed effort
 # — see `spec/qa_sweep_all_lifecycle_spec.rb`'s own header and
 # `spec/support/qa_sweep_all_fixture.rb` for the full context). Split
@@ -12,8 +12,8 @@ require_relative "support/qa_sweep_all_fixture"
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_shrink_spec"
 
-  # SHRUNK BEFORE REPORTED — `found_one`'s fixture binary answers a
-  # phantom instance, event and no refusals for ANY script, so the
+  # **Shrunk before reported** — `found_one`'s fixture binary answers a
+  # phantom instance, event and no refusals for any script, so the
   # finding survives on a handful of steps (one refused dispatch and one
   # dry run are what keep the refusals/dry_runs parts of its signature)
   # out of the 25 generated; the file the report names holds exactly

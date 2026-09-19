@@ -1,15 +1,15 @@
 require "spec_helper"
 require "json"
 
-# A FIELD THE CORPUS NEVER SETS IS A FIELD THE RUNTIME HAS NEVER BEEN ASKED TO READ.
+# A field the corpus never sets is a field the runtime has never been asked to read.
 #
 # The sibling of spec/plurality_coverage_spec.rb, in the other direction. That one
-# asks whether a declared LIST is ever filled with two. This asks whether a
-# NULLABLE field is ever filled at all.
+# asks whether a declared list is ever filled with two. This asks whether a
+# nullable field is ever filled at all.
 #
 # The wire says which fields are nullable without being asked: a key that is null
 # in some golden and set in another is exercised both ways, and there is nothing
-# to check. A key that is null in EVERY golden it appears in is a field the corpus
+# to check. A key that is null in every golden it appears in is a field the corpus
 # declares nowhere — so no parser has ever read it from a real bluebook, and
 # anything believed about it is a guess, not a measurement.
 #
@@ -21,40 +21,40 @@ require "json"
 # declare one, proving the keyword is really read, before that domain folded into
 # banking (`Hecks.bluebook "Banking", version: "v1"`) and carried the proof forward.
 #
-# WHY THIS IS MEASURED ON THE WIRE AND NOT FROM THE LANGUAGE. The language's
-# `optional` marks a COMMAND ARGUMENT that may be left out — a dispatch-time
+# Why this is measured on the wire and not from the language. The language's
+# `optional` marks a command argument that may be left out — a dispatch-time
 # property that never appears in the IR at all. Reading optionality off the
 # language and looking for it in the goldens conflates two different questions
 # and needs a name-mapping table between them, which is the thing this project
 # keeps finding quietly wrong. The wire is self-describing here, so it is the
 # honest source.
 RSpec.describe "every nullable field the wire carries, actually filled" do
-  # UNSET ON PURPOSE. An entry is a claim that some field is not worth a
+  # **Unset on purpose**. An entry is a claim that some field is not worth a
   # fixture, and it would need to say why.
   #
   # `where` (Policy) -- new language surface (conditional policy
   # dispatch), real and dispatch-tested (spec/runtime/policy_spec.rb's
-  # own "where and for_each" -- built INLINE, never reaching
-  # `spec/golden/ir/*.json` at all), but not yet exercised by any of THIS
+  # own "where and for_each" -- built inline, never reaching
+  # `spec/golden/ir/*.json` at all), but not yet exercised by any of this
   # file's golden-tracked corpus members. Every one of them
   # (`spec/ir_golden_spec.rb::LOADABLE` -- Pizzas, Banking, Expression,
-  # TillRoom/Wire/Reflex) is ALSO a `spec/parser_parity_spec.rb::
+  # TillRoom/Wire/Reflex) is also a `spec/parser_parity_spec.rb::
   # REAL_PARITY_MEMBERS` entry, byte-matched against `hecks-parse` -- and
   # the Rust parser does not build `where` yet (the same, separately
   # named `PENDING_PAIRS` entry in `spec/parser_coverage_spec.rb`), since
-  # a `where` is a BLOCK rather than the positional text every arm
+  # a `where` is a block rather than the positional text every arm
   # `parse::policy` already builds. Declaring one in any of these files
   # would break that byte-match, not exercise this one.
   #
-  # `for_each` CAME OFF this list, exactly the way the paragraph above
+  # `for_each` came off this list, exactly the way the paragraph above
   # says one should: `banking.bluebook`'s own `FreezeAccountsOnSuspension`
   # now declares it for real (a suspension has to reach every account the
   # customer holds), and `parse::policy` grew the matching arm in the
   # same change -- closing both gaps at once.
   #
-  # `count`/`median_field` (`ReadModel`'s two new reductions) do NOT need
+  # `count`/`median_field` (`ReadModel`'s two new reductions) do not need
   # an entry despite being new and genuinely nullable: `ReadModel#to_h`
-  # OMITS the key entirely rather than emitting `null` when neither is
+  # omits the key entirely rather than emitting `null` when neither is
   # declared (the same "ABSENT is not EMPTY" reading `extra_options_to_h`
   # already gives `cursor`/`offset`/etc), so a read model that declares
   # neither carries no `count`/`median_field` key at all for this spec's
@@ -65,15 +65,15 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # `formerly_known_as` (Bluebook) -- M10 (docs/audits/2026-08-10-main-bug-
   # audit.md): the field was an ivar the wire never spelled at all until
   # this fix taught `Chapter#emits_ir` to carry it, so this gate is seeing
-  # it for the first time rather than seeing a regression. It IS real and
+  # it for the first time rather than seeing a regression. It is real and
   # dispatch/boot-tested (`spec/dsl_spec.rb`'s own "formerly_known_as
   # records..." and "...survives onto the wire" ; `spec/adapters/driven/
   # postgres_era/domain_rename_spec.rb` exercises the real Postgres rename
-  # end to end) -- just not by any of THIS file's golden-tracked corpus
+  # end to end) -- just not by any of this file's golden-tracked corpus
   # members. `spec/parser_coverage_spec.rb`'s own PENDING_PAIRS already
-  # names this exact gap by hand ("a domain rename IS live in production
-  # per MEMORY -- Embryonaut->EmbryonautFoundersApp -- but no .bluebook IN
-  # THIS CODEBASE'S OWN TRACKED CORPUS declares one"): declaring one on a
+  # names this exact gap by hand ("a domain rename is live in production
+  # per memory -- Embryonaut->EmbryonautFoundersApp -- but no .bluebook in
+  # this codebase's own tracked corpus declares one"): declaring one on a
   # golden fixture here would flip that claim false and hand Rust parity a
   # keyword `rust/parser/src/parse/chapter.rs` itself says still "falls
   # through to not_built_yet" -- fixing the Rust side is real, separate
@@ -86,8 +86,8 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
                            "spec/adapters/driven/postgres_era/domain_rename_spec.rb) -- see this file's own comment"
   }.freeze
 
-  # SET and NULL counts for every key in every frozen IR. An object or a list
-  # counts as SET: `lifecycle` is a Hash when it is there and null when it is
+  # Set and NULL counts for every key in every frozen IR. An object or a list
+  # counts as set: `lifecycle` is a Hash when it is there and null when it is
   # not, and a walk that recursed into it without counting it reported the field
   # as never set — which is how this spec's first draft invented three findings
   # that were artefacts of its own measurement.

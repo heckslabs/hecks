@@ -1,7 +1,7 @@
 require "hecks"
 require "hecks/adapters/driven/lambda"
 
-# THE NAME THE CLIENT ACTUALLY INVOKES — computed from the domain unless
+# **The name the client actually invokes** — computed from the domain unless
 # the deployment named it, in which case the name wins outright. Neither
 # path touches AWS: `Aws::Lambda::Client.new` is stubbed, since what is
 # under test is the string, not the transport.

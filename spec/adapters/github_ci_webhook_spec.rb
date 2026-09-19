@@ -4,19 +4,19 @@ require "openssl"
 require "json"
 require_relative "../../qa/adapters/github_ci_webhook"
 
-# THE PUSH SIBLING OF spec/adapters/github_checks_spec.rb — that file
-# proves the PULL adapter's own transport (stubbing `Open3.capture3`
-# rather than shelling to a real `gh`); this proves the PUSH adapter's
+# The push sibling of spec/adapters/github_checks_spec.rb — that file
+# proves the pull adapter's own transport (stubbing `Open3.capture3`
+# rather than shelling to a real `gh`); this proves the push adapter's
 # own transport (a signed, realistic HTTP request, posted straight at
 # `#call(env)`, rather than a real internet-facing endpoint GitHub could
 # reach — the same "cannot stand up a real endpoint in this sandbox, so
 # test the Rack app directly" trade this whole suite already makes for
 # `Hecks::Forms::App` in spec/forms/app_spec.rb).
 #
-# END TO END, FOR REAL, AGAINST THE ACTUAL DOMAIN — not a mock of
+# End to end, for real, against the actual domain — not a mock of
 # `QualityControl`. A real `Target`/`Sweep`/`Bug` is logged and fixed
 # with a real commit exactly the way `spec/quality_control_spec.rb`'s own
-# "the CI watch" examples do; the ONLY thing synthetic here is the
+# "the CI watch" examples do; the only thing synthetic here is the
 # webhook delivery itself (this sandbox cannot make GitHub send a real
 # one) — the payload shape, the signature, and the HTTP request all run
 # for real, and so does everything downstream of them: `Clearance`
@@ -26,7 +26,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
 
   SECRET = "test-webhook-secret-do-not-use-in-real-life".freeze
 
-  # NOT `QC_ROOT` — that name already belongs to spec/quality_control_spec.rb,
+  # Not `QC_ROOT` — that name already belongs to spec/quality_control_spec.rb,
   # and a spec-file top-level constant lands on Object regardless of
   # nesting depth (spec/load_hygiene_spec.rb's own "lets no two spec files
   # disagree about a top-level constant" catches exactly this). Same
@@ -41,7 +41,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     def now = 1_000
   end
 
-  # NEITHER TRACKER NOR CI ADAPTER IS EXERCISED BY THIS SPEC — the
+  # Neither tracker nor CI adapter is exercised by this spec — the
   # webhook settles a `Clearance` directly (see
   # `Hecks::QA::ClearanceRecorder`), never asking the `CI` port at all.
   # Both are still bound because `registry.verify!` below refuses to
@@ -132,7 +132,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     bug.fix!(reference: { value: reference }, commit: { value: commit })
   end
 
-  # A REAL `check_suite` PAYLOAD SHAPE — trimmed to the fields this
+  # A real `check_suite` payload shape — trimmed to the fields this
   # adapter (or a human reading a fixture) would actually look at, but
   # every field present is a real field GitHub's own webhook payload
   # documentation for `check_suite` describes, not an invented one:
@@ -216,14 +216,14 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
-  # A CONCLUSION THIS ADAPTER DOES NOT SPECIAL-CASE — GitHub's own
+  # A conclusion this adapter does not special-case — GitHub's own
   # `conclusion` enum has more members than "success" and "failure"
   # (`neutral`, `skipped`, `cancelled`, `timed_out`, `action_required`,
   # `stale`). Handled the same way `Hecks::Adapters::GithubChecks::
   # PASSING` already handles them for a single check-run: `neutral`/
   # `skipped` count as green (GitHub's own words for "ran, and chose not
   # to fail the commit"); anything else — `cancelled` here — is treated
-  # as NOT cleared, failing safe rather than silently reading an
+  # as not cleared, failing safe rather than silently reading an
   # ambiguous verdict as passing.
   describe "a conclusion outside plain success/failure" do
     it "treats neutral as cleared, the same as a passing check-run would be" do
@@ -347,7 +347,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
-  # THE GENERIC BASE, ON ITS OWN — the mechanism `GithubCiWebhook` above
+  # **The generic base, on its own** — the mechanism `GithubCiWebhook` above
   # inherits (signature verification, ping, JSON parsing) covered
   # directly against the abstract class, so a future second driving
   # adapter reusing it has evidence the base itself works independent

@@ -3,17 +3,17 @@ require "yaml"
 
 # ci.yml's required-check wrappers (`rspec`, `checks`, the Postgres and Rust
 # lineages) each mirror one reusable-workflow call's `.result`. Since PR
-# #694 a wrapper RUNS ONLY TO FAIL: a wrapper skipped by its own `if:` needs
+# #694 a wrapper runs only to fail: a wrapper skipped by its own `if:` needs
 # no runner and reports as passing. That made a skipped `_impl` pass
 # unconditionally — so a call that skipped where it should have run (on the
 # merge queue, say) went green having run nothing.
 #
 # Each wrapper's `if:` now also runs (and fails) when its `_impl` skipped
-# but its own skip condition did NOT hold. This pins that shape: no wrapper
+# but its own skip condition did not hold. This pins that shape: no wrapper
 # lets `skipped` through without a condition, and the condition is an
 # expression, never a constant.
 #
-# A wrapper whose call has NO event it legitimately skips on writes the
+# A wrapper whose call has no event it legitimately skips on writes the
 # other legal shape instead — `always() && <impl>.result != 'success'`,
 # tolerating no skip at all — and then must not claim a skip is expected.
 # `rspec_postgres_io_parallel` is the only one: since the light PR set was
@@ -68,8 +68,8 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # The light PR set (PR #666) is gone: every job runs on `pull_request`
-  # again. Nothing may gate on the label that used to put a PR back on the
+  # The light PR set is gone: every job runs on `pull_request`
+  # again. Nothing may gate on the retired label that once put a PR back on the
   # full set, or the gap it opened — a job that never ran on the PR failing
   # in the merge queue and ejecting the batch — comes straight back.
   it "gates no job on the retired full-ci label" do
@@ -81,7 +81,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # `merge_group.base_sha` is the previous QUEUE ENTRY, not the target
+  # `merge_group.base_sha` is the previous queue entry, not the target
   # branch, and the queue merges a whole group on its last entry's run. A
   # path gate that diffs against it lets a gate-skipped PR carry a red one
   # in ahead of it — #729 behind #730, 2026-09-18.

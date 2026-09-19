@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# THE DIFFERENTIAL HARNESS — docs/decisions/0010-ruby-is-the-reference-implementation.md.
+# **The differential harness** — docs/decisions/0010-ruby-is-the-reference-implementation.md.
 # Ruby is the oracle a second runtime is checked against. This replays a
 # corpus script (the same format spec/corpus/*.json and bin/run already
 # use) through the real interpreter via Fuzzing::Replay — the same
@@ -25,27 +25,25 @@
 #     Diffs Ruby's result against a third file — some artifact's own JSON
 #     output for the identical domain/script pair, produced however its
 #     own CLI contract says to. The original interface: still the right
-#     shape for a PINNED fixture, not a live run.
+#     shape for a pinned fixture, not a live run.
 #
 #   bin/rust_conformance <domain> <script.json> native|<path/to/module.wasm>
-#     THE SUBPROCESS HOOK this file's own header used to say didn't exist
-#     yet ("this tool does not invoke Rust itself... until then, 'give me
-#     a JSON file to compare against' is the whole interface"). `native`
-#     runs rust/target/{release,debug}/rust (bin/project_rust's own
-#     `cargo build` artifact); a `.wasm` path runs it under `wasmtime`
-#     (bin/project_wasm's artifact). Either way `script.json`'s bytes go
+#     the subprocess hook that runs Rust directly instead of only comparing
+#     against a pinned file. `native` runs rust/target/{release,debug}/rust
+#     (bin/project_rust's own `cargo build` artifact); a `.wasm` path runs it
+#     under `wasmtime` (bin/project_wasm's artifact). Either way `script.json`'s bytes go
 #     on the subprocess's stdin and its stdout is the comparison JSON —
-#     kernel/cli.rs's stdin/stdout contract, the SAME shape Ruby already
+#     kernel/cli.rs's stdin/stdout contract, the same shape Ruby already
 #     prints above, now answerable live instead of only from a pinned file.
 #
 #   bin/rust_conformance <domain> <script.json> build
-#     Builds the domain's OWN Cargo feature (its directory basename) and
+#     Builds the domain's own Cargo feature (its directory basename) and
 #     runs that binary — the form a QA-ledger demonstration should use,
 #     since it needs no pre-built binary and names no path that goes
 #     stale. A pinned binary path (`rust/target/debug/rust-<feature>`,
 #     what `bin/qa_sweep`'s `replay:` line prints) works as `other` too.
 #
-# DRY RUNS ARE COMPARED TOO (`verb`/`ok`), whenever either side has one —
+# Dry runs are compared too (`verb`/`ok`), whenever either side has one —
 # a `{"dry_run": verb}` step's answer was invisible to this script, so a
 # dry-run split `bin/qa_sweep` found could not be demonstrated here.
 
@@ -56,6 +54,12 @@ require "hecks/fuzzing"
 require "json"
 require "open3"
 
+# Runs a built Rust artifact as a subprocess, feeding it the script JSON on
+# stdin and capturing its comparison JSON from stdout.
+#
+# @param cmd [Array<String>] the subprocess argv, e.g. `[bin]` or `%w[wasmtime run] + [path]`
+# @param stdin_data [String] the script JSON bytes to feed on the subprocess's stdin
+# @return [String] the subprocess's stdout, the comparison JSON
 def run_subprocess(cmd, stdin_data)
   stdout, status = Open3.capture2(*cmd, stdin_data: stdin_data)
   abort "#{cmd.join(' ')} exited #{status.exitstatus}:\n#{stdout}" unless status.success?
@@ -63,6 +67,10 @@ def run_subprocess(cmd, stdin_data)
   stdout
 end
 
+# Finds the pre-built native Rust binary, preferring the release profile.
+#
+# @return [String, nil] absolute path to the first executable found under
+#   `rust/target/{release,debug}/rust`, or nil if neither profile has been built
 def native_binary
   %w[release debug]
     .map { |profile| File.expand_path("../rust/target/#{profile}/rust", __dir__) }
@@ -86,7 +94,7 @@ comparable = {
   "refusals"  => result[:refusals].map { |r| { "verb" => r[:verb], "error" => r[:error], "kind" => r[:kind]&.split("::")&.last } }
 }
 
-# DRY RUNS, COMPARED ONLY WHEN THERE ARE ANY. `verb`/`ok` — the same two
+# Dry runs, compared only when there are any. `verb`/`ok` — the same two
 # fields `Hecks::Fuzzing::Differential` compares for `bin/qa_sweep`
 # (`error` is prose, `before`/`after` Ruby's own no-trace oracle). Left
 # out of the printed JSON for a script with no dry-run step, so every
@@ -107,7 +115,7 @@ their_json =
                                  "`cd rust && cargo build` first"
     run_subprocess([bin], File.read(script))
   when "build"
-    # THE DOMAIN'S OWN FEATURE, BUILT ON DEMAND — `native` runs whichever
+    # The domain's own feature, built on demand — `native` runs whichever
     # domain the crate's `default` feature happens to name, which is the
     # wrong binary for every other domain. `build` builds `--features
     # <basename of domain>` through the same `RustConformanceHelpers#
@@ -124,7 +132,7 @@ their_json =
     abort "#{other}: no such file — run bin/project_wasm #{domain} first" unless File.exist?(other)
     run_subprocess(%w[wasmtime run] + [other], File.read(script))
   when ->(path) { !path.end_with?(".json") && File.file?(path) && File.executable?(path) }
-    # A PINNED PER-DOMAIN BINARY — `RustConformanceHelpers#build_rust_for`
+    # **A pinned per-domain binary** — `RustConformanceHelpers#build_rust_for`
     # copies each feature's build out to its own path, which is what
     # `bin/qa_sweep`'s shrunk-demonstration `replay:` line names.
     run_subprocess([other], File.read(script))
@@ -137,17 +145,17 @@ theirs = JSON.parse(their_json)
 # `corrects`'s own per-record flag fields (`emitted_<event>`, docs/
 # decisions/0048's own snapshot-format design) are a Rust-only
 # implementation detail — the fact they exist has no Ruby analog at all
-# (Ruby's own equivalent, `@registry.event_log`, lives on the REGISTRY,
-# never touches a record's own `to_h`) and they exist ONLY so a
+# (Ruby's own equivalent, `@registry.event_log`, lives on the registry,
+# never touches a record's own `to_h`) and they exist only so a
 # generated record's own ordinary JSON round-trip carries them forward
 # through whatever generic snapshot mechanism a host already persists
 # that JSON through — riding along with `to_json()`/`instances()` is
-# what makes that free, but it also means they leak into THIS
+# what makes that free, but it also means they leak into this
 # comparison surface, which they were never meant to be part of.
 # Stripped here, not from Ruby's own side (which never has them to begin
 # with) — matching `spec/codegen_parity_spec.rb`'s own precedent of
 # excluding generator/implementation artifacts (`manifest.json`/
-# `ir.json`) from a byte-identity check that exists to verify BEHAVIOR,
+# `ir.json`) from a byte-identity check that exists to verify behavior,
 # not internal representation.
 if theirs["instances"].is_a?(Hash)
   theirs["instances"].each_value do |record|
@@ -168,9 +176,9 @@ if theirs["events"].is_a?(Array)
   theirs["events"].each { |event| event.delete("occurred_at") if event.is_a?(Hash) }
 end
 
-# AD-HOC FILTER STEPS carry no kind comparison — C8.3 (docs/semantics/
-# bluebook-semantics.md) is OPEN exactly here (RuntimeError fault in Ruby,
-# TypeMismatch refusal in Rust; the MESSAGE stays byte-exact) — the same
+# Ad-hoc filter steps carry no kind comparison — C8.3 (docs/semantics/
+# bluebook-semantics.md) is open exactly here (RuntimeError fault in Ruby,
+# TypeMismatch refusal in Rust; the message stays byte-exact) — the same
 # clause-cited exclusion spec/rust_conformance_spec.rb draws.
 [comparable, theirs].each do |side|
   next unless side["refusals"].is_a?(Array)
@@ -178,9 +186,9 @@ end
   side["refusals"].each { |r| r.delete("kind") if r.is_a?(Hash) && r["verb"].to_s.start_with?("filter ") }
 end
 
-# AD-HOC FILTER STEPS carry no kind comparison — C8.3 (docs/semantics/
-# bluebook-semantics.md) is OPEN exactly here (RuntimeError fault in Ruby,
-# TypeMismatch refusal in Rust; the MESSAGE stays byte-exact) — the same
+# Ad-hoc filter steps carry no kind comparison — C8.3 (docs/semantics/
+# bluebook-semantics.md) is open exactly here (RuntimeError fault in Ruby,
+# TypeMismatch refusal in Rust; the message stays byte-exact) — the same
 # clause-cited exclusion spec/rust_conformance_spec.rb draws.
 [comparable, theirs].each do |side|
   next unless side["refusals"].is_a?(Array)

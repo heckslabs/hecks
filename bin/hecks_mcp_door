@@ -1,26 +1,26 @@
 #!/usr/bin/env ruby
 
-# AN MCP DOOR ONTO THE STOREHOUSE BUS — one MCP server for EVERY booted
+# An MCP door onto the storehouse bus — one MCP server for every booted
 # domain, not one per command. `docs/hecks-survey-what-we-wish-we-had.md`
 # and `docs/future-features.md`'s own "if we build three" #1 pick,
 # extended past the original six tools with the rest of that same
 # survey's ranked wishlist: `dispatch` (with `dry_run`/`steps`/`source`),
 # `query`, `state`, `catalog`, `describe`, `validate` (with `deep`),
-# `domains`, `history`, `behaviors`, `follow`. ALL the logic and the JSON
+# `domains`, `history`, `behaviors`, `follow`. All the logic and the JSON
 # shape it answers with live in `Hecks::Storehouse` (lib/hecks/
 # storehouse.rb) — the bus itself, transport-blind. This file is JSON-RPC
-# plumbing ONLY, hand-rolled over stdio exactly the way
+# plumbing only, hand-rolled over stdio exactly the way
 # `bin/hecks_query_ir_mcp` already is (no gem dependency; newline-delimited
-# JSON, flushed after every write) — ONE projection of the bus, not the
+# JSON, flushed after every write) — one projection of the bus, not the
 # whole thing. A second door of a different shape (a plain CLI, an HTTP
 # door) would sit beside this one, calling `Hecks::Storehouse` the exact
 # same way, sharing its audit log and caller-identity handling without
 # ever speaking MCP.
 #
-# `dispatch`/`query` ALSO TAKE `role:`/`actor_id:` — a caller-asserted
+# `dispatch`/`query` also take `role:`/`actor_id:` — a caller-asserted
 # identity, bound for the call's duration via `Hecks.as_caller`, so a
 # role-gated command's authorization is checked against it rather than
-# merely documented by `describe`. `dispatch` REQUIRES `role:` for any
+# merely documented by `describe`. `dispatch` requires `role:` for any
 # command that declares one — omitting it refuses rather than running
 # unbound. This is self-asserted, not authenticated: nothing in this
 # process verifies that a caller claiming `role: "Chef"` is entitled to
@@ -28,7 +28,7 @@
 # real `Governance::RoleAssignment` lookup) — see the transport note
 # below for what that does and does not guard against.
 #
-# EVERY DOMAIN-SCOPED TOOL TAKES `domain:` — a directory containing a
+# Every domain-scoped tool takes `domain:` — a directory containing a
 # `.hecksagon` (`examples/banking`, `examples/pizzas`, …), the same
 # argument `bin/run` takes. An MCP server's cwd is wherever the client
 # launched it from, not necessarily inside a domain, so there is no
@@ -36,14 +36,14 @@
 # sitting in one already — `domains` exists precisely so a caller who
 # doesn't already know a path can find one.
 #
-# ONE BOOT PER CALL — `Hecks.boot(domain, install_facade: false)` is cheap
+# **One boot per call** — `Hecks.boot(domain, install_facade: false)` is cheap
 # (a bluebook is a few hundred lines of Ruby DSL, not a network round
 # trip) and it means one long-lived server process can answer calls
 # against two different domains back to back with no shared, staling
 # state between them.
 #
-# STDIO ONLY — THIS DOOR HAS NO AUTHENTICATION AND MUST NOT BE EXPOSED
-# OVER A NETWORK. `role:`/`actor_id:` are a caller-asserted identity, not
+# STDIO only — this door has no authentication and must not be exposed
+# over a network. `role:`/`actor_id:` are a caller-asserted identity, not
 # a credential this process verifies; the only thing standing between a
 # caller and this bus today is that reaching stdin/stdout means already
 # being able to run this process as a subprocess. `domain:` is confined
@@ -268,6 +268,12 @@ TOOLS = [
   }
 ].freeze
 
+# Boots one domain for a single call, confined to `Storehouse::BOOT_ROOT`.
+#
+# @param domain [String] the domain directory, e.g. `"examples/banking"`
+# @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+# @raise [Runtime::TypeMismatch] if `domain` resolves outside `Storehouse::BOOT_ROOT`
+# @raise [Runtime::WiringError] if the domain fails to boot
 def boot(domain) = Hecks.boot(Hecks::Storehouse.confine!(domain, "domain"), install_facade: false)
 
 # A closed-set dispatch table, one `when` per MCP tool name — each branch
@@ -277,7 +283,24 @@ def boot(domain) = Hecks.boot(Hecks::Storehouse.confine!(domain, "domain"), inst
 # trivial single-line methods, and would scatter the shared `rescue` below
 # (every branch's escape hatch to the same structured-error response)
 # across each of them instead of catching it once, here.
+# Runs one MCP tool call by delegating to the matching `Hecks::Storehouse` method.
+#
+# @param name [String] the tool name, one of `TOOLS`'s own `:name` values
+# @param args [Hash{String => Object}] the tool's JSON arguments, shaped per
+#   that tool's `inputSchema`
+# @return [Hash{Symbol => Object}] the delegate's structured result (always at
+#   least `:ok`); `{ok: false, error: ...}` for an unknown tool name or an
+#   unanticipated exception
 # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity
+# Runs one registered MCP tool by delegating to the matching `Hecks::Storehouse` call.
+#
+# @param name [String] the tool name, one of `TOOLS`'s own `:name` values
+# @param args [Hash{String => Object}] the tool's JSON arguments, shaped per that tool's
+#   `inputSchema`
+# @return [Hash{Symbol => Object}] the delegated `Hecks::Storehouse` result on a known
+#   tool name; `{ok: false, error: String}` for an unknown tool name or any `StandardError`
+#   this door did not anticipate (a domain refusal is already `{ok: false, ...}` from
+#   inside `Storehouse` itself)
 def call_tool(name, args)
   case name
   when "dispatch"
@@ -318,7 +341,7 @@ def call_tool(name, args)
     { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}" }
   end
 rescue StandardError => e
-  # A DEFECT, NOT A REFUSAL — every DOMAIN refusal is already caught inside
+  # **A defect, not a refusal** — every domain refusal is already caught inside
   # `Hecks::Storehouse` itself and answered as `{ok: false, error: "..."}`.
   # Reaching here means something this door did not anticipate (args bad
   # domain path, args malformed argument shape `Facade::JsonDoor` couldn't
@@ -328,18 +351,40 @@ rescue StandardError => e
   { ok: false, error: "#{e.class}: #{e.message}" }
 end
 
+# Wraps a `call_tool` payload in the MCP `tools/call` result shape.
+#
+# @param payload [Hash{Symbol => Object}] a `call_tool` result
+# @return [Hash{Symbol => Object}] `{content: [{type: "text", text: ...}], isError: Boolean}`,
+#   pretty-printing `payload` as the text and setting `isError` from `payload[:ok]`
 def tool_result(payload)
   { content: [{ type: "text", text: JSON.pretty_generate(payload) }], isError: payload[:ok] == false }
 end
 
+# Writes one JSON-RPC success response line to stdout.
+#
+# @param id [String, Integer, nil] the request's own `id`, echoed back
+# @param result [Object] the JSON-serializable result payload
+# @return [void]
 def send_response(id, result)
   puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
 end
 
+# Writes one JSON-RPC error response line to stdout.
+#
+# @param id [String, Integer, nil] the request's own `id`, echoed back (may be
+#   nil when the request itself could not be parsed)
+# @param code [Integer] the JSON-RPC error code
+# @param message [String] the error message
+# @return [void]
 def send_error(id, code, message)
   puts JSON.generate({ jsonrpc: "2.0", id: id, error: { code: code, message: message } })
 end
 
+# Dispatches one parsed JSON-RPC request to its method and writes the response.
+#
+# @param request [Hash{String => Object}] one parsed JSON-RPC request, with
+#   `"id"`, `"method"`, and optional `"params"`
+# @return [void]
 def handle(request)
   id     = request["id"]
   method = request["method"]

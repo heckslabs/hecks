@@ -8,12 +8,13 @@ require "hecks/adapters/driven/lambda"
 RSpec.describe Hecks::Adapters::Lambda do
   let(:aggregate) { boot_in_memory.registry.bluebook("Pizzas").aggregate("Order") }
 
-  # `settings[:region] || settings["region"] || "us-east-1"` used to coerce
+  # `settings[:region] || settings["region"] || "us-east-1"` would coerce
   # a genuinely stored `false` at :region into the "us-east-1" fallback —
-  # indistinguishable from :region being absent entirely.
+  # indistinguishable from :region being absent entirely — which is why
+  # `setting` reads it `key?`-gated instead.
   it "reads a `false`-valued :region setting back as itself, not the \"us-east-1\" fallback" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
-    # ARE the assertion (the false/absent :region distinction); `allow`
+    # are the assertion (the false/absent :region distinction); `allow`
     # wouldn't fail if the fix regressed and .new were never called this way.
     expect(described_class::Client).to receive(:new)
       .with(domain: anything, region: false, function: nil)
@@ -24,7 +25,7 @@ RSpec.describe Hecks::Adapters::Lambda do
 
   it "still falls back to \"us-east-1\" when :region is genuinely absent" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
-    # ARE the assertion (the false/absent :region distinction); `allow`
+    # are the assertion (the false/absent :region distinction); `allow`
     # wouldn't fail if the fix regressed and .new were never called this way.
     expect(described_class::Client).to receive(:new)
       .with(domain: anything, region: "us-east-1", function: nil)
@@ -33,15 +34,15 @@ RSpec.describe Hecks::Adapters::Lambda do
     described_class.new(aggregate: aggregate, settings: {})
   end
 
-  # A DEPLOYMENT WHOSE FUNCTION ISN'T `hecks-<domain>` — a `.world`'s own
+  # A deployment whose function isn't `hecks-<domain>` — a `.world`'s own
   # `stack_prefix`/`stack_name` can name a stack that predates a rename,
-  # and nothing downstream of that could previously be told about it.
-  # Found live: embryonautfoundersapp deploys as `hecksagain-embryonaut`,
+  # and nothing downstream of that could be told about it without this
+  # pass-through. Found live: embryonautfoundersapp deploys as `hecksagain-embryonaut`,
   # so every Ruby-side read and dispatch for it had been invoking a
   # function that does not exist.
   it "passes a :function setting straight through to the client" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
-    # ARE the assertion.
+    # are the assertion.
     expect(described_class::Client).to receive(:new)
       .with(domain: anything, region: anything, function: "hecksagain-embryonaut")
       .and_return(instance_double(described_class::Client))
@@ -51,7 +52,7 @@ RSpec.describe Hecks::Adapters::Lambda do
 
   it "reads the same setting string-keyed, the way a round-tripped export spells it" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
-    # ARE the assertion.
+    # are the assertion.
     expect(described_class::Client).to receive(:new)
       .with(domain: anything, region: anything, function: "hecksagain-embryonaut")
       .and_return(instance_double(described_class::Client))

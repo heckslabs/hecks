@@ -25,13 +25,13 @@ RSpec.describe "numeric boundary values" do
       expect(value[:amount]).to eq(2.5)
     end
 
-    # THE ACTUAL FINDING — before this fix, `given.is_a?(expected)` was
+    # **The actual finding** — `given.is_a?(expected)` alone is
     # true for NaN and both Infinities (each really is a Float), so all
-    # three sailed straight through with no refusal at all. Left
+    # three would sail straight through with no refusal at all. Left
     # unchecked, a NaN reaching `CommandRules::Arithmetic#clamp` crashes
     # with a raw `ArgumentError` (`comparison of Float with 0 failed` —
     # confirmed directly: `Float::NAN.clamp(0, 10)` raises, it does not
-    # return), and ANY non-finite Float reaching `JSON.generate`/
+    # return), and any non-finite Float reaching `JSON.generate`/
     # `#to_json` (storage, replay, the `bin/run` contract) crashes with
     # `JSON::GeneratorError: NaN/Infinity not allowed in JSON` — both a
     # genuine Ruby-level crash, never a domain refusal, the exact failure
@@ -52,7 +52,7 @@ RSpec.describe "numeric boundary values" do
         .to raise_error(Hecks::Runtime::TypeMismatch, /finite/)
     end
 
-    # -0.0 is deliberately NOT refused — it IS finite (`(-0.0).finite?` is
+    # -0.0 is deliberately not refused — it is finite (`(-0.0).finite?` is
     # true), round-trips through JSON cleanly (confirmed: `{a: -0.0}
     # .to_json` => `'{"a":-0.0}'`, no error), and is a legitimate signed-
     # zero value, not a corruption risk.
@@ -72,7 +72,7 @@ RSpec.describe "numeric boundary values" do
 
     # C3.3 (docs/semantics/bluebook-semantics.md) — Integer is signed
     # 64-bit everywhere; a product that leaves that range is an
-    # evaluation FAULT, not a Bignum. Ruby's own ceiling-less Integer is
+    # evaluation fault, not a Bignum. Ruby's own ceiling-less Integer is
     # exactly what the clause refuses to lean on.
     it "multiply that leaves 64 bits is a fault — Ruby's Bignum is not the language's Integer" do
       expect { multiply(2**62, 4, "fee") }

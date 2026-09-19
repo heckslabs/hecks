@@ -7,23 +7,23 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/doctest"
 require_relative "support/doctest_names"
 
-# Every guide's examples RUN — see spec/support/doctest.rb for the fence
+# Every guide's examples run — see spec/support/doctest.rb for the fence
 # and marker vocabulary. One example per guide, and now a guide with no
-# executable blocks FAILS rather than passing trivially (see the
+# executable blocks fails rather than passing trivially (see the
 # vacuous-pass guard inside the `it` below) — coverage is still counted
 # per document, not per fence, so a guide that runs one example still
 # counts the same as one that runs twenty-seven, but zero is no longer
 # on the table. A guide whose first line carries the postgres pragma
 # skips cleanly when no local Postgres answers.
 RSpec.describe "the guides" do
-  # The name gate covers the guides and the DSL reference TOGETHER, since
+  # The name gate covers the guides and the DSL reference together, since
   # both install into the same global namespace — it lives in
   # spec/support/doctest_names.rb and is asserted once, here.
   it "gives every document its own domain names" do
     expect(DoctestNames.collisions).to be_empty, DoctestNames.collisions.join("\n")
   end
 
-  # docs/*.md sits outside the doctest gate ON PURPOSE — see
+  # docs/*.md sits outside the doctest gate on purpose — see
   # DoctestNames::UNGATED_STATUS_DOCS's own header for why status/
   # planning prose doesn't belong in `guides`. This is what keeps that
   # a decision rather than a glob accident: a new top-level file nobody
@@ -39,14 +39,14 @@ RSpec.describe "the guides" do
 
   DoctestNames.guides.each do |path|
     # Parsed here, at collection-build time, not inside the `it` — a
-    # guide's postgres pragma has to be known BEFORE the example runs,
+    # guide's postgres pragma has to be known before the example runs,
     # so it can carry as `io: true` and get excluded locally by default
     # the same as every other real-Postgres spec.
     guide = Doctest.parse(path)
 
     it "#{File.basename(path)} says nothing its examples cannot back", io: guide.postgres do
-      # THE VACUOUS-PASS GUARD — this module's own top comment used to
-      # read "a guide with no executable blocks passes trivially" as a
+      # **The vacuous-pass guard** — this module's own top comment would
+      # otherwise read "a guide with no executable blocks passes trivially" as a
       # known, accepted limitation; language-versioning.md sat at zero
       # fences for exactly that reason until this line existed. A `ruby
       # skip` fence still doesn't count (Doctest.parse never adds it to

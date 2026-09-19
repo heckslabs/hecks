@@ -25,6 +25,10 @@ module Hecks
         refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references resolve_route emit
       ].freeze
 
+      # @param registry [Runtime::Registry] the booted registry this interpreter dispatches
+      #   against
+      # @param rules [Runtime::CommandRules] the shared command-rule checks (references) this
+      #   interpreter's steps call
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
@@ -32,6 +36,22 @@ module Hecks
 
       # `invocation` — the `Runtime::Invocation` `Dispatcher` built;
       # `ctx.args` is its `to_args`, `ctx.route` its `target`.
+      #
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate the port operation belongs to
+      # @param operation [Bluebook::PortOperation] the port operation to dispatch
+      # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built for this call
+      # @return [Array<Runtime::Event>] the events recorded: the operation's own `emits` for
+      #   an inbound operation, or a single `answers`/`refuses` event for an outbound one
+      #   (an adapter failure is recorded as a `refuses` event, not raised)
+      # @raise [Runtime::UnknownArgument] if `invocation` offers an argument the operation
+      #   does not declare
+      # @raise [Runtime::AbsentArgument] if `invocation` omits a non-optional declared
+      #   argument
+      # @raise [Runtime::TypeMismatch] if an offered argument does not coerce to its declared
+      #   type
+      # @raise [Runtime::NotFound] if an offered reference or the operation's own receiving
+      #   record cannot be found
       def call(domain, aggregate, operation, invocation)
         ctx = Context.new(domain, aggregate, operation, invocation.to_args)
         ctx.invocation = invocation
@@ -69,13 +89,13 @@ module Hecks
         ctx.result = step(:emit) { ctx.operation.outbound? ? ask(ctx) : emit(ctx) }
       end
 
-      # THE DOMAIN CALLING OUT, AND BOTH ENDINGS RECORDED.
+      # The domain calling out, and both endings recorded.
       #
       # The adapter is found the same way every other port's is — by name,
       # across whatever adapters this boot loaded — so an `asks` is bound by
       # an adapter declaring `port "IssueTracker"` and nothing new to learn.
       #
-      # EVERY FAILURE IS AN ANSWER. A raise from the far side of a boundary is
+      # Every failure is an answer. A raise from the far side of a boundary is
       # not an exception in this domain's terms, it is the outside saying no,
       # and the chapter already named the word for that. So the rescue is
       # deliberately wide: a timeout, a bad credential, an adapter that does
@@ -83,22 +103,22 @@ module Hecks
       # `refuses` event, carrying what was said. A policy reacts to it, a
       # retry counter reads it, and nothing has to catch anything.
       #
-      # AN ASK IS HANDED THE RECORD IT IS ABOUT.
+      # An ask is handed the record it is about.
       #
-      # An INBOUND operation deliberately cannot read state — it is the
+      # An inbound operation deliberately cannot read state — it is the
       # anti-corruption boundary, translating a fact from outside, and letting
       # it read the aggregate would make it a second place rules live. That
       # rule was written for that direction and does not survive the crossing.
       #
       # An outbound one almost always needs the record. `asks "File"` names
       # `reference_to Ticket` and the adapter needs the ticket's repository,
-      # title and body — which are ON the ticket, and which the policy that
+      # title and body — which are on the ticket, and which the policy that
       # triggered this cannot supply because a command's event payload is its
-      # ARGUMENTS, not its state. Without this, every ask would have to have
+      # arguments, not its state. Without this, every ask would have to have
       # its data re-passed through the command that fired it, so the same text
       # would live in two places and could differ.
       #
-      # ARGUMENTS WIN over state, because an argument is what THIS call said
+      # Arguments win over state, because an argument is what this call said
       # and state is what the record happens to hold.
       def ask(ctx)
         payload = held_state(ctx).merge(materialise(ctx.args))
@@ -108,13 +128,13 @@ module Hecks
         announce(ctx, ctx.operation.refuses, ctx.args.merge(refusal: { value: "#{e.class}: #{e.message}" }))
       end
 
-      # THE ANSWER IS SPREAD, NOT NESTED — and that is what makes the loop
-      # close. A policy re-enters its target with the event payload VERBATIM;
+      # The answer is spread, not nested — and that is what makes the loop
+      # close. A policy re-enters its target with the event payload verbatim;
       # it cannot reach inside a key. So an answer tucked under `answered:`
       # can be read by a human and by nothing else, and the command that
       # should record the issue number never gets one.
       #
-      # Spread, the adapter's own keys ARE the arguments of whatever command
+      # Spread, the adapter's own keys are the arguments of whatever command
       # reacts to the answering event. Which is a real contract on the adapter
       # — it must return what that command takes, in the shape the runtime
       # coerces (`{ number: { value: 43 } }`, not `43`) — and naming it here
@@ -137,7 +157,7 @@ module Hecks
         end
       end
 
-      # THE RECORD, IF THERE IS ONE. A record that does not exist yet is not
+      # The record, if there is one. A record that does not exist yet is not
       # an error here — the ask still goes, carrying only its arguments, and
       # whatever the adapter makes of that is its own business. Refusing
       # would put a second existence check behind the one `resolve_references`
@@ -148,10 +168,10 @@ module Hecks
         {}
       end
 
-      # THE PORT THIS OPERATION BELONGS TO, found by asking the aggregate
+      # The port this operation belongs to, found by asking the aggregate
       # rather than threading it through the call — the dispatcher already
       # resolved it once to get here, and a second parameter carried purely so
-      # this method can read it would be a parameter every OTHER step ignores.
+      # this method can read it would be a parameter every other step ignores.
       def port_name_for(ctx)
         owning = ctx.aggregate.ports.find { |port| port.operations.any? { |op| op.equal?(ctx.operation) } }
         owning&.name or raise WiringError,
@@ -188,9 +208,9 @@ module Hecks
         [event]
       end
 
-      # THE ONE PLACE THIS DIFFERS FROM CommandRules::Emission — there is no
+      # The one place this differs from CommandRules::Emission — there is no
       # mutated instance to read an id off, because nothing was hydrated or
-      # saved. The record this event is ABOUT is named by whichever attribute
+      # saved. The record this event is about is named by whichever attribute
       # is a reference to the owning aggregate (PortOperationBuilder#build
       # already refused to build an operation with none), so its coerced
       # value — already a plain id, never an object, per

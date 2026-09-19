@@ -2,14 +2,14 @@ require "spec_helper"
 require "json"
 require "fileutils"
 
-# `Bluebook#to_h` IS the wire format two production mechanisms stand on:
+# `Bluebook#to_h` is the wire format two production mechanisms stand on:
 # `StorageShape.project` reads it by key name to mint era hashes and detect
 # drift (a silently renamed or dropped key would corrupt era identity with no
 # error anywhere), and `MetaValidator` hashes it as the verdict-cache key. So
 # it is the one shape in this codebase that must never move by accident.
 #
 # `round_trip_spec` cannot hold it still. It compares the builder's IR against
-# the meta-domain's records — two sides BOTH computed fresh at test time, so
+# the meta-domain's records — two sides both computed fresh at test time, so
 # an emission bug on a path the corpus never exercises is simply absent from
 # both and passes vacuously. `Field#default` was legal and unexercised for
 # precisely that reason. A frozen file is the one check immune to correlated
@@ -23,16 +23,16 @@ require "fileutils"
 #
 #     GOLDEN=rewrite bundle exec rspec spec/ir_golden_spec.rb
 #
-# A rewrite is a claim that the wire format CHANGED — read the diff before
+# A rewrite is a claim that the wire format changed — read the diff before
 # trusting it, because every held era's projection was minted off the old one.
 RSpec.describe "the IR the builder produces, frozen" do
   GOLDEN_DIR = File.join(InMemoryDomain::ROOT, "spec/golden/ir").freeze
 
-  # THE GUARD FOR THE COMMENT ABOVE, MADE EXECUTABLE. Gemfile.lock is
+  # The guard for the comment above, made executable. Gemfile.lock is
   # gitignored (this is a library gem — Bundler convention holds lockfiles
   # for applications, not gems consumers install), so nothing commits the
-  # exact dependency graph that produced these fixtures. What DOES commit
-  # is the Gemfile's own `gem "json", "2.7.2"` — an EXACT pin (no `~>`),
+  # exact dependency graph that produced these fixtures. What does commit
+  # is the Gemfile's own `gem "json", "2.7.2"` — an exact pin (no `~>`),
   # chosen because a newer `json` gem changes `JSON.pretty_generate`'s
   # formatting of an empty array/hash, which would fail every fixture
   # below with a diff that has nothing to do with the wire format
@@ -56,7 +56,8 @@ RSpec.describe "the IR the builder produces, frozen" do
   # Chapters that load from a file, name => path.
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
-    # THE FLAGSHIP DOMAIN, CARRYING WHAT MARKET AND RELAY USED TO ALONE.
+    # The flagship domain, now carrying alone what market and relay once
+    # carried between them.
     # Composite identity (`SafeDepositBox`, branch_code + box_number), a
     # command that announces twice (`Surrender`), two entities on one head,
     # a second read_model and a second process_manager — every rare form this
@@ -69,7 +70,7 @@ RSpec.describe "the IR the builder produces, frozen" do
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
-  # The two LANGUAGE chapters are not loaded like a domain — judging one while
+  # The two language chapters are not loaded like a domain — judging one while
   # loading it would recurse, so they come from the bootstrap registry. They are
   # in the corpus because the refactor changes how every chapter is built, and
   # the language is the chapter it would be worst to break quietly.

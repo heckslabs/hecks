@@ -1,10 +1,10 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# `Hecks::Fuzzing::SweepDepth`, PROVEN AS THE PURE FUNCTION IT IS — the
+# `Hecks::Fuzzing::SweepDepth`, proven as the pure function it is — the
 # same discipline `spec/rotation_priority_spec.rb` keeps for its sibling:
 # a plain table passed in, no ledger boot, no dial resolved by load order.
-# The REAL dial's own boundaries (4/5, 19/20) are pinned against a booted
+# The real dial's own boundaries (4/5, 19/20) are pinned against a booted
 # `QualityControlDials` in `spec/quality_control_spec.rb`.
 RSpec.describe Hecks::Fuzzing::SweepDepth do
   let(:tiers) do
@@ -19,7 +19,7 @@ RSpec.describe Hecks::Fuzzing::SweepDepth do
     expect(described_class.for_streak(0, tiers: tiers)).to eq([10, 25])
   end
 
-  # THE TWO BOUNDARIES — each `upto` is inclusive, so 4 is still the first
+  # **The two boundaries** — each `upto` is inclusive, so 4 is still the first
   # tier and 5 is the first streak that earns the second.
   it "widens the sweep after the fifth clean release in a row" do
     expect(described_class.for_streak(4, tiers: tiers)).to eq([10, 25])

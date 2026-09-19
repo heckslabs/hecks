@@ -1,14 +1,15 @@
 require "tmpdir"
 require_relative "../../rust/project/exemplar"
 
-# THE LOADER, TESTED IN ISOLATION — against a small scratch fixture tree,
+# **The loader, tested in isolation** — against a small scratch fixture tree,
 # never the real rust/src/exemplar/*.rs (that tree is proven valid by
-# `cargo test --lib` instead; this spec proves the RUBY side of the
+# `cargo test --lib` instead; this spec proves the Ruby side of the
 # pipeline: fence-parsing, substitution, drift detection, nested-slot
 # composition). `Exemplar.reset!(dir: ...)` repoints the loader at each
 # example's own fixture directory.
 RSpec.describe RustProjection::Exemplar do
-  after { described_class.reset! } # back to the real tree; no stale fixture dir leaks into later specs
+  # back to the real tree; no stale fixture dir leaks into later specs
+  after { described_class.reset! }
 
   def write_fixture(contents)
     dir = Dir.mktmpdir("exemplar_spec")

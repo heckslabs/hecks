@@ -31,10 +31,10 @@ RSpec.describe "relationship graph validation" do
   # ADR 0025, "References" — the whole point of widening this check from a
   # direct pair to a real DFS: every existing spec (this file's own case
   # above, spec/dsl_spec.rb's Rider/Bicycle and Board/Product cases) is a
-  # 2-node ring, which the OLD direct-pair-only check already caught.
-  # Nothing proved the actual widening — a ring with a THIRD aggregate in
+  # 2-node ring, which the old direct-pair-only check already caught.
+  # Nothing proved the actual widening — a ring with a third aggregate in
   # the middle — until this case.
-  # The whole point is the THIRD aggregate in the ring — a two-node fixture
+  # The whole point is the third aggregate in the ring — a two-node fixture
   # already exists elsewhere in the suite; splitting this one further would
   # just shrink it back to the case that already existed before this ADR.
   # rubocop:disable-next RSpec/ExampleLength

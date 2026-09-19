@@ -2,11 +2,11 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all`, PROVEN AGAINST THE REAL THING — split out of what
-# used to be one 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
+# `bin/qa_sweep --all`, proven against the real thing — split out of one
+# 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
 # effort; see `spec/support/qa_sweep_all_fixture.rb`'s own header for the
 # full "why a disposable ledger, why QA_SWEEP_DOMAIN_DIR" reasoning this
-# fixture rests on). THIS FILE covers the ledger-lifecycle surface: the
+# fixture rests on). This file covers the ledger-lifecycle surface: the
 # operator role-provisioning step, an empty rotation, a stale-hold
 # reclaim, and every child failing outright. The other six groups
 # (concurrency mechanics, claim races + modes, and — since 2026-09-18 —
@@ -19,13 +19,13 @@ require_relative "support/qa_sweep_all_fixture"
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_lifecycle_spec"
 
-  # THE OPERATOR STEP, PROVEN ON A DISPOSABLE DATABASE (BUG#24) — the
+  # The operator step, proven on a disposable database (BUG#24) — the
   # exact `bin/qa_postgres_role <database>` the real ledger's `.world`
   # header asks an operator to run once against `hecks_quality_control`,
   # already run for real in `before(:all)` against this spec's own
   # throwaway database. What it reports, what a second run reports
   # (idempotent: nothing left to do), and that the resulting owner is
-  # genuinely an ORDINARY role — the whole point — are the three facts an
+  # genuinely an ordinary role — the whole point — are the three facts an
   # operator is being asked to trust.
   it "bin/qa_postgres_role hands the ledger's database to hecks_qa, an ordinary owner, idempotently" do
     expect(@role_report).to include("#{@qa_sweep_all_database} is hecks_qa's")
@@ -55,7 +55,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(stdout).to include("rotation is empty")
   end
 
-  # THE STALE-HOLD RECLAIM — the ledger's own "a claim that goes stale is
+  # **The stale-hold reclaim** — the ledger's own "a claim that goes stale is
   # taken by whoever is next", finally offered to `--all`. `stale_one`'s
   # claim is older than its own 900s window; `fresh_one`'s is live, and
   # must be left exactly as it is.

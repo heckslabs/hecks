@@ -2,17 +2,17 @@ require "open3"
 
 # The loading contract, made executable. Two facts hold across lib/:
 #
-#   1. Every file is SELF-SUFFICIENT — it requires what it references,
+#   1. Every file is self-sufficient — it requires what it references,
 #      so it loads standalone, first, in an empty process. Nothing may
 #      lean on some other file having loaded a dependency earlier.
-#   2. The subsystem wrappers' require order is CONVENIENCE, not load
+#   2. The subsystem wrappers' require order is convenience, not load
 #      order — the whole framework loads with the wrappers reversed.
 #
-# Both used to be true only by accident of history: the flat require
-# list in lib/hecks.rb encoded the order files were added in, and
-# nothing would have named the moment a class-body constant reference
-# quietly made that order load-bearing again. Now this spec names it,
-# and the file it names is the one that grew the dependency.
+# Without this spec, both would hold only by accident of history: the flat
+# require list in lib/hecks.rb encodes the order files were added in, and
+# nothing would name the moment a class-body constant reference quietly
+# made that order load-bearing again. This spec names it, and the file it
+# names is the one that grew the dependency.
 RSpec.describe "load hygiene", :io do
   ROOT_DIR = File.expand_path("..", __dir__)
   LIB = File.join(ROOT_DIR, "lib")
@@ -22,10 +22,10 @@ RSpec.describe "load hygiene", :io do
   end
 
   # bluebook/** file contents are frozen by standing constraint, so a
-  # bluebook INTERNAL cannot grow the requires standalone loading needs
+  # bluebook internal cannot grow the requires standalone loading needs
   # (`extend Construct` at class body, contract.rb before contracts.rb).
   # Their namespace files carry those requires instead — so the wrappers
-  # ARE held to the standard, and the internals are exempt.
+  # are held to the standard, and the internals are exempt.
   BLUEBOOK_WRAPPERS = %w[
     hecks/bluebook hecks/bluebook/ir hecks/bluebook/dsl
     hecks/bluebook/expression
@@ -63,19 +63,19 @@ RSpec.describe "load hygiene", :io do
   # io: false — this one only reads spec files, so it runs with the unit
   # suite and the pre-push hook instead of first failing in a Postgres shard.
   it "lets no two spec files disagree about a top-level constant", io: false do
-    # A constant assigned inside an RSpec.describe block lands at TOP
-    # LEVEL — the block captures its file's lexical scope, at ANY
+    # A constant assigned inside an RSpec.describe block lands at top
+    # level — the block captures its file's lexical scope, at any
     # nesting depth (a describe block is not a module or class, so
     # constant assignment always falls through to Object) — so two spec
     # files using the same constant name silently share one, last-loaded
-    # wins, and the loser fails somewhere else entirely (measured TWICE:
-    # a raw KEYWORDS here replaced a stringified KEYWORDS there and
+    # wins, and the loser fails somewhere else entirely (measured twice:
+    # a raw keywords here replaced a stringified keywords there and
     # surfaced as an order-dependent NoMethodError two files away ; a
-    # CORPUS four levels deep in model_check_spec.rb collided with
-    # domain_refusal_spec's, invisible to an EARLIER version of this
-    # very check because that one only matched 2-space indent — a
-    # nested describe's constants sat one level deeper and were never
-    # scanned at all). Matched at ANY indentation now, for that reason.
+    # corpus four levels deep in model_check_spec.rb collided with
+    # domain_refusal_spec's, invisible to a check that only matches
+    # 2-space indent — a nested describe's constants sit one level deeper
+    # and would go unscanned entirely). Matched at any indentation here,
+    # for that reason.
     # Same name, same value is harmless and allowed; same name,
     # different definition site with different content is the bug class.
     definitions = Hash.new { |h, k| h[k] = [] }
@@ -95,7 +95,7 @@ RSpec.describe "load hygiene", :io do
 
   # ADR 0033's own contract, exercised the one way that can catch it: a
   # domain bound to a loadable persistence plugin (PostgresEra) has to
-  # boot with NOTHING pre-required, in a genuinely fresh process — every
+  # boot with nothing pre-required, in a genuinely fresh process — every
   # spec in this suite shares one process with `spec_helper.rb`'s own
   # eager `require "hecks/ports/persistence/plugins/era"`, so a
   # `Hecks.boot` call inside an ordinary example can never actually

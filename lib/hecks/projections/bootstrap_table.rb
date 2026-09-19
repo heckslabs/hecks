@@ -2,23 +2,25 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # THE BOOTSTRAP-WINDOW FALLBACKS, PROJECTED — lib/hecks/bluebook/dsl/
+    # **The bootstrap-window fallbacks, projected** — lib/hecks/bluebook/dsl/
     # bootstrap_table.rb rendered from the chapter's own Keyword rows.
     #
     #   Projector.call(:bootstrap_table, bluebook: <the Bluebook chapter>)
     #
     # While `MetaValidator.bootstrapping?` the grammar table does not exist
     # yet, so `WordGate#method_missing` and `RuleReference#lookup` cannot
-    # read `calls:`/`resolves_via:`/`disambiguator:` off it. They used to
-    # read two hand-kept Hashes instead, each "kept in sync by hand" with
-    # those columns. Kept in sync by hand meant a SUBSET: 48 of the 87 live
-    # `calls:` rows, chosen word by word by grepping which ones the core
-    # chapters happened to use during bootstrap. A partition, not a filter:
-    # every live row now lands in the table, and the ones no bootstrap
-    # chapter calls cost nothing — a builder with its own `def` never
-    # reaches `method_missing` at all.
+    # read `calls:`/`resolves_via:`/`disambiguator:` off it — this table is
+    # what they read instead.
     #
-    # The table cannot be BUILT at boot for the same reason it exists: it
+    # A partition, not a filter: every live row lands in the table, not only
+    # the ones a bootstrap chapter happens to call. Picking a subset by
+    # grepping which words the core chapters use during bootstrap would risk
+    # quietly dropping any word a chapter starts using later. Including
+    # every row instead costs nothing: a builder with its own `def` never
+    # reaches `method_missing` at all, so a row no bootstrap chapter calls
+    # is simply never read.
+    #
+    # The table cannot be built at boot for the same reason it exists: it
     # is read before the grammar it comes from has been assembled. So it is
     # committed, like lib/hecks/vocabulary.rb, and spec/bootstrap_table_
     # spec.rb re-projects it in memory and refuses a diff.
@@ -30,24 +32,37 @@ module Hecks
       class Conflict < StandardError; end
 
       HEADER = <<~RUBY.freeze
-        # GENERATED — projected from the language's own Keyword rows (the
+        # Generated — projected from the language's own Keyword rows (the
         # `calls:`, `resolves_via:` and `disambiguator:` columns of every
         # KeywordSeed under lib/hecks/language/).
         #
-        # DO NOT EDIT. spec/bootstrap_table_spec.rb re-projects this in memory
+        # Do not edit. spec/bootstrap_table_spec.rb re-projects this in memory
         # and refuses a diff — run bin/project_bootstrap_table instead.
         #
-        # Plain data, no requires: this is read WHILE the grammar table it was
+        # Plain data, no requires: this is read while the grammar table it was
         # projected from is still being built (`MetaValidator.bootstrapping?`).
       RUBY
 
       module_function
 
+      # Projects the bootstrap fallback table — the only real work this projector
+      # does, `bluebook` unused because the table is the whole language's grammar,
+      # not any one chapter's.
+      #
+      # @param bluebook [Bluebook::Chapter] ignored; present to satisfy the
+      #   `Projector::Target` calling convention
+      # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
+      #   `Projector::Target` calling convention
+      # @return [String] the rendered `lib/hecks/bluebook/dsl/bootstrap_table.rb` source
       def call(bluebook:, options: {}) = render(bluebook)
 
       # Retired rows are out of the language; admitted and deprecated rows
       # still dispatch — the same `status != "retired"` reading
       # `GenericDispatch.shape_for` gives the live table.
+      #
+      # @return [Array<Hash{Symbol => String}>] every non-retired keyword row, each with
+      #   at least `:context`, `:word`, `:status`, `:calls`, `:resolves_via` and
+      #   `:disambiguator`, values stringified
       def live_keywords
         Bluebook::MetaValidator::SyntaxBoot.call[:keywords].reject { |row| row[:status] == "retired" }
       end
@@ -55,8 +70,15 @@ module Hecks
       # `[context, word] => :method` — WordGate's own key order.
       #
       # An overloaded word has one row per argument shape, and they all
-      # name the same method. Two that DON'T would make the table keep
+      # name the same method. Two that don't would make the table keep
       # whichever came last, so that is refused instead.
+      #
+      # @param rows [Array<Hash{Symbol => String}>] the keyword rows to build from,
+      #   defaulting to every live one
+      # @return [Hash{Array(String, String) => Symbol}] each `calls:`-declaring row's
+      #   `[context, word]` mapped to the method name it dispatches to
+      # @raise [Projections::BootstrapTable::Conflict] if two rows sharing a
+      #   `[context, word]` name different methods
       def calls(rows = live_keywords)
         rows.reject { |row| row[:calls].to_s.empty? }
             .group_by { |row| [row[:context], row[:word]] }
@@ -71,6 +93,12 @@ module Hecks
       # `[word, context] => { resolves_via:, disambiguator: }` —
       # RuleReference's own key order, blank columns omitted, the same
       # shape its live `lookup` answers.
+      #
+      # @param rows [Array<Hash{Symbol => String}>] the keyword rows to build from,
+      #   defaulting to every live one
+      # @return [Hash{Array(String, String) => Hash{Symbol => String}}] each
+      #   `resolves_via:`-declaring row's `[word, context]` mapped to its rule Hash,
+      #   with any blank `resolves_via`/`disambiguator` column omitted
       def resolves(rows = live_keywords)
         rows.reject { |row| row[:resolves_via].to_s.empty? }.to_h do |row|
           rule = { resolves_via: row[:resolves_via], disambiguator: row[:disambiguator] }
@@ -78,6 +106,13 @@ module Hecks
         end
       end
 
+      # Renders the bootstrap table as committable Ruby source — `CALLS` and
+      # `RESOLVES` frozen Hash literals under the generated-file header.
+      #
+      # @param _bluebook [Bluebook::Chapter] ignored; the table draws from the whole
+      #   language's grammar, not this argument
+      # @return [String] the full `lib/hecks/bluebook/dsl/bootstrap_table.rb` source,
+      #   ready to write to disk
       def render(_bluebook)
         rows = live_keywords
         calls_lines = calls(rows).map { |key, target| "          #{key.inspect} => #{target.inspect}" }

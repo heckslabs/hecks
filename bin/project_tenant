@@ -30,8 +30,8 @@
 # the record actually landed by querying for it afterward, rather than
 # trusting that no exception means success.
 #
-#   bin/project_tenant <domain-directory> <slug> --domain=NAME --realm=NAME \
-#     --schema=NAME --database=NAME [--adapter=PostgresEra]
+#   bin/project_tenant <domain-directory> <slug> --domain=name --realm=name \
+#     --schema=name --database=name [--adapter=PostgresEra]
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"

@@ -1,18 +1,18 @@
 require "spec_helper"
 
-# `World#for_binding`'s generic-settings fallback used to answer for ANY
+# A `World#for_binding` generic-settings fallback answering for any
 # adapter bound under the same verb, not just the one the generic entry
-# actually names. A hecksagon binding two aggregates to two different
-# adapters under one verb (one to Heki, one to Memory) sent Memory's own
-# settings lookup down Heki's generic `persisted_by` entry — Memory then
-# failed `check_settings` with "Memory does not declare :dir", a setting
-# that was never its own. Fixed in `Behaviour::World#for_binding`
+# actually names, would break: a hecksagon binding two aggregates to two
+# different adapters under one verb (one to Heki, one to Memory) would send
+# Memory's own settings lookup down Heki's generic `persisted_by` entry —
+# Memory would then fail `check_settings` with "Memory does not declare
+# :dir", a setting that was never its own. Fixed in `Behaviour::World#for_binding`
 # (lib/hecks/bluebook/behaviour/hexagon.rb) to only fall back to the
 # generic entry when its own `settings[:adapter]` matches the adapter being
 # asked about.
 RSpec.describe "World#for_binding" do
   # The inline domain (two aggregates, two adapters under one hecksagon)
-  # IS the regression fixture — it needs both a Heki-bound and a
+  # is the regression fixture — it needs both a Heki-bound and a
   # Memory-bound sibling under the same verb to reproduce the exact
   # generic-settings leak this pins shut.
   # rubocop:disable-next RSpec/ExampleLength

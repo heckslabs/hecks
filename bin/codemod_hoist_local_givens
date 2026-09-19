@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-# A CODEMOD, not an agent — for the corpus duplication
+# A codemod, not an agent — for the corpus duplication
 # `bin/query_ir duplicates` surfaces directly: two or more commands
-# under the SAME owner (aggregate or entity) independently writing the
+# under the same owner (aggregate or entity) independently writing the
 # identical `given(description) { predicate }`, with no owner-level
 # declaration yet to reference instead (S10/ADR 0028's own
 # "declared once, referenced by name" pattern, unapplied). Every
@@ -11,39 +11,39 @@
 # across the rest of the corpus a query surfaced, instead of grepping
 # for the next one manually.
 #
-# SCOPED TO SINGLE-OWNER groups only — a group whose locations span
-# MORE than one aggregate (Account/SafeDepositBox/OnboardingCase's own
+# Scoped to single-owner groups only — a group whose locations span
+# more than one aggregate (Account/SafeDepositBox/OnboardingCase's own
 # independent "customer is active", ATMCard/CardPayment/
 # ExternalTransfer/ScheduledPayment/Transfer's own copies of the same
 # two rules) is real duplication too, but S10's given-reference
-# mechanism has no way to share a precondition ACROSS owners yet — that
+# mechanism has no way to share a precondition across owners yet — that
 # is new language capability, not a mechanical hoist, and is deliberately
 # left to a separate slice of work.
 #
-# SCOPED TO EXAMPLE DOMAINS — the self-hosted meta-domain's own given/
+# **Scoped to example domains** — the self-hosted meta-domain's own given/
 # ensures duplication ("a rule says what it means" et al., on its own
 # Aggregate/Command constructs) is real too, but meta-domain edits are
 # the highest-risk category this whole arc has found (S14 dispatches
 # it into itself) and deserve their own deliberate, isolated round
 # rather than riding along here.
 #
-# NOT `Hecks::Codemod::Runner` — Runner's own safety net requires
-# the exported IR to come back BYTE-IDENTICAL, which is the right
-# invariant for a resolution rule that imports an ALREADY-EXISTING
-# value (append-fields' own case) but the WRONG one here: hoisting
-# genuinely ADDS an entry to the owner's own `preconditions` that
+# Not `Hecks::Codemod::Runner` — Runner's own safety net requires
+# the exported IR to come back byte-identical, which is the right
+# invariant for a resolution rule that imports an already-existing
+# value (append-fields' own case) but the wrong one here: hoisting
+# genuinely adds an entry to the owner's own `preconditions` that
 # was not there before (a local, command-scoped `given` was invisible
 # to `aggregate.preconditions`/`entity.preconditions`; the owner's own
 # new declaration is not). The real invariant is narrower and still
-# real: every RULE (kind/description/canonical), everywhere in the
+# real: every rule (kind/description/canonical), everywhere in the
 # corpus, is unchanged — nothing was silently reworded, dropped, or
 # (the actual bug this script's own first real run found) misattributed
 # to the wrong owner.
 #
-# INSERTION POINT: immediately after the owner's own opening line
+# **Insertion point**: immediately after the owner's own opening line
 # (`aggregate "X" do` / `entity "X" do`) — not "before the first
 # command" — because ADR 0028 means `command` calls are deferred to
-# `drain_pending!`, run only after the WHOLE owning block finishes;
+# `drain_pending!`, run only after the whole owning block finishes;
 # textual position of `given` relative to `command` inside the same
 # owner no longer matters, so the simplest, most reliably-locatable
 # spot wins over prettier-but-fragile placement heuristics.
@@ -59,37 +59,48 @@ DRY_RUN = ARGV.include?("--dry-run")
 
 Candidate = Struct.new(:description, :canonical, :owner, :locations, keyword_init: true)
 
-# Grouped by [description, canonical, OWNER] — not just [description,
+# Grouped by [description, canonical, owner] — not just [description,
 # canonical] — on purpose: "customer is active" recurs, unrelated to
-# this codemod's own job, across MANY different aggregates. Hoisting
+# this codemod's own job, across many different aggregates. Hoisting
 # ATMCard's own local copies to ATMCard's own declaration is safe and
 # correct regardless of what CardPayment does with its own; grouping by
 # owner up front is what finds every safe, single-owner candidate
 # instead of silently skipping all of them the moment two owners
 # happen to phrase a rule identically.
+#
+# @param registry [Runtime::Registry] a booted registry to scan for duplicate `given` rules
+# @return [Array<Candidate>] one candidate per owner-scoped description/predicate pair that
+#   recurs at least twice and is not yet hoisted (no `" (declared)"` location among its
+#   occurrences)
 def find_candidates(registry)
   Hecks::QueryIR.collect_rules(registry)
                 .select { |r| r.kind == "given" }
                 .group_by { |r| [r.description, r.canonical, Hecks::QueryIR.owner_of(r.location)] }
                 .filter_map do |(description, canonical, owner), rules|
     next if rules.size < 2
-    next if rules.any? { |r| r.location.end_with?(" (declared)") } # already hoisted for THIS owner
+    next if rules.any? { |r| r.location.end_with?(" (declared)") } # already hoisted for this owner
 
     Candidate.new(description: description, canonical: canonical, owner: owner, locations: rules.map(&:location))
   end
 end
 
 # The owner's own window: from its opening line to the next line, at
-# the SAME indentation, reading exactly `end` — every nested construct
+# the same indentation, reading exactly `end` — every nested construct
 # is indented deeper, so a same-indentation `end` can only be the
 # owner's own closing line in this corpus' consistent indentation.
 #
-# `collect_rules`' own owner is a full DOTTED path for a nested entity
+# `collect_rules`' own owner is a full dotted path for a nested entity
 # ("Account.LedgerEntry"), but the source only ever spells an entity's
 # own bare name (`entity "LedgerEntry" do`) — matched on the bare last
-# segment; if that name isn't UNIQUE in the file, bail rather than
+# segment; if that name isn't unique in the file, bail rather than
 # guess which one, the same discipline the append-fields codemod
 # already applies to its own single-match check.
+#
+# @param text [String] one bluebook file's full source text
+# @param owner [String] the dotted owner path from `QueryIR.owner_of`, e.g. `"Account.LedgerEntry"`
+# @return [Array(MatchData, Integer), nil] the owner's opening-line `MatchData` and the
+#   character offset of its closing `end` line, or nil if the owner's bare name does not
+#   match exactly once in this text, or its closing line cannot be found
 def owner_window(text, owner)
   bare_name = owner.split(".").last
   open_re = /^([ \t]*)(?:aggregate|entity)\s+"#{Regexp.escape(bare_name)}"\s+do\n/
@@ -103,10 +114,15 @@ def owner_window(text, owner)
   [open_match, close_at]
 end
 
-# NESTED ENTITY BLOCKS get carved out of the replace scan entirely — an
-# owner's own window textually CONTAINS every entity nested inside it,
+# Nested entity blocks get carved out of the replace scan entirely — an
+# owner's own window textually contains every entity nested inside it,
 # and an entity can independently declare its own `given` under the
-# SAME description text for a genuinely different predicate.
+# same description text for a genuinely different predicate.
+#
+# @param window [String] one owner's own source window, from just after its opening line to
+#   just before its closing `end`
+# @return [Array<Array(String, Boolean)>] the window split into `[text, nested]` segments, in
+#   order; `nested` is true for a segment that is a whole nested `entity ... do ... end` block
 def strip_nested_entities(window)
   entity_re = /^([ \t]*)entity\s+"[^"]+"\s+do\n/
   segments  = []
@@ -124,22 +140,42 @@ def strip_nested_entities(window)
   segments
 end
 
-# ONLY an occurrence whose OWN captured predicate source matches this
-# candidate's OWN canonical is a match — description text alone is not
+# Only an occurrence whose own captured predicate source matches this
+# candidate's own canonical is a match — description text alone is not
 # enough (this script's own first real run found the real case:
-# CardPayment's own `RejectDispute` writes a DIFFERENT "customer is
+# CardPayment's own `RejectDispute` writes a different "customer is
 # active" — `disputed_by.status == "active"`, not
 # `account.customer.status == "active"` — coincidentally the same
-# WORDS for a genuinely different rule, which a description-only match
+# words for a genuinely different rule, which a description-only match
 # would have silently rewired onto the wrong precondition).
+#
+# @param predicate_src [String] the captured predicate source text of one `given` occurrence
+# @param candidate [Candidate] the candidate being matched against
+# @return [Boolean] true if the occurrence's predicate, stripped, equals the candidate's own
+#   canonical predicate
 def matching_occurrence?(predicate_src, candidate)
   predicate_src.strip == candidate.canonical
 end
 
+# Builds the regex that matches one local `given(description) { predicate }`
+# line for a specific description, capturing its indent and predicate source.
+#
+# @param description [String] the given's description text to match, exactly
+# @return [Regexp] a two-capture-group regex: the leading indent, and the predicate source
+#   text between the braces
 def desc_pattern_for(description)
   /^([ \t]*)given\(#{Regexp.escape(description.inspect)}\)\s*\{([^\n}]*)\}\n/
 end
 
+# Hoists one candidate's duplicate `given` occurrences within its owner's
+# own window into a single owner-level declaration, replacing each
+# matching local occurrence with a bare reference.
+#
+# @param text [String] one bluebook file's full source text
+# @param candidate [Candidate] the duplicate-rule candidate to hoist
+# @return [Array(String, Boolean)] the (possibly rewritten) text, and whether a change was
+#   made; returns the unchanged text and false if the owner's window cannot be found or fewer
+#   than two matching occurrences are found outside nested entities
 def apply_candidate(text, candidate)
   bounds = owner_window(text, candidate.owner)
   return [text, false] unless bounds
@@ -153,8 +189,8 @@ def apply_candidate(text, candidate)
                             .select { |_, predicate_src| matching_occurrence?(predicate_src, candidate) }
   return [text, false] if outside_matches.size < 2
 
-  # The OWNER's own direct-child indent (open_match's own indent, one
-  # level in) — NOT the matched occurrence's indent, which sits one
+  # The owner's own direct-child indent (open_match's own indent, one
+  # level in) — not the matched occurrence's indent, which sits one
   # level deeper still (inside a `command "..." do` block nested under
   # the owner). This codemod's own first real corpus run got this
   # wrong the first time — every hoisted line landed over-indented,
@@ -177,17 +213,22 @@ def apply_candidate(text, candidate)
   [new_text, true]
 end
 
-# THE REAL INVARIANT — NOT "the whole registry's rule multiset is
-# unchanged" (hoisting legitimately GROWS the owner's own
+# The real invariant — not "the whole registry's rule multiset is
+# unchanged" (hoisting legitimately grows the owner's own
 # `preconditions`/`invariants`: a local, command-scoped `given` was
 # invisible to it before, the owner's new declaration is not, so that
-# multiset growing by one entry per hoisted candidate is the CORRECT,
-# INTENDED effect, not a regression to catch). The real invariant is
-# narrower: every COMMAND's own effective rule set — what it actually
+# multiset growing by one entry per hoisted candidate is the correct,
+# intended effect, not a regression to catch). The real invariant is
+# narrower: every command's own effective rule set — what it actually
 # enforces, block-declared or referenced, `collect_rules`' own
 # `.givens`/`.ensures` walk — is byte-for-byte unchanged. Owner-level
 # "(declared)" entries are deliberately excluded from this comparison;
-# they are exactly what is SUPPOSED to differ.
+# they are exactly what is supposed to differ.
+#
+# @param registry [Runtime::Registry] a booted registry to compute rule sets over
+# @return [Hash{String => Array<Array(String, String, String)>}] each command location mapped
+#   to its sorted `[kind, description, canonical]` triples, excluding owner-level
+#   `" (declared)"` entries
 def command_rule_map(registry)
   Hecks::QueryIR.collect_rules(registry)
                 .reject { |r| r.location.end_with?(" (declared)") }
@@ -196,11 +237,23 @@ def command_rule_map(registry)
 end
 
 # The revert safety net (`before_rules`/`after_rules`) needs `originals`
-# captured BEFORE any candidate is applied, and `before_rules` computed
+# captured before any candidate is applied, and `before_rules` computed
 # from that same pre-edit state — a snapshot-before-mutation ordering
 # that a split across methods would have to thread `originals`/`texts`/
 # `before_rules`/`applied` through as parameters just to preserve.
 # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+#
+# Applies every safe hoist candidate found across a domain's bluebook
+# files, verifying each command's own effective rule set is unchanged
+# afterward and reverting the whole batch if it is not.
+#
+# @param files [Array<String>] the bluebook file paths making up one domain's chapter(s)
+# @param dry_run [Boolean] when true, an applied edit is written and then reverted rather
+#   than left on disk
+# @return [Hash] a result: `:file` [String] the scanned path (or its directory for multiple
+#   files); `:status` [Symbol] one of `:clean`, `:applied`, `:skipped`; `:candidates`
+#   [Array<Candidate>] the candidates involved (present for `:applied`/`:skipped`); `:reason`
+#   [String] why nothing was kept (present for `:skipped`)
 def run_files(files, dry_run:)
   files = files.sort
   originals = files.to_h { |file| [file, File.read(file)] }

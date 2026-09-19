@@ -9,16 +9,18 @@ module Hecks
         # the cross-execution equivalence spec, never a second source of
         # truth.
         module TransformInstaller
+          # Installs or replaces the six `hecks_tr_*` functions under a database-wide advisory lock.
+          #
           # The jsonb rule transforms — installed once, idempotently. Kept
           # equal to the port's reference entry-JSON transform by the
           # cross-execution equivalence spec; the SQL here is a compilation
           # target, not a second source of truth.
           #
-          # LOCKED, unlike every other statement `ensure_base!` runs — those
+          # Locked, unlike every other statement `ensure_base!` runs — those
           # are all `CREATE ... IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS`,
           # which Postgres itself resolves safely under concurrent boots.
           # `CREATE OR REPLACE FUNCTION` is not: it always rewrites the
-          # `pg_proc` row, so two sessions racing to (re)install the SAME
+          # `pg_proc` row, so two sessions racing to (re)install the same
           # function — these six are shared/global, not per-domain, so any
           # two domains' concurrent first-boots can collide here — hit a
           # real `PG::InternalError: tuple concurrently updated`, not a
@@ -26,6 +28,9 @@ module Hecks
           # already-open-transaction-safe wrapper `ensure_field_cache!`
           # uses for its own advisory lock; a fixed, domain-independent key
           # is correct since these functions have no domain of their own.
+          #
+          # @return [void]
+          # @raise [PG::Error] if Postgres refuses the lock or a function definition
           def install_transforms!
             nested_transaction("hecks_tr_functions") do
               @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_tr_functions'))", [])
@@ -33,14 +38,21 @@ module Hecks
             end
           end
 
-          # Six independent CREATE OR REPLACE FUNCTION statements — each
+          # Runs the six function definitions with no lock of its own; `install_transforms!` is
+          # the locked entry point.
+          #
+          # Six independent `CREATE OR REPLACE FUNCTION` statements — each
           # self-contained SQL, no shared Ruby state, and (per this
           # module's own header comment) safe in any install order since
           # plpgsql bodies aren't resolved against each other until
-          # called, not at CREATE time. Split one-per-function below
+          # called, not at create time. Split one-per-function below
           # purely so each has its own name and (where relevant) its own
           # comment to sit next to, not because the six have any
           # sequencing dependency on one another.
+          #
+          # @return [void]
+          # @raise [PG::Error] if Postgres refuses a definition, including
+          #   `tuple concurrently updated` when two unlocked sessions race
           def install_transform_functions!
             install_hecks_tr_extract!
             install_hecks_tr_insert!
@@ -84,15 +96,16 @@ module Hecks
             SQL
           end
 
-          # ADVERSARIAL FINDING: a destination whose top segment already
+          # **Adversarial finding**: a destination whose top segment already
           # holds a value — most commonly a reference, a bare scalar id
-          # — used to be silently overwritten with an empty object the
-          # moment a dotted destination needed to nest under it. That is
-          # a drop that never declared itself, the one thing this
-          # language exists to make explicit (see hecks_tr_convert's own
-          # refusal below, the same shape) — refused here instead, with
-          # the Ruby reference transform (ports/persistence/lineage.rb's
-          # `insert`) raising the identical wording.
+          # — is refused rather than silently overwritten with an empty
+          # object the moment a dotted destination needs to nest under it.
+          # Overwriting is a drop that never declared itself, the one
+          # thing this language exists to make explicit (see
+          # hecks_tr_convert's own refusal below, the same shape). The
+          # Ruby reference transform
+          # (ports/persistence/plugins/era/lineage.rb's `insert`) raises
+          # the identical wording.
           def install_hecks_tr_insert!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_insert(state jsonb, path text[], value jsonb, rule_label text) RETURNS jsonb

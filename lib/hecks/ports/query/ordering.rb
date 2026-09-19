@@ -3,30 +3,45 @@ require_relative "../../query_specification/common/null_policy"
 module Hecks
   module Ports
     module Query
-      # What order an ask ANSWERS IN — the meaning of the ask, not a property
+      # What order an ask answers in — the meaning of the ask, not a property
       # of the store that happens to hold it. Declared here once so an adapter
       # may satisfy it natively but never redefine it : SQLite pushes both
       # tiers into SQL (NullPolicy.sql_order renders `field DIR, id DIR`),
       # while Heki and Memory have no query engine and delegate straight back
       # to InMemory.
       #
-      # Two tiers, in this order : the DECLARED order_by when there is one,
-      # then IDENTITY, always. The identity tier is what makes an ask total.
+      # Two tiers, in this order : the declared order_by when there is one,
+      # then identity, always. The identity tier is what makes an ask total.
       # Without it, an ask with no order_by — or a declared order with tied
       # keys — hands back whatever order the store happened to hold, and
       # store order was quietly standing in for a rule while every
       # hand-written query in the corpus stayed green : not one of them
       # had a tie for store order to decide.
       #
-      # An adapter that pushes ordering down MUST push limit down with it.
+      # An adapter that pushes ordering down must push limit down with it.
       # Re-ordering a page the store already cut would be a top-N of the
       # wrong N — the one way this can be got quietly, expensively wrong.
       module Ordering
         module_function
 
+        # Orders an Array of rows by the declared order, with identity as the total-order
+        # tiebreaker.
+        #
+        # @param rows [Array<Object>] the rows to order; any shape `identity` and the block
+        #   can read (a `Runtime::Instance`, a plain Hash row, …)
+        # @param order_by [QuerySpecification::Common::OrderBy, nil] the declared order;
+        #   nil orders by identity alone
+        # @param null_semantics [QuerySpecification::Common::NullSemantics, nil] where a
+        #   nil-valued row sorts, passed to `NullPolicy.order`; nil uses its native default
+        # @param identity [Proc] yields a row, returns its comparable identity value, used
+        #   as the stable tiebreaker
+        # @yieldparam row [Object] one row being ordered
+        # @yieldreturn [Object, nil] the row's comparable value for `order_by`'s field
+        # @return [Array<Object>] `rows`, ordered by `order_by` then identity (identity
+        #   alone when `order_by` is nil)
         def apply(rows, order_by, null_semantics = nil, identity:, &value_of)
-          # STABLE, because sort_by is not : two rows whose identity ties would
-          # otherwise swap arbitrarily, and a tier meant to REMOVE store-dependence
+          # Stable, because sort_by is not : two rows whose identity ties would
+          # otherwise swap arbitrarily, and a tier meant to remove store-dependence
           # would be adding a coin flip of its own.
           rows = rows.each_with_index.sort_by { |row, index| [identity.call(row), index] }.map(&:first)
           return rows unless order_by

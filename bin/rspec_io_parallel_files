@@ -7,11 +7,11 @@
 # file list it hands to `parallel_rspec`, instead of handing it the whole
 # `spec` directory.
 #
-# WHY THIS EXISTS (root cause, confirmed against the vendored
+# Why this exists (root cause, confirmed against the vendored
 # parallel_tests-4.10.1 gem source and reproduced locally, not guessed):
 #
 # `parallel_rspec spec --exclude-pattern '...'` — the previous approach —
-# discovers ALL `_spec.rb` files under `spec/` (288 of them, after that
+# discovers all `_spec.rb` files under `spec/` (288 of them, after that
 # job's own exclusions) and hands that whole list to
 # `ParallelTests::Test::Runner.tests_with_size`. With `--group-by` left
 # unset (the correct choice — see ci.yml's own comment on why
@@ -19,20 +19,20 @@
 # branch only uses the recorded-runtime log if
 # `runtimes.size * 1.5 > tests.size` — i.e. the log must already cover at
 # least ~67% of the candidate files, or it silently falls back to
-# `sort_by_filesize` with NO warning printed. But `rspec`'s own
+# `sort_by_filesize` with no warning printed. But `rspec`'s own
 # `RuntimeLogger` formatter only logs a file when at least one of its
-# examples actually RAN under this job's `--tag io --tag ~fuzzing`
+# examples actually ran under this job's `--tag io --tag ~fuzzing`
 # filter — and only 30 of the 288 candidate files (measured via a real
 # `--dry-run`, see below) carry any such example. `runtimes.size` can
 # therefore never exceed ~30, `30 * 1.5 = 45`, nowhere near `288` — the
-# runtime-log branch is UNREACHABLE for this job's file list no matter
+# runtime-log branch is unreachable for this job's file list no matter
 # how warm or complete the cache is. That fully explains why three
 # different nominal grouping strategies (the original unmodified
 # baseline, `--group-by filesize`, and `--group-by`-unset-with-a-real-
-# warm-runtime-cache) all produced the IDENTICAL 33/59/74/82 worker
+# warm-runtime-cache) all produced the identical 33/59/74/82 worker
 # split — all three silently ran `sort_by_filesize` underneath.
 #
-# THE FIX: shrink the candidate list itself down to the ~30 files that
+# **The fix**: shrink the candidate list itself down to the ~30 files that
 # can ever contribute a real example, via a real `--dry-run` (loads every
 # candidate file and asks RSpec's own filter which examples would run —
 # far more reliable than grepping for the literal tag, which can't see
@@ -45,7 +45,7 @@
 # Usage:
 #   bin/rspec_io_parallel_files '<exclude-pattern regex>' -- --tag io --tag ~fuzzing
 #
-# The exclude-pattern argument is the SAME regex string
+# The exclude-pattern argument is the same regex string
 # `rspec_postgres_io_parallel` already passes as its own top-level
 # `--exclude-pattern` elsewhere (moved to a job `env:` var so both places
 # read one copy) — applied here first so the dry-run never has to load
@@ -53,14 +53,15 @@
 # elsewhere.
 
 #
-# THE LIST IS COMMITTED (.github/postgres_io_spec_files.txt) and the shards
-# read that file: the dry run costs 26-48s on a CI runner, and every shard
-# used to pay it before running a single example. `--write FILE` refreshes
+# The list is committed (.github/postgres_io_spec_files.txt) and the shards
+# read that file instead of each paying the dry run's own 26-48s cost on a
+# CI runner before running a single example. `--write FILE` refreshes
 # the committed list; `--check FILE` is what CI's postgres_io_file_list job
 # runs, once, off the shards' critical path — a stale list fails there
 # instead of an io spec silently never running.
 #
-#   bin/rspec_io_parallel_files --write .github/postgres_io_spec_files.txt '<pattern>' -- --tag io --tag ~fuzzing
+#   bin/rspec_io_parallel_files --write .github/postgres_io_spec_files.txt '<pattern>' -- --tag io
+#   --tag ~fuzzing
 
 require "json"
 require "open3"
@@ -106,6 +107,12 @@ end
 warn "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a matching example " \
      "(#{data['examples'].size} examples total) under `#{tag_args.join(' ')}`"
 
+# Formats one mismatch section of the `--check` report: a heading followed
+# by its paths, each indented four spaces.
+#
+# @param heading [String] label describing what the listed paths were found to be
+# @param paths [Array<String>] spec file paths to list, one per line
+# @return [String] the heading line and its indented paths, joined with newlines
 def named(heading, paths)
   "  #{heading}:\n    #{paths.join("\n    ")}"
 end

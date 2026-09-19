@@ -2,8 +2,8 @@ require_relative "behaviour/domain_port"
 
 module Hecks
   module Bluebook
-    # THE PRIMARY/DRIVING HALF OF HEXAGONAL ARCHITECTURE (Cockburn) — called
-    # BY an adapter living outside the bluebook entirely, never by the
+    # The primary/driving half of hexagonal architecture (Cockburn) — called
+    # by an adapter living outside the bluebook entirely, never by the
     # domain calling out. That is already `Hecks.port` (persistence,
     # projection, extraction, loading) plus `Ports::*` : the secondary/
     # driven half, unchanged by this.
@@ -21,7 +21,7 @@ module Hecks
 
       attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to
 
-      # TWO DIRECTIONS THROUGH ONE DOOR.
+      # Two directions through one door.
       #
       # `:inbound` is what this class has always been — `tells`, spelled
       # `operation` before it had a twin: an external fact arriving, turned
@@ -29,10 +29,23 @@ module Hecks
       # channel back to whoever called.
       #
       # `:outbound` is `asks` — the domain wanting something from outside
-      # and having to live with either answer. It names BOTH: `answers` for
+      # and having to live with either answer. It names both: `answers` for
       # what the adapter came back with, `refuses` for what it said instead.
       # Naming only the happy one would put the failure somewhere the model
       # cannot see, which is the whole reason a boundary is worth modelling.
+      #
+      # @param name [String, Symbol] the operation's declared name
+      # @param attributes [Array<Bluebook::Attribute>] the operation's declared payload
+      #   fields
+      # @param emits [Array<String>] the events an inbound operation declares it records
+      # @param direction [Symbol, String] `:inbound` for a `tells`/`operation`, `:outbound`
+      #   for an `asks`
+      # @param answers [String, nil] an outbound operation's declared event for what the
+      #   adapter came back with
+      # @param refuses [String, nil] an outbound operation's declared event for what the
+      #   adapter said instead
+      # @param to [String, nil] the aggregate this operation routes to, or `nil` if it
+      #   declares no routing target
       def initialize(name:, attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil)
         @hecks_name = name.to_s
         @attributes = attributes
@@ -44,19 +57,26 @@ module Hecks
         @attributes_by_name = attributes.to_h { |attribute| [attribute.name, attribute] }
       end
 
+      # Says whether this operation is the domain asking something of an adapter.
+      #
+      # @return [Boolean] whether this operation is an `asks`
       def outbound? = @direction == :outbound
+
+      # Says whether this operation is an adapter telling the domain something.
+      #
+      # @return [Boolean] whether this operation is a `tells`/`operation`
       def inbound?  = @direction == :inbound
 
       # No root reference of its own — unlike a command, every attribute
-      # EQUALLY describes the payload, including whichever one identifies
+      # equally describes the payload, including whichever one identifies
       # the record its emitted event belongs to. Kept only so
       # CommandInterpreter::ArgumentGate's `reference_key` can ask for it
       # without learning this isn't a command.
 
-      # `direction`/`answers`/`refuses` are deliberately OUTSIDE `emits_ir`'s
+      # `direction`/`answers`/`refuses` are deliberately outside `emits_ir`'s
       # declared shape and added here only for an outbound operation — an
       # ordinary inbound one (`tells`, still spelled `operation` everywhere
-      # in the existing corpus) keeps the EXACT prior IR shape, byte for
+      # in the existing corpus) keeps the exact prior IR shape, byte for
       # byte. Pizzas' `PaymentGateway` port is inbound-only and is checked
       # against `hecks-parse`'s own Rust output for byte-identity
       # (parser_parity_spec.rb) — the Rust side has no notion of `asks` yet,
@@ -64,14 +84,17 @@ module Hecks
       # domain that never asked for the feature. Only a chapter that
       # actually declares `asks` (this extraction's own QualityControl
       # ledger, not yet in any Rust-parity corpus) pays for it.
-      # `to` — SAME "deliberately outside emits_ir, merged in only when
+      # `to` — same "deliberately outside emits_ir, merged in only when
       # present" treatment as direction/answers/refuses just above, and
       # for the identical reason: an operation still spelled the old way
       # (`reference_to` inside the block, shadow-parsing only — see
       # reference_to_impl's own comment) or one that simply hasn't
-      # migrated yet keeps the EXACT prior IR shape, byte for byte,
+      # migrated yet keeps the exact prior IR shape, byte for byte,
       # instead of an unconditional new key breaking parser_parity_spec
       # for every domain that never touched this.
+      #
+      # @return [Hash] the declared emission, plus `direction`/`answers`/`refuses` for an
+      #   outbound operation and `to` when a routing target is declared
       def to_h
         shape = super
         shape = shape.merge(direction: @direction.to_s, answers: @answers, refuses: @refuses) unless inbound?
@@ -93,6 +116,8 @@ module Hecks
 
       attr_reader :name, :operations
 
+      # @param name [String, Symbol] the port's declared name
+      # @param operations [Array<Bluebook::PortOperation>] the port's declared operations
       def initialize(name:, operations: [])
         @name       = name.to_s
         @operations = operations

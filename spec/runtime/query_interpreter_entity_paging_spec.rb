@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# H7 — QueryInterpreter's ENTITY engine (`entity_rows`, the only engine
+# H7 — QueryInterpreter's entity engine (`entity_rows`, the only engine
 # entity/sub-list queries have) still had two of the three bugs the audit
 # named, after `#interpret`/`#reference_interpret` had already picked up
 # their own offset fix (see query_interpreter_offset_spec.rb):
@@ -14,10 +14,10 @@ require "spec_helper"
 #      element and (correctly, per NullPolicy) excluded every row —
 #      an entity query with a dotted where silently answered `[]`.
 #
-# A THIRD, sibling bug lived one level up: the plain aggregate-level
+# A third, sibling bug lived one level up: the plain aggregate-level
 # `ordered` (used by `#interpret`/`#reference_interpret`, the reference/
 # no-native-hook engine) read `record[field]` directly too — a dotted
-# `order_by` on an ORDINARY (non-entity) query sorted by all-nil, so two
+# `order_by` on an ordinary (non-entity) query sorted by all-nil, so two
 # records with different dotted-field values landed in whatever order the
 # identity tier alone decided (here: dispatch/creation order), not the
 # declared order.
@@ -55,9 +55,9 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
             identified_by :sequence
             attribute :price, Price
 
-            # A DOTTED where AND a dotted order_by, on the ONLY engine
-            # entity queries have — element_where_holds? used to answer
-            # `[]` for this whatever the data, and offset was never read.
+            # A dotted where and a dotted order_by, on the only engine
+            # entity queries have — a bare element_where_holds? would answer
+            # `[]` for this whatever the data, and offset would never be read.
             query "ByPrice" do
               where("price.cents": { gt: 0 })
               order_by :"price.cents"
@@ -81,9 +81,9 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
             emits "ItemAdded"
           end
 
-          # A DOTTED order_by on an ORDINARY, aggregate-level query —
-          # the reference engine's OWN `ordered` used to read
-          # `record[field]` directly and land on nil for every row.
+          # A dotted order_by on an ordinary, aggregate-level query —
+          # the reference engine's own `ordered` reading
+          # `record[field]` directly would land on nil for every row.
           query "ByFeaturedPrice" do
             order_by :"featured_price.cents"
           end
@@ -99,12 +99,12 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
 
   let(:runtime) do
     boot.tap do |bound|
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b1" }, featured_price: { cents: 500 })
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b2" }, featured_price: { cents: 100 })
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b3" }, featured_price: { cents: 300 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b1" }, featured_price: { cents: 500 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b2" }, featured_price: { cents: 100 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b3" }, featured_price: { cents: 300 })
 
       [10, 20, 30, 40, 50].each do |cents|
-        bound.dispatch("EntityPaging::Board.AddItem", name: { value: "b1" }, price: { cents: cents })
+        bound.dispatch_flat("EntityPaging::Board.AddItem", name: { value: "b1" }, price: { cents: cents })
       end
     end
   end

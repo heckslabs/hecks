@@ -1,18 +1,18 @@
 #!/usr/bin/env ruby
 
-# THE PRACTICE SEEDING ITS OWN BACKLOG — the one-time counterpart to
+# **The practice seeding its own backlog** — the one-time counterpart to
 # `bin/qa_sweep`'s own `seed_default_targets!`: pizzas/banking exist in the
 # rotation because *something* has to mint the first two, and `Angle`'s own
 # backlog (`qa/bluebook/quality_control.bluebook`, "── where to look next
-# ──") needs the identical bootstrap. Every entry below is a REAL, concrete
+# ──") needs the identical bootstrap. Every entry below is a real, concrete
 # lead this session's own investigation already surfaced — see each one's
 # own `citation:` — not invented for this script. Where a lever was already
 # chased down before this script existed (the saga/process-manager gap,
-# closed by `BUG#6`/PR #530/`qa/stress_domains/waybill`), it is seeded
+# closed by `BUG#6`/`qa/stress_domains/waybill`), it is seeded
 # `proposed` → `investigating` → `built` in one pass, so the backlog opens
 # already telling the truth about what is and is not still open.
 #
-# IDEMPOTENT, THE SAME WAY `seed_default_targets!` ALREADY IS — only the
+# Idempotent, the same way `seed_default_targets!` already is — only the
 # references not already on file get proposed. Safe to run again from a
 # fresh worktree, or after a human has already proposed some of these by
 # hand; re-running never re-proposes, re-investigates, or re-builds a
@@ -36,9 +36,16 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
+# Runs a query against the QualityControl domain, prefixing the query name so
+# every call site below stays short.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @param name [String] the query name without the `QualityControl::` prefix, e.g. `"Angle.All"`
+# @param args [Hash{Symbol => Object}] the query's declared arguments
+# @return [Array<Hash>] the matching rows, as `Runtime::Instance#query` returns them for the verb
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
-# THE SEED ITSELF. `resolution:` present means "already chased down before
+# **The `SEED` itself**. `resolution:` present means "already chased down before
 # this script existed" — proposed, investigated, and built in one pass
 # below; its absence means the lever is real and still open, exactly the
 # state `Angle.Backlog` should show it in.

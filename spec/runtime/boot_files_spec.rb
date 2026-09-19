@@ -8,9 +8,9 @@ RSpec.describe "Hecks.boot_files" do
 
   it "dispatches identically to a directory boot of the same domain" do
     runtime = boot_files_runtime
-    result = runtime.dispatch("Pizzas::Order.CreatePizza",
-                              name:  { value: "Margherita" },
-                              pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+    result = runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                                   name:  { value: "Margherita" },
+                                   pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
 
     expect(result.events.map(&:name)).to eq(["PizzaCreated"])
     expect(runtime.query("Pizzas::Order.Available").map { |row| row[:id] }).to eq(["Margherita"])
@@ -21,7 +21,7 @@ RSpec.describe "Hecks.boot_files" do
 
     # "Governance" arrives via `uses_framework` inside the hecksagon, not
     # from a directory glob — the point this proves is that nothing else
-    # under examples/pizzas/bluebook/ (the REAL pizzas.hecksagon, say)
+    # under examples/pizzas/bluebook/ (the real pizzas.hecksagon, say)
     # snuck in.
     expect(runtime.registry.bluebooks.keys).to eq(["Pizzas", "Governance"])
   end
@@ -30,8 +30,8 @@ RSpec.describe "Hecks.boot_files" do
     first  = boot_files_runtime
     second = boot_files_runtime
 
-    first.dispatch("Pizzas::Order.CreatePizza", name:  { value: "First" },
-                                                pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
+    first.dispatch_flat("Pizzas::Order.CreatePizza", name:  { value: "First" },
+                                                     pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
 
     expect(second.query("Pizzas::Order.Available")).to eq([])
   end

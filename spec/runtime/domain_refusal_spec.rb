@@ -4,11 +4,11 @@ require "tmpdir"
 require "fileutils"
 require_relative "../support/postgres_probe"
 
-# A refusal is the domain saying NO. Anything else is the runtime breaking.
+# A refusal is the domain saying no. Anything else is the runtime breaking.
 #
 # `Runtime::DOMAIN_REFUSALS` declares that boundary, and the policy and saga
 # interpreters honour it — they rescue only those classes, so a crash in a
-# reaction propagates instead of being logged as "declined". The RUNNER did
+# reaction propagates instead of being logged as "declined". The runner did
 # not: `bin/run` catches everything a dispatch throws and
 # writes it into `refusals`, so a crash arrives in the run contract wearing a
 # refusal's clothes.
@@ -20,7 +20,7 @@ require_relative "../support/postgres_probe"
 #   addition expects a number, got "a lot"          a String reaching a numeric field
 #
 # The last is fixed at the source — `Value.check_numeric_fields` now refuses it
-# as a TypeMismatch, which IS a domain refusal. This spec is what stops the
+# as a TypeMismatch, which is a domain refusal. This spec is what stops the
 # class from coming back: every error the corpus provokes must be one the
 # domain is allowed to raise.
 RSpec.describe "every refusal the corpus provokes" do
@@ -35,7 +35,7 @@ RSpec.describe "every refusal the corpus provokes" do
 
   CORPUS.each do |name, path|
     # `rm_rf(data/)` isolates a Heki-backed copy ("banking") for real —
-    # copying the DIRECTORY copies the store, and wiping `data/` resets
+    # copying the directory copies the store, and wiping `data/` resets
     # it. It isolates nothing for "pizzas": examples/pizzas' own .world
     # declares `persisted_by("PostgresEra")` unconditionally (a fixed
     # connection string, not a path inside the copied tree — see
@@ -64,7 +64,7 @@ RSpec.describe "every refusal the corpus provokes" do
             if (question = step["query"])
               runtime.query(question, **args)
             else
-              runtime.dispatch(step["verb"], **args)
+              runtime.dispatch_flat(step["verb"], **args)
             end
           rescue StandardError => e
             verb_or_query = step.key?("verb") ? step["verb"] : step["query"]

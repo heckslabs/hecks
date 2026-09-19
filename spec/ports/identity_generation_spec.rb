@@ -64,7 +64,7 @@ RSpec.describe Hecks::Ports::IdentityGeneration do
       runtime = boot_pizzas
 
       minted = described_class.uuid(runtime.registry)
-      result = runtime.dispatch("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
+      result = runtime.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
 
       expect(result.instance.id).to eq(minted)
     end
@@ -72,22 +72,22 @@ RSpec.describe Hecks::Ports::IdentityGeneration do
     it "replay never re-invokes the adapter — the recorded id round-trips instead of being re-minted" do
       Hecks::Adapters::SequentialIdentity.reset!
 
-      # FIRST, LIVE DISPATCH — the adapter is called once, and the minted
+      # **First, live dispatch** — the adapter is called once, and the minted
       # value becomes an ordinary argument from here on.
       first_runtime = boot_pizzas
       minted        = described_class.uuid(first_runtime.registry)
-      first_runtime.dispatch("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
+      first_runtime.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
 
-      # The NEXT real mint should be "2" — proving nothing else touched the
+      # The next real mint should be "2" — proving nothing else touched the
       # adapter during that one dispatch.
       expect(Hecks::Adapters::SequentialIdentity.uuid).to eq("2")
       Hecks::Adapters::SequentialIdentity.reset!
 
-      # REPLAY — a completely fresh boot, the SAME recorded args (exactly
+      # Replay — a completely fresh boot, the same recorded args (exactly
       # what a corpus script or a captured fuzz-replay step holds; this
       # spec never calls the adapter again to get them).
       replay_runtime = boot_pizzas
-      replayed       = replay_runtime.dispatch("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
+      replayed       = replay_runtime.dispatch_flat("Pizzas::Order.CreatePizza", name: { value: minted }, **pizza_args)
 
       expect(replayed.instance.id).to eq(minted)
       # The adapter's own counter is untouched by replay — the next real

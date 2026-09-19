@@ -1,4 +1,4 @@
-# IN CI, A SKIP IS A FAILURE UNLESS IT SAYS WHERE THE CHECK WENT.
+# In CI, a skip is a failure unless it says where the check went.
 #
 # A skipped example is a check that silently left the suite. Locally that
 # is the everyday deal (no Postgres, no cargo, no feature built). In CI
@@ -9,11 +9,11 @@
 # So, under `ENV["CI"]`, after the suite runs every example that ended
 # pending is held against two tables:
 #
-#   ALLOWED — pattern => destination. The skip is fine HERE because the
+#   `ALLOWED` — pattern => destination. The skip is fine here because the
 #     named CI job runs that check for real. spec/ci_skip_backstop_spec.rb
 #     proves each destination job exists and runs the call site's spec
 #     file, and each pattern still matches a live `skip` call site.
-#   UNROUTED_BUGS — skips that happen in CI with NO destination: bugs,
+#   `UNROUTED_BUGS` — skips that happen in CI with no destination: bugs,
 #     named as bugs, so they stop failing the build while someone fixes
 #     them but can't be mistaken for "legitimate". The same spec proves
 #     each is still live, so a fixed one has to be deleted.
@@ -28,8 +28,8 @@ module CiSkipBackstop
   Bug = Struct.new(:pattern, :call_site, :literal, :jobs, :why, keyword_init: true)
 
   # Empty on purpose today: every skip the CI jobs were observed to take
-  # (see UNROUTED_BUGS) has no other lane that runs it. An entry here
-  # names the job that DOES run the skipped check, e.g. a Cargo-feature
+  # (see `UNROUTED_BUGS`) has no other lane that runs it. An entry here
+  # names the job that does run the skipped check, e.g. a Cargo-feature
   # skip in one job whose feature another job builds.
   ALLOWED = [].freeze
 
@@ -48,17 +48,33 @@ module CiSkipBackstop
 
   module_function
 
+  # Whether the backstop should run at all.
+  #
+  # @return [Boolean] true when `ENV["CI"]` is set and non-empty and
+  #   `ENV["GOLDEN"]` is not `"rewrite"`
   def enabled? = !ENV["CI"].to_s.empty? && ENV["GOLDEN"] != "rewrite"
 
+  # Checks a pending example's skip message against the known destinations.
+  #
+  # @param message [String] the example's pending/skip reason
+  # @return [Boolean] true if `message` matches a pattern in `ALLOWED` or
+  #   `UNROUTED_BUGS`
   def accounted_for?(message)
     (ALLOWED + UNROUTED_BUGS).any? { |entry| entry.pattern.match?(message) }
   end
 
+  # Finds every pending example that ran with a skip reason not accounted
+  # for by `ALLOWED` or `UNROUTED_BUGS`.
+  #
+  # @param examples [Enumerable<RSpec::Core::Example>] the examples to check,
+  #   typically `RSpec.world.all_examples`
+  # @return [Array<String>] one two-line entry per offending example (its
+  #   location and description, then its skip reason); empty when none found
   def offenders(examples)
     examples.filter_map do |example|
       result = example.execution_result
       next unless result.status == :pending
-      # A `pending` example RAN and failed the way its shrink-only table
+      # A `pending` example ran and failed the way its shrink-only table
       # says it should (e.g. RUST_FUZZ_PENDING, CODEGEN_PENDING_MEMBERS);
       # it turns into a failure the moment it passes. That is a live check,
       # not a skip — only an example that never ran carries no exception.
@@ -71,6 +87,15 @@ module CiSkipBackstop
     end
   end
 
+  # Registers the `after(:suite)` hook that enforces the backstop, when
+  # `#enabled?`. The hook raises a `RuntimeError` listing every offending
+  # example if `#offenders` finds any.
+  #
+  # @param config [RSpec::Core::Configuration] the suite configuration to
+  #   register the hook on
+  # @return [void]
+  # @raise [RuntimeError] from the registered hook, after the suite runs, if
+  #   `#offenders` finds any example skipped in CI with no destination
   def install(config)
     return unless enabled?
 

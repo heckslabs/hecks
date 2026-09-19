@@ -2,7 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/grammar/evolve"
 
-# The file surgery under bin/evolve, exercised against throwaway COPIES
+# The file surgery under bin/evolve, exercised against throwaway copies
 # of the aggregate-local syntax tables — never the tree's own. The tool's gates
 # (regenerate, run the conformance specs, restore on red) are proven by
 # driving bin/evolve itself; what this file pins is the surgery: a
@@ -48,8 +48,8 @@ RSpec.describe "the evolve surgery" do
     # own slice 5 rename of `sets`) is a real "deprecated" row again,
     # kept refusing live only so shadow_parse can still read frozen era
     # text that used the old spelling. The claim this test actually
-    # holds — an ABSENT status: column reads back as "admitted", never
-    # blank — needs no particular status SET to prove; it only needs
+    # holds — an absent status: column reads back as "admitted", never
+    # blank — needs no particular status set to prove; it only needs
     # every present value to be non-empty, checked below.
     expect(rows.map { |row| row[:status] }.uniq.sort).to eq(%w[admitted deprecated])
     expect(rows.map { |row| row[:status] }).to all(satisfy { |status| !status.to_s.empty? })
@@ -231,13 +231,13 @@ RSpec.describe "the evolve surgery" do
       Hecks::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: paths)
       rows = Hecks::Grammar::Evolve.argument_rows(paths)
 
-      # SCOPED TO THE RENAMED (keyword, context) PAIR, not the bare word —
+      # Scoped to the renamed (keyword, context) pair, not the bare word —
       # "emits" legitimately still exists under "PortOperation" (a hecksagon
       # port operation's own emits, a different keyword-in-context entirely),
       # untouched because the rename named "Command" specifically.
       expect(rows.none? { |r| r[:keyword] == "emits" && r[:context] == "Command" }).to be(true)
       expect(rows.any? { |r| r[:keyword] == "emits" && r[:context] == "PortOperation" }).to be(true)
-      # `attribute`'s OWN rows (a different keyword) must survive untouched —
+      # `attribute`'s own rows (a different keyword) must survive untouched —
       # the cascade is scoped to the renamed keyword only, never a blind
       # substring match across the whole table.
       expect(rows.any? { |r| r[:keyword] == "attribute" }).to be(true)
@@ -258,7 +258,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   # bin/evolve's own `--name value` flag reader (`option`, wrapping this).
-  # A bare value-arity contract: consume the next argv element ONLY when
+  # A bare value-arity contract: consume the next argv element only when
   # it doesn't itself look like a flag.
   describe ".option" do
     it "reads a flag's value" do
@@ -286,7 +286,8 @@ RSpec.describe "the evolve surgery" do
       with_copies("Command") do |paths|
         contents = paths.to_h { |path| [path, File.read(path)] }
         EVOLVE.restore_on_raise(paths) { EVOLVE.rename(word: "emits", context: "Command", to: "announces", path: paths) }
-        expect(paths.any? { |path| File.read(path) != contents[path] }).to be(true) # the rename really landed
+        # the rename really landed
+        expect(paths.any? { |path| File.read(path) != contents[path] }).to be(true)
       end
     end
 

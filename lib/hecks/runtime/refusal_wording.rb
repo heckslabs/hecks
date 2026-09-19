@@ -5,17 +5,17 @@ module Hecks
     # Every DomainRefusal wording that is not already data — `given`/
     # `ensures`/a declared `invariant` already carry their own description,
     # read at dispatch time off the command or value object that declared
-    # them. These are different in kind: LANGUAGE-LEVEL refusals, the same
+    # them. These are different in kind: language-level refusals, the same
     # wording for every domain, not authored per-bluebook.
     #
-    # READ OFF THE GENERATED TABLE, not typed a second time. The rows are
+    # Read off the generated table, not typed a second time. The rows are
     # Vocabulary::RefusalTemplate (language/bluebook/vocabulary.bluebook),
     # projected into lib/hecks/vocabulary.rb by bin/project_vocabulary and
     # into rust/src/kernel/vocab/refusal_template.rs by
     # bin/project_rust_vocabulary; both regenerations are diffed in CI, so
     # there is no hand copy left here to drift. Declared order is kept.
     #
-    # THE ARGUMENTS ARE DATA TOO. Vocabulary::RefusalSiteArgument names the
+    # **The arguments are data too**. Vocabulary::RefusalSiteArgument names the
     # values each site takes and how each is written (a list's separator,
     # its sort, its empty reading, its quoting). Call sites use
     # `render_site` and hand over raw values; the Rust kernel's typed
@@ -31,9 +31,18 @@ module Hecks
 
       module_function
 
+      # Renders `refusal`/`site`'s template, substituting `values` verbatim.
+      #
       # Plain text substitution, never expression syntax — a template is
       # read, not evaluated. Values arrive already formatted; prefer
       # `render_site`, which formats them off the declared rows.
+      #
+      # @param refusal [String] the `DomainRefusal` class name, such as `"UnknownArgument"`
+      # @param site [String] the template site within `refusal`, such as `"unknown_args"`
+      # @param values [Hash{Symbol => #to_s}] each `{name}` placeholder's already-formatted
+      #   replacement text
+      # @return [String] the rendered refusal message
+      # @raise [KeyError] if no `RefusalTemplate` row declares `refusal`/`site`
       def render(refusal, site, **values)
         substitute(template(refusal, site), values)
       end
@@ -46,6 +55,16 @@ module Hecks
       #   RefusalWording.render_site("UnknownArgument", "unknown_args",
       #                              command: "Close", unknown: [:parcel], declared: [])
       #   # => "Close does not declare parcel — it takes none"
+      #
+      # @param refusal [String] the `DomainRefusal` class name, such as `"UnknownArgument"`
+      # @param site [String] the template site within `refusal`, such as `"unknown_args"`
+      # @param arguments [Hash{Symbol => Object}] raw values, one per `RefusalSiteArgument`
+      #   row declared for `refusal`/`site`; formatted per row before substitution
+      # @return [String] the rendered refusal message
+      # @raise [ArgumentError] if `arguments` is missing a declared argument or offers one
+      #   `refusal`/`site` does not declare
+      # @raise [KeyError] if no `RefusalTemplate`/`RefusalSiteArgument` rows declare
+      #   `refusal`/`site`
       def render_site(refusal, site, **arguments)
         specs    = argument_rows(refusal, site)
         declared = specs.map { |spec| spec["argument"].to_sym }
@@ -62,6 +81,12 @@ module Hecks
       # `render_site` without the registry lookups: a template, its
       # argument rows, and raw values. The Rust projection calls this with
       # the chapter's own rows to compute the expected wording it pins.
+      #
+      # @param template [String] the raw template, `{name}` placeholders unsubstituted
+      # @param specs [Array<Hash>] the `RefusalSiteArgument` rows to format `arguments`
+      #   against, one per declared argument name
+      # @param arguments [Hash{Symbol => Object}] raw values, one per entry in `specs`
+      # @return [String] the rendered refusal message
       def render_with(template, specs, arguments)
         values = specs.to_h do |spec|
           name = spec["argument"].to_sym
@@ -73,6 +98,12 @@ module Hecks
       # One argument, written the way its row says. A list is sorted first
       # (before quoting), then each item quoted, then joined; an empty list
       # reads `when_empty`. A scalar is quoted or taken as its own text.
+      #
+      # @param spec [Hash] the argument's `RefusalSiteArgument` row (`"shape"`, `"quoting"`,
+      #   and, for a list, `"sorted"`, `"separator"`, `"when_empty"`)
+      # @param value [Object, Array] the raw value to format; an Array (or anything
+      #   `Array()`-coercible) for a `"list"`-shaped spec, a scalar otherwise
+      # @return [String] the formatted text
       def format_argument(spec, value)
         inspect = spec.fetch("quoting") == "inspect"
         return inspect ? value.inspect : value.to_s unless spec.fetch("shape") == "list"
@@ -83,10 +114,22 @@ module Hecks
         items.empty? ? spec.fetch("when_empty") : items.join(spec.fetch("separator"))
       end
 
+      # Replaces each `{name}` placeholder in `template` with its value's text.
+      #
+      # @param template [String] the raw template, `{name}` placeholders unsubstituted
+      # @param values [Hash{Symbol => #to_s}] each placeholder name mapped to its
+      #   replacement text
+      # @return [String] `template` with every `{name}` placeholder substituted
       def substitute(template, values)
         values.reduce(template) { |text, (key, value)| text.gsub("{#{key}}", value.to_s) }
       end
 
+      # Looks up the raw template text declared for one refusal site.
+      #
+      # @param refusal [String] the `DomainRefusal` class name, such as `"UnknownArgument"`
+      # @param site [String] the template site within `refusal`, such as `"unknown_args"`
+      # @return [String] the raw `RefusalTemplate` text, `{name}` placeholders unsubstituted
+      # @raise [KeyError] if no `RefusalTemplate` row declares `refusal`/`site`
       def template(refusal, site)
         TEMPLATES.fetch([refusal, site]) do
           raise KeyError, "no refusal template for #{refusal}/#{site} — declare it in " \
@@ -94,9 +137,16 @@ module Hecks
         end
       end
 
+      # The declared arguments for one refusal site.
+      #
       # Read lazily, not into a constant: bin/project_vocabulary boots
       # `hecks` (and so this file) before it writes the table a newly
       # declared site's rows live in.
+      #
+      # @param refusal [String] the `DomainRefusal` class name, such as `"UnknownArgument"`
+      # @param site [String] the template site within `refusal`, such as `"unknown_args"`
+      # @return [Array<Hash>] the `RefusalSiteArgument` rows declared for `refusal`/`site`
+      # @raise [KeyError] if no `RefusalSiteArgument` rows declare `refusal`/`site`
       def argument_rows(refusal, site)
         @argument_rows ||= Hecks::Vocabulary.rows("RefusalSiteArgument")
                                             .group_by { |row| [row["refusal"], row["site"]] }

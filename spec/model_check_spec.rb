@@ -5,7 +5,7 @@ require "tmpdir"
 
 # The lightweight-formal-methods leg of the verification arc: every
 # lifecycle is a declared FSM and every process manager a declared
-# protocol, so both can be MODEL-CHECKED — unreachable states, dead
+# protocol, so both can be model-checked — unreachable states, dead
 # transitions, saga states no handler chain reaches, a compensation
 # whose from_state is unreachable (the deadlock class this arc named),
 # dispatches to nowhere, handlers listening for an event nothing emits.
@@ -21,7 +21,7 @@ RSpec.describe "the model checker" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
 
-      # THE SIBLING HECKSAGON, IF ONE EXISTS — see bin/model_check's own
+      # **The sibling hecksagon, if one exists** — see bin/model_check's own
       # copy of this comment. Fixtures under spec/fixtures/model_check/
       # have none, so this is a no-op for every test but the real corpus.
       hecksagon = if File.directory?(bluebook)
@@ -34,7 +34,7 @@ RSpec.describe "the model checker" do
     registry
   end
 
-  # `boot` now returns the REGISTRY, not the bluebook directly — every
+  # `boot` now returns the registry, not the bluebook directly — every
   # caller needs `registry.hecksagon(bluebook.name)` too, to exercise the
   # cross-domain relationship findings.
   def call_model_check(registry, known_domains: nil)
@@ -77,11 +77,11 @@ RSpec.describe "the model checker" do
     end
 
     it "raises no finding kind outside the ones this fixture deliberately triggers" do
-      # NOT an exact count: "Vanish"'s own from: ("active") is itself
+      # Not an exact count: "Vanish"'s own from: ("active") is itself
       # reached via Activate, so its target ("gone") cascades into
       # reachable-but-stuck too — a second, legitimate unreachable_state
       # (the untouched "abandoned") and a stuck_state ride along. The
-      # fixture's job is proving each KIND fires at least once, not
+      # fixture's job is proving each kind fires at least once, not
       # pinning how many states a hand-written FSM happens to produce.
       expect(findings.select { |f| f.subject == "Widget" }.map(&:kind).uniq.sort)
         .to eq(%i[dead_transition stuck_state unknown_command unreachable_state].sort)
@@ -161,18 +161,20 @@ RSpec.describe "the model checker" do
       expect(findings.map(&:kind).uniq.sort).to eq(%i[deaf_policy unknown_trigger])
     end
 
-    # BUG#23 — a policy triggering an `asks`/`tells` PORT OPERATION
+    # BUG#23 — a policy triggering an `asks`/`tells` port operation
     # (`Aggregate::Port::Operation`, three colon-joined segments) rather
     # than a plain command (`Aggregate::Command`, two). The real-world
     # case, not a synthetic one: `qa/bluebook/quality_control.bluebook`'s
     # own `FileWhenSubmitted`/`AskOnceMore` policies, both `trigger
-    # Ticket::IssueTracker::File`. Before the fix this always reported
-    # `unknown_trigger` — `verbs_of` never enumerated a port operation as
-    # a triggerable verb, and the comparison read raw strings instead of
-    # `Naming.split_verb` triples — even though the same trigger genuinely
-    # dispatches at runtime (`PolicyInterpreter#deliver` re-qualifies with
-    # this domain's own name, and `Naming.split_verb` already folds the
-    # leftover `::` correctly, PR #520). See `Hecks::Bluebook::ModelCheck::
+    # Ticket::IssueTracker::File`. `triggerable_verbs` unions `verbs_of`
+    # (ordinary/entity commands) with `port_verbs_of` (port operations)
+    # and compares both as `Naming.split_verb` triples, matching how the
+    # same trigger genuinely dispatches at runtime (`PolicyInterpreter#
+    # deliver` re-qualifies with this domain's own name, and
+    # `Naming.split_verb` already folds the leftover `::` correctly).
+    # Never enumerating a port operation as a triggerable verb, and
+    # comparing raw strings instead of triples, would always report
+    # `unknown_trigger` here instead. See `Hecks::Bluebook::ModelCheck::
     # ALLOWED_FINDINGS`'s own now-removed "quality_control" entry for the
     # full trace.
     it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
@@ -206,9 +208,9 @@ RSpec.describe "the model checker" do
     end
 
     it "checked, not routed — no sibling hecksagon at all means no cross-domain finding either way" do
-      # `findings_for` loads the fixture's OWN sibling `.hecksagon`
+      # `findings_for` loads the fixture's own sibling `.hecksagon`
       # (`boot`'s own comment) — this proves the inverse directly: a
-      # bluebook with a cross-domain policy but genuinely NO sibling
+      # bluebook with a cross-domain policy but genuinely no sibling
       # hecksagon (every other model_check fixture's own shape) raises
       # neither new finding, the same `return [] unless hecksagon` guard
       # `policy_findings.bluebook`'s own OnArchive/OnWrite already prove
@@ -218,7 +220,7 @@ RSpec.describe "the model checker" do
     end
   end
 
-  # A domain or aggregate whose Rust MODULE name (downcased) is a Rust
+  # A domain or aggregate whose Rust module name (downcased) is a Rust
   # keyword, or a domain whose module/Cargo feature key is a reserved
   # Cargo.toml key (BUG#124). Warning by default; error with a Rust target
   # or under strict. The Rust generator refuses through the same check.
@@ -288,7 +290,7 @@ RSpec.describe "the model checker" do
     end
   end
 
-  # THE COVERAGE GATE. `bin/model_check` runs this same walk over every
+  # **The coverage gate**. `bin/model_check` runs this same walk over every
   # example domain, every grammar chapter, and the language itself — the
   # spec keeps that corpus finding-free by holding it to bin/model_check's
   # own allowlist: an error the tool reports and the allowlist does not
@@ -296,7 +298,7 @@ RSpec.describe "the model checker" do
   # is stale and must be deleted, the same both-directions discipline
   # plurality_coverage_spec's ALLOWED_SINGLETON holds itself to.
   describe "the real corpus" do
-    # THE SAME KINDS bin/model_check walks, from the one table both read
+    # The same kinds bin/model_check walks, from the one table both read
     # (Hecks::Corpus). Globbed separately, the ledger (`:qa`) once went
     # missing here while MODEL_CHECK_ALLOWED named it, and
     # `.fetch(name) { next }` below silently returned nil instead of
@@ -304,20 +306,20 @@ RSpec.describe "the model checker" do
     MODEL_CHECK_CORPUS = Hecks::Corpus.model_check_members
                                       .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }.freeze
 
-    # The SAME constant bin/model_check reads — one table, not a copy.
+    # The same constant bin/model_check reads — one table, not a copy.
     MODEL_CHECK_ALLOWED = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS
 
-    # TWO PASSES OVER THE SAME BOOTS — the identical structure
+    # Two passes over the same boots — the identical structure
     # bin/model_check's own main loop takes, own comment there. Every
     # corpus member's own bluebook/hecksagon name has to be known before
-    # ANY member's own cross-domain check can trust "this target isn't
+    # any member's own cross-domain check can trust "this target isn't
     # anywhere in the corpus" — a single member's own boot (Compliance
     # never loaded in the same registry as Banking, by design) cannot
     # answer that alone. Computed lazily, once, on first use (not at
     # class-body/file-load time) and memoized — every corpus member gets
     # re-booted once more per `it` below regardless (each test needs its
     # own fresh registry the same way it always did), so this only adds
-    # ONE extra full boot pass, not one per example.
+    # one extra full boot pass, not one per example.
     def self.known_domains
       @known_domains ||= MODEL_CHECK_CORPUS.flat_map do |_, source|
         registry = Hecks::Runtime::Registry.new
@@ -361,7 +363,7 @@ RSpec.describe "the model checker" do
       end
     end
 
-    # PINNED EMPTY, the way bin/fuzz's KNOWN_FUZZ_FINDINGS is — a domain
+    # Pinned empty, the way bin/fuzz's KNOWN_FUZZ_FINDINGS is — a domain
     # that means to keep a finding declares it in its own source (banking's
     # `across "Notifications", expect_undelivered: true`), never here.
     it "keeps the core allowlist empty" do

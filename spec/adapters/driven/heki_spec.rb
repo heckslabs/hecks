@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Heki do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # Booted ONCE per file — only used to read the static "Order" IR back
+  # Booted once per file — solely to read the static "Order" IR back
   # out; every real mutation below goes to the adapter's own per-example
   # tmpdir store (the `around` above), so a shared boot is safe.
   before(:context) { @aggregate = boot_in_memory.registry.bluebook("Pizzas").aggregate("Order") }
@@ -34,7 +34,7 @@ RSpec.describe Hecks::Adapters::Heki do
     end
 
     it "saves and finds" do
-      # Both fields DECLARED on Order — the state codec symbolizes a declared
+      # Both fields declared on Order — the state codec symbolizes a declared
       # value object's members on the way back out; an undeclared field's
       # nested keys keep the spelling the store holds (StateCodec's header).
       adapter.save(instance("p1", name: { value: "Margherita" }, customer_name: { value: "Ada" }))
@@ -88,6 +88,28 @@ RSpec.describe Hecks::Adapters::Heki do
       adapter.save(instance("p1", name: { value: "Named" }))
 
       expect(File.exist?(File.join(@dir, "order.heki"))).to be true
+    end
+
+    it "#project answers a Runtime::Instance on save, like every other adapter" do
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { name: { value: "Margherita" } })
+      projected = adapter.project(entry)
+
+      expect(projected).to be_a(Hecks::Runtime::Instance)
+      expect(projected.id).to eq("p1")
+    end
+
+    it "#project answers the removed Runtime::Instance on delete, or nil when none was held" do
+      adapter.save(instance("p1", name: { value: "Doomed" }))
+      # `append` before `project`, in that order, the same pairing `#delete` itself uses —
+      # `#project` alone would leave the still-journalled save entry to resurrect the record
+      # on the next `read`'s `replay_journal`.
+      delete_entry = Hecks::Ports::Persistence::Entry.new(operation: "delete", id: "p1", state: nil)
+      adapter.append(delete_entry)
+      deleted = adapter.project(delete_entry)
+
+      expect(deleted).to be_a(Hecks::Runtime::Instance)
+      expect(deleted.id).to eq("p1")
+      expect(adapter.project(delete_entry)).to be_nil
     end
   end
 
@@ -163,7 +185,7 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(File.size(journal_path)).to eq(0)
       expect(adapter.all.map { |record| [record.id, record[:name].to_h] }).to eq(expected)
 
-      # A FRESH BOOT — not just the same in-memory adapter — replaying
+      # **A fresh boot** — not just the same in-memory adapter — replaying
       # only the now-empty journal over the freshly-written snapshot
       # must land on the exact same state as before compaction.
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
@@ -181,7 +203,7 @@ RSpec.describe Hecks::Adapters::Heki do
       # The rename never happened, so compact! never reached the
       # truncate step either — the journal is untouched, and a fresh
       # boot still recovers the correct (pre-compaction) state from
-      # the OLD snapshot plus the still-full journal, exactly like an
+      # the old snapshot plus the still-full journal, exactly like an
       # ordinary save's own crash-safety test above.
       expect(File.read("#{adapter.path}.journal")).not_to be_empty
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
@@ -321,10 +343,11 @@ RSpec.describe Hecks::Adapters::Heki do
   end
 
   describe "resolve_path" do
-    # Issue #129: `dir: :default` (a bare Symbol) used to crash
-    # `File.join` with `TypeError: no implicit conversion of Symbol
-    # into String` — resolve_path only ever checked for a MISSING
-    # `dir` setting, never a Symbol one.
+    # Issue #129: `dir: :default` (a bare Symbol) crashes `File.join`
+    # with `TypeError: no implicit conversion of Symbol into String`
+    # unless treated the same as no `dir` setting at all —
+    # `resolve_path` only ever checked for a missing `dir` setting,
+    # never a Symbol one.
     it "treats a bare :default Symbol the same as no dir setting at all" do
       defaulted = described_class.new(aggregate: aggregate, settings: { dir: :default }, root: @dir)
       absent    = described_class.new(aggregate: aggregate, settings: {}, root: @dir)

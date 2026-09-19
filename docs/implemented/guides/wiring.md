@@ -177,7 +177,7 @@ use:
 
 ```ruby
 events = runtime.dispatch_port("Pizzas", "Order", "PaymentGateway", "Receive",
-                                name: order.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
+                                flat: { name: order.id, customer_name: { value: "Chris" }, amount: { cents: 1200 } })
 events.map(&:name)   # => ["PizzaPaymentReceived"]
 ```
 

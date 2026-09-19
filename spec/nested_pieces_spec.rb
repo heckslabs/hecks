@@ -3,11 +3,11 @@ require "spec_helper"
 # qa/stress_domains/nested_pieces — see its own NOTES.md and the header
 # comment on nested_pieces.bluebook for why this domain exists: a genuine
 # two-level "piece nested inside a piece" (ADR 0026), unexercised anywhere
-# else in the fuzzed corpus, used to confirm BUG#3's fix (PR #526, merged
-# as of this domain's own PR) generalizes to a hop this corpus had never
-# actually reached before. BUG#3 was an addressing identity that failed
+# else in the fuzzed corpus, confirms BUG#3's fix generalizes to a hop
+# this corpus had never actually reached before. BUG#3 was an addressing
+# identity that failed
 # its own invariant raising InvariantViolation instead of NotFound; these
-# two tests assert the FIXED behavior (NotFound) at BOTH hop one (Board)
+# two tests assert the fixed behavior (NotFound) at both hop one (Board)
 # and hop two (Card) — a regression pin, not an open-bug demonstration.
 RSpec.describe "NestedPieces" do
   NESTED_PIECES_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces/bluebook").freeze
@@ -35,24 +35,24 @@ RSpec.describe "NestedPieces" do
 
   let(:runtime) { boot_nested_pieces }
 
-  # BUG#12 — an entity created via `sets :list, append: {...}` used to
-  # leave a declared attribute the append mapping doesn't name (`Board
+  # BUG#12 — an entity created via `sets :list, append: {...}` would leave
+  # a declared attribute the append mapping doesn't name (`Board
   # .label`, `Card.note`, both `optional: true`) absent from the stored
-  # hash entirely, at BOTH nesting depths this domain exercises: the
+  # hash entirely, at both nesting depths this domain exercises: the
   # aggregate-level append that creates `Board` (`Workspace.AddBoard`,
   # `MutationApplier#entity_element`) and the entity-level append that
   # creates `Card` (`Board.AddCard`, `EntityElement#appended_to_element`
-  # — nested two levels deep, the shape that comment used to call "out
+  # — nested two levels deep, a shape a stale comment once called "out
   # of scope"). Rust's generated `to_json` (`json_codec.rb#
   # emit_to_json_flat`) always emits every declared field, `null` when
-  # unset — pinning that Ruby's own stored state now matches, key for
+  # unset — pinning that Ruby's own stored state matches, key for
   # key, not just value for value.
   it "gives a freshly appended Board and Card a key for every declared attribute, unset ones included" do
     runtime
     NestedPieces::Workspace.open!(reference: { value: "W1" })
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
-    runtime.dispatch("NestedPieces::Workspace.Board.AddCard",
-                     to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.AddCard",
+                          to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
 
     workspace = NestedPieces::Workspace.find("W1")
     board = workspace[:boards].find { |b| b[:number][:value] == 1 }
@@ -69,8 +69,8 @@ RSpec.describe "NestedPieces" do
     NestedPieces::Workspace.open!(reference: { value: "W1" })
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
 
-    runtime.dispatch("NestedPieces::Workspace.Board.AddCard",
-                     to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.AddCard",
+                          to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
 
     workspace = NestedPieces::Workspace.find("W1")
     board = workspace[:boards].find { |b| b[:number][:value] == 1 }
@@ -81,14 +81,14 @@ RSpec.describe "NestedPieces" do
     runtime
     NestedPieces::Workspace.open!(reference: { value: "W1" })
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
-    runtime.dispatch("NestedPieces::Workspace.Board.AddCard",
-                     to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.AddCard",
+                          to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
 
-    runtime.dispatch("NestedPieces::Workspace.Board.Label",
-                     to: { aggregate: "W1", entity: "1" }, label: { value: "Sprint 1" })
-    runtime.dispatch("NestedPieces::Workspace.Board.Card.Annotate",
-                     to:   { aggregate: "W1", entities: ["1", "1"] },
-                     note: { text: "done" })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.Label",
+                          to: { aggregate: "W1", entity: "1" }, label: { value: "Sprint 1" })
+    runtime.dispatch_flat("NestedPieces::Workspace.Board.Card.Annotate",
+                          to:   { aggregate: "W1", entities: ["1", "1"] },
+                          note: { text: "done" })
 
     workspace = NestedPieces::Workspace.find("W1")
     board = workspace[:boards].find { |b| b[:number][:value] == 1 }
@@ -96,24 +96,24 @@ RSpec.describe "NestedPieces" do
     expect(board[:cards].first[:note][:text]).to eq("done")
   end
 
-  # HOP ONE — the same single-level shape BUG#3 was originally found on
+  # **Hop one** — the same single-level shape BUG#3 was found on
   # (`Banking::Account.LedgerEntry.Amend`), re-triggered here: `board.number`
-  # is both nonexistent (the workspace holds no boards at all) AND fails
+  # is both nonexistent (the workspace holds no boards at all) and fails
   # `BoardNumber`'s own invariant (`0`, never positive). Post-fix, this
   # answers `NotFound` — the same refusal a valid-shaped but nonexistent
   # number already gets, not `InvariantViolation`.
   #
-  # FLAT, LEGACY-STYLE ADDRESSING ON PURPOSE, NOT `to:` — this is the
+  # Flat, legacy-style addressing on purpose, not `to:` — this is the
   # exact shape that matters, still, even fixed. `to: { entities: [...]
   # }` resolves through `Routing::Envelope` into `route.entities`, which
-  # `EntityElement#element_of` matches by RAW STRING (`element_identity(
+  # `EntityElement#element_of` matches by raw string (`element_identity(
   # ...).to_s == routed_identity.to_s`, no typed rebuild, no invariant
-  # ever consulted) — was already immune to BUG#3 even before the fix,
+  # ever consulted) — is immune to BUG#3 regardless of the fix,
   # the same raw-comparison convention `Identity.from` uses for a root
   # aggregate. The original finding (and the original `LedgerEntry.
   # Reverse` spec) dispatches with the entity's own identity riding as a
-  # flat ARGUMENT instead (`sequence: { value: 0 }`, no `to:` at all) —
-  # THAT is the path `wants = entity.identity_paths.map { ... }` builds
+  # flat argument instead (`sequence: { value: 0 }`, no `to:` at all) —
+  # that is the path `wants = entity.identity_paths.map { ... }` builds
   # from `args[head]`, coercing (invariant included, pre-fix; degraded to
   # `UNMATCHABLE` post-fix) before any existence check runs.
   it "answers NotFound for a board number that fails its own invariant, not InvariantViolation" do
@@ -121,19 +121,19 @@ RSpec.describe "NestedPieces" do
     NestedPieces::Workspace.open!(reference: { value: "W1" })
 
     expect do
-      runtime.dispatch("NestedPieces::Workspace.Board.Label",
-                       reference: { value: "W1" }, number: { value: 0 }, label: { value: "Sprint 1" })
+      runtime.dispatch_flat("NestedPieces::Workspace.Board.Label",
+                            reference: { value: "W1" }, number: { value: 0 }, label: { value: "Sprint 1" })
     end.to raise_error(Hecks::Runtime::NotFound, /number\.value 0/)
   end
 
-  # HOP TWO — THE WHOLE REASON THIS DOMAIN EXISTS. `card.sequence` is both
-  # nonexistent (the board holds no cards at all) AND fails `CardSequence`'s
+  # **Hop two** — the whole reason this domain exists. `card.sequence` is both
+  # nonexistent (the board holds no cards at all) and fails `CardSequence`'s
   # own invariant (`0`, never positive) — one hop deeper than BUG#3's own
   # fix had ever actually been confirmed at before this domain existed.
   # `EntityElement#element_of` is called once per hop by `locate_chain`,
   # so the fix (degrading a coercion failure to `UNMATCHABLE` rather than
   # propagating `InvariantViolation`) is architecturally hop-depth-
-  # agnostic — this is the test that actually PROVES that, rather than
+  # agnostic — this is the test that actually proves that, rather than
   # assumes it. Flat addressing again, for the same reason the hop-one
   # case above needs it.
   it "answers NotFound for a card sequence that fails its own invariant, not InvariantViolation, two hops deep" do
@@ -142,9 +142,9 @@ RSpec.describe "NestedPieces" do
     NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
 
     expect do
-      runtime.dispatch("NestedPieces::Workspace.Board.Card.Annotate",
-                       reference: { value: "W1" }, number: { value: 1 }, sequence: { value: 0 },
-                       note: { text: "ghost" })
+      runtime.dispatch_flat("NestedPieces::Workspace.Board.Card.Annotate",
+                            reference: { value: "W1" }, number: { value: 1 }, sequence: { value: 0 },
+                            note: { text: "ghost" })
     end.to raise_error(Hecks::Runtime::NotFound, /sequence\.value 0/)
   end
 end

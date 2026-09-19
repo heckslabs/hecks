@@ -1,9 +1,10 @@
 require "spec_helper"
 
-# `Arithmetic#sign_of` used to answer DECREMENT's sign for both an unknown
+# `Arithmetic#sign_of` would answer decrement's sign for both an unknown
 # op name and a declared, real op that carries no sign at all (set/append/
-# multiply/clamp/remove) — `.find(...)&.sign || -1` can't tell "not found"
-# from "found, sign legitimately nil" apart from "found, sign is -1". Both
+# multiply/clamp/remove) if it relied on `.find(...)&.sign || -1`, which
+# can't tell "not found" from "found, sign legitimately nil" apart from
+# "found, sign is -1". Both
 # callers already gate every non-arithmetic op through their own `case`
 # before reaching #sign_of, so this is a direct, no-boot unit test of the
 # backstop itself, not a real dispatch path today.

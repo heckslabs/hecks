@@ -40,7 +40,7 @@ RSpec.describe "LedgerOrdering" do
     expect(folder[:slips].map { |slip| slip[:reference][:value] }).to eq(["S1"])
   end
 
-  # THE STRESS DISPATCH — the whole reason this domain exists. `to.entity`
+  # **The stress dispatch** — the whole reason this domain exists. `to.entity`
   # names a Slip that was never added; `amount.value` fails its own
   # invariant. Both are true at once — which refusal comes back first is
   # the question, and Ruby's own construction-before-lookup order answers
@@ -50,8 +50,8 @@ RSpec.describe "LedgerOrdering" do
     LedgerOrdering::Folder.open!(reference: { value: "F1" })
 
     expect do
-      runtime.dispatch("LedgerOrdering::Folder.Slip.Amend",
-                       to: { aggregate: "F1", entity: "NOPE" }, amount: { value: -1 })
+      runtime.dispatch_flat("LedgerOrdering::Folder.Slip.Amend",
+                            to: { aggregate: "F1", entity: "NOPE" }, amount: { value: -1 })
     end.to raise_error(Hecks::Runtime::InvariantViolation, /positive/)
   end
 end

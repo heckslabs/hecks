@@ -91,12 +91,25 @@ impl RoutingEnvelope {
         &self.entities
     }
 
+    // BUG#146 (qa/bluebook/quality_control.bluebook) — this wording used
+    // to be `routing_refusal`'s own generic "invalid routing envelope:
+    // route requires N entity identit{y,ies}, got M" text. Ruby's own
+    // `Invocation.route` (lib/hecks/runtime/invocation.rb) raises `"to:
+    // for an entity command needs N entity identity/identities after the
+    // aggregate — got M"` for the identical depth mismatch — a plain
+    // message-template mismatch (both sides already agreed on the
+    // refusal KIND, `TypeMismatch`, before this fix; only the wording
+    // differed), found while verifying BUG#141/BUG#123's own aggregate-
+    // dispatch-order fix, which needs this exact wording to match for
+    // its own regression fixtures to byte-compare clean. No `routing_
+    // refusal` prefix here on purpose — Ruby's message carries none
+    // either.
     pub fn require_depth(&self, expected: usize) -> Result<(), Refusal> {
         if self.entities.len() == expected {
             Ok(())
         } else {
-            Err(routing_refusal(&format!(
-                "route requires {expected} entity identit{}, got {}",
+            Err(Refusal::TypeMismatch(format!(
+                "to: for an entity command needs {expected} entity identit{} after the aggregate — got {}",
                 if expected == 1 { "y" } else { "ies" },
                 self.entities.len()
             )))
@@ -108,6 +121,36 @@ impl RoutingEnvelope {
 pub struct CommandInvocation {
     route: Option<RoutingEnvelope>,
     facts: Json,
+    // BUG#141/BUG#123 (qa/bluebook/quality_control.bluebook) — WHICH of
+    // the two shapes `from_json` parsed this call as: the explicit
+    // `with:` form (`true`) or the legacy/flat-facts form (`false`,
+    // whether or not a route was ALSO given). Ruby's own `Invocation.
+    // from_call` (lib/hecks/runtime/invocation.rb) treats these two
+    // shapes differently for an :aggregate-receiver command: `with:`
+    // validates facts (`refuse_unknown_facts!`/`refuse_absent_facts!`)
+    // BEFORE `route(to)` ever runs, but the legacy shape's own `facts_
+    // for` is a silent no-op — so `route(to)`'s own `TypeMismatch` (a
+    // malformed/wrong-depth `to:`) is effectively the FIRST thing that
+    // can raise, well before `CommandInterpreter`'s own args-gate
+    // (`refuse_unknown_arguments`/`refuse_absent_arguments`, now
+    // `kernel::decode_aggregate_arguments`) ever runs. Exposed here
+    // (`explicit_with`, below) so a generated aggregate-command dispatch
+    // (`rust/project/registry.rb`/`rust/codegen/src/registry.rs`'s own
+    // aggregate arm) can replicate that SAME conditional ordering at
+    // runtime, per call, rather than picking one fixed order for every
+    // call. Roadmap D2 (#751) made the route-depth check run eagerly,
+    // ahead of `decode_aggregate_arguments`, for EVERY aggregate
+    // command — correct for the legacy shape, but D2's own comment on
+    // `route_precheck_line` names the gap left open: the with: shape's
+    // own facts-strictness (`refuse_unknown_facts!`/`refuse_absent_
+    // facts!`) genuinely runs BEFORE `route(to)` on the Ruby side, so a
+    // wrong-depth route alongside bad with:-shaped facts refused
+    // TypeMismatch in Rust where Ruby refuses UnknownArgument/
+    // AbsentArgument first. Entity- and port-receiver dispatch need no
+    // such conditional — Ruby already resolves `to:` unconditionally
+    // first for those, regardless of shape, so this field exists only
+    // for the aggregate arm to read.
+    explicit: bool,
 }
 
 impl CommandInvocation {
@@ -178,6 +221,7 @@ impl CommandInvocation {
             return Ok(Self {
                 route,
                 facts: strip_routing_keys(value),
+                explicit: false,
             });
         }
 
@@ -242,7 +286,7 @@ impl CommandInvocation {
             return Err(routing_refusal("with must be an object of command facts"));
         }
 
-        Ok(Self { route, facts })
+        Ok(Self { route, facts, explicit: true })
     }
 
     pub fn route(&self) -> Option<&RoutingEnvelope> {
@@ -251,6 +295,14 @@ impl CommandInvocation {
 
     pub fn facts(&self) -> &Json {
         &self.facts
+    }
+
+    /// `true` when this call used the explicit `with:` shape, `false` for
+    /// the legacy/flat-facts shape (whether or not `to:` was ALSO given)
+    /// — see this struct's own `explicit` field header for the full
+    /// reasoning and why a generated aggregate-command dispatch needs it.
+    pub fn explicit_with(&self) -> bool {
+        self.explicit
     }
 
     /// Splits an aggregate-scoped port invocation into receiver identity and
@@ -593,6 +645,49 @@ mod tests {
         let invocation = CommandInvocation::from_json(&input).unwrap();
         assert_eq!(invocation.route(), None);
         assert_eq!(invocation.facts(), &Json::obj(vec![("quantity", Json::int(3))]));
+    }
+
+    // BUG#141/BUG#123 — `explicit_with()` is the one new bit of surface
+    // this fix adds: it must read `true` exactly when `from_json` took
+    // the explicit `with:` branch, `false` for every legacy-shaped call,
+    // whether or not a route was ALSO given (a generated aggregate-
+    // command dispatch needs to tell those apart regardless of `to:`).
+    #[test]
+    fn explicit_with_is_true_only_for_the_explicit_with_shape() {
+        let with_and_to = CommandInvocation::from_json(&Json::obj(vec![
+            ("to", Json::str("DOWNTOWN:12")),
+            ("with", Json::obj(vec![("amount", Json::int(20))])),
+        ]))
+        .unwrap();
+        assert!(with_and_to.explicit_with());
+
+        let with_only = CommandInvocation::from_json(&Json::obj(vec![(
+            "with",
+            Json::obj(vec![("amount", Json::int(20))]),
+        )]))
+        .unwrap();
+        assert!(with_only.explicit_with());
+
+        let legacy_with_to = CommandInvocation::from_json(&Json::obj(vec![
+            ("to", Json::str("ORDER-7")),
+            ("quantity", Json::int(3)),
+        ]))
+        .unwrap();
+        assert!(!legacy_with_to.explicit_with());
+
+        let legacy_no_to = CommandInvocation::from_json(&Json::obj(vec![(
+            "amount",
+            Json::int(20),
+        )]))
+        .unwrap();
+        assert!(!legacy_no_to.explicit_with());
+
+        let legacy_null_with = CommandInvocation::from_json(&Json::obj(vec![
+            ("with", Json::Null),
+            ("amount", Json::int(20)),
+        ]))
+        .unwrap();
+        assert!(!legacy_null_with.explicit_with());
     }
 
     #[test]
