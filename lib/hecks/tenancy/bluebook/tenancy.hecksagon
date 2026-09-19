@@ -1,0 +1,14 @@
+Hecks.hecksagon "Tenancy" do
+  Tenancy::Tenant.persisted_by("LocalStorage")
+
+  # THE TRANSLATION SEAM — the one explicit place Deploy's "Tenant"
+  # (a validated request) becomes Tenancy's "Tenant" (a durable fact).
+  # `on` deliberately omits the "Deploy::" prefix: PolicyInterpreter
+  # matches by event name plus the emitting aggregate's own demodulised
+  # name only, never the domain (confirmed live — a domain-qualified
+  # `on` silently never matches).
+  translates "RegisterProvisionedTenant" do
+    on Tenant::TenantProvisioned
+    trigger Tenant::Register
+  end
+end

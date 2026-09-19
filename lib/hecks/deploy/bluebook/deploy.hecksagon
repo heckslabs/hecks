@@ -1,4 +1,20 @@
 # The Deploy domain, bound so it boots standing alone.
 Hecks.hecksagon "Deploy" do
   persisted_by "Memory"
+
+  # THE IMPERATIVE HALF, BEHIND A REAL PORT — `bin/project_tenant`
+  # dispatches this `asks` once `Tenant.Declare` has already validated
+  # the request; `TenantProvisioner` (lib/hecks/adapters/driven/
+  # tenant_provisioner.rb) does the actual file-write/boot/gate work
+  # and answers or refuses. `database`/`adapter` are declared here,
+  # not on `Tenant` itself — CLI-only choices this validated request
+  # never needed to hold as its own state.
+  Deploy::Tenant.port "TenantProvisioning" do
+    asks "Provision", to: Tenant do
+      attribute :database, DatabaseName
+      attribute :adapter,  AdapterName
+      answers "TenantProvisioned"
+      refuses "ProvisioningRefused"
+    end
+  end
 end

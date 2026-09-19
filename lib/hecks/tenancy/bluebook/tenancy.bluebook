@@ -1,0 +1,134 @@
+# ITS OWN BOUNDED CONTEXT, booted centrally like `Deploy` — never
+# attached via `uses_framework` (a framework member's aggregate folds
+# into the ATTACHING domain's own per-boot registry, framework.rb:43-66
+# — since hecks gives each tenant its own separate `Runtime.boot`, a
+# framework-attached Tenant would exist as a single-row copy inside
+# EVERY tenant's own boot, never as one cross-tenant list, defeating
+# this domain's whole point). `Deploy::Tenant` (deploy.bluebook) stays
+# a SEPARATE, validation-only aggregate — a shape check before
+# provisioning; this is the durable, reactable runtime fact that
+# aggregate's own comment named and deliberately deferred. Two
+# different meanings of "Tenant," on purpose, translated at the one
+# explicit seam `tenancy.hecksagon`'s own `translates` line names.
+Hecks.bluebook "Tenancy" do
+  vision "Which tenants exist, which realm and storage each one owns, and whether each is currently allowed to run, is one queryable, historical fact — not scattered across a world-file overlay and a validation-only command."
+
+  supporting
+
+  aggregate "Tenant" do
+    description "One tenant's durable identity and lifecycle — registered, then active or suspended, until retired."
+
+    identified_by :slug
+
+    attribute :slug,   Slug
+    attribute :domain, DomainName
+    attribute :realm,  Realm
+    attribute :schema, Schema
+    attribute :status, Status, default: { value: "Active" }
+
+    value_object "Slug" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a tenant slug is named") { !value.to_s.empty? }
+    end
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a tenant names the domain it is for") { !value.to_s.empty? }
+    end
+
+    value_object "Realm" do
+      attribute :value, String
+      invariant("a tenant realm is named") { !value.to_s.empty? }
+    end
+
+    value_object "Schema" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a schema is named") { !value.to_s.empty? }
+    end
+
+    value_object "Status" do
+      attribute :value, String, one_of: ["Active", "Suspended", "Retired"]
+    end
+
+    # FIRES AFTER PROVISIONING, NEVER BEFORE — a pure record with no
+    # side effects, dispatched by `tenancy.hecksagon`'s own `translates`
+    # reaction once `Deploy::Tenant.Provision`'s adapter has already
+    # written the world overlay and proven the domain boots. Driving
+    # provisioning FROM this command's own emission would need a
+    # process manager reacting to it — the exact durable-saga cost
+    # `deploy.bluebook`'s own `Tenant` aggregate comment already argued
+    # three local, idempotent, single-process steps don't need.
+    command "Register" do
+      role "Deploy tooling"
+      goal "Record that a tenant now exists, after its shape has been validated and its schema provisioned"
+
+      attribute :slug,   Slug
+      attribute :domain, DomainName
+      attribute :realm,  Realm
+      attribute :schema, Schema
+
+      sets :slug
+      sets :domain
+      sets :realm
+      sets :schema
+
+      emits "TenantRegistered"
+    end
+
+    # RECORD-ONLY — nothing today reads `status` before dispatch or
+    # boot, so suspending a tenant here does not yet stop anything from
+    # running. Spelled out in this command's own `goal`, not just a
+    # comment, so it survives into generated docs/corpus rather than
+    # quietly reading as enforced when it isn't — the exact "a dial
+    # says a check runs when nothing runs it" defect class this
+    # project has already been burned by once.
+    command "Suspend" do
+      role "Deploy tooling"
+      goal "Record that a tenant should no longer be treated as active — nothing yet enforces this at dispatch or boot time"
+
+      reference_to Tenant
+
+      sets :status, to: "Suspended"
+
+      emits "TenantSuspended"
+    end
+
+    command "Reactivate" do
+      role "Deploy tooling"
+      goal "Restore a suspended tenant to active"
+
+      reference_to Tenant
+
+      sets :status, to: "Active"
+
+      emits "TenantReactivated"
+    end
+
+    # RECORD-ONLY, DELIBERATELY — dropping a live Postgres schema as an
+    # automatic side effect of a command handler would break the pure,
+    # no-adapter-calls-from-a-handler shape every other command in this
+    # corpus holds to. Real teardown, if ever built, is its own
+    # separate, deliberately reviewed tool — never implicit here.
+    command "Retire" do
+      role "Deploy tooling"
+      goal "Record that a tenant is permanently done — real schema teardown is a deliberately separate, manually-run tool, never automatic here"
+
+      reference_to Tenant
+
+      sets :status, to: "Retired"
+
+      emits "TenantRetired"
+    end
+
+    query "Active" do
+      description "Every tenant currently allowed to run."
+      where(status: "Active")
+    end
+
+    query "BySlug" do
+      description "One tenant's current record, by its slug."
+      attribute :slug, Slug
+      where(slug: :slug)
+    end
+  end
+end
