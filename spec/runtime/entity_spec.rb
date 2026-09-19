@@ -19,13 +19,13 @@ RSpec.describe "an entity" do
   end
 
   def funded_account(runtime)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" },
+    runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" },
 narrative: { text: "Opening" })
-    runtime.dispatch("Banking::Account.Debit", number: { value: "a1" }, amount: { cents: 2_500, currency: "USD" },
+    runtime.dispatch_flat("Banking::Account.Debit", number: { value: "a1" }, amount: { cents: 2_500, currency: "USD" },
 narrative: { text: "Groceries" })
   end
 
@@ -40,9 +40,9 @@ narrative: { text: "Groceries" })
 
   it "validates a nested value object before appending an entity" do
     runtime = boot_banking
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     # Narrative carries a `pattern:` (the whitespace-only sweep) as well as
@@ -50,7 +50,7 @@ narrative: { text: "Groceries" })
     # before invariants, so a blank narrative is refused as a TypeMismatch,
     # not an InvariantViolation, before sets ever appends the entry.
     expect do
-      runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
+      runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
 narrative: { text: "" })
     end.to raise_error(Hecks::Runtime::TypeMismatch,
                        'Narrative.text must match [^ \t\n\r], got ""')
@@ -59,8 +59,8 @@ narrative: { text: "" })
   it "is addressed through the parent, and only that element changes" do
     runtime = boot_banking
     funded_account(runtime)
-    runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
+    runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
+                          number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     ledger = Banking::Account.find("a1").ledger
     expect(ledger[1][:state]).to eq("reversed")
@@ -72,19 +72,19 @@ narrative: { text: "" })
   it "has its own state machine, refusing in so many words" do
     runtime = boot_banking
     funded_account(runtime)
-    runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Once" })
+    runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
+                          number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Once" })
 
     # LedgerEntry.Reverse also carries its own explicit `given("entry is
     # posted")` (a customer/account/entry status guard) — since
-    # `enforce_givens` runs BEFORE `admissible_transition` in
+    # `enforce_givens` runs before `admissible_transition` in
     # DISPATCH_ORDER, an already-reversed entry is refused there first:
     # GivenNotMet, not the lifecycle's own LifecycleRefused. Still refused
     # either way — see spec/runtime/command_rules_spec.rb's own matching
     # note on Account.FreezeAccount/Transfer.Settle for the general shape.
     expect do
-      runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Twice" })
+      runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
+                            number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Twice" })
     end.to raise_error(Hecks::Runtime::GivenNotMet, "Reverse refused — entry is posted")
   end
 
@@ -93,9 +93,9 @@ narrative: { text: "" })
     funded_account(runtime)
 
     expect do
-      runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
-      # The message names the declared PATH now ("sequence.value"), not just the
+      runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
+                            number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
+      # The message names the declared path now ("sequence.value"), not just the
       # head — the same precision every construct's not-found message carries.
     end.to raise_error(Hecks::Runtime::NotFound,
                        'no LedgerEntry with sequence.value 99 on Account "a1"')
@@ -104,7 +104,7 @@ narrative: { text: "" })
   it "refuses an element by an identity that fails its own type's invariant as NotFound, not InvariantViolation" do
     # BUG#3 (found live by `bin/qa_sweep`, banking fuzz seed 23) —
     # `LedgerSequence`'s own "a ledger sequence is positive" invariant used
-    # to be checked WHILE locating the element, before this method ever
+    # to be checked while locating the element, before this method ever
     # asked whether one existed — so `sequence: 0` (which can never be a
     # real, posted entry's sequence) raised InvariantViolation instead of
     # the same NotFound `sequence: 99` (a valid-shaped but nonexistent
@@ -116,8 +116,8 @@ narrative: { text: "" })
     funded_account(runtime)
 
     expect do
-      runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                       number: { value: "a1" }, sequence: { value: 0 }, narrative: { text: "Ghost" })
+      runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
+                            number: { value: "a1" }, sequence: { value: 0 }, narrative: { text: "Ghost" })
     end.to raise_error(Hecks::Runtime::NotFound,
                        'no LedgerEntry with sequence.value 0 on Account "a1"')
   end
@@ -125,8 +125,8 @@ narrative: { text: "" })
   it "answers its query with the element AND whose boundary it is" do
     runtime = boot_banking
     funded_account(runtime)
-    runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
-                     number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
+    runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse",
+                          number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     rows = runtime.query("Banking::Account.LedgerEntry.Reversed")
     materialized = rows.map { |row| row.transform_values { |value| Hecks::Runtime::Value.materialize(value) } }

@@ -3,12 +3,12 @@ require "fileutils"
 require "open3"
 require "yaml"
 
-# Regression coverage for the combination bin/project_deploy used to
-# refuse outright: a Shared-mode domain (database "Shared") with real
+# Regression coverage for the combination bin/project_deploy once
+# refused outright: a Shared-mode domain (database "Shared") with real
 # Google OAuth (web "Rust" + a .env.local carrying GOOGLE_CLIENT_ID).
 # The refusal assumed OAuth needed its own NAT Gateway this domain has
 # none of in Shared mode — but a Shared-mode rust_web domain's main
-# dispatch function already runs inside the OWNER's borrowed private
+# dispatch function already runs inside the owner's borrowed private
 # subnets/security group, which the owner's own template already
 # routes through its NAT Gateway and already permits 443 egress on
 # (added there for the owner's own real, live OAuth token-exchange
@@ -76,7 +76,7 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
   end
 
   # `deploy:`'s own recipe, lines only — line-based (not a single regex)
-  # because the recipe has a genuine BLANK line inside it (between
+  # because the recipe has a genuine blank line inside it (between
   # `sam build` and `$(MAKE) sync-google-oauth`), which a naive
   # `(?:\t.*\n)+` line-of-recipe pattern stops matching at.
   def self.deploy_recipe_lines(makefile)
@@ -111,7 +111,7 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
     expect(@raw).to match(/SESSION_SECRET_ARN: !Sub "\$\{\w+SessionSecret\}"/)
   end
 
-  # The main function's execution role needs to fetch BOTH secrets
+  # The main function's execution role needs to fetch both secrets
   # GOOGLE_OAUTH_SECRET_ID/SESSION_SECRET_ARN name at runtime now (see
   # that Environment block's own comment) — same
   # secretsmanager:GetSecretValue shape the DB secret's own grant
@@ -127,15 +127,15 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
     expect(resources).to include(a_string_matching(/SessionSecret\}\z/))
   end
 
-  # The Parameters SECTION declaring both sets together (above) is
+  # The Parameters section declaring both sets together (above) is
   # necessary but not sufficient — `deploy:`'s own `sam deploy` call is
-  # a SEPARATE piece of generated code that has to actually PASS both
+  # a separate piece of generated code that has to actually pass both
   # sets of values, or the stack it declared them for refuses at
   # deploy time with "Parameters: [...] must have values" no matter
   # how correct template.yaml itself is. The `if google_oauth_present
   # ... elsif shared ...` bug this file's own header describes was
   # fixed here first (Parameters section, #347) and left unfixed in
-  # THIS sibling code for a full deploy cycle before being caught live
+  # this sibling code for a full deploy cycle before being caught live
   # — this coverage is what should have caught it the first time.
   it "passes both the Owning* and WebRedirectBaseUrl overrides together in deploy:'s own sam deploy call" do
     recipe = self.class.deploy_recipe_lines(@makefile).join
@@ -149,16 +149,16 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
                                                                   "real sam deploy call (the WEB_URL-present branch)"
   end
 
-  # `deploy:`'s recipe is not ONE giant chain end to end — it's several
+  # `deploy:`'s recipe is not one giant chain end to end — it's several
   # independent shell invocations back to back (e.g. `sam build`, then a
   # standalone `@echo` announcing the Shared-mode owner-stack lookup below
   # it, then the actual backslash-joined lookup+`sam deploy` chain). What
-  # must never happen is a SECOND '@' appearing MID a single backslash-
+  # must never happen is a second '@' appearing mid a single backslash-
   # joined chain — that stops being a Make directive and becomes literal,
   # invalid shell text the moment it's concatenated with the line before
   # it. Checked per chain, not across the whole recipe: a target can
   # legitimately carry more than one independent '@'-prefixed line (see
-  # mint_era_recipe's own OWNMINT branch, which already does this).
+  # mint_era_recipe's own `OWNMINT` branch, which already does this).
   def self.shell_chains(lines)
     chains = []
     current = []

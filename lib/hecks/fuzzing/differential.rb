@@ -8,10 +8,10 @@ require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
-    # THE RUBY-VS-RUST COMPARISON OF ONE GENERATED SEQUENCE — moved here,
+    # The Ruby-vs-Rust comparison of one generated sequence — moved here,
     # unchanged, out of `bin/qa_sweep`'s own `diff_ruby_vs_rust` so a second
     # caller (`bin/qa_generated_domains --rust`, which compares domains the
-    # generator wrote rather than ones on the rotation) runs the SAME
+    # generator wrote rather than ones on the rotation) runs the same
     # comparison rather than a re-derived one. `bin/qa_sweep` delegates to
     # it; its own comments on the known-gap filtering, the wire-precision
     # reduction and the deep copy taken before `strip_emitted_flags!` apply
@@ -20,10 +20,10 @@ module Hecks
     # `differ` is anything answering `RustConformanceHelpers`' comparison
     # helpers (spec/support/rust_conformance_helpers.rb) plus a
     # `structural_skips` set — duck-typed, so lib never requires spec/.
-    # Which query verbs may diverge is NOT the differ's call: it is read
+    # Which query verbs may diverge is not the differ's call: it is read
     # off the binary's own manifest.json (`manifest_partition`, below).
     #
-    # RETURNS ONE DIVERGENCE LIST PER ACTIVE MODE — `{ differential: [...],
+    # Returns one divergence list per active mode — `{ differential: [...],
     # self_consistency: [...], properties_in_differential: [...],
     # adapter_parity_sqlite: [...] }`, keys present only for the modes in
     # `modes:` (`differential` always). `adapter_parity_sqlite:` is the
@@ -32,7 +32,7 @@ module Hecks
     module Differential
       module_function
 
-      # THE ONE PLACE A RUBY/RUST QUERY DIVERGENCE MAY BE TOLERATED — and
+      # The one place a Ruby/Rust query divergence may be tolerated — and
       # only for a verb `gaps` (a `RustGapManifest`) declares not generated.
       # Rust refuses such a verb outright while Ruby answers it for real
       # (or refuses it for its own business reason), so both sides' rows for
@@ -42,9 +42,19 @@ module Hecks
       #
       # `skipped` is every tolerated verb this history actually reached (for
       # the sweep's structural_skip_report). `stale` is a divergence per
-      # tolerated verb Rust nonetheless ANSWERED with a query row: the
+      # tolerated verb Rust nonetheless answered with a query row: the
       # manifest says "not generated" but the binary disagrees, so the
       # tolerance itself is wrong and must not silently hold.
+      # @param gaps [Hecks::Fuzzing::RustGapManifest] the compiled binary's manifest
+      # @param ruby_refusals [Array<Hash>] Ruby's own refusal rows for this history
+      # @param rust_refusals [Array<Hash>] the Rust binary's own refusal rows
+      # @param ruby_queries [Array<Hash>] Ruby's own query rows for this history
+      # @param rust_queries [Array<Hash>] the Rust binary's own query rows
+      # @return [Hash] `ruby_refusals:`/`rust_refusals:`/`ruby_queries:`/
+      #   `rust_queries:` (each with tolerated verbs removed), `skipped:` (a
+      #   `Set<String>` of every tolerated verb this history actually reached),
+      #   and `stale:` (an `Array<Hash>` divergence per tolerated verb the Rust
+      #   binary nonetheless answered)
       def manifest_partition(gaps, ruby_refusals:, rust_refusals:, ruby_queries:, rust_queries:)
         verb_of  = ->(row) { row.key?("verb") ? row["verb"] : row["query"] }
         declared = ->(row) { gaps.not_generated?(verb_of.call(row)) }
@@ -60,11 +70,22 @@ module Hecks
           skipped: reached.to_set(&verb_of), stale: stale }
       end
 
+      # Runs the standard property battery and reports every one that failed.
+      #
+      # @param history [Hash] a replayed history as returned by `Replay.call`
+      # @return [Array<Hash>] one `{field:, detail:}` entry per failed property
       def property_divergences(history)
         Properties.check(history).reject { |_, result| result == true }
                   .map { |name, message| { field: name.to_s, detail: message } }
       end
 
+      # Flattens `history[:self_consistency]`'s own per-check divergence lists.
+      #
+      # @param history [Hash] a replayed history as returned by `Replay.call`,
+      #   optionally carrying `:self_consistency` (`Replay.call`'s own
+      #   `self_consistency: true`)
+      # @return [Array<Hash>] every self-consistency divergence recorded; empty if
+      #   `history` carries no `:self_consistency`
       def self_consistency_divergences(history)
         return [] unless history[:self_consistency]
 
@@ -75,6 +96,19 @@ module Hecks
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/PerceivedComplexity
       # rubocop:disable-next Metrics/MethodLength
+      # @param differ [Object] duck-typed comparison helper answering
+      #   `RustConformanceHelpers`' interface (adapter-defined)
+      # @param domain_path [String] path to the domain directory to replay
+      # @param steps [Array<Hash>] the step sequence to replay on both engines
+      # @param binary [String] path to the compiled Rust conformance binary to run
+      # @param modes [Array<Symbol>] which comparisons to run — any of
+      #   `:differential` (always run), `:self_consistency`,
+      #   `:properties_in_differential`, `:adapter_parity_sqlite`
+      # @param adapter_parity_sqlite [Proc, nil] callable answering the
+      #   `:adapter_parity_sqlite` mode's own comparison, or `nil` to skip it
+      #   even when named in `modes`
+      # @return [Hash{Symbol => Array<Hash>}] one divergence list per active mode,
+      #   keyed by the mode name; `:differential` is always present
       def diff(differ, domain_path, steps, binary, modes:, adapter_parity_sqlite: nil)
         self_consistency = modes.include?(:self_consistency)
         ruby_result    = Replay.call(domain_path, steps, self_consistency: self_consistency)

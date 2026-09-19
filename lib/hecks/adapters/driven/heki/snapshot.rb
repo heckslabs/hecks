@@ -23,7 +23,7 @@ module Hecks
           raise Malformed, "#{@path}: json error: #{e.message}"
         end
 
-        # Temp-file-plus-rename, fsynced before the rename: a reader can
+        # Temp-file-plus-rename, fsynced ahead of the `File.rename` call: a reader can
         # only ever see the last complete snapshot or the one before it,
         # never a truncated or partial one — `File.binwrite`'s old
         # truncate-then-write left a window, proportional to the whole

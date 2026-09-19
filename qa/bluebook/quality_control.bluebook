@@ -367,29 +367,35 @@ unless defined?(QualityControlDials)
     # `--persistence-parity` and `--self-consistency false` are aliases
     # kept for the hands that already type them.
     #
-    # `adapter_parity_sqlite` — THE MEMORY-VS-SQLITE PASS NOW EXISTS
-    # (`PersistenceParity.diff` generalised to `left:/right:` pairs, wired
-    # into `bin/qa_sweep`'s own per-seed loop — the detection plan's
-    # PR-4), and this dial is STILL `false`. `sqlite` is a capability
-    # EVERY domain has (`TargetCapabilities.infer` always includes it), so
-    # flipping this to `true` gives every waiting target with a clean
-    # sweep a SECOND Memory-vs-adapter comparison on every ordinary sweep
-    # — real, if cheap (no server, on-disk SQLite only), extra I/O
-    # multiplied across the whole rotation, and this practice has not yet
-    # measured that cost at rotation scale. Left off until someone does;
-    # flipping it is the entire enablement once they have.
+    # TWO KINDS OF `false` LIVE IN THIS TABLE, AND CONFLATING THEM IS HOW
+    # A DIAL GETS FLIPPED BY ACCIDENT. `adapter_parity_sqlite`,
+    # `era_boundary` and `concurrency` are BUILT and deliberately off:
+    # each is real extra I/O multiplied across the whole rotation
+    # (`concurrency` pays for a real fork and two real disposable schemas
+    # per seed — see `bin/qa_sweep`'s own top-of-file comment for the
+    # mechanism), and this practice has not yet measured that cost at
+    # rotation scale. Flipping one is the entire enablement once someone
+    # has. `wasm_front` and `adapter_parity_postgres` are off for a
+    # categorically different reason: NOTHING RUNS THEM. No compiled WASM
+    # dispatch front exists in this repository to compare against, and
+    # `adapter_parity_postgres` has no pair in `ADAPTER_PARITY_PAIRS`, no
+    # branch in `bin/qa_sweep`, and no place in `--all`'s deferred wave
+    # (which names only `era_boundary`/`concurrency`).
     #
-    # `era_boundary`/`concurrency` — ALSO NOW BUILT (`lib/hecks/fuzzing/
-    # era_boundary.rb`, `lib/hecks/fuzzing/concurrent_dispatch.rb`, both
-    # wired into `bin/qa_sweep`'s own mode system and its own `--all`
-    # later wave), STILL `false` for the SAME reasoning
-    # `adapter_parity_sqlite` already states one paragraph up: neither
-    # has been cost-measured at rotation scale, and `concurrency`
-    # specifically pays for a real fork and two real disposable schemas
-    # per seed — see `bin/qa_sweep`'s own top-of-file comment on both for
-    # the full mechanism. `wasm_front` stays `false` for a different
-    # reason: no compiled WASM dispatch front exists in this repository
-    # to differentially compare against yet.
+    # ALL FIVE WERE `true` FOR A WHILE, AND ONLY THE BUILT ONES MADE A
+    # SOUND. Commit `4a917a37` flipped the lot inside a PR about something
+    # else; the three built ones turned main red on four `:io` examples
+    # and were reverted (#741). The two unbuilt ones did nothing at all,
+    # and that silence is the defect: `TargetCapabilities.resolve` only
+    # asks whether the target HAS the capability, so each landed in
+    # `active_modes`, printed on the `resolved modes:` line and into the
+    # sweep's own `notes=`, and produced no Check — a sweep advertising a
+    # comparison nobody had written. That is exactly the quiet divergence
+    # this chapter's opening comment names, aimed at the practice itself.
+    # `TargetCapabilities::RUNNABLE_MODES` now says which modes exist,
+    # `bin/qa_sweep` REFUSES to start when a dial or `--modes` enables one
+    # that does not, and `spec/qa_sweep_runnable_modes_spec.rb` greps the
+    # runner so the list cannot drift from the code again.
     MODES = settings.modes
 
     # HOW OFTEN A GENERATED ROLE-GATED COMMAND STEP CARRIES A DRAWN CALLER

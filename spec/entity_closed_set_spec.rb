@@ -1,15 +1,16 @@
 require "spec_helper"
 require "hecks/fuzzing/value_generator"
 
-# A type-position `one_of` on an ENTITY attribute synthesizes a closed-set
-# value object — and EntityBuilder used to build it and then drop it:
-# `Entity.declare` carries no value objects, so the set existed nowhere in
-# the finished graph. The attribute stayed typed at a name nothing could
-# resolve — the one_of was decorative at runtime (no admission), and the
-# fuzzer crashed every run on the first domain to declare one (a chess
-# King/Rook's own castling flag) with `ValueGenerator does not know
-# primitive type "Moved"`. The set now rides the same installer an
-# entity's own identity value object already rides to the aggregate.
+# A type-position `one_of` on an entity attribute synthesizes a closed-set
+# value object — if EntityBuilder built it and then dropped it,
+# `Entity.declare` carries no value objects, so the set would exist
+# nowhere in the finished graph. The attribute would stay typed at a name
+# nothing could resolve — the one_of would be decorative at runtime (no
+# admission), and the fuzzer would crash every run on the first domain to
+# declare one (a chess King/Rook's own castling flag) with `ValueGenerator
+# does not know primitive type "Moved"`. The set instead rides the same
+# installer an entity's own identity value object already rides to the
+# aggregate.
 RSpec.describe "an entity attribute's own one_of" do
   def build_chapter(&block)
     registry = Hecks::Runtime::Registry.new
@@ -76,7 +77,7 @@ RSpec.describe "an entity attribute's own one_of" do
 
     value = Hecks::Fuzzing::ValueGenerator.value_for(flag, board, random: Random.new(1))
     scalar = Hecks::Fuzzing::ValueGenerator.scalar_of(value)
-    # A generated value is USUALLY an admitted member; the generator also
+    # A generated value is usually an admitted member; the generator also
     # deliberately mints invalid ones to exercise the refusal. Either way
     # it must answer, never raise "does not know primitive type".
     expect(scalar).to be_a(String)

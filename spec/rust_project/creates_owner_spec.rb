@@ -7,13 +7,13 @@ require_relative "../../rust/project"
 # consult, closing the Rust compile break RESTART.md describes: 12 meta-
 # domain "attach one child to the owner" commands (`Aggregate.Attribute` et
 # al.) each declare an argument coincidentally named the same as one of
-# their OWNER's `identified_by` components (both have a field called
+# their owner's `identified_by` components (both have a field called
 # `name`) while never setting the owner's own field — their one mutation
-# APPENDS that argument into a list, sourced by it, which used to fool
-# `identity_components`'s bare-name check into treating it as the owner's
-# own id and misassigning it into the wrong-typed identity slot.
+# appends that argument into a list, sourced by it, which would fool
+# a bare-name check in `identity_components` into treating it as the
+# owner's own id and misassigning it into the wrong-typed identity slot.
 #
-# UNEXERCISED BY THE ORDINARY SUITE ON PURPOSE — Ruby's own runtime stopped
+# Unexercised by the ordinary suite on purpose — Ruby's own runtime stopped
 # consulting `Command#creates?` for hydration this session
 # (`CommandInterpreter#step_hydrate` uses `Runtime::DependencyPlanning::
 # Analyzer` instead), so nothing in spec/*.rb exercises this exact path;
@@ -37,9 +37,9 @@ RSpec.describe RustProjection::Projector do
     ]
   }.freeze
 
-  # `Aggregate.Attribute` — attaches one attribute to an EXISTING Aggregate.
+  # `Aggregate.Attribute` — attaches one attribute to an existing Aggregate.
   # Declares its own `name`/`type` args, `name` coincidentally sharing the
-  # owner's own identity component name, but its only mutation APPENDS them
+  # owner's own identity component name, but its only mutation appends them
   # into `:attributes` — it never sets the owner's own `:bluebook`/`:name`
   # fields at all.
   CREATES_OWNER_SPEC_ATTACH_COMMAND = {

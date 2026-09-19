@@ -13,11 +13,11 @@
 #   qa/quality_control bug.discover --help   what it wants, and how it refuses
 #   examples/pizzas/pizzas create_pizza name=Margherita …
 #
-# WHAT IS GENERATED IS A LAUNCHER, NOT A CLI. Each file is a dozen lines
+# What is generated is a launcher, not a CLI. Each file is a dozen lines
 # pinning one directory and handing over to `Facade::CliRunner` — the surface
 # still comes from `Projector.call(:cli, …)` at the moment it runs, so editing
 # a chapter changes the binary's behaviour without regenerating anything. That
-# is the whole reason the projection answers a SURFACE rather than a program:
+# is the whole reason the projection answers a surface rather than a program:
 # a generated dispatcher would need re-minting on every bluebook edit, and
 # would be a second copy of the parse-and-dispatch besides.
 #
@@ -31,6 +31,10 @@ require "fileutils"
 ROOT   = File.expand_path("..", __dir__)
 FOLDER = Hecks::Adapters::Folder.new
 
+# Finds every domain this checkout can mint a launcher for.
+#
+# @return [Array<String>] domain directory paths relative to the repo root, deduplicated
+#   and sorted
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
      .map { |path| FOLDER.domain_root(File.dirname(path)) }
@@ -43,6 +47,12 @@ end
 # The name comes from `Hecks.bluebook "…"`, not from the directory — a domain
 # renamed with `formerly_known_as` gets a binary under its new name, and the
 # directory it happens to sit in is nobody's business.
+#
+# Boots the domain to read its declared name, warning and skipping rather
+# than aborting the whole run if one domain fails to boot.
+#
+# @param path [String] a domain directory path, relative to the repo root
+# @return [String, nil] the domain's declared bluebook name, or nil if it failed to boot
 def bluebook_name(path)
   Hecks.boot(File.join(ROOT, path), install_facade: false).registry.bluebooks.keys.first
 rescue StandardError => e
@@ -50,19 +60,24 @@ rescue StandardError => e
   nil
 end
 
-# A DOMAIN'S COMMAND LINE LIVES WITH THE DOMAIN.
+# A domain's command line lives with the domain.
 #
-# These used to be minted into `bin/`, which put a chapter's front door a
-# directory away from the chapter, its adapters, its translations and its
-# docs — so `qa/` held everything about the practice except the way anybody
-# actually runs it. Beside the domain, a folder is the whole unit: hand
-# somebody `qa/` and they have the tool, not a pointer to one.
+# Minted beside the domain rather than into `bin/`, which would put a
+# chapter's front door a directory away from the chapter, its adapters, its
+# translations and its docs — leaving `qa/` holding everything about the
+# practice except the way anybody actually runs it. Beside the domain, a
+# folder is the whole unit: hand somebody `qa/` and they have the tool, not
+# a pointer to one.
 #
-# AND THEN EVERYTHING IS RELATIVE. The launcher sits IN the domain root, so
+# And then everything is relative. The launcher sits in the domain root, so
 # the domain it boots is simply `__dir__` — no path to spell, nothing to
 # re-point when a directory moves. Only `lib` is left to reach, and that is
 # counted from how deep the domain sits: `qa/` is one up, `examples/pizzas/`
 # is two. A checkout can be cloned anywhere and no line here knows where.
+#
+# @param path [String] the domain directory path, relative to the repo root
+# @param name [String] the domain's declared bluebook name
+# @return [String] the generated launcher script's full source
 def launcher(path, name)
   snake = Hecks::Naming.snake(name)
   up    = "../" * path.count("/").succ
@@ -106,7 +121,7 @@ wanted.each do |path|
   File.write(file, launcher(path, name))
   FileUtils.chmod("+x", file)
 
-  # THE OLD ADDRESS IS REMOVED, not left to rot. A stale `bin/pizzas` still
+  # The old address is removed, not left to rot. A stale `bin/pizzas` still
   # boots and still works, which is exactly what makes it dangerous: two
   # launchers for one chapter, and no way to tell from the outside which one
   # somebody's muscle memory is running.

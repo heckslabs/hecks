@@ -16,11 +16,16 @@ require "fileutils"
 require "json"
 
 # `merged.rs` (both meta's own and a target domain's own, below) needs
-# each read model's own `group_by_fn_body` written into the SAME file
+# each read model's own `group_by_fn_body` written into the same file
 # `emit_read_model_table` is about to reference by bare function name —
 # `registry.rs` gets this via `domain_generator.rb`'s own emission loop,
 # but `merged.rs` is a wholly separate `File.open` block this script
 # builds itself, so it needs the identical emission repeated here.
+#
+# @param file [File] the open file handle `merged.rs` is being written to
+# @param read_models [Array<Hash>] read-model IR entries; each entry whose `:group_by_fn_body`
+#   key is present has that Rust source written verbatim
+# @return [void]
 def emit_group_by_bodies(file, read_models)
   read_models.each do |rmd|
     next unless rmd[:group_by_fn_body]
@@ -35,9 +40,9 @@ end
 # generator has to handle whatever domain it's pointed at, lineage-capable
 # or not, so it requires the plugin directly and unconditionally — a
 # legitimate, explicit consumer, not a core-boundary violation. This also
-# defines the `Hecks::Adapters::PostgresEra` CLASS constant
+# defines the `Hecks::Adapters::PostgresEra` class constant
 # (`lineage_capable?`'s own singleton method lives there — the plain,
-# non-era `Postgres` class does NOT declare it at all), so `registry.
+# non-era `Postgres` class does not declare it at all), so `registry.
 # adapter_class("PostgresEra")` (Runtime::EraCheck's own capability
 # lookup, reused below) can resolve it. Safe at generator time and every
 # other time: `require "pg"` is lazy, inside `PostgresEra.connect_for`
@@ -47,16 +52,16 @@ require "hecks/ports/persistence/plugins/era"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 
-# DOMAIN-NAME LANDMINE GUARD (R5) — validated FIRST, before ANY side
+# Domain-name landmine guard (R5) — validated first, before any side
 # effect this script has (including the `meta`/`active` directory wipes
-# below, in BOTH the opt-in and default paths) — an earlier version of
-# this guard sat right before the `meta`/`active` `FileUtils.rm_rf`
-# calls further down, which meant an invalid domain name still wiped
-# `rust/src/generated/meta/` before the abort fired, leaving it deleted
+# below, in both the opt-in and default paths), because validating this
+# any later — right before the `meta`/`active` `FileUtils.rm_rf` calls
+# further down — lets an invalid domain name still wipe
+# `rust/src/generated/meta/` before the abort fires, leaving it deleted
 # and never regenerated (found live, from a real negative-path test run
-# against a domain named "version" during this fix's own verification).
+# against a domain named "version").
 # `target_mod_name` becomes, unescaped, a directory name, a literal Rust
-# module identifier (`pub mod #{name};`), AND a Cargo feature name
+# module identifier (`pub mod #{name};`), and a Cargo feature name
 # (rust/Cargo.toml) — two distinct ways that can go wrong:
 #
 #   1. Not a legal, unadorned Rust identifier (contains `-`, starts with
@@ -65,13 +70,13 @@ domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 #   2. A legal identifier that collides with something else load-bearing:
 #      - a Rust keyword (`RUST_KEYWORDS`, `rust/project/naming.rb`) —
 #        `pub mod type;` doesn't compile either, module names get no
-#        raw-identifier (`r#type`) escape hatch the way struct FIELDS do
+#        raw-identifier (`r#type`) escape hatch the way struct fields do
 #        (`rust_ident_field`).
 #      - a Cargo.toml key the feature-sync regex (further down, and in
 #        `rust/project_rust_pipeline.rb`) would false-positive against
 #        if it weren't scoped to `[features]` — `version`/`edition`/
 #        `name`/`path` are exactly the `[package]`/`[lib]`/`[[bin]]`
-#        keys that used to risk matching.
+#        keys the regex would otherwise risk matching.
 #      - `default` itself — Cargo reserves that name for the
 #        auto-enabled feature set; a domain can't also own it.
 #
@@ -87,33 +92,33 @@ unless RustProjection::Projector.valid_domain_mod_name?(File.basename(domain))
         "key (#{RustProjection::Projector::CARGO_RESERVED_DOMAIN_NAMES.join(', ')}). Rename the domain directory."
 end
 
-# STAGE 8 OPT-IN — `HECKS_PARSER=rust HECKS_CODEGEN=rust bin/project_rust
-# <domain>` runs the ENTIRE pipeline (parse AND codegen) through
+# **Stage 8 opt-in** — `HECKS_PARSER=rust HECKS_CODEGEN=rust bin/project_rust
+# <domain>` runs the entire pipeline (parse and codegen) through
 # `rust/parser`'s `hecks-parse`/`rust/codegen`'s `hecks-codegen`
-# instead, with ZERO `Kernel.load` of any domain bluebook — see
+# instead, with zero `Kernel.load` of any domain bluebook — see
 # `rust/project_rust_pipeline.rb`'s own header for the full contract
-# and its one deliberately-named gap (`manifest.json`, coverage
-# bookkeeping only). The `lineage` sidecar key this comment used to name
-# as that gap is CLOSED — `derive_lineage` computes it there for real,
-# proven byte-exact against this default path's own `Exporter.lineage`
-# by `spec/project_rust_pipeline_spec.rb` for both pizzas (a real
-# capable aggregate) and banking (real binds, zero capable).
+# (`manifest.json` is now written by `hecks-codegen` itself). The
+# `lineage` sidecar key is fully computed on this path too —
+# `derive_lineage` computes it there for real, proven byte-exact against
+# this default path's own `Exporter.lineage` by
+# `spec/project_rust_pipeline_spec.rb` for both pizzas (a real capable
+# aggregate) and banking (real binds, zero capable).
 #
-# PAIRED, not independently toggleable: `HECKS_PARSER=rust` alone would
-# mean "parse in Rust, then hand a Rust-shaped ir.json to the STILL-Ruby
+# Paired, not independently toggleable: `HECKS_PARSER=rust` alone would
+# mean "parse in Rust, then hand a Rust-shaped ir.json to the still-Ruby
 # `RustProjection::DomainGenerator` below" — that already works today
 # (`domain_generator.rb`'s own `json_shaped` seam exists for exactly
-# this), but it is a DIFFERENT, narrower experiment than "compile
+# this), but it is a different, narrower experiment than "compile
 # entirely in Rust" and isn't what this stage is verifying end-to-end.
 # `HECKS_CODEGEN=rust` alone (Ruby parses, Rust generates) has no
-# real use today either: `hecks-codegen` only reads the `ir.json` SHAPE,
+# real use today either: `hecks-codegen` only reads the `ir.json` shape,
 # never Ruby's own live IR objects, so there's no seam for Ruby-parsed
-# input to skip. Requiring BOTH keeps the opt-in meaning exactly one
+# input to skip. Requiring both keeps the opt-in meaning exactly one
 # thing — the plan's own "no Ruby involved at build time" — rather than
 # a matrix of half-Rust configurations nothing exercises or verifies.
 #
-# THE DEFAULT (no env vars, or only one of the two set) is the
-# ORIGINAL body below, UNCHANGED — every other concurrent session in
+# The default (no env vars, or only one of the two set) is the
+# original body below, unchanged — every other concurrent session in
 # this repo calling `bin/project_rust` for unrelated work keeps getting
 # exactly what it always has.
 if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
@@ -121,7 +126,7 @@ if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
   RustProjectPipeline.call(domain)
 else
 
-  # EVERY IR HANDED TO THE GENERATOR GOES THROUGH REAL JSON FIRST — never
+  # Every IR handed to the generator goes through real JSON first — never
   # the live Hash `Exporter.call` returns. That Hash carries real Ruby
   # Symbols (`Attribute#to_h`'s `name:`, `Mutation#to_h`'s
   # `op:`/`target:`); the `ir.json` sidecar the generator writes alongside
@@ -131,22 +136,29 @@ else
   # depend on the Symbol spelling, and that dependency would only surface
   # the day the producer changed. This is the seam: the generator is only
   # ever exercised against the shape its future input actually has.
+  # Round-trips a Ruby value through JSON, so downstream generator code
+  # only ever sees the String-keyed, String-valued shape a real `ir.json`
+  # sidecar (or a future Rust-side parser's output) would carry.
+  #
+  # @param payload [Object] a live Ruby value, typically a Hash carrying Symbols
+  # @return [Object] the same shape with every key symbolized and every value coerced
+  #   through a JSON round-trip (Symbols elsewhere become Strings)
   def json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
-  # `root:` — WITHOUT IT, a domain declaring `uses_embryonaut_bluebook`
+  # `root:` — without it, a domain declaring `uses_embryonaut_bluebook`
   # (lifeadelics is the first real one) refuses here with "needs a
   # registry with a root to vendor from": EmbryonautBluebook.load!
   # resolves `<root>/vendor/embryonaut_bluebooks/<name>/bluebook/` off
   # this registry's own root, same as any other boot
   # (Runtime::Loader.boot's own `root: File.dirname(directory)`) — this
   # generator built its own bare registry before vendoring existed as a
-  # feature and was never updated once it did. `domain` itself IS the
+  # feature and was never updated once it did. `domain` itself is the
   # root here (not its parent) — a domain's `vendor/` sits directly
   # inside its own directory (`<domain>/vendor/embryonaut_bluebooks/`),
   # not beside it the way Runtime::Loader.boot's `directory` (the
-  # nested `bluebook/` subfolder one level down) needs its OWN parent.
+  # nested `bluebook/` subfolder one level down) needs its own parent.
   target_registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain))
-  # Declared BEFORE the block below, not first-assigned inside it — a
+  # Declared before the block below, not first-assigned inside it — a
   # block passed to a method call (unlike `if`/`while`) opens its own
   # local scope, so a variable only ever assigned inside `with_registry
   # do ... end` would vanish the moment the block returns.
@@ -156,30 +168,30 @@ else
     Kernel.load(File.expand_path("../lib/hecks/ports/extraction.port", __dir__))
     Kernel.load(File.expand_path("../lib/hecks/adapters/driven/memory.adapter", __dir__))
     Kernel.load(File.expand_path("../lib/hecks/adapters/driven/prism.adapter", __dir__))
-    # The DSL declaration (name + fields), NOT the Ruby class required
-    # above — `registry.adapters["PostgresEra"]` (an Adapter, from THIS
+    # The DSL declaration (name + fields), not the Ruby class required
+    # above — `registry.adapters["PostgresEra"]` (an Adapter, from this
     # load) and `registry.adapter_class("PostgresEra")` (the Ruby class,
     # from the `require` above) are two separate lookups `EraCheck.
     # lineage_capable?` checks in sequence; both have to be present or it
-    # silently (and correctly, for any OTHER unloaded adapter) answers
+    # silently (and correctly, for any other unloaded adapter) answers
     # false.
     Kernel.load(File.expand_path("../lib/hecks/adapters/driven/postgres_era.adapter", __dir__))
-    # EVERY *.bluebook FILE DIRECTLY IN THE DOMAIN'S OWN DIRECTORY, not
+    # Every *.bluebook file directly in the domain's own directory, not
     # just one — Wave 7's own reference-decluttering split banking's
     # aggregates across 8 sibling files (customer_relationships.bluebook,
     # deposit_accounts.bluebook, ...), none of which "#{File.basename(
-    # domain)}.bluebook" (banking.bluebook, itself declaring ZERO
+    # domain)}.bluebook" (banking.bluebook, itself declaring zero
     # aggregates now — confirmed live: `grep -c 'aggregate "'
     # banking.bluebook` is 0) would ever match alone. `Adapters::Folder#
     # load_bluebooks`'s own default `["*.bluebook"]` pattern, `Dir[]`-
     # sorted, loads all of them together, banking.bluebook itself first
-    # (alphabetically ahead of every split sibling) — the SAME load
-    # order the single explicit `Kernel.load` used to give it alone.
+    # (alphabetically ahead of every split sibling) — the same load
+    # order a single explicit `Kernel.load` would give it alone.
     bluebook_directory = File.join(domain, "bluebook")
     domain_bluebook_path = File.join(bluebook_directory, "#{File.basename(domain)}.bluebook")
     Hecks::Adapters::Folder.new.load_bluebooks(bluebook_directory)
 
-    # ALSO every translations/*.bluebook edge — same directory's own
+    # Also every translations/*.bluebook edge — same directory's own
     # `translations/` subdirectory, same load-order position Vocabulary's
     # own "LoadOrder" entry gives them (between the domain's own
     # .bluebook and .hecksagon) — this generator's registry build was
@@ -195,9 +207,9 @@ else
     # say so here.
     Dir[File.join(bluebook_directory, "translations", "*.bluebook")].each { |file| Kernel.load(file) }
 
-    # ALSO every .hecksagon file in the folder — this is what
+    # Also every .hecksagon file in the folder — this is what
     # actually fires `uses_framework`, which `Kernel.load`s that framework
-    # member's own .bluebook into this SAME registry as a side effect
+    # member's own .bluebook into this same registry as a side effect
     # (HecksagonBuilder#uses_framework -> Framework.load!, hecksagon_
     # builder.rb:31-34 / framework.rb:37-46) — the same mechanism the app
     # itself already relies on at real boot time, not a new one. A domain
@@ -208,14 +220,14 @@ else
   end
 
   # Still .keys.first, unchanged from before .hecksagon was ever loaded
-  # here — the target domain's OWN chapter is always loaded first,
+  # here — the target domain's own chapter is always loaded first,
   # before .hecksagon's uses_framework calls add anything else, so
   # insertion order (Ruby Hash's own guarantee) already puts it first
   # regardless of how many framework chapters get pulled in after it.
   target_domain_name = target_registry.bluebooks.keys.first
   target_ir = json_shaped(Hecks::Projector::Exporter.call(target_registry).fetch(target_domain_name))
 
-  # MERGED IN, NOT PART OF `Exporter.call`'s OWN OUTPUT — see `Exporter.
+  # Merged in, not part of `Exporter.call`'s own output — see `Exporter.
   # lineage`'s own header: a binding fact, not a shape fact, so it rides
   # alongside the canonical per-domain IR as its own top-level key rather
   # than inside it (ADR 0001 stays true: `bluebook.to_h` itself never
@@ -224,26 +236,26 @@ else
   # already reads at runtime, manifest.json) sees it the same way.
   target_ir[:lineage] = json_shaped(Hecks::Projector::Exporter.lineage(target_registry, target_domain_name))
 
-  # SAME SEAM AGAIN — `Exporter.persistence`'s own header explains why
+  # **Same seam again** — `Exporter.persistence`'s own header explains why
   # this needs no era-plugin guard (`BindingPolicy` is core) and covers
   # every aggregate, not just lineage-capable ones: `rust/host` reads it
   # to refuse loudly at boot against an adapter it has no backend for.
   target_ir[:persistence] = json_shaped(Hecks::Projector::Exporter.persistence(target_registry, target_domain_name))
 
-  # SAME SEAM — `Exporter.authorization`'s own header: the chapter this
+  # **Same seam** — `Exporter.authorization`'s own header: the chapter this
   # domain's role checks resolve against, so `rust/host` reads the grant
   # verb and assignment aggregate instead of naming Governance. Omitted
   # entirely when nothing attached provides "authorization".
   authorization = Hecks::Projector::Exporter.authorization(target_registry, target_domain_name)
   target_ir[:authorization] = json_shaped(authorization) unless authorization.empty?
 
-  # SAME SEAM, SAME REASONING — `Exporter.translations` walks the whole
+  # **Same seam, same reasoning** — `Exporter.translations` walks the whole
   # registry (a shared registry can hold another domain's edges too, the
   # same way it can hold another domain's bluebook via uses_framework),
   # filtered down to this target domain's own before it ever reaches
   # `target_ir`. Each edge already carries its own precompiled SQL
   # (`compiled_state_expression`/`compiled_id_expression` —
-  # Translation::RuleCompiler, the SAME code head_compiler.rb's real
+  # Translation::RuleCompiler, the same code head_compiler.rb's real
   # per-mint assembly calls, not a second compiler) — a future
   # boot-time-mint consumer never needs to compile SQL itself, only
   # execute what Ruby already compiled.
@@ -251,24 +263,24 @@ else
     Hecks::Projector::Exporter.translations(target_registry).select { |edge| edge[:domain] == target_domain_name }
   )
 
-  # THE RAW BLUEBOOK SOURCE TEXT — a binding fact same as `lineage`/
+  # **The raw bluebook source text** — a binding fact same as `lineage`/
   # `translations` above (not part of `bluebook.to_h`'s own canonical
-  # IR, which describes SHAPE, never the literal text that declared it —
+  # IR, which describes shape, never the literal text that declared it —
   # ADR 0001 again), but one a future Rust-side mint needs verbatim:
   # `hecks_eras.held_text` is this exact string, byte for byte, and the
   # integrity digest every held era is checked against
-  # (era_store.rb's own `verify_integrity!`) is SHA256 of THIS text, not
+  # (era_store.rb's own `verify_integrity!`) is SHA256 of this text, not
   # of anything re-derived from the parsed IR. Read directly off disk —
-  # the SAME file `Kernel.load` just parsed a few lines up — rather than
+  # the same file `Kernel.load` just parsed a few lines up — rather than
   # reconstructed from `bluebook.to_h`, which would produce a
-  # DIFFERENT (re-serialized, not authored) text and a digest nothing
+  # different (re-serialized, not authored) text and a digest nothing
   # already stored would ever match.
   target_ir[:source_text] = File.read(domain_bluebook_path)
 
-  # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecks/language/bluebook/`
-  # declares what a bluebook IS — Bluebook, Aggregate, Command, ValueObject,
+  # **The self-hosted language, compiled in too**. `lib/hecks/language/bluebook/`
+  # declares what a bluebook is — Bluebook, Aggregate, Command, ValueObject,
   # Query, Entity, Member, Policy, ProcessManager, Handler, Dispatch,
-  # Vocabulary, Syntax, ReadModel — in the SAME DSL any business domain uses,
+  # Vocabulary, Syntax, ReadModel — in the same DSL any business domain uses,
   # so it goes through the identical codegen pipeline as `target_ir` below,
   # not a special case. `MetaValidator.grammar_registry` is the real boot
   # sequence (nine files, in the declared order, merged into one chapter,
@@ -277,7 +289,7 @@ else
   # itself actually loads.
   meta_ir = json_shaped(Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
 
-  # `HECKS_RUST_DIR` — WHICH CRATE THIS PROJECTS INTO. Unset, it is this
+  # `HECKS_RUST_DIR` — which crate this projects into. Unset, it is this
   # repository's own `rust/`, exactly as always. `bin/qa_generated_domains
   # --rust` points it at a scratch copy of the crate, so projecting a
   # domain the generator wrote never touches the checked-in generated
@@ -286,17 +298,17 @@ else
   out_root = File.join(rust_dir, "src/generated")
   FileUtils.mkdir_p(out_root)
 
-  # SCOPED clearing, not a whole-tree wipe — multiple domains coexist on
+  # Scoped clearing, not a whole-tree wipe — multiple domains coexist on
   # disk now (Cargo features select which one actually compiles in, see
-  # below), so regenerating Banking must not erase a previously-generated
+  # below), so regenerating Banking must not erase an already-generated
   # Embryonaut and vice versa. Still cleared per-directory, not merely
-  # written into: a previous run for THIS SAME domain/chapter leaves stale
+  # written into: a previous run for this same domain/chapter leaves stale
   # .rs files behind otherwise (an aggregate that no longer exists).
-  # NO LONGER A WHOLE-DIRECTORY WIPE — WriteIfChanged.push_directory
+  # No longer a whole-directory wipe — WriteIfChanged.push_directory
   # opens tracking instead (its own header has the full argument: a
   # `File.write` skipped for identical content still needs a stale file
-  # from a REMOVED construct gone, which an unconditional rm_rf used to
-  # guarantee for free). `pop_and_prune`, once every write below for
+  # from a removed construct gone, which an unconditional rm_rf would
+  # otherwise guarantee for free). `pop_and_prune`, once every write below for
   # this directory is done, deletes exactly what this run never touched
   # — the same stale-file guarantee, without bumping every untouched
   # file's mtime along the way.
@@ -308,7 +320,7 @@ else
   # outright, not tracked — nothing should ever write here again.
   FileUtils.rm_rf(File.join(out_root, "active"))
 
-  # Already validated at the very top of this script, before ANY side
+  # Already validated at the very top of this script, before any side
   # effect (including the `meta`/`active` wipes above) — see that
   # guard's own header for why it moved there.
   target_mod_name = File.basename(domain)
@@ -317,20 +329,20 @@ else
   meta_result = RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecks/language/bluebook)",
                                                      File.join(out_root, "meta"), "meta")
 
-  # META'S OWN merged.rs — meta has always gotten full codegen (aggregates,
+  # Meta's own merged.rs — meta has always gotten full codegen (aggregates,
   # commands, queries, and now read models), but until this line nothing
-  # ever gave it the ONE FILE that makes a generated module SELECTABLE as
+  # ever gave it the one file that makes a generated module selectable as
   # its own compiled artifact (`domains`/Cargo feature detection, below,
   # both key off "does this directory have its own merged.rs" — the exact
   # same test `bin/rust_coverage`'s own header already documents for what
   # makes a directory "an independently selectable domain rather than a
-  # shared framework chapter"). Meta attaches no OTHER chapter of its own
+  # shared framework chapter"). Meta attaches no other chapter of its own
   # (`uses_framework` is a business-domain concept; the self-hosted
   # language declares nothing of the kind), so its own merged registry is
   # just its single-chapter one, restated under the same "merged.rs"
   # filename every other domain already writes — real, not a special case:
   # without this, `Bluebook::WholeBluebook` (the language's own read model)
-  # could be codegen'd but never actually RUN through kernel::cli's real
+  # could be codegen'd but never actually run through kernel::cli's real
   # stdin/stdout contract, which is exactly what proving it byte-for-byte
   # against Ruby (spec/rust_conformance_meta_spec.rb) needs.
   meta_merged_path = File.join(out_root, "meta", "merged.rs")
@@ -382,30 +394,30 @@ else
   target_queries = target_result[:queries]
   target_read_models = target_result[:read_models]
 
-  # EVERY OTHER BLUEBOOK NOW IN THE REGISTRY — the target domain's own
+  # Every other bluebook now in the registry — the target domain's own
   # uses_framework calls (fired by loading its .hecksagon, above) pulled
   # these in as a side effect. Each gets generated into its own module
   # (rust/src/generated/governance/, .../identity/, ...), exactly the
   # same call shape as `meta`/the target domain above — no chapter is
   # privileged. `chapter_mod_names` tracks the lowercase module name per
   # chapter so mod.rs (below) can declare all of them. Framework chapters
-  # are SHARED across every domain that attaches them (Banking and
+  # are shared across every domain that attaches them (Banking and
   # Embryonaut both use Governance/Identity) and their content is a pure
   # function of the framework bluebook alone, not of who's attaching it —
   # so clearing and regenerating one here is safe and idempotent
-  # regardless of which OTHER domain last touched it. `framework_queries`
+  # regardless of which other domain last touched it. `framework_queries`
   # rides alongside `framework_aggregates` for the exact same reason —
   # Governance's `AssignmentsForActor`/Identity's `ResolvedBy` need to
-  # reach the MERGED query table below, not just their own chapter's.
+  # reach the merged query table below, not just their own chapter's.
   chapter_mod_names = { target_mod_name => target_domain_name }
   framework_aggregates = []
   framework_queries = []
   framework_read_models = []
   framework_process_managers = []
-  # ONE ENTRY PER CHAPTER (target first — see below), each carrying
+  # One entry per chapter (target first — see below), each carrying
   # exactly what emit_merged_policy_table/emit_merged_cross_domain_
-  # policy_table need to qualify THAT chapter's own policies against
-  # ITS OWN domain_name/aggregates, never the target's. See
+  # policy_table need to qualify that chapter's own policies against
+  # its own domain_name/aggregates, never the target's. See
   # reactions.rb's own header on emit_merged_policy_table for why this
   # exists at all — recovers a documented, deliberate gap, not a new
   # capability invented speculatively.
@@ -459,25 +471,25 @@ else
     policy_sources << { domain_name: chapter_name, policies: chapter_ir[:policies], aggregates: chapter_ir[:aggregates] }
   end
 
-  # ONE MERGED Store/dispatch_by_name, spanning the target domain AND
+  # One merged Store/dispatch_by_name, spanning the target domain and
   # every framework chapter it attaches — registry.rb's own emit_registry
   # (and reactions.rb's emit_reference_key_table) already read each
   # aggregate's own chapter_mod:/domain_name: fields, so this is just
   # "call them once more over the union" (domain_generator.rb's own
   # header on why this is safe: nothing about a single-chapter call was
-  # privileged in the first place). Policies/process managers DO merge
-  # across chapters now — RECOVERED, not new: this used to only compile
-  # in the target domain's own (the comment here used to read
+  # privileged in the first place). Policies/process managers merge
+  # across chapters now — recovered, not new: compiling only the target
+  # domain's own left this invisible (the comment here once claimed
   # "Governance/Identity declare none today... not attempted by this
-  # pass"), invisible for exactly that reason until lifeadelics vendored
-  # a chapter (embryonaut_bluebooks/payments) that DOES declare real
+  # pass") until lifeadelics vendored
+  # a chapter (embryonaut_bluebooks/payments) that does declare real
   # ones — found live, its own PaymentGateway.Succeeded port operation
   # dispatching cleanly but never triggering the Payment.Succeed its own
-  # declared policy names, because the MERGED table those policies need
+  # declared policy names, because the merged table those policies need
   # to live in was empty. See reactions.rb's own emit_merged_policy_
   # table header for the full story.
   #
-  # Written into the TARGET DOMAIN'S OWN directory as `merged.rs` — never
+  # Written into the target domain's own directory as `merged.rs` — never
   # a separate shared `active/` module — so it lives and dies with that
   # domain's own generated tree, coexisting with any other domain's
   # `merged.rs` the same way `registry.rs`/`mod.rs` (DomainGenerator's
@@ -536,14 +548,14 @@ else
   end
   RustProjection::WriteIfChanged.pop_and_prune(File.join(out_root, target_mod_name))
 
-  # EVERY DOMAIN EVER GENERATED, SCANNED OFF DISK — not just the one this
-  # run targeted. A directory counts as an activatable DOMAIN (as opposed
+  # Every domain ever generated, scanned off disk — not just the one this
+  # run targeted. A directory counts as an activatable domain (as opposed
   # to a shared framework chapter like governance/identity, declared as a
   # plain module below but never independently selectable) exactly when
   # it carries its own merged.rs, the file this run just wrote for
   # `target_mod_name` and every prior run left behind for every domain
   # generated before it. This is what makes regenerating Embryonaut leave
-  # Banking not merely present on disk but still fully SELECTABLE.
+  # Banking not merely present on disk but still fully selectable.
   all_dirs = Dir.children(out_root).select { |name| File.directory?(File.join(out_root, name)) }.sort
   domains  = all_dirs.select { |name| File.exist?(File.join(out_root, name, "merged.rs")) }
 
@@ -614,7 +626,7 @@ else
       non_default_domains.combination(2).each do |a, b|
         f.puts "#[cfg(all(feature = #{a.inspect}, feature = #{b.inspect}))]"
         # NOTE: plain `a`/`b`/`domains.join` here, never `.inspect` — this
-        # whole line is ALREADY inside one Rust string literal
+        # whole line is already inside one Rust string literal
         # (`compile_error!("...")`); embedding another `.inspect`'s own
         # `"quoted"` form would nest unescaped double quotes and produce
         # invalid Rust (the exact class of landmine this pass is fixing
@@ -626,18 +638,18 @@ else
   end
   puts(root_mod_wrote ? "wrote #{root_mod_path}" : "#{root_mod_path} unchanged")
 
-  # CARGO.TOML KEPT IN SYNC — one feature per domain on disk (added if
+  # CARGO.TOML kept in sync — one feature per domain on disk (added if
   # missing, never removed here: a domain this run didn't touch stays
   # selectable, per the scoped-clearing change above), `default` set to
-  # THIS run's own domain so a plain `cargo build`/`cargo test` keeps
+  # this run's own domain so a plain `cargo build`/`cargo test` keeps
   # behaving exactly like it always has — whichever domain you just ran
-  # bin/project_rust for is what a bare build gives you. Any OTHER
+  # bin/project_rust for is what a bare build gives you. Any other
   # still-present domain remains reachable explicitly:
   # `cargo build --no-default-features --features banking`.
   #
   # Inserted right after the `default = [...]` line, not appended to the
   # end of the file — Cargo.toml is TOML, and a bare `name = []` appended
-  # past `[[bin]]` would parse as belonging to THAT table, not `[features]`.
+  # past `[[bin]]` would parse as belonging to that table, not `[features]`.
   cargo_toml_path = File.join(rust_dir, "Cargo.toml")
   cargo_toml = File.read(cargo_toml_path)
   unless cargo_toml.include?("[features]")
@@ -657,8 +669,8 @@ else
 
     TOML
   end
-  # SCOPED TO THE `[features]` TABLE ONLY (R5) — checking `name = ` against
-  # the WHOLE file (as a bare `cargo_toml =~ /^name\s*=/` used to) false-
+  # Scoped to the `[features]` table only (R5) — checking `name = ` against
+  # the whole file (as a bare `cargo_toml =~ /^name\s*=/` would) false-
   # positives against `[package]`'s `name`/`version`/`edition`, `[lib]`'s
   # `name`/`path`, `[[bin]]`'s `name`/`path` — real TOML keys that share a
   # word with a domain name (see the guard above, which now rejects a
@@ -673,11 +685,11 @@ else
     features_table = cargo_toml[/^\[features\](?:\n(?!\[).*)*$/] || ""
   end
   cargo_toml = cargo_toml.sub(/^default\s*=.*$/, "default = [#{target_mod_name.inspect}]")
-  # THE SINGLE HIGHEST-LEVERAGE SITE OF THIS WHOLE FIX — regenerating
-  # the SAME domain twice in a row needs no change here at all (its own
+  # The single highest-leverage site of this whole fix — regenerating
+  # the same domain twice in a row needs no change here at all (its own
   # `default = [...]` line already names it), but the old unconditional
   # File.write rewrote it anyway, bumping Cargo.toml's mtime and forcing
-  # Cargo to treat the ENTIRE crate as dirty on the very next `cargo
+  # Cargo to treat the entire crate as dirty on the very next `cargo
   # build`, wasm target or not. Measured live: this alone was enough to
   # make a content-identical second wasm build cost the same ~45-49s as
   # the first, on a machine where the same `cargo build` with nothing

@@ -3,14 +3,14 @@ require "spec_helper"
 # qa/stress_domains/waybill — see its own NOTES.md and the header comment
 # on waybill.bluebook for why this domain exists: the first
 # `process_manager` (saga) anywhere in this corpus to `dispatch` into a
-# NESTED ENTITY's own command, rather than a plain aggregate's — a
+# nested entity's own command, rather than a plain aggregate's — a
 # combination absent from every existing saga (banking's own
 # Onboarding/Settlement/ExternalSettlement, quality_control's own
 # BugCiWatch) and from `qa/stress_domains/nested_pieces` (which proves
 # entity nesting fuzzes correctly, but never through a saga's own
 # dispatch).
 #
-# BUG#6, FOUND AND FIXED — the combination did not work the first time
+# BUG#6, found and fixed — the combination did not work the first time
 # this domain ran it, for two compounding reasons in shared runtime
 # dispatch code, neither one specific to this domain:
 #
@@ -24,7 +24,7 @@ require "spec_helper"
 #      qualified against its own home domain, unconditionally — the
 #      same default `PolicyInterpreter#deliver` already applies when no
 #      explicit `across` names a different one, and the only reading
-#      that was ever actually correct: confirmed against the ENTIRE
+#      that was ever actually correct: confirmed against the entire
 #      corpus, no saga anywhere dispatches genuinely cross-domain.
 #
 #   2. Once (1) resolved the verb correctly, `ReactionInvocation.build`
@@ -32,7 +32,7 @@ require "spec_helper"
 #      an entity-owned dispatch: `source_receiver_for` refused to lift
 #      an inherited aggregate identity at all once a target carried any
 #      entities, and separately misread `target.command.creates?` — true
-#      for EVERY entity command by construction (`Behaviour::Command
+#      for every entity command by construction (`Behaviour::Command
 #      #creates?`'s own comment), not only a genuinely creating one —
 #      as a reason to refuse. Both were dead code paths until this
 #      domain exercised them for the first time; neither is specific to
@@ -40,7 +40,7 @@ require "spec_helper"
 #
 # See `lib/hecks/runtime/saga_interpreter.rb`'s `qualified` and
 # `lib/hecks/runtime/reaction_invocation.rb`'s `source_receiver_for` for
-# the full fix and reasoning. The three specs below now pin the CORRECT,
+# the full fix and reasoning. The three specs below now pin the correct,
 # fixed behavior — no change to this domain's own bluebook was needed;
 # it was correctly authored from the start.
 RSpec.describe "Waybill" do
@@ -75,11 +75,11 @@ RSpec.describe "Waybill" do
 
   # BUG#12 — `Manifest.AddSlot`'s own append mapping (`{ number: :number
   # }`) never names `Slot.item` (`optional: true`, only ever set later,
-  # by `Slot.Fill`). Before the fix, the freshly appended `Slot` had no
-  # `:item` key at all — this pins that it now does, `nil`-valued, the
+  # by `Slot.Fill`). Without the fix, the freshly appended `Slot` would have no
+  # `:item` key at all — this pins that it does, `nil`-valued, the
   # same way Rust's generated `to_json` already always would. Dispatched
   # directly (`Manifest.open!`/`add_slot!`), never through the saga —
-  # the saga's own `Consignment.request!` runs `AddSlot` AND `Fill` in
+  # the saga's own `Consignment.request!` runs `AddSlot` and `Fill` in
   # the same synchronous chain, which would already hide the gap this
   # pins (`Fill` itself creates the `:item` key, the instant it runs).
   it "gives a freshly appended Slot a key for its own optional item attribute, unset" do
@@ -104,7 +104,7 @@ RSpec.describe "Waybill" do
     expect(delivered["Manifest.AddSlot"]).to be(true)
   end
 
-  # THE FINDING ITSELF, NOW FIXED. `Manifest::Slot.Fill` — a legitimately
+  # **The finding itself, now fixed**. `Manifest::Slot.Fill` — a legitimately
   # declared, correctly addressed entity command — delivers, and the slot
   # it fills actually holds the item afterward.
   it "delivers Manifest::Slot.Fill — the saga's own entity-command dispatch works" do
@@ -119,10 +119,10 @@ RSpec.describe "Waybill" do
     expect(manifest[:slots].first[:item][:text]).to eq("widget")
   end
 
-  # THE DOWNSTREAM CONSEQUENCE — because leg 3 now delivers, the saga
+  # **The downstream consequence** — because leg 3 now delivers, the saga
   # actually reaches its own happy path: `ConsignmentShipped` (this
   # process manager's own `ends_on`) fires, and the `:refused` leg
-  # (compensation/cancellation) never runs at all. Asserting THIS, not
+  # (compensation/cancellation) never runs at all. Asserting this, not
   # merely the raw delivery above, is what makes this a real end-to-end
   # regression pin rather than an isolated unit fact.
   it "ships the consignment — the saga's happy path (ConsignmentShipped) is reachable" do

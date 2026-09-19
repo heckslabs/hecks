@@ -3,18 +3,18 @@ require "spec_helper"
 # M20 (docs/audits/2026-08-11-bug-triage.md, docs/audits/2026-08-10-main-bug-audit.md):
 # `Dispatcher#reenter` tracked "how deep into a reaction cascade am I" with a
 # plain instance ivar (`@reaction_depth`) on a `Dispatcher` that is shared
-# across every Puma worker thread. Two concurrent TOP-LEVEL dispatches on
-# different threads incremented/decremented the SAME counter, so one
+# across every Puma worker thread. Two concurrent top-level dispatches on
+# different threads incremented/decremented the same counter, so one
 # thread's nested-reaction depth leaked into another thread's unrelated
 # dispatch — either masking a real runaway-recursion condition or
 # (as demonstrated below) falsely tripping `reaction_depth_reached?` for a
 # thread that never actually nested that deep.
 #
 # `registry.rb`'s own `@saga_mutex` comment already named this exact hazard
-# by cross-reference before this spec existed. A `Mutex` is NOT the fix here
+# by cross-reference before this spec existed. A `Mutex` is not the fix here
 # (see that same comment, and `SagaInterpreter#advance_saga`'s: a reaction
-# cascade re-enters `reenter` on the SAME thread, and `Mutex` is not
-# reentrant) — the depth needs to be per-THREAD, not serialized across
+# cascade re-enters `reenter` on the same thread, and `Mutex` is not
+# reentrant) — the depth needs to be per-thread, not serialized across
 # threads. `Runtime::Caller` (`caller.rb`) already established the idiom
 # this file now follows: `Thread.current[...]`, saved/restored around the
 # call with a plain local + `ensure`.
@@ -28,13 +28,14 @@ RSpec.describe Hecks::Runtime::Dispatcher do
       dispatcher = bare_dispatcher
       levels_entered = 0
 
-      # Each `dispatch` stub call recurses one level deeper via `reenter`,
+      # Each `dispatch_flat` stub call recurses one level deeper via
+      # `reenter` (the flat wire door `reenter` itself calls),
       # exactly the shape a real policy/saga cascade produces (a triggered
       # command's own announced events re-entering `@policies.react` /
       # `@sagas.advance`, which call `door.reenter` again) — and, exactly
       # like `PolicyInterpreter`/`SagaInterpreter` themselves, checks
-      # `reaction_depth_reached?` BEFORE recursing again rather than after.
-      dispatcher.define_singleton_method(:dispatch) do |verb, **_args|
+      # `reaction_depth_reached?` before recursing again rather than after.
+      dispatcher.define_singleton_method(:dispatch_flat) do |verb, _args = {}|
         levels_entered += 1
         dispatcher.reenter("Nested::deeper") unless dispatcher.reaction_depth_reached?
       end
@@ -59,7 +60,7 @@ RSpec.describe Hecks::Runtime::Dispatcher do
 
       # Thread A nests 4 real reactions deep (MAX_REACTION_DEPTH is 5, so 4
       # is legitimately still under the ceiling) and then, from its
-      # INNERMOST frame, pauses — still "inside" its own reaction cascade —
+      # innermost frame, pauses — still "inside" its own reaction cascade —
       # until Thread B has independently run its own single, unrelated
       # top-level `reenter` to completion-in-progress. Thread B's read of
       # "what's my starting depth" must be 0 (a fresh top-level dispatch on
@@ -71,20 +72,20 @@ RSpec.describe Hecks::Runtime::Dispatcher do
       a_result         = Queue.new
 
       a_level = 0
-      dispatcher.define_singleton_method(:dispatch) do |verb, **_args|
+      dispatcher.define_singleton_method(:dispatch_flat) do |verb, _args = {}|
         case verb
         when "A::step"
           a_level += 1
           if a_level < 4
             dispatcher.reenter("A::step")
           else
-            # INNERMOST: A is now 4 reactions deep on its own thread.
+            # Innermost: A is now 4 reactions deep on its own thread.
             a_reached_bottom << true
             b_has_entered.pop
-            # THE ASSERTION THAT MATTERS: A is genuinely 4 deep (< 5), so
+            # **The assertion that matters**: A is genuinely 4 deep (< 5), so
             # this must read false regardless of anything Thread B does
             # concurrently on the shared/unshared counter. Checked and
-            # signaled BEFORE Thread B is allowed to unwind (below) — under
+            # signaled before Thread B is allowed to unwind (below) — under
             # the bug, B's `reenter` ensure hasn't restored anything yet at
             # this exact point, so the shared ivar is still holding B's
             # contaminated write.

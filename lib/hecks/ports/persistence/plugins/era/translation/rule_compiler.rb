@@ -2,23 +2,22 @@ require "json"
 
 module Hecks
   module Translation
-    # The closed, PURE half of Postgres's own SQL compiler
-    # (adapters/driven/postgres_era/lineage/head_compiler.rb) — the part
-    # that turns one TranslationAggregate's declared rules into a
-    # jsonb-transforming SQL expression. No database connection, no
-    # watermark, no era chain, no catalog lookup: those stay exactly
-    # where they were, in head_compiler.rb's own per-mint assembly,
-    # which calls into this module instead of defining these methods
-    # itself.
+    # The closed, pure half of Postgres's own SQL compiler
+    # (ports/persistence/plugins/era/postgres_era/lineage/head_compiler.rb)
+    # — the part that turns one TranslationAggregate's declared rules into
+    # a jsonb-transforming SQL expression. No database connection, no
+    # watermark, no era chain, no catalog lookup: those live in
+    # head_compiler.rb's own per-mint assembly, which calls into this
+    # module instead of defining these methods itself.
     #
-    # Extracted here — not left as private methods on
-    # Adapters::PostgresEra::Lineage — so a SECOND, adapter-agnostic
+    # A module of its own — not private methods on
+    # Adapters::PostgresEra::Lineage — so a second, adapter-agnostic
     # caller (Exporter.translation_aggregate's build-time SQL export,
     # feeding rust/host's own future boot-time mint) can call the exact
-    # SAME code Ruby's own mint path runs, not a hand-ported duplicate
-    # that could silently drift the way `Exporter.translation_hash`
-    # drifted from `hecks_eras`/`hecks_approvals`' real schema before
-    # this file existed (rekeys/backfills were missing for years).
+    # same code Ruby's own mint path runs, not a hand-ported duplicate
+    # that could silently drift the way a hand-kept
+    # `Exporter.translation_hash` can drift from `hecks_eras`/
+    # `hecks_approvals`' real schema (leaving out rekeys and backfills).
     module RuleCompiler
       module_function
 
@@ -27,6 +26,13 @@ module Hecks
       # in the reference transform's phase order (renames, moves,
       # converts, drops), computes last. `retype` compiles to nothing:
       # stored state never carries a type name.
+      # Compiles a declared edge's rename/move/convert/drop/compute rules into one nested SQL
+      # expression over the `state` jsonb column.
+      #
+      # @param declared [Bluebook::TranslationAggregate] this edge's declared rules for one
+      #   aggregate
+      # @return [String] a SQL expression, `"state"` unchanged when `declared` declares none
+      #   of the five rule kinds
       def compile_rules(declared)
         expression = "state"
         declared.renames.each do |old_name, new_name|
@@ -51,31 +57,47 @@ module Hecks
         expression
       end
 
-      # Whether THIS edge's declared rules for this aggregate include a
+      # Whether this edge's declared rules for this aggregate include a
       # rekey — checked directly off the raw IR object, the same way
       # every other rule kind is already read in `compile_rules`
       # (`declared.computes`, `declared.moves`, ...), not through the
       # `Ports::Persistence::Lineage` wrapper the app-level consumers
       # (coverage_check.rb, minter.rb, layer_two.rb) go through — this
       # module builds SQL straight off the IR either way.
+      # Reports whether an edge's declared rules for an aggregate include a rekey.
+      #
+      # @param declared [Bluebook::TranslationAggregate, nil] this edge's declared rules for
+      #   one aggregate; nil for an aggregate the edge declares nothing about
+      # @return [Boolean] true when `declared` is present and its `rekeys` is non-empty
       def rekeyed?(declared) = declared && !declared.rekeys.empty?
 
-      # THE ONLY TWO PLACES `aggregate_id` NEEDS TO CHANGE — guarded so
+      # The only two places `aggregate_id` needs to change — guarded so
       # the generated SQL for the overwhelming common case (no rekey
       # declared) stays the bare `aggregate_id` passthrough it always
-      # was — this CASE only appears in an edge that actually declares
+      # was — this case only appears in an edge that actually declares
       # one.
+      #
+      # @param guard [String] a SQL boolean expression gating when the rekey applies, such as
+      #   `"operation = 'save'"`
+      # @param declared [Bluebook::TranslationAggregate] this edge's declared rules; must
+      #   declare a rekey (`rekeyed?(declared)` true)
+      # @return [String] a `"CASE WHEN ... END AS aggregate_id"` SQL expression
       def id_case(guard, declared)
         "CASE WHEN #{guard} THEN #{compile_id_expression(declared)} ELSE aggregate_id END AS aggregate_id"
       end
 
-      # THE REKEY'S OWN SQL — reading `state` directly, not the
+      # The rekey's own SQL — reading `state` directly, not the
       # progressively-built `expression` chain `compile_compute` reads
       # from. A rekey doesn't consume or move any field the way a move
       # or compute does, so there is no same-edge rename/move ordering
       # it needs to see first — it reads the record's stored fields
       # exactly as they already are, the same `__s` convention
       # `compile_compute` exposes.
+      #
+      # @param declared [Bluebook::TranslationAggregate] this edge's declared rules; its
+      #   first `rekeys` entry supplies the SQL
+      # @return [String] a SQL expression evaluating the rekey's own SQL against the record's
+      #   current `state`
       def compile_id_expression(declared)
         rekey = declared.rekeys.first
         "(SELECT (#{rekey.sql}) FROM (SELECT (state) AS __s) __outer)"
@@ -85,6 +107,12 @@ module Hecks
       # — evaluated exclusively inside the compiled head, never
       # in-process. The old field is exposed under its own name (as
       # text, exactly as the author's expression expects to cast it).
+      #
+      # @param expression [String] the SQL expression built so far by `compile_rules`, read as
+      #   `__s` inside the compute's own SQL
+      # @param compute [Bluebook::TranslationCompute] the declared compute rule
+      # @return [String] `expression` wrapped so the compute's field lands at its declared
+      #   destination when the source field is present, unchanged otherwise
       def compile_compute(expression, compute)
         from = compute.from.to_s
         to = compute.to.to_s
@@ -96,7 +124,7 @@ module Hecks
           "LATERAL (SELECT (__s ->> #{text_literal(from)}) AS #{quote(from)}) __fields)"
       end
 
-      # `PG::Connection.quote_ident` needs the `pg` gem LOADED, not
+      # `PG::Connection.quote_ident` needs the `pg` gem loaded, not
       # connected — required here, lazily, the same "a domain that
       # never wires PostgresEra should never need the gem" reasoning
       # `PostgresEra.connect_for`'s own `require "pg"` already holds
@@ -104,13 +132,24 @@ module Hecks
       # non-Postgres-bound domain (there are none today, but nothing
       # here should assume there never will be) doesn't gain a hard
       # dependency on `pg` just by loading this file.
+      #
+      # @param name [String, Symbol] the identifier to quote
+      # @return [String] `name` as a double-quoted Postgres identifier
       def quote(name)
         require "pg"
         PG::Connection.quote_ident(name.to_s)
       end
 
+      # Renders a Ruby value as a single-quoted SQL text literal, escaping embedded quotes.
+      #
+      # @param text [String, Symbol, Object] the value to render; converted with `to_s`
+      # @return [String] a single-quoted SQL literal
       def text_literal(text) = "'#{text.to_s.gsub("'", "''")}'"
 
+      # Renders a dotted path as a SQL `text[]` array literal, one element per segment.
+      #
+      # @param path [String, Symbol] a bare or dotted path, such as `"price.cents"`
+      # @return [String] a SQL `ARRAY[...]::text[]` expression
       def path_literal(path)
         segments = path.to_s.split(".").map { |segment| text_literal(segment) }
         "ARRAY[#{segments.join(', ')}]::text[]"

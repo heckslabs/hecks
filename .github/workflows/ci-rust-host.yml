@@ -14,11 +14,36 @@ jobs:
   # era boundary against its own scratch database
   # (`rust_host_lineage_pizzas_#{suffix}`, created and dropped by the
   # spec itself — it never touches the shared `hecks_pizzas` database,
-  # so no separate provisioning step is needed here either). Its two
-  # binaries are built via the spec's own before(:context) hooks, same
-  # pattern as parser/codegen.
-  rspec_rust_host:
+  # so no separate provisioning step is needed here either).
+  #
+  # SPLIT INTO TWO JOBS, NOT ONE — 2026-09-18. `cargo test` and the
+  # rspec lineage spec used to run serially in one job (5m36s in a real
+  # run: 89s building wasm, 130s cargo test, 73s rspec), making this the
+  # tied-longest job in the whole pipeline. They have no real dependency
+  # on each other: the rspec spec builds its OWN `lineage_harness`
+  # binary independently (memoized in its own before(:all)-equivalent,
+  # same pattern as parser/codegen) and never reads anything `cargo
+  # test` produces. Confirmed by reading rust/host/src/bin/
+  # lineage_harness.rs directly — no reference to `rust/dist/*.wasm`
+  # anywhere, so it needs neither the wasm-toolchain setup nor the wasm
+  # build step below, only Postgres and a plain native `cargo build`.
+  # Isolation is real on both sides, not assumed: rust/host/src/
+  # dispatch.rs's own `#[cfg(test)] mod tests` creates a uniquely-named
+  # throwaway database per test ("so `cargo test`'s default parallelism
+  # doesn't race two tests against the same journal table" — its own
+  # comment), and the rspec spec does the identical thing with its own
+  # `SecureRandom.hex(4)`-suffixed scratch database/roles — so running
+  # both concurrently on separate runners, each against its own
+  # Postgres instance, has no collision surface at all.
+  #
+  # `rspec_rust_host_cargo` keeps the wasm build (the ONLY consumer of
+  # it) and `Create a superuser role` (only `cargo test`'s raw
+  # `tokio_postgres` connections bypass libpq's PG* env vars and need
+  # it — the rspec leg below connects via the `pg` gem, which already
+  # honors PGUSER/PGPASSWORD). `rspec_rust_host_lineage` drops both.
+  rspec_rust_host_cargo:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
     # need this job.
@@ -70,6 +95,33 @@ jobs:
       # RUBYOPT=-rbundler/setup and can load `pg`.
       - name: "cargo test (rust/host)"
         run: cd rust/host && bundle exec cargo test
+
+  rspec_rust_host_lineage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    if: github.event_name != 'push'
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      - uses: ./.github/actions/postgres
+
+      # Same cache, same crate-root as the cargo leg above — this leg
+      # only needs it to build the `lineage_harness` binary the spec
+      # itself compiles on first use; no wasm-toolchain, no wasm build,
+      # no superuser role (see the header comment above for why neither
+      # is needed here).
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: host
+          crate-root: rust/host
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb

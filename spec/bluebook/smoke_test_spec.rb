@@ -35,9 +35,9 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     expect(described_class.call(dir)).to eq([])
   end
 
-  # THE EXACT SHAPE THIS TOOL WAS BUILT FOR — a command that ACTS ON an
+  # The exact shape this tool was built for — a command that acts on an
   # existing record but never says so (`reference_to Item` missing),
-  # which makes it look CREATING instead. Reloads clean, checks clean —
+  # which makes it look creating instead. Reloads clean, checks clean —
   # only breaks once dispatched twice against the same identity, the
   # same class of bug this tool caught for real in `bin/interview`'s
   # own build.
@@ -98,15 +98,15 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     expect(described_class.call(dir)).to eq([])
   end
 
-  # THE SAFETY PROPERTY THIS TOOL EXISTS TO GUARANTEE — measured against
+  # The safety property this tool exists to guarantee — measured against
   # a real collision, not assumed: pointed at `examples/pizzas` (a real,
   # file-backed store carrying real accumulated records), a synthesized
   # `CreatePizza` collided with an actual pre-existing record. This
-  # domain reproduces the same shape — a REAL Heki-bound aggregate with
+  # domain reproduces the same shape — a real Heki-bound aggregate with
   # a real record already in it — and proves that record survives a
   # smoke-test run untouched, regardless of what `dir`'s own `.hecksagon`
   # and `.world` actually bind to.
-  # A real boot-dispatch-smoke-reboot sequence proving ONE end-to-end
+  # A real boot-dispatch-smoke-reboot sequence proving one end-to-end
   # claim — the persisted record survives the smoke-test run untouched.
   # Splitting the before/after reboot comparison across examples would
   # lose the very thing this test exists to prove.
@@ -137,14 +137,14 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     RUBY
 
     real_runtime = Hecks.boot(dir, install_facade: false)
-    real_runtime.dispatch("SmokeWidget::Item.Add", name: { value: "smoke-test" })
+    real_runtime.dispatch_flat("SmokeWidget::Item.Add", name: { value: "smoke-test" })
     repository = real_runtime.registry.repository("SmokeWidget", real_runtime.registry.bluebook("SmokeWidget").aggregate("Item"))
     expect(repository.all.size).to eq(1)
 
     described_class.call(dir)
 
-    # RE-READ FROM DISK, A FRESH BOOT — not the same in-memory Ruby
-    # objects, so this proves the real Heki FILE itself was untouched,
+    # **Re-read from disk, a fresh boot** — not the same in-memory Ruby
+    # objects, so this proves the real Heki file itself was untouched,
     # not merely that a stale reference still looks right.
     reread = Hecks.boot(dir, install_facade: false)
     reread_repository = reread.registry.repository("SmokeWidget", reread.registry.bluebook("SmokeWidget").aggregate("Item"))

@@ -3,10 +3,10 @@ require "hecks/fuzzing"
 
 # Pins `Hecks::Fuzzing::Properties.commands_respect_tenant_scope`
 # (lib/hecks/fuzzing/properties/guards.rb, beside `authorize_scopes_or_
-# refuses`) against `qa/stress_domains/tenant_ledger`, ANGLE-8's own
+# refuses`) against `qa/stress_domains/tenant_ledger`, angle-8's own
 # stress domain — same two-direction discipline `spec/fuzzing/
 # properties_spec.rb`'s own "each property, seen failing" section
-# already holds every OTHER property to: a property nothing can ever
+# already holds every other property to: a property nothing can ever
 # fail is decoration, and a property that fires on a same-tenant write
 # is a false-positive generator, not a real check.
 RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
@@ -16,8 +16,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     Hecks::Fuzzing::Replay.call(TENANT_LEDGER_STRESS_DOMAIN, steps)
   end
 
-  # THE PROPERTY'S OWN DETECTION LOGIC, PINNED DIRECTLY AGAINST A
-  # SYNTHETIC `history[:instances]` — no longer reachable through a real
+  # The property's own detection logic, pinned directly against a
+  # synthetic `history[:instances]` — no longer reachable through a real
   # `Replay.call` at all, now that `CommandRules::References#enforce_
   # tenant_boundary` (runtime/command_rules/references.rb) refuses this
   # exact write at dispatch time (see the "now refuses for real" example
@@ -27,11 +27,11 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
   # `enforce_tenant_boundary` is ever broken by a later refactor, a
   # stray cross-tenant record landing in storage again is exactly what
   # this would catch), so its own logic is still worth pinning directly.
-  # Built by replaying a REAL same-region Transfer to get REAL, correctly-
-  # typed `Value` objects for every OTHER field, then hand-patching only
+  # Built by replaying a real same-region Transfer to get real, correctly-
+  # typed `Value` objects for every other field, then hand-patching only
   # `:ledger` — the one plain scalar reference field — to point at the
   # other region's ledger, simulating exactly what an unenforced write
-  # used to persist.
+  # would persist.
   it "fires on a stored Transfer whose own ledger reference disagrees with its region" do
     steps = [
       { "verb" => "TenantLedger::Ledger.Open",
@@ -52,7 +52,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     expect(result).to include("L-WEST").and include("west").and include("cross-tenant write nothing refused")
   end
 
-  # THE REAL FIX, PROVEN AT DISPATCH TIME — `CommandRules::References#
+  # The real fix, proven at dispatch time — `CommandRules::References#
   # enforce_tenant_boundary`, mirroring `TenantScope.apply`'s query-side
   # mechanism (runtime/tenant_scope.rb) for a command's own settled
   # state. `Transfer.Request` declaring `region: "east"` independently
@@ -81,16 +81,16 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
       expect(message).to include(fragment)
     end
 
-    # THE PROPERTY ITSELF HAS NOTHING TO SAY — the same "a refusal is
+    # The property itself has nothing to say — the same "a refusal is
     # correct behaviour, not a finding" rule the third example below
     # already states for a dangling reference, now true for this shape
     # too.
     expect(Hecks::Fuzzing::Properties.commands_respect_tenant_scope(history)).to be(true)
   end
 
-  # THE SAME-TENANT CONTROL, DISPATCHED FOR REAL — a `Transfer.Request`
+  # **The same-tenant control, dispatched for real** — a `Transfer.Request`
   # whose `region` genuinely agrees with the ledger it names must still
-  # succeed. Without this, a fix that refused EVERY `reference_to`
+  # succeed. Without this, a fix that refused every `reference_to`
   # regardless of tenant agreement would look identical to the real one.
   it "still succeeds for real: a Transfer.Request naming a ledger from its own region" do
     steps = [
@@ -106,8 +106,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     expect(history[:refusals].map { |r| r[:verb] }).not_to include("TenantLedger::Transfer.Request")
   end
 
-  # THE CONTROL — the identical shape, same-region, must pass. Without
-  # this, a property that flagged EVERY reference regardless of tenant
+  # **The control** — the identical shape, same-region, must pass. Without
+  # this, a property that flagged every reference regardless of tenant
   # agreement would look identical to the real thing above.
   it "passes a Transfer.Request naming a ledger from its own region" do
     steps = [
@@ -121,13 +121,13 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     expect(Hecks::Fuzzing::Properties.commands_respect_tenant_scope(replay(steps))).to be(true)
   end
 
-  # A REFUSED CROSS-TENANT ATTEMPT IS NOT A FINDING — this domain's own
+  # A refused cross-tenant attempt is not a finding — this domain's own
   # aggregates admit a malformed/incomplete Request the same as any other
   # (AbsentArgument, a nonexistent ledger, …), and a step that never wrote
   # a record can never appear in `history[:instances]` for this property
   # to have an opinion about — the property claims nothing about it
   # either way, the same "a refusal is correct behaviour, not a finding"
-  # rule ANGLE-8 itself states.
+  # rule angle-8 itself states.
   it "has nothing to say about a Request that never resolves (no such ledger, so nothing is stored)" do
     steps = [
       { "verb" => "TenantLedger::Transfer.Request",
@@ -140,12 +140,12 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     expect(Hecks::Fuzzing::Properties.commands_respect_tenant_scope(history)).to be(true)
   end
 
-  # THE STANDARD BATTERY, over real generated sequences — the same
+  # The standard battery, over real generated sequences — the same
   # discipline `spec/fuzzing/properties_spec.rb` runs for every other
-  # domain it names, pinning that EVERY OTHER declared property holds for
+  # domain it names, pinning that every other declared property holds for
   # this domain across many seeds — proof the domain's only real defect
   # is the one gap it was built to expose, not an authoring mistake
-  # elsewhere. `commands_respect_tenant_scope` itself is EXCLUDED here on
+  # elsewhere. `commands_respect_tenant_scope` itself is excluded here on
   # purpose: two independently random `region` strings almost never
   # coincide, so it fires on nearly every generated seed by design — that
   # is the finding, not a regression, and is pinned directly by the two
@@ -162,18 +162,18 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     end
   end
 
-  # NO FALSE POSITIVES ON DOMAINS WITH NO SECOND TENANT-SCOPED AGGREGATE
-  # TO CROSS — `SafeDepositBox.Rented` (the only OTHER `authorize`/
+  # No false positives on domains with no second tenant-scoped aggregate
+  # to cross — `SafeDepositBox.Rented` (the only other `authorize`/
   # `tenant:` site in the corpus) has no `reference_to` pointing at
   # another tenant-scoped aggregate at all, so this property should never
   # fire on banking, or on any domain declaring no `authorize`/`tenant:`
   # in the first place.
   #
-  # THE CORPUS HERE IS DERIVED — `Hecks::Corpus.rust_domains`, the same
+  # **The corpus here is derived** — `Hecks::Corpus.rust_domains`, the same
   # set the Rust fuzz bridge walks — minus the one domain this file
-  # exists for. It used to be a hand list of five at 10 seeds each; the
-  # same 50-seed total is spread over the derived list, so widening it
-  # adds no gating time.
+  # exists for, rather than a hand list of five at 10 seeds each. The
+  # same 50-seed total is spread over the derived list instead, so
+  # widening it adds no gating time.
   it "never fires on the existing corpus, which declares no second tenant-scoped aggregate to cross" do
     domains = Hecks::Corpus.rust_domains.map(&:dir).reject { |dir| dir == TENANT_LEDGER_STRESS_DOMAIN }
     domains.each do |domain|

@@ -16,7 +16,7 @@ module Hecks
           fields << { name: lifecycle.field, attribute: nil, sql_type: "TEXT" } if lifecycle && fields.none? do |field|
             field[:name] == lifecycle.field
           end
-          # `projects` FIELDS (S12, ADR 0025) ARE A LOCAL COLUMN TOO —
+          # `projects` fields (S12, ADR 0025) are a local column too —
           # `CommandInterpreter#seed_projected_fields`/`RebuildSweep`
           # both write one straight into `Instance#state` the same as
           # any other field, so a column has to exist to hold it or
@@ -37,9 +37,9 @@ module Hecks
         end
 
         def encode(attr, value)
-          # NEVER SET IS NOT EMPTY. `then_set ... append:` starts a list at `[]`
+          # **Never set is not empty**. `then_set ... append:` starts a list at `[]`
           # the moment the first element lands, but a list attribute nothing has
-          # ever appended to — the shape every OTHER aggregate in the corpus
+          # ever appended to — the shape every other aggregate in the corpus
           # happened not to carry, until one declared a list-typed head
           # attribute that no creating command populates by default — has to
           # stay NULL to answer the same as Memory does. Forcing it to `[]`
@@ -61,7 +61,7 @@ module Hecks
         def state_json(value) = JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, value))
 
         # The row's columns reassembled into the stored state, then decoded
-        # ONCE through the state codec (PR A3) — the same deep, IR-driven
+        # once through the state codec (PR A3) — the same deep, IR-driven
         # key spelling every other adapter's read now produces, instead of
         # this codec's own `symbolize_names:` walk.
         def decode(row)
@@ -79,7 +79,7 @@ module Hecks
               if attr.list? || value_object?(attr)
                 raw ? JSON.parse(raw) : nil
               else
-                # A REFERENCE lands here now, with the ordinary scalars. It holds
+                # A reference lands here now, with the ordinary scalars. It holds
                 # the id of a head, which is text — `JSON.parse("acct-1")` raises,
                 # so reading it as JSON was only ever survivable while the column
                 # held an object.
@@ -89,8 +89,8 @@ module Hecks
           Ports::Persistence::StateCodec.decode(@aggregate, state)
         end
 
-        # A NULL `projects` COLUMN IS A FIELD NEVER SEEDED, NOT A STORED
-        # NIL — so it reads back ABSENT, the way Heki/PostgresEra (one blob
+        # A NULL `projects` column is a field never seeded, not a stored
+        # NIL — so it reads back absent, the way Heki/PostgresEra (one blob
         # holding only what was written) already answer it. A column holds
         # every persisted field whether or not the record ever had one, so
         # NULL is the only spelling "never set" has here; and nothing ever

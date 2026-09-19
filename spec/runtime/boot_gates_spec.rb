@@ -106,7 +106,7 @@ RSpec.describe Hecks::Runtime::BootGates do
        "needing no live database" do
       # `lineage_capable?`'s own `require "pg"` stays lazy — see
       # spec/exporter_spec.rb's identical registry-construction comment —
-      # so asking the REGISTRATION question never needs a live Postgres.
+      # so asking the registration question never needs a live Postgres.
       require InMemoryDomain::ERA_PLUGIN
       registry = boot_registry do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)

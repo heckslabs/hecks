@@ -1,21 +1,21 @@
 module Hecks
   module Bluebook
     class Assembly
-      # THE FIRST SPECIALIZER — a projection of `contracts.rb`'s `fields:` table,
+      # **The first specializer** — a projection of `contracts.rb`'s `fields:` table,
       # derived from the language's own description of a category instead of
       # hand-written beside it.
       #
       # `Plan` already reads `grammar_registry` to build the judge's walk ; this
-      # reads the same chapter to build the OTHER table this arc's own header
-      # names as duplication — "SPELLED AS THE IR SPELLS THEM," field for field,
+      # reads the same chapter to build the other table this arc's own header
+      # names as duplication — "spelled as the IR spells them," field for field,
       # for every category simple enough to say so.
       #
-      # ONE CASE, PROVEN, NOT THE WHOLE TABLE. A field this can speak for is
+      # One case, proven, not the whole table. A field this can speak for is
       # scalar and not a reference — every other field (a list, a reference, a
       # fold like Lifecycle) is exactly what `contracts.rb`'s `reads:`/`derived:`
       # exist to say, and stays hand-written until a later projection learns to
       # derive readers and folds too. Restricting the claim to what can be
-      # PROVEN CORRECT — checked in spec/specializer_spec.rb against two
+      # proven correct — checked in spec/specializer_spec.rb against two
       # independent categories — is the same discipline `derived:` itself
       # enforces : a claim needs a kind, and this one's kind is "plain, checked."
       module Specializer
@@ -25,12 +25,25 @@ module Hecks
         # `ProcessManager`, so `.aggregate` alone no longer finds it —
         # it hangs off some aggregate's own `.entities` instead
         # (searched recursively, the same reason `Value::Coercion#find_
-        # entity` does: a NESTED entity, like `Dispatch` inside
+        # entity` does: a nested entity, like `Dispatch` inside
         # `Handler`, is not a direct child of any aggregate either).
+        #
+        # @param chapter [Bluebook::Chapter] the chapter to search
+        # @param name [String, Symbol] the construct's declared name
+        # @return [Bluebook::Aggregate, Class, nil] the aggregate, or the entity class
+        #   (a `Bluebook::Entity` subclass) nested anywhere under one, or `nil` if
+        #   `chapter` declares no construct by that name
         def construct_for(chapter, name)
           chapter.aggregate(name) || chapter.aggregates.filter_map { |a| find_entity(a, name) }.first
         end
 
+        # Searches a construct's own entities, recursively, for one by name.
+        #
+        # @param construct [Bluebook::Aggregate, Class] the aggregate, or entity class,
+        #   to search under
+        # @param name [String, Symbol] the entity's declared name
+        # @return [Class, nil] the entity class (a `Bluebook::Entity` subclass), or `nil`
+        #   if none of `construct`'s nested entities has that name
         def find_entity(construct, name)
           construct.entities.each do |candidate|
             return candidate if candidate.hecks_name == name
@@ -41,17 +54,23 @@ module Hecks
           nil
         end
 
-        # `position` IS THE FIRST FOLD THIS RUNS INTO : a category declares
-        # `attribute :position, Position` — for the JUDGE's own walk,
+        # `position` is the first fold this runs into : a category declares
+        # `attribute :position, Position` — for the judge's own walk,
         # `order_by :position` on its `DeclaredIn` ask — but no `*`
         # constructor takes it as an argument. `contracts.rb` already says so,
         # in the language every other derived field speaks :
-        # `derived: { position: :walk }`. The language says a category HAS a
-        # position ; it does not say a category's OWN constructor is handed
+        # `derived: { position: :walk }`. The language says a category has a
+        # position ; it does not say a category's own constructor is handed
         # one, and that second fact is exactly what `fields:` needs to answer.
         # So the skip reads the category's own walk claims (`Contract#walked`)
         # rather than restating `position` here — Handler, which has no
         # walk-minted position, skips nothing.
+        #
+        # @param category [String, Symbol] the construct category's name, such as
+        #   `"Aggregate"` or `"Command"`
+        # @return [Hash{Symbol => Array(Symbol, Symbol)}] a `contracts.rb`-shaped
+        #   `fields:` table, one `field => [field, :plain]` entry per scalar,
+        #   non-reference, non-walked attribute the language declares for `category`
         def fields_for(category)
           language = construct_for(MetaValidator.grammar_registry.bluebook("Bluebook"), category.to_s)
           walked   = Assembly.contract(category).walked

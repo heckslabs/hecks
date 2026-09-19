@@ -24,43 +24,44 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
   end
 
   def seed(runtime)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
 
-    # A SECOND CUSTOMER, HOLDING NOTHING. The suspension below is here to
+    # **A second customer, holding nothing**. The suspension below is here to
     # give the standing query something to find, and `FreezeAccounts
     # OnSuspension` now really does freeze every open account a suspended
     # customer holds — so suspending c1 would empty the account-comparator
     # tests of their subject matter. c2 owns none, so the standing test
     # and the balance tests stop standing on each other.
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c2" },
                      name: { given: "B", family: "Two" }, email: { address: "b@example.com" })
 
     # a(300), b(500), c(1000, later frozen), d(0, later closed) — the four
     # corners a floor/cap comparator family needs: strictly below, exactly at,
     # strictly above, and the zero balance closure requires.
     [["a", 300], ["b", 500], ["c", 1000], ["d", 0]].each do |number, cents|
-      runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: number },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: number },
                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
       next unless cents.positive?
 
-      runtime.dispatch("Banking::Account.Credit", number: { value: number }, amount: { cents: cents, currency: "USD" },
+      runtime.dispatch_flat("Banking::Account.Credit", number: { value: number }, amount: { cents: cents, currency: "USD" },
                                                    narrative: { text: "Opening" })
     end
-    runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "c" })
-    runtime.dispatch("Banking::Account.CloseAccount", number: { value: "d" })
+    runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "c" })
+    runtime.dispatch_flat("Banking::Account.CloseAccount", number: { value: "d" })
 
-    runtime.dispatch("Banking::CardPayment.Authorize", account: "a", authorisation: { value: "auth-1" },
+    runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a", authorisation: { value: "auth-1" },
                                                         amount: { cents: 4200 }, merchant: { value: "Risky Co" },
                                                         tags: [{ value: "high_risk" }])
-    runtime.dispatch("Banking::CardPayment.Authorize", account: "b", authorisation: { value: "auth-2" },
+    runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "b", authorisation: { value: "auth-2" },
                                                         amount: { cents: 1500 }, merchant: { value: "Ordinary Co" })
 
-    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c2" }, standing: { value: "chargeback investigation" })
+    runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c2" },
+                                                       standing:  { value: "chargeback investigation" })
     runtime
   end
 
-  # Seeded ONCE per file, not per example — every `it` below only queries
+  # Seeded once per file, not per example — every `it` below only queries
   # afterward (`seed` is the only place anything is dispatched), so the
   # same seeded runtime is safe to share.
   before(:context) { @runtime = seed(boot) }

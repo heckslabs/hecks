@@ -1,10 +1,10 @@
 require "spec_helper"
 
-# THE RUNNER BEHIND A PROJECTED CLI — parse against the projection, dispatch,
+# The runner behind a projected CLI — parse against the projection, dispatch,
 # and hand back text plus a status. It prints nothing and exits nothing, which
 # is what lets this spec call it directly instead of capturing streams.
 #
-# Against PIZZAS, so nothing here can pass because the runner happens to know
+# Against pizzas, so nothing here can pass because the runner happens to know
 # the chapter it was developed beside.
 RSpec.describe Hecks::Facade::CliRunner do
   let(:runtime) { boot_in_memory }
@@ -52,7 +52,7 @@ RSpec.describe Hecks::Facade::CliRunner do
     end
   end
 
-  # BOTH SPELLINGS REACH THE SAME VERB.
+  # **Both spellings reach the same verb**.
   describe "naming" do
     it "takes the short form when no other aggregate declares that verb" do
       expect(run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
@@ -84,11 +84,11 @@ RSpec.describe Hecks::Facade::CliRunner do
 
     it "routes SafeDepositBox.Visit.Annotate with aggregate and entity receivers outside its facts" do
       banking = banking_runtime
-      banking.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      banking.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
+      banking.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
                                                        box_number: { value: 12 }, size: { value: "medium" })
-      banking.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
+      banking.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
                                                            box_number: { value: 12 },
                                                            date: { value: "2026-01-05" }, sequence: { value: 1 })
 
@@ -122,7 +122,7 @@ RSpec.describe Hecks::Facade::CliRunner do
     end
   end
 
-  # THE REFUSAL IS THE PRODUCT — the chapter's own sentence, and a status a
+  # **The refusal is the product** — the chapter's own sentence, and a status a
   # script can branch on.
   describe "refusing" do
     it "hands back the domain's own wording, and a non-zero status" do
@@ -148,7 +148,7 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(output).to include("is not Integer")
     end
 
-    # A NEAR MISS IS WORTH MORE THAN THE FULL LIST.
+    # A near miss is worth more than the full list.
     it "suggests what a misspelling nearly named" do
       output, code = run("order.create_piza")
 

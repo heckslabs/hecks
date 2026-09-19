@@ -1,7 +1,7 @@
 require_relative "projector"
 
 module Hecks
-  # THE TARGETS A DOMAIN CAN BE PROJECTED INTO, as constants rather than
+  # The targets a domain can be projected into, as constants rather than
   # bare symbols — `Pizzas.project(Projections::OIDC)`.
   #
   # A constant is worth the namespace for two reasons a Symbol cannot
@@ -10,9 +10,9 @@ module Hecks
   # carry its own documentation and defaults.
   #
   # Namespaced rather than top-level because `IR` is already taken —
-  # `Hecks::Bluebook` is the MODEL (`Bluebook::Command`, and the
+  # `Hecks::Bluebook` is the model (`Bluebook::Command`, and the
   # chapter class itself).
-  # `Projections::IR` is the projection OF that model, a different thing
+  # `Projections::IR` is the projection of that model, a different thing
   # that would be genuinely confusing under the same bare name.
   #
   # `include Hecks::Projections` gets the short spelling where the

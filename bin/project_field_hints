@@ -8,15 +8,15 @@
 # already answered (no `pattern:`, no `admits:`, not a closed set).
 #
 # Ground truth: Vocabulary::FieldHint (language/bluebook/
-# vocabulary.bluebook) — the SAME declared table FieldShape's four Ruby
+# vocabulary.bluebook) — the same declared table FieldShape's four Ruby
 # constants are built from, read here instead of re-typed a second time.
 # rust/host/src/web.rs's own `text_field` is the consumer — its own
 # header explains why a web UI written in Rust needs the same hint
 # vocabulary Ruby's hecks_on_web/FieldShape already declares.
 #
-# WHY rust/host/src/, NOT rust/src/kernel/ (where bin/project_kernel_
+# Why rust/host/src/, not rust/src/kernel/ (where bin/project_kernel_
 # capabilities writes its own generated enums, the closest precedent
-# for this script): rust/host/Cargo.toml says plainly it takes "NO path
+# for this script): rust/host/Cargo.toml says plainly it takes "no path
 # dependency on `rust`" (the kernel crate this repo's WASM projection
 # targets) — it treats the compiled `.wasm` module as opaque, loaded
 # through wasmtime at runtime, never a Rust library linked in-process.
@@ -24,7 +24,7 @@
 # rust/host crate, so the generated file has to live there too or
 # nothing could ever `use` it.
 #
-# `Regex::new` runs ONCE per pattern, in a `LazyLock` — not per call —
+# `Regex::new` runs once per pattern, in a `LazyLock` — not per call —
 # matching web.rs's own `OnceLock` convention (`ir()`, this file's
 # sibling) for "compute lazily, once, and hold it".
 #
@@ -39,6 +39,13 @@ require "tempfile"
 ROOT   = File.expand_path("..", __dir__)
 TARGET = File.join(ROOT, "rust/host/src/field_hints.rs")
 
+# Writes `content` to `target` through a temp file and atomic rename, so a
+# reader never observes a partially written file even if the process is
+# killed mid-write.
+#
+# @param target [String] absolute path of the file to write
+# @param content [String] full file content to write
+# @return [void]
 def write_atomically(target, content)
   FileUtils.mkdir_p(File.dirname(target))
   Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|
@@ -52,6 +59,9 @@ end
 # "email" -> "EMAIL_HINT" — matching FieldShape's own Ruby constant
 # spelling exactly, so a reader can find either side from the other's
 # name alone.
+#
+# @param name [String] the field hint's declared name, such as `"email"`
+# @return [String] the matching Rust constant name, such as `"EMAIL_HINT"`
 def const_name(name) = "#{name.upcase}_HINT"
 
 meta       = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")

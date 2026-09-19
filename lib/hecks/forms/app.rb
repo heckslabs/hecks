@@ -14,17 +14,24 @@ module Hecks
   module Forms
     # The content-negotiated router: `GET /Banking/Account/Overdrawn.html`
     # renders the query view built in this directory; the identical path
-    # with no extension (or `.json`) dispatches the SAME ask through
+    # with no extension (or `.json`) dispatches the same ask through
     # `Runtime::Dispatcher#query` and answers with its raw result — one
     # route, two representations, exactly the "change the file format on
     # the route" mechanism this was built around
     # (docs/command-form-and-query-form-bluebook.md).
     #
     # A plain Rack app (`#call(env)`) — no Sinatra, no Rails. `rack` itself
-    # is a LAZY dependency the same way `pg`/`oauth2`/`aws-sdk-lambda` are
+    # is a lazy dependency the same way `pg`/`oauth2`/`aws-sdk-lambda` are
     # for their own adapters (see the Gemfile's own comment) : a project
     # that never boots this file never needs it installed.
     class App
+      # Builds the Rack app for a configured app name, exposing exactly the chapters its
+      # `Forms.configure` block declared.
+      #
+      # @param registry [Runtime::Registry] the booted registry holding the exposed chapters
+      # @param app_name [String, Symbol] the name an earlier `Forms.configure` call registered
+      # @return [Forms::App] a Rack app routing only the configured chapters
+      # @raise [ArgumentError] if no app of that name has been configured
       def self.for(registry:, app_name:)
         config = Forms.config(app_name) ||
                  raise(ArgumentError, "no app #{app_name.inspect} configured — " \
@@ -32,12 +39,23 @@ module Hecks
         new(registry: registry, exposed: config.exposes)
       end
 
+      # @param registry [Runtime::Registry] the booted registry holding the exposed chapters
+      # @param exposed [Array<String>] names of the chapters (domains) this app routes; a
+      #   request for any other domain is answered 404
+      # @param dispatcher [Runtime::Dispatcher, nil] the dispatcher commands and queries go
+      #   through; nil builds a `Runtime::Dispatcher` over `registry`
       def initialize(registry:, exposed:, dispatcher: nil)
         @registry   = registry
         @exposed    = exposed
         @dispatcher = dispatcher || Runtime::Dispatcher.new(registry)
       end
 
+      # Answers one Rack request, routing on the path and its trailing `.html`/`.json` format;
+      # an unknown or unexposed route is answered as a plain-text 404 rather than raised.
+      #
+      # @param env [Hash{String => Object}] the Rack environment for the request
+      # @return [Array(Integer, Hash{String => String}, Array<String>)] the Rack response
+      #   triple of status, headers and body
       def call(env)
         request = Rack::Request.new(env)
         route(request)
@@ -81,19 +99,18 @@ module Hecks
         raise RouteNotFound, "#{domain.inspect} is not exposed by this app — declared chapters: #{@exposed.join(', ')}"
       end
 
-      # H12 (docs/audits/2026-08-10-main-bug-audit.md) — splitting on the
-      # FIRST "." truncated any identity value containing a dot (an email
+      # H12 (docs/audits/2026-08-10-main-bug-audit.md) — only a literal
+      # trailing ".html"/".json" counts as a format; every other dot in the
+      # segment is just part of the identity. Splitting on the first "."
+      # instead truncates any identity value containing a dot (an email
       # `identified_by { email.address }`, a decimal-ish reference — an
       # aggregate's identity is free-form unless its value object declares
       # a `pattern:`, see S3 in the same audit) at its own first dot, so
-      # `reference.value=c.1` 404'd everywhere: detail page, JSON view, and
-      # its own index-table link. Only a LITERAL trailing ".html"/".json"
-      # now counts as a format — every other dot in the segment is just
-      # part of the identity. An identity that itself happens to end in
+      # `reference.value=c.1` 404s everywhere: detail page, JSON view, and
+      # its own index-table link. An identity that itself happens to end in
       # exactly ".html" or ".json" is still ambiguous with a real format
-      # suffix (the same tension any extension-based content-negotiation
-      # scheme has), but that was already true before this fix and is not
-      # this bug.
+      # suffix — the same tension any extension-based content-negotiation
+      # scheme has, and not what H12 is about.
       def split_format(segment)
         segment = segment.to_s
         return [Regexp.last_match(1), Regexp.last_match(2)] if segment =~ /\A(.*)\.(html|json)\z/
@@ -123,11 +140,11 @@ module Hecks
                breadcrumbs: [[chapter.name, "/"], [aggregate.hecks_name, nil]])
         else
           instances = @registry.repository(chapter.name, aggregate).all
-          # id LAST — see Instance#to_h's own comment: an aggregate free
+          # id last — see Instance#to_h's own comment: an aggregate free
           # to declare its own attribute literally named `id` has that
           # attribute's own wrapped value sitting in `i.state[:id]`
-          # already, which used to silently clobber the correct bare
-          # identity when merged first.
+          # already, which silently clobbers the correct bare identity
+          # if `id:` is merged first.
           json(200, instances.map { |i| i.state.merge(id: i.id) })
         end
       end
@@ -141,14 +158,13 @@ module Hecks
         # L11 (docs/audits/2026-08-10-main-bug-audit.md) — a record's own
         # id is free-form (S3) and can collide with one of its own
         # aggregate's command/query names ("Close", "Overdrawn", ...).
-        # A GET for such an id must still be able to reach that RECORD's
+        # A GET for such an id must still be able to reach that record's
         # own detail page when a record with that literal id actually
-        # exists — checking the verb first (the previous order) meant a
-        # record unlucky enough to be named after a real verb could never
-        # be viewed again. POST never means "view a record" at all
-        # (`record_route` only ever answers GET), so command submission
-        # there is unambiguous and is left to match the verb first, same
-        # as before.
+        # exists — checking the verb first would mean a record unlucky
+        # enough to be named after a real verb could never be viewed.
+        # POST never means "view a record" at all (`record_route` only
+        # ever answers GET), so command submission there is unambiguous
+        # and matches the verb first.
         if request.get? && (instance = @registry.repository(domain, aggregate).find(verb_or_id))
           return record_route(request, domain, aggregate, verb_or_id, format, instance: instance)
         end
@@ -187,7 +203,7 @@ module Hecks
 
       def submit_command(request, domain, aggregate, command, action)
         raw, envelope = submitted_command(request, aggregate, command)
-        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
+        result = @dispatcher.dispatch_flat("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", envelope)
         # L12 — the id is free-form (S3), so it must be percent-encoded as
         # a path segment here, not just interpolated raw.
         redirect("/#{domain}/#{aggregate.hecks_name}/#{Escape.path(result.id)}.html")
@@ -201,8 +217,8 @@ module Hecks
         return respond(405, "text/plain", "GET or POST only") unless request.post?
 
         _, envelope = submitted_command(request, aggregate, command)
-        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
-        # id LAST — same reasoning as the other JSON-serializing call
+        result = @dispatcher.dispatch_flat("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", envelope)
+        # id last — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         json(201, result.state.merge(id: result.id))
       rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
@@ -239,7 +255,7 @@ module Hecks
         results, error = run_query(domain, aggregate, query, fields, asked)
         return json(422, { error: error.class.name.split("::").last, message: error.message }) if error
 
-        # id LAST — same reasoning as the other JSON-serializing call
+        # id last — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         json(200, results.map { |i| i.state.merge(id: i.id) })
       end
@@ -259,10 +275,10 @@ module Hecks
       # JSON (the honest fallback for a multi-attribute list element this
       # prototype's textarea doesn't build a second widget for). A caller
       # who types a non-JSON line into that field raises `JSON::ParserError`
-      # BEFORE dispatch ever sees it — both command submission paths
-      # already rescue it (`submit_command`, `command_json`); this one
-      # didn't, so a malformed list-of-VO query 500'd instead of showing
-      # the same 422 every other bad-input path shows.
+      # before dispatch ever sees it. It is rescued here, as both command
+      # submission paths rescue it (`submit_command`, `command_json`), so
+      # a malformed list-of-VO query shows the same 422 every other
+      # bad-input path shows rather than a 500.
       rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
         [nil, e]
       end
@@ -272,7 +288,7 @@ module Hecks
 
         instance ||= @registry.repository(domain, aggregate).find(id)
         return not_found(aggregate, id, format) unless instance
-        # id LAST — same reasoning as the other JSON-serializing call
+        # id last — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         return json(200, instance.state.merge(id: instance.id)) if format != "html"
 

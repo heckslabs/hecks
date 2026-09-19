@@ -1,0 +1,7 @@
+{
+  "domain": "examples/roster",
+  "note": "Found investigating BUG#141/BUG#123 (aggregate-command dispatch order). Independent of that fix, and already reproducible on unmodified entity-command dispatch (rust/project/registry.rb's entity_arms, untouched by the BUG#141/BUG#123 fix): a wrong-depth explicit `to:` route on an entity command (`Roster::Roster.Member.Retire` given 2 entity identities where it needs 1) refuses TypeMismatch on both engines, but with different wording. Ruby's `Invocation.route` (lib/hecks/runtime/invocation.rb) says \"to: for an entity command needs 1 entity identity after the aggregate — got 2\"; Rust's `RoutingEnvelope#require_depth` (rust/src/kernel/routing.rs) said \"invalid routing envelope: route requires 1 entity identity, got 2\" instead — a message-template mismatch, not a dispatch-order one. Confirmed generic (not scoped to one command) via the same shape on Roster::Roster.AddSeat once BUG#141's own ordering fix let Rust's TypeMismatch actually surface for that command at all — this fixture exists so BUG#141/BUG#123's own regression fixtures can byte-match once both are fixed.",
+  "steps": [
+    {"verb": "Roster::Roster.Member.Retire", "args": {"to": {"aggregate": "H1", "entities": ["e1", "e2"]}}}
+  ]
+}

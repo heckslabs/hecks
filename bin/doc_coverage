@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 
-# EVERY LIVE WORD SHIPS WITH A VISIBLE RUNNING EXAMPLE, or this refuses.
+# Every live word ships with a visible running example, or this refuses.
 # That is a narrower guarantee than "a declaration nothing runs cannot
-# disagree with the runtime it describes" — this checks PRESENCE of an
-# example per word, not that every PROSE CLAIM in that word's section is
+# disagree with the runtime it describes" — this checks presence of an
+# example per word, not that every prose claim in that word's section is
 # itself something the example asserts. A section can carry a real
 # fence and still say something the fence never checks: a `# =>` marker
 # can assert what an expression returns, but it cannot assert a system
-# PROPERTY — "isolated per test," "never appears in any console view,"
+# property — "isolated per test," "never appears in any console view,"
 # "the whole suite passes" are prose claims with no fence shape at all.
 # Closing that gap is a periodic manual claim-audit's job, not this
 # script's — this one only ever answers "is there an example," never
@@ -24,7 +24,7 @@
 #                  `<!-- doctest:boot -->` block is setup, so neither
 #                  counts: an example a reader cannot see is not one.
 #
-# This answers PRESENCE. That the examples PASS is spec/reference_
+# This answers presence. That the examples pass is spec/reference_
 # doctest_spec.rb's question, and the two together are the real claim:
 # every word has an example, and every example runs.
 #
@@ -42,10 +42,16 @@ directory = File.join(File.expand_path("..", __dir__), "docs/implemented/referen
 undocumented  = Hecks::Doc::Reference.undocumented(directory)
 unexemplified = Hecks::Doc::Reference.unexemplified(directory)
 
-# REPORTED SEPARATELY, because they are different repairs: an
+# Reported separately, because they are different repairs: an
 # undocumented word needs somebody to write about it, an unexemplified
 # one needs somebody to prove it. A word with neither shows up in both
 # lists on purpose — you owe it both.
+#
+# @param words [Array<String>] live vocabulary words missing this kind of coverage
+# @param owed [String] phrase describing what each listed word lacks, printed after
+#   "carries"/"carry"
+# @return [Boolean] true if `words` was empty and nothing was printed, false once a
+#   gap section was printed
 def report(words, owed)
   return true if words.empty?
 

@@ -4,22 +4,22 @@ require_relative "../../rust/project"
 
 # BUG#28 (QualityControl ledger) — `RustProjection::Projector.state_
 # independent_creation?` (rust/project/dependency_planning.rb) is a
-# SEPARATE, independent re-derivation of `Runtime::DependencyPlanning
+# separate, independent re-derivation of `Runtime::DependencyPlanning
 # ::Analyzer#call`'s `complete_state? && state_independent?` predicate —
 # see that file's own header for the full reasoning on why it's a port
 # rather than a shared call. `spec/codegen_parity_spec.rb`'s existing
 # whole-file byte-identity check already proves this Ruby port agrees
 # with its own Rust sibling (`rust/codegen/src/dependency_planning.rs`);
-# THIS spec proves the Ruby port agrees with the REAL Analyzer it exists
-# to mirror, across every `creates?`-true AGGREGATE-ROOT command in the
+# this spec proves the Ruby port agrees with the real Analyzer it exists
+# to mirror, across every `creates?`-true aggregate-root command in the
 # whole live example-domain corpus — not just the handful of IR fixtures
 # the parity spec happens to enumerate.
 RSpec.describe "RustProjection::Projector.state_independent_creation? matches the live Analyzer" do
   def self.json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
   # Returns [live_registry, live_bluebook, exported_ir_hash] — the live
-  # objects (for `Runtime::DependencyPlanning::Analyzer`) AND the
-  # JSON-round-tripped IR (for the port under test), off the SAME boot.
+  # objects (for `Runtime::DependencyPlanning::Analyzer`) and the
+  # JSON-round-tripped IR (for the port under test), off the same boot.
   def self.load_domain(bluebook_path, domain_name)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -37,7 +37,7 @@ RSpec.describe "RustProjection::Projector.state_independent_creation? matches th
 
   # Every real example/stress domain with at least one `creates?`-true
   # aggregate-root command declaring a `given` — the exact shape BUG#28
-  # is about — PLUS the self-hosted grammar (the widest single corpus
+  # is about — plus the self-hosted grammar (the widest single corpus
   # member) and the two domains the ledger's own investigation named as
   # the sharpest and the originally-repro'd cases (`Banking` — the
   # `Account.Open` invariant-adjacency case — and `ReferralChain` —
@@ -81,7 +81,7 @@ RSpec.describe "RustProjection::Projector.state_independent_creation? matches th
                               "to be #{expected} (Runtime::DependencyPlanning::Analyzer: complete_state?=" \
                               "#{plan.complete_state?}, state_independent?=#{plan.state_independent?}), got #{actual}"
 
-            # BUG#22 (QualityControl ledger) — `complete_state?` ALONE (no
+            # BUG#22 (QualityControl ledger) — `complete_state?` alone (no
             # `state_independent?` conjunct) is what `registry.rb`'s
             # router now needs, to decide whether a route given to this
             # creating command is checked against its derived identity

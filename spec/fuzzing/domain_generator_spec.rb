@@ -16,6 +16,17 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
     expect(other).not_to eq(first)
   end
 
+  # The two tables may differ, but only in one direction. If `FORMS` were
+  # `FormCensus::FORMS.keys` outright, then the day the census learned a
+  # form this generator has no recipe for (`corrects`, `role_gated`),
+  # `generate` would raise KeyError for any seed that drew it. A census form
+  # with no builder is fine — it is simply never generated. A builder for
+  # something the census cannot measure is not: nothing would ever see
+  # the form it claims to be exercising.
+  it "can only build forms the census can measure" do
+    expect(described_class::FORMS - Hecks::Fuzzing::FormCensus::FORMS.keys).to be_empty
+  end
+
   it "refuses a form FormCensus does not name" do
     expect { described_class.generate(seed: 1, forms: %w[lifecycle telepathy]) }.to raise_error(ArgumentError, /telepathy/)
   end
@@ -108,7 +119,7 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
 
     # qa/stress_domains/generated_revalued_shape was promoted with
     # `Reopen from closed` and no `Close`: the removal dropped Close's
-    # transition, and pruning only asked whether Reopen's COMMAND still
+    # transition, and pruning only asked whether Reopen's command still
     # existed, never whether its from-state could still be reached.
     it "drops a transition whose from-state a removal left unreachable" do
       lifecycled = described_class.generate(seed: 0, forms: %w[lifecycle closed_set])

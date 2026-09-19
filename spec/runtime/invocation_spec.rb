@@ -22,21 +22,21 @@ module InvocationSpecFixtures
   BY_REF   = Operation.new("Settle", [Attr.new(:payment, false), Attr.new(:amount, false)], Attr.new(:payment, false), nil)
   BY_TO    = Operation.new("Refund", [Attr.new(:payment_id, false), Attr.new(:amount, false)], nil, "Payment")
 
-  # CHARACTERIZATION — every row below was run through the pre-I1 code
+  # Characterization — every row below was run through the pre-I1 code
   # (`Routing.payload` + `Routing.envelope` for aggregate/entity commands,
   # `Dispatcher#port_invocation` for port operations) and its result pinned
   # here verbatim: the args Hash (as ordered pairs), the envelope, or the
-  # refusal class and message. Rows are mined from the BUG# regression specs
+  # refusal class and message. Rows are mined from the bug# regression specs
   # (routing_envelope_spec, routing_envelope_shape_spec, dry_run's BUG#131,
   # the BUG#16/#17 conformance fixtures, query_null_vo_argument_spec's
   # explicit-null shape) plus each branch's refusal precedence.
   # rubocop:disable Layout/LineLength
   ROWS = [
-    ["legacy kwargs only", :aggregate, CREDIT, nil, nil, { account: "a1", amount: 1, narrative: 2 }, 0],
+    ["flat facts only", :aggregate, CREDIT, nil, nil, { account: "a1", amount: 1, narrative: 2 }, 0],
     ["to: + with:", :aggregate, CREDIT, "a1", { amount: 1, narrative: 2 }, {}, 0],
     ["BUG#17 to: beside flat facts, no with:", :aggregate, CREDIT, "a1", nil, { amount: 1, narrative: 2 }, 0],
     ["with: alone", :aggregate, CREDIT, nil, { amount: 1, narrative: 2 }, {}, 0],
-    ["BUG#16 to: nil, with: nil, legacy facts", :aggregate, CREDIT, nil, nil, { to: nil, amount: 1, narrative: 2 }, 0],
+    ["BUG#16 to: nil, with: nil, flat facts", :aggregate, CREDIT, nil, nil, { to: nil, amount: 1, narrative: 2 }, 0],
     ["with: false reads as no with:", :aggregate, CREDIT, "a1", false, { amount: 1, narrative: 2 }, 0],
     ["with: beside loose kwargs", :aggregate, CREDIT, "a1", { amount: 1 }, { narrative: 2 }, 0],
     ["with: a String", :aggregate, CREDIT, "a1", "amount", {}, 0],
@@ -46,9 +46,9 @@ module InvocationSpecFixtures
     ["with: string keys", :aggregate, CREDIT, "a1", { "amount" => 1, "narrative" => 2 }, {}, 0],
     ["with: explicit null required fact", :aggregate, CREDIT, "a1", { amount: nil, narrative: 2 }, {}, 0],
     ["with: explicit null optional fact", :aggregate, CREDIT, "a1", { amount: 1, narrative: 2, note: nil }, {}, 0],
-    ["legacy explicit null", :aggregate, CREDIT, nil, nil, { account: "a1", amount: nil, narrative: 2 }, 0],
-    ["legacy missing key", :aggregate, CREDIT, nil, nil, { account: "a1", narrative: 2 }, 0],
-    ["legacy string keys", :aggregate, CREDIT, nil, nil, { "account" => "a1", "amount" => 1 }, 0],
+    ["flat explicit null", :aggregate, CREDIT, nil, nil, { account: "a1", amount: nil, narrative: 2 }, 0],
+    ["flat missing key", :aggregate, CREDIT, nil, nil, { account: "a1", narrative: 2 }, 0],
+    ["flat string keys", :aggregate, CREDIT, nil, nil, { "account" => "a1", "amount" => 1 }, 0],
     ["BUG#7 to: an Integer", :aggregate, CREDIT, -1_267_650_600_228_229_401_496_703_205_376, nil, { name: "r" }, 0],
     ["to: a Symbol", :aggregate, CREDIT, :a1, { amount: 1, narrative: 2 }, {}, 0],
     ["to: blank identity", :aggregate, CREDIT, "", { amount: 1, narrative: 2 }, {}, 0],
@@ -58,8 +58,8 @@ module InvocationSpecFixtures
     ["to: entity and entities", :aggregate, CREDIT, { aggregate: "a1", entity: "e", entities: ["e"] }, nil, {}, 0],
     ["to: Hash blank aggregate", :aggregate, CREDIT, { aggregate: nil, entity: "e" }, nil, {}, 0],
     ["to: Hash with entity on aggregate command", :aggregate, CREDIT, { aggregate: "a1", entity: "e" }, nil, {}, 0],
-    ["bad to: + with:/legacy conflict (payload first)", :aggregate, CREDIT, 5, { amount: 1 }, { narrative: 2 }, 0],
-    ["BUG#18 with: routing-shaped beside legacy", :aggregate, CREDIT, nil, { aggregate: "a1", entities: [] }, { amount: 1 }, 0],
+    ["bad to: + with:/flat conflict (payload first)", :aggregate, CREDIT, 5, { amount: 1 }, { narrative: 2 }, 0],
+    ["BUG#18 with: routing-shaped beside flat facts", :aggregate, CREDIT, nil, { aggregate: "a1", entities: [] }, { amount: 1 }, 0],
     ["BUG#131 a fact literally named to", :aggregate, CREDIT, nil, nil, { to: { value: 570 }, name: "r" }, 0],
     ["entity to: Hash entity", :entity, ANNOTATE, { aggregate: "b", entity: "v" }, { note: 1 }, {}, 1],
     ["entity to: Hash entities", :entity, ANNOTATE, { "aggregate" => "b", "entities" => ["v"] }, { note: 1 }, {}, 1],
@@ -68,7 +68,7 @@ module InvocationSpecFixtures
     ["entity to: nil entity", :entity, ANNOTATE, { aggregate: "b", entities: [nil] }, { note: 1 }, {}, 1],
     ["entity two hops", :entity, ANNOTATE, { aggregate: "b", entities: %w[v w] }, { note: 1 }, {}, 2],
     ["entity bad to: + conflict (envelope first)", :entity, ANNOTATE, 7, { note: 1 }, { x: 1 }, 1],
-    ["entity legacy only", :entity, ANNOTATE, nil, nil, { branch: "b", date: "d", note: 1 }, 1],
+    ["entity flat only", :entity, ANNOTATE, nil, nil, { branch: "b", date: "d", note: 1 }, 1],
     ["entity with: smuggled identity", :entity, ANNOTATE, { aggregate: "b", entity: "v" }, { date: "d", note: 1 }, {}, 1],
     ["entity with: explicit null", :entity, ANNOTATE, { aggregate: "b", entity: "v" }, { note: nil }, {}, 1],
     ["port to: + with:", :port, RECEIVE, "P1", { amount: 1 }, {}, 0],
@@ -76,7 +76,7 @@ module InvocationSpecFixtures
     ["port missing to: + conflict", :port, RECEIVE, nil, { amount: 1 }, { x: 1 }, 0],
     ["port bad to:", :port, RECEIVE, 3, { amount: 1 }, {}, 0],
     ["port to: Hash", :port, RECEIVE, { aggregate: "P1", entity: "x" }, { amount: 1 }, {}, 0],
-    ["port legacy", :port, RECEIVE, "P1", nil, { amount: nil }, 0],
+    ["port flat facts", :port, RECEIVE, "P1", nil, { amount: nil }, 0],
     ["port reference attribute lifts into to:", :port, BY_REF, nil, nil, { payment: "P1", amount: 1 }, 0],
     ["port explicit to: wins over reference attribute", :port, BY_REF, "P2", nil, { payment: "P1", amount: 1 }, 0],
     ["port reference lift then with:", :port, BY_REF, nil, { amount: 1 }, { payment: "P1" }, 0],
@@ -86,13 +86,13 @@ module InvocationSpecFixtures
   ].freeze
 
   PRE_I1 = {
-    "legacy kwargs only"                              => { args: [[:account, "a1"], [:amount, 1], [:narrative, 2]], target: nil },
+    "flat facts only"                                 => { args: [[:account, "a1"], [:amount, 1], [:narrative, 2]], target: nil },
     "to: + with:"                                     => { args: [[:amount, 1], [:narrative, 2]], target: ["a1", []] },
     "BUG#17 to: beside flat facts, no with:"          => { args: [[:amount, 1], [:narrative, 2]], target: ["a1", []] },
     "with: alone"                                     => { args: [[:amount, 1], [:narrative, 2]], target: nil },
-    "BUG#16 to: nil, with: nil, legacy facts"         => { args: [[:to, nil], [:amount, 1], [:narrative, 2]], target: nil },
+    "BUG#16 to: nil, with: nil, flat facts"           => { args: [[:to, nil], [:amount, 1], [:narrative, 2]], target: nil },
     "with: false reads as no with:"                   => { args: [[:amount, 1], [:narrative, 2]], target: ["a1", []] },
-    "with: beside loose kwargs"                       => { refusal: ["Hecks::Runtime::TypeMismatch", "dispatch takes command facts in with:, not both with: and loose keyword arguments"] },
+    "with: beside loose kwargs"                       => { refusal: ["Hecks::Runtime::TypeMismatch", "dispatch takes command facts in with:, not both with: and a flat facts hash"] },
     "with: a String"                                  => { refusal: ["Hecks::Runtime::TypeMismatch", "with: must be a hash of command facts"] },
     "with: an Array"                                  => { refusal: ["Hecks::Runtime::TypeMismatch", "with: must be a hash of command facts"] },
     "with: empty"                                     => { refusal: ["Hecks::Runtime::AbsentArgument", "Credit was not given amount, narrative — it takes amount, narrative, note"] },
@@ -100,9 +100,9 @@ module InvocationSpecFixtures
     "with: string keys"                               => { args: [[:amount, 1], [:narrative, 2]], target: ["a1", []] },
     "with: explicit null required fact"               => { args: [[:amount, nil], [:narrative, 2]], target: ["a1", []] },
     "with: explicit null optional fact"               => { args: [[:amount, 1], [:narrative, 2], [:note, nil]], target: ["a1", []] },
-    "legacy explicit null"                            => { args: [[:account, "a1"], [:amount, nil], [:narrative, 2]], target: nil },
-    "legacy missing key"                              => { args: [[:account, "a1"], [:narrative, 2]], target: nil },
-    "legacy string keys"                              => { args: [["account", "a1"], ["amount", 1]], target: nil },
+    "flat explicit null"                              => { args: [[:account, "a1"], [:amount, nil], [:narrative, 2]], target: nil },
+    "flat missing key"                                => { args: [[:account, "a1"], [:narrative, 2]], target: nil },
+    "flat string keys"                                => { args: [["account", "a1"], ["amount", 1]], target: nil },
     "BUG#7 to: an Integer"                            => { refusal: ["Hecks::Runtime::TypeMismatch", "to: must be a string aggregate identity or an entity route, got -1267650600228229401496703205376"] },
     "to: a Symbol"                                    => { refusal: ["Hecks::Runtime::TypeMismatch", "to: must be a string aggregate identity or an entity route, got :a1"] },
     "to: blank identity"                              => { refusal: ["Hecks::Runtime::TypeMismatch", "to: must name the receiving aggregate identity"] },
@@ -112,8 +112,8 @@ module InvocationSpecFixtures
     "to: entity and entities"                         => { refusal: ["Hecks::Runtime::TypeMismatch", "to: takes entity: or entities:, not both"] },
     "to: Hash blank aggregate"                        => { refusal: ["Hecks::Runtime::TypeMismatch", "to: must name the receiving aggregate identity"] },
     "to: Hash with entity on aggregate command"       => { refusal: ["Hecks::Runtime::TypeMismatch", "to: for an entity command needs 0 entity identities after the aggregate — got 1"] },
-    "bad to: + with:/legacy conflict (payload first)" => { refusal: ["Hecks::Runtime::TypeMismatch", "dispatch takes command facts in with:, not both with: and loose keyword arguments"] },
-    "BUG#18 with: routing-shaped beside legacy"       => { refusal: ["Hecks::Runtime::TypeMismatch", "dispatch takes command facts in with:, not both with: and loose keyword arguments"] },
+    "bad to: + with:/flat conflict (payload first)"   => { refusal: ["Hecks::Runtime::TypeMismatch", "dispatch takes command facts in with:, not both with: and a flat facts hash"] },
+    "BUG#18 with: routing-shaped beside flat facts"   => { refusal: ["Hecks::Runtime::TypeMismatch", "dispatch takes command facts in with:, not both with: and a flat facts hash"] },
     "BUG#131 a fact literally named to"               => { args: [[:to, { value: 570 }], [:name, "r"]], target: nil },
     "entity to: Hash entity"                          => { args: [[:note, 1]], target: ["b", ["v"]] },
     "entity to: Hash entities"                        => { args: [[:note, 1]], target: ["b", ["v"]] },
@@ -122,7 +122,7 @@ module InvocationSpecFixtures
     "entity to: nil entity"                           => { refusal: ["Hecks::Runtime::TypeMismatch", "to: contains a blank entity identity"] },
     "entity two hops"                                 => { args: [[:note, 1]], target: ["b", %w[v w]] },
     "entity bad to: + conflict (envelope first)"      => { refusal: ["Hecks::Runtime::TypeMismatch", "to: must be a string aggregate identity or an entity route, got 7"] },
-    "entity legacy only"                              => { args: [[:branch, "b"], [:date, "d"], [:note, 1]], target: nil },
+    "entity flat only"                                => { args: [[:branch, "b"], [:date, "d"], [:note, 1]], target: nil },
     "entity with: smuggled identity"                  => { refusal: ["Hecks::Runtime::UnknownArgument", "Annotate does not declare date — it takes note"] },
     "entity with: explicit null"                      => { args: [[:note, nil]], target: ["b", ["v"]] },
     "port to: + with:"                                => { args: [[:amount, 1]], target: ["P1", []] },
@@ -130,7 +130,7 @@ module InvocationSpecFixtures
     "port missing to: + conflict"                     => { refusal: ["Hecks::Runtime::TypeMismatch", "Receive requires its receiving aggregate in to:"] },
     "port bad to:"                                    => { refusal: ["Hecks::Runtime::TypeMismatch", "to: must be a string aggregate identity or an entity route, got 3"] },
     "port to: Hash"                                   => { refusal: ["Hecks::Runtime::TypeMismatch", "to: for an entity command needs 0 entity identities after the aggregate — got 1"] },
-    "port legacy"                                     => { args: [[:amount, nil]], target: ["P1", []] },
+    "port flat facts"                                 => { args: [[:amount, nil]], target: ["P1", []] },
     "port reference attribute lifts into to:"         => { args: [[:amount, 1]], target: ["P1", []] },
     "port explicit to: wins over reference attribute" => { args: [[:payment, "P1"], [:amount, 1]], target: ["P2", []] },
     "port reference lift then with:"                  => { refusal: ["Hecks::Runtime::AbsentArgument", "Settle was not given payment — it takes payment, amount"] },
@@ -144,8 +144,8 @@ end
 RSpec.describe Hecks::Runtime::Invocation do
   let(:invocation_class) { described_class }
 
-  def call(receiver, declaring, to: nil, with: nil, legacy: {}, entity_depth: 0)
-    invocation_class.from_call("V", to: to, with: with, legacy: legacy, receiver: receiver,
+  def call(receiver, declaring, to: nil, with: nil, flat: {}, entity_depth: 0)
+    invocation_class.from_call("V", to: to, with: with, flat: flat, receiver: receiver,
                                     entity_depth: entity_depth, aggregate: InvocationSpecFixtures::PAYMENT) { declaring }
   end
 
@@ -167,7 +167,7 @@ RSpec.describe Hecks::Runtime::Invocation do
 
   describe ".from_call" do
     it "reads loose keyword arguments: missing key Absent, nil Null, value Present" do
-      invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, legacy: { account: "a1", amount: nil })
+      invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, flat: { account: "a1", amount: nil })
 
       expect(invocation.facts[:account]).to eq(described_class::Present.new(value: "a1"))
       expect(invocation.facts[:amount]).to equal(described_class::Null)
@@ -187,11 +187,11 @@ RSpec.describe Hecks::Runtime::Invocation do
     end
 
     it "treats an explicit nil to: exactly like no to: (BUG#16)" do
-      expect(call(:aggregate, InvocationSpecFixtures::CREDIT, to: nil, legacy: { amount: 1 }).target).to be_nil
+      expect(call(:aggregate, InvocationSpecFixtures::CREDIT, to: nil, flat: { amount: 1 }).target).to be_nil
     end
 
     it "keeps a fact literally named to when to: itself is not given (BUG#131)" do
-      invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, legacy: { to: { value: 570 } })
+      invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, flat: { to: { value: 570 } })
 
       expect(invocation.value(:to)).to eq(value: 570)
     end
@@ -214,7 +214,7 @@ RSpec.describe Hecks::Runtime::Invocation do
     end
 
     it "lifts a port operation's reference attribute out of the facts into the target" do
-      invocation = call(:port, InvocationSpecFixtures::BY_REF, legacy: { payment: "P1", amount: 1 })
+      invocation = call(:port, InvocationSpecFixtures::BY_REF, flat: { payment: "P1", amount: 1 })
 
       expect(invocation.target.aggregate).to eq("P1")
       expect(invocation.facts[:payment]).to equal(described_class::Absent)
@@ -223,7 +223,7 @@ RSpec.describe Hecks::Runtime::Invocation do
     it "resolves the declaring construct after to: for an entity, before to: for an aggregate command" do
       entity_order = []
       expect do
-        invocation_class.from_call("V", to: 7, with: nil, legacy: {}, receiver: :entity, entity_depth: 1) do
+        invocation_class.from_call("V", to: 7, with: nil, flat: {}, receiver: :entity, entity_depth: 1) do
           entity_order << :resolved
           InvocationSpecFixtures::ANNOTATE
         end
@@ -232,7 +232,7 @@ RSpec.describe Hecks::Runtime::Invocation do
 
       aggregate_order = []
       expect do
-        invocation_class.from_call("V", to: 7, with: nil, legacy: {}) do
+        invocation_class.from_call("V", to: 7, with: nil, flat: {}) do
           aggregate_order << :resolved
           InvocationSpecFixtures::CREDIT
         end
@@ -242,7 +242,7 @@ RSpec.describe Hecks::Runtime::Invocation do
   end
 
   describe "#value" do
-    let(:invocation) { call(:aggregate, InvocationSpecFixtures::CREDIT, legacy: { amount: 1, narrative: nil }) }
+    let(:invocation) { call(:aggregate, InvocationSpecFixtures::CREDIT, flat: { amount: 1, narrative: nil }) }
 
     it "answers a Present value and nil for Null" do
       expect(invocation.value(:amount)).to eq(1)
@@ -257,7 +257,7 @@ RSpec.describe Hecks::Runtime::Invocation do
 
   describe "#to_args" do
     it "omits Absent, maps Null to nil, and keeps offered order and key spelling" do
-      invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, legacy: { "zeta" => 1, amount: nil, account: "a1" })
+      invocation = call(:aggregate, InvocationSpecFixtures::CREDIT, flat: { "zeta" => 1, amount: nil, account: "a1" })
 
       expect(invocation.to_args.to_a).to eq([["zeta", 1], [:amount, nil], [:account, "a1"]])
       expect(invocation.to_args).not_to be_frozen
@@ -277,9 +277,9 @@ RSpec.describe Hecks::Runtime::Invocation do
       expect(InvocationSpecFixtures::ROWS.map(&:first)).to match_array(InvocationSpecFixtures::PRE_I1.keys)
     end
 
-    InvocationSpecFixtures::ROWS.each do |label, receiver, declaring, to, with, legacy, depth|
+    InvocationSpecFixtures::ROWS.each do |label, receiver, declaring, to, with, flat, depth|
       it "#{label} (#{receiver})" do
-        result = outcome { call(receiver, declaring, to: to, with: with, legacy: legacy, entity_depth: depth) }
+        result = outcome { call(receiver, declaring, to: to, with: with, flat: flat, entity_depth: depth) }
 
         expect(result).to eq(InvocationSpecFixtures::PRE_I1.fetch(label))
       end
@@ -287,14 +287,14 @@ RSpec.describe Hecks::Runtime::Invocation do
 
     it "keeps Routing.payload/.envelope, now delegators, agreeing with from_call" do
       aggregate_rows = InvocationSpecFixtures::ROWS.select { |row| row[1] == :aggregate }
-      aggregate_rows.each do |label, _receiver, declaring, to, with, legacy, _depth|
-        legacy_result = outcome do
-          args  = Hecks::Runtime::Routing.payload(declaring, with: with, legacy: legacy)
+      aggregate_rows.each do |label, _receiver, declaring, to, with, flat, _depth|
+        delegated_result = outcome do
+          args  = Hecks::Runtime::Routing.payload(declaring, with: with, flat: flat)
           facts = args.transform_values { |v| v.nil? ? described_class::Null : described_class::Present.new(value: v) }
           described_class.new(verb: "V", target: Hecks::Runtime::Routing.envelope(to), facts: facts)
         end
 
-        expect(legacy_result).to eq(InvocationSpecFixtures::PRE_I1.fetch(label)), label
+        expect(delegated_result).to eq(InvocationSpecFixtures::PRE_I1.fetch(label)), label
       end
     end
   end

@@ -2,15 +2,15 @@ require "spec_helper"
 
 # Dispatcher#dry_run?'s own comment has the full reasoning — built for a
 # downstream chess domain's own whole-board postcondition tests ("does
-# this move leave my own king in check"), which previously had to
+# this move leave my own king in check"), which would otherwise have to
 # dispatch a real, unrelated piece's own move purely to trigger the
-# check, and that move then had to avoid interfering with the very
+# check, with that move then having to avoid interfering with the very
 # position being tested. Reuses the delegates_to fixture — it already
-# has a plain entity command (Piece.Move) AND a delegating aggregate
-# command (Board.MovePiece) AND a policy reacting to the entity's own
+# has a plain entity command (Piece.Move) and a delegating aggregate
+# command (Board.MovePiece) and a policy reacting to the entity's own
 # event, which is exactly the surface dry_run needs to prove itself
 # against: does a dry run see through the delegation, and does it
-# correctly reach NEITHER persistence NOR reactions in either shape.
+# correctly reach neither persistence nor reactions in either shape.
 RSpec.describe "Dispatcher#dry_run?" do
   DRY_RUN_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
 
@@ -35,8 +35,8 @@ RSpec.describe "Dispatcher#dry_run?" do
 
   it "returns true for a legal entity command, and persists nothing" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     result = runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b1", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
@@ -46,23 +46,23 @@ RSpec.describe "Dispatcher#dry_run?" do
 
   it "raises the same refusal a real dispatch would, for the same entity command" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     expect do
       runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
     end.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
-  # THE SHAPE dry_run WAS BUILT FOR — a `delegates_to` command's own
+  # The shape dry_run was built for — a `delegates_to` command's own
   # in-memory mutation, reached through EntityElement.locate_chain the
   # same way a real dispatch reaches it, discarded because step_save
   # never runs. Proves dry_run? sees straight through the delegation,
   # not just a plain entity command.
   it "sees through delegates_to too — persists nothing from the delegated entity's own mutation" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     result = runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b3", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
@@ -70,15 +70,15 @@ RSpec.describe "Dispatcher#dry_run?" do
     expect(board(runtime, "b3")[:pieces].first[:square].to_h).to eq(file: 3, rank: 3)
   end
 
-  # POLICIES MUST NEVER FIRE — `move_count` (bumped by
+  # **Policies must never fire** — `move_count` (bumped by
   # OnPieceMovedBumpMoveCount, the same policy delegates_to_spec.rb's
   # own ambient-args test uses) staying at its default proves
   # Dispatcher#dry_run? never reaches `announced.each { @policies.react
   # }` at all, not merely that it reacted and rescued something.
   it "never triggers a policy reaction — nothing was announced to react to" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b4", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
@@ -87,8 +87,8 @@ RSpec.describe "Dispatcher#dry_run?" do
 
   it "leaves a real dispatch working normally afterward — no residue from the dry run" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b5" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b5" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 5, rank: 5 })
     runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b5", with: { id: { value: "p1" }, to: { file: 6, rank: 6 } })

@@ -1,43 +1,43 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# QualityControl BUG#36 — a null required VALUE-OBJECT-typed QUERY
-# argument used to be silently absorbed via the type's own field
-# defaults (`Value::Coercion#nil_argument`, shared — pre-fix — with the
-# COMMAND argument door), answering `rows: []` instead of refusing,
+# QualityControl BUG#36 — a null required value-object-typed query
+# argument would be silently absorbed via the type's own field
+# defaults (`Value::Coercion#nil_argument`, shared with the
+# command argument door), answering `rows: []` instead of refusing,
 # whenever every one of the value object's fields happened to have a
 # default. Rust's generated `check_query_args` already refused
 # `TypeMismatch` on an explicit null regardless of any default — this
 # file pins the fix (`QueryInterpreter#null_vo_argument!`) on every
 # query argument shape the corpus actually declares:
 #
-#   - `LeaseClock::Lease.Expired`'s `now` — a SINGLE-FIELD `LeaseInstant`
-#     WITH a default (`value, Integer, default: 0`). Differentially
+#   - `LeaseClock::Lease.Expired`'s `now` — a single-field `LeaseInstant`
+#     with a default (`value, Integer, default: 0`). Differentially
 #     verified byte-for-byte against the compiled `lease_clock`
 #     conformance binary in spec/corpus/rust_conformance/
 #     lease_clock_expired_null_now.json (`spec/rust_conformance_spec.rb`,
 #     `:io`); re-checked here too, cargo-free, for fast local feedback.
 #   - `Banking::Account.{Overdrawn,HighBalance,StrictlyAbove,AtMost}`'s
-#     `floor`/`cap` — a MULTI-FIELD `Money` (`cents`/`currency`, BOTH
+#     `floor`/`cap` — a multi-field `Money` (`cents`/`currency`, both
 #     defaulted). No existing banking spec passed a null `floor`/`cap`
 #     before this file (checked: `grep -rn "Overdrawn\|HighBalance\|
 #     StrictlyAbove\|AtMost" spec/` turns up only real-valued calls), so
-#     refusing here is a genuinely NEW behavior, not a spec update to an
+#     refusing here is a genuinely new behavior, not a spec update to an
 #     old assertion — and the right call: it closes a real, live
 #     Ruby/Rust divergence (BUG#36), not just a style preference. Ruby's
 #     own refusal wording here ("`floor` is a `Money` — pass its fields
 #     as an object, not nil", `RefusalWording::TEMPLATES`'s existing
-#     `value_object_shape` template — the SAME one an ordinary
+#     `value_object_shape` template — the same one an ordinary
 #     wrong-shaped, non-null argument for a multi-field value object
 #     already gets) does not need to be byte-identical to Rust's own
-#     hardcoded `"Money expects an object, got nil"` — only the REFUSAL
-#     KIND has to agree (`TypeMismatch` on both sides), the same bar
+#     hardcoded `"Money expects an object, got nil"` — only the refusal
+#     kind has to agree (`TypeMismatch` on both sides), the same bar
 #     `spec/rust_conformance_fuzz_spec.rb`'s own generated-sequence
 #     comparison holds refusals to (C8.2: prose is not the contract).
-#   - `Order.CostingLessThan`'s `ceiling` — a SINGLE-FIELD `Price` with
-#     NO default. Already agreed between engines before this fix (the
-#     no-default branch of `nil_argument`/`check_required_fields` was
-#     never touched); pinned here as a non-regression check.
+#   - `Order.CostingLessThan`'s `ceiling` — a single-field `Price` with
+#     no default. Already agreed between engines regardless (the
+#     no-default branch of `nil_argument`/`check_required_fields` is
+#     never touched by this fix); pinned here as a non-regression check.
 RSpec.describe "a null required value-object-typed query argument (QualityControl BUG#36)" do
   describe "LeaseClock::Lease.Expired (single-field value object, WITH a default)" do
     let(:domain) { File.join(InMemoryDomain::ROOT, "qa/stress_domains/lease_clock") }

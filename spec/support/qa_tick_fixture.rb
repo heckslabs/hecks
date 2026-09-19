@@ -1,20 +1,32 @@
-require "hecks"
 require "hecks/ports/persistence/plugins/era"
-require_relative "support/qa_ledger_fixture"
+require_relative "qa_ledger_fixture"
 require "pathname"
 require "tmpdir"
 
-# `bin/qa_tick`, PROVEN AGAINST THE REAL THING — a real subprocess that
-# runs the REAL `bin/qa_pr_check` and the REAL `bin/qa_sweep --all` as
-# its own subprocesses, against a disposable PostgresEra ledger
-# (`spec/support/qa_ledger_fixture.rb`) and a throwaway git repository
-# with its own bare `origin`. The claims: a dirty tree is refused before
-# anything runs; the PR check ALWAYS runs before the sweep (stdout is the
-# proof — the order of the two banners); the two exit codes fold into one
-# with `--all`'s own precedence; and a stale-hold reclaim is counted out
-# loud so a recurring one is visible across ticks.
-RSpec.describe "bin/qa_tick", :io do
-  # THE SAME TRIVIALLY WELL-BEHAVED TARGET `spec/support/qa_sweep_all_fixture.rb`
+# **The `bin/qa_tick` fixture, shared** — split out of one `qa_tick_spec.rb`
+# (2026-09-18, following the same reasoning
+# `spec/support/qa_sweep_all_fixture.rb`'s own header already spells
+# out): the file's own 4 examples took 128s together, each a real
+# subprocess spawning `bin/qa_pr_check`, `bin/qa_sweep --all`, and
+# `bin/qa_generated_domains` as its own nested subprocesses — a floor no
+# matrix size could split further since `parallel_rspec` balances at
+# file granularity. Splitting the fixture out here and the 4 examples
+# across their own small files (each `include_context "with a qa_tick
+# fixture", <unique database name>`) lets the shard balancer actually
+# spread this file's own work instead of being stuck with one 128s lump.
+#
+# **Parameterized by database name, not hardcoded** — same per-file-unique-
+# resource-name discipline `qa_sweep_all_fixture.rb`'s own header
+# requires, for the identical reason: `parallel_rspec` runs different
+# files as genuinely concurrent OS processes, so two files sharing one
+# ledger database name would race each other's own `CREATE DATABASE`/
+# `DROP SCHEMA CASCADE`. `QaLedgerFixture::Ledger#stand_up!`/`#tear_down!`
+# are cheap (a tmpdir, a couple of small file writes, one `CREATE
+# DATABASE`) relative to the real subprocess-boot cost each example pays
+# regardless of how many share a file, so paying that setup once per
+# split file instead of once per 4 examples is a good trade.
+RSpec.shared_context "with a qa_tick fixture" do |database_name|
+  # The same trivially well-behaved target `spec/support/qa_sweep_all_fixture.rb`
   # sweeps — read that file's `FIXTURE_TARGET_BLUEBOOK` comment for why a
   # real corpus domain would make a "clean" example flaky.
   TICK_TARGET_BLUEBOOK = <<~RUBY.freeze
@@ -67,7 +79,7 @@ RSpec.describe "bin/qa_tick", :io do
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
-    @ledger = QaLedgerFixture::Ledger.new(database: "hecks_qa_tick_spec").stand_up!
+    @ledger = QaLedgerFixture::Ledger.new(database: database_name).stand_up!
     @target_domain_dir = Dir.mktmpdir("qa_tick_spec_target-", InMemoryDomain::ROOT)
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), TICK_TARGET_BLUEBOOK)
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), TICK_TARGET_HECKSAGON)
@@ -97,73 +109,37 @@ RSpec.describe "bin/qa_tick", :io do
     FileUtils.remove_entry(@origin) if @origin
   end
 
+  # Runs `git` inside the throwaway `@repo` checkout, as the fixture's own
+  # committer identity.
+  #
+  # @param args [Array<String>] the `git` subcommand and its arguments
+  # @return [Boolean] true once the command exits successfully
+  # @raise [RuntimeError] if the command exits with a non-zero status
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
            out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
   end
 
   # `QA_GENERATED_DOMAINS_PER_TICK=0` — the generated-domains step runs
-  # from the REAL checkout's dials, which a throwaway tick must not spend
+  # from the real checkout's dials, which a throwaway tick must not spend
   # minutes generating and building against; zero is its own "off" path.
+  #
+  # @return [Array(String, String, Process::Status)] `bin/qa_tick`'s
+  #   captured stdout, stderr and exit status
   def tick
     @ledger.run("qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
   end
 
+  # Boots the fixture ledger in-process, briefly, purely to write `Target`
+  # rows down.
+  #
+  # @param targets [Hash{String => String}] target reference to its domain's
+  #   path, relative to `InMemoryDomain::ROOT`
+  # @return [void]
   def identify!(targets)
     @ledger.boot
     targets.each do |reference, path|
       QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
     end
-  end
-
-  it "refuses a dirty tree before running anything" do
-    File.write(File.join(@repo, "scratch.txt"), "uncommitted\n")
-
-    stdout, stderr, status = tick
-
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("refused: the working tree is dirty", "scratch.txt")
-    expect(stdout).not_to include("── bin/qa_pr_check", "── bin/qa_sweep --all")
-  end
-
-  it "rebases, runs the PR check FIRST and the sweep second, and is clean on an empty ledger" do
-    stdout, stderr, status = tick
-
-    expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
-    pr_check_at = stdout.index("── bin/qa_pr_check")
-    sweep_at    = stdout.index("── bin/qa_sweep --all")
-    expect(pr_check_at).not_to be_nil
-    expect(sweep_at).not_to be_nil
-    expect(pr_check_at).to be < sweep_at
-    generated_at = stdout.index("── bin/qa_generated_domains --from-dials")
-    expect(generated_at).not_to be_nil
-    expect(sweep_at).to be < generated_at
-    expect(stdout).to include("generated domains: off (QualityControlDials::GENERATED_DOMAINS_PER_TICK is 0)",
-                              "bin/qa_generated_domains: clean (exit 0)")
-    expect(stdout).to include("── git fetch origin && git rebase origin/main",
-                              "no PRs tracked as open", "rotation is empty",
-                              "stale holds reclaimed: 0", "tick: clean (exit 0)")
-  end
-
-  it "reports an operational error from the sweep as the tick's own exit 1" do
-    identify!("broken_one" => "qa/stress_domains/__qa_tick_spec_does_not_exist__")
-
-    stdout, _stderr, status = tick
-
-    expect(status.exitstatus).to eq(1)
-    expect(stdout).to include("bin/qa_pr_check:   clean (exit 0)",
-                              "bin/qa_sweep --all: operational error (exit 1)",
-                              "tick: operational error (exit 1)")
-  end
-
-  it "counts a stale hold the sweep reclaimed, so a recurring one is visible across ticks" do
-    identify!("stale_one" => @target_domain_relpath)
-    QualityControl::Target.find("stale_one").claim!(held_by: { value: "ghost" }, now: { value: Time.now.to_i - 5_000 })
-
-    stdout, stderr, status = tick
-
-    expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
-    expect(stdout).to include("reclaimed stale hold: stale_one (held by ghost,", "stale holds reclaimed: 1 (stale_one)",
-                              "tick: clean (exit 0)")
   end
 end

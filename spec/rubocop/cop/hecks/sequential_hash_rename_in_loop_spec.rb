@@ -1,7 +1,7 @@
 require "rubocop"
-# NOT "rubocop/rspec/support" — see fallback_hash_lookup_spec.rb's identical
+# Not "rubocop/rspec/support" — see fallback_hash_lookup_spec.rb's identical
 # comment: that file's top-level `RSpec.configure { config.include CopHelper;
-# ... }` installs CopHelper's `registry` method onto EVERY example group the
+# ... }` installs CopHelper's `registry` method onto every example group the
 # instant it's required, which collided with unrelated specs elsewhere in
 # this suite that define their own `registry`. Requiring the two mixins
 # directly and including them only in this describe block keeps this cop's
@@ -27,8 +27,8 @@ RSpec.describe RuboCop::Cop::Hecks::SequentialHashRenameInLoop do
   # `MessageAnnotator` prepends by default.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
-  # THE EXACT SHAPE M27 SHIPPED WITH — `apply_renames` used to do this,
-  # one rule at a time, before it was fixed (see the cop's own header and
+  # The exact shape M27 shipped with — `apply_renames` did this,
+  # one rule at a time, until it was fixed (see the cop's own header and
   # `lib/hecks/ports/persistence/plugins/era/lineage.rb`'s own comment on
   # `apply_renames`). Reconstructed here as a fixture, not by reverting the
   # real (already-fixed) method — this spec proves the cop would have

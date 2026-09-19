@@ -332,6 +332,17 @@ pub async fn handle(
                 .get("aggregate")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("mutation record missing \"aggregate\": {mutation}"))?;
+            // ONLY WHAT THE IR CALLS LINEAGE-CAPABLE. `era.is_some()`
+            // above says the lineage SUBSYSTEM exists; it does not say
+            // this particular aggregate has an era-shaped mirror to
+            // write into. `mint` provisions head snapshots for exactly
+            // the capable set, so mirroring anything outside it upserts
+            // into a relation nobody ever created — see
+            // `LineageConfig::mirrored`'s own comment for the live
+            // outage that was.
+            if !config.mirrors(aggregate) {
+                continue;
+            }
             let id = mutation
                 .get("id")
                 .and_then(|v| v.as_str())
@@ -521,8 +532,38 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
     Ok(serde_json::from_str(&output)?)
 }
 
+/// A DECLARED QUERY, ANSWERED — the kernel's own `{"query"}` step
+/// shape (rust/src/kernel/cli.rs), run against current state.
+///
+/// Seeds from `read` above rather than replaying history itself, which
+/// is what keeps this honest about cost AND about correctness: `read`
+/// already owns the snapshot fast path and the self-healing tail
+/// replay, so a query sees exactly the state a read would report, and
+/// pays one wasm invocation at most (none of the replay `handle` does,
+/// since nothing is written).
+///
+/// `question` is the qualified `Domain::Aggregate.QueryName` Ruby's own
+/// `Dispatcher#query` takes; `args` is the same argument hash, value
+/// objects wrapped the way the kernel's own arg check expects. Returns
+/// the kernel's whole output — the caller reads `["queries"][0]`, which
+/// carries either `rows` or an `error`, exactly as a refused query step
+/// reports it (`rows: null` plus `error`, never a bare absence).
+pub async fn query(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    question: &str,
+    args: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
+    let state = read(client, wasm_path).await?;
+    let seed = state.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
+    let input = serde_json::json!({ "seed": seed, "steps": [{ "query": question, "args": args }] }).to_string();
+    let owned_wasm_path = wasm_path.to_path_buf();
+    let output = tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
+    Ok(serde_json::from_str(&output)?)
+}
+
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use tokio_postgres::NoTls;
 
@@ -533,7 +574,7 @@ mod tests {
     // to. Uniquely named per test (not one shared scratch DB) so
     // `cargo test`'s default parallelism doesn't race two tests
     // against the same journal table.
-    async fn scratch_db(name: &str) -> Mutex<Client> {
+    pub(crate) async fn scratch_db(name: &str) -> Mutex<Client> {
         let (admin, conn) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
             .await
             .expect("connect to postgres");
@@ -568,7 +609,7 @@ mod tests {
     // current_era's own query only ever reads domain/ordinal, so a
     // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
     // runs for real.
-    async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
+    pub(crate) async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
         // `int`, matching Ruby's real DDL (era_store.rb's `ordinal int
         // NOT NULL`, provisioning.rb's `era int NOT NULL`) exactly —
         // LineageConfig::era is i32 for the same reason: tokio_postgres
@@ -603,21 +644,117 @@ mod tests {
             .unwrap();
 
         for name in aggregate_storage_names {
-            let snapshot_table = format!("{}_head_snapshot_{era}", journal::snake(name));
+            // domain-qualified (docs/decisions/0059) — matches what a real
+            // `journal::append_lineage_mutation` write (exercised by
+            // `handle` below) actually targets now.
+            let snapshot_table = journal::qualified_name(domain, &format!("{}_head_snapshot_{era}", journal::snake(name)));
             client
                 .batch_execute(&format!(
-                    "CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"
+                    "CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, \
+                     operation text NOT NULL DEFAULT 'save', state jsonb)"
                 ))
                 .await
                 .unwrap();
         }
     }
 
-    fn test_config(domain: &str, era: i32) -> LineageConfig {
-        LineageConfig { domain: domain.to_string(), era: Some(era) }
+    /// THE LIVE OUTAGE, PINNED. `era.is_some()` and "this aggregate has
+    /// an era-shaped mirror" are different questions, and treating them
+    /// as one killed every write embryonautfoundersapp ever attempted:
+    /// ADR 0034 turns the lineage subsystem on for any domain with
+    /// Google auth, so `era` was `Some(2)`, while its IR declared
+    /// `capable_aggregates: []`, so `mint` had provisioned no head
+    /// snapshot for anything. The first mutation upserted into a
+    /// relation nobody had ever created.
+    #[tokio::test]
+    async fn a_domain_whose_ir_declares_nothing_lineage_capable_mirrors_nothing_and_still_writes() {
+        let client = scratch_db("rust_host_mirrors_nothing").await;
+        {
+            let guard = client.lock().await;
+            // The era exists and its journal is partitioned — but NO
+            // head snapshot for Customer, exactly as `mint` leaves a
+            // domain with an empty capable set.
+            guard.batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)").await.unwrap();
+            guard.execute("INSERT INTO hecks_eras (domain, ordinal, held_text) VALUES ('Banking', 1, 'test')", &[]).await.unwrap();
+            guard
+                .batch_execute(
+                    "CREATE TABLE IF NOT EXISTS hecks_journal_banking (ordinal bigserial PRIMARY KEY, era int NOT NULL, \
+                     aggregate text NOT NULL, aggregate_id text NOT NULL, operation text NOT NULL, state jsonb)",
+                )
+                .await
+                .unwrap();
+        }
+        let wasm = wasm_path();
+        let invoker = crate::lambda_client::NeverInvoker;
+        let open = register("CUST-1");
+
+        // Mirroring everything — the behaviour before this field existed
+        // — is the outage: there is no head snapshot to upsert into.
+        let everything = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
+        let refused = handle_facts(&client, &wasm, "Banking::Customer.Register", open.clone(), None, &everything, &invoker).await;
+        let message = match refused {
+            Ok(_) => panic!("expected the missing-relation failure"),
+            Err(e) => format!("{e:#}"),
+        };
+        assert!(message.contains("banking_customer_head_snapshot_1"), "names the relation it could not write: {message}");
+        assert!(message.contains("does not exist"), "carries the database's own words: {message}");
+        assert!(message.contains("Banking::Customer"), "names the record: {message}");
+
+        // Mirroring what the IR actually declares — nothing — writes
+        // cleanly, into this crate's own journal.
+        let declared = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: Some(std::collections::BTreeSet::new()),
+        };
+        let outcome = handle_facts(&client, &wasm, "Banking::Customer.Register", open, None, &declared, &invoker)
+            .await
+            .expect("writes");
+        assert!(outcome.accepted, "{}", outcome.result);
+
+        let guard = client.lock().await;
+        let journalled: i64 = guard.query_one("SELECT count(*) FROM hecks_lambda_journal", &[]).await.unwrap().get(0);
+        assert_eq!(journalled, 1, "durable in this crate's own journal, which is what `read` replays");
+        let mirror: Option<String> =
+            guard.query_one("SELECT to_regclass('banking_customer_head_snapshot_1')::text", &[]).await.unwrap().get(0);
+        assert!(mirror.is_none(), "and no mirror was invented for an aggregate the IR never called capable");
     }
 
-    fn wasm_path() -> std::path::PathBuf {
+    /// The other half: an aggregate the IR DOES call capable is still
+    /// mirrored, unchanged.
+    #[tokio::test]
+    async fn an_aggregate_the_ir_declares_capable_is_still_mirrored() {
+        let client = scratch_db("rust_host_mirrors_the_capable_one").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: Some(["Banking::Customer".to_string()].into_iter().collect()),
+        };
+
+        handle_facts(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-2"),
+            None,
+            &config,
+            &crate::lambda_client::NeverInvoker,
+        )
+        .await
+        .expect("writes");
+
+        let guard = client.lock().await;
+        let mirrored: i64 =
+            guard.query_one("SELECT count(*) FROM banking_customer_head_snapshot_1", &[]).await.unwrap().get(0);
+        assert_eq!(mirrored, 1);
+    }
+
+    fn test_config(domain: &str, era: i32) -> LineageConfig {
+        LineageConfig { domain: domain.to_string(), era: Some(era), mirrored: None }
+    }
+
+    pub(crate) fn wasm_path() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.wasm")
     }
 
@@ -627,6 +764,51 @@ mod tests {
             "name": { "given": "Ada", "family": "Lovelace" },
             "email": { "address": "ada@example.com" }
         })
+    }
+
+    // `query` above, end to end through the real compiled kernel: a
+    // declared query, answered against whatever state the journal
+    // currently holds — the read path `/api/:coll?query=<name>` needs
+    // (api.rs), which is the console's own live query picker.
+    #[tokio::test]
+    async fn a_declared_query_answers_against_current_state() {
+        let client = scratch_db("rust_host_dispatch_test_query").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0100"), None, &config, &lambda_client::NeverInvoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("registering a customer should succeed");
+
+        // `Customer.Suspended` is `where status == "suspended"` — a
+        // freshly registered customer is active, so the query has to
+        // answer with a real, EMPTY row set, not everything.
+        let before = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.unwrap();
+        assert_eq!(before["queries"][0]["query"], "Banking::Customer.Suspended");
+        assert_eq!(before["queries"][0]["rows"].as_array().expect("rows").len(), 0);
+
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Suspend",
+            serde_json::json!({ "reference": "CUST-0100", "standing": { "value": "watch" } }),
+            None,
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("suspending a customer should succeed");
+
+        let after = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.unwrap();
+        let rows = after["queries"][0]["rows"].as_array().expect("rows");
+        assert_eq!(rows.len(), 1, "the suspended customer should be the one row: {after}");
+        assert_eq!(rows[0]["id"], "CUST-0100");
     }
 
     #[tokio::test]
@@ -667,8 +849,9 @@ mod tests {
         let operation: String = row.get(3);
         assert_eq!((era, aggregate.as_str(), aggregate_id.as_str(), operation.as_str()), (1, "customer", "CUST-0001", "save"));
 
+        // domain-qualified (docs/decisions/0059) — snake("Banking") == "banking".
         let snapshot_rows = guard
-            .query("SELECT id FROM customer_head_snapshot_1", &[])
+            .query("SELECT id FROM banking_customer_head_snapshot_1", &[])
             .await
             .unwrap();
         assert_eq!(snapshot_rows.len(), 1, "the head-snapshot table should carry exactly the one live record");

@@ -1,17 +1,17 @@
 require "spec_helper"
 require "open3"
 
-# THE AUTOMATED ANSWER TO "IS EVERYTHING TAGGED FOR DRIFT FROM RUBY'S OWN
-# GRAMMAR". `declared (word, context) pairs from syntax.bluebook` minus
+# The automated answer to "is everything tagged for drift from Ruby's own
+# grammar". `declared (word, context) pairs from syntax.bluebook` minus
 # `hecks-parse coverage`'s own reported set must be empty — minus an
-# explicit, reasoned, NAMED allowlist for staged rollout. STAGE 1 left the
+# explicit, reasoned, named allowlist for staged rollout. Stage 1 left the
 # allowlist as basically everything (`hecks-parse coverage` reported `[]`
-# — nothing built yet). STAGE 2 shrunk it by exactly the pairs
-# pizzas.bluebook actually exercises; STAGE 3 shrinks it further by the
+# — nothing built yet). Stage 2 shrunk it by exactly the pairs
+# pizzas.bluebook actually exercises; stage 3 shrinks it further by the
 # framework trio's own real usage. What the parser builds is read off
 # `hecks-parse coverage` itself (`rust/parser/src/main.rs::COVERED_PAIRS`),
 # never mirrored here. The point is the allowlist is
-# VISIBLE and ITEMIZED, and it will shrink stage by stage as parse/*.rs and
+# visible and itemized, and it will shrink stage by stage as parse/*.rs and
 # build/*.rs stop being stubs — never silently grow.
 # `io: true` — a `cargo build` subprocess spawn is real I/O by this
 # suite's own convention (see spec_helper.rb's `io: true` note). The build
@@ -31,9 +31,9 @@ RSpec.describe "the Rust parser's own coverage", :io do
 
   before(:context) { self.class.build_parser! }
 
-  # THE SAME `rows`/`live?` READING spec/syntax_conformance_spec.rb and
+  # The same `rows`/`live?` reading spec/syntax_conformance_spec.rb and
   # bin/project_parser_table both already use — the declared surface,
-  # LIVE words only (admitted/deprecated; proposed/retired words reach no
+  # live words only (admitted/deprecated; proposed/retired words reach no
   # generated parser table at all, same as every other projection).
   def self.judged_meta
     Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
@@ -51,7 +51,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
 
   # S14, ADR 0026 — Keyword is a genuine entity of Syntax now, dispatched
   # through a real lifecycle rather than merely declared — `SyntaxBoot.
-  # call` hands back the same shape `rows("Keyword")` used to.
+  # call` hands back the same shape `rows("Keyword")` once returned.
   DECLARED_PAIRS = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
                                                              .select { |row| live?(row) }.map do |row|
     [
@@ -59,12 +59,12 @@ RSpec.describe "the Rust parser's own coverage", :io do
     ]
   end.uniq.sort
 
-  # WHAT THIS PARSER GENUINELY BUILDS is not restated here. The one list is
+  # What this parser genuinely builds is not restated here. The one list is
   # `rust/parser/src/main.rs::COVERED_PAIRS` (pairs confirmed by
   # `spec/parser_parity_spec.rb`'s byte-exact comparisons, not just "the
   # word gates cleanly"), and `hecks-parse coverage` prints it — so this
-  # reads the printed set. A Ruby copy used to sit here "kept in sync by
-  # hand", which made `PENDING_PAIRS = DECLARED_PAIRS - COVERED_PAIRS`
+  # reads the printed set. A Ruby copy "kept in sync by
+  # hand" sitting here instead would make `PENDING_PAIRS = DECLARED_PAIRS - COVERED_PAIRS`
   # true by construction: every example below that used it could not fail.
   def self.reported_coverage
     stdout, status = Open3.capture2(COVERAGE_BINARY_PATH, "coverage")
@@ -78,7 +78,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
   # pairing already uses.
   def reported_coverage = self.class.reported_coverage
 
-  # THE ALLOWLIST — every declared pair this parser does NOT report, each
+  # **The allowlist** — every declared pair this parser does not report, each
   # under the reason it is not built. Written out rather than computed as
   # "declared minus reported": a computed allowlist absorbs whatever the
   # parser stops building, and absorbs every new word the grammar grows,
@@ -113,7 +113,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
     ]],
     # Checked against the whole corpus at Stage 6: `has_many`/`has_one`
     # `Aggregate` (sugar beside the reported `belongs_to`; `has_many` is
-    # even parsed, but gated is not covered); a BARE `reference_to` directly
+    # even parsed, but gated is not covered); a bare `reference_to` directly
     # in an `entity`/`query` body (every real one sits in a `command`);
     # `provenance` inside a `command`; `formerly_known_as` (no tracked
     # `.bluebook` declares a rename). The 2026-09-14 audit checked the

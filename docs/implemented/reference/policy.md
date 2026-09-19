@@ -123,9 +123,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "po-1" },
-                 name: { given: "Dorothy", family: "Vaughan" },
-                 email: { address: "dorothy@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "po-1" },
+                                                       name: { given: "Dorothy", family: "Vaughan" },
+                                                       email: { address: "dorothy@example.com" } })
 account = Banking::Account.open!(customer: "po-1", number: { value: "po-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
@@ -149,7 +149,7 @@ where a policy adds a condition of its own.
 is the only act here — nothing mentions compliance at the call site:
 
 ```ruby
-runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "po-a1" })
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "po-a1" })
 runtime.registry.reaction_log.last[:on]  # => "AccountFrozen"
 ```
 

@@ -5,18 +5,18 @@ require "tmpdir"
 require "open3"
 require_relative "../rust/project"
 
-# THE DIFFERENTIAL HARNESS FOR STAGE 7 (codegen) — modeled directly on
+# The differential harness for stage 7 (codegen) — modeled directly on
 # spec/parser_parity_spec.rb's own proven pattern (cargo-build-then-
 # subprocess, byte-exact comparison, a real corpus enumeration, an
-# honestly-shrinking CODEGEN_PENDING_MEMBERS table with a REASON per entry) and on
+# honestly-shrinking CODEGEN_PENDING_MEMBERS table with a reason per entry) and on
 # spec/rust_conformance_spec.rb's own cargo-build-inside-rspec convention.
 #
-# TWO SLICES, TWO CHECKS. The first Stage 7 slice ported the value-object/
+# **Two slices, two checks**. The first Stage 7 slice ported the value-object/
 # entity/record/JSON-codec/closed-set/invariant/identity-extraction half
 # of `rust/project/*.rb` (types.rb, fielded.rb, json_codec.rb,
 # constraints.rb, naming.rb, exemplar.rb, plus a Rust port of Evaluator/
-# Resolver's PARSE step for expr_emitter.rb) — real and independently
-# verifiable, but not a WHOLE generated `.rs` file, because
+# Resolver's parse step for expr_emitter.rb) — real and independently
+# verifiable, but not a whole generated `.rs` file, because
 # `domain_generator.rb#call` interleaves that slice with commands/ports
 # into one file per aggregate. That gap is what this continuation closes:
 # `rust/codegen/src/{commands,mutations,bridging,queries,read_models,
@@ -25,28 +25,28 @@ require_relative "../rust/project"
 # wiring, mutation application, JSON routing), and `hecks-codegen domain`
 # (a new CLI subcommand alongside `prelude`, backed by
 # `rust/codegen/src/domain_generator.rs`, a from-scratch port of
-# `DomainGenerator.call` — NOT built by reusing `prelude.rs`, which
+# `DomainGenerator.call` — not built by reusing `prelude.rs`, which
 # omits entity commands entirely; see that file's own header) generates
-# the FULL per-chapter output: every aggregate `.rs` file, `registry.rs`,
+# the full per-chapter output: every aggregate `.rs` file, `registry.rs`,
 # `mod.rs`.
 #
-# EVERY member gets the whole-file check. The older prelude-only check
+# Every member gets the whole-file check. The older prelude-only check
 # (and its `WHOLE_FILE_MEMBERS` split) is gone: once every hand-listed
 # member reached whole-file byte-exactness it had nothing left to run.
 # Members that don't match yet sit in `CODEGEN_PENDING_MEMBERS`, where
 # the same whole-file check runs as RSpec `pending`.
 #
-# NOT covered even by the whole-file check: `metadata.rs` (embeds
+# Not covered even by the whole-file check: `metadata.rs` (embeds
 # `ir.json` as a Rust string constant via Ruby's own `JSON.pretty_generate
 # (ir).inspect` — this crate has no JSON pretty-printer, only a reader,
 # see `json.rs`'s own header), `ir.json` itself (the same reason), and
 # `manifest.json` (bookkeeping about what got generated, not the
 # generated source itself) — all three are real, named, deliberately
 # out-of-scope gaps in `rust/codegen/src/domain_generator.rs`'s own
-# header, not silently dropped. `mod.rs` IS covered (cheap, deterministic,
-# no JSON pretty-printer needed) but compared against Ruby's OWN
+# header, not silently dropped. `mod.rs` is covered (cheap, deterministic,
+# no JSON pretty-printer needed) but compared against Ruby's own
 # `DomainGenerator.call` output directly (this spec's own whole-file `it`
-# block, below) — NOT against the checked-in `rust/src/generated/
+# block, below) — not against the checked-in `rust/src/generated/
 # <member>/mod.rs`, which `bin/project_rust` itself (not
 # `DomainGenerator.call`) appends a `pub mod merged;` line to as a
 # separate, later post-processing step (`bin/project_rust`'s own
@@ -54,7 +54,7 @@ require_relative "../rust/project"
 # comparing against the checked-in file would be comparing against the
 # wrong artifact.
 #
-# `mark_append_optional_fields!` (mutations.rb) is STILL NOT PORTED —
+# `mark_append_optional_fields!` (mutations.rb) is still not ported —
 # `Json` (this crate's own IR value type) has no mutation API (see
 # `json.rs`'s own header), and every real corpus field that pass would
 # touch already declares `optional: true` directly in its own bluebook
@@ -65,12 +65,12 @@ require_relative "../rust/project"
 # silently dropped — see `mutations.rs`'s own header for the full
 # argument.
 # `io: true` — a `cargo build` subprocess spawn is real I/O by this
-# suite's own convention (see spec_helper.rb's `io: true` note), and
-# `build_codegen!` used to run at `describe`-body load time, unconditionally,
-# on every `bundle exec rspec` — RSpec still evaluates a group's top-level
+# suite's own convention (see spec_helper.rb's `io: true` note). Running
+# `build_codegen!` at `describe`-body load time, unconditionally, would run
+# it on every `bundle exec rspec` — RSpec still evaluates a group's top-level
 # body while building the example tree even when every example in it gets
-# excluded by the `io: true` filter, so tagging the group alone wasn't
-# enough; the build itself had to move into a `before(:context)` hook,
+# excluded by the `io: true` filter, so tagging the group alone is not
+# enough; the build itself lives in a `before(:context)` hook instead,
 # which — unlike plain body code — really is skipped when excluded.
 RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
@@ -86,7 +86,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
 
   def self.json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
-  # THE SAME sequence `bin/project_rust` itself loads a single-bluebook
+  # The same sequence `bin/project_rust` itself loads a single-bluebook
   # domain through (persistence/extraction ports, memory + prism +
   # postgres adapters, then the domain's own `.bluebook`) — reused
   # directly so this can't silently drift from what "the real generator's
@@ -104,18 +104,18 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     json_shaped(Hecks::Projector::Exporter.call(registry).fetch(domain_name))
   end
 
-  # THE ONE MEMBER THAT CAN'T GO THROUGH `domain_ir` — same reason
+  # The one member that can't go through `domain_ir` — same reason
   # spec/parser_parity_spec.rb's own `ruby_ir_json` special-cases it:
   # `MetaValidator.grammar_registry` is the only door that sets
   # `@bootstrapping = true` around the self-hosted grammar's own nine-file
   # load (aggregate.bluebook references ValueObject/Entity, both declared
-  # in LATER files — the ordinary `Hecks.bluebook`-triggered path refuses
+  # in later files — the ordinary `Hecks.bluebook`-triggered path refuses
   # immediately).
   def self.meta_ir
     json_shaped(Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
   end
 
-  # [member name, ir-loader lambda] — DERIVED, not hand-listed:
+  # [member name, ir-loader lambda] — derived, not hand-listed:
   #   - every in-repo Rust domain `bin/project_rust` has generated
   #     (`Hecks::Corpus.rust_regen_order`, the list the drift check
   #     regenerates), loaded from its bluebook directory the way
@@ -148,15 +148,11 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     ["bluebook_language", -> { meta_ir }]
   ].freeze
 
-  # SHRINK-ONLY: a derived member whose Rust codegen still disagrees with
+  # **Shrink-only**: a derived member whose Rust codegen still disagrees with
   # Ruby's, with the bug that owns it. It runs the same whole-file check
-  # as RSpec `pending`, so the day it matches, the example FAILS until the
+  # as RSpec `pending`, so the day it matches, the example fails until the
   # entry is deleted here.
-  CODEGEN_PENDING_MEMBERS = {
-    "corrections" => "BUG#32's Rust half: `Ledger.Void` (`sets :entries, remove: :sequence`) — rust/codegen never " \
-                     "ported the `remove` mutation op, and `hecks-codegen domain` panics with " \
-                     "\"unsupported mutation op \\\"remove\\\"\""
-  }.freeze
+  CODEGEN_PENDING_MEMBERS = {}.freeze
 
   it "finds at least one real corpus member" do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty
@@ -166,7 +162,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     expect(CODEGEN_PENDING_MEMBERS.keys - CODEGEN_CORPUS_MEMBERS.map(&:first)).to be_empty
   end
 
-  # EMBRYONAUT IS EXTERNAL, not pending: its bluebook lives in its own
+  # Embryonaut is external, not pending: its bluebook lives in its own
   # repository, which owes its codegen parity. This fails the day an
   # in-repo source for it appears, so it joins the derived members.
   it "embryonaut: has no in-repo source, so its own repository owns its codegen parity" do
@@ -184,7 +180,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
         ruby_dir = File.join(tmp, "ruby")
         rust_dir = File.join(tmp, "rust")
 
-        # Ruby's own `DomainGenerator.call` — the SAME real function
+        # Ruby's own `DomainGenerator.call` — the same real function
         # `bin/project_rust` calls, not a reimplementation. Also writes
         # metadata.rs/ir.json/manifest.json into `ruby_dir` (this method's
         # own contract) — deliberately not compared (see this file's own
@@ -196,7 +192,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
         stdout, status = Open3.capture2(CODEGEN_BINARY, "domain", ir_json_path, name, name, rust_dir)
         expect(status.success?).to be(true), "hecks-codegen domain failed for #{name}:\n#{stdout}"
 
-        # Compare exactly the files THIS crate claims to generate
+        # Compare exactly the files this crate claims to generate
         # (aggregate `.rs` files, `registry.rs`, `mod.rs`) — never
         # metadata.rs/ir.json/manifest.json, which aren't ported (see
         # this file's own header).
@@ -218,7 +214,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     end
   end
 
-  # Every aggregate NAME the real `DomainGenerator.call` would generate a
+  # Every aggregate name the real `DomainGenerator.call` would generate a
   # file for — mirrors that method's own `unsupported_attribute_types`
   # skip check exactly (rather than hand-listing basenames), so this can
   # never silently drift from which aggregates a real run actually emits.

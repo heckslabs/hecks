@@ -3,33 +3,33 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# bin/check_engine_agreement is a SCRIPT, not a library — same reasoning
+# bin/check_engine_agreement is a script, not a library — same reasoning
 # bin_stores_spec.rb's own header gives: there's nothing to require, so
 # this runs it as a real subprocess (Open3) against real files.
 #
-# The POSITIVE case runs it against the real, current repo: Tiers 1-4
+# The positive case runs it against the real, current repo: Tiers 1-4
 # already unified the two engines behind QuerySpecification::Common::
 # Comparison, so this is the proof that state stays "0 problems" —
 # not merely that the script runs.
 #
-# The NEGATIVE cases run it against a TEMP COPY of the six files it
+# The negative cases run it against a temp copy of the six files it
 # reads (the shared comparison module, the two engine files, and the
 # three cross-engine agreement specs), each deliberately mutated to
 # reintroduce exactly one of the two shipped bugs this mechanism exists
 # to catch. `HECKS_CHECK_ENGINE_AGREEMENT_ROOT` points the script at
 # that copy instead of the real repo — `Hecks::Vocabulary` itself still
 # loads for real (the script's own `require "hecks"` is unconditional,
-# resolved from its own real `lib/`), so the DECLARED closed set is
-# always the real nine comparators; only WHERE it looks for the shared
+# resolved from its own real `lib/`), so the declared closed set is
+# always the real nine comparators; only where it looks for the shared
 # case and the agreement specs is faked.
 RSpec.describe "bin/check_engine_agreement" do
-  # Namespaced, not a bare SCRIPT — see load_hygiene_spec.rb's own "no two
+  # Namespaced, not a bare script — see load_hygiene_spec.rb's own "no two
   # spec files disagree about a top-level constant" check: a constant
   # assigned inside a `describe` block lands at Object (top level, not on
   # the example group), so a bare `SCRIPT` here silently collided with
   # project_tenant_spec.rb's own bare `SCRIPT` — whichever spec file's
   # `require` ran last during rspec's load phase won, and every example in
-  # THIS file ended up shelling out to bin/project_tenant instead. Follows
+  # this file ended up shelling out to bin/project_tenant instead. Follows
   # bin_stores_spec.rb's own `BIN_STORES_SCRIPT` naming for the same reason.
   CHECK_ENGINE_AGREEMENT_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/check_engine_agreement").freeze
 
@@ -43,7 +43,7 @@ RSpec.describe "bin/check_engine_agreement" do
   ].freeze
 
   # A faithful copy of the six real, tracked files under a scratch root
-  # — every OTHER comparator stays fully covered, so a mutation below
+  # — every other comparator stays fully covered, so a mutation below
   # isolates exactly the one gap it introduces rather than accidentally
   # tripping on some unrelated, pre-existing gap.
   def clone_tracked_tree(dir)
@@ -107,9 +107,9 @@ RSpec.describe "bin/check_engine_agreement" do
       clone_tracked_tree(dir)
 
       # Strip every explicit `gt:` occurrence (and the one example whose
-      # DESCRIPTION names it) from all three agreement-suite copies,
+      # description names it) from all three agreement-suite copies,
       # leaving comparison.rb's own `gt` case exactly as it is — this
-      # isolates the SPEC gap from the CASE gap the previous example
+      # isolates the spec gap from the case gap the previous example
       # covers.
       %w[
         spec/adapters/query_agreement_spec.rb
@@ -133,7 +133,7 @@ RSpec.describe "bin/check_engine_agreement" do
       clone_tracked_tree(dir)
 
       in_memory_path = File.join(dir, "lib/hecks/ports/query/in_memory.rb")
-      # A DUPLICATE, private re-implementation living ALONGSIDE the real
+      # A duplicate, private re-implementation living alongside the real
       # `Comparison.holds?` call — exactly the shape the original bug
       # took: not a replacement, a second copy nobody deletes.
       poisoned = File.read(in_memory_path).sub(

@@ -1,13 +1,13 @@
 module Hecks
   module Fuzzing
-    # HOW HARD ONE SWEEP FUZZES, AS A FUNCTION OF `Target.clean_streak`
+    # How hard one sweep fuzzes, as a function of `Target.clean_streak`
     # (qa/bluebook/quality_control.bluebook — that attribute's own comment
     # says what the streak means). The sibling of `RotationPriority`: the
     # ledger holds the number, `QualityControlDials::WIDENING_TIERS` holds
     # the policy, and this module is where the two meet — a pure function
     # of both, nothing else read.
     #
-    # WHY THIS IS NOT IN `bin/qa_sweep` ANY MORE. It was — `WIDENING_TIERS`
+    # Why this is not in `bin/qa_sweep` any more. It was — `WIDENING_TIERS`
     # and `widen_for_streak` lived at the top of that script, which meant
     # policy data lived in a script (unlike every other dial, which lives
     # in the bluebook a human edits and reviews) and duplicated itself as
@@ -15,7 +15,7 @@ module Hecks
     # and `bin/qa_sweep` calls it the way it already calls
     # `RotationPriority.pick`.
     #
-    # PURE, DELIBERATELY — the same discipline `RotationPriority` keeps:
+    # **Pure, deliberately** — the same discipline `RotationPriority` keeps:
     # same streak in, same `[seeds, steps]` out, every time, which is what
     # lets a human predict what a given sweep is about to do before it
     # runs one. `tiers:` defaults to the dial but is a plain argument, so
@@ -26,7 +26,7 @@ module Hecks
     module SweepDepth
       module_function
 
-      # THE FALLBACK TABLE, for a boot with no `QualityControlDials` at all
+      # The fallback table, for a boot with no `QualityControlDials` at all
       # — the same shape and the same three rows the dial ships with, so a
       # dial-less ledger fuzzes exactly as a dialled one does by default.
       # Never read when the dial exists; `bin/qa_sweep` passes the dial in.
@@ -40,6 +40,14 @@ module Hecks
       # streak does not exceed wins — rows are read in order, so the table
       # must be ascending, and the last row's `Float::INFINITY` is what
       # makes it the ceiling rather than a gap.
+      #
+      # @param streak [Integer] `Target.clean_streak`, the number of consecutive clean sweeps
+      # @param tiers [Array<Hash{Symbol => Numeric}>] ascending `{ upto:, seeds:, steps: }` rows;
+      #   defaults to `DEFAULT_TIERS`
+      # @return [Array(Integer, Integer)] `[seeds, steps]` for the first row `streak` fits under
+      # @raise [ArgumentError] if `streak` is negative
+      # @raise [ArgumentError] if no row in `tiers` covers `streak` (the last row must declare
+      #   `upto: Float::INFINITY`)
       def for_streak(streak, tiers: DEFAULT_TIERS)
         raise ArgumentError, "streak must not be negative" if streak.negative?
 

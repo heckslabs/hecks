@@ -2,12 +2,12 @@ require "spec_helper"
 require "tempfile"
 
 # Real dispatch coverage for the Value.scalar unwrap fix in the lifecycle-
-# transition matcher: a VO-typed lifecycle field's bare `.to_s` used to hit
+# transition matcher: a VO-typed lifecycle field's bare `.to_s` would hit
 # Ruby's default Object#to_s instead of unwrapping the inner scalar, so
-# `current` came back as a raw object-pointer string that could never match
-# any declared `from` state. Bites on the SECOND transition specifically:
+# `current` would come back as a raw object-pointer string that could never match
+# any declared `from` state. Bites on the second transition specifically:
 # the field starts as a raw, unwrapped default, and only becomes a real
-# Value once the FIRST transition's `sets` wraps it -- a subsequent
+# Value once the first transition's `sets` wraps it -- a subsequent
 # transition attempt is where the bug shows.
 RSpec.describe "lifecycle transition on a VO-typed field" do
   def boot(source, hecksagon_name, &binds)
@@ -89,10 +89,10 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
 
   it "admits a SECOND transition once the field is already Value-wrapped by the first" do
     runtime = boot_lifecycle_value_scalar
-    runtime.dispatch("LifecycleValueScalarGrowth::Task.Open", id: { value: "t1" })
-    runtime.dispatch("LifecycleValueScalarGrowth::Task.Advance", id: "t1")
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Open", id: { value: "t1" })
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Advance", id: "t1")
 
-    expect { runtime.dispatch("LifecycleValueScalarGrowth::Task.Finish", id: "t1") }.not_to raise_error
+    expect { runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Finish", id: "t1") }.not_to raise_error
 
     task = repository_for(runtime).find("t1")
     expect(task[:status][:value]).to eq("done")
@@ -100,9 +100,9 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
 
   it "still refuses a transition from a state the field never held" do
     runtime = boot_lifecycle_value_scalar
-    runtime.dispatch("LifecycleValueScalarGrowth::Task.Open", id: { value: "t2" })
+    runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Open", id: { value: "t2" })
 
-    expect { runtime.dispatch("LifecycleValueScalarGrowth::Task.Finish", id: "t2") }
+    expect { runtime.dispatch_flat("LifecycleValueScalarGrowth::Task.Finish", id: "t2") }
       .to raise_error(Hecks::Runtime::LifecycleRefused)
   end
 end

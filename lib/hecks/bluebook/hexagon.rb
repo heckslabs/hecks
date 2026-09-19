@@ -4,17 +4,36 @@ require_relative "../ir"
 module Hecks
   module Bluebook
     Port = Struct.new(:name, :verb, :signal, :answers, keyword_init: true) do
+      # Says whether this port answers its verb with a return value.
+      #
+      # @return [Boolean] whether `signal` is `:reply`
       def reply?  = signal == :reply
+
+      # Says whether this port answers its verb by taking effect, with no return value.
+      #
+      # @return [Boolean] whether `signal` is `:effect`
       def effect? = signal == :effect
     end
 
     Adapter = Struct.new(:name, :port, :fields, :secrets, keyword_init: true) do
+      # Says whether this adapter declares a field, plain or secret.
+      #
+      # @param field [Symbol, String] the field to check
+      # @return [Boolean] whether `field` is one of this adapter's own `fields` or `secrets`
       def declares?(field) = all_fields.include?(field.to_sym)
 
+      # Lists every field this adapter declares, plain and secret alike.
+      #
+      # @return [Array<Symbol>] every field this adapter declares, `fields` and `secrets`
+      #   combined
       def all_fields = (fields || []) + (secrets || [])
     end
 
     Bind = Struct.new(:aggregate, :verb, :adapter, :role, keyword_init: true) do
+      # Names the aggregate this bind applies to.
+      #
+      # @return [String] this bind's aggregate name, demodulised, or `""` for a
+      #   domain-level default bind with no aggregate
       def aggregate_name = Naming.demodulise(aggregate)
     end
 
@@ -37,6 +56,14 @@ module Hecks
 
       attr_reader :domain, :binds, :subscriptions, :framework_members, :vendored_bluebooks
 
+      # @param domain [String, Symbol] the domain this hecksagon wires
+      # @param binds [Array<Bluebook::Bind>] the declared adapter binds
+      # @param subscriptions [Array<String, Symbol>] the external events this domain
+      #   subscribes to
+      # @param framework_members [Array<String, Symbol>] the framework members
+      #   (`Governance`, `Identity`, ...) this domain attaches
+      # @param vendored_bluebooks [Array<String, Symbol>] the vendored embryonaut
+      #   bluebook package names this domain attaches
       def initialize(domain:, binds: [], subscriptions: [], framework_members: [], vendored_bluebooks: [])
         @domain             = domain.to_s
         @binds              = binds
@@ -48,7 +75,7 @@ module Hecks
 
     # The built form of a `.world` file, produced by `DSL::WorldBuilder` —
     # a domain's own `realm`/`latest` version markers and its adapter bind
-    # SETTINGS (as opposed to `Hecksagon`'s own bind LIST, above).
+    # settings (as opposed to `Hecksagon`'s own bind list, above).
     # `Behaviour::World` supplies the settings lookups (`for_verb`/
     # `for_binding`); this class holds only the declared data.
     class World
@@ -59,6 +86,13 @@ module Hecks
 
       attr_reader :domain, :realm, :latest, :settings
 
+      # @param domain [String, Symbol] the domain this world configures
+      # @param realm [String, Symbol, nil] the declared realm/version marker, or `nil`
+      #   if none is declared
+      # @param latest [String, Symbol, nil] the declared latest-version marker, or `nil`
+      #   if none is declared
+      # @param settings [Hash] the declared adapter bind settings, keyed by verb and,
+      #   for a qualified entry, `"verb:adapter"`
       def initialize(domain:, realm: nil, latest: nil, settings: {})
         @domain   = domain.to_s
         @realm    = realm&.to_s

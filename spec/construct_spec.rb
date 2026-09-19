@@ -1,15 +1,15 @@
 require "spec_helper"
 require "stringio"
 
-# A CONSTRUCT IS A RECORD WITH AN OWNER CHAIN, AND WHAT POINTS AT ONE IS AN EDGE.
+# A construct is a record with an owner chain, and what points at one is an edge.
 #
 # The chain is IR objects end to end : the chapter (Bluebook) owns its
 # aggregates, an aggregate owns its commands, value objects, entities and asks,
-# and `hecks_fqn` is COMPUTED by walking owners — the same spelling
+# and `hecks_fqn` is computed by walking owners — the same spelling
 # `MetaValidator::Judge#identify` mints, so a construct and the language's
-# record OF that construct need no translation between them.
+# record of that construct need no translation between them.
 #
-# `reference_to Customer` is an `Reference`, which RESOLVES to the target's
+# `reference_to Customer` is an `Reference`, which resolves to the target's
 # Aggregate through the chapter's own declared heads — scoped by
 # construction, lazy on purpose (the target may be declared lower in the file).
 #
@@ -37,7 +37,7 @@ RSpec.describe "a construct's identity" do
     end
   end
 
-  # Booted ONCE per file, not per example — every `it` below only reads the
+  # Booted once per file, not per example — every `it` below only reads the
   # IR back out (see the file's header: the one real `.dispatch` in this
   # file always raises `NotFound` before anything persists), so nothing an
   # earlier example does can leak into a later one. `before(:context)`'s
@@ -66,7 +66,7 @@ RSpec.describe "a construct's identity" do
     it "spells a value object the way the meta-domain already ids one" do
       # `MetaValidator::Judge#identify` mints "#{parent_id}.#{name}" for every
       # category below an aggregate. Same string, reached by walking the IR's
-      # own owners — so a construct and the language's record OF that construct
+      # own owners — so a construct and the language's record of that construct
       # need no translation between them.
       expect(pizza.value_object("Price").hecks_fqn).to eq("Pizzas::Order.Price")
     end
@@ -102,7 +102,7 @@ RSpec.describe "a construct's identity" do
       end
     end
 
-    # THE GATE THAT WAS MISSING. `resolve_references` SKIPS a nil target — a
+    # **The gate that was missing**. `resolve_references` skips a nil target — a
     # cross-domain reference may legitimately not be loaded — so a `resolve` that
     # answered nil for everything would leave the whole suite green while the one
     # guarantee an aggregate reference is for quietly stopped holding. Which is
@@ -110,15 +110,15 @@ RSpec.describe "a construct's identity" do
     it "resolves every reference in banking to a head in its own chapter" do
       found = references_in(banking, "Banking")
 
-      # NOW 22, not 21 — Wave 7's reference-decluttering targeted every
+      # Now 22, not 21 — Wave 7's reference-decluttering targeted every
       # creating command that redundantly spelled `reference_to <target>`
-      # itself, but `SafeDepositBox.Rent` had a DIFFERENT bug the same
+      # itself, but `SafeDepositBox.Rent` had a different bug the same
       # sweep didn't catch: it redeclared `attribute :customer,
-      # CustomerNumber` — Customer's own identity VALUE OBJECT, not a
-      # reference — which SHADOWED the aggregate's own `belongs_to
+      # CustomerNumber` — Customer's own identity value object, not a
+      # reference — which shadowed the aggregate's own `belongs_to
       # Customer` (a real `Reference`) with an incompatible type. Not a
-      # redundant declaration, a WRONG one: `references_in` counts the
-      # COMPILED shape, and `Rent`'s own `customer` attribute never
+      # redundant declaration, a wrong one: `references_in` counts the
+      # compiled shape, and `Rent`'s own `customer` attribute never
       # compiled to a reference at all, so it was silently absent from
       # this count — harmless until a `given("customer is active")` guard
       # (issue #278) tried to dereference it and was refused for every
@@ -139,18 +139,18 @@ RSpec.describe "a construct's identity" do
 
     it "still refuses a reference that points at nothing" do
       expect do
-        # `number:` was written TWICE — the first a copy of the customer id — and
+        # `number:` was written twice — the first a copy of the customer id — and
         # Ruby warned on every run while silently keeping the second. What this
-        # test is about is the CUSTOMER pointing at nothing, not the number.
-        banking.dispatch("Banking::Account.Open", customer:    "nobody-registered-this",
-                                                  number:      { value: "ACC-1" },
-                                                  kind:        { name: "current" },
-                                                  daily_limit: { cents: 100 })
+        # test is about is the customer pointing at nothing, not the number.
+        banking.dispatch_flat("Banking::Account.Open", customer:    "nobody-registered-this",
+                                                       number:      { value: "ACC-1" },
+                                                       kind:        { name: "current" },
+                                                       daily_limit: { cents: 100 })
       end.to raise_error(Hecks::Runtime::NotFound, /no Customer with/)
     end
 
     it "refuses to resolve at all when it cannot say who declares it" do
-      # A reference the stamping walk missed must go RED, not nil — nil is
+      # A reference the stamping walk missed must go red, not nil — nil is
       # indistinguishable from a legitimate cross-domain target.
       orphan = Hecks::Bluebook::Reference.new("Customer")
 
@@ -186,14 +186,14 @@ RSpec.describe "a construct's identity" do
       expect(add_topping.to_h[:name]).to eq("AddTopping")
     end
 
-    # WHY COMMANDS ARE NOT NESTED AS CONSTANTS, pinned so it is not "tidied up".
+    # Why commands are not nested as constants, pinned so it is not "tidied up".
     #
     # A command and a value object may share a name inside one aggregate, and the
-    # language does it six times ON PURPOSE: the command `Argument` is the verb
+    # language does it six times on purpose: the command `Argument` is the verb
     # that appends to the `arguments` list whose element type is the value object
     # `Argument`, and `Plan` reads exactly that pairing to build the walk. So
     # `Bluebook::Command::Argument` cannot be both, and `hecks_fqn` is not unique
-    # either — identity is (KIND, FQN). The judge's ids collide the same way and
+    # either — identity is (kind, FQN). The judge's ids collide the same way and
     # get away with it because each category has its own repository.
     it "shares its name with a value object, which is why it is not a constant" do
       meta     = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
@@ -212,7 +212,7 @@ RSpec.describe "a construct's identity" do
     it "refuses to state an identity it was never given" do
       # Nothing in the corpus is in this state any more — the owner chain reaches
       # every command. But a construct built by hand, or one a future builder
-      # forgets to stamp, must go RED rather than answer a bare name that looks
+      # forgets to stamp, must go red rather than answer a bare name that looks
       # right.
       orphan = Hecks::Bluebook::Command.declare(name: "Unstamped")
 
@@ -246,9 +246,9 @@ RSpec.describe "a construct's identity" do
       end
     end
 
-    # WHY `Registry` KEEPS A CHAPTER TABLE, pinned so it is not "optimised" away.
+    # Why `Registry` keeps a chapter table, pinned so it is not "optimised" away.
     #
-    # The DOOR installs at TOP LEVEL, where the names are not ours — so
+    # The door installs at top level, where the names are not ours — so
     # `Namespace.install` warns and keeps the existing constant, and the
     # chapter's door is never reachable that way. The registry's own table is
     # the index the runtime trusts ; a domain is entered by name exactly once,
@@ -271,7 +271,7 @@ RSpec.describe "a construct's identity" do
             end
           end
         end
-        # Installation happens at BIND, not at load — the door is a per-boot
+        # Installation happens at bind, not at load — the door is a per-boot
         # projection, and this is the moment it meets Ruby's own `Set`.
         Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
       end.to output(/Set is already defined — leaving it alone/).to_stderr
@@ -311,7 +311,7 @@ RSpec.describe "a construct's identity" do
     end
 
     it "keeps every option its specification superclass carries" do
-      # This is why an ask is NOT hoisted onto a metaclass: its whole body is
+      # This is why an ask is not hoisted onto a metaclass: its whole body is
       # inherited instance methods that the runtime and the SQLite adapter read.
       ask = bank.aggregate("Account").query("Overdrawn")
 
@@ -323,7 +323,7 @@ RSpec.describe "a construct's identity" do
 
     it "collides with a command of the same name, in a real domain this time" do
       # The kind-ambiguity finding is not a quirk of the language describing
-      # itself: banking declares BOTH a command and a query called Open on
+      # itself: banking declares both a command and a query called Open on
       # Account, so "Banking::Account.Open" names two constructs here too.
       account = bank.aggregate("Account")
 

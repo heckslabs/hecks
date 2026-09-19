@@ -1,12 +1,12 @@
 module Hecks
   module Runtime
-    # WHICH PORTS A BOOT CAN ACTUALLY FULFILL, read off the registry it already
+    # Which ports a boot can actually fulfill, read off the registry it already
     # holds. `registry.ports` names every port a domain declared a dependency
     # on ; `registry.adapters` names every adapter wired to implement one — the
     # same `adapter.port == port.name` match `Ports::Extraction` and
     # `Ports::IdentityGeneration` already make for themselves, one at a time,
     # each time they resolve. This is that same question asked once, for
-    # every port at once, so a gap in the wiring is something a caller can ASK
+    # every port at once, so a gap in the wiring is something a caller can ask
     # about rather than something a live dispatch discovers by refusing.
     #
     # `cycles` answers `[]`, always, and honestly: nothing in this port model
@@ -14,6 +14,8 @@ module Hecks
     # adapter names the port it implements, and neither can point at a third
     # port. There is no edge for a cycle to be made of.
     class CapabilityGraph
+      # @param registry [Runtime::Registry] the booted registry to read ports and adapters from
+      # @return [void]
       def initialize(registry)
         @registry = registry
       end
@@ -21,6 +23,9 @@ module Hecks
       # { port name => [adapter name, ...] }, for every port the registry
       # declares — including the ports nothing implements, so a caller can
       # tell "declared, unfulfilled" from "never declared at all".
+      #
+      # @return [Hash{String => Array<String>}] each declared port's name mapped to the names
+      #   of every adapter bound to it (empty when none are)
       def fulfillments
         @fulfillments ||= @registry.ports.each_key.to_h { |name| [name, adapters_for(name)] }
       end
@@ -28,10 +33,16 @@ module Hecks
       # The ports with zero adapters bound — the gap `Runtime::WiringError`
       # would otherwise only surface at the moment something tries to dispatch
       # through one.
+      #
+      # @return [Array<String>] the names of every declared port with no adapter bound to it
       def unfulfilled
         fulfillments.select { |_, adapters| adapters.empty? }.keys
       end
 
+      # Reports the port-dependency cycles this registry has — always none; see the module
+      # header for why no port model here can express one.
+      #
+      # @return [Array] always empty
       def cycles = []
 
       private

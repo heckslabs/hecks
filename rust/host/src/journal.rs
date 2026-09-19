@@ -20,6 +20,7 @@
 // end up in `refusals` is the newest one, appended last. That's the
 // entire correctness argument `append_if_accepted` below leans on.
 
+use anyhow::Context;
 use sha2::{Digest, Sha256};
 use tokio_postgres::{Client, GenericClient};
 
@@ -401,6 +402,38 @@ pub async fn delete_saga<C: GenericClient>(
 pub struct LineageConfig {
     pub domain: String,
     pub era: Option<i32>,
+    /// WHICH AGGREGATES GET MIRRORED into Ruby's era-shaped head
+    /// snapshots — the IR's own `lineage.capable_aggregates`, by
+    /// qualified name. `None` means "every one", which is what every
+    /// caller meant before this field existed.
+    ///
+    /// IT IS NOT THE SAME QUESTION AS `era`, and conflating the two was
+    /// a real production outage. `era` is `Some` whenever the lineage
+    /// SUBSYSTEM is provisioned at all — and ADR 0034 turns that on for
+    /// any domain with Google auth configured, because `auth.rs`'s own
+    /// Member sessions need `hecks_eras` present regardless of what
+    /// anything binds to. That said nothing about whether a given
+    /// aggregate has an era-shaped mirror to write into. A domain whose
+    /// every aggregate binds to plain `Postgres` declares
+    /// `capable_aggregates: []`, so `mint` provisions no head snapshots
+    /// at all — while `era` was `Some`, so every write tried to upsert
+    /// one anyway and died on `relation ... does not exist`. Found live:
+    /// embryonautfoundersapp, whose `hecks_lambda_journal` was empty
+    /// because no write it ever attempted could succeed.
+    pub mirrored: Option<std::collections::BTreeSet<String>>,
+}
+
+impl LineageConfig {
+    /// Is this aggregate's mutation mirrored into the era-shaped head
+    /// snapshots? Asked by qualified name (`"ConsoleSettings::StateStyle"`),
+    /// which is exactly what `ir::lineage_capable_aggregates` returns
+    /// and what a kernel mutation record carries.
+    pub fn mirrors(&self, qualified_aggregate: &str) -> bool {
+        match &self.mirrored {
+            None => true,
+            Some(capable) => capable.contains(qualified_aggregate),
+        }
+    }
 }
 
 /// `Naming.snake` (lib/hecks/naming.rb:30-35), ported verbatim — a
@@ -484,8 +517,41 @@ fn journal_table(domain: &str) -> String {
     format!("hecks_journal_{}", snake(domain))
 }
 
-fn head_snapshot_table(qualified_aggregate: &str, era: i32) -> String {
-    format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era)
+/// Postgres's own NAMEDATALEN-1 limit: an identifier over 63 bytes is
+/// silently TRUNCATED, never refused — ported verbatim from Ruby's
+/// `Lineage::POSTGRES_IDENTIFIER_LIMIT` (postgres_era/lineage.rb). Two
+/// different overlong names sharing their first 63 bytes would collide
+/// again, at a longer length — the exact same failure mode
+/// `qualified_name` below exists to close for `storage_name` alone.
+const POSTGRES_IDENTIFIER_LIMIT: usize = 63;
+
+/// The SAME algorithm `Lineage#qualified_name` (lineage.rb) applies —
+/// kept in exact lockstep (same 63-byte limit, same 8-hex-char SHA256
+/// suffix) so Ruby and Rust, writing the same aggregate against the
+/// same database, always agree on which physical relation that is.
+/// This is the fix for docs/decisions/0059: `head_view`/
+/// `head_snapshot_table` below used to be qualified by `storage_name`
+/// alone, so two different domains bound to PostgresEra against the
+/// SAME database, each declaring an aggregate whose own name
+/// snake_cases to the same storage_name, derived the exact same
+/// physical relations — silently sharing (and, on Ruby's own
+/// `ensure_first_head!`, clobbering) each other's data. Human-readable
+/// in the ordinary case; only a long domain + suffix combination
+/// degrades to the hashed, truncated form.
+pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
+    let full = format!("{}_{}", snake(domain), suffix);
+    if full.len() <= POSTGRES_IDENTIFIER_LIMIT {
+        return full;
+    }
+
+    let digest = format!("{:x}", Sha256::digest(full.as_bytes()));
+    let digest = &digest[0..8];
+    let keep = POSTGRES_IDENTIFIER_LIMIT - digest.len() - 1;
+    format!("{}_{}", &full[0..keep], digest)
+}
+
+fn head_snapshot_table(domain: &str, qualified_aggregate: &str, era: i32) -> String {
+    qualified_name(domain, &format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era))
 }
 
 /// The boot-time gate — but "does this ordinal have a row" was never
@@ -568,9 +634,19 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     }
 
     let journal = journal_table(&config.domain);
-    let snapshot = head_snapshot_table(mutation.aggregate, era);
+    let snapshot = head_snapshot_table(&config.domain, mutation.aggregate, era);
     let storage = storage_name(mutation.aggregate);
 
+    // NAMED, NOT BARE. `tokio_postgres::Error`'s own `Display` for a
+    // database error is the literal string "db error" and nothing else
+    // — the real message ("relation ... does not exist") lives on its
+    // `source()`. A `?` straight out of here therefore reached the
+    // Lambda runtime as `{"errorMessage": "db error"}`, with CloudWatch
+    // showing only START/END/REPORT: an outage whose cause could not be
+    // read from anywhere the operator could see, and which took an RDS
+    // error-log download to identify. Every statement below now says
+    // which relation it was writing; `main.rs` formats the whole chain
+    // with `{:#}`, so the source travels with it.
     let row = client
         .query_one(
             &format!(
@@ -580,7 +656,8 @@ pub async fn append_lineage_mutation<C: GenericClient>(
             ),
             &[&era, &storage, &mutation.id, &mutation.operation, &mutation.state],
         )
-        .await?;
+        .await
+        .with_context(|| format!("journalling {} #{} into {journal} at era {era}", mutation.aggregate, mutation.id))?;
     let ordinal: i64 = row.get(0);
 
     client
@@ -593,7 +670,8 @@ pub async fn append_lineage_mutation<C: GenericClient>(
             ),
             &[&mutation.id, &ordinal, &mutation.state],
         )
-        .await?;
+        .await
+        .with_context(|| format!("upserting {} #{} into {snapshot}", mutation.aggregate, mutation.id))?;
 
     Ok(())
 }
@@ -635,19 +713,24 @@ pub async fn append_lineage_mutation<C: GenericClient>(
 // exported IR marks lineage-capable (`ir.json`'s `lineage.
 // capable_aggregates`, Projector::Exporter.lineage), rather than
 // leaving Member as a one-off.
-pub(crate) fn head_view(storage_name: &str) -> String {
-    format!("{storage_name}_head")
+pub(crate) fn head_view(domain: &str, storage_name: &str) -> String {
+    qualified_name(domain, &format!("{storage_name}_head"))
 }
 
 /// Every live row for one lineage-capable aggregate, already translated
 /// to its current shape — `member_rows`'s own query (auth.rs), made
 /// generic over `storage_name` instead of hard-typed to `"member_head"`.
+/// `domain` (docs/decisions/0059) is what makes this the SAME physical
+/// relation `append_lineage_mutation`/Ruby's own `PostgresEra` wrote to
+/// — never merely "whichever aggregate happens to share this
+/// storage_name in ANY domain".
 pub async fn read_lineage_head_all<C: GenericClient>(
     client: &C,
+    domain: &str,
     storage_name: &str,
 ) -> anyhow::Result<Vec<(String, serde_json::Value)>> {
     let rows = client
-        .query(&format!("SELECT id, state FROM {}", quote_ident(&head_view(storage_name))), &[])
+        .query(&format!("SELECT id, state FROM {}", quote_ident(&head_view(domain, storage_name))), &[])
         .await?;
     Ok(rows.into_iter().map(|row| (row.get(0), row.get(1))).collect())
 }
@@ -656,12 +739,13 @@ pub async fn read_lineage_head_all<C: GenericClient>(
 /// query (auth.rs), made generic the same way.
 pub async fn read_lineage_head_by_id<C: GenericClient>(
     client: &C,
+    domain: &str,
     storage_name: &str,
     id: &str,
 ) -> anyhow::Result<Option<serde_json::Value>> {
     let row = client
         .query_opt(
-            &format!("SELECT state FROM {} WHERE id = $1", quote_ident(&head_view(storage_name))),
+            &format!("SELECT state FROM {} WHERE id = $1", quote_ident(&head_view(domain, storage_name))),
             &[&id],
         )
         .await?;
@@ -819,7 +903,7 @@ mod lineage_tests {
         let state = serde_json::json!({ "cents": 100 });
 
         // The era this checkout speaks -- allowed.
-        let current_era = LineageConfig { domain: "Ledger".to_string(), era: Some(2) };
+        let current_era = LineageConfig { domain: "Ledger".to_string(), era: Some(2), mirrored: None };
         let accepted = append_lineage_mutation(
             &client,
             &current_era,
@@ -829,7 +913,7 @@ mod lineage_tests {
         assert!(accepted.is_ok(), "writing under the CURRENT era should succeed: {accepted:?}");
 
         // The SUPERSEDED era -- refused by Postgres's own RLS policy.
-        let stale_era = LineageConfig { domain: "Ledger".to_string(), era: Some(1) };
+        let stale_era = LineageConfig { domain: "Ledger".to_string(), era: Some(1), mirrored: None };
         let refused = append_lineage_mutation(
             &client,
             &stale_era,
@@ -995,20 +1079,21 @@ mod lineage_tests {
             let _ = connection.await;
         });
 
-        client.batch_execute("DROP VIEW IF EXISTS widget_head").await.unwrap();
-        client.batch_execute("DROP TABLE IF EXISTS widget_head_snapshot_1").await.unwrap();
+        // domain-qualified (docs/decisions/0059) — snake("Fixtures") == "fixtures".
+        client.batch_execute("DROP VIEW IF EXISTS fixtures_widget_head").await.unwrap();
+        client.batch_execute("DROP TABLE IF EXISTS fixtures_widget_head_snapshot_1").await.unwrap();
         client
             .batch_execute(
-                "CREATE TABLE widget_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)",
+                "CREATE TABLE fixtures_widget_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)",
             )
             .await
             .unwrap();
         client
-            .batch_execute("CREATE VIEW widget_head AS SELECT id, state FROM widget_head_snapshot_1")
+            .batch_execute("CREATE VIEW fixtures_widget_head AS SELECT id, state FROM fixtures_widget_head_snapshot_1")
             .await
             .unwrap();
 
-        let config = LineageConfig { domain: "Fixtures".to_string(), era: Some(1) };
+        let config = LineageConfig { domain: "Fixtures".to_string(), era: Some(1), mirrored: None };
         client
             .batch_execute("CREATE TABLE IF NOT EXISTS hecks_journal_fixtures (ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL, aggregate_id text NOT NULL, operation text NOT NULL, state jsonb)")
             .await
@@ -1028,13 +1113,13 @@ mod lineage_tests {
         .await
         .unwrap();
 
-        let one = read_lineage_head_by_id(&client, "widget", "widget-1").await.unwrap();
+        let one = read_lineage_head_by_id(&client, "Fixtures", "widget", "widget-1").await.unwrap();
         assert_eq!(one, Some(serde_json::json!({ "name": "Gadget" })));
 
-        let missing = read_lineage_head_by_id(&client, "widget", "widget-nonexistent").await.unwrap();
+        let missing = read_lineage_head_by_id(&client, "Fixtures", "widget", "widget-nonexistent").await.unwrap();
         assert_eq!(missing, None);
 
-        let mut all = read_lineage_head_all(&client, "widget").await.unwrap();
+        let mut all = read_lineage_head_all(&client, "Fixtures", "widget").await.unwrap();
         all.sort_by(|a, b| a.0.cmp(&b.0));
         assert_eq!(
             all,

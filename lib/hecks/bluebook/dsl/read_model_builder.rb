@@ -14,18 +14,33 @@ module Hecks
         include QuerySpecification::Common::DSL
         include WordGate
 
+        # @param name [String] the read model's own name, as written after `read_model`
         def initialize(name)
           @name = name
         end
 
+        # Sets the human-readable description shown for this read model.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def description(value)
           # moved to the language: ProjectionText / purpose, on Projection.Declare
           @description = value
         end
 
-        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
-        # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # Declares the read model's own "one" side — the aggregate head every row projects
+        # around, keyed by its identity.
+        #
+        # Reached through `calls: "reference_to_impl"`. Bootstrap-reachable — the self-hosted
+        # `Bluebook.WholeBluebook` read model declares one — so it's exercised while
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` is still in play, not only afterwards.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the field name to project the reference under; `nil` derives it
+        #   from the target's own name
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `reference_to` was already declared
         def reference_to_impl(type, as: nil)
           raise Malformed, "#{@name} already has a projection reference" if @reference_target
 
@@ -33,28 +48,34 @@ module Hecks
           @reference_name   = (as || Naming.snake(@reference_target)).to_sym
         end
 
-        # Order-independent. `many:` is decided by comparing the included type
-        # against the reference target, so this used to REFUSE an include
-        # declared before the reference — a rule guarding an implementation
-        # limitation rather than a truth about read models. The includes are
-        # collected raw and resolved at build, when the reference is known, so
-        # there is no rule left to enforce.
-        # RENAMED FROM `include`/`group_by` — item #13's full
-        # metaprogrammed dispatch (slice 4c). `include` IS bootstrap-
-        # reachable (every core chapter's own `read_model` names which
-        # aggregates it includes with it — a first grep dismissed this
-        # as `Module#include` noise and was wrong; the cold-boot test
-        # after this rename caught it directly), so it's in
-        # BOOTSTRAP_CALLS_FALLBACK; `group_by` is not (no core read_model
-        # groups). The class-level `include WordGate` this file's own
-        # class body uses is `Module#include`, a different receiver,
-        # unaffected by renaming this INSTANCE method either way.
+        # Adds one aggregate head this read model projects.
+        #
+        # Order-independent: `many:` is decided by comparing the included type
+        # against the reference target, resolved at build time (when the
+        # reference is known), not at the moment `include` itself runs — so
+        # an include declared before `reference_to` resolves exactly like one
+        # declared after it.
+        #
+        # Reached through `calls: "include_impl"`. Bootstrap-reachable —
+        # every core chapter's own `read_model` names which aggregates it
+        # includes with it — so it's exercised while
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` is still in play.
+        # `group_by_impl`, below, is table-routed the same way but is not
+        # bootstrap-reachable (no core read_model groups). The class-level
+        # `include WordGate` this file's own class body uses is
+        # `Module#include`, a different receiver, unrelated to this
+        # instance method sharing its name.
+        #
+        # @param type [Module, Symbol, String] the included aggregate, written as a bare constant
+        # @param as [Symbol, nil] the field name to project this head's rows under; `nil` derives
+        #   it from the target's own name (pluralized for a many-side head)
+        # @return [void]
         def include_impl(type, as: nil)
           @includes ||= []
           @includes << [Naming.demodulise(type), as]
         end
 
-        # `on:` (ADR 0055) — OVERRIDES of `QuerySpecification::Common::DSL`'s
+        # `on:` (ADR 0055) — overrides of `QuerySpecification::Common::DSL`'s
         # shared `where_impl`/`order_by_impl`/`limit_impl`/`offset_impl`,
         # scoped to `ReadModelBuilder` alone rather than added to the shared
         # module `Query` also mixes in: a plain `query` has no
@@ -63,10 +84,10 @@ module Hecks
         # means a `Query`'s own `where(..., on: X)` gets Ruby's own loud
         # `unknown keyword: :on` instead of quietly doing nothing.
         #
-        # `on:` names the target by TYPE (`on: Character`), resolved the
+        # `on:` names the target by type (`on: Character`), resolved the
         # same way `reference_to`/`include` already resolve their own type
         # argument (`Naming.demodulise`) — not by the include's own `as:`
-        # alias. A read model that `include`s the SAME type twice under two
+        # alias. A read model that `include`s the same type twice under two
         # different `as:` has no way to say which one `on:` means today; no
         # real corpus read model does this, so it's a real, deliberate scope
         # limit (see ADR 0055), not an oversight.
@@ -77,14 +98,14 @@ module Hecks
         # `status: "disputed"` captured as `**kwargs` (GenericDispatch's own
         # `builder.send(calls, *args, **kwargs, &block)`), and Ruby stops
         # auto-converting a bare `**hash` call into a plain positional Hash
-        # THE MOMENT a method declares any real keyword parameter — so a
+        # the moment a method declares any real keyword parameter — so a
         # `(clauses, on: nil)` signature raised "wrong number of arguments
         # (given 0, expected 1)" on every ordinary `where(field: value)`
         # call, never reaching `on:` at all. `**rest` sidesteps this: Ruby
         # still auto-splits `on:` into the declared keyword and gathers
-        # every OTHER key into `rest` regardless of how the caller wrote it.
+        # every other key into `rest` regardless of how the caller wrote it.
         #
-        # `QuerySpecification::Common::WhereClause` etc — FULLY QUALIFIED,
+        # `QuerySpecification::Common::WhereClause` etc — fully qualified,
         # not the bare names `dsl.rb`'s own shared `where_impl` gets away
         # with. That file is lexically nested inside `Common` itself, so
         # `WhereClause` resolves directly; this class is nested inside
@@ -92,10 +113,25 @@ module Hecks
         # `QuerySpecification::Common` at all — a bare `WhereClause` here
         # falls through to `const_missing` and, mid-bluebook-load, that's
         # `ConstShim`, which resolves it against the self-hosted grammar
-        # domain's OWN unrelated `WhereClause` construct instead (a `Module`,
+        # domain's own unrelated `WhereClause` construct instead (a `Module`,
         # not this `Struct`) — found directly by reproducing "undefined
         # method `new' for module WhereClause" against a real corpus load,
         # not guessed.
+        #
+        # Records one `WhereClause` per `field => value` pair, targeted at a named many-side
+        # include when this read model has more than one.
+        #
+        # @param positional [Array<Hash{Symbol => Object}>] at most one bare Hash of where
+        #   clauses; in practice always empty, since Ruby routes an ordinary
+        #   `where(field: value)` call entirely into `rest` (see the comment above)
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate these clauses
+        #   apply to; `nil` when this read model has at most one many-side head
+        # @param rest [Hash{Symbol => Object}] `field => value` where clauses; a value is either
+        #   a literal, a Symbol naming a query argument, or a one-pair Hash `{ comparator =>
+        #   operand }` such as `{ gte: :minimum }` — a bare value means `eq`
+        # @return [void]
+        # @raise [ArgumentError] if more than one positional argument is given, or a Hash value
+        #   does not have exactly one pair, or names a comparator outside `COMPARATORS`
         def where_impl(*positional, on: nil, **rest)
           raise ArgumentError, "wrong number of arguments (given #{positional.size}, expected 1)" if positional.size > 1
 
@@ -108,30 +144,55 @@ module Hecks
           end
         end
 
+        # Records the read model's single ordering, replacing any declared earlier.
+        #
+        # @param field [Symbol, String] the field to order by; a dotted path such as
+        #   `:"order.value"` reaches a value object's member
+        # @param direction [Symbol, String] `:asc` or `:desc`
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate this ordering
+        #   applies to; `nil` when this read model has at most one many-side head
+        # @return [QuerySpecification::Common::OrderBy] the ordering just recorded
         def order_by_impl(field, direction = :asc, on: nil)
           @order_by = QuerySpecification::Common::OrderBy.new(field: field, direction: direction, target: resolve_target(on))
         end
 
+        # Records the most rows the targeted collection returns.
+        #
+        # @param value [Integer, Symbol] a literal row count, or a Symbol naming the query
+        #   argument that supplies it
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate this limit
+        #   applies to; `nil` when this read model has at most one many-side head
+        # @return [QuerySpecification::Common::LimitSpec] the limit just recorded
         def limit_impl(value, on: nil)
           @limit = QuerySpecification::Common::LimitSpec.new(value: value, target: resolve_target(on))
         end
 
+        # Records how many matched rows the targeted collection skips before the limit applies.
+        #
+        # @param value [Integer, Symbol] a literal row count, or a Symbol naming the query
+        #   argument that supplies it
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate this offset
+        #   applies to; `nil` when this read model has at most one many-side head
+        # @return [QuerySpecification::Common::OffsetSpec] the offset just recorded
         def offset_impl(value, on: nil)
           @offset = QuerySpecification::Common::OffsetSpec.new(value: value, target: resolve_target(on))
         end
 
-        # NAMES which of the eligible head's own fields to nest its rows
+        # Names which of the eligible head's own fields to nest its rows
         # under — one level per field, the leaf being that row with the
         # named fields removed (they're already spent, as the keys that
         # reached it). The same "exactly one many-side head" rule
         # `seal_query_options` already enforces for where/order_by/etc
         # applies here too (`seal_group_by`) — grouping is a question
-        # about ONE collection's own rows, same as those are.
+        # about one collection's own rows, same as those are.
+        # @param fields [Array<Symbol>] the eligible many-side head's own fields to nest its rows
+        #   under, one level per field
+        # @return [void]
         def group_by_impl(*fields)
           # Hash rows, `{field:}`, not bare symbols — same shape
           # `aggregate_heads` already uses for exactly the reason it
           # does: the language's own self-hosted grammar (`projection
-          # .bluebook`'s `GroupByField`) has to have SOMETHING to read a
+          # .bluebook`'s `GroupByField`) has to have something to read a
           # `field:` off of when `Judge` walks this list generically: a
           # bare `Symbol` has no attribute of its own to read.
           @group_by = fields.map { |field| { field: field.to_sym } }
@@ -139,23 +200,23 @@ module Hecks
 
         # `count` -- a bare row count over the eligible many-side head's
         # own rows (after `where`/`order_by`/`limit`/`offset` apply, the
-        # same rows `group_by` itself would nest) -- ANSWERS "how many
-        # match", not "which ones". A sibling REDUCTION to `group_by`,
+        # same rows `group_by` itself would nest) -- answers "how many
+        # match", not "which ones". A sibling reduction to `group_by`,
         # not a filter: `seal_aggregation` refuses combining it with
         # `group_by` or with `median`, the same "exactly one many-side
         # head" rule `seal_group_by` already enforces for the same
         # reason -- a bare marker, so `@count` is left unset (nil, not
-        # false) rather than defaulted, matching the "ABSENT is not
-        # EMPTY" reading `Lifecycle`'s own optional fields already rely
+        # false) rather than defaulted, matching the "absent is not
+        # empty" reading `Lifecycle`'s own optional fields already rely
         # on for the Judge's setter dispatch (Behaviour::ReadModel#
         # count?, ReadModelInterpreter#aggregation_target).
         # `count` — item #13's full metaprogrammed dispatch, slice 1
-        # (whole-project table-unification survey): the ONLY Keyword row
+        # (whole-project table-unification survey): the only Keyword row
         # filling `count` — a bare marker, now stored as literal `true`
         # by `GenericDispatch` off that same table fact.
 
-        # `median(field)` -- the median VALUE of one numeric field
-        # across the eligible many-side head's own rows. EVEN COUNT: the
+        # `median(field)` -- the median value of one numeric field
+        # across the eligible many-side head's own rows. Even count: the
         # average of its two middle values (the standard definition,
         # not "the lower of the two") -- see
         # Runtime::ReadModelInterpreter#median for where that lands and
@@ -168,16 +229,24 @@ module Hecks
         # same shape as `count`, above (a bare, kind-driven coerce-and-
         # assign).
 
-        # `reference_to` is now OPTIONAL — a read model with no root is a
-        # BULK one: every `include`d head reads its own aggregate whole
+        # Assembles the declared references, includes and clauses into a `ReadModel`, after
+        # validating them.
+        #
+        # `reference_to` is optional — a read model with no root is a
+        # bulk one: every `include`d head reads its own aggregate whole
         # (no FK match against a root that doesn't exist), and dispatch
-        # takes no id argument at all. This used to be REQUIRED, on the
-        # assumption a read model was always "one root record's own
-        # cross-aggregate view" — true of every real corpus report so
-        # far, but not a truth about read models themselves: `group_by`'s
-        # own real use (nesting an aggregate's OWN whole table by its own
-        # field values) has no root to speak of. Still needs to describe
-        # SOMETHING — zero includes AND no reference is refused.
+        # takes no id argument at all. Requiring one would refuse a real,
+        # legitimate shape: `group_by`'s own real use (nesting an
+        # aggregate's own whole table by its own field values) has no root
+        # to speak of. Still needs to describe something — zero includes
+        # and no reference is refused.
+        #
+        # @return [Bluebook::ReadModel] the built read model
+        # @raise [Bluebook::DSL::Malformed] if neither `reference_to` nor any `include` is
+        #   declared, if `where`/`order_by`/`limit`/`offset`/`group_by`/`count`/`median` name an
+        #   `on:` that isn't a many-side include or are left untargeted with more than one
+        #   many-side head, if `count` and `median` are both declared or combined with
+        #   `group_by`, or if `cursor` is declared
         def build
           if !@reference_target && Array(@includes).empty?
             raise Malformed,
@@ -200,6 +269,12 @@ module Hecks
                         count: @count, median_field: @median_field)
         end
 
+        # Evaluates a `read_model` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the read model's own name
+        # @yield the read model's body, `instance_eval`'d against a new builder
+        # @return [Bluebook::ReadModel] the built read model
+        # @raise [Bluebook::DSL::Malformed] see `#build`
         def self.build(name, &block)
           builder = new(name)
           builder.instance_eval(&block) if block
@@ -213,18 +288,18 @@ module Hecks
         # (the "one" side, the reference target itself, is a single row;
         # ordering, paging, or tenant-scoping one row means nothing). ADR
         # 0055 gave `where`/`order_by`/`limit`/`offset` an `on:` to name
-        # WHICH many-side collection they mean, so this asks two questions
+        # which many-side collection they mean, so this asks two questions
         # now instead of one:
         #
         #   1. Does every declared `on:` actually name a many-side included
         #      aggregate? Checked regardless of how many many-side heads
         #      exist — a typo refuses immediately, not only once ambiguity
         #      would otherwise bite.
-        #   2. Is there still an UNTARGETED option declared (including
+        #   2. Is there still an untargeted option declared (including
         #      `authorize`'s own `tenant:`, which has no `on:` of its own —
         #      a real, deliberate scope limit, see ADR 0055)? An untargeted
         #      option still needs exactly one many-side head to mean
-        #      anything unambiguous — the ORIGINAL rule, unchanged, and
+        #      anything unambiguous — the original rule, unchanged, and
         #      still worded the same way (`spec/runtime/
         #      read_model_interpreter_spec.rb`'s existing refusal regex
         #      still matches).
@@ -246,7 +321,7 @@ module Hecks
         end
 
         # Question 1 of `seal_query_options`'s own two, split out to keep
-        # both under the same "one job per method" shape every OTHER seal in
+        # both under the same "one job per method" shape every other seal in
         # this file already holds to (each raises its own one Malformed, for
         # its own one reason).
         def validate_declared_targets!(many)
@@ -275,7 +350,7 @@ module Hecks
         end
 
         # Same shape as `seal_query_options`, same reason — `group_by`
-        # answers a question about ONE collection's own rows, so zero or
+        # answers a question about one collection's own rows, so zero or
         # several many-side heads leaves it with no unambiguous target.
         def seal_group_by
           return unless @group_by&.any?
@@ -289,10 +364,10 @@ module Hecks
                 "own rows; name which one by including only it"
         end
 
-        # `count`/`median` are the OTHER two reductions a read model may
+        # `count`/`median` are the other two reductions a read model may
         # declare over its one eligible collection — same "exactly one
         # many-side head" rule as `seal_group_by`, plus a rule
-        # `seal_group_by` doesn't need: a read model reports ONE shape,
+        # `seal_group_by` doesn't need: a read model reports one shape,
         # so `count` and `median` cannot both be declared, and neither
         # may combine with `group_by` (nesting rows and reducing them to
         # a scalar are answers to different questions ; a caller asking

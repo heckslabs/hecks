@@ -112,18 +112,18 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "qy-1" },
-                 name: { given: "Nancy", family: "Roman" },
-                 email: { address: "nancy@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "qy-1" },
+                                                       name: { given: "Nancy", family: "Roman" },
+                                                       email: { address: "nancy@example.com" } })
 account = Banking::Account.open!(customer: "qy-1", number: { value: "qy-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 account.credit!(amount: { cents: 9_000 }, narrative: { text: "funding" })
 
-runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-1" })
-runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-2" })
-runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-1" }, warden: "w-1", species: { value: "heron" }, count: { value: 3 })
-runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-2" }, warden: "w-1", species: { value: "egret" })
-runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-3" }, warden: "w-2", species: { value: "ibis" }, count: { value: 1 })
+runtime.dispatch("QueryReference::Warden.Appoint", with: { badge: { value: "w-1" } })
+runtime.dispatch("QueryReference::Warden.Appoint", with: { badge: { value: "w-2" } })
+runtime.dispatch("QueryReference::Sighting.Log", with: { tag: { value: "s-1" }, warden: "w-1", species: { value: "heron" }, count: { value: 3 } })
+runtime.dispatch("QueryReference::Sighting.Log", with: { tag: { value: "s-2" }, warden: "w-1", species: { value: "egret" } })
+runtime.dispatch("QueryReference::Sighting.Log", with: { tag: { value: "s-3" }, warden: "w-2", species: { value: "ibis" }, count: { value: 1 } })
 ```
 
 ## description
@@ -268,7 +268,7 @@ a `Sighting` says anything about duty:
 
 ```ruby
 runtime.query("QueryReference::Sighting.ByOffDutyWarden")  # => []
-runtime.dispatch("QueryReference::Warden.StandDown", warden: "w-1")
+runtime.dispatch_flat("QueryReference::Warden.StandDown", warden: "w-1")
 runtime.query("QueryReference::Sighting.ByOffDutyWarden").map { |row| row[:tag][:value] }  # => ["s-1", "s-2"]
 ```
 

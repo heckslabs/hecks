@@ -1,14 +1,15 @@
 require "tmpdir"
 require_relative "../../rust/project/exemplar"
 
-# THE LOADER, TESTED IN ISOLATION — against a small scratch fixture tree,
+# **The loader, tested in isolation** — against a small scratch fixture tree,
 # never the real rust/src/exemplar/*.rs (that tree is proven valid by
-# `cargo test --lib` instead; this spec proves the RUBY side of the
+# `cargo test --lib` instead; this spec proves the Ruby side of the
 # pipeline: fence-parsing, substitution, drift detection, nested-slot
 # composition). `Exemplar.reset!(dir: ...)` repoints the loader at each
 # example's own fixture directory.
 RSpec.describe RustProjection::Exemplar do
-  after { described_class.reset! } # back to the real tree; no stale fixture dir leaks into later specs
+  # back to the real tree; no stale fixture dir leaks into later specs
+  after { described_class.reset! }
 
   def write_fixture(contents)
     dir = Dir.mktmpdir("exemplar_spec")
@@ -298,11 +299,11 @@ RSpec.describe RustProjection::Exemplar do
       out = described_class.assemble(
         "closed_set_codec",
         {
-          "TmplKind"                   => "LedgerDirection",
-          '"tmpl_field_name"'          => '"value"',
-          '"tmpl_closed_set_type"'     => '"LedgerDirection"',
-          '"tmpl_closed_set_admitted"' => '"\"credit\", \"debit\""',
-          '"tmpl_null_field_message"'  => '"LedgerDirection.value expects String, got nil"'
+          "TmplKind"                     => "LedgerDirection",
+          '"tmpl_field_name"'            => '"value"',
+          '"tmpl_closed_set_type"'       => '"LedgerDirection"',
+          '["tmpl_closed_set_member_a"]' => '["credit", "debit"]',
+          '"tmpl_null_field_message"'    => '"LedgerDirection.value expects String, got nil"'
         },
         slots: {
           "closed_set_codec:TO_JSON_ARM"   => described_class.render_each("closed_set_codec:TO_JSON_ARM", row_subs),
@@ -362,29 +363,38 @@ RSpec.describe RustProjection::Exemplar do
                 match candidate.ruby_to_s().as_str() {
                     "credit" => Ok(LedgerDirection::Credit),
                     "debit" => Ok(LedgerDirection::Debit),
-                    _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                        ("type", "LedgerDirection"),
-                        ("admitted", "\\"credit\\", \\"debit\\""),
-                        ("offered", &candidate.inspect()),
-                    ]))),
+                    _ => Err(crate::kernel::Refusal::InvariantViolation(
+                        crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                            r#type: "LedgerDirection",
+                            admitted: &["credit", "debit"],
+                            offered: candidate.inspect().as_str(),
+                        }
+                        .render_args(),
+                    )),
                 }
             }
         }
       RUST
     end
 
+    # V3 — the shape no longer carries a baked copy of the template's own
+    # text: the four declared arguments go to the site's typed
+    # `render_args`, which reads Vocabulary::RefusalSiteArgument for the
+    # member list's own quoting and ", " join.
     it "renders the real admits_check shape" do
       out = described_class.render(
         "admits_check",
         '["tmpl_member_a", "tmpl_member_b"]' => '["credit", "debit"]',
         "tmpl_scalar"                        => "args.direction.value",
-        '"tmpl_prefix_text"'                 => '"direction admits Account::LedgerDirection — \"credit\", \"debit\" — got "'
+        '"tmpl_admits_name"'                 => '"direction"',
+        '"tmpl_admits_target"'               => '"Account::LedgerDirection"'
       )
 
       expect(out).to eq(
         'if !["credit", "debit"].contains(&args.direction.value.as_str()) { return Err(crate::kernel::Refusal::' \
-        'InvariantViolation(format!("{}{:?}", "direction admits Account::LedgerDirection — \"credit\", ' \
-        '\"debit\" — got ", args.direction.value))); }'
+        "InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { " \
+        'name: "direction", admits: "Account::LedgerDirection", admitted: &["credit", "debit"], ' \
+        'offered: format!("{:?}", args.direction.value).as_str() }.render_args())); }'
       )
     end
   end

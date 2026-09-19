@@ -77,8 +77,8 @@ end
 ```
 
 ```ruby
-runtime.dispatch("PortOperationReference::Licence.Grant", serial: { value: "lic-1" }, holder: { value: "Ada" })
-runtime.dispatch("PortOperationReference::Licence.Grant", serial: { value: "lic-unknown" }, holder: { value: "Bee" })
+runtime.dispatch("PortOperationReference::Licence.Grant", with: { serial: { value: "lic-1" }, holder: { value: "Ada" } })
+runtime.dispatch("PortOperationReference::Licence.Grant", with: { serial: { value: "lic-unknown" }, holder: { value: "Bee" } })
 ```
 
 ## reference_to
@@ -106,7 +106,7 @@ never reaches the payload at all; the emitted event carries it as the
 event's own `id` instead:
 
 ```ruby
-told = runtime.dispatch("PortOperationReference::Licence.Registry.Inspected", serial: "lic-1", inspector: { value: "Grace" })
+told = runtime.dispatch("PortOperationReference::Licence.Registry.Inspected", to: "lic-1", with: { serial: "lic-1", inspector: { value: "Grace" } })
 told.events.first.id  # => "lic-1"
 ```
 
@@ -141,7 +141,7 @@ The same gate a command's arguments meet applies here — a field the
 operation never declared is refused rather than carried along:
 
 ```ruby
-runtime.dispatch("PortOperationReference::Licence.Registry.Inspected", serial: "lic-1", weather: "fine")  # ~> UnknownArgument: weather
+runtime.dispatch_flat("PortOperationReference::Licence.Registry.Inspected", serial: "lic-1", weather: "fine")  # ~> UnknownArgument: weather
 ```
 
 ## emits
@@ -198,7 +198,7 @@ What the adapter returned arrives under `answered`, beside the
 arguments the ask was made with:
 
 ```ruby
-asked = runtime.dispatch("PortOperationReference::Licence.Registry.Check", serial: "lic-1")
+asked = runtime.dispatch("PortOperationReference::Licence.Registry.Check", to: "lic-1", with: { serial: "lic-1" })
 asked.events.map(&:name)  # => ["StandingReturned"]
 asked.events.first.payload[:standing][:value]  # => "valid"
 ```
@@ -216,7 +216,7 @@ returning a bare string has nothing to spread, and `answered:` is the
 honest word for one unnamed value:
 
 ```ruby
-located = runtime.dispatch("PortOperationReference::Licence.Registry.Locate", serial: "lic-1")
+located = runtime.dispatch("PortOperationReference::Licence.Registry.Locate", to: "lic-1", with: { serial: "lic-1" })
 located.events.first.payload[:answered]  # => "https://registry.example/lic-1"
 ```
 
@@ -249,7 +249,7 @@ The adapter raises, and the caller gets an event rather than an
 exception — the dispatch returns normally:
 
 ```ruby
-refused = runtime.dispatch("PortOperationReference::Licence.Registry.Check", serial: "lic-unknown")
+refused = runtime.dispatch("PortOperationReference::Licence.Registry.Check", to: "lic-unknown", with: { serial: "lic-unknown" })
 refused.events.map(&:name)  # => ["StandingUnavailable"]
 refused.events.first.payload[:refusal][:value]  # => "RuntimeError: registry has no record of that licence"
 ```

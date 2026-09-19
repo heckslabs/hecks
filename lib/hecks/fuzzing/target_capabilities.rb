@@ -1,30 +1,34 @@
 module Hecks
   module Fuzzing
-    # WHAT A SWEEP TARGET CAN ACTUALLY BE CHECKED FOR, read off the
+    # What a sweep target can actually be checked for, read off the
     # filesystem — never off a stored list.
     #
-    # `bin/qa_sweep` used to decide its ONE comparison mode inline: "is
-    # there a Cargo feature named after this directory? then
-    # `:differential`, else `:ruby_only`", and a separate hand-typed abort
-    # for `--persistence-parity` ("does any .hecksagon bind PostgresEra?").
-    # Every further mode the practice adds (era boundary, concurrency, a
-    # WASM front) would have grown one more inline `if`, each one a
+    # `bin/qa_sweep` does not decide its comparison modes with inline
+    # conditionals — "is there a Cargo feature named after this directory?
+    # then `:differential`, else `:ruby_only`", a separate hand-typed abort
+    # for `--persistence-parity` ("does any .hecksagon bind PostgresEra?"),
+    # and so on for every further mode the practice adds (era boundary,
+    # concurrency, a WASM front) — because each such inline `if` is a
     # policy decision hiding in a script. This module is those decisions
-    # as DATA: `MODE_REQUIREMENTS` says which capabilities each mode
+    # as data: `MODE_REQUIREMENTS` says which capabilities each mode
     # needs, `infer` says which capabilities a target's own directory
     # actually has, and `resolve` is the one rule that joins them —
     # `modes_to_run = enabled ∩ eligible`.
     #
-    # INFERENCE DECIDES; A STORED LIST ONLY RECORDS. `Target.capabilities`
-    # (qa/bluebook/quality_control.bluebook, once PR-1's era lands) is
-    # written by the runner from exactly this inference at release time
-    # so `Target.EligibleFor(mode)` can AUDIT the rotation from the
-    # ledger alone — but the runner re-infers every sweep, because a
-    # stored list that lags yesterday's Cargo feature is precisely the
-    # "quiet divergence" (the chapter's own opening comment) this whole
-    # practice exists to hunt. Nothing here ever reads the ledger.
+    # ## Inference decides; a stored list only records
     #
-    # EVERY REGEX IS ONE THE HARNESS ALREADY OWNED, moved here rather than
+    # `Target.capabilities` (qa/bluebook/quality_control.bluebook, once
+    # PR-1's era lands) is written by the runner from exactly this
+    # inference at release time so `Target.EligibleFor(mode)` can audit
+    # the rotation from the ledger alone — but the runner re-infers every
+    # sweep, because a stored list that lags yesterday's Cargo feature is
+    # precisely the "quiet divergence" (the chapter's own opening comment)
+    # this whole practice exists to hunt. Nothing here ever reads the
+    # ledger.
+    #
+    # ## Regex provenance
+    #
+    # Every regex is one the harness already owned, moved here rather than
     # re-derived, and each one's provenance is named beside it so a
     # future edit to the original site is a visible drift, not a silent
     # one: the Cargo feature line (`RustConformanceHelpers#build_rust_for`),
@@ -45,7 +49,7 @@ module Hecks
       # domain-level default (`persisted_by "PostgresEra"`).
       POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
 
-      # `HecksagonBuilder#uses_framework "X"` — captures WHICH member a
+      # `HecksagonBuilder#uses_framework "X"` — captures which member a
       # hecksagon attaches, whatever its name. Whether that member answers
       # a role check is then read off its own declaration (`provides
       # "authorization"`, via `Framework.providers_of`), the same rule
@@ -64,21 +68,21 @@ module Hecks
 
       PROCESS_MANAGER = /^\s*process_manager\s+"/
 
-      # WHICH CAPABILITIES EACH MODE NEEDS BEFORE IT CAN SAY ANYTHING TRUE
-      # ABOUT A TARGET. An empty list means "any target at all" — every
+      # Which capabilities each mode needs before it can say anything true
+      # about a target. An empty list means "any target at all" — every
       # domain boots under Memory, so Ruby-only properties and the
       # self-consistency pass are always answerable. `ruby_only` is listed
-      # requirement-free on purpose and then EXCLUDED by `resolve` whenever
+      # requirement-free on purpose and then excluded by `resolve` whenever
       # `differential` resolved too: they are the same seat, and a compiled
       # Rust binary is strictly the better occupant (item 1 of the
-      # detection plan folded the Ruby-only property battery INTO the
+      # detection plan folded the Ruby-only property battery into the
       # differential seat, so nothing is lost by the exclusion).
       #
       # The four `false`-by-default modes in `QualityControlDials::MODES`
       # (`adapter_parity_postgres`, `era_boundary`, `concurrency`,
       # `wasm_front`) are named here with their requirements even though
       # nothing runs them yet — so `resolved modes:` can already say, per
-      # target, which of them WOULD be eligible the day a human flips the
+      # target, which of them would be eligible the day a human flips the
       # dial, and so flipping it is a one-line data change rather than a
       # code change plus a data change.
       MODE_REQUIREMENTS = {
@@ -95,7 +99,24 @@ module Hecks
         wasm_front:                 %w[rust]
       }.freeze
 
-      # MODES THAT NAME A SEPARATE, EXPENSIVE PASS OF THEIR OWN rather than
+      # Which of those modes `bin/qa_sweep` can actually run today.
+      # `MODE_REQUIREMENTS` above says what a mode needs; this says what
+      # exists to do it, and the two are not the same. Conflating them is
+      # how `qa/settings.yml` came to enable `wasm_front` and
+      # `adapter_parity_postgres` with nothing behind either — no seat, no
+      # check folded into the seed loop, no `MODE_EXPECTATIONS` entry — while
+      # `resolved modes:` still printed them per target, so the sweep
+      # advertised coverage it never performed. A mode named in
+      # `MODE_REQUIREMENTS` but absent here is one this practice wants and has
+      # not built: `bin/qa_sweep` refuses to start when a dial or `--modes`
+      # enables it, rather than resolving it into a line nobody can act on.
+      # `spec/qa_sweep_runnable_modes_spec.rb` keeps this list honest from
+      # both sides by grepping the runner itself.
+      RUNNABLE_MODES = %i[differential ruby_only self_consistency properties_in_differential
+                          structural_skip_report adapter_parity_sqlite persistence_parity
+                          era_boundary concurrency].freeze
+
+      # Modes that name a separate, expensive pass of their own rather than
       # an extra check folded into the ordinary per-seed loop —
       # `bin/qa_sweep` runs these only when asked by name (`--modes
       # persistence_parity`, or its older alias `--persistence-parity`) or
@@ -104,10 +125,19 @@ module Hecks
       # exists because that pass pays for real Postgres I/O per dispatch).
       DEFERRED_MODES = %i[persistence_parity adapter_parity_postgres era_boundary concurrency].freeze
 
+      # Reads a target directory to find out which capabilities it actually has.
+      #
       # Sorted, plain strings — comma-joined by the runner into the
       # `Target.Release(capabilities:)` value object and printed verbatim
       # on the `resolved modes:` line, so the same spelling is what a
       # human reads, what `--all` parses back, and what the ledger stores.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param rust_dir [String] path to the Rust project root, checked for a matching
+      #   Cargo feature; defaults to this repo's own `rust/` directory
+      # @return [Array<String>] the target's capabilities, sorted; a subset of
+      #   `sqlite`, `rust`, `postgres_era`, `translations`, `governance`, `role_gated`,
+      #   `tenant`, `sagas`
       def infer(domain_path, rust_dir: File.expand_path("../../../rust", __dir__))
         capabilities = %w[sqlite]
         capabilities << "rust" if rust_feature?(domain_path, rust_dir)
@@ -120,21 +150,41 @@ module Hecks
         capabilities.sort
       end
 
+      # Answers whether `mode` can run against a target with `capabilities`.
+      #
+      # @param mode [Symbol, String] a key of `MODE_REQUIREMENTS`, such as `:differential`
+      # @param capabilities [Array<String>] the target's capabilities, as `infer` returns
+      # @return [Boolean] whether `capabilities` covers every capability `mode` requires
+      # @raise [ArgumentError] if `mode` names no entry in `MODE_REQUIREMENTS`
       def eligible?(mode, capabilities)
         required = MODE_REQUIREMENTS.fetch(mode.to_sym) { raise ArgumentError, "unknown sweep mode #{mode.inspect}" }
         (required - capabilities).empty?
       end
 
-      # THE ONE RULE. `enabled` is whatever the dial (or `--modes`) turned
+      # The one rule. `enabled` is whatever the dial (or `--modes`) turned
       # on, in the dial's own declaration order — that order is preserved
       # so the printed line reads the same way the dial does. Then the
       # single exclusion named on `MODE_REQUIREMENTS`.
+      #
+      # @param enabled [Array<Symbol, String>] modes turned on, in the dial's own
+      #   declaration order
+      # @param capabilities [Array<String>] the target's capabilities, as `infer` returns
+      # @return [Array<Symbol>] `enabled`'s eligible modes, in `enabled`'s order, with
+      #   `:ruby_only` dropped whenever `:differential` is also eligible
       def resolve(enabled, capabilities)
         resolved = enabled.map(&:to_sym).select { |mode| eligible?(mode, capabilities) }
         resolved.delete(:ruby_only) if resolved.include?(:differential)
         resolved
       end
 
+      # Answers whether `rust_dir`'s Cargo.toml declares a feature named after
+      # `domain_path`'s own directory.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory;
+      #   its basename, lowercased, is the feature name looked up
+      # @param rust_dir [String] path to the Rust project root (holds `Cargo.toml`)
+      # @return [Boolean] whether a matching Cargo feature is declared; false if
+      #   `rust_dir` has no `Cargo.toml`
       def rust_feature?(domain_path, rust_dir)
         cargo_toml = File.join(rust_dir, "Cargo.toml")
         return false unless File.file?(cargo_toml)
@@ -144,10 +194,17 @@ module Hecks
         features.match?(/^#{Regexp.escape(feature)}\s*=\s*\[\]/)
       end
 
+      # Answers whether any `.hecksagon` under `domain_path` attaches a member
+      # that provides authorization.
+      #
       # The capability label stays "governance" — it is the value
       # `bin/qa_sweep` writes into the QualityControl ledger's
       # `Target.capabilities`, and renaming it is a ledger change, not
       # part of dropping the name check.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @return [Boolean] whether the domain attaches a member that provides the
+      #   `Bluebook::Capabilities::AUTHORIZATION` capability
       def authorization_attached?(domain_path)
         attached = Dir.glob(File.join(domain_path, "**", "*.hecksagon"))
                       .flat_map { |path| File.read(path).scan(FRAMEWORK_ATTACHED).flatten }.uniq
@@ -155,6 +212,13 @@ module Hecks
         attached.intersect?(providers)
       end
 
+      # Answers whether any file under `domain_path` matching `glob` contains `pattern`.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param glob [String] a `Dir.glob` pattern relative to `domain_path`, such as
+      #   `"*.bluebook"`
+      # @param pattern [Regexp] the pattern each matching file's contents is tested against
+      # @return [Boolean] whether any matching file's contents match `pattern`
       def any_file?(domain_path, glob, pattern)
         Dir.glob(File.join(domain_path, "**", glob)).any? { |path| File.read(path).match?(pattern) }
       end

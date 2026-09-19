@@ -73,11 +73,13 @@ jobs:
   # split's win.
   checks_fuzz:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
-    # Skips cache-warming `push` AND a plain pull_request — the light PR
-    # set, see the comment above `on:` in ci.yml (a called workflow sees
-    # its caller's `github` context, labels included).
-    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # See `rspec` job's own comment in ci.yml — cache-warming push
+    # doesn't need this job. (It skipped a plain pull_request too, under
+    # the light PR set; that set is gone — see the comment above `on:` in
+    # ci.yml for why.)
+    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -88,6 +90,7 @@ jobs:
 
   checks_static:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment in ci.yml — cache-warming push
     # doesn't need this job.
@@ -208,9 +211,10 @@ jobs:
 
   checks_codegen_drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
-    # Light PR set, same as `checks_fuzz` above.
-    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # Cache-warming push only, same as `checks_fuzz` above.
+    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -353,6 +357,30 @@ jobs:
       - name: "rust coverage: every generated module"
         run: bundle exec bin/corpus --rust-coverage
 
+      # THE SAME SIX, AGAINST hecks-codegen's MANIFEST (ADR 0054a, B2).
+      # `--codegen=rust` regenerates each domain's manifest.json with
+      # rust/codegen from the same committed ir.json into a scratch dir,
+      # then runs the identical analysis and the identical, unchanged
+      # ALLOWLIST. BOTH paths stay gated here permanently: the Ruby
+      # generator (rust/project) remains the default producer of the Rust
+      # port, and hecks-codegen is held to it by these parity gates.
+      # embryonaut has no committed manifest (fallback mode), so it reads
+      # the committed snapshot in both modes — see bin/rust_coverage's own
+      # header.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
+      - name: "rust coverage (hecks-codegen): pizzas, embryonaut, governance, identity, banking, meta"
+        run: |
+          bundle exec bin/rust_coverage pizzas --codegen=rust
+          bundle exec bin/rust_coverage embryonaut --codegen=rust
+          bundle exec bin/rust_coverage governance --codegen=rust
+          bundle exec bin/rust_coverage identity --codegen=rust
+          bundle exec bin/rust_coverage banking --codegen=rust
+          bundle exec bin/rust_coverage meta --codegen=rust
+
       # THE KERNEL HALF of the same guarantee. bin/project_kernel_
       # capabilities' own enums (AttributeShape/OperatorCategory) already
       # make an exhaustive match over them a compile error the moment the
@@ -383,40 +411,5 @@ jobs:
             exit 1
           fi
 
-      # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — the
-      # exact gap the rubocop step's own comment below already names for
-      # itself, applied to the one pre-push check that comment's own
-      # audit had missed: pre-push is opt-in per clone (`git config
-      # core.hooksPath .githooks`) and bypassable (`git push
-      # --no-verify`), so a branch that never installed it, or a push
-      # made with that flag, reached GitHub with `bin/doc_coverage`
-      # never having run at all — on a project where most commits come
-      # from an agent, "did this clone install the hook" isn't a safe
-      # assumption. Same command pre-push already runs (`bin/doc_
-      # coverage`'s own header): every live word in docs/implemented/
-      # reference/ carries hand-written prose and a running example.
-      - name: doc coverage
-        run: bundle exec bin/doc_coverage
-
-      # RUBOCOP, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — added in
-      # this same integration pass that wired
-      # Hecks/FallbackHashLookup/ThreadSharedIvarMutation/
-      # SequentialHashRenameInLoop into .rubocop.yml's `require:` list
-      # (docs/rubocop-custom-cops.md). Those three cops each guard a real,
-      # already-shipped bug class (8+ instances of a same-receiver `||`
-      # fallback silently dropping a stored `false`; a thread-shared ivar
-      # mutation on Dispatcher/Registry; a hash rename loop clobbering its
-      # own keys mid-pass) — pre-push is opt-in per clone
-      # (`git config core.hooksPath .githooks`) and bypassable
-      # (`git push --no-verify`), so a branch that never installed it, or
-      # a push made with that flag, would otherwise reach GitHub with NONE
-      # of those three guards (or any other rubocop cop) having run at
-      # all — the exact "a push that skipped the hook... can't land red"
-      # gap ci.yml's own top-of-file comment already names as the
-      # reason `rspec`/`checks` both exist rather than trusting
-      # pre-push alone. Same command pre-push already runs, so nothing
-      # cop-specific is needed here (docs/rubocop-custom-cops.md's own
-      # closing note); confirmed clean against this tree before adding
-      # this step.
-      - name: rubocop
-        run: bundle exec rubocop -c .rubocop.yml
+      # doc coverage and rubocop run in checks_static, above — once per run,
+      # not once per job.

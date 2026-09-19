@@ -3,13 +3,14 @@ module Hecks
     module MetaValidator
       # Offers a built .world to the language that describes worlds.
       #
-      # A world is a SIBLING of a bluebook — the same domain runs in many of
+      # A world is a sibling of a bluebook — the same domain runs in many of
       # them — so it is judged through its own door, against its own language
       # file, and its settings normalise the same way a mutation's fields do:
       # an open map becomes one Wiring per verb and one Setting row per value.
       class WorldJudge
         attr_reader :refusals
 
+        # @param world [Bluebook::World] the built world to judge
         def initialize(world)
           @world    = world
           @refusals = []
@@ -51,14 +52,14 @@ module Hecks
         end
 
         def judge_wiring(domain, verb, values)
-          # THE SAME JOIN THE LANGUAGE ITSELF DERIVES. Wiring is
+          # The same join the language itself derives. Wiring is
           # `identified_by do world; verb.value end` — `Wiring.Declare`
-          # (a creating command) ignores this `id:` entirely and computes its OWN
+          # (a creating command) ignores this `id:` entirely and computes its own
           # from `world`/`verb`, so a locally minted "#{domain}.#{verb}" named a
           # record `Wiring.Set` could never find : the id passed here has to be
-          # the SAME derivation, not a second guess at what it must be.
+          # the same derivation, not a second guess at what it must be.
           id = Naming.identity([domain, verb])
-          # `world_ref` is the WORLD's id and goes bare, the way every reference
+          # `world_ref` is the world's id and goes bare, the way every reference
           # does now ; the language gives it that explicit `as:` because `world`
           # beside it is an ordinary text attribute that happens to hold the same
           # string, and stays a value object. The two look alike and are not —

@@ -3,26 +3,26 @@ require_relative "../corpus"
 
 module Hecks
   module Fuzzing
-    # WHAT AN AGGREGATE CAN EXHIBIT, AND WHICH PAIRS IT PUTS TOGETHER.
+    # What an aggregate can exhibit, and which pairs it puts together.
     #
     # Extracted from `spec/combination_coverage_spec.rb`'s own pairwise
     # table so it has exactly two consumers that can never drift: that
     # spec (the golden corpus, held to every pair) and `bin/qa_domain_
-    # novelty` (a CANDIDATE stress domain, measured against every path
+    # novelty` (a candidate stress domain, measured against every path
     # the QA ledger already sweeps — see that script's own header for why
     # a new domain has to name the pair no existing target meets before
     # it earns a place in the rotation).
     #
-    # THE UNIT IS ONE AGGREGATE. Two forms in the same chapter but
+    # **The unit is one aggregate**. Two forms in the same chapter but
     # different heads never meet at dispatch; two forms on one head do
     # — that spec's own header has the four defects that argument came
     # from. Each entry below is a form the language declares and a
     # runtime has to handle, chosen because it has produced a defect or
     # sits one step from one; adding one here is how a new form joins
-    # BOTH gates at once, and it will name its own uncovered pairs on the
+    # both gates at once, and it will name its own uncovered pairs on the
     # first run of each.
     #
-    # ONE FLAT TABLE, ON PURPOSE — each entry is an independent boolean
+    # **One flat table, on purpose** — each entry is an independent boolean
     # check against the same string-keyed aggregate IR hash (the shape
     # `spec/golden/ir/*.json` carries and `Projector::Exporter.call`
     # round-trips to through JSON), laid out so every declared form can
@@ -49,7 +49,7 @@ module Hecks
         "closed_set"         => ->(a) { (a["value_objects"] || []).any? { |shape| shape["closed_set"] } },
         "has_default"        => ->(a) { attributes(a).any? { |held| !held["default"].nil? } },
         "has_optional"       => ->(a) { commands(a).any? { |verb| (verb["attributes"] || []).any? { |held| held["optional"] } } },
-        # THE REFERENCE-HOP FAMILY (ANGLE-2, qa/bluebook ledger) — the
+        # The reference-hop family (angle-2, qa/bluebook ledger) — the
         # forms `qa/stress_domains/referral_chain` exists for, absent
         # from the census until that domain named them. Each is one
         # step from a catalogued gap: `two_hop_given` is `dereference`'s
@@ -60,6 +60,19 @@ module Hecks
         # command redeclaring the aggregate's own reference field under
         # a non-reference type, so only `resolve_state_references` (never
         # ported) can catch a dangling id.
+        # A retroactive correction, and a role-gated command — both are
+        # declared forms this census could not see, on aggregates it was
+        # already measuring: `examples/banking` has carried `corrects`
+        # mutations and `role`-bearing commands the whole time, and
+        # `qa/stress_domains/corrections` exists for the first. Three
+        # stress domains' own NOTES.md record `bin/qa_domain_novelty`
+        # answering "no new pair" for a domain whose whole point was a
+        # shape this table did not name (case_escalation's is the
+        # bluntest: "read that as a gap in the census, not in this
+        # domain"). Entity commands count for both — BUG#30-33 and
+        # BUG#31 were all entity-level `corrects`.
+        "corrects"           => ->(a) { every_command(a).any? { |verb| corrects?(verb) } },
+        "role_gated"         => ->(a) { every_command(a).any? { |verb| !verb["role"].to_s.empty? } },
         "two_hop_given"      => ->(a) { two_hop_given?(a) },
         "multi_hop_where"    => ->(a) { multi_hop_where?(a) },
         "revalued_reference" => ->(a) { revalued_reference?(a) }
@@ -67,25 +80,80 @@ module Hecks
 
       module_function
 
+      # Reads an aggregate IR hash's own declared entities.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Array<Hash>] the aggregate's own declared entities ("pieces"); `[]`
+      #   if it declares none
       def entities(aggregate)   = aggregate["entities"] || []
+
+      # Reads an aggregate IR hash's own declared commands.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Array<Hash>] the aggregate's own declared commands; `[]` if it
+      #   declares none
       def commands(aggregate)   = aggregate["commands"] || []
+
+      # One aggregate's commands, its pieces' included — a form carried by
+      # an entity command is carried by the aggregate that owns it, the
+      # same way `composite_piece`/`piece_lifecycle` already read pieces.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Array<Hash>] `aggregate`'s own commands, plus every entity's own
+      def every_command(aggregate) = commands(aggregate) + entities(aggregate).flat_map { |piece| commands(piece) }
+
+      # Answers whether a command IR hash declares a `corrects` mutation.
+      #
+      # @param verb [Hash] a string-keyed command IR hash
+      # @return [Boolean] true if `verb` declares a `corrects` mutation
+      def corrects?(verb) = (verb["mutations"] || []).any? { |change| change["op"].to_s == "corrects" }
+
+      # Reads an aggregate IR hash's own declared attributes.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Array<Hash>] the aggregate's own declared attributes; `[]` if it
+      #   declares none
       def attributes(aggregate) = aggregate["attributes"] || []
+
+      # Reads an aggregate IR hash's own declared queries.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Array<Hash>] the aggregate's own declared queries; `[]` if it
+      #   declares none
       def queries(aggregate)    = aggregate["queries"] || []
+
+      # Answers whether an attribute IR hash's own declared type is a reference.
+      #
+      # @param attribute [Hash] a string-keyed attribute IR hash
+      # @return [Boolean] true if `attribute`'s own declared type is a reference
       def reference?(attribute) = attribute["type"].to_s.start_with?("Reference<")
 
+      # Answers whether any of an aggregate's own commands crosses a two-hop given.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Boolean] true if any command's own given crosses at least two
+      #   references (`TWO_HOP_GIVEN_PATH_LENGTH`)
       def two_hop_given?(aggregate)
         commands(aggregate).any? { |verb| (verb["givens"] || []).any? { |given| deep_lookup?(given["ast"]) } }
       end
 
       # A `where` whose field crosses two `/` — `member/sponsor/standing`.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Boolean] true if any query's own where clause crosses at least
+      #   two `/` hops
       def multi_hop_where?(aggregate)
         queries(aggregate).any? { |query| (query["wheres"] || []).any? { |where| where["field"].to_s.count("/") >= 2 } }
       end
 
       # A command attribute sharing a name with one of the aggregate's
-      # own reference-typed attributes while carrying a DIFFERENT, non-
+      # own reference-typed attributes while carrying a different, non-
       # reference type — `attribute :member, Handle` against
       # `reference_to Member`.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Boolean] true if any command redeclares one of the aggregate's
+      #   own reference-typed attribute names under a non-reference type
       def revalued_reference?(aggregate)
         references = attributes(aggregate).select { |held| reference?(held) }.to_set { |held| held["name"].to_s }
         commands(aggregate).any? do |verb|
@@ -95,6 +163,11 @@ module Hecks
 
       # Walks a given's own exported AST for any `lookup` whose path is
       # long enough to have crossed two references.
+      #
+      # @param node [Hash, Array, Object] an AST node (or subtree) from an
+      #   exported given's `"ast"`
+      # @return [Boolean] true if any `lookup` node's own path is at least
+      #   `TWO_HOP_GIVEN_PATH_LENGTH` long
       def deep_lookup?(node)
         case node
         when Hash
@@ -109,21 +182,39 @@ module Hecks
       end
 
       # Every form, answered for one aggregate — the table above, applied.
+      #
+      # @param aggregate [Hash] a string-keyed aggregate IR hash
+      # @return [Hash{String => Boolean}] every `FORMS` name mapped to whether
+      #   `aggregate` exhibits it
       def properties(aggregate)
         FORMS.transform_values { |form| form.call(aggregate) }
       end
 
       # Every unordered pair of forms, each rendered "left + right" in
       # alphabetical order — the key both gates' excuse tables use.
+      #
+      # @return [Array<String>] every unordered pair of `FORMS` names, as
+      #   `"left + right"`
       def pairs
         FORMS.keys.combination(2).map { |pair| pair_key(*pair) }
       end
 
+      # Renders two form names as one sorted pair key.
+      #
+      # @param left [String] a form name
+      # @param right [String] a form name
+      # @return [String] `left`/`right`, alphabetically ordered, joined as
+      #   `"left + right"`
       def pair_key(left, right) = [left, right].sort.join(" + ")
 
       # `held` is `[[aggregate_name, properties], ...]`. Answers which
-      # pairs are met on ONE aggregate, and by which — a Hash from pair
+      # pairs are met on one aggregate, and by which — a Hash from pair
       # key to the names carrying it, so a caller can say who.
+      #
+      # @param held [Array<Array(String, Hash)>] `[aggregate_name, properties]`
+      #   pairs, `properties` as returned by `#properties`
+      # @return [Hash{String => Array<String>}] every met pair key mapped to the
+      #   aggregate names that carry it
       def covered_pairs(held)
         held.each_with_object(Hash.new { |h, k| h[k] = [] }) do |(name, shows), covered|
           shows.select { |_, present| present }.keys.combination(2).each do |left, right|
@@ -135,27 +226,42 @@ module Hecks
       # `[[\"Chapter::Aggregate\", properties], ...]` for every aggregate
       # a string-keyed chapter IR declares — the same walk the golden
       # spec makes over `spec/golden/ir/*.json`.
+      #
+      # @param chapter_ir [Hash] a string-keyed chapter IR hash, with `"name"` and
+      #   `"aggregates"`
+      # @return [Array<Array(String, Hash)>] `["Chapter::Aggregate", properties]`
+      #   pairs, one per declared aggregate, `properties` as returned by
+      #   `#properties`
       def aggregates_in(chapter_ir)
         (chapter_ir["aggregates"] || []).map do |aggregate|
           ["#{chapter_ir['name']}::#{aggregate['name']}", properties(aggregate)]
         end
       end
 
-      # WHERE A DOMAIN PATH KEEPS ITS BLUEBOOKS — see
+      # Where a domain path keeps its bluebooks — see
       # `Hecks::Corpus.bluebook_files`, the one definition every corpus
       # walk shares. `nil` when neither shape holds a bluebook.
+      #
+      # @param domain_path [String] path to a domain directory
+      # @return [Array<String>, nil] the domain's own `.bluebook` file paths, or
+      #   `nil` if it holds none
       def bluebook_files(domain_path)
         Hecks::Corpus.bluebook_files(domain_path)
       end
 
-      # THE SAME CENSUS OVER A DOMAIN ON DISK, booted the lightweight
+      # The same census over a domain on disk, booted the lightweight
       # way `bin/model_check` and `Hecks::Codemod.load_bluebook` already
       # do (ports and the two in-process adapters, no `Hecks.boot`, no
-      # live database, no `.hecksagon`: the census reads declared SHAPE,
+      # live database, no `.hecksagon`: the census reads declared shape,
       # and a framework chapter a `.hecksagon` would attach is not this
       # domain's own). Only the domain's own chapter is measured — the
       # first bluebook loaded, the same "target chapter is always first"
       # fact `bin/project_rust` relies on.
+      # @param domain_path [String] path to a domain directory
+      # @return [Array<Array(String, Hash)>] `["Chapter::Aggregate", properties]`
+      #   pairs, one per aggregate declared on `domain_path`'s own first-loaded
+      #   chapter (see `Hecks::Projector::Exporter.call`)
+      # @raise [ArgumentError] if `domain_path` has no bluebook files to measure
       def census(domain_path)
         root = File.expand_path("../../..", __dir__)
         files = bluebook_files(domain_path)

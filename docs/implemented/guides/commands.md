@@ -453,9 +453,9 @@ first. A composite identity like this one — `branch_code` and
 rather than through the single-argument facade sugar used above:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Rent", customer: customer.id,
-                  branch_code: { value: "DT" }, box_number: { value: 12 }, size: { value: "small" })
-runtime.dispatch("Banking::SafeDepositBox.Surrender", branch_code: { value: "DT" }, box_number: { value: 12 })
+runtime.dispatch("Banking::SafeDepositBox.Rent", with: { customer: customer.id,
+                                                         branch_code: { value: "DT" }, box_number: { value: 12 }, size: { value: "small" } })
+runtime.dispatch_flat("Banking::SafeDepositBox.Surrender", branch_code: { value: "DT" }, box_number: { value: 12 })
 Banking::SafeDepositBox.find("DT:12").events.last(2).map(&:name)  # => ["BoxSurrendered", "KeyReturnDue"]
 ```
 
@@ -523,7 +523,7 @@ And a command acting on an identity that names no record refuses with
 `NotFound`, not a nil you have to check for yourself:
 
 ```ruby
-runtime.dispatch("Banking::Account.FreezeAccount", number: "no-such-account")  # ~> NotFound: no Account with number.value
+runtime.dispatch("Banking::Account.FreezeAccount", to: "no-such-account")  # ~> NotFound: no Account with number.value
 ```
 
 ## Refusals leave state untouched

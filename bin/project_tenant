@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-# THE TENANT PROVISIONER — same split bin/project_deploy already draws
-# between VALIDATING a declared shape (lib/hecks/deploy's own
-# Tenant.Declare) and GENERATING/ACTING on it (this script). Three
+# **The tenant provisioner** — same split bin/project_deploy already draws
+# between validating a declared shape (lib/hecks/deploy's own
+# Tenant.Declare) and generating/acting on it (this script). Three
 # local, idempotent steps, in order: write the tenant's own
 # `environments/<slug>.world` overlay, boot the domain once under it
 # (proving it genuinely works, not just that the file parses — the
@@ -17,17 +17,17 @@
 # saga: every step here is already safe to re-run, so there is no
 # partial-progress state worth checkpointing.
 #
-# THE OVERLAY REPLACES, NOT MERGES, THE BASE persisted_by SETTINGS FOR
-# THE SAME ADAPTER — Registry#merge_worlds' own documented shallow-merge
-# shape (a key an overlay declares replaces that key's WHOLE resolved
+# The overlay replaces, not merges, the base persisted_by settings for
+# the same adapter — Registry#merge_worlds' own documented shallow-merge
+# shape (a key an overlay declares replaces that key's whole resolved
 # hash, it does not deep-merge field by field). So `--database` is
-# REQUIRED here even when the base `.world` already names one — the
+# required here even when the base `.world` already names one — the
 # generated overlay is this tenant's own complete persisted_by
 # settings for the domain-level default bind, not a diff against the
 # base's.
 #
-#   bin/project_tenant <domain-directory> <slug> --domain=NAME --realm=NAME \
-#     --schema=NAME --database=NAME [--adapter=PostgresEra]
+#   bin/project_tenant <domain-directory> <slug> --domain=name --realm=name \
+#     --schema=name --database=name [--adapter=PostgresEra]
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
@@ -59,7 +59,7 @@ end
 domain_directory = File.expand_path(directory)
 File.directory?(domain_directory) or abort "no such domain directory: #{domain_directory}"
 
-# VALIDATED, not hand-checked — dispatches into lib/hecks/deploy's
+# Validated, not hand-checked — dispatches into lib/hecks/deploy's
 # own Tenant.Declare (the same given/invariant machinery LambdaTarget's
 # own validation already is), before this script writes or connects to
 # anything.
@@ -67,16 +67,18 @@ deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecks/deploy", __dir__))
 begin
   deploy_dispatcher.dispatch(
     "Deploy::Tenant.Declare",
-    slug:   { value: slug },
-    domain: { value: options[:domain] },
-    realm:  { value: options[:realm] },
-    schema: { value: options[:schema] }
+    with: {
+      slug:   { value: slug },
+      domain: { value: options[:domain] },
+      realm:  { value: options[:realm] },
+      schema: { value: options[:schema] }
+    }
   )
 rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "tenant #{slug.inspect} is invalid: #{e.message}"
 end
 
-# THE OVERLAY ITSELF — a plain File.write, idempotent by construction
+# **The overlay itself** — a plain File.write, idempotent by construction
 # (re-running this script for the same tenant just rewrites the
 # identical content).
 overlay_path = File.join(domain_directory, "environments", "#{slug}.world")
@@ -93,14 +95,14 @@ WORLD
 
 puts "wrote #{overlay_path}"
 
-# BOOTED ONCE, FOR REAL — PostgresEra#connect_for's own `CREATE SCHEMA
+# **Booted once, for real** — PostgresEra#connect_for's own `CREATE SCHEMA
 # IF NOT EXISTS` (idempotent, same self-healing discipline every other
 # provisioning step in this adapter already holds itself to) means this
 # is also the schema's own provisioning step, not just a smoke test.
 dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
 puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
 
-# THE GATE, CHECKED AFTER A REAL BOOT — belt-and-suspenders: a domain
+# The gate, checked after a real boot — belt-and-suspenders: a domain
 # whose bound adapter cannot actually keep two tenants apart should
 # never reach this point silently. Checked per bluebook this registry
 # declares, not just the one named --domain, the same completeness

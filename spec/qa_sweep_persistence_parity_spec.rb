@@ -6,21 +6,21 @@ require "open3"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep --persistence-parity`, PROVEN AGAINST THE REAL THING —
+# `bin/qa_sweep --persistence-parity`, proven against the real thing —
 # same discipline `spec/support/qa_sweep_all_fixture.rb` (read that file's own header
-# FIRST) already established for `--all`: a REAL `bin/qa_sweep` subprocess,
-# against a REAL, disposable Postgres-backed fixture ledger that loads the
-# REAL `qa/bluebook/quality_control.bluebook` (symlinked, never copied),
+# first) already established for `--all`: a real `bin/qa_sweep` subprocess,
+# against a real, disposable Postgres-backed fixture ledger that loads the
+# real `qa/bluebook/quality_control.bluebook` (symlinked, never copied),
 # never the real `hecks_quality_control` ledger itself. This file reuses
 # that exact pattern rather than inventing a new one — see this repo's own
 # instructions for this work.
 #
-# `examples/directory` IS THE REAL TARGET HERE, ON PURPOSE — not a fixture
+# `examples/directory` is the real target here, on purpose — not a fixture
 # stand-in. This mode exists specifically because `directory`'s own
 # `compute`/`rekey` translation edge is the one domain in this corpus that
 # actually exercises PostgresEra-bound SQL compilation (see `lib/hecks/
 # fuzzing/persistence_parity.rb`'s own header), so proving this mode works
-# means proving it against THAT domain, loaded straight off disk exactly
+# means proving it against that domain, loaded straight off disk exactly
 # as committed — never copied or rewritten by this spec (`IsolatedBoot`
 # does its own copy-and-rebind per ephemeral boot; this spec only ever
 # points a real `bin/qa_sweep` subprocess at the real `examples/directory`
@@ -28,24 +28,24 @@ require "pathname"
 RSpec.describe "bin/qa_sweep --persistence-parity", :io do
   QA_SWEEP_PERSISTENCE_PARITY_DATABASE = "hecks_qa_sweep_persistence_parity_spec".freeze
 
-  # LINE-FOR-LINE `spec/support/qa_sweep_all_fixture.rb`'s OWN `FIXTURE_HECKSAGON` —
+  # Line-for-line `spec/support/qa_sweep_all_fixture.rb`'s own `FIXTURE_HECKSAGON` —
   # see that file's own comment on why the `CI`/`IssueTracker` ports stay
   # unbound here (this spec never dispatches `Clearance.CI.Run` either).
   #
-  # NAMED `LEDGER_HECKSAGON`, NOT THE SAME `FIXTURE_HECKSAGON` THAT FILE
-  # USES — found live, wiring this spec up: `CONST = value` written
+  # Named `LEDGER_HECKSAGON`, not the same `FIXTURE_HECKSAGON` that file
+  # uses — found live, wiring this spec up: `CONST = value` written
   # directly inside an `RSpec.describe do ... end` block is a real Ruby
-  # gotcha — it assigns at the block's own LEXICAL scope (top-level, i.e.
+  # gotcha — it assigns at the block's own lexical scope (top-level, i.e.
   # `Object`), not inside the dynamically-created example-group class,
-  # because `describe` takes an ordinary BLOCK, not a `class`/`module`
+  # because `describe` takes an ordinary block, not a `class`/`module`
   # keyword body. Every spec file that writes `FIXTURE_HECKSAGON = ...`
-  # this way is therefore defining the SAME top-level constant — harmless
+  # this way is therefore defining the same top-level constant — harmless
   # between this file and `qa_sweep_all_fixture.rb` only because their
   # content happens to be identical, but genuinely corrupting between
   # either of them and `spec/fuzzing/persistence_parity_spec.rb`'s own
-  # DIFFERENT-content `FIXTURE_HECKSAGON`: whichever spec file Ruby loads
+  # different-content `FIXTURE_HECKSAGON`: whichever spec file Ruby loads
   # LAST silently overwrites the constant the FIRST one's own `before(:all)`
-  # reads at RUN time, so a fixture domain ends up written from another
+  # reads at run time, so a fixture domain ends up written from another
   # spec's own hecksagon text entirely. Confirmed live by the exact
   # `Hecks::Bluebook::DSL::Malformed` this collision produced before this
   # rename existed. Never reused a plain `FIXTURE_*` name again here.
@@ -82,7 +82,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     end
   RUBY
 
-  # A NON-POSTGRESERA-BOUND TARGET, FOR THE ELIGIBILITY GATE'S OWN
+  # A non-PostgresEra-bound target, for the eligibility gate's own
   # negative example — `Heki`-bound, the plainest "not PostgresEra at
   # all" binding this corpus has, needing no real server of its own.
   INELIGIBLE_TARGET_BLUEBOOK = <<~RUBY.freeze
@@ -126,7 +126,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
       end
     RUBY
 
-    # LIVING INSIDE THE REAL REPO ROOT, exactly `qa_sweep_all_fixture.rb`'s
+    # Living inside the real repo `ROOT`, exactly `qa_sweep_all_fixture.rb`'s
     # own reasoning — `bin/qa_sweep` resolves a `Target`'s own `path` as
     # `File.join(ROOT, target_path)` against the real repository root.
     @ineligible_dir = Dir.mktmpdir("qa_sweep_persistence_parity_spec_target-", InMemoryDomain::ROOT)
@@ -152,7 +152,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     FileUtils.remove_entry(@fixture_root)
     FileUtils.remove_entry(@ineligible_dir)
 
-    # THIS SPEC'S OWN DISPOSABLE PERSISTENCE-PARITY DATABASE — a real
+    # **This spec's own disposable persistence-parity database** — a real
     # `bin/qa_sweep --persistence-parity` subprocess creates it itself
     # (see that script's own comment: a fixed, dedicated, never-the-real-
     # ledger name, never dropped by the script itself because dropping a
@@ -188,20 +188,20 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
   end
 
-  # `abort` (Kernel#abort) WRITES TO STDERR, not stdout — every assertion
+  # `abort` (Kernel#abort) writes to STDERR, not stdout — every assertion
   # in this file that checks an `abort` message reads `stderr`, never
-  # `stdout`, unlike the `--all` mode's own OWN spec (`qa_sweep_all_spec
-  # .rb`), which reads a MERGED stdout+stderr stream because `--all`'s own
+  # `stdout`, unlike the `--all` mode's own own spec (`qa_sweep_all_spec
+  # .rb`), which reads a merged stdout+stderr stream because `--all`'s own
   # children are spawned with `out: log, err: log` (`spawn_sweep_child`'s
   # own comment) — a single, non-`--all` invocation of this script keeps
   # the two streams separate, exactly as `Open3.capture3` hands them back.
-  # `--all --persistence-parity` USED TO ABORT ("does not combine with
-  # --all"). It is a legitimate combination now — see `bin/qa_sweep`'s own
-  # comment on `force_parity_wave` — but NOT "narrow every child to only
+  # `--all --persistence-parity` is a legitimate combination, not an abort
+  # ("does not combine with --all") — see `bin/qa_sweep`'s own
+  # comment on `force_parity_wave` — but not "narrow every child to only
   # this one mode" (that would abort the `ineligible` target here
   # individually, one operational error per target that can't be compared
   # this way, the exact noisy regression the rewrite avoids). Instead the
-  # flag folds back to plain `--all` with the parity wave FORCED on: wave 1
+  # flag folds back to plain `--all` with the parity wave forced on: wave 1
   # sweeps `directory` and `ineligible` both normally (`ruby_only` — neither
   # has a compiled Rust binary), and wave 2 runs the real persistence-parity
   # pass over `directory` alone, the one target `TargetCapabilities.infer`
@@ -252,19 +252,19 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("declares no persisted_by(\"PostgresEra\") binding")
 
-    # NEVER CLAIMED — an ineligible target must be left exactly as found,
+    # **Never claimed** — an ineligible target must be left exactly as found,
     # not held by a sweep that was always going to abort.
     Hecks.boot(@fixture_dir)
     row = QualityControl::Target.find("ineligible")
     expect(row.status).to eq("waiting")
   end
 
-  # THE REAL PAYOFF — `examples/directory`, shelved out of THIS repository's
+  # **The real payoff** — `examples/directory`, shelved out of this repository's
   # own live rotation for exactly the structural reason this mode exists to
   # close (see `lib/hecks/fuzzing/persistence_parity.rb`'s own header),
-  # restored here into a THROWAWAY fixture ledger's own rotation — proving
+  # restored here into a throwaway fixture ledger's own rotation — proving
   # both the generic `Target.Shelve`/`Target.Restore` mechanics this repo's
-  # own instructions asked to be checked, AND a real, full
+  # own instructions asked to be checked, and a real, full
   # claim -> sweep -> conclude -> release cycle against real PostgresEra
   # SQL, without ever touching the real `hecks_quality_control` ledger.
   it "restores a shelved PostgresEra-bound target and sweeps it clean, end to end, against real PostgresEra" do
@@ -288,7 +288,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
 
     # `held_by` — `Target.Release`'s own bluebook declaration only ever
     # `sets :last_swept, to: :now` (qa/bluebook/quality_control.bluebook,
-    # "THE ARGUMENT IS `now`..."); nothing resets `held_by` back to its
+    # "the argument is `now`..."); nothing resets `held_by` back to its
     # "nobody" default on release — `status`, already checked above, is
     # what actually tracks "currently held or not." The last claimer's
     # own name simply stays on record as an audit trail.

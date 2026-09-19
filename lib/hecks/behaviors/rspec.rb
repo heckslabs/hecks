@@ -4,7 +4,7 @@ require_relative "../behaviors"
 # `bundle exec rspec` uses to run `.behaviors` files as ordinary examples,
 # one `it` per test, named by the test's own description string. Same
 # shape `spec/guides_spec.rb` uses for doctested guides: the file is
-# PARSED at collection time (cheap — `Behaviors.parse`, no test actually
+# parsed at collection time (cheap — `Behaviors.parse`, no test actually
 # run yet, just enough to know the `it` names), and each test's own
 # `Expectations.run_one` runs lazily inside its own `it`, exactly when
 # rspec actually executes it.
@@ -21,6 +21,14 @@ module Hecks
     module RSpec
       module_function
 
+      # Parses one `.behaviors` file and registers an rspec example group for it, one
+      # `it` per test named by the test's own description.
+      #
+      # @param path [String] the `.behaviors` file's path
+      # @return [void]
+      # @raise [RuntimeError] not raised by this call itself; wraps `parsed.parse_error`'s
+      #   message and is raised only when rspec later runs the generated "loads without a
+      #   parse error" example, so it surfaces as that example's failure
       def describe_file(path)
         parsed = Behaviors.parse(path)
 

@@ -11,8 +11,24 @@ module Hecks
 
       module_function
 
+      # Recovers a block's body as canonical source text, so a rule is carried as text.
+      #
+      # @param block [Proc] a block written in a bluebook file, such as a `given` predicate
+      #   or an `identified_by` path
+      # @return [String, nil] the block body's source, normalised by
+      #   `Bluebook::Expression::CanonicalForm` (whitespace collapsed, linked replacements
+      #   applied); nil if the block's file cannot be read, no block starts on its line, or
+      #   the block has an empty body
+      # @raise [Runtime::WiringError] if called outside a boot, or this port does not resolve
+      #   to exactly one adapter (see `adapter`)
       def canonical(block) = adapter.canonical(block)
 
+      # Finds the single adapter bound to this port in the registry currently booting.
+      #
+      # @return [Module] the adapter module or class implementing this port
+      # @raise [Runtime::WiringError] if `Hecks.current_registry` is nil (resolved outside a
+      #   boot), if no adapter, or more than one, implements this port, or if the one that
+      #   does has no Ruby implementation under `Hecks::Adapters`
       def adapter
         registry = Hecks.current_registry
         unless registry

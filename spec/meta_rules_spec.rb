@@ -8,7 +8,7 @@ require "spec_helper"
 # facts any reader of the meta-domain can consume, instead of behavior buried
 # in the builders.
 #
-# Every rule here must be SEEN REFUSING. A ported rule that never fires is the
+# Every rule here must be seen refusing. A ported rule that never fires is the
 # same defect the whole corpus keeps producing, and porting rules is exactly
 # the activity most likely to produce it.
 RSpec.describe "the language's own rules" do
@@ -20,26 +20,27 @@ RSpec.describe "the language's own rules" do
 
   def v(text) = { value: text.to_s }
 
-  # THE ID OF WHAT WAS JUST DECLARED. Nothing here is minted any more — every
-  # meta-record's id is DERIVED from the facts it was declared with, so a test
+  # The ID of what was just declared. Nothing here is minted any more — every
+  # meta-record's id is derived from the facts it was declared with, so a test
   # cannot simply invent one. Reading it back off the dispatch result is the
   # only honest way to name a record in a later dispatch : the same derivation
   # the runtime just ran, not a second guess at what it must have computed.
-  def id_of(verb, **args) = @runtime.dispatch(verb, **args).instance.id
+  def id_of(verb, **args) = @runtime.dispatch_flat(verb, **args).instance.id
 
   before do
     @runtime = boot_meta
-    # A bluebook is reached by id like every other root. It used to be reached
-    # by a MINTED id, which made `Bluebook.Normalise` unable to name what it
-    # acts on — the runtime read an argument called `name` as the reference
-    # lookup. It is reached by its own name now (Bluebook.identified_by {
-    # name.value }), so the lookup collision is gone rather than ducked.
+    # A bluebook is reached by id like every other root. Reaching it by a
+    # minted id would leave `Bluebook.Normalise` unable to name what it
+    # acts on — the runtime reads an argument called `name` as the
+    # reference lookup. It is reached by its own name instead
+    # (Bluebook.identified_by { name.value }), so the lookup collision is
+    # gone rather than ducked.
     @bluebook_id = id_of("Bluebook::Bluebook.Declare", name: v("D"),
                          vision: v("a vision"), classification: v("core"))
     @aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                           name: v("A"), description: v("an aggregate"))
     # Fully declared, so tests that dispatch further commands against it (an
-    # attribute, a command, a seal) are exercising ONE well-formed aggregate,
+    # attribute, a command, a seal) are exercising one well-formed aggregate,
     # not the identity rule a few tests down deliberately withhold.
     @runtime.dispatch("Bluebook::Aggregate.Identify", to: @aggregate_id, with: { path: v("name.value") })
   end
@@ -47,13 +48,13 @@ RSpec.describe "the language's own rules" do
   # ---- tier 1 : presence, as invariants on the value ------------------------
 
   it "refuses a chapter whose vision says nothing" do
-    expect { @runtime.dispatch("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
+    expect { @runtime.dispatch_flat("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /a vision says something/)
   end
 
   it "refuses an aggregate whose description says nothing" do
     expect do
-      @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
+      @runtime.dispatch_flat("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                                name: v("B"), description: v(""))
     end
       .to raise_error(Hecks::Runtime::InvariantViolation, /a description says something/)
@@ -65,7 +66,7 @@ RSpec.describe "the language's own rules" do
   end
 
   # "attributes must use value-object types" is no longer a predicate — the
-  # type IS a reference to the value object, so an undeclared one cannot resolve
+  # type is a reference to the value object, so an undeclared one cannot resolve
   it "refuses an attribute whose type is not a declared value object" do
     expect do
       @runtime.dispatch("Bluebook::Aggregate.Attribute", to:   @aggregate_id,
@@ -79,17 +80,17 @@ RSpec.describe "the language's own rules" do
   it "refuses a value object that is not named" do
     # ValueObjectName carries a `pattern:` (non-whitespace-somewhere) as well
     # as its "a value object is named" invariant — attribute coercion runs
-    # BEFORE invariants, so an empty name is refused as a TypeMismatch, not
+    # before invariants, so an empty name is refused as a TypeMismatch, not
     # an InvariantViolation. The invariant still guards whitespace-only names
     # that would otherwise slip past `!value.to_s.empty?` alone, but can no
     # longer be reached by a plain empty string.
-    expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
+    expect { @runtime.dispatch_flat("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /ValueObjectName\.value must match/)
   end
 
   context "with a command declared" do
     before do
-      # OWNED DIRECTLY BY THE AGGREGATE, so owner_id (what the identity is
+      # Owned directly by the aggregate, so owner_id (what the identity is
       # built from) is the aggregate's own id — the same fact `aggregate_id`
       # carries here, since nothing about this command comes from an entity.
       @command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
@@ -118,15 +119,16 @@ RSpec.describe "the language's own rules" do
         .to raise_error(Hecks::Runtime::GivenNotMet, /a mutation names a target/)
     end
 
-    # THE SAME REFUSAL, FROM A NAMED SET RATHER THAN A RESTATED ONE.
+    # The same refusal, from a named set rather than a restated one.
     #
-    # `Command::OpName` used to carry `set || append || increment || decrement`
-    # in an invariant — Vocabulary::MutationOp written out a second time, one
-    # level in, where nothing compared the two. `Change.op` now says
-    # `admits: "Vocabulary::MutationOp"` and coercion refuses a non-member, so
-    # the rule still fires at the door and there is no second copy to drift.
+    # `Command::OpName` carrying `set || append || increment || decrement`
+    # in an invariant would be Vocabulary::MutationOp written out a second
+    # time, one level in, where nothing compares the two. `Change.op` instead
+    # says `admits: "Vocabulary::MutationOp"` and coercion refuses a
+    # non-member, so the rule still fires at the door and there is no second
+    # copy to drift.
     #
-    # The message names the SET, which the invariant never could: the old one
+    # The message names the set, which the invariant never could: the old one
     # could only say "an op is one the runtime applies" and leave the reader to
     # find out which.
     it "refuses a mutation whose op the runtime does not apply" do
@@ -161,11 +163,11 @@ RSpec.describe "the language's own rules" do
     end
   end
 
-  # WAS "refuses a read model gathering heads before its reference" —
+  # Was "refuses a read model gathering heads before its reference" —
   # reference_target is fixed forever at Declare time, so that rule was
   # really "every read model must have SOME reference, ever," which
   # stopped being true the moment `reference_to` became optional (a
-  # ROOTLESS read model — bulk, no root, `group_by`'s own real use —
+  # rootless read model — bulk, no root, `group_by`'s own real use —
   # never has one, permanently, on purpose). Gathering with an empty
   # reference_target is now the legitimate rootless case, not a defect.
   it "allows a rootless read model (no reference_target at all) to gather heads" do
@@ -177,13 +179,13 @@ RSpec.describe "the language's own rules" do
       .not_to raise_error
   end
 
-  # A PIECE MUST SAY WHAT IT IS KNOWN BY. Not invented for the rule's own sake:
+  # A piece must say what it is known by. Not invented for the rule's own sake:
   # perturbing banking's Withdrawal by dropping this very line once exposed
   # that the refusal's wording depended on a fallback default ("pass :" versus
   # "pass id:") — the declaration was the only thing pinning the answer.
   # The rule removes the default there was to disagree about.
   #
-  # An entity's identity is no longer an ARGUMENT of Declare — it is appended
+  # An entity's identity is no longer an argument of Declare — it is appended
   # one part at a time by `Entity.Identify`, exactly as an aggregate's is, so
   # "says what it is known by" is Seal's rule now : Declare alone leaves the
   # list empty, and Seal is what notices.
@@ -195,17 +197,17 @@ RSpec.describe "the language's own rules" do
       .to raise_error(Hecks::Runtime::GivenNotMet, /an entity says what it is known by/)
   end
 
-  # AN IDENTITY NAMES A FIELD — but which SHAPE that field takes (a dotted
+  # **An identity names a field** — but which shape that field takes (a dotted
   # value-object unwrap, a bare reference, or now a bare scalar too, ADR
-  # 0025's "Identity") is the BUILDER's own question
+  # 0025's "Identity") is the builder's own question
   # (`AttributeCollector#resolve_identity_field!`), resolved before an
-  # identity part ever reaches this dispatch. This given used to re-check
-  # the shape here too — refusing a bare "sequence" outright — which is
-  # exactly the bug ADR 0025 names: bare-scalar identity already worked at
-  # the builder, and only this rule refused it. What is left for the
+  # identity part ever reaches this dispatch. This given re-checking the
+  # shape here too — refusing a bare "sequence" outright — is exactly the
+  # bug ADR 0025 names: bare-scalar identity already works at the
+  # builder, and only this rule would refuse it. What is left for the
   # meta-domain to say, once the builder has already resolved a real
   # shape, is that a part was actually given a name at all. The rule now
-  # fires on EACH PART as it is appended (`Entity.Identify`), not once at
+  # fires on each part as it is appended (`Entity.Identify`), not once at
   # Declare.
   it "admits a bare scalar identity part — the builder resolves its shape, not this rule" do
     entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
@@ -258,10 +260,10 @@ RSpec.describe "the language's own rules" do
       .to raise_error(Hecks::Runtime::GivenNotMet, /an identity part names something/)
   end
 
-  # `reference_to` written on a COMMAND, which the language records the same way
+  # `reference_to` written on a command, which the language records the same way
   # it records one written on a head: the argument's type is offered as the head's
   # own id, so "points at a declared head" costs no predicate. Before this the
-  # judge held a command's reference as the STRING "Reference<Customer>" and a
+  # judge held a command's reference as the string "Reference<Customer>" and a
   # `raise Malformed` beside the builder was the only thing checking it.
   it "refuses an argument that references a head nobody declared" do
     command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
@@ -275,10 +277,10 @@ RSpec.describe "the language's own rules" do
   end
 
   # S17, ADR 0026 — Member is a genuine entity now, nested under
-  # ValueObject: `ValueObject.Member` CREATES the row (an ordinary append,
+  # ValueObject: `ValueObject.Member` creates the row (an ordinary append,
   # the same shape `Account.LogEntry` creates a LedgerEntry with — never a
   # dotted verb of its own, since EntityInterpreter#element_of only ever
-  # LOCATES an element already on the list) ; `ValueObject.Member.Pair`,
+  # locates an element already on the list) ; `ValueObject.Member.Pair`,
   # dotted, fills it in.
   it "refuses an admitted row that binds no named field" do
     name = v("X")
@@ -286,7 +288,7 @@ RSpec.describe "the language's own rules" do
     @runtime.dispatch("Bluebook::ValueObject.Member", to: value_object_id, with: { position: { value: 0 } })
 
     expect do
-      @runtime.dispatch("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
+      @runtime.dispatch_flat("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
                         position: { value: 0 }, key: v(""), value: v("q"))
     end.to raise_error(Hecks::Runtime::GivenNotMet, /an admitted row binds a named field/)
   end

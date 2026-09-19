@@ -4,12 +4,12 @@ require "tempfile"
 # Real dispatch coverage for Value::Coercion#coerce_identifier: when an
 # aggregate's identified_by field is itself numeric (Integer/Float, not the
 # overwhelmingly common String), #from_identifier re-seeding a freshly-
-# hydrated instance from the DERIVED IDENTITY STRING used to round-trip it
+# hydrated instance from the derived identity string would round-trip it
 # back in as the wrong Ruby type, and #build's own check_numeric_fields (a
-# rule meant to catch a genuine CALLER mismatch) then refused the runtime's
-# own internal identity seed instead -- blocking every command on any
-# aggregate with a numeric identity field, unconditionally, valid input or
-# not.
+# rule meant to catch a genuine caller mismatch) would then refuse the
+# runtime's own internal identity seed instead -- blocking every command on
+# any aggregate with a numeric identity field, unconditionally, valid input
+# or not.
 RSpec.describe "identity coercion on a numeric identified_by field" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["identifier-numeric-coercion-growth-", ".bluebook"])
@@ -74,7 +74,7 @@ RSpec.describe "identity coercion on a numeric identified_by field" do
   it "creates a record whose identity field is genuinely numeric, not a type mismatch" do
     runtime = boot_numeric_identity
 
-    expect { runtime.dispatch("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 }) }
+    expect { runtime.dispatch_flat("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 }) }
       .not_to raise_error
 
     cycle = repository_for(runtime).find("1")
@@ -83,9 +83,9 @@ RSpec.describe "identity coercion on a numeric identified_by field" do
 
   it "dispatches a SECOND command against the same numeric-identity record without a false TypeMismatch" do
     runtime = boot_numeric_identity
-    runtime.dispatch("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 })
+    runtime.dispatch_flat("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 })
 
-    expect { runtime.dispatch("NumericIdentityGrowth::SleepCycle.AdvanceStage", cycle_number: 1) }
+    expect { runtime.dispatch_flat("NumericIdentityGrowth::SleepCycle.AdvanceStage", cycle_number: 1) }
       .not_to raise_error
   end
 end

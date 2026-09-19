@@ -11,19 +11,18 @@
 # different histories (Properties.replay_is_deterministic — the runtime
 # promises nothing is minted, so this should never fire).
 #
-# This used to shell out to bin/parity and treat a cross-runtime SPLIT as
-# the finding. That comparison was retired for a while (docs/implemented/
-# rust-experiment.md — reversed 2026-08-07, Rust came back for real) —
-# STALE the moment it did: a real cross-runtime differential exists again,
-# `spec/rust_conformance_fuzz_spec.rb` (PRD 04), generating sequences the
-# identical way this script does and diffing each one against the
-# compiled Rust binary. This script's own job stays single-runtime on
-# purpose (a property violation or an uncaught exception, checked here,
-# needs no subprocess or second boot) — it's just no longer true that NO
-# cross-runtime check exists at all; it lives in that spec now, not here.
+# This script's own job stays single-runtime on purpose (a property
+# violation or an uncaught exception, checked here, needs no subprocess
+# or second boot) — it does not shell out to bin/parity or treat a
+# cross-runtime split as the finding. The cross-runtime differential
+# lives separately, in `spec/rust_conformance_fuzz_spec.rb` (PRD 04) —
+# generating sequences the identical way this script does and diffing
+# each one against the compiled Rust binary — not here (docs/implemented/
+# rust-experiment.md records that comparison's own back-and-forth:
+# retired, then reversed 2026-08-07 once Rust came back for real).
 #
 # On the first finding, shrinks it (repeatedly trying to remove one step at
-# a time, keeping the removal if the SAME finding still reproduces) and
+# a time, keeping the removal if the same finding still reproduces) and
 # saves the result under tmp/fuzz-failures/ — small enough to actually
 # debug, not just a seed number to re-run blind.
 
@@ -33,10 +32,19 @@ require "hecks"
 require "hecks/fuzzing"
 require "json"
 require "tmpdir"
+require "tempfile"
+require "etc"
 require "fileutils"
 
 ROOT = File.expand_path("..", __dir__)
 
+# Writes a shrunk (or original) step sequence to disk as a replayable script.
+#
+# @param steps [Array<Hash>] the step sequence to save
+# @param path [String] the file path to write the script to
+# @param seed [Integer] the seed that produced `steps`, recorded in the script's own note
+# @param domain_name [String] the domain's basename, for building the script's `name` field
+# @return [void]
 def write_script(steps, path, seed, domain_name)
   File.write(path, JSON.pretty_generate(
                      name:  "#{domain_name}-fuzz",
@@ -47,12 +55,19 @@ end
 
 # :clean / :property_violation / :crash.
 #
-# Replay.call already isolates a DOMAIN_REFUSAL or an EvaluationError PER
-# STEP (the domain declining a step, recorded and not fatal) — so anything
+# Replay.call already isolates a DOMAIN_REFUSAL or an EvaluationError per
+# step (the domain declining a step, recorded and not fatal) — so anything
 # that still propagates out of it is, by construction, something that
 # escaped that isolation : a real interpreter defect, not an expected
 # refusal. That is the whole reason this needs no second-opinion
 # subprocess : "did this break" is answerable from inside the one runtime.
+#
+# @param domain [String] the domain directory to replay against
+# @param steps [Array<Hash>] the step sequence to replay
+# @param adapter [Symbol] the persistence adapter to boot under, `:memory` by default
+# @return [Array(Symbol, String), Array(Symbol, nil)] `[:clean, nil]` if nothing broke;
+#   `[:property_violation, message]` if a declared property failed; `[:crash, message]` if
+#   an exception escaped Replay's own per-step isolation
 def outcome(domain, steps, adapter = :memory)
   history = Hecks::Fuzzing::Replay.call(domain, steps, adapter: adapter)
   violations = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
@@ -63,11 +78,14 @@ rescue StandardError => e
   [:crash, "#{e.class}: #{e.message}"]
 end
 
-# WHICH FINDING THIS IS, so twenty seeds that all found one bug read as one
+# Which finding this is, so twenty seeds that all found one bug read as one
 # bug. A property violation's signature is the property's own name ; a
 # crash's is the exception class — both stable across the exact values a
 # shrink candidate happens to carry, which is the whole difference between
 # a report and a pile.
+#
+# @param message [String, nil] a finding's own message, as returned by `outcome`
+# @return [String] `"unknown"` if `message` is nil; otherwise everything before the first `":"`
 def signature_of(message)
   return "unknown" unless message
 
@@ -76,16 +94,16 @@ end
 
 DRAW_LIMIT = 5
 
-# A SPECIFIC, DELIBERATE PROPERTY-CHECK FINDING, excused from failing
+# A specific, deliberate property-check finding, excused from failing
 # this sweep without being silenced — the same "named, narrow, explained"
 # discipline `Bluebook::ModelCheck::ALLOWED_FINDINGS` already holds real
-# findings to (lib/hecks/bluebook/model_check.rb), applied to THIS file's
+# findings to (lib/hecks/bluebook/model_check.rb), applied to this file's
 # own kind of finding instead. `bin/fuzz` has no broader exemption
 # mechanism for a generated-history property violation, and this shape —
 # a domain name, keyed to the exact `failure[:signature]` this sweep
-# already computes, holding Regexps that must match EVERY ";"-joined
-# offender in the message — is exactly the one PR #527 added for hecks_qa
-# BUG#4/#5, and later `qa/stress_domains/tenant_ledger`'s (ANGLE-8) own
+# already computes, holding Regexps that must match every ";"-joined
+# offender in the message — is exactly the shape once added for hecks_qa
+# BUG#4/#5, and later `qa/stress_domains/tenant_ledger`'s (angle-8) own
 # `commands_respect_tenant_scope` entry (a real, then-open write-side
 # tenant enforcement gap, not a bug in the property check's own
 # recompute — see that domain's own NOTES.md). Both were removed whole
@@ -98,7 +116,14 @@ KNOWN_FUZZ_FINDINGS = {}.freeze
 # Every "; "-joined chunk of the message must match one of the domain's
 # own allowed shapes — a compound finding that mixes this known shape
 # with anything else (a second, unrelated offender in the same history)
-# is NOT known, and still fails the run.
+# is not known, and still fails the run.
+#
+# @param name [String] the domain's basename, the `KNOWN_FUZZ_FINDINGS` top-level key
+# @param failure [Hash] one failure entry, as built by `fuzz_domain`; `:signature` and
+#   `:message` are read
+# @return [Boolean] true if every `"; "`-joined chunk of the failure's message matches one
+#   of the domain's allowed regexes for this signature, false otherwise (including when the
+#   domain or signature has no allowlist entry at all)
 def known_finding?(name, failure)
   matchers = KNOWN_FUZZ_FINDINGS.dig(name, failure[:signature])
   return false unless matchers
@@ -106,19 +131,23 @@ def known_finding?(name, failure)
   failure[:message].split("; ").all? { |chunk| matchers.any? { |regex| regex.match?(chunk) } }
 end
 
-# KNOWN, ALREADY-LOGGED GAPS this sweep skips outright rather than crash
+# Known, already-logged gaps this sweep skips outright rather than crash
 # on — never a blanket `WiringError` catch. Each `when` is scoped to one
-# EXACT exception message, so a match here names a mystery already
+# exact exception message, so a match here names a mystery already
 # tracked elsewhere, not a genuine, still-uninvestigated interpreter
 # defect this sweep should keep failing loudly on (bin/fuzz's own whole
 # point: "an interpreter defect propagates and fails" — see the header
 # comment above `outcome`). Re-raises anything that doesn't match.
+# @param error [Runtime::WiringError] the wiring error `SequenceGenerator.generate` raised
+# @return [Symbol] `:skip_compute_rekey` if the error names a compute/rekey translation rule
+# @raise [Runtime::WiringError] re-raises `error` unchanged if its message matches no known,
+#   already-logged gap
 def known_unfuzzable_wiring_gap(error)
   case error.message
   when %r{a compute/rekey rule is declared}
     # A `compute`/`rekey` translation rule is an era/Postgres-only
     # construct (lib/hecks/ports/persistence/plugins/era/era_check.rb)
-    # — it needs a real SQL migration to interpret, so it CANNOT boot
+    # — it needs a real SQL migration to interpret, so it cannot boot
     # under IsolatedBoot's Memory (or :sqlite) rebind, whatever adapter
     # this sweep picked; `Loader.check_compute_rules_backstop!` refuses
     # by design the moment nothing era-aware is loaded to interpret it
@@ -126,7 +155,7 @@ def known_unfuzzable_wiring_gap(error)
     # would refuse more specifically, "...is bound to Memory" — this is
     # the same refusal, just from the plugin-free path IsolatedBoot
     # always takes). Not a bug in this domain or in fuzzing — every
-    # OTHER domain in the sweep is still fuzzable, so one unfuzzable
+    # other domain in the sweep is still fuzzable, so one unfuzzable
     # domain skipping itself beats the whole sweep dying on the first
     # `compute`/`rekey` domain anyone ever adds to the corpus (examples/
     # directory is the first, closing the audit's own "no rekey
@@ -141,21 +170,29 @@ def known_unfuzzable_wiring_gap(error)
 end
 
 # BUG#30 — `entity-level corrects crashes at dispatch` (`no entity
-# mutation applier handles :corrects`) used to have its own `when`
-# here, alongside `skip_compute_rekey` above, and a matching
-# `skip_entity_corrects:` entry below — removed now that
-# `EntityInterpreter#step_enforce_givens` calls `CommandRules::
+# mutation applier handles :corrects`) needs no special-cased `when`
+# here, alongside `skip_compute_rekey` above, or a matching
+# `skip_entity_corrects:` entry below: `EntityInterpreter#
+# step_enforce_givens` calls `CommandRules::
 # Admissibility#enforce_correction_target` and `EntityElement.
 # apply_to_element` has a real `:corrects` branch (see those methods'
-# own comments): `qa/stress_domains/corrections`'s own `Entry.Amend`
-# dispatches or refuses cleanly now, so nothing raises the message that
-# `when` matched, and this sweep runs it like any other construct — no
-# further edit needed here, per that `when`'s own comment, "the moment
-# entity-level `corrects` actually works and nothing raises it anymore."
+# own comments), so `qa/stress_domains/corrections`'s own `Entry.Amend`
+# dispatches or refuses cleanly, nothing raises a message for such a
+# `when` to catch, and this sweep runs it like any other construct.
 SKIPPED_DOMAIN_REASONS = {
   skip_compute_rekey: "declares compute/rekey, which only an era/Postgres-bound boot can interpret"
 }.freeze
 
+# Draws seeds for one domain until `seeds` executed results are
+# collected (or the draw cap is hit), then reports the outcome.
+#
+# @param domain [String] the domain directory to fuzz
+# @param seeds [Integer] how many executed (non-skipped-generation) seeds to collect
+#   before stopping
+# @param steps [Integer] how many steps to generate per seed
+# @param adapter [Symbol] the persistence adapter to boot under, `:memory` by default
+# @return [Boolean] true if the domain was skipped as unfuzzable, or if `report` found
+#   nothing; false if `report` found at least one failure
 def fuzz_domain(domain, seeds, steps, adapter = :memory)
   domain = domain.chomp("/")
   name = File.basename(domain)
@@ -194,10 +231,10 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
                   signature: "#{verdict}: #{signature_of(message)}" }
   end
 
-  # KNOWN findings are printed — visible, auditable, never silently
+  # Known findings are printed — visible, auditable, never silently
   # swallowed — but don't fail the run: they're accounted for the same
   # way a clean seed is, so a sweep that draws exactly `seeds` known-plus-
-  # clean results doesn't read as SHORT. See KNOWN_FUZZ_FINDINGS above.
+  # clean results doesn't read as short. See KNOWN_FUZZ_FINDINGS above.
   known, failures = failures.partition { |failure| known_finding?(name, failure) }
   known.each do |failure|
     puts "   KNOWN (allowlisted, not failing) — #{failure[:signature]} — #{failure[:message]}"
@@ -208,24 +245,49 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
 end
 
 # Removes steps, then arguments inside the surviving steps, keeping each
-# removal only when the SAME finding still reproduces without it. The
+# removal only when the same finding still reproduces without it. The
 # algorithm lives in `Hecks::Fuzzing::Shrinker` (shared with
 # `bin/qa_sweep`); what counts as "the same finding" — this script's own
 # verdict signature — stays here.
+#
+# @param domain [String] the domain directory to replay against
+# @param steps [Array<Hash>] the full step sequence that reproduced the finding
+# @param signature [String] the finding's own signature, which must still match after
+#   each removal
+# @param adapter [Symbol] the persistence adapter to boot under, `:memory` by default
+# @return [Array<Hash>] the shrunk step sequence
 def shrink(domain, steps, signature, adapter = :memory)
   Hecks::Fuzzing::Shrinker.call(steps) { |candidate| same_finding?(domain, candidate, signature, adapter) }.steps
 end
 
+# Checks whether replaying a candidate step sequence still reproduces the
+# exact same finding.
+#
+# @param domain [String] the domain directory to replay against
+# @param candidate [Array<Hash>] the candidate step sequence to check
+# @param signature [String] the finding's own signature to match against
+# @param adapter [Symbol] the persistence adapter to boot under
+# @return [Boolean] true if the candidate's own outcome signature equals `signature`
 def same_finding?(domain, candidate, signature, adapter)
   verdict, message = outcome(domain, candidate, adapter)
   "#{verdict}: #{signature_of(message)}" == signature
 end
 
+# Delegates to `Shrinker.args_of` to read one step's own argument Hash.
+#
+# @param step [Hash] one generated step
+# @return [Hash, nil] the step's own arguments, as `Shrinker.args_of` returns them
 def args_of(step) = Hecks::Fuzzing::Shrinker.args_of(step)
 
 # The argument pass alone — `Shrinker.drop_arguments`, whose accumulation
 # contract (an accepted drop is never silently un-dropped by the next
 # one) spec/bin_fuzz_spec.rb pins through this method.
+#
+# @param domain [String] the domain directory to replay against
+# @param steps [Array<Hash>] the (already step-shrunk) step sequence whose arguments to drop
+# @param signature [String] the finding's own signature, which must still match after each drop
+# @param adapter [Symbol] the persistence adapter to boot under, `:memory` by default
+# @return [Array<Hash>] the step sequence with as many arguments dropped as `same_finding?` allows
 def shrink_arguments(domain, steps, signature, adapter = :memory)
   Hecks::Fuzzing::Shrinker.drop_arguments(steps, Hecks::Fuzzing::Shrinker::Meter.new(nil)) do |candidate|
     same_finding?(domain, candidate, signature, adapter)
@@ -242,6 +304,16 @@ end
 # directly (spec/bin_fuzz_spec.rb covers `args_of`/`shrink_arguments`
 # only), so there's nothing to verify a split against.
 # rubocop:disable-next Metrics/AbcSize
+#
+# @param domain [String] the domain directory that was fuzzed
+# @param name [String] the domain's basename, used in save paths and messages
+# @param seeds [Integer] how many executed seeds were requested
+# @param drawn [Integer] how many seeds were actually drawn to reach `seeds` executed results
+# @param clean [Integer] how many executed seeds were clean
+# @param failures [Array<Hash>] the failure entries collected, as built by `fuzz_domain`
+# @param adapter [Symbol] the persistence adapter fuzzed under, `:memory` by default
+# @return [Boolean] true if `failures` is empty; false once at least one finding was
+#   printed and saved
 def report(domain, name, seeds, drawn, clean, failures, adapter = :memory)
   executed = clean + failures.length
   puts "   #{executed} seeds executed (#{drawn} drawn) — #{clean} clean, #{failures.length} found something"
@@ -295,10 +367,12 @@ domain_arg = nil
 # smaller `--seeds`/`--steps` than the Memory/Sqlite default, this flag
 # does not scale them down for you.
 adapter = :memory
+workers = nil
 until ARGV.empty?
   case (arg = ARGV.shift)
   when "--seeds" then seeds = Integer(ARGV.shift)
   when "--steps" then steps = Integer(ARGV.shift)
+  when "--workers" then workers = Integer(ARGV.shift)
   when "--adapter"
     adapter = ARGV.shift.to_s.downcase.to_sym
     unless [:memory, :sqlite, :postgres].include?(adapter)
@@ -310,7 +384,7 @@ until ARGV.empty?
 end
 
 if adapter == :postgres
-  # NOT spec/support/postgres_probe.rb — bin/ ships independently of
+  # Not spec/support/postgres_probe.rb — bin/ ships independently of
   # spec/, so this repeats that file's own tiny reachability probe
   # rather than reaching across the tree for it. Same check, same
   # reasoning: a real `PG.connect` round trip, asked once, up front.
@@ -323,10 +397,10 @@ if adapter == :postgres
   end
 end
 
-# EVERY DOMAIN IN THE PROJECT, not a hand-kept list. This used to be
-# `examples/*/` plus the grammar, and what that list left out mattered:
-# the generator can only produce a null by OMITTING AN OPTIONAL
-# ARGUMENT, and between them the example domains hold exactly ONE
+# Every domain in the project, not a hand-kept list like `examples/*/`
+# plus the grammar — what such a list leaves out matters: the generator
+# can only produce a null by omitting an optional
+# argument, and between them the example domains hold exactly one
 # non-list optional command attribute — measured, 2400 generated steps
 # produced zero nulls. `lib/hecks/framework` alone holds 29, and
 # the language's own chapters hold 96. A differential oracle only ever
@@ -343,7 +417,64 @@ end
 # and spec/corpus_accounting_spec.rb holds every route to it.
 domains = domain_arg ? [domain_arg] : Hecks::Corpus.sweepable_domains(ROOT)
 
-ok = domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps, adapter) && all_ok }
+# One child per core by default. A real Postgres stays one at a time unless
+# asked otherwise — nobody has measured these domains sharing one server.
+workers ||= adapter == :postgres ? 1 : Etc.nprocessors
+
+# One domain per child, as many at once as there are cores. A domain's
+# seeds are its own (1..N, nothing shared between domains), so the sweep
+# is the same sweep in any order — it was one CPU-bound loop on a 4-core
+# runner. Each child's output is held and printed whole, in the domains'
+# own order, so one domain's lines never interleave with another's. A
+# child that crashes exits non-zero and counts as a finding, never as
+# clean.
+#
+# @param domains [Array<String>] the domain directories to fuzz, one per child process
+# @param workers [Integer] how many children may run at once
+# @yield [domain] runs one domain's fuzz sweep, in a forked child
+# @yieldparam domain [String] the domain directory to fuzz
+# @yieldreturn [Boolean] whether the domain came back clean; determines the child's exit status
+# @return [Boolean] true if every domain's child exited 0 (clean), false if any exited non-zero
+def fuzz_in_pool(domains, workers)
+  pending = domains.each_with_index.to_a
+  running = {}
+  results = {}
+  until pending.empty? && running.empty?
+    while running.size < workers && (domain, index = pending.shift)
+      out = Tempfile.new("fuzz")
+      pid = fork do
+        $stdout.reopen(out)
+        $stderr.reopen(out)
+        exit(yield(domain) ? 0 : 1)
+      end
+      running[pid] = [index, out, Process.clock_gettime(Process::CLOCK_MONOTONIC)]
+    end
+    pid, status = Process.wait2
+    index, out, started = running.delete(pid)
+    results[index] = [status.success?, out, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started]
+  end
+  slowest = results.max_by(5) { |_, (_, _, seconds)| seconds }
+                   .map { |index, (_, _, seconds)| "#{File.basename(domains[index])} #{seconds.round}s" }
+  warn "slowest domains: #{slowest.join(', ')}"
+  results.sort.map do |_, (clean, out, _)|
+    out.rewind
+    print out.read
+    out.close!
+    clean
+  end.all?
+end
+
+ok = if workers > 1 && domains.size > 1
+       # Booted here so every child inherits it. The serial loop booted the
+       # grammar once for all domains; a child that starts cold pays for it
+       # again, and 53 of them spent five times the serial run's CPU on it.
+       require "hecks/bluebook/meta_validator"
+       Hecks::Bluebook::MetaValidator.grammar_registry
+       $stdout.flush
+       fuzz_in_pool(domains, workers) { |domain| fuzz_domain(domain, seeds, steps, adapter) }
+     else
+       domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps, adapter) && all_ok }
+     end
 
 if ok
   puts "CLEAN — no generated sequence broke a property or the interpreter."

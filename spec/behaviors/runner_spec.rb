@@ -24,8 +24,8 @@ RSpec.describe Hecks::Behaviors do
     end
   end
 
-  # Each of these used to build and pass vacuously — a free-form
-  # `expect(**kwargs)` merge with no build-time guard, and each runner
+  # Each of these would build and pass vacuously without a build-time
+  # guard — a free-form `expect(**kwargs)` merge, with each runner
   # (run_command/run_query) reading only a subset of the keys.
   describe "expect validation closes the silent-pass paths" do
     it "refuses a test with no expect at all" do
@@ -92,10 +92,10 @@ RSpec.describe Hecks::Behaviors do
     end
   end
 
-  # THE `to:` COLLISION, PINNED — the fixture's own header comment has
+  # **The `to:` collision, pinned** — the fixture's own header comment has
   # the full story: MovePiece's destination fact is named `to`, the same
-  # word Dispatcher#dispatch's routing envelope owns since #335, and the
-  # runner once forwarded kwargs loose enough to collide ("to: does not
+  # word Dispatcher#dispatch's routing envelope owns, and a runner that
+  # forwarded kwargs loose enough to collide would fail ("to: does not
   # recognize file, rank" on the exact spelling the behaviors guide
   # promises). Every test passing here means the runner separates
   # identities from facts the same way a policy projection does.

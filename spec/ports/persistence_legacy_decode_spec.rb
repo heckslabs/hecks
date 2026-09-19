@@ -4,23 +4,23 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../support/persistence_legacy_fixture"
 require_relative "../support/postgres_probe"
 
-# THE LEGACY BYTES STILL DECODE — NOW CANONICALLY (Phase 2, Track A).
-# Each example decodes a COMMITTED fixture under
-# spec/fixtures/persistence_legacy/ — written by the real adapter BEFORE
+# **The legacy bytes still decode** — now canonically (Phase 2, Track A).
+# Each example decodes a committed fixture under
+# spec/fixtures/persistence_legacy/ — written by the real adapter before
 # the state codec existed, see bin/regenerate_persistence_legacy_fixtures
 # (PR A1) — through today's adapter, and pins exactly what comes out.
 #
-# A1 pinned the per-adapter inconsistencies those bytes used to decode
-# into: Heki and every journal reader symbolized the TOP level only,
+# A1 pinned the per-adapter inconsistencies those bytes decoded
+# into: Heki and every journal reader symbolized the top level only,
 # the SQL heads symbolized deep, Memory kept a shallow `state.dup`, and a
 # never-seeded projected field read back as a present nil on the SQL
 # heads but absent on Heki/PostgresEra. A3 routed every adapter through
 # `Ports::Persistence::StateCodec`, so every one of those differences is
-# gone: ONE deep-symbol shape, from every adapter, for head reads and
+# gone: one deep-symbol shape, from every adapter, for head reads and
 # journal `entries` alike. The fixtures themselves are unchanged — only
 # what they decode to changed.
 #
-# WHAT IS PINNED is the raw `state:` each adapter hands
+# What is pinned is the raw `state:` each adapter hands
 # `Runtime::Instance.new` (captured below), not `instance.state`
 # afterwards: `Instance#initialize` re-hydrates state into `Value`s, and
 # a value object's own fields still accept either spelling on that input
@@ -30,7 +30,7 @@ require_relative "../support/postgres_probe"
 RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
   def fixture = PersistenceLegacyFixture
 
-  # ── the ONE decoded shape every adapter produces ─────────────────────
+  # ── the one decoded shape every adapter produces ─────────────────────
 
   def account
     {
@@ -52,7 +52,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
     }
   end
 
-  # No `account_customer_status` key at all, from ANY adapter: the
+  # No `account_customer_status` key at all, from any adapter: the
   # projected field was never seeded, and a NULL projected-only column
   # now reads back absent (Sqlite::Codec#projected_only?), matching
   # Heki/PostgresEra's single blob.

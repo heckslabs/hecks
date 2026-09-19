@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# Every corpus member must LOAD.
+# Every corpus member must load.
 #
 # The corpus was once read only by a hand-run script —
 # so a bluebook could stop parsing entirely and the suite people actually run
@@ -18,7 +18,7 @@ require "spec_helper"
 # member in its own right, not a file the `head -1` of an earlier walk
 # silently skipped.
 #
-# The per-member LOAD itself is proven by spec/model_check_spec.rb's
+# The per-member load itself is proven by spec/model_check_spec.rb's
 # "the real corpus" walk, which boots a superset of these members (plus
 # qa/bluebook) and raises on a member that fails to load or registers no
 # bluebook. This file keeps what that walk does not check: that the

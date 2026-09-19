@@ -16,17 +16,33 @@ module Hecks
     # model is simple enough for one; otherwise runs the whole join
     # in-process against loaded records.
     class ReadModelInterpreter
+      # @param registry [Runtime::Registry] the booted registry whose repositories
+      #   this interpreter reads
       def initialize(registry) = @registry = registry
 
+      # Runs one declared read model and returns its projected rows.
+      #
+      # @param domain [String, Symbol] the domain the read model is declared in
+      # @param model [Bluebook::ReadModel] the read model to run
+      # @param args [Hash{Symbol => Object}] the query's declared arguments
+      # @return [Array<Hash>] a one-element Array holding a Hash of head name to
+      #   projected rows (or a single row, for a non-`:many` head)
+      # @raise [Runtime::TypeMismatch] if the reference argument is offered as a whole
+      #   object rather than a plain identity, or a `median` field is not numeric
+      # @raise [Runtime::NotFound] if the reference argument names no record
+      # @raise [KeyError] if a rooted read model is asked without its reference argument
+      # @raise [ArgumentError] if `group_by` or `median` names a field its target
+      #   aggregate does not declare
+      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, model, args)
         project(domain, model, args)
       end
 
       private
 
-      # ROOT-FIRST, THEN THE SQLITE ESCAPE HATCH, THEN THE JOIN LOOP —
-      # each step's own comment names a real, previously-shipped bug the
-      # current ORDER fixes (the reference/TenantScope refusal ordering
+      # Root-first, then the SQLite escape hatch, then the join loop —
+      # each step's own comment names a real, already-shipped bug the
+      # current order fixes (the reference/TenantScope refusal ordering
       # above, the root-first head processing below). Splitting this
       # into smaller methods would scatter that ordering across method
       # boundaries where a future editor could silently break it, and
@@ -40,7 +56,7 @@ module Hecks
       def project(domain, model, args)
         bluebook = @registry.bluebook(domain)
         rootless = model.reference_target.nil?
-        # BEFORE the adapter early-return below, so the SQLite path inherits it.
+        # Before the adapter early-return below, so the SQLite path inherits it.
         # Without this a stale caller passing a wrapped reference gets a
         # path-dependent answer — an adapter could quietly open the wrapped
         # reference while the in-process path reads it whole and finds nothing.
@@ -49,16 +65,16 @@ module Hecks
         # wrong at all.
         refuse_object_reference(model, args) unless rootless
         reference_id = reference(args.fetch(model.reference_name)) unless rootless
-        # Computed off the ORIGINAL model, before TenantScope wraps it — the
+        # Computed off the original model, before TenantScope wraps it — the
         # "which head(s) do options apply to" question is about what the
         # bluebook author declared, not about the synthetic tenant clause
         # the wrapper adds underneath. Plural (ADR 0055) — `on:` lets more
         # than one many-side head be eligible at once.
         eligible = model.filtered_head_names
         model = TenantScope.apply(model, args)
-        # A ROOTLESS, `group_by`-declared, or `count`/`median`-declared
+        # A rootless, `group_by`-declared, or `count`/`median`-declared
         # model skips the SQLite native escape hatch entirely (there is
-        # no root aggregate to look up a repository FOR when rootless,
+        # no root aggregate to look up a repository for when rootless,
         # and `query_read_model` knows nothing about grouping or
         # reducing) — always runs the in-process loop below instead.
         # Correct everywhere ; not SQL-pushed-down for a SQLite-backed
@@ -73,17 +89,17 @@ module Hecks
           end
         end
 
-        # ROOT FIRST, ALWAYS — regardless of `include` order in the
+        # **Root first, always** — regardless of `include` order in the
         # bluebook. `read_model_builder.rb`'s own `include` is
         # documented "Order-independent" (the `:many` flag is resolved
         # at build time, once `@reference_target` is known), but that
-        # promise was never kept HERE: this loop used to run heads in
-        # their literal declared order and match each "many" head
-        # against whatever was ALREADY in `projected` — empty, the
-        # very first time through, if a many-side head happened to be
-        # declared before the root. A real, live bug (not a guess):
+        # promise is not kept without this: running heads in
+        # their literal declared order and matching each "many" head
+        # against whatever was already in `projected` would leave it
+        # empty, the very first time through, if a many-side head happened
+        # to be declared before the root. A real, live bug (not a guess):
         # `include Promotion` before `include Item` on a read model
-        # whose root IS Item silently returned an empty array for
+        # whose root is Item silently returned an empty array for
         # Promotion — no error, just a wrong, too-small answer — while
         # the reverse order worked purely by accident. `partition`,
         # not `sort_by`: Ruby's `sort_by` is not guaranteed stable,
@@ -97,14 +113,14 @@ module Hecks
                    [fetch(bluebook, domain, head[:aggregate], reference_id)]
                  elsif rootless
                    # No root to FK-match against — a rootless model reads
-                   # each of its own heads WHOLE, independently. Multiple
-                   # heads on one rootless model are NEVER cross-joined
+                   # each of its own heads whole, independently. Multiple
+                   # heads on one rootless model are never cross-joined
                    # against each other, and there is no DSL to declare
                    # one if you wanted to — `ReadModelBuilder#include_impl`
                    # takes only `type`/`as:` (checked directly, not
                    # assumed), and `group_by` groups this bulk read's own
                    # output, it names no predicate between two heads.
-                   # Building a cross-join here would mean CHOOSING a join
+                   # Building a cross-join here would mean choosing a join
                    # semantics (equality on which fields?) nobody has
                    # declared — a real, deliberate scope limit pending a
                    # future `include ..., joins: ...`-shaped grammar
@@ -124,7 +140,7 @@ module Hecks
           projected << { aggregate: head[:aggregate], rows: rows }
           rows_by_as[head[:as]] = head[:many] ? rows : rows.first
         end
-        # Declared order preserved in the OUTPUT — only the
+        # Declared order preserved in the output — only the
         # computation above needed reordering, not what a caller sees
         # back.
         heads = model.aggregate_heads.to_h { |head| [head[:as], rows_by_as[head[:as]]] }
@@ -145,9 +161,9 @@ module Hecks
         end]
       end
 
-      # THE ROOT-FIRST FIX'S OWN FIX — root-first alone only reaches one
+      # **The root-first fix's own fix** — root-first alone only reaches one
       # level: it guarantees the root is in `projected` before any other
-      # head is matched, but a CHAIN of non-root heads (a head that
+      # head is matched, but a chain of non-root heads (a head that
       # references another non-root head, not the root) is still
       # matched against whatever declaration order happened to put in
       # `projected` so far. `include Coupon` before `include Promotion`
@@ -160,9 +176,9 @@ module Hecks
       # to declare `include` in dependency order (the same promise
       # `read_model_builder.rb` already makes and this file is the one
       # place obligated to keep), but by topologically sorting the
-      # non-root heads on their OWN declared reference fields before
+      # non-root heads on their own declared reference fields before
       # this method's runtime matching ever runs — Kahn's algorithm,
-      # picking ready heads in DECLARED order at each step so declaring
+      # picking ready heads in declared order at each step so declaring
       # order still governs whenever there is no dependency to break a
       # tie. This generalizes root-first (a chain of length 1) to a
       # chain of any depth, and to a head depending on more than one
@@ -192,13 +208,13 @@ module Hecks
         ordered
       end
 
-      # Which OTHER declared (non-root) heads a head's own aggregate
+      # Which other declared (non-root) heads a head's own aggregate
       # holds a reference field toward — the same relationship this
       # file's runtime matching checks record-by-record, asked here
       # statically, once, to order heads before any record is read.
       #
       # `head[:aggregate]` names whatever `include` was given — and
-      # `include` accepts a nested ENTITY (Member, nested under
+      # `include` accepts a nested entity (Member, nested under
       # ValueObject ; Handler and Dispatch, nested under ProcessManager
       # — bluebook.bluebook's own `WholeBluebook` read model includes
       # all three) just as readily as a top-level aggregate.
@@ -220,7 +236,7 @@ module Hecks
                    .map { |other| other[:aggregate] }
       end
 
-      # `group_by`'s own declared fields, checked against the ONE
+      # `group_by`'s own declared fields, checked against the one
       # many-side head they apply to (`seal_group_by` already refuses
       # zero or several) — resolved here, once, rather than re-derived
       # per row. Raises loudly on a typo'd field name rather than
@@ -232,15 +248,15 @@ module Hecks
         aggregate = bluebook.aggregate(target[:aggregate])
         model.group_by_fields.each do |field|
           next if aggregate.attribute(field)
-          # THE LIFECYCLE FIELD IS A FIELD, and refusing it here was a drift
+          # The lifecycle field is a field, and refusing it here was a drift
           # between two halves of the same language: `where(status: "logged")`
           # has always been legal on the same aggregate, because a lifecycle
           # state is stored on the record like anything else — it is simply
           # declared by `lifecycle :status` rather than by `attribute`.
           #
           # It is also the grouping anybody actually wants. "How are we doing"
-          # over a bug ledger IS the count per status, and a report that could
-          # group by every field EXCEPT that one could not answer the question
+          # over a bug ledger is the count per status, and a report that could
+          # group by every field except that one could not answer the question
           # reports exist for.
           next if aggregate.lifecycle && aggregate.lifecycle.field.to_sym == field.to_sym
 
@@ -253,7 +269,7 @@ module Hecks
 
       # One level of nesting per field, in `group_by`'s own declared
       # order — the leaf is the row with every grouped field removed
-      # (already spent, as the keys that reached it). ASSUMES the full
+      # (already spent, as the keys that reached it). Assumes the full
       # `group_by` path uniquely identifies one row (true for grouping by
       # an aggregate's own full identity, ConsoleSettings' own real use)
       # — `leaves.first` silently keeps only the first row when several
@@ -263,9 +279,9 @@ module Hecks
       def nest(rows, fields)
         field, *rest = fields
         rows.group_by { |row| row[field] }.transform_values do |group|
-          # Strip ONLY the field just grouped by, not the whole remaining
+          # Strip only the field just grouped by, not the whole remaining
           # list — `rest`'s own fields have to survive into the recursive
-          # call below, or the NEXT level groups by a key that's already
+          # call below, or the next level groups by a key that's already
           # gone (found by trying it: a two-field group_by's own second
           # level came back keyed `nil` for every group, every time).
           stripped = group.map { |row| row.reject { |key, _| key == field } }
@@ -273,7 +289,7 @@ module Hecks
         end
       end
 
-      # `count`/`median`'s own declared target — the SAME single
+      # `count`/`median`'s own declared target — the same single
       # many-side head `group_by_target` resolves, for the same reason
       # (`seal_aggregation` already refuses zero or several many-side
       # heads, and refuses count/median declared alongside group_by, so
@@ -303,12 +319,12 @@ module Hecks
         target
       end
 
-      # THE STANDARD DEFINITION. An ODD count's median is its one true
-      # middle value, sorted ; an EVEN count's median is the AVERAGE of
+      # **The standard definition**. An odd count's median is its one true
+      # middle value, sorted ; an even count's median is the average of
       # its two middle values — the common convention (as opposed to,
       # say, always taking the lower of the two), and the one this
       # session's own task named explicitly as the deliberate choice.
-      # An EMPTY collection has no median: nil, not zero, so a caller
+      # An empty collection has no median: nil, not zero, so a caller
       # cannot mistake "nothing to average" for "the values averaged to
       # zero". Reuses `Ports::Query::InMemory`'s own field reading
       # (`FieldPath.dig` + `comparable`) — the same unwrap `where`/
@@ -326,8 +342,8 @@ module Hecks
 
       def fetch(bluebook, domain, aggregate_name, id)
         @registry.read_repository(domain, bluebook.aggregate(aggregate_name)).find(id) ||
-          raise(NotFound, RefusalWording.render("NotFound", "read_model_reference_missing",
-                                                aggregate: aggregate_name, offered: Rendering.describe(id)))
+          raise(NotFound, RefusalWording.render_site("NotFound", "read_model_reference_missing",
+                                                     aggregate: aggregate_name, offered: Rendering.describe(id)))
       end
 
       def records(bluebook, domain, aggregate_name)
@@ -335,27 +351,27 @@ module Hecks
         aggregate ? @registry.read_repository(domain, aggregate).all : []
       end
 
-      # A stored reference holds the target's id inside the REFERENCE
-      # ATTRIBUTE's own declared shape, so reading it is reading that shape —
+      # A stored reference holds the target's id inside the reference
+      # attribute's own declared shape, so reading it is reading that shape —
       # a different thing from the identity unwrap that was removed. An
-      # IDENTITY is declared as a path and followed (Runtime::Identity) ; a
+      # identity is declared as a path and followed (Runtime::Identity) ; a
       # reference has no path of its own, and `Value.scalar` refuses a
       # composite rather than guessing which field was meant.
       #
       # Storing the scalar itself would remove this reading altogether. That
-      # is a change to how references are STORED, not to how identities are
+      # is a change to how references are stored, not to how identities are
       # declared, so it is not made here.
       # An ask names itself where a command would name itself, and says the
       # same thing about the same shape. `Value.refuse_object_reference` is
-      # not reused because it speaks of a COMMAND and its attribute ; a read
+      # not reused because it speaks of a command and its attribute ; a read
       # model has a query name and one declared reference.
       def refuse_object_reference(model, args)
         offered = args.fetch(model.reference_name, nil)
         return unless offered.is_a?(Hash) || offered.is_a?(Value)
 
         raise TypeMismatch,
-              RefusalWording.render("TypeMismatch", "read_model_object_reference",
-                                    query: model.query_name, field: model.reference_name)
+              RefusalWording.render_site("TypeMismatch", "read_model_object_reference",
+                                         query: model.query_name, field: model.reference_name)
       end
 
       # A reference is the id, in the argument and in the stored row alike.

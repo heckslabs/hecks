@@ -1,0 +1,9 @@
+{
+  "domain": "qa/stress_domains/ledger_ordering",
+  "note": "BUG#143 (SW-ledger_ordering-1789317946) — a second LedgerOrdering::Folder.AddSlip under an already-used Slip `reference` correctly refuses AlreadyExists in both engines, but the generated Rust codegen's `entity_duplicate` collision guard (rust/codegen/src/mutations.rs, rust/project/mutations.rb's own `emit_mutation_line_body` append branch) rendered the offered identity with Rust's derived `Debug` on the WHOLE single-field value object — `SlipReference { value: \"juliet\" }` — instead of `Rendering.describe`'s own bare-scalar unwrap Ruby's `RefusalWording.render` already uses for every other \"offered\" site. The sibling whole-list `:set` REPLACE guard (`entity_list_replace_guard`, BUG#33) already unwrapped correctly; this append-branch call site was the one left behind. Fixed by computing the SAME single-attribute unwrap `entity_identity_mint`'s own return already guarantees, in both generators, then regenerating every affected domain (banking/safedepositbox, chess, generated_route_append/kiosk, ledger_ordering/folder, meta/syntax, meta/valueobject, nested_pieces/workspace, roster, tenant_ledger, waybill) via bin/regen_codegen_domains.",
+  "steps": [
+    {"verb": "LedgerOrdering::Folder.Open", "args": {"reference": {"value": "F1"}}},
+    {"verb": "LedgerOrdering::Folder.AddSlip", "args": {"to": "F1", "reference": {"value": "juliet"}, "amount": {"value": 1}}},
+    {"verb": "LedgerOrdering::Folder.AddSlip", "args": {"to": "F1", "reference": {"value": "juliet"}, "amount": {"value": 2}}}
+  ]
+}

@@ -4,18 +4,19 @@ RSpec.describe "Pizzas" do
   let(:runtime) { boot_in_memory }
 
   def create(name: "Margherita", price_cents: 1200, size: "large")
-    runtime.dispatch("Pizzas::Order.CreatePizza",
-                     name: { value: name }, pizza: { price_cents: { cents: price_cents }, size: { value: size } })
+    runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                          name: { value: name }, pizza: { price_cents: { cents: price_cents }, size: { value: size } })
   end
 
   def topped(**overrides)
     pizza = create
-    runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 }, **overrides)
+    runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 },
+**overrides)
     pizza
   end
 
   describe "asking through the nested value object" do
-    # The dotted-path queries, answered by the REFERENCE interpreter here —
+    # The dotted-path queries, answered by the reference interpreter here —
     # the same declarations answer identically through Postgres against the
     # live example domain, which is the whole point of FieldPath being one
     # walk. Margherita costs 1200, Bare 900 (created below).
@@ -60,7 +61,7 @@ RSpec.describe "Pizzas" do
   describe "selling a pizza" do
     it "emits PizzaPurchased and records the customer" do
       pizza  = topped
-      result = runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" },
+      result = runtime.dispatch_flat("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" },
 amount: { cents: 1200 })
 
       expect(result.events.map(&:name)).to eq(["PizzaPurchased"])
@@ -70,7 +71,7 @@ amount: { cents: 1200 })
 
     it "appends toppings as value objects" do
       pizza = topped
-      state = runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" },
+      state = runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" },
 amount: { value: 2 }).state
 
       expect(state[:toppings].map(&:to_h)).to eq([{ name: "Basil", amount: 3 }, { name: "Olive", amount: 2 }])
@@ -78,7 +79,7 @@ amount: { value: 2 }).state
 
     it "keeps every emitted event in order" do
       pizza = topped
-      runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
+      runtime.dispatch_flat("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
       expect(runtime.events.map(&:name)).to eq(%w[PizzaCreated ToppingAdded PizzaPurchased])
     end
@@ -87,7 +88,7 @@ amount: { value: 2 }).state
   describe "the rules the bluebook declares" do
     it "refuses a purchase with no toppings" do
       pizza = create
-      expect { runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
+      expect { runtime.dispatch_flat("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
         .to raise_error(Hecks::Runtime::GivenNotMet, /at least one topping/)
     end
 
@@ -96,33 +97,33 @@ amount: { value: 2 }).state
     # itself; the refusal is LifecycleRefused now, not GivenNotMet.
     it "refuses a second purchase" do
       pizza = topped
-      runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
+      runtime.dispatch_flat("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
-      expect { runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Someone" }, amount: { cents: 1200 }) }
+      expect { runtime.dispatch_flat("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Someone" }, amount: { cents: 1200 }) }
         .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "available"/)
     end
 
     it "refuses a topping on a sold pizza" do
       pizza = topped
-      runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
+      runtime.dispatch_flat("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
-      expect { runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Late" }, amount: { value: 1 }) }
+      expect { runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Late" }, amount: { value: 1 }) }
         .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "available"/)
     end
 
     it "enforces the ToppingAmount invariant before the value reaches the pizza" do
       pizza = create
-      expect { runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: 0 }) }
+      expect { runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: 0 }) }
         .to raise_error(Hecks::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
 
-      expect(runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 1 })
+      expect(runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 1 })
                     .state[:toppings].size).to eq(1)
     end
 
     it "leaves the instance untouched when a command is refused" do
       pizza = topped
       expect do
-        runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: -5 })
+        runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: -5 })
       end.to raise_error(Hecks::Runtime::InvariantViolation)
 
       repository = runtime.registry.repository("Pizzas", runtime.registry.bluebook("Pizzas").aggregate("Order"))
@@ -142,12 +143,12 @@ amount: { value: 2 }).state
     end
 
     it "requires an id for a command that acts on an existing instance" do
-      expect { runtime.dispatch("Pizzas::Order.Purchase", customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
+      expect { runtime.dispatch_flat("Pizzas::Order.Purchase", customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
         .to raise_error(Hecks::Runtime::NotFound, /pass name/)
     end
 
     it "reports an id that does not exist" do
-      expect { runtime.dispatch("Pizzas::Order.Purchase", name: "pizza-nope", customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
+      expect { runtime.dispatch_flat("Pizzas::Order.Purchase", name: "pizza-nope", customer_name: { value: "Chris" }, amount: { cents: 1200 }) }
         .to raise_error(Hecks::Runtime::NotFound, /no Order with name/)
     end
   end
@@ -211,10 +212,10 @@ amount: { value: 2 }).state
       pizza = registry.bluebook("Pizzas").aggregate("Order")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecks::Ports::Persistence::AppendOnly)
 
-      # `name:` was written TWICE here — once as a bare string, once as the value
+      # `name:` was written twice here — once as a bare string, once as the value
       # object — and Ruby warned on every run while silently keeping the second.
-      runtime.dispatch("Pizzas::Order.CreatePizza",
-                       name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
+      runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                            name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
       expect(registry.repository("Pizzas", pizza).count).to eq(1)
     end
 

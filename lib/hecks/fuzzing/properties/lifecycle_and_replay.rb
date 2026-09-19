@@ -14,14 +14,18 @@ module Hecks
       # trustworthy in the first place.
       module LifecycleAndReplay
         # Every lifecycle field a replay leaves an instance holding is one
-        # of the aggregate's OWN declared states — the full set, not just
+        # of the aggregate's own declared states — the full set, not just
         # `Lifecycle#states`' default+targets (see ModelCheck.full_states'
         # own comment on that hole). The tie to M2 is direct: the model
-        # checker proves which states a domain's OWN declarations can ever
-        # produce ; this proves a REAL RUN never produced anything else —
+        # checker proves which states a domain's own declarations can ever
+        # produce ; this proves a real run never produced anything else —
         # a coercion bug, a stale string surviving a rename, a default
         # that drifted from the declared set, would all show up here as a
         # value nothing upstream would have predicted.
+        #
+        # @param history [Hash] a replayed history, as returned by `Fuzzing::Replay.call`
+        # @return [true, String] true if every instance's lifecycle field holds a declared
+        #   state; otherwise a semicolon-joined message naming each offending instance
         def lifecycle_values_are_declared(history)
           bluebook = history.fetch(:bluebook)
           declared = {}
@@ -46,14 +50,19 @@ module Hecks
         end
 
         # Every saga advance a replay actually logged moved along an edge
-        # the process manager DECLARED — `(from, to)` pairs that appear in
+        # the process manager declared — `(from, to)` pairs that appear in
         # `saga_log` with `advanced: true` must be a `(handler.from_state,
         # handler.to_state)` pair some handler on that PM declares
-        # (compensation edges included ; a REFUSED-triggered advance is a
+        # (compensation edges included ; a refused-triggered advance is a
         # handler like any other). A saga that advanced along a pair no
         # handler names would mean the runtime moved state the language
         # never authorized — the same trust ModelCheck's static reachability
         # rests on, checked here against what a run actually did.
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every logged advance matches a declared
+        #   handler edge; otherwise a message naming the process manager and pair
+        #   that does not
         def saga_advances_follow_declared_handlers(history)
           bluebook = history.fetch(:bluebook)
           edges = Hash.new { |h, k| h[k] = [] }
@@ -74,18 +83,27 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # THE FOUNDATIONAL ONE. `Hecks::Runtime` mints nothing — every
+        # The foundational one. `Hecks::Runtime` mints nothing — every
         # identity is declared and derived, never invented (see
-        # command_interpreter.rb's own "NOTHING IS MINTED" — a random hex,
+        # command_interpreter.rb's own "nothing is minted" — a random hex,
         # a counter, anything not reproducible from the payload, was
         # refused out of the runtime specifically because it broke this).
-        # So the SAME steps, replayed against a FRESH boot, must produce
-        # BYTE-IDENTICAL events, refusals, and instances — any drift here
+        # So the same steps, replayed against a fresh boot, must produce
+        # byte-identical events, refusals, and instances — any drift here
         # is nondeterminism the runtime promised not to have: a wall-clock
         # read that leaked into compared state, a Hash iteration order a
         # comparison depended on, anything. Two independent replays, not a
-        # cached one compared to itself, so a bug that corrupts the FIRST
+        # cached one compared to itself, so a bug that corrupts the first
         # run's own bookkeeping cannot pass by agreeing with itself.
+        #
+        # @param domain_path [String] path to the domain directory to boot, such as
+        #   `"examples/pizzas"`
+        # @param steps [Array<Hash>] the step list to replay twice
+        # @param adapter [Symbol] persistence adapter to boot with (`:memory`,
+        #   `:postgres`, or `:postgres_era`)
+        # @return [true, String] true if both replays produce identical histories
+        #   (after stripping declared nondeterministic fields); otherwise a message
+        #   naming the step count that diverged
         def replay_is_deterministic(domain_path, steps, adapter: :memory)
           first  = Replay.call(domain_path, steps, adapter: adapter)
           second = Replay.call(domain_path, steps, adapter: adapter)
@@ -97,7 +115,7 @@ module Hecks
           # `history` group (live IR objects). Stripped per `outbox_traces`
           # row rather than dropping `outbox_traces` wholesale: everything
           # else on a row (status, consumer, kind, the event's own name/
-          # aggregate/id/payload) IS reproducible from the steps alone and
+          # aggregate/id/payload) is reproducible from the steps alone and
           # stays checked.
           strip_outbox_nondeterminism = lambda do |history|
             traces = Array(history[:outbox_traces]).map do |trace|

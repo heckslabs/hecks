@@ -36,6 +36,7 @@
 // worth adding once a real deployment's era count makes the raw-tail
 // scan expensive enough to matter.
 
+use anyhow::Context;
 use crate::journal::quote_ident;
 use crate::reference_transform;
 use crate::reference_validate;
@@ -58,16 +59,27 @@ fn partition(domain: &str, era: i32) -> String {
     format!("{}_era_{era}", journal_table(domain))
 }
 
-fn head_snapshot(storage_name: &str, era: i32) -> String {
-    format!("{storage_name}_head_snapshot_{era}")
+// DOMAIN-QUALIFIED (docs/decisions/0059), the SAME `crate::journal::
+// qualified_name`/`Lineage#qualified_name` algorithm both other places
+// this naming scheme is computed already use — delegated to, not
+// reimplemented a THIRD time, the same reasoning `storage_shape_snake`
+// below already gives for `snake`. Before this fix, two different
+// domains bound to PostgresEra against the same database, each
+// declaring an aggregate whose own name snake_cased to the same
+// storage_name, made this file's own mint path (`compile_head`/
+// `ensure_first_head`/`grant_role`) derive the exact same physical
+// relations as the OTHER domain's — this crate's own copy of the exact
+// collision docs/decisions/0059 documents for Ruby.
+fn head_snapshot(domain: &str, storage_name: &str, era: i32) -> String {
+    crate::journal::qualified_name(domain, &format!("{storage_name}_head_snapshot_{era}"))
 }
 
-fn matview(storage_name: &str, era: i32, label: &str) -> String {
-    format!("{storage_name}_lineage_{era}_{label}")
+fn matview(domain: &str, storage_name: &str, era: i32, label: &str) -> String {
+    crate::journal::qualified_name(domain, &format!("{storage_name}_lineage_{era}_{label}"))
 }
 
-fn head_view(storage_name: &str) -> String {
-    format!("{storage_name}_head")
+fn head_view(domain: &str, storage_name: &str) -> String {
+    crate::journal::qualified_name(domain, &format!("{storage_name}_head"))
 }
 
 // `Naming.snake` — same pure syntactic transform `crate::journal::snake`
@@ -545,7 +557,7 @@ async fn run_backfill_chunk<C: GenericClient>(client: &C, domain: &str, storage_
 }
 
 async fn backfill_head_snapshot<C: GenericClient>(client: &C, domain: &str, storage_name: &str, era: i32) -> anyhow::Result<()> {
-    let target = head_snapshot(storage_name, era);
+    let target = head_snapshot(domain, storage_name, era);
     loop {
         if run_backfill_chunk(client, domain, storage_name, era, &target).await? {
             break;
@@ -563,8 +575,88 @@ async fn table_exists<C: GenericClient>(client: &C, name: &str) -> anyhow::Resul
     Ok(row.is_some())
 }
 
+/// EVERY AGGREGATE'S HEAD SNAPSHOT FOR THE ERA THIS BOOT ADOPTED,
+/// created if it isn't there — Ruby's own unconditional self-heal,
+/// ported, and the fix for a real production outage.
+///
+/// `PostgresEra#initialize` does exactly this on EVERY boot, for every
+/// repository it builds, "regardless of era — belt-and-suspenders
+/// self-healing ... against any boot-ordering surprise, at the cost of
+/// one CREATE TABLE IF NOT EXISTS nobody pays for twice". This crate
+/// only ever did it on the two paths that MINT an era (`hold_first`,
+/// `mint_era`); the third outcome, `BootDecision::UseExisting` — adopt
+/// an era somebody else already minted — provisioned nothing.
+///
+/// Found live. embryonautfoundersapp's storehouse holds eras 1 and 2
+/// for the domain, with era 2 minted by RUBY under the pre-ADR-0059
+/// unqualified names; every DOMAIN-qualified head snapshot in it stops
+/// at era 1. This host booted, matched era 2's label, adopted it, and
+/// the first write it ever attempted died on
+/// `relation "embryonaut_founders_app_state_style_head_snapshot_2"
+/// does not exist` — surfaced to the caller as the bare string
+/// "db error", because nothing on the way out said which statement or
+/// which relation (see `journal::append_lineage_mutation`, now fixed
+/// too). Every aggregate was in that position, not just the console's:
+/// no write of any kind could have succeeded against that deployment.
+///
+/// NO BACKFILL HERE, deliberately. Backfilling is what MINTING an era
+/// from its ancestor does; adopting an era someone else minted means
+/// the history is already wherever that someone put it. This creates
+/// the table and nothing else, exactly as Ruby's own
+/// `ensure_head_snapshot!` does.
+/// ITS OWN TRANSACTION, explicitly. `create_head_snapshot` guards the
+/// create-if-absent race with a `SAVEPOINT`, which Postgres only
+/// accepts inside a transaction block — the minting callers are always
+/// mid-transaction already, and this one, called straight off boot, is
+/// not. Caught by this function's own test rather than in production,
+/// which is the second time this change's real error message earned
+/// itself: "SAVEPOINT can only be used in transaction blocks", named
+/// and attached to the relation it was provisioning.
+pub(crate) async fn adopt_head_snapshots<C: GenericClient>(
+    client: &C,
+    domain: &str,
+    aggregates: &[Aggregate],
+    era: i32,
+) -> anyhow::Result<()> {
+    client.batch_execute("BEGIN").await.context("opening a transaction to adopt head snapshots")?;
+    let result: anyhow::Result<()> = async {
+        for aggregate in aggregates {
+            create_head_snapshot(client, domain, &aggregate.storage_name, era).await.with_context(|| {
+                format!("provisioning {domain}'s {} head snapshot for era {era}", aggregate.storage_name)
+            })?;
+        }
+        Ok(())
+    }
+    .await;
+    match &result {
+        Ok(_) => client.batch_execute("COMMIT").await?,
+        Err(_) => client.batch_execute("ROLLBACK").await?,
+    }
+    result
+}
+
 async fn ensure_head_snapshot<C: GenericClient>(client: &C, domain: &str, storage_name: &str, era: i32) -> anyhow::Result<()> {
-    let name = head_snapshot(storage_name, era);
+    create_head_snapshot(client, domain, storage_name, era).await?;
+    backfill_head_snapshot(client, domain, storage_name, era).await
+}
+
+/// The CREATE half, shared by minting and adopting.
+///
+/// THE COLUMNS ARE RUBY'S, not this crate's own shorter guess. They used
+/// to be `(id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT
+/// NULL)`, which a Ruby runtime cannot use: `head_compiler.rb` declares
+/// `operation text NOT NULL DEFAULT 'save'` and a NULLABLE `state`
+/// because a DELETE upserts a TOMBSTONE here (`operation = 'delete'`,
+/// `state` NULL) rather than removing the row, and every head view it
+/// compiles filters `WHERE operation = 'save'`. A table this crate
+/// created was therefore one Ruby could not compile a head over —
+/// invisible while only one engine ever created them, and no longer so
+/// now that `adopt_head_snapshots` above creates them on an ordinary
+/// boot. Matching Ruby costs this crate nothing: its own INSERT names
+/// `(id, ordinal, state)` and lets the default fill `operation` in,
+/// which is what the real, live, Ruby-created tables already do.
+async fn create_head_snapshot<C: GenericClient>(client: &C, domain: &str, storage_name: &str, era: i32) -> anyhow::Result<()> {
+    let name = head_snapshot(domain, storage_name, era);
     if !table_exists(client, &name).await? {
         client.batch_execute("SAVEPOINT hecks_head_snapshot").await?;
         let result: anyhow::Result<()> = async {
@@ -572,7 +664,8 @@ async fn ensure_head_snapshot<C: GenericClient>(client: &C, domain: &str, storag
             if !table_exists(client, &name).await? {
                 client
                     .batch_execute(&format!(
-                        "CREATE TABLE {} (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)",
+                        "CREATE TABLE {} (id text PRIMARY KEY, ordinal bigint NOT NULL, \
+                         operation text NOT NULL DEFAULT 'save', state jsonb)",
                         quote_ident(&name)
                     ))
                     .await?;
@@ -586,7 +679,7 @@ async fn ensure_head_snapshot<C: GenericClient>(client: &C, domain: &str, storag
         }
         result?;
     }
-    backfill_head_snapshot(client, domain, storage_name, era).await
+    Ok(())
 }
 
 /// Which name/storage_name each aggregate carried at EACH era in the
@@ -896,7 +989,7 @@ async fn compile_head<C: GenericClient>(
     watermarks: &std::collections::HashMap<i32, Option<i64>>,
 ) -> anyhow::Result<()> {
     let storage_name = &aggregate.storage_name;
-    let view = matview(storage_name, era, label);
+    let view = matview(domain, storage_name, era, label);
     let body = chain_sql(domain, &aggregate.name, era, edges, watermarks);
 
     client.batch_execute(&format!("CREATE MATERIALIZED VIEW {} AS\n{body}", quote_ident(&view))).await?;
@@ -910,7 +1003,7 @@ async fn compile_head<C: GenericClient>(
 
     ensure_head_snapshot(client, domain, storage_name, era).await?;
 
-    client.batch_execute(&format!("DROP VIEW IF EXISTS {}", quote_ident(&head_view(storage_name)))).await?;
+    client.batch_execute(&format!("DROP VIEW IF EXISTS {}", quote_ident(&head_view(domain, storage_name)))).await?;
     client
         .batch_execute(&format!(
             "CREATE VIEW {} AS \
@@ -921,9 +1014,9 @@ async fn compile_head<C: GenericClient>(
                  SELECT ordinal, id AS aggregate_id, 'save' AS operation, state FROM {}\
                ) merged ORDER BY aggregate_id, ordinal DESC\
              ) latest WHERE operation = 'save'",
-            quote_ident(&head_view(storage_name)),
+            quote_ident(&head_view(domain, storage_name)),
             quote_ident(&view),
-            quote_ident(&head_snapshot(storage_name, era))
+            quote_ident(&head_snapshot(domain, storage_name, era))
         ))
         .await?;
     Ok(())
@@ -991,8 +1084,8 @@ async fn ensure_first_head<C: GenericClient>(client: &C, domain: &str, storage_n
     client
         .batch_execute(&format!(
             "CREATE OR REPLACE VIEW {} AS SELECT id, state FROM {}",
-            quote_ident(&head_view(storage_name)),
-            quote_ident(&head_snapshot(storage_name, 1))
+            quote_ident(&head_view(domain, storage_name)),
+            quote_ident(&head_snapshot(domain, storage_name, 1))
         ))
         .await?;
     Ok(())
@@ -1033,10 +1126,10 @@ async fn grant_role<C: GenericClient>(client: &C, domain: &str, role: &str, aggr
         client
             .batch_execute(&format!(
                 "GRANT SELECT, INSERT, UPDATE, DELETE ON {} TO {quoted_role}",
-                quote_ident(&head_snapshot(storage_name, era))
+                quote_ident(&head_snapshot(domain, storage_name, era))
             ))
             .await?;
-        let view = head_view(storage_name);
+        let view = head_view(domain, storage_name);
         if table_or_view_exists(client, &view).await? {
             client.batch_execute(&format!("GRANT SELECT ON {} TO {quoted_role}", quote_ident(&view))).await?;
         }
@@ -1135,6 +1228,88 @@ async fn mint_era_body<C: GenericClient>(
 
 #[cfg(test)]
 mod tests {
+
+    /// A throwaway database of its own — `mint.rs` compiles into
+    /// `bin/mint_harness` as well as the main binary, and that one has
+    /// no `dispatch` module to borrow a helper from.
+    async fn own_scratch_db(name: &str) -> tokio_postgres::Client {
+        let (admin, connection) =
+            tokio_postgres::connect("host=localhost dbname=postgres", NoTls).await.expect("connect as admin");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        let _ = admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
+        admin.batch_execute(&format!("CREATE DATABASE {name}")).await.expect("create scratch db");
+        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={name}"), NoTls)
+            .await
+            .expect("connect to scratch db");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        client
+    }
+
+    /// THE REAL OUTAGE, REPRODUCED. embryonautfoundersapp's storehouse
+    /// holds an era 2 that RUBY minted, so every domain-qualified head
+    /// snapshot in it stops at era 1. This host matched era 2's label,
+    /// adopted it, and its first write died on `relation
+    /// "embryonaut_founders_app_state_style_head_snapshot_2" does not
+    /// exist`.
+    #[tokio::test]
+    async fn adopting_an_era_someone_else_minted_provisions_the_head_snapshots_it_is_missing() {
+        let guard = own_scratch_db("hecks_host_adopt_head_snapshots").await;
+        // Era 1's snapshot only — exactly the shape a Ruby-minted era 2
+        // leaves behind for this crate's own domain-qualified naming.
+        super::adopt_head_snapshots(
+            &guard,
+            "EmbryonautFoundersApp",
+            &[super::Aggregate { name: "StateStyle".to_string(), storage_name: "state_style".to_string() }],
+            1,
+        )
+        .await
+        .expect("era 1 exists, as Ruby left it");
+
+        let missing = super::head_snapshot("EmbryonautFoundersApp", "state_style", 2);
+        assert!(!super::table_exists(&guard, &missing).await.expect("a lookup"), "era 2 starts absent");
+
+        let aggregates =
+            vec![super::Aggregate { name: "StateStyle".to_string(), storage_name: "state_style".to_string() }];
+        super::adopt_head_snapshots(&guard, "EmbryonautFoundersApp", &aggregates, 2).await.expect("adopts");
+
+        assert!(super::table_exists(&guard, &missing).await.expect("a lookup"), "era 2 is provisioned now");
+
+        // Idempotent — every boot runs it, the same way Ruby's does.
+        super::adopt_head_snapshots(&guard, "EmbryonautFoundersApp", &aggregates, 2).await.expect("adopts again");
+    }
+
+    /// The columns are Ruby's, so a table this crate creates is one a
+    /// Ruby runtime can still compile a head view over (`WHERE operation
+    /// = 'save'`) and still write a delete tombstone into (`state` NULL).
+    #[tokio::test]
+    async fn a_head_snapshot_this_crate_creates_carries_rubys_own_columns() {
+        let guard = own_scratch_db("hecks_host_head_snapshot_columns").await;
+        let aggregates = vec![super::Aggregate { name: "Widget".to_string(), storage_name: "widget".to_string() }];
+        super::adopt_head_snapshots(&guard, "Fixtures", &aggregates, 1).await.expect("adopts");
+
+        let name = super::head_snapshot("Fixtures", "widget", 1);
+        let rows = guard
+            .query(
+                "SELECT column_name, is_nullable, column_default FROM information_schema.columns \
+                 WHERE table_name = $1 ORDER BY ordinal_position",
+                &[&name],
+            )
+            .await
+            .expect("columns");
+        let columns: Vec<String> = rows.iter().map(|r| r.get::<_, String>(0)).collect();
+        assert_eq!(columns, vec!["id", "ordinal", "operation", "state"]);
+
+        let operation = rows.iter().find(|r| r.get::<_, String>(0) == "operation").expect("operation");
+        assert_eq!(operation.get::<_, String>(1), "NO", "operation is NOT NULL");
+        assert!(operation.get::<_, Option<String>>(2).unwrap_or_default().contains("save"), "defaults to 'save'");
+
+        let state = rows.iter().find(|r| r.get::<_, String>(0) == "state").expect("state");
+        assert_eq!(state.get::<_, String>(1), "YES", "state is nullable, for a delete tombstone");
+    }
     use super::*;
     use crate::journal;
     use tokio_postgres::NoTls;
@@ -1274,7 +1449,7 @@ mod tests {
         let aggregate = Aggregate { name: "Widget".to_string(), storage_name: "widget".to_string() };
         hold_first(&client, domain, "v1 source text (opaque to this crate)", &v1_ir, &[aggregate.clone()], None).await.expect("hold_first");
 
-        let config = journal::LineageConfig { domain: domain.to_string(), era: Some(1) };
+        let config = journal::LineageConfig { domain: domain.to_string(), era: Some(1), mirrored: None };
         journal::append_lineage_mutation(
             &client,
             &config,
@@ -1316,7 +1491,7 @@ mod tests {
 
         // ── read back through the SAME generic function real deployment
         // traffic uses — proving the whole chain, not just that SQL ran ──
-        let mut rows = journal::read_lineage_head_all(&client, "widget").await.expect("read_lineage_head_all");
+        let mut rows = journal::read_lineage_head_all(&client, domain, "widget").await.expect("read_lineage_head_all");
         rows.sort_by(|a, b| a.0.cmp(&b.0));
         assert_eq!(
             rows,
@@ -1390,7 +1565,7 @@ mod tests {
 
         async fn seed_era_one(client: &tokio_postgres::Client, domain: &str, v1_ir: &Value, aggregate: &Aggregate) {
             hold_first(client, domain, "v1 source text", v1_ir, std::slice::from_ref(aggregate), None).await.expect("hold_first");
-            let config = journal::LineageConfig { domain: domain.to_string(), era: Some(1) };
+            let config = journal::LineageConfig { domain: domain.to_string(), era: Some(1), mirrored: None };
             journal::append_lineage_mutation(
                 client,
                 &config,

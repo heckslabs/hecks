@@ -7,6 +7,7 @@ use crate::json::Json;
 use crate::literal::Literal;
 use crate::mutations;
 use crate::naming;
+use crate::skip_reason::{skip, SkipReason};
 use std::collections::HashMap;
 
 /// Port of `rust/project/commands.rb#invariants_fn_name` /
@@ -149,41 +150,59 @@ fn target_list_for(target: &str, aggregate: &Json, lifecycle_field: Option<&str>
     attrs.iter().find(|a| crate::attr::name(a) == target).map(crate::attr::list).unwrap_or(false)
 }
 
-pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     command_skip_reason_with(command, aggregate, value_objects_by_name, true)
 }
 
 /// `creating_possible` — false for an entity command, which never
 /// creates (commands.rb's own `entity_command_skip_reason`): its own
 /// optional identity argument is not an identity source.
-fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, creating_possible: bool) -> Option<String> {
+fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, creating_possible: bool) -> Option<SkipReason> {
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
 
     let mut unsupported_ops: Vec<String> = Vec::new();
     for m in mutations_list {
         let op = m.get("op").map(Json::to_s).unwrap_or_default();
-        if !["append", "set", "increment", "decrement", "multiply", "clamp", "delegate", "corrects"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
+        // BUG#32 — `remove` is admitted here and narrowed to the one
+        // generatable shape (an entity-typed list, matched by identity)
+        // by `mutations::remove_field_problems` below; see
+        // rust/project/commands.rb's own matching comment.
+        if !["append", "set", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
             unsupported_ops.push(op);
         }
     }
     if !unsupported_ops.is_empty() {
-        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)", unsupported_ops.join(", ")));
+        return Some(skip("mutation_op", format!("sets op(s) {} not generated yet (only append/set/increment/decrement/multiply/clamp/remove/delegate/corrects are)", unsupported_ops.join(", "))));
     }
 
     if let Some(corrects) = crate::bridging::corrects_of(command) {
-        if crate::bridging::corrects_reverses(corrects) {
+        // Ruby's `derive_reverses_mutations!` appends the inverse of an
+        // increment/decrement before this check, and the IR this crate reads
+        // is that derived one — so only a command still carrying nothing but
+        // its `corrects` is refused, exactly as commands.rb's own check does.
+        if crate::bridging::corrects_reverses(corrects) && mutations_list.iter().all(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "corrects") {
             let event = corrects.get("target").map(Json::to_s).unwrap_or_default();
-            return Some(format!("corrects {event}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet"));
+            return Some(skip("corrects_reverses", format!("corrects {event}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet")));
         }
     }
 
     if let Some(problem) = delegate_skip_reason(command, aggregate, value_objects_by_name) {
-        return Some(problem);
+        return Some(skip("delegate", problem));
     }
 
     let append_problems = mutations::append_field_problems(command, aggregate, value_objects_by_name);
     if !append_problems.is_empty() {
-        return Some(format!("sets append field(s): {}", append_problems.join("; ")));
+        return Some(skip("append_field", format!("sets append field(s): {}", append_problems.join("; "))));
+    }
+
+    let state_problems = mutations::state_source_problems(command, aggregate, value_objects_by_name);
+    if !state_problems.is_empty() {
+        return Some(skip("state_source", format!("sets state source(s): {}", state_problems.join("; "))));
+    }
+
+    let remove_problems = mutations::remove_field_problems(command, aggregate, value_objects_by_name);
+    if !remove_problems.is_empty() {
+        return Some(skip("remove_field", format!("sets remove field(s): {}", remove_problems.join("; "))));
     }
 
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
@@ -206,7 +225,7 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !literal_set_targets.is_empty() {
-        return Some(format!("sets to: a literal that doesn't bridge to the target's type ({}) — not generated yet", literal_set_targets.join(", ")));
+        return Some(skip("set_literal", format!("sets to: a literal that doesn't bridge to the target's type ({}) — not generated yet", literal_set_targets.join(", "))));
     }
 
     let mismatched_sets: Vec<String> = mutations_list
@@ -242,7 +261,7 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !mismatched_sets.is_empty() {
-        return Some(format!("sets :{} sources an argument no single-field rewrap can bridge to the target's type — not generated yet", mismatched_sets.join(", ")));
+        return Some(skip("set_argument_bridge", format!("sets :{} sources an argument no single-field rewrap can bridge to the target's type — not generated yet", mismatched_sets.join(", "))));
     }
 
     let arithmetic_targets: Vec<&Json> = mutations_list.iter().filter(|m| ["increment", "decrement", "multiply"].contains(&m.get("op").map(Json::to_s).unwrap_or_default().as_str())).collect();
@@ -258,7 +277,7 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !unsupported_arithmetic.is_empty() {
-        return Some(format!("sets :{} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", ")));
+        return Some(skip("arithmetic", format!("sets :{} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", "))));
     }
 
     // `:clamp` — see rust/project/commands.rs's own comment on this same
@@ -276,12 +295,12 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !unsupported_clamp.is_empty() {
-        return Some(format!("sets :{} clamp target field or bounds isn't bridgeable — not generated yet", unsupported_clamp.join(", ")));
+        return Some(skip("clamp", format!("sets :{} clamp target field or bounds isn't bridgeable — not generated yet", unsupported_clamp.join(", "))));
     }
 
     let optional_problems = optional_source_mismatches_with(command, aggregate, value_objects_by_name, creating_possible);
     if !optional_problems.is_empty() {
-        return Some(format!("optional argument feeds a non-optional target: {} — not generated yet", optional_problems.join("; ")));
+        return Some(skip("optional_source", format!("optional argument feeds a non-optional target: {} — not generated yet", optional_problems.join("; "))));
     }
 
     None
@@ -952,7 +971,7 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
 /// targets (`ValueObject::Member.Pair`, a VO-list; `ProcessManager::
 /// Handler.Dispatch`, a genuinely nested entity-list) compile and pass
 /// codegen_parity_spec against the Ruby-orchestrated generator.
-pub fn entity_command_skip_reason(command: &Json, entity: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+pub fn entity_command_skip_reason(command: &Json, entity: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     command_skip_reason_with(command, entity, value_objects_by_name, false)
 }
 
@@ -1103,6 +1122,20 @@ pub fn emit_entity_command(
                 .collect();
             let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &entity_identity_heads);
             crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
+        },
+        // THE ARGUMENT GATES (roadmap D2) — `kernel::decode_entity_
+        // arguments` calls these in `EntityStep::ORDER`; see
+        // `json_codec::emit_argument_gates`' own header.
+        {
+            let entity_identity_heads: Vec<String> = entity
+                .get("identified_by")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                .collect();
+            let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &entity_identity_heads);
+            crate::json_codec::emit_argument_gates(&args_struct_name, &qualified_command_name, attrs, Some(&allowlist))
         },
         entity_dispatch_fn,
     ]
@@ -1360,6 +1393,27 @@ pub fn emit_nested_entity_command(
             );
             let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &identity_heads);
             crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
+        },
+        // THE ARGUMENT GATES (roadmap D2) — see the one-hop entity
+        // command's own identical call, above.
+        {
+            let mut identity_heads: Vec<String> = entity
+                .get("identified_by")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                .collect();
+            identity_heads.extend(
+                nested
+                    .get("identified_by")
+                    .map(Json::each)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|p| p.to_s().split('.').next().unwrap_or("").to_string()),
+            );
+            let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &identity_heads);
+            crate::json_codec::emit_argument_gates(&args_struct_name, &qualified_command_name, attrs, Some(&allowlist))
         },
         nested_dispatch_fn,
     ]

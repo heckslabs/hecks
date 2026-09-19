@@ -1,15 +1,15 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# THE STOREHOUSE BUS — dispatch/query/state/catalog/describe/validate/...,
-# projected off the SAME machinery `CliRunner`/`Facade::JsonDoor` already
+# **The storehouse bus** — dispatch/query/state/catalog/describe/validate/...,
+# projected off the same machinery `CliRunner`/`Facade::JsonDoor` already
 # use, so these specs prove composition rather than re-deriving verb
 # resolution or JSON materialization from scratch. `bin/hecks_mcp_door`
 # is one MCP-over-stdio door onto this bus, not the bus itself.
 RSpec.describe Hecks::Storehouse do
-  # THE BUS'S OWN AUDIT LOG IS REAL DISK STATE, keyed only by domain name
+  # The bus's own audit log is real disk state, keyed only by domain name
   # ("Pizzas") — every example in this file that dispatches/queries/reads
-  # state against `runtime` writes to the SAME file regardless of which
+  # state against `runtime` writes to the same file regardless of which
   # example it is, since a fresh in-memory `runtime` per example is not a
   # fresh log. Wiped before every example so `.follow`'s own assertions
   # never depend on run order or on what an earlier example happened to log.
@@ -298,6 +298,13 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:history]["order"].length).to eq(2)
       expect(result[:history]["order"].map { |entry| entry[:operation] }).to eq(%w[save save])
     end
+
+    it "answers an empty history, not a crash, for an aggregate nothing has been written to" do
+      result = described_class.history(runtime: runtime)
+
+      expect(result[:ok]).to be true
+      expect(result[:history]["order"]).to eq([])
+    end
   end
 
   describe ".behaviors" do
@@ -409,12 +416,12 @@ RSpec.describe Hecks::Storehouse do
     end
 
     # `boot_in_memory`'s fixture attaches Governance but binds no real
-    # authorization ADAPTER — an `actor_id` alongside `role` reaches for
+    # authorization adapter — an `actor_id` alongside `role` reaches for
     # a live `Governance::RoleAssignment` lookup through one
     # (`CommandRules::Authorization`'s own header), which is genuinely
     # unanswerable here. `Runtime::WiringError` is the honest result;
     # this proves it comes back as a structured refusal — role/actor_id
-    # STILL recorded on the log line — never a raised error crossing
+    # still recorded on the log line — never a raised error crossing
     # this door, the same promise every other refusal here keeps.
     it "answers a structured refusal, not a raised error, when no authorization adapter can answer actor_id" do
       result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",

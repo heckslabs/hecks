@@ -7,12 +7,12 @@ require_relative "../hecks"
 
 module Hecks
   # The sublanguage grammar domains (grammar/*.bluebook) and the one boot
-  # path for reading them as DATA — the expression chapter replayed
+  # path for reading them as data — the expression chapter replayed
   # through its own admission ledger, so anything derived from it (the
   # operator projections, the conformance specs) reads the set that
   # actually survived the Admit gates, never a hand-copied list.
   #
-  # Booted on CALL, never at require: the Prism adapter normalises every
+  # Booted on call, never at require: the Prism adapter normalises every
   # predicate through CanonicalForm while a bluebook loads, so the
   # expression machinery cannot boot the chapter that configures it —
   # this module exists precisely so generators and specs boot it in a
@@ -27,6 +27,11 @@ module Hecks
     # its real commands. A refused step raises — a generator running off
     # a half-admitted ledger would project a table the gates never
     # accepted.
+    #
+    # @return [Runtime::Dispatcher] the dispatcher bound to the booted, replayed
+    #   expression chapter
+    # @raise [Runtime::WiringError] if a ledger step is refused by the chapter's
+    #   own domain rules
     def expression
       registry = Runtime::Registry.new
       root = File.expand_path("../..", __dir__)
@@ -42,7 +47,7 @@ module Hecks
       JSON.parse(File.read(LEDGER)).fetch("steps").each do |step|
         args = symbolize(step.fetch("args"))
         begin
-          dispatcher.dispatch(step.fetch("verb"), **args)
+          dispatcher.dispatch_flat(step.fetch("verb"), args)
         rescue *Runtime::DOMAIN_REFUSALS => e
           raise Runtime::WiringError,
                 "the admission ledger refused at #{step['verb']} #{step['args']} — #{e.message}"
@@ -52,6 +57,13 @@ module Hecks
       dispatcher
     end
 
+    # Reads every admitted operator from the ledger's replayed chapter.
+    #
+    # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the booted
+    #   expression chapter; defaults to booting and replaying a fresh one
+    # @return [Array<Hash>] one Hash per admitted operator, with `:symbol`,
+    #   `:category`, `:precedence`, `:arity`, and `:renderings` (an Array of
+    #   `{target:, form:}` Hashes)
     def admitted_operators(dispatcher = expression)
       records(dispatcher, "Operator").select { |op| op[:status] == "admitted" }.map do |op|
         { symbol: op[:symbol].value, category: op[:category].value,
@@ -60,6 +72,13 @@ module Hecks
       end
     end
 
+    # Reads every admitted normalisation rule from the ledger's replayed
+    # chapter, in position order.
+    #
+    # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the booted
+    #   expression chapter; defaults to booting and replaying a fresh one
+    # @return [Array<Hash>] one Hash per admitted rule, with `:strategy`,
+    #   `:source_token`, `:replacement`, `:boundary`, and `:position`
     def admitted_normalisations(dispatcher = expression)
       records(dispatcher, "Normalisation")
         .select { |rule| rule[:status] == "admitted" }
@@ -71,22 +90,34 @@ module Hecks
         end
     end
 
+    # Reads every record of one aggregate from the expression chapter's own
+    # repository.
+    #
+    # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the booted
+    #   expression chapter
+    # @param aggregate_name [String] the aggregate's declared name, such as
+    #   `"Operator"`
+    # @return [Array<Runtime::Instance>] every stored instance of the aggregate
     def records(dispatcher, aggregate_name)
       registry  = dispatcher.registry
       aggregate = registry.bluebook("Expression").aggregate(aggregate_name)
       registry.repository("Expression", aggregate).all
     end
 
-    # THE OPERATORS THE LANGUAGE STANDS ON. Every guard and invariant in
+    # The operators the language stands on. Every guard and invariant in
     # the language's own chapters — the meta-domain (Bluebook, World) and
     # the grammar chapters beside this file — evaluates through the very
     # operator table the ledger admits. An operator one of those
-    # predicates uses is SELF-BEARING: retire it and the language can no
+    # predicates uses is self-bearing: retire it and the language can no
     # longer read its own rules — found the hard way, as a projection
     # missing `!=` that could not boot the chapter to fix itself. This
     # derives the set, with a usage site per operator, so the generator
-    # and the conformance spec can refuse the retirement BY NAME instead
+    # and the conformance spec can refuse the retirement by name instead
     # of wedging.
+    #
+    # @return [Hash{String => Array<String>}] each self-bearing operator symbol
+    #   mapped to the `"Chapter Aggregate.command"`/`"Chapter Aggregate::ValueObject"`
+    #   sites that use it
     def self_bearing_operators
       sites = Hash.new { |h, k| h[k] = [] }
 
@@ -118,6 +149,9 @@ module Hecks
 
     # Every grammar/*.bluebook chapter, booted the same way the corpus
     # boots them — each alone, in a scratch registry.
+    #
+    # @return [Array<Class>] each grammar chapter, booted alone in its own scratch
+    #   registry
     def grammar_chapters
       Dir[File.join(DIR, "*.bluebook")].map do |chapter|
         registry = Runtime::Registry.new
@@ -136,6 +170,10 @@ module Hecks
     # Which admitted operators one canonical text evaluates through —
     # the evaluator's own parse, walked for its operator nodes, leaves
     # walked for the resolver's arithmetic.
+    #
+    # @param canonical [String] canonical expression text to parse
+    # @return [Array<String>] operator symbols the expression evaluates through, or
+    #   `[]` when `canonical` fails to parse
     def operators_in(canonical)
       evaluator = Bluebook::Expression::Evaluator
       begin
@@ -146,7 +184,7 @@ module Hecks
       walk_operators(node, evaluator).uniq
     end
 
-    # A recursive descent over a CLOSED, declared set of AST node types
+    # A recursive descent over a closed, declared set of AST node types
     # (Evaluator's boolean/compare/include nodes, Resolver's arithmetic
     # nodes, and the generic Struct fallback) — each branch does the
     # same one thing (name the node's own operator, recurse into its
@@ -155,6 +193,10 @@ module Hecks
     # would trade one place that shows the whole operator vocabulary for
     # several that each show a fragment, with no reduction in real
     # complexity.
+    # @param node [Object] an evaluator/resolver AST node, or a Struct fallback
+    # @param evaluator [Module] `Bluebook::Expression::Evaluator`, passed through
+    #   so nested calls don't re-resolve the constant
+    # @return [Array<String>] operator symbols found in `node` and its children
     # rubocop:disable-next Metrics/AbcSize
     def walk_operators(node, evaluator)
       resolver = Bluebook::Expression::Resolver
@@ -177,6 +219,10 @@ module Hecks
       end
     end
 
+    # Deep-symbolizes a JSON-decoded value's Hash keys.
+    #
+    # @param value [Object] a Hash, Array, or scalar decoded from JSON
+    # @return [Object] `value` with every Hash key (recursively) converted to a Symbol
     def symbolize(value)
       case value
       when Hash  then value.to_h { |k, v| [k.to_sym, symbolize(v)] }

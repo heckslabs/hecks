@@ -9,7 +9,7 @@ RSpec.describe Hecks::Forms::FieldShape do
   # (`identified_by { ... }` recovers its own canonical text through it at
   # declare time), the one piece of wiring a bare `Kernel.load` can't skip.
   #
-  # Booted ONCE per file, not per example — nothing below ever dispatches,
+  # Booted once per file, not per example — nothing below ever dispatches,
   # only reads the loaded IR back out, so a shared load is safe.
   before(:context) do
     registry = Hecks::Runtime::Registry.new
@@ -73,7 +73,8 @@ RSpec.describe Hecks::Forms::FieldShape do
   it "leaves a plain admits: scalar's own set resolvable across aggregates" do
     entry = account.entities.find { |e| e.hecks_name == "LedgerEntry" }
     field = described_class.resolve(entry.attribute(:direction), aggregate: account)
-    expect(field.path).to eq("direction.value") # MovementDirection { value }, admits Account::LedgerDirection
+    # MovementDirection { value }, admits Account::LedgerDirection
+    expect(field.path).to eq("direction.value")
     expect(field.options.map(&:first)).to contain_exactly("credit", "debit")
   end
 

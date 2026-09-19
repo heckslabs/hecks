@@ -1,10 +1,10 @@
 require "spec_helper"
 require "tmpdir"
 
-# §5/§6/§7 END TO END — the actual regression this whole phase exists
+# §5/§6/§7 end to end — the actual regression this whole phase exists
 # to fix: a process manager sitting in a mid-flight (or, here, a
 # terminal-but-never-cleaned-up) state survives a process restart,
-# through a REAL adapter, not the Memory one `spec/runtime/saga_spec.rb`
+# through a real adapter, not the Memory one `spec/runtime/saga_spec.rb`
 # stays on. Uses the Wire fixture's own `Carry` saga
 # (spec/fixtures/settlement.bluebook) bound to SqlitePersistence rather
 # than a purpose-built fixture, the same "reuse the existing Carry
@@ -12,13 +12,13 @@ require "tmpdir"
 # for.
 #
 # `Carry`'s own `on "WireAsked"`/`on "Taken"`/`on "PutIn"` legs all
-# cascade SYNCHRONOUSLY within one `dispatch` call (`deliver_saga_
+# cascade synchronously within one `dispatch` call (`deliver_saga_
 # dispatch` re-enters through the same door), so there is no publicly
 # observable "waiting for a later, separate dispatch" window for the
 # happy path. The `on :refused` leg is different: shutting the
-# DESTINATION drawer before asking a wire makes `Wire::Drawer.Put`
+# destination drawer before asking a wire makes `Wire::Drawer.Put`
 # refuse, `unwind` moves the saga to `"returned"`, and `"returned"` has
-# no further transition in this bluebook — a REAL, naturally-arising
+# no further transition in this bluebook — a real, naturally-arising
 # stuck state, structurally the same shape as Banking's own `Settlement`
 # sitting in `"awaiting_credit"` this whole arc is about.
 RSpec.describe "durable saga/process-manager state" do
@@ -66,12 +66,12 @@ RSpec.describe "durable saga/process-manager state" do
   end
 
   def stuck_wire(runtime)
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
     runtime
   end
 
@@ -87,11 +87,11 @@ RSpec.describe "durable saga/process-manager state" do
 
   it "deletes the checkpoint once a saga genuinely ends (the happy path, ends_on)" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
 
     expect(runtime.registry.saga_instances["Carry"]).to be_empty
     expect(runtime.registry.saga_persistence("Wire").each_saga.to_a).to eq([])
@@ -101,7 +101,7 @@ RSpec.describe "durable saga/process-manager state" do
     stuck_wire(boot_wire)
 
     # A fresh Registry — no in-memory state carried over, only the
-    # SAME sqlite file on disk. This is what a process restart/cold
+    # same sqlite file on disk. This is what a process restart/cold
     # start looks like.
     reopened = boot_wire
 
@@ -112,7 +112,7 @@ RSpec.describe "durable saga/process-manager state" do
 
   it "rehydration is a real no-op for a domain with nothing stuck" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
 
     reopened = boot_wire
     expect(reopened.registry.saga_instances["Carry"]).to be_empty
@@ -145,12 +145,12 @@ RSpec.describe "durable saga/process-manager state" do
       registry.verify!
       runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
-      runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-      runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-      runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+      runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+      runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+      runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
 
-      # Ten threads all asking the SAME wire reference concurrently —
-      # the correlation collides on every one. Exactly one may WIN
+      # Ten threads all asking the same wire reference concurrently —
+      # the correlation collides on every one. Exactly one may win
       # (begin the saga instance); the rest must see it already exists
       # and quietly skip, never partially overwriting it. Without the
       # mutex covering the check-then-set, this is the exact race
@@ -160,10 +160,12 @@ RSpec.describe "durable saga/process-manager state" do
       # mutation identically regardless of which adapter is behind it).
       threads = Array.new(10) do
         Thread.new do
-          runtime.dispatch("Wire::Wire.Ask", reference: { value: "race" }, amount: { cents: 1 },
+          runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "race" }, amount: { cents: 1 },
                            source: "left", destination: "right")
         rescue StandardError
-          nil # a losing thread may see the destination already credited and refuse downstream — fine, not the point
+          # a losing thread may see the destination already credited and
+          # refuse downstream — fine, not the point
+          nil
         end
       end
       threads.each(&:join)

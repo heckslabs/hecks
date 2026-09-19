@@ -18,6 +18,22 @@ module Hecks
         include RuleReference
         include WordGate
 
+        # @param name [String] the entity's name, as written after `entity`
+        # @param owner_value_objects [Array<Bluebook::ValueObject>] the owning aggregate's value
+        #   objects, threaded through unchanged for this piece's `identified_by` to resolve
+        #   against
+        # @param owner_named_givens [Hash{String => Bluebook::Given}] the aggregate-wide,
+        #   cross-entity given pool, shared and written through by `given_impl`
+        # @param identity_name_prefix [String, nil] the prefix a synthesized identity value
+        #   object's name takes; nil derives it from `name`
+        # @param identity_value_object_installer [#call, nil] called with a synthesized value
+        #   object to install it onto the owning aggregate; nil when there is none
+        # @param aggregate_name [String, nil] the root aggregate's name, for chapter-wide given
+        #   keys; nil derives it from `name`
+        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
+        #   the chapter-wide, entity-scoped given pool, shared and written through
+        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide bare given
+        #   references, appended to when this piece's own reference cannot resolve yet
         def initialize(name, owner_value_objects: [], owner_named_givens: {},
                        identity_name_prefix: nil, identity_value_object_installer: nil,
                        aggregate_name: nil, chapter_entity_named_givens: {}, chapter_entity_pending_givens: [])
@@ -30,18 +46,18 @@ module Hecks
           @owner_value_objects = owner_value_objects
           @identity_name_prefix = identity_name_prefix || Naming.demodulise(name)
           @identity_value_object_installer = identity_value_object_installer
-          # THE AGGREGATE-WIDE cross-entity given pool — ONE hash, the
-          # SAME object, threaded unchanged through every piece nested
+          # The aggregate-wide cross-entity given pool — one hash, the
+          # same object, threaded unchanged through every piece nested
           # under one aggregate however deep (the identical shape
           # `@owner_value_objects` already threads — see this class'
           # own `entity` comment). `given`'s own block form writes
-          # through to it; a SIBLING piece's bare command-level
+          # through to it; a sibling piece's bare command-level
           # reference reads from it via `CommandBuilder#
           # reference_named_given`.
           @owner_named_givens = owner_named_givens
-          # ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool
+          # **One level wider still** — the chapter-wide, entity-scoped pool
           # (the piece analogue of `AggregateBuilder#@chapter_named_givens`,
-          # one level down). `@aggregate_name` names THIS piece's own
+          # one level down). `@aggregate_name` names this piece's own
           # root, so the write-through below can key itself
           # "AggregateName.EntityName" — the same dotted addressing
           # convention `declared_by:` already uses chapter-wide, one
@@ -51,26 +67,41 @@ module Hecks
           @aggregate_name = aggregate_name || Naming.demodulise(name)
           @chapter_entity_named_givens   = chapter_entity_named_givens
           @chapter_entity_pending_givens = chapter_entity_pending_givens
-          # DEFERRED CONSTRUCTION — see `AggregateBuilder#drain_pending!`'s
+          # **Deferred construction** — see `AggregateBuilder#drain_pending!`'s
           # own comment; the identical mechanism, one level down, so a
           # nested piece's own commands (Dispatch inside Handler) see
-          # every SIBLING entity/command/query this piece goes on to
+          # every sibling entity/command/query this piece goes on to
           # declare, not just whatever came before it textually.
           @pending_entities = []
           @pending_commands = []
           @pending_queries  = []
         end
 
+        # Sets the human-readable description shown for this entity.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def description(value) = @description = value
 
-        # THE SAME FIELD AggregateBuilder's OWN reference_to BUILDS — a
+        # Declares a reference from this piece to another aggregate's identity.
+        #
+        # The same field AggregateBuilder's own reference_to builds — a
         # piece can hold a reference to another root exactly the way its
         # own head can (Card.assignee_id, a Team's own id), just never
-        # to another PIECE, since there's no cross-piece addressing
+        # to another piece, since there's no cross-piece addressing
         # anywhere in this language to resolve one against.
-        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        #
+        # Answers the `reference_to` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the reference may be absent
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `as` (or the derived name) is already declared
         def reference_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           relationship_attribute(target, :reference_to,
@@ -86,6 +117,14 @@ module Hecks
         # `*_impl` to match AggregateBuilder's own siblings, item #13's
         # full metaprogrammed dispatch convention.
         # rubocop:disable Naming/PredicatePrefix
+        # Declares a list-typed relationship to another entity, referenced by its plural name.
+        #
+        # @param type [Module, Symbol, String] the related entity's plural name, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param options [Hash] must be empty; kept only to name which unsupported keyword was
+        #   given in the refusal message
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if any keyword argument is given
         def has_many_impl(type, as: nil, **options)
           unless options.empty?
             raise Malformed,
@@ -97,19 +136,31 @@ module Hecks
                                  as || Naming.snake(plural).to_sym, list: true)
         end
 
+        # Declares a single-valued relationship to another entity.
+        #
+        # @param type [Module, Symbol, String] the related entity, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the relationship may be absent
+        # @return [void]
         def has_one_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           relationship_attribute(target, :has_one, as || Naming.snake(target).to_sym, optional: optional)
         end
         # rubocop:enable Naming/PredicatePrefix
 
+        # Declares a single-valued relationship to the entity that owns this one.
+        #
+        # @param type [Module, Symbol, String] the owning entity, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the relationship may be absent
+        # @return [void]
         def belongs_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           relationship_attribute(target, :belongs_to, as || Naming.snake(target).to_sym, optional: optional)
         end
 
-        # A PIECE is known by a field, not by a whole value object.
-        # `identified_by :sequence` names the SCALAR inside it, which is
+        # A piece is known by a field, not by a whole value object.
+        # `identified_by :sequence` names the scalar inside it, which is
         # what an id actually is — a LedgerEntry is entry 3, not entry
         # {"value":3}. `identified_by` itself is AttributeCollector's own
         # shared method (S9) — the two constructs cannot drift apart in
@@ -117,50 +168,77 @@ module Hecks
         # (`identified_by :branch_code, :box_number`), which a piece may
         # declare for the same reason a head may.
 
+        # Queues a command declared on this piece, built later once every sibling has been seen.
+        #
         # `from:` — see `AggregateBuilder#command`'s own comment; the
-        # SAME guard, checked against this PIECE's own lifecycle field
+        # same guard, checked against this piece's own lifecycle field
         # (S10, ADR 0025 — a piece's own state machine is checkable the
         # same way a head's is).
-        # RENAMED FROM `command`/`query`/`entity`/`lifecycle` (all below)
-        # — item #13's full metaprogrammed dispatch (slice 4c), same
+        #
+        # Answers the `command` word through the table's `calls:` column,
+        # along with its siblings `query`/`entity`/`lifecycle` below —
+        # item #13's full metaprogrammed dispatch (slice 4c), same
         # reasoning as AggregateBuilder's own siblings: bootstrap-
-        # reachable, in BOOTSTRAP_CALLS_FALLBACK.
+        # reachable, in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param name [String] the command's name
+        # @param from [String, Symbol, Array<String, Symbol>, nil] the lifecycle state(s) this
+        #   command guards from; nil admits from any state
+        # @yield the command body, evaluated against a `CommandBuilder` once drained
+        # @return [Array<Array>] every pending command queued so far, this one last
         def command_impl(name, from: nil, &block)
           @pending_commands << [name, from, block]
         end
 
+        # Queues a query declared on this piece, built later once every sibling has been seen.
+        #
+        # @param name [String] the query's name
+        # @yield the query body, evaluated against a `QueryBuilder` once drained
+        # @return [Array<Array>] every pending query queued so far, this one last
         def query_impl(name, &block)
           @pending_queries << [name, block]
         end
 
-        # S17, ADR 0026 — A PIECE NESTED INSIDE A PIECE. "A `Dispatch`
+        # Queues a piece nested inside this one, built later once every sibling has been seen.
+        #
+        # S17, ADR 0026 — a piece nested inside a piece. "A `Dispatch`
         # [has] no life outside its `Handler`" (the ADR's own words) —
         # the same reason `Member` nests inside `ValueObject`, one level
         # further in. `owner_value_objects` passes straight through
         # unchanged, not re-derived from this entity's own attributes —
         # a piece mints no value objects of its own at any depth, so a
-        # NESTED piece's bare `identified_by :field` still resolves
-        # against the SAME root aggregate's value objects an outer
+        # nested piece's bare `identified_by :field` still resolves
+        # against the same root aggregate's value objects an outer
         # piece's already does (`AggregateBuilder#entity`'s own comment
         # names this pool ; there is exactly one of them, however deep
         # the nesting goes).
+        # @param name [String] the nested piece's name
+        # @yield the piece body, evaluated against an `EntityBuilder` once drained
+        # @return [Array<Array>] every pending piece queued so far, this one last
         def entity_impl(name, &block)
           @pending_entities << [name, block]
         end
 
+        # Declares this piece's own state machine.
+        #
+        # @param field [Symbol, String] the attribute the state machine lives on
+        # @param default [String, Symbol] the state a new record starts in
+        # @yield the lifecycle body of `transition` rows, evaluated against a `LifecycleBuilder`
+        # @return [Bluebook::Lifecycle] the built state machine
+        # @raise [Bluebook::DSL::Malformed] if two transitions for one command overlap
         def lifecycle_impl(field, default:, &)
           @lifecycle = LifecycleBuilder.build(field, default: default, &)
         end
 
-        # A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS, DECLARED
-        # ONCE — the same move `AggregateBuilder#given` already makes,
+        # A precondition shared across this piece's own commands, declared
+        # once — the same move `AggregateBuilder#given` already makes,
         # one level down. Real, live redundancy this closes: banking's
         # own `LedgerEntry.Amend`/`LedgerEntry.Reverse` each repeated
         # `given("customer is active") { parent.customer.status ==
         # "active" }` and `given("account is open") { parent.status ==
         # "open" }`, byte for byte, because a piece had no way to declare
-        # either once and reference it back — only the AGGREGATE could.
-        # DECLARE BEFORE THE COMMANDS THAT REFERENCE IT, the same
+        # either once and reference it back — only the aggregate could.
+        # Declare before the commands that reference it, the same
         # ordering `AggregateBuilder#given`'s own comment names — though
         # since ADR 0028, `command` only queues a descriptor and actually
         # builds at `#drain_pending!` time, well after this whole block
@@ -168,87 +246,119 @@ module Hecks
         # order within the block no longer actually matters here; named
         # for the reader anyway, since `given`'s own resolution logic
         # (`CommandBuilder#reference_named_given`) still reads whatever
-        # `@named_givens` holds AT THE COMMAND'S OWN BUILD TIME, not by
+        # `@named_givens` holds at the command's own build time, not by
         # magic.
-        # RENAMED FROM `given` — item #13's full metaprogrammed dispatch
-        # (slice 4b), same reasoning as reference_to_impl above.
+        # Declares a rule this piece's own commands must satisfy, or references one a sibling
+        # piece anywhere in the chapter already declared.
         #
-        # BARE — NO BLOCK — REFERENCES ANOTHER PIECE'S OWN DECLARATION,
-        # ANYWHERE IN THE CHAPTER, not just a sibling under this same
+        # Answers the `given` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch
+        # (slice 4b), same reasoning as `reference_to_impl` above.
+        #
+        # Bare — no block — references another piece's own declaration,
+        # anywhere in the chapter, not just a sibling under this same
         # aggregate — one level wider than round 4's own cross-entity
         # sharing, mirroring `AggregateBuilder#given_impl`'s own
         # chapter-wide shape exactly one level down. Real, live corpus
         # this closes: `Account::LedgerEntry` and `SafeDepositBox::Visit`
-        # — two pieces under two DIFFERENT aggregates — independently
+        # — two pieces under two different aggregates — independently
         # typed `given("customer is active") { parent.customer.status ==
         # "active" }` byte for byte; neither the aggregate-level chapter
-        # pool (a DIFFERENT canonical — bare `customer.status`, the
+        # pool (a different canonical — bare `customer.status`, the
         # wrong scope for a piece's own command) nor the existing
         # same-aggregate cross-entity pool (`@owner_named_givens`, scoped
-        # to ONE aggregate's own entity tree) could reach across the
+        # to one aggregate's own entity tree) could reach across the
         # aggregate boundary. Resolved against `@chapter_entity_named_
         # givens`, keyed "AggregateName.EntityName" — see
         # `#reference_named_chapter_entity_given`'s own comment for the
         # algorithm and `docs/implemented/resolution-rules/
         # chapter-entity-given.md` for the full write-up.
         #
-        # `declared_by:` is a PLAIN STRING ("Account.LedgerEntry"), not a
+        # `declared_by:` is a plain string ("Account.LedgerEntry"), not a
         # constant — unlike `AggregateBuilder#given_impl`'s own
         # `declared_by:`, which names a real aggregate constant. A piece
         # has no first-class, independently-addressable reference
         # anywhere in this language (only its owning aggregate does);
-        # inventing one to make this ONE argument spelling symmetrical
+        # inventing one to make this one argument spelling symmetrical
         # with the aggregate-level word is a real, separate, unscoped
         # feature this fix does not need — ships textual now, the same
         # way `admits:` shipped textual before its own constant-bridge
         # existed, revisited only if a genuine, separate need for
         # constant-addressed pieces shows up later.
+        #
+        # @param description [String] the rule's description; also the name a sibling piece
+        #   references it by when no block is given
+        # @param declared_by [String, nil] disambiguates which piece's own rule to reference,
+        #   as `"Aggregate.Entity"`, when more than one shares `description`; only meaningful
+        #   with no block
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if given a block whose source cannot be extracted;
+        #   given no block, the description is immediately ambiguous between more than one
+        #   already-loaded piece with no `declared_by` to disambiguate; an unresolved reference
+        #   defers instead, and may still raise once the whole chapter has loaded, if it then
+        #   resolves to none or more than one candidate
         def given_impl(description, declared_by: nil, &predicate)
           return reference_named_chapter_entity_given(description, declared_by: declared_by) unless predicate
 
           named = build_rule(Given, description, predicate, owner_name: @name, word: "given",
                               extraction_failure: "its source could not be read, so no other runtime could ever evaluate it")
           @named_givens[description] = named
-          # WRITE-THROUGH, first-declared-wins (`||=`) — a SECOND piece
+          # Write-through, first-declared-wins (`||=`) — a second piece
           # under the same aggregate independently declaring the exact
           # same description stays purely local to itself (no silent
           # overwrite of whatever the first piece already shared;
           # real, live case a fuzzer or a future codemod could easily
-          # surface: two pieces phrasing an UNRELATED rule identically
+          # surface: two pieces phrasing an unrelated rule identically
           # by coincidence, same as an aggregate-level given already
           # tolerates today).
           @owner_named_givens[description] ||= named
-          # WRITE-THROUGH, PER OWNER — the chapter-wide analogue of the
+          # **Write-through, per owner** — the chapter-wide analogue of the
           # line above, keyed by [description, this piece's own dotted
           # "Aggregate.Entity" name] rather than description alone, the
           # identical reasoning `AggregateBuilder#given_impl`'s own
-          # chapter write-through gives: two DIFFERENT pieces (anywhere
-          # in the chapter) independently declaring the SAME description
-          # are two DISTINCT candidates a later bare reference chooses
+          # chapter write-through gives: two different pieces (anywhere
+          # in the chapter) independently declaring the same description
+          # are two distinct candidates a later bare reference chooses
           # between (via `declared_by:` once there is more than one),
           # never silently merged into one slot.
           @chapter_entity_named_givens[description] ||= {}
           @chapter_entity_named_givens[description]["#{@aggregate_name}.#{@name}"] ||= named
         end
 
-        # A PIECE'S OWN SHAPE RULE (S10, ADR 0025's own "Rules" shape,
+        # A piece's own shape rule (S10, ADR 0025's own "Rules" shape,
         # one level down from `ValueObjectBuilder#invariant`, whose
         # extraction/error pattern this mirrors) — checked against
-        # EVERY INSTANCE of this piece the aggregate holds, not once
+        # every instance of this piece the aggregate holds, not once
         # against the aggregate's own flat state
         # (`Admissibility#enforce_invariants`'s own recursive walk).
         # No reference-by-name form (unlike `given`) — no known corpus
-        # need for a piece's own invariant to be shared with a SIBLING
+        # need for a piece's own invariant to be shared with a sibling
         # piece yet; if that need shows up, it is `given`'s own
         # cross-entity write-through pattern to extend, not a reason to
         # invent a second one here speculatively.
-        # RENAMED FROM `invariant` — item #13's full metaprogrammed
-        # dispatch (slice 4b), same reasoning as given_impl above.
+        # Declares a rule every instance of this piece must satisfy.
+        #
+        # Answers the `invariant` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
+        # dispatch (slice 4b), same reasoning as `given_impl` above.
+        #
+        # @param description [String] the rule's description
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if the block's source could not be extracted
         def invariant_impl(description, &predicate)
           @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
                                      extraction_failure: "it would be a rule the IR cannot carry")
         end
 
+        # Assembles the declared attributes, relationships, nested constructs and rules into an
+        # `Entity`.
+        #
+        # @return [Bluebook::Entity] the built piece
+        # @raise [Bluebook::DSL::Malformed] if identity resolution, a lifecycle guard on a
+        #   command with no lifecycle, a lifecycle-field mutation outside a transition, or a
+        #   synthesized closed set colliding with one the aggregate already holds fails
         def build
           drain_pending!
           resolve_pending_identity!
@@ -268,6 +378,26 @@ module Hecks
           )
         end
 
+        # Evaluates an `entity` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the entity's name
+        # @param owner_value_objects [Array<Bluebook::ValueObject>] the owning aggregate's value
+        #   objects, for `identified_by` to resolve against
+        # @param owner_named_givens [Hash{String => Bluebook::Given}] the aggregate-wide,
+        #   cross-entity given pool
+        # @param identity_name_prefix [String, nil] the prefix a synthesized identity value
+        #   object's name takes
+        # @param identity_value_object_installer [#call, nil] called to install a synthesized
+        #   value object onto the owning aggregate
+        # @param aggregate_name [String, nil] the root aggregate's name, for chapter-wide given
+        #   keys
+        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
+        #   the chapter-wide, entity-scoped given pool
+        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide bare given
+        #   references
+        # @yield the entity body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::Entity] the built piece
+        # @raise [Bluebook::DSL::Malformed] if the body fails any check `#build` raises
         def self.build(name, owner_value_objects: [], owner_named_givens: {},
                        identity_name_prefix: nil, identity_value_object_installer: nil,
                        aggregate_name: nil, chapter_entity_named_givens: {}, chapter_entity_pending_givens: [], &block)
@@ -283,25 +413,25 @@ module Hecks
 
         private
 
-        # PRIMITIVE 2 (RuleReference#resolve_owner_keyed) — the CHAPTER-
-        # WIDE, ENTITY-SCOPED analogue of `AggregateBuilder#
+        # Primitive 2 (RuleReference#resolve_owner_keyed) — the chapter-
+        # wide, entity-scoped analogue of `AggregateBuilder#
         # reference_named_chapter_given`; the three branches below are
-        # this construct's OWN refusal wording, not shared, matching that
+        # this construct's own refusal wording, not shared, matching that
         # method's own precedent (`declared_by:` only exists on `given`
-        # so far, at either scope). UNRESOLVED is deferred, not raised
+        # so far, at either scope). Unresolved is deferred, not raised
         # here — see `#pending_chapter_entity_given`, below.
         #
-        # WRITES THROUGH TO `@owner_named_givens` TOO — not just
+        # **Writes through to `@owner_named_givens` too** — not just
         # `@named_givens` — or this piece resolving a description via the
-        # WIDER, chapter pool would leave the NARROWER, same-aggregate
+        # wider, chapter pool would leave the narrower, same-aggregate
         # pool (`EntityBuilder#given_impl`'s own block-form write-through)
-        # never populated for this description, breaking any SIBLING
+        # never populated for this description, breaking any sibling
         # piece's existing command-level bare reference
         # (`CommandBuilder#reference_named_given`) that depends on it —
         # real, live corpus: `SafeDepositBox::KeyIssuance.Return`'s own
         # bare `given("customer is active")` resolves through
         # `@owner_named_givens`, populated by `Visit`'s declaration
-        # whether `Visit` types the predicate itself OR (now) references
+        # whether `Visit` types the predicate itself or (now) references
         # `Account::LedgerEntry`'s instead — this write keeps that
         # working unchanged either way, `||=` so nothing here overrides
         # an actual local declaration if one is ever added later.
@@ -329,10 +459,10 @@ module Hecks
           @owner_named_givens[description] ||= named
         end
 
-        # A CHAPTER MAY BE SPLIT ACROSS FILES — the identical reason
+        # A chapter may be split across files — the identical reason
         # `AggregateBuilder#pending_chapter_given` defers rather than
         # raising the moment a bare reference outruns what's loaded so
-        # far. Hands back a PLACEHOLDER `Given`, embedded by Ruby object
+        # far. Hands back a placeholder `Given`, embedded by Ruby object
         # reference in this piece's own `preconditions`, and queues the
         # request in `@chapter_entity_pending_givens` —
         # `BluebookBuilder#resolve_pending_chapter_entity_givens!`
@@ -344,22 +474,22 @@ module Hecks
           placeholder
         end
 
-        # A PIECE'S OWN `one_of` LANDS ON ITS AGGREGATE. A type-position
+        # A piece's own `one_of` lands on its aggregate. A type-position
         # `one_of("never_moved", "moved")` on an entity attribute
         # synthesizes a closed-set value object — and until this, that
-        # object was built and then DROPPED: `Entity.declare` carries no
+        # object was built and then dropped: `Entity.declare` carries no
         # value objects, so the synthesized set existed nowhere in the
         # finished graph. The attribute stayed typed "Moved" with nothing
         # to resolve it: runtime admission had no closed set to enforce
         # (the one_of was decorative), and the fuzzer's ValueGenerator
         # crashed every run on the first domain to declare one — a chess
         # King/Rook's own castling flag — with `does not know primitive
-        # type "Moved"`. Installed through the SAME hook an entity's own
+        # type "Moved"`. Installed through the same hook an entity's own
         # identity value object already rides to the aggregate
         # (`identity_value_object_installer`, threaded unchanged through
         # nested pieces). Two sibling pieces synthesizing the same set
-        # (King's and Rook's own `moved`) install it once; the same NAME
-        # with a DIFFERENT member list is refused as the collision it is,
+        # (King's and Rook's own `moved`) install it once; the same name
+        # with a different member list is refused as the collision it is,
         # never first-wins silently.
         def install_closed_sets!
           return unless @identity_value_object_installer
@@ -435,7 +565,7 @@ module Hecks
 
         # `identified_by`'s own resolution pool (AttributeCollector#resolve_
         # pending_identity!'s hook, S9) — a piece mints no value objects of
-        # its own, so a bare field's own type resolves against its OWNER
+        # its own, so a bare field's own type resolves against its owner
         # aggregate's, passed in at declaration (`AggregateBuilder#entity`).
         def identity_pool = @owner_value_objects
 

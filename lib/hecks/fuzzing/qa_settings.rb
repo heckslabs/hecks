@@ -2,15 +2,15 @@ require "yaml"
 
 module Hecks
   module Fuzzing
-    # READS `qa/settings.yml` — the hecks_qa practice's own dials, now
-    # data in a file rather than Ruby constant literals. The WHY of each
+    # Reads `qa/settings.yml` — the hecks_qa practice's own dials, now
+    # data in a file rather than Ruby constant literals. The why of each
     # dial (what it does, who reads it) stays exactly one place: the
     # comments on `QualityControlDials` in `qa/bluebook/quality_control.
     # bluebook`, which now sources every value from an instance of this
     # class instead of writing it inline. This class is only the loading
     # and the validation — no dial policy lives here.
     #
-    # FAILS LOUD, NOT QUIET — the whole practice's own opening line
+    # **Fails loud, not quiet** — the whole practice's own opening line
     # ("the enemy is the quiet divergence") applies to its own settings
     # file too: a missing key, an extra key nothing recognises, or a
     # value of the wrong shape all raise immediately, at load time
@@ -18,7 +18,7 @@ module Hecks
     # what's wrong — never a `nil` dial silently reaching a script that
     # assumes a number.
     #
-    # PLAIN DATA IN, FROZEN DATA OUT. `.load` parses the YAML with
+    # **Plain data in, frozen data out**. `.load` parses the YAML with
     # `Psych.safe_load_file` (no custom tags, no arbitrary Ruby objects)
     # and hands back an instance whose accessors are the exact values a
     # human wrote in the file — a `Hash`/`Array` for the nested dials,
@@ -65,16 +65,16 @@ module Hecks
 
       attr_reader(*EXPECTED_TYPES.keys)
 
-      # THE REAL FILE, ALWAYS — resolved off THIS file's own `__dir__`
+      # **The real file, always** — resolved off this file's own `__dir__`
       # (lib/hecks/fuzzing/), never off the caller's. `QualityControlDials`
       # is defined inside `qa/bluebook/quality_control.bluebook`, and that
-      # exact directory gets COPIED to a tmpdir for every isolated/replayed
+      # exact directory gets copied to a tmpdir for every isolated/replayed
       # boot (`Hecks::Fuzzing::IsolatedBoot#copy_dereferencing` copies only
       # `qa/bluebook`'s own contents, never its parent `qa/`) — a path
       # resolved from the bluebook's own `__dir__` would silently point at
       # a copy with no `settings.yml` beside it at all. `qa/settings.yml`
       # is read-only, human-edited data with no lifecycle (see this class's
-      # own header) — there is no isolation reason to ever read a COPY of
+      # own header) — there is no isolation reason to ever read a copy of
       # it, real boot or fuzzed one, so every caller gets the one real file
       # by default. `qa_settings_spec.rb` passes its own fixture paths
       # explicitly instead, the same way every other test in this practice
@@ -83,6 +83,13 @@ module Hecks
       DEFAULT_PATH = File.expand_path("../../../qa/settings.yml", __dir__)
 
       class << self
+        # Loads and validates `qa/settings.yml` (or `path`), returning a frozen instance.
+        #
+        # @param path [String] path to the YAML settings file; defaults to `DEFAULT_PATH`
+        # @return [Hecks::Fuzzing::QaSettings] the validated, frozen settings
+        # @raise [ArgumentError] if `path` does not exist, is not valid YAML, is not a
+        #   YAML mapping at the top level, is missing a required key, declares an
+        #   unknown key, or gives a value the wrong type for its dial
         def load(path = DEFAULT_PATH)
           raise ArgumentError, "qa settings file not found: #{path}" unless File.file?(path)
 
@@ -97,6 +104,11 @@ module Hecks
         end
       end
 
+      # @param raw [Hash] parsed YAML settings keyed by symbol, one entry per dial in
+      #   `EXPECTED_TYPES`
+      # @param path [String] path to the settings file, used only in error messages
+      # @raise [ArgumentError] if `raw` is missing a required key, declares an unknown
+      #   key, or gives a value the wrong type for its dial
       def initialize(raw, path)
         missing = EXPECTED_TYPES.keys - raw.keys
         raise ArgumentError, "#{path} is missing #{missing.sort.join(', ')}" if missing.any?
@@ -127,9 +139,9 @@ module Hecks
       private
 
       # `left:`/`right:` name adapters `IsolatedBoot` case-matches by
-      # SYMBOL (`case adapter when :memory ...`), and YAML has no way to
-      # spell a bare Ruby Symbol as a mapping VALUE — only
-      # `symbolize_names:` turns a KEY into one. So `adapter_parity_
+      # symbol (`case adapter when :memory ...`), and YAML has no way to
+      # spell a bare Ruby Symbol as a mapping value — only
+      # `symbolize_names:` turns a key into one. So `adapter_parity_
       # pairs` is the one dial that needs a coercion step after the
       # type check above, rather than every dial growing one.
       def symbolize_adapter_parity_pairs!(path)

@@ -8,18 +8,26 @@ module Hecks
     # in CommandInterpreter and EntityInterpreter, where they could only
     # ever drift.
     module Interpreting
+      # Ruby's module-inclusion hook. Gives `interpreter` its own `trace`
+      # accessor, since a class including this module needs its own copy
+      # rather than one shared across every interpreter.
+      #
       # Each including interpreter gets its own `trace` — set by a spec to
       # observe dispatch order (Vocabulary::AggregateDispatchOrder and
       # Vocabulary::EntityDispatchOrder in language/bluebook/vocabulary.bluebook);
       # nil in production, always — one array push and a nil check per step
       # is the entire cost of leaving this in.
+      #
+      # @param interpreter [Class] the class (`CommandInterpreter`, `EntityInterpreter`)
+      #   including this module
+      # @return [void]
       def self.included(interpreter)
         interpreter.singleton_class.attr_accessor :trace
       end
 
       private
 
-      # Logged AFTER the step's own work, so a step that wraps sub-steps logs
+      # Logged after the step's own work, so a step that wraps sub-steps logs
       # itself once everything inside it has already logged — trace order is
       # completion order, which is dispatch order.
       def step(name)
@@ -28,21 +36,21 @@ module Hecks
         result
       end
 
-      # DRIVES `DISPATCH_ORDER` (CommandInterpreter/EntityInterpreter, each
+      # Drives `DISPATCH_ORDER` (CommandInterpreter/EntityInterpreter, each
       # read off its own generated Vocabulary::*DispatchOrder table —
       # vocabulary.bluebook, via lib/hecks/vocabulary.rb) by `send`ing
       # each declared step name against the including interpreter's own
-      # `step_<name>` handler, in declared order. What used to be `call`'s own
-      # literal sequence of method calls is now DATA driving that sequence —
-      # tracing a real dispatch and comparing it to the declaration is
+      # `step_<name>` handler, in declared order. Data drives that sequence,
+      # rather than `call` spelling it out as a literal sequence of method
+      # calls — tracing a real dispatch and comparing it to the declaration is
       # tautological once `call` mechanically follows the declaration; a
       # conditional step (assign_creation_attributes, advance_lifecycle) still
-      # has to guard ITSELF at the top of its own handler and skip tracing
+      # has to guard itself at the top of its own handler and skip tracing
       # when it does not fire, rather than the caller branching around it —
       # see CommandInterpreter#step_assign_creation_attributes.
-      # THE COMMIT BOUNDARY. Every step up to `save` runs as before;
+      # The commit boundary. Every step up to `save` runs as before;
       # `save`, `emit`, and the outbox enqueue that follows them run
-      # inside ONE `repository.transaction` — so the aggregate row, its
+      # inside one `repository.transaction` — so the aggregate row, its
       # journal entry, the recorded event, and the outbox rows naming
       # who is owed a reaction commit together or not at all. No new
       # step is added to the vocabulary's dispatch order (the step list
@@ -71,20 +79,20 @@ module Hecks
         ctx.outbox_rows = @registry.outbox.enqueue(ctx.repository, Array(ctx.result), ctx.domain)
       end
 
-      # THE CONCURRENCY-CONTROL SPLIT — see docs/decisions/ (concurrency
+      # The concurrency-control split — see docs/decisions/ (concurrency
       # control ADR) for the full mechanism. A repository that declares
       # `:optimistic_concurrency` (Postgres today) already closes the
       # lost-update gap itself, via `step_save`'s CAS + `#call`'s own
       # `StaleWrite` retry loop — an extra in-process lock here would be
       # pointless overhead, not incorrect, so it's skipped for clarity.
       # A repository that declares `:cross_process_lock` (PostgresEra —
-      # ADR 0036) holds a REAL Postgres advisory lock for the whole
+      # ADR 0036) holds a real Postgres advisory lock for the whole
       # dispatch order instead: unlike Heki/Memory (confirmed
       # process-local, never a second process writing the same store),
       # PostgresEra's own tables can be dispatched against concurrently
       # by `rust/host` from a separate OS process, and an in-process
-      # `Mutex` is invisible to that. Every OTHER repository gets the
-      # striped `Mutex` below, held for the WHOLE dispatch-order run, so
+      # `Mutex` is invisible to that. Every other repository gets the
+      # striped `Mutex` below, held for the whole dispatch-order run, so
       # a second thread's own hydrate can't start until the first
       # thread's save has landed. `lock_key_id` is best-effort
       # (`Identity.best_effort`) — `nil` still locks correctly, just
@@ -116,8 +124,8 @@ module Hecks
       # refuse_absent_arguments are separate DISPATCH_ORDER steps now (the
       # declared vocabulary lists all three as flat, sequential members, not
       # one nesting the other two), and EntityInterpreter never had them here
-      # at all (an entity inherits its aggregate's own gate). One copy,
-      # shared, rather than the two identical ones that used to drift.
+      # at all (an entity inherits its aggregate's own gate). One shared
+      # copy, rather than two identical ones that can only ever drift apart.
       def normalize_args(aggregate, command, args)
         coerce_declared_arguments(aggregate, command, args)
       end

@@ -331,25 +331,32 @@ module RustProjection
     # SORTED (Ruby's own `(required - given).sort`), refused as
     # `AbsentArgument` through the same wording site — BEFORE any field is
     # built, so a missing top-level argument is never a nested field's own
-    # `TypeMismatch` (ADR 0037 finding 3, closed here). `declared` reads
-    # `declared_reading`'s way: every attribute in declaration order, or
-    # "none". Only ever emitted for a command's own args struct
-    # (`absent_argument_check:` below) — a value object's missing field is
-    # `required_field_expr`'s business.
+    # `TypeMismatch` (ADR 0037 finding 3, closed here). `declared` is the
+    # RAW list of declared names, in declaration order — the "none"
+    # reading for a command that declares nothing is applied by
+    # `render_args`, off that argument's own `Vocabulary::
+    # RefusalSiteArgument` row, never re-decided here. Only ever emitted
+    # for a command's own args struct (`absent_argument_check:` below) —
+    # a value object's missing field is `required_field_expr`'s business.
+    #
+    # V3 — THE TYPED DOOR. `RefusalSite::...render` is private to the
+    # generated vocabulary module now; the only way in is a site's own
+    # `<Variant>Args` struct, whose fields ARE that site's declared
+    # arguments. Leaving one out, or passing a list where a scalar is
+    # declared, does not compile.
     def emit_absent_argument_check(command_name, attributes)
       required = attributes.reject { |a| a[:optional] }.map { |a| rust_field(a[:name]) }.sort
       return "" if required.empty?
 
       declared = attributes.map { |a| a[:name].to_s }
-      reading  = declared.empty? ? "none" : declared.join(", ")
       <<~RUST
                 let absent: Vec<&str> = [#{required.map(&:inspect).join(', ')}].into_iter().filter(|key| v.get(key).is_none()).collect();
                 if !absent.is_empty() {
-                    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-                        ("command", #{command_name.inspect}),
-                        ("absent", absent.join(", ").as_str()),
-                        ("declared", #{reading.inspect}),
-                    ])));
+                    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                        command: #{command_name.inspect},
+                        absent: &absent,
+                        declared: &[#{declared.map(&:inspect).join(', ')}],
+                    }.render_args()));
                 }
       RUST
     end
@@ -360,20 +367,30 @@ module RustProjection
     # trailing the sentence off mid-clause: "Close does not declare
     # parcel — it takes ". `declared_reading`'s own "none" fallback
     # (argument_gate.rb, quoted on that method) never reached this path
-    # at all, because this check builds its wording directly rather than
-    # through `RefusalSite::UnknownArgumentUnknownArgs.render` the way
-    # `emit_absent_argument_check` (above) already does — found live via
+    # at all, because this check used to build its wording directly
+    # rather than through the site — found live via
     # `bin/qa_generated_domains` (BUG#134), a policy trigger whose event
     # payload named a field the triggered command doesn't declare.
+    #
+    # V3 CLOSES THAT WHOLE CLASS rather than the one instance: neither
+    # the "none" reading nor the ", " join nor the sort lives here any
+    # more. Both lists go over RAW and are written by
+    # `UnknownArgumentUnknownArgsArgs::render_args`, which reads the same
+    # `Vocabulary::RefusalSiteArgument` rows Ruby's own
+    # `RefusalWording.render_site` does — and the generated test in
+    # rust/src/kernel/vocab/refusal_template.rs pins the two equal, per
+    # site, per list edge case, against values Ruby computed.
     def emit_unknown_argument_check(command_name, known_keys, declared_names)
-      reading = declared_names.empty? ? "none" : declared_names.join(", ")
+      declared = declared_names.map(&:to_s)
       <<~RUST
                 let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
                 if !unknown.is_empty() {
-                    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-                        "#{command_name} does not declare {} — it takes #{reading}",
-                        unknown.join(", ")
-                    )));
+                    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+                    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                        command: #{command_name.inspect},
+                        unknown: &unknown,
+                        declared: &[#{declared.map(&:inspect).join(', ')}],
+                    }.render_args()));
                 }
       RUST
     end
@@ -467,12 +484,12 @@ module RustProjection
     end
 
     # `unknown_check` — factored out of `emit_from_json_flat` (pure
-    # extraction, no behavior change) so `registry.rb`'s own standalone
-    # structural pre-pass (BUG#23, see `structural_precheck`/that file's
-    # header) can build the IDENTICAL text: the unknown-argument check,
-    # then the absent-argument check, matching Ruby's own DISPATCH_ORDER
-    # (unknown arguments refuse first, absent ones second, and only then
-    # does any field get typed).
+    # extraction, no behavior change) so `emit_argument_gates` below can
+    # build the IDENTICAL text for the two gate functions the kernel's
+    # own loop calls: the unknown-argument check, then the absent-
+    # argument check, matching Ruby's own DISPATCH_ORDER (unknown
+    # arguments refuse first, absent ones second, and only then does any
+    # field get typed).
     def unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, absent_argument_check)
       check =
         if unknown_argument_allowlist
@@ -485,45 +502,61 @@ module RustProjection
       check
     end
 
-    # THE STANDALONE STRUCTURAL GATE (BUG#23, qa/bluebook/quality_control.
-    # bluebook) — object-shape check, then `unknown_and_absent_argument_
-    # checks` above: the IDENTICAL text `emit_from_json_skeleton`'s own
-    # preamble builds for a command's top-level Args struct
-    # (`emit_object_shape_check(struct_name) + unknown_check`, below) —
-    # extracted so `registry.rb` can run this SAME check directly against
-    # `facts_json`, standalone, BEFORE an acting aggregate command's own
-    # `id_line`/`extract_id` resolves at all. Ruby's `DISPATCH_ORDER` runs
-    # `refuse_unknown_arguments`/`refuse_absent_arguments` structurally
-    # BEFORE `hydrate` — but the generated router used to resolve an
-    # acting command's `id` (via `extract_id`, against raw `facts_json`)
-    # BEFORE ever calling `Args::from_json`, the ONE place these
-    # structural checks lived — so a malformed `id`/`to:` (a route-shaped
-    # `{aggregate:, entities:}` value offered where Revoke declares a
-    # plain scalar identity, say) short-circuited the whole dispatch via
-    # `extract_id`'s own `?`/`NotFound`-wrap before a missing OTHER
-    # argument (`ends_at`, say) was ever checked, so Ruby and Rust refused
-    # different KINDS for the identical malformed command
-    # (`NotFound`/`TypeMismatch` in one domain, `AbsentArgument`/
-    # `NotFound` in another). Running this SAME check a second time,
-    # redundantly, right here BEFORE `id_line` — leaving `from_json`
-    # itself, and its own internal preamble, entirely unchanged — closes
-    # that gap without reordering `id_line` past anything or touching
-    # BUG#4's own already-settled, narrower fix (PR #529): every real
-    # dispatch reaches `id_line` exclusively through this same match arm,
-    # so this earlier copy can only ever refuse SOONER with the exact
-    # kind `from_json` would have produced anyway, never diverge from it
-    # — the identical "deliberately redundant, never conflicting" shape
-    # `invariant_check_lines` already established here for R3 (registry.
-    # rb's own header on that fix has the full argument).
+    # THE ARGUMENT GATES, ONE GENERATED FUNCTION PER DECLARED STEP
+    # (roadmap D2) — `Vocabulary::AggregateDispatchOrder`/`EntityDispatch
+    # Order`'s first three steps, emitted beside a command's own `from_
+    # json` so `rust/src/kernel/dispatch.rs`'s `decode_aggregate_arguments`/
+    # `decode_entity_arguments` can call them IN DECLARED ORDER through
+    # `kernel::ArgumentGates`. Reordering those steps in vocabulary.
+    # bluebook reorders which refusal wins with NO generator change —
+    # nothing emitted here names the order.
+    #
+    # This REPLACES the standalone `structural_precheck` (BUG#23/#38) the
+    # router used to splice ahead of `id_line`/`extract_id`: that was one
+    # deliberately-redundant copy of `from_json`'s own internal preamble,
+    # run early to beat identity resolution, with the ORDER hard-coded by
+    # where the splice happened to sit in the emitted body. The same
+    # checks are now the steps themselves, and identity resolution simply
+    # runs after every argument gate has had its say — Ruby's own order
+    # (`normalize_args` before `hydrate`, `CommandInterpreter::DISPATCH_
+    # ORDER`), which is what BUG#54's `collision_fallback` and BUG#136's
+    # discarded `_args_precheck` were each reaching for one command shape
+    # at a time.
+    #
+    # `from_json`'s own preamble is deliberately left in place: it still
+    # guards every OTHER caller of it (a nested value object's own
+    # `from_json`, `rust/tests/from_json_round_trip.rs`, a host embedding
+    # the generated chapter without the router). On the dispatch path it
+    # is re-run after these gates already passed, which can only ever
+    # agree — the identical text, from the identical builders below.
     #
     # `absent_argument_check` is always `true` here: every real caller
     # (an acting aggregate command's own top-level args,
     # `domain_generator.rb`'s `registry_commands`) already passes it that
     # way to `emit_from_json_flat` too — there is no aggregate-command
     # call site that skips it.
-    def structural_precheck(struct_name, command_name, attributes, unknown_argument_allowlist)
-      emit_object_shape_check(struct_name) +
-        unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, true)
+    def emit_argument_gates(struct_name, command_name, attributes, unknown_argument_allowlist)
+      unknown = unknown_argument_allowlist ? unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, false) : ""
+      absent  = emit_absent_argument_check(command_name, attributes)
+
+      [
+        "impl #{struct_name} {",
+        argument_gate_fn("decode_arguments", emit_object_shape_check(struct_name)),
+        "",
+        argument_gate_fn("refuse_unknown_arguments", unknown),
+        "",
+        argument_gate_fn("refuse_absent_arguments", absent),
+        "}\n"
+      ].join("\n")
+    end
+
+    # One gate function. An empty body (a command with no unknown-argument
+    # allowlist, or none of whose arguments is required) still gets its
+    # own function — the kernel's loop calls every declared step for every
+    # command — and names its parameter `_v` so an empty one never warns.
+    def argument_gate_fn(name, body)
+      parameter = body.empty? ? "_v" : "v"
+      "    pub fn #{name}(#{parameter}: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {\n#{body}        Ok(())\n    }"
     end
 
     def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil, command_name: struct_name,
@@ -832,7 +865,13 @@ module RustProjection
       row_subs = rows.map { |variant, raw| { "TmplKind" => name, "TmplMemberA" => variant, '"tmpl_member_a"' => raw.inspect } }
 
       type_name = vo[:name].to_s
-      admitted  = rows.map { |_variant, raw| raw.inspect }.join(", ")
+      # V3 — THE MEMBER LIST GOES OVER RAW. It used to be `.inspect`-
+      # quoted and joined with ", " right here, reproducing
+      # `admit_member`'s own formatting (admission.rb) by hand; that
+      # formatting is now `admitted`'s own `Vocabulary::
+      # RefusalSiteArgument` row, applied by
+      # `InvariantViolationClosedSetMemberArgs::render_args`.
+      admitted  = "[#{rows.map { |_variant, raw| raw.inspect }.join(', ')}]"
       # BUG#14 — the SAME "numeric_field" wording `required_field_expr`
       # already gives every OTHER composite field's own missing-key case
       # ("{type}.{field} expects {expected}, got nil"), resolved here at
@@ -846,7 +885,7 @@ module RustProjection
           "TmplKind" => name,
           '"tmpl_field_name"' => field_name.inspect,
           '"tmpl_closed_set_type"' => type_name.inspect,
-          '"tmpl_closed_set_admitted"' => admitted.inspect,
+          '["tmpl_closed_set_member_a"]' => admitted,
           '"tmpl_null_field_message"' => null_message.inspect,
         },
         slots: {

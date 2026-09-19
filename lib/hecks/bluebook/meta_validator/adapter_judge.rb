@@ -11,6 +11,7 @@ module Hecks
       class AdapterJudge
         attr_reader :refusals
 
+        # @param adapter [Bluebook::Adapter] the built adapter to judge
         def initialize(adapter)
           @adapter  = adapter
           @refusals = []
@@ -34,7 +35,7 @@ module Hecks
         end
 
         def send_to(verb, label, **payload)
-          offer(label) { @runtime.dispatch(verb, **args(payload)) }
+          offer(label) { @runtime.dispatch_flat(verb, args(payload)) }
         end
 
         def judge!

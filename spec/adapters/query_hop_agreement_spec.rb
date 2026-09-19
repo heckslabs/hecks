@@ -3,18 +3,18 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require "pg"
 
-# WHETHER A CROSS-AGGREGATE HOP QUERY (spec/runtime/query_hop_spec.rb's
-# own Memory-only proof) ANSWERS CORRECTLY ON A REAL SQL ADAPTER —
+# Whether a cross-aggregate hop query (spec/runtime/query_hop_spec.rb's
+# own Memory-only proof) answers correctly on a real SQL adapter —
 # flagged as a still-open question by docs/prds/02-fuzzer-real-adapters.md
 # and docs/1.0-readiness.md after the sibling index-DDL bug
 # (schema_builder.rb#index_field!, fixed 2026-08-27) turned out to be a
-# real gap for the SAME "owner/field" shape.
+# real gap for the same "owner/field" shape.
 #
-# Investigated and found NOT a gap, for a structural reason worth pinning
+# Investigated and found not a gap, for a structural reason worth pinning
 # rather than re-deriving: `Runtime::ReferenceHop.apply` runs inside
-# `QueryInterpreter#call`, BEFORE `Ports::Query.execute` ever reaches an
+# `QueryInterpreter#call`, before `Ports::Query.execute` ever reaches an
 # adapter (lib/hecks/runtime/query_interpreter.rb:34) — a hop where-clause
-# is folded into a synthetic LOCAL `in:` clause on the referencing
+# is folded into a synthetic local `in:` clause on the referencing
 # attribute for every engine alike, so `SqlQueryBuilder#query_expression`
 # never actually sees a "owner/field"-shaped field name. The index bug and
 # this non-bug share a root cause description ("owner/field" reaching SQL
@@ -67,7 +67,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   # `binder` bare-persists (`persisted_by("Sqlite")`/`persisted_by("Postgres")`,
   # no block) — settings live in a separate `Hecks.world` block, same split
   # `IsolatedBoot#rebind_to_postgres!` uses and for the same reason: a
-  # `persisted_by(...) do ... end` block is NOT how this DSL spells adapter
+  # `persisted_by(...) do ... end` block is not how this DSL spells adapter
   # settings, `Hecks.world "<Name>" do persisted_by("X") do ... end end` is.
   def boot_hop_chain(adapter:, sqlite_root: nil)
     registry = Hecks::Runtime::Registry.new
@@ -91,7 +91,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
         # Node's own self-referential chain (spec/runtime/query_hop_spec.rb's
         # "revisits the same aggregate type" case) is proven once on Memory
         # already — this file's job is the SQL-adapter question for a
-        # cross-AGGREGATE hop, so Node stays Memory-bound rather than
+        # cross-aggregate hop, so Node stays Memory-bound rather than
         # tripling every case below for no new coverage.
         HopChain::Node.persisted_by("Memory")
       end
@@ -111,26 +111,26 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   end
 
   def seed(runtime)
-    runtime.dispatch("HopChain::Client.Register", name: { value: "Acme" })
-    runtime.dispatch("HopChain::Client.Register", name: { value: "Zombie Corp" })
-    runtime.dispatch("HopChain::Client.Churn", name: { value: "Zombie Corp" })
+    runtime.dispatch_flat("HopChain::Client.Register", name: { value: "Acme" })
+    runtime.dispatch_flat("HopChain::Client.Register", name: { value: "Zombie Corp" })
+    runtime.dispatch_flat("HopChain::Client.Churn", name: { value: "Zombie Corp" })
 
-    runtime.dispatch("HopChain::Engagement.Start", client: "Acme", reference: { value: "e-1" })
-    runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-1" })
-    runtime.dispatch("HopChain::Engagement.Start", client: "Zombie Corp", reference: { value: "e-2" })
-    runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-2" })
+    runtime.dispatch_flat("HopChain::Engagement.Start", client: "Acme", reference: { value: "e-1" })
+    runtime.dispatch_flat("HopChain::Engagement.Demo", reference: { value: "e-1" })
+    runtime.dispatch_flat("HopChain::Engagement.Start", client: "Zombie Corp", reference: { value: "e-2" })
+    runtime.dispatch_flat("HopChain::Engagement.Demo", reference: { value: "e-2" })
 
-    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-1", number: { value: "P-1" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-1" })
-    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-2" })
-    runtime.dispatch("HopChain::Proposal.Draft", number: { value: "P-3" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-3" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", engagement: "e-1", number: { value: "P-1" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-1" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-2" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", number: { value: "P-3" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-3" })
   end
 
   def ids(runtime, query) = runtime.query(query).map { |r| r[:id] }
 
-  # THE SAME HAND-COMPUTED EXPECTATIONS spec/runtime/query_hop_spec.rb
+  # The same hand-computed expectations spec/runtime/query_hop_spec.rb
   # already pins for Memory — repeated here as an independent oracle
   # rather than merely diffed against Memory's own answer, same discipline
   # spec/adapters/query_agreement_spec.rb's own header explains: engines

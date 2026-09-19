@@ -84,8 +84,8 @@ RSpec.describe "mutation op clamp" do
 
   it "bounds a value ABOVE the max down to the max" do
     runtime = boot_mutation_clamp
-    runtime.dispatch("MutationClampGrowth::Organ.Open", id: { value: "o1" }, strength: { value: 1.4 })
-    runtime.dispatch("MutationClampGrowth::Organ.Bound", id: "o1")
+    runtime.dispatch_flat("MutationClampGrowth::Organ.Open", id: { value: "o1" }, strength: { value: 1.4 })
+    runtime.dispatch_flat("MutationClampGrowth::Organ.Bound", id: "o1")
 
     organ = repository_for(runtime).find("o1")
     expect(organ[:strength][:value]).to eq(1.0)
@@ -93,8 +93,8 @@ RSpec.describe "mutation op clamp" do
 
   it "bounds a value BELOW the min up to the min" do
     runtime = boot_mutation_clamp
-    runtime.dispatch("MutationClampGrowth::Organ.Open", id: { value: "o2" }, strength: { value: -0.3 })
-    runtime.dispatch("MutationClampGrowth::Organ.Bound", id: "o2")
+    runtime.dispatch_flat("MutationClampGrowth::Organ.Open", id: { value: "o2" }, strength: { value: -0.3 })
+    runtime.dispatch_flat("MutationClampGrowth::Organ.Bound", id: "o2")
 
     organ = repository_for(runtime).find("o2")
     expect(organ[:strength][:value]).to eq(0.0)
@@ -102,26 +102,26 @@ RSpec.describe "mutation op clamp" do
 
   it "leaves an in-range value untouched" do
     runtime = boot_mutation_clamp
-    runtime.dispatch("MutationClampGrowth::Organ.Open", id: { value: "o3" }, strength: { value: 0.42 })
-    runtime.dispatch("MutationClampGrowth::Organ.Bound", id: "o3")
+    runtime.dispatch_flat("MutationClampGrowth::Organ.Open", id: { value: "o3" }, strength: { value: 0.42 })
+    runtime.dispatch_flat("MutationClampGrowth::Organ.Bound", id: "o3")
 
     organ = repository_for(runtime).find("o3")
     expect(organ[:strength][:value]).to eq(0.42)
   end
 
-  # THE PHANTOM-FIELD FIX (docs/fuzzer-property-expansion-plan.md
+  # The phantom-field fix (docs/fuzzer-property-expansion-plan.md
   # summary, item 4): #arithmetic/#multiply both give a never-set
   # numeric field `current ||= 0` — #clamp didn't, so it hit TypeMismatch
-  # on the FIRST clamp of a field OpenBare never assigned, where
+  # on the first clamp of a field OpenBare never assigned, where
   # increment/decrement/multiply would have silently treated the same
   # absence as zero. Clamping 0.0 into [0.0, 1.0] leaves it at the
   # bottom of the range, untouched — the same "in range" outcome the
   # previous example proves for an explicitly-set 0.42.
   it "treats a phantom (never-set) numeric field as zero rather than refusing TypeMismatch" do
     runtime = boot_mutation_clamp
-    runtime.dispatch("MutationClampGrowth::Organ.OpenBare", id: { value: "o4" })
+    runtime.dispatch_flat("MutationClampGrowth::Organ.OpenBare", id: { value: "o4" })
 
-    expect { runtime.dispatch("MutationClampGrowth::Organ.Bound", id: "o4") }.not_to raise_error
+    expect { runtime.dispatch_flat("MutationClampGrowth::Organ.Bound", id: "o4") }.not_to raise_error
 
     organ = repository_for(runtime).find("o4")
     expect(organ[:strength][:value]).to eq(0.0)

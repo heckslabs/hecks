@@ -5,12 +5,12 @@ module Hecks
     class Postgres
       # How a state crosses the column boundary: which fields persist, and
       # how each one encodes into (and decodes out of) its column. Same
-      # SHAPE as Sqlite::Codec (one column per attribute, JSON for
+      # shape as Sqlite::Codec (one column per attribute, JSON for
       # nested/list) — not its mechanics. Sqlite's own columns carry no
       # type affinity worth trusting on the way back out (SQLite gives it
       # back typed anyway via the driver), but `pg` hands every column
-      # back as TEXT unless a type map says otherwise, so a real `bigint`/
-      # `double precision` column needs its OWN coercion on decode that
+      # back as text unless a type map says otherwise, so a real `bigint`/
+      # `double precision` column needs its own coercion on decode that
       # Sqlite never had to write.
       module Codec
         private
@@ -23,7 +23,7 @@ module Hecks
           fields << { name: lifecycle.field, attribute: nil, sql_type: "text" } if lifecycle && fields.none? do |field|
             field[:name] == lifecycle.field
           end
-          # `projects` FIELDS (S12, ADR 0025) ARE A LOCAL COLUMN TOO — see
+          # `projects` fields (S12, ADR 0025) are a local column too — see
           # Sqlite::Codec#persisted_fields' own comment; identical reasoning,
           # `text` to match this file's own lowercase SQL type spelling.
           @aggregate.projected_fields.each do |field|
@@ -35,7 +35,7 @@ module Hecks
         end
 
         def encode(attr, value)
-          # NEVER SET IS NOT EMPTY — same reasoning as Sqlite::Codec's own
+          # **Never set is not empty** — same reasoning as Sqlite::Codec's own
           # comment: a list attribute nothing has ever appended to has to
           # stay NULL to answer the same as Memory does, not become `[]`
           # invented by this adapter's own storage.
@@ -55,7 +55,7 @@ module Hecks
         # (PR A3) — see Sqlite::Codec#state_json.
         def state_json(value) = JSON.generate(Ports::Persistence::StateCodec.encode(@aggregate, value))
 
-        # Columns reassembled, then decoded ONCE through the state codec
+        # Columns reassembled, then decoded once through the state codec
         # (PR A3) — see Sqlite::Codec#decode, including why a NULL
         # projected-only column reads back absent.
         def decode(row)

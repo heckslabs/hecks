@@ -8,7 +8,7 @@ require "tmpdir"
 # checkpoint, no rehydration, no compensation replay if the process
 # dies mid-saga. Silent until then, which is exactly the shape ADR
 # 0025 refused for an unchecked `role`. Here the same gap gets a
-# WARNING rather than a refusal, because — unlike an ungoverned role —
+# warning rather than a refusal, because — unlike an ungoverned role —
 # running a saga on a non-durable store is something an author chooses
 # on purpose in dev/test (`saga_durability_spec.rb`'s own saga_mutex
 # spec boots the identical Wire fixture on Memory for exactly that

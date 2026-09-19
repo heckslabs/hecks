@@ -4,9 +4,11 @@ module Hecks
       # New-era attributes that nothing feeds: absent from every
       # translated state, produced by no rule, and carrying no default.
       # A report, not a violation — the remedy is a `default:` on the
-      # attribute, and the loud refusal for a REQUIRED one comes from
+      # attribute, and the loud refusal for a required one comes from
       # Layer 1 the moment an invariant reads it.
       module UnfedReport
+        # Lists the current era's attributes that no rule, default or translated record feeds.
+        #
         # `fed` build-up plus one ordered guard chain per attribute
         # (already fed, has a default, actually present in some record, no
         # records to check at all) answering a single question — "is
@@ -14,6 +16,13 @@ module Hecks
         # rules out one way the answer is "not unfed after all" before the
         # next is even worth asking. Splitting the guards out would just
         # turn each into a same-shaped one-line predicate call.
+        #
+        # @param aggregate [Bluebook::Aggregate] the current era's IR for the aggregate
+        # @param declared [Bluebook::TranslationAggregate, nil] this edge's rules; the
+        #   destinations of its renames, moves, converts and computes count as fed
+        # @param after [Hash{String => Hash}] translated state per record id
+        # @return [Array<String>] names of unfed attributes, in declaration order; `[]` when
+        #   every attribute is fed or `after` holds no records
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/PerceivedComplexity
         def unfed(aggregate, declared, after)
@@ -36,6 +45,12 @@ module Hecks
           end
         end
 
+        # Reads a dotted path out of a state whose keys may be Strings or Symbols.
+        #
+        # @param state [Hash, nil] the state to read
+        # @param path [String, Symbol] a bare or dotted path, such as `"price.cents"`
+        # @return [Object, nil] the value held at the path, `false` included; nil when `state`
+        #   is nil, a segment is absent, or a segment's parent is not a Hash
         def dig_path(state, path)
           return nil if state.nil?
 

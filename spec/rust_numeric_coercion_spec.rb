@@ -10,7 +10,7 @@ require_relative "support/rust_conformance_helpers"
 #   L21 — `rust/src/kernel/json.rs`'s `f64 -> i64` casts (`as_i64`,
 #   `Fielded::field`/`items`, `to_id_component`) used Rust's own `as i64`
 #   cast unguarded. That cast does not panic or truncate on an
-#   out-of-range float — it SATURATES to `i64::MAX`/`i64::MIN` silently.
+#   out-of-range float — it saturates to `i64::MAX`/`i64::MIN` silently.
 #   Every generated `from_json` in `rust/src/generated/**` already calls
 #   `.as_i64().ok_or_else(|| Refusal::TypeMismatch(...))`, so the actual
 #   fix was narrow: make `as_i64` (via the new private `integral_i64`
@@ -27,12 +27,12 @@ require_relative "support/rust_conformance_helpers"
 #
 # Ruby's `Integer` promotes to Bignum with no ceiling; this Rust kernel
 # has no arbitrary-precision integer type anywhere (`Json::Num` is a
-# plain `f64` end to end). That used to be a recorded parity gap — Ruby
+# plain `f64` end to end). That was once a recorded parity gap — Ruby
 # accepted both scenarios below, Rust refused. C3.3 (docs/semantics/
-# bluebook-semantics.md) closed it the other way round: Integer IS a
+# bluebook-semantics.md) closed it the other way round: Integer is a
 # signed 64-bit integer in the language, an out-of-range value is a
-# `TypeMismatch` at the boundary and an overflowing addition is a FAULT
-# (C8.3) — so the two Ruby examples below now pin the SAME refusal the
+# `TypeMismatch` at the boundary and an overflowing addition is a fault
+# (C8.3) — so the two Ruby examples below now pin the same refusal the
 # Rust ones always did, never a crash and never a silently wrong
 # (saturated/wrapped) number standing in for the real one.
 #
@@ -56,7 +56,7 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   # comment) so do most of rust_conformance_spec.rb's fixtures whenever
   # `config.order = :random` interleaves this file's examples with
   # theirs in the same rspec process; sharing one cache means only the
-  # FIRST such request anywhere in the process pays for a real `cargo
+  # first such request anywhere in the process pays for a real `cargo
   # build`. The old local fallback to a bare `--features banking` (no
   # `--no-default-features`) build if Cargo.toml's own feature-
   # declaration shape ever changed is dropped here: it was never
@@ -137,8 +137,8 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   # L21 — `Account.Open`'s `daily_limit.cents` (`DailyLimit`, a plain
   # Integer-typed field) goes through the exact same generated
   # `x.as_i64().ok_or_else(...)` this fix repairs. A JSON number far
-  # outside `i64`'s range used to silently become `Some(i64::MAX)` via
-  # the unguarded `as i64` cast; it must now be a clean refusal instead.
+  # outside `i64`'s range would otherwise silently become `Some(i64::MAX)` via
+  # the unguarded `as i64` cast; it must be a clean refusal instead.
   HUGE_OUT_OF_RANGE = 10**30
 
   def out_of_range_steps

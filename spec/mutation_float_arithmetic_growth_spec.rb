@@ -1,11 +1,11 @@
 require "spec_helper"
 require "tempfile"
 
-# Real dispatch coverage for Float/Numeric arithmetic on the EXISTING
+# Real dispatch coverage for Float/Numeric arithmetic on the existing
 # increment/decrement ops: CommandRules::Arithmetic#arithmetic/
-# #arithmetic_value_object were Integer-only before this fix, so any
-# Float-typed field (miette's own organ math, "increment: 0.02") raised
-# a TypeMismatch the caller never made. Widened from Integer to Numeric.
+# #arithmetic_value_object accept Numeric, not just Integer, because a
+# Float-typed field (miette's own organ math, "increment: 0.02") would
+# otherwise raise a TypeMismatch the caller never made.
 # Independent of `multiply`/`clamp` landing -- those are brand-new ops
 # with their own Numeric checks from birth and never call #arithmetic/
 # #arithmetic_value_object at all; this fix is exclusively a value-add
@@ -90,8 +90,8 @@ RSpec.describe "Float arithmetic on increment/decrement" do
 
   it "increments a Float-typed value object field" do
     runtime = boot_float_arithmetic
-    runtime.dispatch("FloatArithmeticGrowth::Organ.Open", id: { value: "o1" }, strength: { value: 0.5 })
-    runtime.dispatch("FloatArithmeticGrowth::Organ.Grow", id: "o1", amount: { value: 0.02 })
+    runtime.dispatch_flat("FloatArithmeticGrowth::Organ.Open", id: { value: "o1" }, strength: { value: 0.5 })
+    runtime.dispatch_flat("FloatArithmeticGrowth::Organ.Grow", id: "o1", amount: { value: 0.02 })
 
     organ = repository_for(runtime).find("o1")
     expect(organ[:strength][:value]).to be_within(0.0001).of(0.52)
@@ -99,8 +99,8 @@ RSpec.describe "Float arithmetic on increment/decrement" do
 
   it "decrements a Float-typed value object field" do
     runtime = boot_float_arithmetic
-    runtime.dispatch("FloatArithmeticGrowth::Organ.Open", id: { value: "o2" }, strength: { value: 0.5 })
-    runtime.dispatch("FloatArithmeticGrowth::Organ.Fatigue", id: "o2", amount: { value: 0.1 })
+    runtime.dispatch_flat("FloatArithmeticGrowth::Organ.Open", id: { value: "o2" }, strength: { value: 0.5 })
+    runtime.dispatch_flat("FloatArithmeticGrowth::Organ.Fatigue", id: "o2", amount: { value: 0.1 })
 
     organ = repository_for(runtime).find("o2")
     expect(organ[:strength][:value]).to be_within(0.0001).of(0.4)

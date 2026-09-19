@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# S2 (docs/audits/2026-08-10-main-bug-audit.md) — `dig`/`read` used to try
-# a symbol key, then `||` into the string spelling: `current[segment.to_sym]
-# || current[segment]`. When the symbol key holds a genuinely-stored
-# `false`, `false || current[segment]` falls through to the (usually
+# S2 (docs/audits/2026-08-10-main-bug-audit.md) — trying a symbol key, then
+# falling back into the string spelling with `||` (`current[segment.to_sym]
+# || current[segment]`) would break `dig`/`read` on a genuinely-stored
+# `false`: `false || current[segment]` falls through to the (usually
 # absent) string spelling and returns `nil` instead of the real answer.
 # The seal admits boolean leaves (`SCALAR_PRIMITIVES` below carries
 # `TrueClass`/`FalseClass`), so a query filtering on a `false`-valued leaf
@@ -53,7 +53,7 @@ RSpec.describe Hecks::QuerySpecification::FieldPath do
 
   describe ".read" do
     it "prefers the symbol spelling when both a true string value and a false symbol value are held" do
-      # THE ADVERSARIAL CASE: if the symbol side genuinely holds `false`,
+      # **The adversarial case**: if the symbol side genuinely holds `false`,
       # nothing may fall through to the string side even when the string
       # side holds something else entirely — presence at the symbol key
       # decides the read outright.

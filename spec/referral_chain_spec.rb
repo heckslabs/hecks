@@ -6,20 +6,20 @@ require_relative "support/rust_conformance_helpers"
 # qa/stress_domains/referral_chain — see its own NOTES.md and the header
 # comment on referral_chain.bluebook for why this domain exists: a
 # three-aggregate `reference_to` chain (Referral -> Member -> Sponsor,
-# ANGLE-2 in the QA ledger) walking every hop the runtime's reference
+# angle-2 in the QA ledger) walking every hop the runtime's reference
 # machinery has — a one-hop and a two-hop `given` through a fresh
 # argument, a two-hop `where`, and a reference re-pointed through a
 # plain value object so only a settled-state reference check can catch a
 # dangling one.
 #
-# These pin the RUBY side's answers — the reference the differential
+# These pin the Ruby side's answers — the reference the differential
 # harness compares Rust against. `Referral.Reassign`'s own example used
 # to be the one Rust disagreed with on the first real run (NOTES.md,
 # "What this domain found") — QualityControl BUG#26 / ADR 0037 Finding 5,
-# reopened by this domain and CLOSED by `rust/project/domain_generator.rb
+# reopened by this domain and closed by `rust/project/domain_generator.rb
 # #state_reference_checks` (mirrored in `rust/codegen/src/domain_
 # generator.rs`): a revalued reference redeclared under a plain value
-# object is now checked at the router, against the AGGREGATE's own
+# object is now checked at the router, against the aggregate's own
 # `Reference<X>` attribute, the same pre-dispatch shape `reference_checks`
 # already used for an ordinary `reference_to` command argument.
 RSpec.describe "ReferralChain" do
@@ -72,7 +72,7 @@ RSpec.describe "ReferralChain" do
       .to raise_error(Hecks::Runtime::GivenNotMet, /the sponsor is in good standing/)
   end
 
-  # THE TWO-HOP GIVEN — `member.sponsor.standing`: `member` hydrates to
+  # **The two-hop given** — `member.sponsor.standing`: `member` hydrates to
   # the Member's state, whose own `sponsor` hydrates one hop further
   # (`CommandRules::References#dereference` recursing).
   it "issues a referral while the member's sponsor stands in good standing, and refuses once that sponsor is suspended" do
@@ -86,7 +86,7 @@ RSpec.describe "ReferralChain" do
       .to raise_error(Hecks::Runtime::GivenNotMet, /the member's sponsor is in good standing/)
   end
 
-  # THE TWO-HOP WHERE — `member/sponsor/standing`, walked by
+  # **The two-hop where** — `member/sponsor/standing`, walked by
   # `QuerySpecification::HopPath`; Rust structurally refuses this query,
   # so Ruby's own answer here is the only one the practice has.
   it "answers the two-hop where by the sponsor two references away, not by anything the referral itself stores" do
@@ -101,12 +101,12 @@ RSpec.describe "ReferralChain" do
     expect(codes).to eq(["from-good"])
   end
 
-  # THE ADR 0037 FINDING 5 SHAPE — `Reassign` redeclares `member` under a
+  # **The ADR 0037 finding 5 shape** — `Reassign` redeclares `member` under a
   # plain `Handle`, so the command-level reference check on the command's
-  # OWN attribute sees nothing to check (it isn't `reference?`-true); a
-  # SECOND, aggregate-level check (`state_reference_checks`, domain_
+  # own attribute sees nothing to check (it isn't `reference?`-true); a
+  # second, aggregate-level check (`state_reference_checks`, domain_
   # generator.rb — Rust's own port of this shape) asks whether the value
-  # actually names a real Member, resolved against the AGGREGATE's own
+  # actually names a real Member, resolved against the aggregate's own
   # `Reference<Member>` attribute of the same name instead.
   it "re-points a referral at an existing member through a plain handle" do
     runtime
@@ -128,8 +128,8 @@ RSpec.describe "ReferralChain" do
     expect(ReferralChain::Referral.find("r1")[:member]).to eq("m1")
   end
 
-  # BUG#26 (QualityControl ledger) / ADR 0037 FINDING 5, REOPENED — the
-  # RUST SIDE of the example just above. Before `rust/project/domain_
+  # BUG#26 (QualityControl ledger) / ADR 0037 finding 5, reopened — the
+  # Rust side of the example just above. Before `rust/project/domain_
   # generator.rb#state_reference_checks` (mirrored in `rust/codegen/src/
   # domain_generator.rs`), the compiled conformance binary accepted this
   # exact sequence, emitted `ReferralReassigned`, and stored `member:
@@ -137,7 +137,7 @@ RSpec.describe "ReferralChain" do
   # `Hecks::Fuzzing::SequenceGenerator.generate("qa/stress_domains/
   # referral_chain", seed: 2, steps: 25, adversarial: 0.3)`, replayed
   # through `Hecks::Fuzzing::Replay` against the compiled binary. Both
-  # engines now refuse `NotFound`, byte-for-byte on the refusal KIND
+  # engines now refuse `NotFound`, byte-for-byte on the refusal kind
   # (C8.2 — prose is not the contract), and both leave the referral's own
   # `member` field untouched.
   #
@@ -169,15 +169,15 @@ RSpec.describe "ReferralChain" do
     expect(referral["member"]).to eq("m1"), "Rust must not persist a dangling member reference"
   end
 
-  # BUG#<N> (QualityControl ledger) — the DRY-RUN twin of the real-dispatch
+  # Bug#<N> (QualityControl ledger) — the dry-run twin of the real-dispatch
   # example just above, and where the practice's own differential fuzzer
   # (SW-referral_chain-1789342724, seed 1) actually caught this: Dispatcher
   # #dry_run?'s own comment promises "if this were dispatched right now,
   # would it succeed" — but `CommandInterpreter#step_save` returns before
   # ever calling `resolve_state_references` when `ctx.dry_run` is set, so
-  # THIS was the one check real dispatch performs that a dry run silently
-  # skipped. Before the fix, `dry_run?` answered `true` for a `Reassign`
-  # naming no real Member — disagreeing with the real dispatch one line
+  # this is the one check real dispatch performs that a dry run would
+  # otherwise silently skip. Left unguarded, `dry_run?` would answer `true`
+  # for a `Reassign` naming no real Member — disagreeing with the real dispatch one line
   # below it, which has always correctly refused. The compiled Rust
   # conformance binary already refused this shape on both paths (its
   # `state_reference_checks` runs at the router, unconditionally, so it

@@ -2,7 +2,7 @@ require "spec_helper"
 require "json"
 require "hecks/fuzzing/form_census"
 
-# A FORM EXERCISED ALONE IS NOT A FORM EXERCISED.
+# A form exercised alone is not a form exercised.
 #
 # The third coverage gate, and the one the other two set up. `plurality` asks
 # whether a declared list is ever filled twice. `optionality` asks whether a
@@ -15,7 +15,7 @@ require "hecks/fuzzing/form_census"
 #                                                 first part of the piece's id
 #   two events            ×  a reaction           nothing had ever ordered two
 #                                                 announcements from one dispatch
-#   a plain argument      ×  a cross-reference    the derived attribute ORDER
+#   a plain argument      ×  a cross-reference    the derived attribute order
 #                                                 came out wrong, and only because
 #                                                 no command had ever declared them
 #                                                 in that order
@@ -24,17 +24,17 @@ require "hecks/fuzzing/form_census"
 # idea: a reader can be right about references and right about arguments, and
 # wrong the first time a command puts an argument before a reference.
 #
-# PAIRWISE, NOT EVERY SUBSET. Thirteen properties is 78 pairs and 8192 subsets;
+# **Pairwise, not every subset**. Thirteen properties is 78 pairs and 8192 subsets;
 # pairwise is the standard tractable cut and it is where the interactions above
 # actually lived. It is also cheap to satisfy well: the corpus went from 27
-# uncovered pairs to 3 by enriching ONE aggregate, because the gaps cluster
+# uncovered pairs to 3 by enriching one aggregate, because the gaps cluster
 # around the rare forms rather than spreading evenly.
 #
-# THE UNIT IS ONE AGGREGATE. Two forms in the same chapter but different heads
+# **The unit is one aggregate**. Two forms in the same chapter but different heads
 # never meet at dispatch; two forms on one head do.
 #
-# THE TABLE ITSELF LIVES IN `Hecks::Fuzzing::FormCensus` (lib/hecks/fuzzing/
-# form_census.rb) — extracted so `bin/qa_domain_novelty` (the gate a NEW
+# The table itself lives in `Hecks::Fuzzing::FormCensus` (lib/hecks/fuzzing/
+# form_census.rb) — extracted so `bin/qa_domain_novelty` (the gate a new
 # stress domain has to pass before it joins the QA rotation: does it put
 # two forms together that no existing target does?) measures with the
 # identical census this spec holds the golden corpus to. One table, two
@@ -42,15 +42,15 @@ require "hecks/fuzzing/form_census"
 RSpec.describe "every pair of declared forms, met on one aggregate" do
   FormCensus = Hecks::Fuzzing::FormCensus
 
-  # UNMET ON PURPOSE — and empty, which is the position to defend. An entry
+  # **Unmet on purpose** — and empty, which is the position to defend. An entry
   # would be a pair of forms no aggregate exercises together, with a reason.
   ALLOWED_APART = {}.freeze
 
-  # HELD OUTSIDE THE GOLDENS, ON PURPOSE. The reference-hop family joined
-  # the census with `qa/stress_domains/referral_chain` (ANGLE-2) — forms
+  # **Held outside the goldens, on purpose**. The reference-hop family joined
+  # the census with `qa/stress_domains/referral_chain` (angle-2) — forms
   # the golden corpus was never enriched to pair with everything else,
   # because the place a rare reference shape gets exercised against the
-  # rest of the language is a STRESS DOMAIN in the QA rotation, measured
+  # rest of the language is a stress domain in the QA rotation, measured
   # by `bin/qa_domain_novelty` against every ledger target, not a
   # teaching example pinned in spec/golden. Every pair touching one of
   # these forms is excused from the golden gate here, by form, with the
@@ -59,7 +59,18 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
   HELD_OUTSIDE_THE_GOLDENS = {
     "two_hop_given"      => "qa/stress_domains/referral_chain (Referral.Issue)",
     "multi_hop_where"    => "qa/stress_domains/referral_chain (Referral.FromGoodSponsors)",
-    "revalued_reference" => "qa/stress_domains/referral_chain (Referral.Reassign)"
+    "revalued_reference" => "qa/stress_domains/referral_chain (Referral.Reassign)",
+    # Joined the census late, though the corpus had it all along —
+    # `examples/banking` declares `corrects` mutations, and the census
+    # simply had no form naming them, so `bin/qa_domain_novelty` told
+    # three stress domains built around retroactive correction that they
+    # met "no new pair". The goldens pair it with most forms already; the
+    # six rare ones they do not (composite_id, two_entities,
+    # composite_piece, multi_emit, has_default, has_optional) are paired
+    # where corrections actually get stressed — and both of those domains
+    # are in the rotation now.
+    "corrects"           => "qa/stress_domains/corrections (Ledger.AmendEntry), " \
+                            "qa/stress_domains/case_escalation (Invoice.AmendCharge)"
   }.freeze
 
   def aggregates
@@ -129,6 +140,20 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
   # aggregate that carries the rare forms together now — Market::Stall proved
   # the same six reachable before that domain folded into banking; if this
   # stops, the walk has broken rather than the corpus.
+  # The corpus had both all along — that is the point. `corrects` and
+  # `role_gated` were declared, dispatched and fuzzed for months while
+  # this census had no form naming either, so `bin/qa_domain_novelty`
+  # could tell a domain built around retroactive correction that it met
+  # "no new pair" (three stress domains' NOTES.md say so in as many
+  # words). A form that measures nothing in the corpus would be the
+  # opposite mistake, so this names where each one actually lives.
+  it "sees the two forms it was blind to, on the corpus that already carried them" do
+    carrying = ->(form) { aggregates.select { |_, shows| shows[form] }.map(&:first) }
+
+    expect(carrying.call("corrects")).not_to be_empty, "no golden aggregate carries a corrects mutation"
+    expect(carrying.call("role_gated")).not_to be_empty, "no golden aggregate carries a role-gated command"
+  end
+
   it "measures an aggregate it knows carries several rare forms at once" do
     box = aggregates.find { |name, _| name == "Banking::SafeDepositBox" }
     expect(box).not_to be_nil, "Banking::SafeDepositBox is gone from the goldens"

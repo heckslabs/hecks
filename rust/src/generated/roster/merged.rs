@@ -86,9 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::roster::roster::OpenArgs::from_json(facts_json)?;
-                      args.name.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::OpenArgs::from_json(v)?; args.name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::OpenArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::OpenArgs::from_json(v)?; args.name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::OpenArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -99,28 +97,8 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("MarkArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["to", "id", "roster", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Mark does not declare {} — it takes to",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["to"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Mark"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "to"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Mark acts on an existing Roster — pass name.value:".to_string()))?, };
-              let args = crate::generated::roster::roster::MarkArgs::from_json(facts_json)?;
-                      args.to.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::MarkArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::MarkArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::MarkArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::MarkArgs::from_json(v)?; args.to.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::MarkArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::MarkArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::MarkArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::MarkArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::MarkArgs::from_json(v)?; args.to.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::MarkArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Mark", aggregate: "Roster", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -131,20 +109,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("NoticeArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["to", "id", "roster", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Notice does not declare {} — it takes to",
-        unknown.join(", ")
-    )));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Notice acts on an existing Roster — pass name.value:".to_string()))?, };
-              let args = crate::generated::roster::roster::NoticeArgs::from_json(facts_json)?;
-                      if let Some(v) = &args.to { v.check_invariants()?; }
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::NoticeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::NoticeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::NoticeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::NoticeArgs::from_json(v)?; if let Some(v) = &args.to { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::NoticeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::NoticeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::NoticeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::NoticeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::NoticeArgs::from_json(v)?; if let Some(v) = &args.to { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::NoticeArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Notice", aggregate: "Roster", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -155,27 +121,8 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("HonorArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["rank", "id", "roster", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Honor does not declare {} — it takes rank",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["rank"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Honor"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "rank"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Honor acts on an existing Roster — pass name.value:".to_string()))?, };
-              let args = crate::generated::roster::roster::HonorArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::HonorArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::HonorArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::HonorArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::HonorArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::HonorArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::HonorArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::HonorArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::HonorArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::HonorArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::HonorArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Honor", aggregate: "Roster", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -186,28 +133,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddSeatArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["number", "row", "id", "roster", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AddSeat does not declare {} — it takes number, row",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["number", "row"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AddSeat"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "number, row"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSeat acts on an existing Roster — pass name.value:".to_string()))?, };
-              let args = crate::generated::roster::roster::AddSeatArgs::from_json(facts_json)?;
-                      args.number.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::AddSeatArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::AddSeatArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::AddSeatArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::AddSeatArgs::from_json(v)?; args.number.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::AddSeatArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::AddSeatArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::AddSeatArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::AddSeatArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::AddSeatArgs::from_json(v)?; args.number.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::AddSeatArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AddSeat", aggregate: "Roster", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -218,29 +145,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("EnlistArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "age", "roster", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Enlist does not declare {} — it takes id, age",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["age", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Enlist"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, age"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Enlist acts on an existing Roster — pass name.value:".to_string()))?, };
-              let args = crate::generated::roster::roster::EnlistArgs::from_json(facts_json)?;
-                      args.id.check_invariants()?;
-                      args.age.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::EnlistArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::EnlistArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::EnlistArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::EnlistArgs::from_json(v)?; args.id.check_invariants()?; args.age.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::EnlistArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::EnlistArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::EnlistArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::EnlistArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::EnlistArgs::from_json(v)?; args.id.check_invariants()?; args.age.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::EnlistArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Enlist", aggregate: "Roster", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -251,29 +157,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AssignArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["member", "number", "id", "roster", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Assign does not declare {} — it takes member, number",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["member", "number"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Assign"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "member, number"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Assign acts on an existing Roster — pass name.value:".to_string()))?, };
-              let args = crate::generated::roster::roster::AssignArgs::from_json(facts_json)?;
-                      args.member.check_invariants()?;
-                      args.number.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::AssignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::AssignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::AssignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::AssignArgs::from_json(v)?; args.member.check_invariants()?; args.number.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::AssignArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::AssignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::AssignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::AssignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::AssignArgs::from_json(v)?; args.member.check_invariants()?; args.number.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::AssignArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Assign", aggregate: "Roster", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -284,28 +169,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("RetireArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "roster", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes id",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["id"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Retire"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on an existing Roster — pass name.value:".to_string()))?, };
-              let args = crate::generated::roster::roster::RetireArgs::from_json(facts_json)?;
-                      args.id.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::RetireArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::RetireArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::RetireArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::RetireArgs::from_json(v)?; args.id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::RetireArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::RetireArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::RetireArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::RetireArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::RetireArgs::from_json(v)?; args.id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::RetireArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Retire", aggregate: "Roster", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -316,19 +181,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("MemberRetireEntityArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes id",
-        unknown.join(", ")
-    )));
-}
- } let _args_precheck = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on a Roster's Member — pass name.value:".to_string()))?; let element_id = crate::generated::roster::roster::Member::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on one Member — pass id.value:".to_string()))?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?;
-                      if let Some(v) = &args.id { v.check_invariants()?; }
+              if let Some(route) = route { route.require_depth(1)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::roster::roster::MemberRetireEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::roster::roster::MemberRetireEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::roster::roster::MemberRetireEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(v)?; if let Some(v) = &args.id { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::roster::roster::MemberRetireEntityArgs| Ok(()) })?;
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on a Roster's Member — pass name.value:".to_string()))?; let element_id = crate::generated::roster::roster::Member::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on one Member — pass id.value:".to_string()))?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &parent_id) { command_deref.push(("parent", parent_node)); }

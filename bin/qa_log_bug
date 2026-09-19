@@ -1,39 +1,39 @@
 #!/usr/bin/env ruby
 
-# LOG A BUG THE ONLY WAY THE LEDGER ALLOWS — PROVEN, NUMBERED, TRIAGED.
+# Log a bug the only way the ledger allows — proven, numbered, triaged.
 #
 # `QualityControl::Bug.Log` (qa/bluebook/quality_control.bluebook) takes
-# a `demonstration` as a REQUIRED argument — this chapter's one absolute
+# a `demonstration` as a required argument — this chapter's one absolute
 # rule, "a bug is logged with the failing test that proves it, or it is
 # not logged." What the ledger cannot check is whether the demonstration
-# actually FAILS: a string is a string, and an agent under pressure can
+# actually fails: a string is a string, and an agent under pressure can
 # type a command that passes and call it a proof. This script closes
-# that gap mechanically — it RUNS `--demonstration` first and refuses,
+# that gap mechanically — it runs `--demonstration` first and refuses,
 # exit 1, unless the command exits non-zero. A passing demonstration
 # proves nothing and is not logged.
 #
-# `--reproduced no` IS THE ONE DELIBERATE EXCEPTION, for a finding an
+# `--reproduced no` is the one deliberate exception, for a finding an
 # agent is confident is real but cannot get to reproduce reliably
 # (flaky, environment-sensitive, timing-dependent) — without it, that
-# finding was simply LOST: never logged at all, because the must-fail
+# finding was simply lost: never logged at all, because the must-fail
 # check above has no reliable pass/fail signal to check. `--demonstration`
-# is STILL REQUIRED with `--reproduced no` — it must still be a real
+# is still required with `--reproduced no` — it must still be a real
 # reproduction script or command, an agent's own best-effort attempt,
-# saved as actual runnable code — but it is not RUN, and is checked only
+# saved as actual runnable code — but it is not run, and is checked only
 # for looking like runnable code rather than prose (`looks_runnable?`,
 # below). Default remains `yes`, unchanged: every ordinary bug still
 # demands a demonstration that actually fails.
 #
-# IT ALSO MINTS THE NUMBER. `BUG#<n>` used to be "pick the next Bug
-# number" in `.claude/skills/hecks_qa/SKILL.md` — and a real BUG#21 was
-# assigned twice, by two agents each reading `Bug.All` and each adding
+# **It also mints the number**. Picking the next `BUG#<n>` by hand from
+# prose in `.claude/skills/hecks_qa/SKILL.md` is exactly how a real BUG#21
+# was assigned twice, by two agents each reading `Bug.All` and each adding
 # one before the other's `Log` landed. `next_reference` below reads the
 # highest `sequence` over `Bug.All` and takes the next one, then walks
 # forward past any reference somehow already on file — so a collision
 # on the reference is a refusal (`AlreadyExists`) this script retries
 # by minting again, never a silent double-assignment.
 #
-# AND IT RECORDS THE JUDGMENT. `--triage self_contained|bigger` is the
+# **And it records the judgment**. `--triage self_contained|bigger` is the
 # one call "On a surprising check" always asked an agent to make and
 # never asked it to write down; `Bug.Triage` is dispatched right after
 # `Log`, so the bug reaches the ledger already carrying it and
@@ -45,7 +45,7 @@
 #     --symptom "…" --expectation "…" --submitter "<who>" \
 #     --triage self_contained|bigger [--tag word]… [--reproduced yes|no]
 #
-# EXIT CODES:
+# **Exit codes**:
 #   0  logged — the minted reference is the last line of stdout
 #      (`logged BUG#n …`), for a caller to read back.
 #   1  refused — the demonstration passed (or, with `--reproduced no`,
@@ -53,7 +53,7 @@
 #      missing, the sweep does not exist, or the ledger would not boot.
 #      Nothing was written.
 #
-# WHAT THIS DELIBERATELY DOES NOT DO: decide whether a surprise is a
+# **What this deliberately does not do**: decide whether a surprise is a
 # real bug (that judgment happens before this is ever run), write the
 # failing test, fix anything, or open a PR (`bin/qa_open_pr`).
 
@@ -69,7 +69,7 @@ require "open3"
 ROOT = File.expand_path("..", __dir__)
 # `QA_SWEEP_DOMAIN_DIR` — the same escape hatch `bin/qa_sweep` has, for
 # the same one reason (read that script's own comment by the constant):
-# a spec drives this REAL script against a disposable fixture ledger.
+# a spec drives this real script against a disposable fixture ledger.
 DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
 
 EXIT_OK      = 0
@@ -115,7 +115,7 @@ end
 
 # ── does `--demonstration` look like code, not prose? ──────────────────
 #
-# ONLY MEANINGFUL WHEN THE MUST-FAIL CHECK BELOW IS SKIPPED (`--reproduced
+# Only meaningful when the must-fail check below is skipped (`--reproduced
 # no`) — the must-fail check itself is a far stronger proof that the
 # string is real runnable code (it ran it), so this only needs to run on
 # the path that never executes the string at all. A real path already on
@@ -124,6 +124,11 @@ end
 # command (`bundle exec …`, `bin/…`, `./…`, a bare interpreter, or a
 # direct `Hecks::Fuzzing::Replay.call` snippet) both count; a sentence
 # describing what happened does not.
+#
+# @param str [String, nil] the `--demonstration` value to check
+# @return [Boolean] true if it looks like an existing file path, a shell/interpreter
+#   invocation, a code file extension, or a `Hecks::Fuzzing::Replay` snippet; false
+#   if it reads as prose
 def looks_runnable?(str)
   first = str.to_s.strip.split(/\s+/).first.to_s
   return true if first.start_with?("/") && File.exist?(first)
@@ -137,11 +142,11 @@ end
 
 # ── run the demonstration, and refuse a passing one ────────────────────
 #
-# THE ONE THING THE LEDGER CANNOT CHECK, CHECKED HERE — UNLESS
-# `--reproduced no` SAYS THERE IS NO RELIABLE SIGNAL TO CHECK. Run
+# The one thing the ledger cannot check, checked here — unless
+# `--reproduced no` says there is no reliable signal to check. Run
 # through `sh -c` exactly the way a human would paste it, from the
 # repository root, with its output captured and its tail printed either
-# way — a refusal should show WHY the command passed, and a logged bug
+# way — a refusal should show why the command passed, and a logged bug
 # should show the failure it is being logged with.
 if options[:reproduced] == "no"
   unless looks_runnable?(options[:demonstration])
@@ -178,6 +183,13 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
+# Runs a query against the QualityControl domain, prefixing the query name so
+# every call site below stays short.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @param name [String] the query name without the `QualityControl::` prefix, e.g. `"Bug.All"`
+# @param args [Hash{Symbol => Object}] the query's declared arguments
+# @return [Array<Hash>] the matching rows, as `Runtime::Instance#query` returns them for the verb
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
 sweep = QualityControl::Sweep.find(options[:sweep])
@@ -185,13 +197,16 @@ abort "no such sweep: #{options[:sweep].inspect} — the sweep id is on bin/qa_s
 
 # ── mint the reference ────────────────────────────────────────────────
 #
-# THE HIGHEST SEQUENCE ON FILE, PLUS ONE — then forward past any
+# The highest sequence on file, plus one — then forward past any
 # reference that somehow already exists (a hand-typed `BUG#99` from a
-# session that skipped ahead), so the minted pair is free on BOTH the
+# session that skipped ahead), so the minted pair is free on both the
 # sequence and the reference. Re-read on every attempt: two concurrent
 # minters both see the same maximum, both try the same number, and the
 # loser's `Log` is refused (`AlreadyExists`) rather than landing a twin —
 # `mint_and_log!` below retries from a fresh read.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @return [Array(Integer, String)] the next free sequence number and its `"BUG#<n>"` reference
 def next_reference(runtime)
   rows = q(runtime, "Bug.All")
   taken = rows.map { |row| row[:reference][:value] }
@@ -200,6 +215,14 @@ def next_reference(runtime)
   [sequence, "BUG##{sequence}"]
 end
 
+# Mints a free `BUG#<n>` reference and logs the bug under it, retrying up
+# to three times if the reference is taken between reading and logging.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @param sweep [QualityControl::Sweep] the sweep the bug is logged against
+# @param options [Hash{Symbol => Object}] the parsed CLI options: `:title`, `:demonstration`,
+#   `:symptom`, `:expectation`, `:submitter`, `:reproduced` [String], and `:tags` [Array<String>]
+# @return [QualityControl::Bug] the logged bug record
 def mint_and_log!(runtime, sweep, options)
   3.times do
     sequence, reference = next_reference(runtime)

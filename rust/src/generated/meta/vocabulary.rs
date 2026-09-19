@@ -43,11 +43,11 @@ impl VocabularyName {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "VocabularyName"),
-            ("description", "a vocabulary is named"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "VocabularyName",
+            description: "a vocabulary is named",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -69,10 +69,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "VocabularyName does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "VocabularyName",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VocabularyName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("VocabularyName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()) })? },
@@ -258,11 +260,14 @@ impl ToStringType {
             "TrueClass" => Ok(ToStringType::Trueclass),
             "FalseClass" => Ok(ToStringType::Falseclass),
             "NilClass" => Ok(ToStringType::Nilclass),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "ToStringType"),
-                ("admitted", "\"String\", \"Integer\", \"Float\", \"TrueClass\", \"FalseClass\", \"NilClass\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "ToStringType",
+                    admitted: &["String", "Integer", "Float", "TrueClass", "FalseClass", "NilClass"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -340,11 +345,14 @@ impl SizedType {
             "Array" => Ok(SizedType::Array),
             "String" => Ok(SizedType::String),
             "Hash" => Ok(SizedType::Hash),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "SizedType"),
-                ("admitted", "\"Array\", \"String\", \"Hash\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "SizedType",
+                    admitted: &["Array", "String", "Hash"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -428,11 +436,14 @@ impl Primitive {
             "Float" => Ok(Primitive::Float),
             "TrueClass" => Ok(Primitive::Trueclass),
             "FalseClass" => Ok(Primitive::Falseclass),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "Primitive"),
-                ("admitted", "\"String\", \"Integer\", \"Float\", \"TrueClass\", \"FalseClass\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "Primitive",
+                    admitted: &["String", "Integer", "Float", "TrueClass", "FalseClass"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -507,11 +518,14 @@ impl NormalisationStrategy {
         match candidate.ruby_to_s().as_str() {
             "collapse_whitespace" => Ok(NormalisationStrategy::CollapseWhitespace),
             "replace" => Ok(NormalisationStrategy::Replace),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "NormalisationStrategy"),
-                ("admitted", "\"collapse_whitespace\", \"replace\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "NormalisationStrategy",
+                    admitted: &["collapse_whitespace", "replace"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -643,11 +657,14 @@ impl QueryComparator {
             "in" => Ok(QueryComparator::In),
             "contains" => Ok(QueryComparator::Contains),
             "none_in_state" => Ok(QueryComparator::NoneInState),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "QueryComparator"),
-                ("admitted", "\"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "QueryComparator",
+                    admitted: &["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -734,11 +751,14 @@ impl LoadOrder {
             "translations/*.bluebook" => Ok(LoadOrder::TranslationsBluebook),
             "*.hecksagon" => Ok(LoadOrder::Hecksagon),
             "*.world" => Ok(LoadOrder::World),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "LoadOrder"),
-                ("admitted", "\"*.port\", \"*.adapter\", \"*.bluebook\", \"translations/*.bluebook\", \"*.hecksagon\", \"*.world\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "LoadOrder",
+                    admitted: &["*.port", "*.adapter", "*.bluebook", "translations/*.bluebook", "*.hecksagon", "*.world"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -858,11 +878,14 @@ impl AggregateDispatchOrder {
             "enforce_invariants" => Ok(AggregateDispatchOrder::EnforceInvariants),
             "save" => Ok(AggregateDispatchOrder::Save),
             "emit" => Ok(AggregateDispatchOrder::Emit),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "AggregateDispatchOrder"),
-                ("admitted", "\"decode_arguments\", \"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate\", \"enforce_givens\", \"admissible_transition\", \"assign_creation_attributes\", \"apply_mutations\", \"advance_lifecycle\", \"delegate_to_entity\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "AggregateDispatchOrder",
+                    admitted: &["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args", "refuse_role_mismatch", "resolve_references", "hydrate", "enforce_givens", "admissible_transition", "assign_creation_attributes", "apply_mutations", "advance_lifecycle", "delegate_to_entity", "enforce_ensures", "enforce_invariants", "save", "emit"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -979,11 +1002,14 @@ impl EntityDispatchOrder {
             "enforce_invariants" => Ok(EntityDispatchOrder::EnforceInvariants),
             "save" => Ok(EntityDispatchOrder::Save),
             "emit" => Ok(EntityDispatchOrder::Emit),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "EntityDispatchOrder"),
-                ("admitted", "\"decode_arguments\", \"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "EntityDispatchOrder",
+                    admitted: &["decode_arguments", "refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args", "refuse_role_mismatch", "resolve_references", "hydrate_parent", "locate_element", "enforce_givens", "admissible_transition", "apply_mutations", "advance_lifecycle", "enforce_ensures", "enforce_invariants", "save", "emit"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -1097,11 +1123,14 @@ impl DomainRefusal {
             "Unauthorized" => Ok(DomainRefusal::Unauthorized),
             "UnknownArgument" => Ok(DomainRefusal::Unknownargument),
             "UnknownVerb" => Ok(DomainRefusal::Unknownverb),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "DomainRefusal"),
-                ("admitted", "\"AbsentArgument\", \"AlreadyExists\", \"AttributeAbsent\", \"EnsuresNotMet\", \"GivenNotMet\", \"InvariantViolation\", \"LifecycleRefused\", \"NothingToCorrect\", \"NotFound\", \"ProjectionAbsent\", \"RemoteRefusal\", \"TypeMismatch\", \"Unauthorized\", \"UnknownArgument\", \"UnknownVerb\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "DomainRefusal",
+                    admitted: &["AbsentArgument", "AlreadyExists", "AttributeAbsent", "EnsuresNotMet", "GivenNotMet", "InvariantViolation", "LifecycleRefused", "NothingToCorrect", "NotFound", "ProjectionAbsent", "RemoteRefusal", "TypeMismatch", "Unauthorized", "UnknownArgument", "UnknownVerb"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -1180,6 +1209,173 @@ impl RefusalTemplate {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RefusalSiteArgument {
+    pub refusal: &'static str,
+    pub site: &'static str,
+    pub argument: &'static str,
+    pub shape: &'static str,
+    pub quoting: &'static str,
+    pub separator: &'static str,
+    pub sorted: &'static str,
+    pub when_empty: &'static str,
+}
+
+pub const REFUSAL_SITE_ARGUMENT: &[RefusalSiteArgument] = &[
+    RefusalSiteArgument { refusal: "NotFound", site: "creating_no_identity", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "creating_no_identity", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "creating_no_identity", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "creating_duplicate", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "creating_duplicate", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "creating_duplicate", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "creating_duplicate", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "entity_duplicate", argument: "entity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "entity_duplicate", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "entity_duplicate", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AlreadyExists", site: "entity_duplicate", argument: "offered", shape: "list", quoting: "none", separator: ", ", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "acting_no_identity", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "acting_no_identity", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "acting_no_identity", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "record_missing", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "record_missing", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "record_missing", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_parent_no_identity", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_parent_no_identity", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_parent_no_identity", argument: "entity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_parent_no_identity", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_unknown", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_unknown", argument: "entity", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_no_identity", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_no_identity", argument: "entity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_no_identity", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_missing", argument: "entity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_missing", argument: "identity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_missing", argument: "wants", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_missing", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "entity_element_missing", argument: "parent_id", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "reference_target_missing", argument: "target", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "reference_target_missing", argument: "heads", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "reference_target_missing", argument: "key", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "read_model_reference_missing", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "NotFound", site: "read_model_reference_missing", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "read_model_object_reference", argument: "query", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "read_model_object_reference", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_query", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_query", argument: "query", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_query_missing", argument: "entity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_query_missing", argument: "query", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_holds_no_list", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_holds_no_list", argument: "entity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_no_command", argument: "entity", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "entity_no_command", argument: "command", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "aggregate_no_command", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "aggregate_no_command", argument: "command", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "port_no_operation", argument: "port", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "port_no_operation", argument: "operation", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_domain", argument: "domain", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_domain", argument: "verb", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_read_model", argument: "domain", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_read_model", argument: "query", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "not_fully_qualified", argument: "verb", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_aggregate", argument: "domain", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownVerb", site: "no_aggregate", argument: "aggregate", shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "LifecycleRefused", site: "transition_blocked", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "LifecycleRefused", site: "transition_blocked", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "LifecycleRefused", site: "transition_blocked", argument: "current", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "LifecycleRefused", site: "transition_blocked", argument: "allowed", shape: "list", quoting: "inspect", separator: " or ", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "value_object_shape", argument: "name", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "value_object_shape", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "value_object_shape", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "attribute", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "known_by", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "multi_field_scalar", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "composite_identity", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "numeric_field", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "numeric_field", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "numeric_field", argument: "expected", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "numeric_field", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "non_finite_field", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "non_finite_field", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "non_finite_field", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "integer_range", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "integer_range", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "integer_range", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "pattern_mismatch", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "pattern_mismatch", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "pattern_mismatch", argument: "pattern", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "pattern_mismatch", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_amount", argument: "op", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_amount", argument: "target", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_amount", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_current", argument: "op", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_current", argument: "target", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_current", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_shared_field", argument: "op", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "TypeMismatch", site: "arithmetic_shared_field", argument: "target", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownArgument", site: "unknown_args", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownArgument", site: "unknown_args", argument: "unknown", shape: "list", quoting: "none", separator: ", ", sorted: "true", when_empty: "" },
+    RefusalSiteArgument { refusal: "UnknownArgument", site: "unknown_args", argument: "declared", shape: "list", quoting: "none", separator: ", ", sorted: "false", when_empty: "none" },
+    RefusalSiteArgument { refusal: "AbsentArgument", site: "absent_args", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AbsentArgument", site: "absent_args", argument: "absent", shape: "list", quoting: "none", separator: ", ", sorted: "true", when_empty: "" },
+    RefusalSiteArgument { refusal: "AbsentArgument", site: "absent_args", argument: "declared", shape: "list", quoting: "none", separator: ", ", sorted: "false", when_empty: "none" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "closed_set_member", argument: "type", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "closed_set_member", argument: "admitted", shape: "list", quoting: "inspect", separator: ", ", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "closed_set_member", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "value_object_invariant", argument: "name", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "value_object_invariant", argument: "description", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "value_object_invariant", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "admits_declared_set", argument: "name", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "admits_declared_set", argument: "admits", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "admits_declared_set", argument: "admitted", shape: "list", quoting: "inspect", separator: ", ", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "admits_declared_set", argument: "offered", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "undeclared_set", argument: "name", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "InvariantViolation", site: "undeclared_set", argument: "admits", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "tenant_required", argument: "query", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "tenant_required", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "role_mismatch", argument: "command", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "role_mismatch", argument: "role", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "role_mismatch", argument: "caller_role", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "cross_tenant_reference", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "cross_tenant_reference", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "cross_tenant_reference", argument: "tenant", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "cross_tenant_reference", argument: "attribute", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "cross_tenant_reference", argument: "target", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "cross_tenant_reference", argument: "target_field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "Unauthorized", site: "cross_tenant_reference", argument: "other", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AttributeAbsent", site: "absent_read", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "AttributeAbsent", site: "absent_read", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "ProjectionAbsent", site: "absent_read", argument: "aggregate", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "ProjectionAbsent", site: "absent_read", argument: "field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "ProjectionAbsent", site: "absent_read", argument: "reference", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+    RefusalSiteArgument { refusal: "ProjectionAbsent", site: "absent_read", argument: "remote_field", shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: "" },
+];
+
+impl RefusalSiteArgument {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("refusal".to_string(), crate::kernel::Json::Str(self.refusal.to_string())),
+        ("site".to_string(), crate::kernel::Json::Str(self.site.to_string())),
+        ("argument".to_string(), crate::kernel::Json::Str(self.argument.to_string())),
+        ("shape".to_string(), crate::kernel::Json::Str(self.shape.to_string())),
+        ("quoting".to_string(), crate::kernel::Json::Str(self.quoting.to_string())),
+        ("separator".to_string(), crate::kernel::Json::Str(self.separator.to_string())),
+        ("sorted".to_string(), crate::kernel::Json::Str(self.sorted.to_string())),
+        ("when_empty".to_string(), crate::kernel::Json::Str(self.when_empty.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in REFUSAL_SITE_ARGUMENT {
+            if v.get("refusal").and_then(crate::kernel::Json::as_str) == Some(row.refusal) && v.get("site").and_then(crate::kernel::Json::as_str) == Some(row.site) && v.get("argument").and_then(crate::kernel::Json::as_str) == Some(row.argument) && v.get("shape").and_then(crate::kernel::Json::as_str) == Some(row.shape) && v.get("quoting").and_then(crate::kernel::Json::as_str) == Some(row.quoting) && v.get("separator").and_then(crate::kernel::Json::as_str) == Some(row.separator) && v.get("sorted").and_then(crate::kernel::Json::as_str) == Some(row.sorted) && v.get("when_empty").and_then(crate::kernel::Json::as_str) == Some(row.when_empty) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("RefusalSiteArgument: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Trigger {
     Refused,
@@ -1247,11 +1443,14 @@ impl Trigger {
         }
         match candidate.ruby_to_s().as_str() {
             "refused" => Ok(Trigger::Refused),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "Trigger"),
-                ("admitted", "\"refused\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "Trigger",
+                    admitted: &["refused"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -1500,11 +1699,14 @@ impl RustReservedWord {
             "virtual" => Ok(RustReservedWord::Virtual),
             "yield" => Ok(RustReservedWord::Yield),
             "try" => Ok(RustReservedWord::Try),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "RustReservedWord"),
-                ("admitted", "\"as\", \"break\", \"const\", \"continue\", \"crate\", \"dyn\", \"else\", \"enum\", \"extern\", \"false\", \"fn\", \"for\", \"if\", \"impl\", \"in\", \"let\", \"loop\", \"match\", \"mod\", \"move\", \"mut\", \"pub\", \"ref\", \"return\", \"self\", \"Self\", \"static\", \"struct\", \"super\", \"trait\", \"true\", \"type\", \"unsafe\", \"use\", \"where\", \"while\", \"abstract\", \"become\", \"box\", \"do\", \"final\", \"macro\", \"override\", \"priv\", \"typeof\", \"unsized\", \"virtual\", \"yield\", \"try\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "RustReservedWord",
+                    admitted: &["as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final", "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }
@@ -1621,11 +1823,14 @@ impl CargoReservedName {
             "dev-dependencies" => Ok(CargoReservedName::DevDependencies),
             "build-dependencies" => Ok(CargoReservedName::BuildDependencies),
             "workspace" => Ok(CargoReservedName::Workspace),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "CargoReservedName"),
-                ("admitted", "\"name\", \"version\", \"edition\", \"path\", \"authors\", \"license\", \"description\", \"default\", \"features\", \"package\", \"lib\", \"bin\", \"dependencies\", \"dev-dependencies\", \"build-dependencies\", \"workspace\""),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "CargoReservedName",
+                    admitted: &["name", "version", "edition", "path", "authors", "license", "description", "default", "features", "package", "lib", "bin", "dependencies", "dev-dependencies", "build-dependencies", "workspace"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }

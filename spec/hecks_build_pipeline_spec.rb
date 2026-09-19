@@ -4,45 +4,43 @@ require "tmpdir"
 require "open3"
 require "json"
 
-# THE FOLLOW-UP TO `spec/project_rust_pipeline_spec.rb`, continuing from
+# The follow-up to `spec/project_rust_pipeline_spec.rb`, continuing from
 # where Stage 8 (`/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`)
-# left off: that spec proves the OPT-IN Ruby-orchestrated all-Rust
+# left off: that spec proves the opt-in Ruby-orchestrated all-Rust
 # pipeline (`HECKS_PARSER=rust HECKS_CODEGEN=rust bin/project_rust
 # <domain>`, still itself a Ruby process shelling out to `hecks-parse`/
-# `hecks-codegen`) matches the DEFAULT Ruby path. THIS spec proves the
-# NEW all-the-way-down Rust binary — `rust/build/` (`hecks-build`),
-# which does the SAME job with NO Ruby process involved anywhere in its
-# own execution, not even for orchestration — produces the IDENTICAL
+# `hecks-codegen`) matches the default Ruby path. This spec proves the
+# new all-the-way-down Rust binary — `rust/build/` (`hecks-build`),
+# which does the same job with no Ruby process involved anywhere in its
+# own execution, not even for orchestration — produces the identical
 # generated tree the opt-in Ruby pipeline does, for real, byte-exact,
 # not asserted once by hand.
 #
 # `hecks-build` is called here with `--no-build` (generate source only,
 # skip the `cargo build --release` step for the domain's own compiled
 # artifact) — matching `spec/project_rust_pipeline_spec.rb`'s own
-# pattern of comparing GENERATED SOURCE, not compiled output, and
+# pattern of comparing generated source, not compiled output, and
 # keeping this spec fast enough for the normal `bundle exec rspec` loop.
 # The real, actual `cargo build --release` (and, separately,
-# `cargo build --release --target wasm32-wasip1`) path IS exercised —
+# `cargo build --release --target wasm32-wasip1`) path is exercised —
 # just not from inside this spec: see this stage's own report for the
 # real commands run and their real output, plus `cargo test --release`
 # inside `rust/` (the `from_json_round_trip.rs` integration tests)
 # passing against `hecks-build`'s own generated banking tree.
 #
-# NO `lineage`-only EXCEPTION NEEDED HERE: both `hecks-build`
+# No `lineage`-only exception needed here: both `hecks-build`
 # (`lineage_pass.rs`) and the opt-in Ruby pipeline it's compared against
 # here (`rust/project_rust_pipeline.rb::derive_lineage`) compute the
 # `lineage` key for real now, from the same narrow `.hecksagon`
 # `persisted_by`-bind text scan, ported line for line — so
-# `ir.json`/`metadata.rs` are expected to be PLAIN BYTE-IDENTICAL too,
-# same as every other generated file. `manifest.json` stays the one
-# remaining named, deliberate gap (coverage bookkeeping only) — neither
-# side writes it, so the file-list comparison below never sees it on
-# either side and needs no exclusion list.
+# `ir.json`/`metadata.rs` are expected to be plain byte-identical too,
+# same as every other generated file — `manifest.json` included: both
+# sides get it from the same `hecks-codegen full` call.
 RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
-  # PREFIXED (HB_*), not the bare names `spec/project_rust_pipeline_spec.rb`
-  # already uses (ROOT/GENERATED_ROOT/CARGO_TOML/PROJECT_RUST/
-  # PARITY_DOMAINS) — `spec/load_hygiene_spec.rb`'s own "lets no two spec
-  # files disagree about a top-level constant" check flags ANY same-name
+  # Prefixed (HB_*), not the bare names `spec/project_rust_pipeline_spec.rb`
+  # already uses (`ROOT`/`GENERATED_ROOT`/`CARGO_TOML`/`PROJECT_RUST`/
+  # `PARITY_DOMAINS`) — `spec/load_hygiene_spec.rb`'s own "lets no two spec
+  # files disagree about a top-level constant" check flags any same-name
   # top-level constant across spec files (a `describe` block's constant
   # assignment lands at Object, not a lexical scope of its own), even
   # when both definitions happen to hold the same value — so this file
@@ -62,7 +60,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
 
   build_hecks_build!
 
-  # [domain, dirs THIS domain's own run touches] — same table
+  # [domain, dirs this domain's own run touches] — same table
   # `spec/project_rust_pipeline_spec.rb` already uses, for the same
   # reason (the target itself, `meta` — every run regenerates it — plus
   # any framework chapter it attaches).
@@ -107,7 +105,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
     # genuine process spawn, one of them a cargo-built binary), then compare
     # every directory's file list and every file's bytes. Splitting the
     # comparison into several examples would re-run both real pipelines per
-    # split with no gain, or worse prove only PART of "these two pipelines
+    # split with no gain, or worse prove only part of "these two pipelines
     # agree" instead of the whole claim this test exists for.
     # rubocop:disable-next RSpec/ExampleLength
     it "#{domain}: hecks-build's own generated output matches the opt-in Ruby-orchestrated Rust pipeline's, byte for byte" do
@@ -138,7 +136,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
       end
 
       # `rust/Cargo.toml`'s own `[features]` sync — the `default =`
-      # feature both pipelines set to THIS run's own target should agree
+      # feature both pipelines set to this run's own target should agree
       # too (both ran, back to back, targeting the same domain).
       hecks_build_cargo_toml = File.read(HB_CARGO_TOML)
       expect(hecks_build_cargo_toml).to eq(ruby_cargo_toml),

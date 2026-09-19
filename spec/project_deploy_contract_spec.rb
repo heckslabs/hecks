@@ -10,7 +10,7 @@ require "yaml"
 # externally-supplied fact given/invariant exists for). This spec
 # doesn't test those tables directly — bin/project_deploy is a script,
 # not a library, and there's nothing to require — it tests the thing
-# that actually matters: that the THREE GENERATED FILES still agree
+# that actually matters: that the three generated files still agree
 # with each other, parsed back out of real output, not re-derived from
 # the same table that could just as easily be wrong in the same way in
 # all three places at once.
@@ -23,7 +23,7 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
   # is deliberately unique and the generated directory is removed
   # after every run.
   #
-  # Generated ONCE, in `before(:context)`, and shared across every `it`
+  # Generated once, in `before(:context)`, and shared across every `it`
   # below — the three examples read three different facts out of the
   # identical fixture output, so re-running the real `bin/project_deploy`
   # subprocess (a fresh Ruby process booting the whole framework) once

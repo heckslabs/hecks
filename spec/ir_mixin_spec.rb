@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# The mixin that owns IR EMISSION, tested on its own rather than only
+# The mixin that owns IR emission, tested on its own rather than only
 # through the golden fixtures — the fixtures prove the six converted
 # constructs still emit byte-identically, which is the important
-# guarantee, but they cannot show that the two SHAPES are handled the
+# guarantee, but they cannot show that the two shapes are handled the
 # same way or that an undeclared construct fails loudly.
 RSpec.describe Hecks::IR do
   # A construct that is an ordinary object — Bluebook/Aggregate/Policy/
@@ -21,7 +21,7 @@ RSpec.describe Hecks::IR do
     end
   end
 
-  # A construct that is a CLASS, declared by subclassing — Command,
+  # A construct that is a class, declared by subclassing — Command,
   # Entity and ValueObject are all this shape, because a bluebook names
   # them as types and a type has to be a real constant.
   def class_shaped
@@ -58,7 +58,7 @@ RSpec.describe Hecks::IR do
   end
 
   describe "the class shape" do
-    # The load-bearing one: every declared value object and command IS a
+    # The load-bearing one: every declared value object and command is a
     # `Class.new(Base)`, so a spec declared on the base has to reach the
     # anonymous subclass or nothing would emit at all.
     it "inherits the declaration into an anonymous subclass" do
@@ -127,7 +127,7 @@ RSpec.describe Hecks::IR do
     expect { silent.new.to_h }.to raise_error(Hecks::IR::Undeclared, /never declared its shape/)
   end
 
-  # The point of declaring emission as DATA rather than writing it out:
+  # The point of declaring emission as data rather than writing it out:
   # anything that wants to know what a construct carries can now ask,
   # instead of reading a method body.
   describe "the declaration is readable" do

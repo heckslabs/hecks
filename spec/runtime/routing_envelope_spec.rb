@@ -15,11 +15,11 @@ RSpec.describe "receiver routing outside the command payload" do
   end
 
   def logged_visit(runtime)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
+    runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
                                                      box_number: { value: 12 }, size: { value: "medium" })
-    runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
+    runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
                                                          box_number: { value: 12 },
                                                          date: { value: "2026-01-05" }, sequence: { value: 1 })
   end
@@ -68,17 +68,17 @@ RSpec.describe "receiver routing outside the command payload" do
   end
 
   # BUG#18 — a routing envelope naming only the aggregate (`entities: []`,
-  # or `entity`/`entities` absent altogether) on an AGGREGATE-level command
-  # (entity_depth 0) used to satisfy `envelope`'s own `entities.size !=
+  # or `entity`/`entities` absent altogether) on an aggregate-level command
+  # (entity_depth 0) would satisfy `envelope`'s own `entities.size !=
   # entity_depth` check trivially (`0 != 0` is false) and reach the
   # command's own validation instead of being refused as a malformed
   # route — Rust's `RoutingEnvelope::from_json` always refused this Hash
   # shape outright, unconditionally, regardless of entity_depth. Both now
   # refuse at the same point, TypeMismatch, matching Rust's own wording.
   def open_account(runtime, ref: "c1", number: "a1")
-    runtime.dispatch("Banking::Customer.Register", reference: { value: ref },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: ref },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: ref, number: { value: number },
+    runtime.dispatch_flat("Banking::Account.Open", customer: ref, number: { value: number },
                                               kind: { name: "current" }, daily_limit: { cents: 1_000 })
   end
 
@@ -125,7 +125,7 @@ RSpec.describe "receiver routing outside the command payload" do
   # combination (TypeMismatch, "with: plus loose kwargs" — unrelated to
   # what `with:` actually contains), but Rust silently dropped the
   # sibling fact and judged `with:`'s own value as the facts instead,
-  # refusing UnknownArgument — a different KIND for the identical
+  # refusing UnknownArgument — a different kind for the identical
   # malformed step (rust/src/kernel/routing.rs's own regression test,
   # `refuses_with_beside_a_sibling_legacy_fact_the_same_as_ruby_does`,
   # pins the Rust side of this same alignment).
@@ -134,12 +134,12 @@ RSpec.describe "receiver routing outside the command payload" do
     open_account(runtime)
 
     expect do
-      runtime.dispatch(
+      runtime.dispatch_flat(
         "Banking::Account.Credit",
         amount: { cents: 100, currency: "USD" },
         with:   { aggregate: "a1", entities: [] }
       )
     end.to raise_error(Hecks::Runtime::TypeMismatch,
-                       /dispatch takes command facts in with:, not both with: and loose keyword arguments/)
+                       /dispatch takes command facts in with:, not both with: and a flat facts hash/)
   end
 end

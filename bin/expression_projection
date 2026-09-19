@@ -1,38 +1,36 @@
 #!/usr/bin/env ruby
 
 # The expression machinery's tables, projected from the grammar chapter's
-# admitted set and checked in, so the evaluator and the canonical form READ
+# admitted set and checked in, so the evaluator and the canonical form read
 # the domain rather than restating it. Regenerate with:
 #
 #   bin/expression_projection            # rewrites the file in place
 #   bin/expression_projection --stdout   # prints instead (the spec's diff mode)
 #
-# WRITES ITS OWN FILE, NEVER `>` — this generator's output IS the file
+# Writes its own file, never `>` — this generator's output is the file
 # the framework reads at require time, and a shell redirection truncates
 # that file before Ruby ever boots: the empty file kills the require and
 # the run dies with nothing written. Measured, not assumed — the first
 # regeneration attempt did exactly that. So the default mode boots off
-# the checked-in table, derives the fresh one from the DOMAIN (never
+# the checked-in table, derives the fresh one from the domain (never
 # from what it just read), and replaces the file atomically.
 #
-# ONE GUARD STANDS WHERE A WEDGE WAS FOUND. The chapter's own
+# One guard stands where a wedge was found. The chapter's own
 # `status != "retired"` givens evaluate through the very operator table
-# being projected — a projection missing a SELF-BEARING operator cannot
-# even boot the chapter to fix itself. So this script refuses to WRITE a
+# being projected — a projection missing a self-bearing operator cannot
+# even boot the chapter to fix itself. So this script refuses to write a
 # projection whose admitted set drops an operator the language's own
 # predicates evaluate through (Grammar.self_bearing_operators names each
 # one with a usage site).
 #
-# A second repair path used to exist here (`--bootstrap`, rebuilding the
-# projection from the ledger alone, before the framework loads) for when
-# the checked-in file was broken beyond self-repair — it read a second
-# runtime's own checked-in operator table as independent ground truth.
-# With one runtime, that ground truth is simpler: the file is checked
-# into git, so `git checkout -- lib/hecks/bluebook/expression/projection.json`
-# restores the last-known-good version directly.
+# This script carries no separate repair path for a checked-in file broken
+# beyond self-repair — with one runtime, the file's own git history is
+# simpler ground truth than rebuilding it from elsewhere would be, so
+# `git checkout -- lib/hecks/bluebook/expression/projection.json` restores
+# the last-known-good version directly.
 #
 # Operators carry the vocabulary's comparison algebra (the domain owns
-# WHICH and IN WHAT ORDER; Vocabulary::Comparison owns WHAT IT COMPUTES);
+# which and in what order; Vocabulary::Comparison owns what it computes);
 # normalisations are the admitted rules in position order. The machinery
 # refuses to load without the file, which is the point — a table nobody
 # regenerates is a table the Admit gates never saw.
@@ -42,6 +40,11 @@ require "tempfile"
 
 TARGET = File.expand_path("../lib/hecks/bluebook/expression/projection.json", __dir__)
 
+# Writes `content` to `TARGET` atomically, via a same-directory tempfile and a rename, so a
+# reader never observes a partially-written projection file.
+#
+# @param content [String] the serialized projection document to write
+# @return [void]
 def write_atomically(content)
   Tempfile.create("projection", File.dirname(TARGET)) do |tmp|
     tmp.write(content)
@@ -73,7 +76,7 @@ operators = Hecks::Grammar.admitted_operators(dispatcher).map do |op|
             compares_equal: declared[:compares_equal], negated: declared[:negated])
 end
 
-# THE SELF-BEARING REFUSAL — see the header. A projection that drops an
+# **The self-bearing refusal** — see the header. A projection that drops an
 # operator the language's own predicates evaluate through would wedge
 # every future boot; refuse to write it, naming each operator and where
 # the language stands on it.

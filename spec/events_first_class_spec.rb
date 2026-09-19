@@ -4,13 +4,13 @@ require "spec_helper"
 # `emits`/`on` accept a bare event constant (`emits Account::AccountFrozen`,
 # `on Account::AccountFrozen`), resolved the same way `trigger`/`dispatch`
 # already resolve a command reference (`Naming.event_ref`, ConstShim).
-# UNLIKE command references, the old quoted-string form is NOT refused —
+# Unlike command references, the old quoted-string form is not refused —
 # only command references were 100% corpus-migrated, so refusing the old
 # spelling for events would break every live site this pass didn't touch.
 # Both forms stay admitted; see policy.bluebook's own KeywordSeed comment.
 RSpec.describe "events first-class (ADR 0025, S6)" do
   # The minimal "one aggregate, one command, emits a bare qualified event"
-  # fixture several examples below need only as SCAFFOLDING, not as the
+  # fixture several examples below need only as scaffolding, not as the
   # thing under test — `instance_eval`d back in wherever it's needed, which
   # runs it exactly as if it had been written inline (both the DSL words
   # here and `Widget`'s own constant resolution are dispatched dynamically
@@ -82,7 +82,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     expect(policy.on_event).to eq("Widget.WidgetMade")
   end
 
-  # NOT built off `widget_emits_widget_made` — the quoted spelling used
+  # Not built off `widget_emits_widget_made` — the quoted spelling used
   # throughout here, instead of the bare constant that helper emits, is the
   # entire thing this example proves still works, so sharing that fixture
   # would hide the one difference this test exists to exercise.
@@ -157,7 +157,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
 
   # Its own two-command aggregate plus process_manager, not
   # `widget_emits_widget_made` — this proves starts_on/ends_on/transition
-  # resolve a bare constant to the SAME stored name a same-aggregate emits
+  # resolve a bare constant to the same stored name a same-aggregate emits
   # already uses, which needs two distinct emitted events (Make/Finish) to
   # show, and the process_manager block itself is the other half of what's
   # under test, not swappable scaffolding.
@@ -198,9 +198,9 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     end
 
     pm = ir.process_managers.first
-    # BARE, matching what `emits WidgetMade` actually stores
+    # Bare, matching what `emits WidgetMade` actually stores
     # (`ir.aggregates.first.commands.first.emits`) — a qualified
-    # `Widget::WidgetMade` still resolves to the SAME stored string a
+    # `Widget::WidgetMade` still resolves to the same stored string a
     # bare `WidgetMade` would, unlike `on`/`emits` themselves, which
     # keep the "." qualifier.
     expect(pm.starts_on).to eq("WidgetMade")
@@ -252,13 +252,13 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     registry.verify!
     runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "ACC1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: "ACC1" },
                      kind: { name: "current" }, daily_limit: { cents: 100_000 })
 
     expect do
-      runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "ACC1" })
+      runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "ACC1" })
     end.not_to raise_error
 
     account = registry.repository("Banking", registry.bluebook("Banking").aggregate("Account")).find("ACC1")

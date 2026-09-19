@@ -4,7 +4,7 @@
 # every command reports, durably recorded (not `registry.event_log`,
 # which is an in-process array gone at exit).
 #
-# `events`/`record_event` are ONE table per domain, not per aggregate
+# `events`/`record_event` are one table per domain, not per aggregate
 # (see lib/hecks/adapters/driven/postgres.rb's own `events` table) — so
 # unlike bin/history's per-aggregate walk, this polls a single
 # repository (whichever aggregate's adapter answers `:events` first)
@@ -16,7 +16,7 @@
 # One JSON object per line (JSONL), so this composes with jq/grep the
 # way bin/history's single blob deliberately does not.
 #
-#   bin/follow <domain> [--aggregate NAME] [--interval SECONDS] [--from-now]
+#   bin/follow <domain> [--aggregate name] [--interval seconds] [--from-now]
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -44,6 +44,13 @@ repository = repositories.find { |repo| repo.respond_to?(:events) }
 
 abort "bin/follow: no adapter in #{domain_name} persists an event log" unless repository
 
+# Says whether `event` passes the `--aggregate` filter.
+#
+# @param event [Runtime::Event] one persisted event; `aggregate` names its aggregate as
+#   `"Domain::Name"`
+# @param filter [String, nil] the `--aggregate` option's value, or nil to match everything
+# @return [Boolean] true if `filter` is nil, matches the event's bare aggregate name
+#   case-insensitively, or equals `event.aggregate` exactly
 def matches?(event, filter)
   filter.nil? || event.aggregate.to_s.split("::").last.casecmp?(filter) || event.aggregate == filter
 end

@@ -6,7 +6,7 @@ require "tmpdir"
 # `Ports::Query::InMemory.execute` (always passed `registry: nil`),
 # which makes `none_in_state?` unconditionally answer `true` — its own
 # graceful "no registry, no way to look the target up" default — for
-# EVERY `none_in_state` where-clause against ANY Heki-backed aggregate,
+# every `none_in_state` where-clause against any Heki-backed aggregate,
 # always, no matter the actual target state. Silently excluded
 # nothing. Same fixture and query shape
 # spec/query_none_in_state_aggregate_level_growth_spec.rb already
@@ -106,15 +106,17 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Heki query" do
 
   it "excludes an aggregate-level row whose claim IS in the named state, and keeps the rest" do
     runtime = boot_aggregate_anti_join
-    runtime.dispatch("AggregateAntiJoinHekiGrowth::Claim.File", id: { value: "c1" }) # stays "held"
-    runtime.dispatch("AggregateAntiJoinHekiGrowth::Claim.File", id: { value: "c2" })
-    runtime.dispatch("AggregateAntiJoinHekiGrowth::Claim.Release", id: "c2")         # no longer "held"
+    # stays "held"
+    runtime.dispatch_flat("AggregateAntiJoinHekiGrowth::Claim.File", id: { value: "c1" })
+    runtime.dispatch_flat("AggregateAntiJoinHekiGrowth::Claim.File", id: { value: "c2" })
+    # no longer "held"
+    runtime.dispatch_flat("AggregateAntiJoinHekiGrowth::Claim.Release", id: "c2")
 
-    runtime.dispatch("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b1" }, claim_id: "c1")
-    runtime.dispatch("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b2" }, claim_id: "c2")
+    runtime.dispatch_flat("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b1" }, claim_id: "c1")
+    runtime.dispatch_flat("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b2" }, claim_id: "c2")
     # A claim that was never filed at all — "no record in that state" reads
     # the same as "a record, but not in that state".
-    runtime.dispatch("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b3" }, claim_id: "nonexistent")
+    runtime.dispatch_flat("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b3" }, claim_id: "nonexistent")
 
     rows = runtime.query("AggregateAntiJoinHekiGrowth::Board.Unclaimed")
 

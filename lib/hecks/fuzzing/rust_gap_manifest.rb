@@ -3,32 +3,36 @@ require "hecks/naming"
 
 module Hecks
   module Fuzzing
-    # WHAT A COMPILED RUST BINARY DECLARES IT DID NOT GENERATE — read off the
+    # What a compiled Rust binary declares it did not generate — read off the
     # `manifest.json` files `rust/project/domain_generator.rb` writes beside
     # every generated module, never inferred from Rust's refusal wording.
     #
-    # The differential fuzzer (`Differential.diff`) used to drop any refusal
-    # whose Rust error contained "is not generated for this domain". That
-    # tolerated whatever Rust happened to say, including a codegen regression
-    # that started refusing a construct it used to generate. Now a query or
-    # read-model verb is dropped from the comparison IF AND ONLY IF the
-    # generator's own manifest recorded it as `generated: false`, with the
-    # `gap_class` and `construct` that explain why. A refusal the manifest
-    # does not account for stays in the comparison and fails it.
+    # The differential fuzzer (`Differential.diff`) drops a query or
+    # read-model verb from the comparison if and only if the generator's own
+    # manifest recorded it as `generated: false`, with the `gap_class` and
+    # `construct` that explain why — never by pattern-matching Rust's
+    # refusal wording ("is not generated for this domain"), which would
+    # tolerate whatever Rust happened to say, including a codegen
+    # regression that silently started refusing a construct it once
+    # generated. A refusal the manifest does not account for stays in the
+    # comparison and fails it.
     #
-    # WHICH MANIFESTS DESCRIBE A BINARY. `build_and_pin` (spec/support/
-    # rust_conformance_helpers.rb) and `bin/qa_generated_domains` both pin a
-    # feature's binary at `<rust_dir>/target/debug/rust-<feature>`. That
-    # binary compiles `src/generated/<feature>/` plus every shared framework
-    # chapter (a generated directory with no `merged.rs` of its own —
-    # `governance`, `identity`; see the generated `mod.rs` header). Ids in
-    # those manifests are domain-qualified, so a chapter a domain never
-    # attaches contributes entries no sequence for that domain can name.
+    # ## Which manifests describe a binary
     #
-    # A MISSING MANIFEST TOLERATES NOTHING. A hand-written fixture crate, or
-    # a tree generated before manifests existed, has no declaration to
-    # honour, so every refusal it produces is compared as-is. That is the
-    # fail-closed direction.
+    # `build_and_pin` (spec/support/rust_conformance_helpers.rb) and
+    # `bin/qa_generated_domains` both pin a feature's binary at
+    # `<rust_dir>/target/debug/rust-<feature>`. That binary compiles
+    # `src/generated/<feature>/` plus every shared framework chapter (a
+    # generated directory with no `merged.rs` of its own — `governance`,
+    # `identity`; see the generated `mod.rs` header). Ids in those manifests
+    # are domain-qualified, so a chapter a domain never attaches contributes
+    # entries no sequence for that domain can name.
+    #
+    # ## A missing manifest tolerates nothing
+    #
+    # A hand-written fixture crate, or a tree generated before manifests
+    # existed, has no declaration to honour, so every refusal it produces
+    # is compared as-is. That is the fail-closed direction.
     class RustGapManifest
       # The only kinds the kernel answers as a query step. A not-generated
       # command changes state, so dropping its refusal would not make the
@@ -38,6 +42,11 @@ module Hecks
 
       attr_reader :rust_dir, :feature, :entries
 
+      # Builds the manifest reader for the pinned conformance binary at `binary`.
+      #
+      # @param binary [String] path to a pinned binary, `<rust_dir>/target/debug/rust-<feature>`
+      # @return [Fuzzing::RustGapManifest] the manifest reader for that binary's feature
+      # @raise [ArgumentError] if `binary` does not match the pinned-binary path shape
       def self.for_binary(binary)
         match = PINNED_BINARY.match(File.expand_path(binary.to_s))
         unless match
@@ -51,6 +60,10 @@ module Hecks
       # Every committed manifest entry under `rust_dir`, each tagged with the
       # generated module it came from — what the boundary ratchet and
       # bin/rust_coverage's allowlist staleness check read.
+      #
+      # @param rust_dir [String] path to the Rust project root (holds `src/generated/*/`)
+      # @return [Array<Hash>] every `src/generated/*/manifest.json` entry, each a
+      #   String-keyed manifest Hash plus `"module" => String` naming the directory it came from
       def self.all_entries(rust_dir)
         Dir.glob(File.join(rust_dir, "src/generated/*/manifest.json")).flat_map do |path|
           module_name = File.basename(File.dirname(path))
@@ -58,6 +71,8 @@ module Hecks
         end
       end
 
+      # @param rust_dir [String] path to the Rust project root (holds `src/generated/*/`)
+      # @param feature [String] the domain feature this manifest reader describes
       def initialize(rust_dir:, feature:)
         @rust_dir = rust_dir
         @feature  = feature
@@ -68,14 +83,25 @@ module Hecks
       # The manifest entry that declares `verb` not generated, or nil. `verb`
       # is the wire spelling a sequence step uses; an ad hoc filter (a Hash)
       # is never declared and answers nil.
+      #
+      # @param verb [String, Object] the wire-spelled query or read-model verb to look up
+      # @return [Hash, nil] the String-keyed manifest entry declaring `verb` not generated,
+      #   or nil if `verb` is not a String or no entry declares it
       def not_generated(verb)
         return nil unless verb.is_a?(String)
 
         @not_generated[verb]
       end
 
+      # Answers whether `verb` is declared not generated by this manifest.
+      #
+      # @param verb [String, Object] the wire-spelled query or read-model verb to look up
+      # @return [Boolean] whether the manifest declares `verb` not generated
       def not_generated?(verb) = !not_generated(verb).nil?
 
+      # Lists every verb this manifest declares not generated.
+      #
+      # @return [Set<String>] every verb the manifest declares not generated
       def not_generated_verbs = @not_generated.keys.to_set
 
       private

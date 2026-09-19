@@ -5,20 +5,20 @@ require "pathname"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
 
-# THE `bin/qa_sweep --all` FIXTURE, SHARED — extracted from what used to
-# be one 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
-# effort): the file's own 13 examples took 336s together on one CI
-# runner, a floor no matrix size could split further since
-# `parallel_rspec` balances at file granularity. Splitting the FIXTURE
+# **The `bin/qa_sweep --all` fixture, shared** — split out of one 710-line
+# `qa_sweep_all_spec.rb` (Phase 2 of the CI speed effort): the file's own
+# 13 examples took 336s together on one CI runner, a floor no matrix size
+# could split further since
+# `parallel_rspec` balances at file granularity. Splitting the fixture
 # out here and the 13 examples across several small files (each
 # `include_context "with a qa_sweep_all fixture", <unique database name>`) lets
 # the shard balancer actually spread this file's own work instead of
 # being stuck with one 336s lump.
 #
-# PARAMETERIZED BY DATABASE NAME, NOT HARDCODED — every file that
-# includes this context passes its OWN throwaway Postgres database name
+# **Parameterized by database name, not hardcoded** — every file that
+# includes this context passes its own throwaway Postgres database name
 # (`include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_foo_spec"`).
-# `parallel_rspec` runs different FILES as genuinely concurrent OS
+# `parallel_rspec` runs different files as genuinely concurrent OS
 # processes, so two files sharing one database name would race each
 # other's own `CREATE DATABASE`/`DROP SCHEMA CASCADE` — the exact
 # per-file-unique-resource-name discipline ci.yml's own
@@ -46,8 +46,8 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # parameterized by `database_name`, all four are static fixture
   # content.
   #
-  # THE "FOUND SOMETHING" EXAMPLE'S OWN FIXTURE CRATE — a small
-  # STANDALONE Rust crate (own `Cargo.toml`, `spec/fixtures/qa_sweep_all_
+  # The "found something" example's own fixture crate — a small
+  # standalone Rust crate (own `Cargo.toml`, `spec/fixtures/qa_sweep_all_
   # found_fixture_rust/`, deliberately outside `rust/`'s own workspace/
   # feature list) whose compiled binary always answers a fixed,
   # hand-written mismatch against `spec/fixtures/qa_sweep_all_found_
@@ -57,10 +57,10 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
                                  "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
   end
 
-  # THE FIXTURE LEDGER'S OWN `.hecksagon` — line-for-line what
+  # The fixture ledger's own `.hecksagon` — line-for-line what
   # `qa/bluebook/quality_control.hecksagon` declares (every aggregate
   # `persisted_by("PostgresEra")`, the same two dormant/bound ports),
-  # EXCEPT it binds no adapter for the `CI` port at all — see the
+  # except it binds no adapter for the `CI` port at all — see the
   # original file's own comment (preserved in git history) for why an
   # unbound `CI` port here is harmless.
   FIXTURE_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_HECKSAGON)
@@ -96,10 +96,10 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   RUBY
 
-  # ONE STANDALONE SCRIPT, RUN AS TWO REAL CONCURRENT PROCESSES — the
+  # One standalone script, run as two real concurrent processes — the
   # mechanism `--all`'s own "no extra lock needed" claim rests on,
   # exercised directly: two racers dispatch the exact same
-  # `QualityControl::Target.claim!`, both against the SAME target
+  # `QualityControl::Target.claim!`, both against the same target
   # reference, and whichever loses prints "refused" and exits 1.
   CLAIM_RACE_SCRIPT = <<~RUBY.freeze unless defined?(CLAIM_RACE_SCRIPT)
     root, domain_dir, target_ref, engineer = ARGV
@@ -120,7 +120,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   RUBY
 
-  # A DELIBERATELY TRIVIAL, SELF-AUTHORED SWEEP TARGET — one aggregate,
+  # **A deliberately trivial, self-authored sweep target** — one aggregate,
   # two commands, no invariant a random fuzzer could ever find a way to
   # violate, so a "clean" example never depends on this repository's own
   # actively-changing live QA corpus. No Rust feature, so `bin/qa_sweep`
@@ -172,7 +172,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   RUBY
 
-  # THE SAME TRIVIAL TARGET, BOUND TO PostgresEra — the one capability
+  # The same trivial target, bound to PostgresEra — the one capability
   # `Hecks::Fuzzing::TargetCapabilities` reads off a `.hecksagon` to make
   # a target eligible for `persistence_parity`, and therefore for
   # `--all`'s own second wave.
@@ -193,7 +193,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), FIXTURE_HECKSAGON)
-    # THE SAME URL SHAPE THE REAL LEDGER BINDS: the database by URL, as
+    # The same URL shape the real ledger binds: the database by URL, as
     # `hecks_qa`, an ordinary owner role — PostgresEra refuses to boot as
     # the ambient superuser (BUG#24). `bin/qa_postgres_role`, run for
     # real below, is what makes it connectable.
@@ -204,8 +204,8 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
       end
     RUBY
 
-    # LIVING INSIDE THE REAL REPO ROOT, NOT `/tmp` — `bin/qa_sweep`
-    # always resolves a `Target`'s own `path` against the REAL repository
+    # Living inside the real repo `ROOT`, not `/tmp` — `bin/qa_sweep`
+    # always resolves a `Target`'s own `path` against the real repository
     # root, independent of `QA_SWEEP_DOMAIN_DIR`.
     @target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_target-", InMemoryDomain::ROOT)
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), FIXTURE_TARGET_BLUEBOOK)
@@ -236,11 +236,16 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     FileUtils.remove_entry(@pg_target_domain_dir)
   end
 
-  # A FRESH SCHEMA BEFORE EVERY EXAMPLE — a Sweep, Bug or Target row a
-  # PRIOR example claimed/concluded/left held must never leak into the
+  # **A fresh schema before every example** — a Sweep, Bug or Target row a
+  # prior example claimed/concluded/left held must never leak into the
   # next one's own rotation.
   before { reset_schema! }
 
+  # Scrubs the fixture database's `public` schema back to empty and
+  # reassigns it to the QA role, so no row a prior example left behind
+  # can leak into the next one.
+  #
+  # @return [void]
   def reset_schema!
     scrub = PG.connect(dbname: @qa_sweep_all_database)
     scrub.exec("DROP SCHEMA public CASCADE")
@@ -249,9 +254,13 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     QaLedgerRole.own_public!(@qa_sweep_all_database)
   end
 
-  # Booted IN-PROCESS, briefly, purely to write `Target` rows down —
+  # Booted in-process, briefly, purely to write `Target` rows down —
   # never to dispatch a sweep itself (every sweep in this file runs as a
   # real, separate `bin/qa_sweep` process, which is the whole point).
+  #
+  # @param targets [Hash{String => String}] target reference to its domain's
+  #   path, relative to `InMemoryDomain::ROOT`
+  # @return [void]
   def identify_targets!(targets)
     Hecks.boot(@fixture_dir)
     targets.each do |reference, path|
@@ -259,12 +268,16 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   end
 
-  # THE EXACT INVOCATION a human (or `--all`'s own children) would type,
+  # The exact invocation a human (or `--all`'s own children) would type,
   # run for real via `Open3.capture3` — `QA_SWEEP_DOMAIN_DIR` is what
   # tells it to use this spec's own fixture ledger instead of the real
   # one, and `QA_SWEEP_RUST_DIR` is what tells `found_one`'s own
   # differential diff to build/run this spec's own hand-maintained
   # fixture crate rather than reaching for the real `rust/`.
+  #
+  # @param args [Array<String>] the CLI flags to pass `bin/qa_sweep`
+  # @return [Array(String, String, Process::Status)] the subprocess's
+  #   captured stdout, stderr and exit status
   def run_qa_sweep(*args)
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir, "QA_SWEEP_RUST_DIR" => FIXTURE_RUST_DIR },
@@ -273,13 +286,18 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     )
   end
 
-  # THE NON-BLOCKING REAP LOOP — see the `keeps at most SWEEP_MAX_PARALLEL`
+  # The non-blocking reap loop — see the `keeps at most SWEEP_MAX_PARALLEL`
   # example's own comment (wherever that example landed) for why this is
-  # `Process.waitpid2(pid, Process::WNOHANG)`, polled, and NOT a
+  # `Process.waitpid2(pid, Process::WNOHANG)`, polled, and not a
   # `Process.kill(0, pid)` liveness check in a loop (a zombie answers it just as
   # a live process would, so that loop can never observe the child
   # exiting). `probe` is called once per poll and returns whatever this
   # run wants tracked; returns `[status, probe_results]`.
+  #
+  # @param pid [Integer] the child process id to reap
+  # @yieldreturn [Object] one probe result, collected each poll
+  # @return [Array(Process::Status, Array<Object>)] the reaped exit status
+  #   and every yielded probe result, in polling order
   def reap_while_polling(pid)
     results = []
     loop do

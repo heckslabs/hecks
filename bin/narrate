@@ -13,7 +13,7 @@
 # markdown table of argument shapes to get there. See
 # `Hecks::Projector::NarrateProjector` for what it does and does not do.
 #
-# EVERY FAILURE IS A SENTENCE, NOT A BACKTRACE, and not silence — same
+# Every failure is a sentence, not a backtrace, and not silence — same
 # reasoning as `bin/docs`: a misspelled aggregate refuses by name instead of
 # quietly answering with nothing.
 
@@ -24,6 +24,13 @@ ROOT = File.expand_path("..", __dir__)
 
 IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 
+# Lists every directory in this checkout that `Hecks.boot` would accept as a domain root,
+# for the no-argument usage listing and for suggesting names when a path fails to resolve.
+# Same derivation as `bin/docs`'s `domains` — see there for why it walks for `.hecksagon`
+# files rather than a hand-maintained list.
+#
+# @return [Array<String>] each bootable domain's path relative to the repository root,
+#   deduplicated and sorted
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
      .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path) }

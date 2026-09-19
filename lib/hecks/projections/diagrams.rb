@@ -2,30 +2,34 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # A DOMAIN'S OWN SHAPE, PROJECTED AS MERMAID DIAGRAMS — the same
+    # A domain's own shape, projected as Mermaid diagrams — the same
     # trick `Projections::Reference`/`DocsProjector` already play for
-    # prose, one level further: a diagram generated FROM the
+    # prose, one level further: a diagram generated from the
     # declaration can't drift from it the way a hand-drawn one
     # inevitably does, because there is no second copy to forget to
     # update.
     #
-    # MERMAID, NOT GRAPHVIZ (the two considered) — every diagram type
+    # ## Why Mermaid, not Graphviz
+    #
+    # Mermaid, not Graphviz (the two considered) — every diagram type
     # below has a Mermaid form purpose-built for exactly what the
-    # underlying construct already is (a `lifecycle` IS a state
+    # underlying construct already is (a `lifecycle` is a state
     # machine, `has_many`/`belongs_to` already speaks in cardinality,
-    # `emits`/`trigger` already IS a directed graph), and the output is
+    # `emits`/`trigger` already is a directed graph), and the output is
     # plain text that renders natively wherever this project's own docs
     # already live — GitHub markdown, this repo's generated docs, Claude
     # Artifacts — with no build step and no external binary. Graphviz's
-    # DOT format needs an actual render step (a `dot` binary, or a WASM
+    # dot format needs an actual render step (a `dot` binary, or a WASM
     # port) to become anything viewable, which is a real dependency this
     # repository's own discipline (see rust/parser's Cargo.toml: "no
     # dependency earns its way past std") would rather not take just to
     # draw a diagram.
     #
-    # FOUR DIAGRAM KINDS, one file each per domain except lifecycles
+    # ## Diagram kinds
+    #
+    # Four diagram kinds, one file each per domain except lifecycles
     # (one per lifecycle-bearing construct, since that's how a reader
-    # actually reaches for it — looking at ONE aggregate's states, not
+    # actually reaches for it — looking at one aggregate's states, not
     # every aggregate's at once):
     #
     #   <Name>_lifecycle.mmd  stateDiagram-v2  one per lifecycle
@@ -47,27 +51,29 @@ module Hecks
     #   <Name>_surface.mmd    flowchart        one per aggregate/entity that
     #                                          declares at least one command
     #                                          or query — everything you can
-    #                                          DO to it and ASK about it,
-    #                                          AND what each command WRITES,
+    #                                          do to it and ask about it,
+    #                                          and what each command writes,
     #                                          in one place
     #   <Name>_saga.mmd       stateDiagram-v2  one per process_manager —
     #                                          its own states, and what
     #                                          each transition dispatches
     #                                          elsewhere in the domain
-    #   frameworks.mmd        flowchart        every OTHER domain this one
+    #   frameworks.mmd        flowchart        every other domain this one
     #                                          depends on — a shared
     #                                          framework it `uses_framework`,
     #                                          or a domain a policy reaches
     #                                          `across` — the one diagram
-    #                                          here that looks OUTWARD past
+    #                                          here that looks outward past
     #                                          this domain's own boundary
     #
-    # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
-    # UNSANITIZED, as Mermaid node/entity ids — safe because this
+    # ## Node and construct naming
+    #
+    # Construct names (aggregate/entity/command/event) are used bare,
+    # unsanitized, as Mermaid node/entity ids — safe because this
     # language's own word grammar only ever admits simple CamelCase/
     # snake_case identifiers there (confirmed: no space or punctuation
     # appears in any real aggregate/command/event name across the corpus
-    # this projects from). A `role:` STRING IS FREE TEXT, though — the
+    # this projects from). A `role:` string is free text, though — the
     # real corpus already has "Back office"/"Vault officer"/"Branch
     # clerk" — so `roles.mmd` is the one diagram here that sanitizes a
     # name into an id (`role_id`) while keeping the real string as the
@@ -79,6 +85,14 @@ module Hecks
 
       module_function
 
+      # Projects one domain's whole shape into every diagram kind it has data
+      # for, one Mermaid file per entry.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter to project
+      # @param options [Hash{Symbol => Object}] projection options; only `:hecksagon`
+      #   (a `Bluebook::Hecksagon`, or `nil`) is read, and only by `frameworks_diagram`
+      # @return [Hash{String => String}] each diagram's filename (such as
+      #   `"relationships.mmd"`) mapped to its rendered Mermaid source
       def call(bluebook:, options: {})
         files = {}
 
@@ -125,25 +139,46 @@ module Hecks
 
       # ── shared ────────────────────────────────────────────────────────
 
-      # AN ENTITY CAN CARRY ITS OWN LIFECYCLE, RELATIONSHIP, OR COMMAND
-      # TOO — its own `lifecycle`/`reference_to`/`command` block,
+      # Every aggregate and entity in this domain, flattened into one list —
+      # everything a lifecycle/relationship/command diagram walks alike.
+      #
+      # An entity can carry its own lifecycle, relationship, or command
+      # too — its own `lifecycle`/`reference_to`/`command` block,
       # addressed through its holding aggregate the same way
       # `DocsProjector` already treats an aggregate and its entities
       # alike. Walking both here means a domain's entity gaining any of
       # these needs no change to this file.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to walk
+      # @return [Array<Bluebook::Aggregate, Class>] every aggregate, and every entity
+      #   class (a `Bluebook::Entity` subclass) nested under it, in declaration order
       def holders(bluebook)
         bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
       end
 
+      # The holders (see `holders`) that declare their own `lifecycle` block —
+      # one diagram file is projected per lifecycle-bearing holder, not one
+      # per domain.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to walk
+      # @return [Array<Bluebook::Aggregate, Class>] every holder with a non-nil
+      #   `lifecycle`
       def holders_with_lifecycle(bluebook) = holders(bluebook).select(&:lifecycle)
 
-      # `chapter_name` DRIVES THE RE-RUN HINT ALWAYS — that's the one
+      # Renders the two-line `%%` comment banner every generated diagram file
+      # opens with, warning against hand edits and naming how to regenerate it.
+      #
+      # `chapter_name` drives the re-run hint always — that's the one
       # argument `bin/project_diagrams` actually takes, regardless of
       # which single aggregate/entity `subject` happens to name. Passing
       # the wrong one here once already produced a real, committed
       # `Order_lifecycle.mmd` telling a reader to run
       # `bin/project_diagrams <domain-path> Order` — a chapter name
       # Hecks.boot has never heard of.
+      #
+      # @param chapter_name [String] the domain's chapter name, used in the re-run hint
+      # @param subject [String] prose naming what this specific file was generated from
+      # @return [String] the two-line `%%`-commented Mermaid banner, newline-terminated
       def header(chapter_name, subject)
         <<~HEADER
           %% GENERATED by bin/project_diagrams from #{subject} — DO NOT EDIT BY HAND.
@@ -153,6 +188,15 @@ module Hecks
 
       # ── lifecycle -> stateDiagram-v2 ─────────────────────────────────
 
+      # Renders one holder's own declared `lifecycle` as a Mermaid
+      # `stateDiagram-v2` — its default starting state, and one edge per
+      # transition, labeled by the command that causes it.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter `holder` belongs to, for the
+      #   file's re-run banner
+      # @param holder [Bluebook::Aggregate, Class] the aggregate or entity class (a
+      #   `Bluebook::Entity` subclass) whose `lifecycle` to draw
+      # @return [String] the rendered Mermaid `stateDiagram-v2` source
       def lifecycle_diagram(bluebook, holder)
         lifecycle = holder.lifecycle
         edges = lifecycle.transitions.flat_map do |command_name, transition|
@@ -169,18 +213,26 @@ module Hecks
 
       # ── relationships -> erDiagram ───────────────────────────────────
 
-      # STANDARD CROW'S-FOOT READING, the same convention every ORM's own
+      # Renders the whole domain's declared `has_many`/`has_one`/`belongs_to`/
+      # `reference_to` attributes as a Mermaid `erDiagram`, one edge per
+      # reference attribute across every holder.
+      #
+      # Standard crow's-foot reading, the same convention every ORM's own
       # ERD generator (Rails' erd gem included) already uses:
-      # `has_many`/`has_one` are read from the OWNING side — one Holder
+      # `has_many`/`has_one` are read from the owning side — one Holder
       # relates to many/one Target. `belongs_to`/`reference_to` are read
-      # from the TARGET's side instead — one Target can be pointed at by
-      # MANY Holders — because a bare reference carries no promise about
+      # from the target's side instead — one Target can be pointed at by
+      # many Holders — because a bare reference carries no promise about
       # how many holders point back at it; "many" is the honest default
       # absent a declared uniqueness rule this language doesn't expose.
       # `optional?` only ever softens the side that can genuinely be
       # absent (a nilable reference, an empty has_one) — never the
       # crow's-foot "many" marker, which is a structural fact independent
       # of any one instance's optionality.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @return [String, nil] the rendered Mermaid `erDiagram` source, or `nil` if the
+      #   domain declares no reference attribute at all
       def relationship_diagram(bluebook)
         edges = holders(bluebook).flat_map do |holder|
           holder.attributes.select(&:reference?).map { |attribute| relationship_edge(holder, attribute) }
@@ -191,6 +243,14 @@ module Hecks
         "#{header(bluebook.name, subject)}erDiagram\n#{edges.join("\n")}\n"
       end
 
+      # One erDiagram edge for one holder's own declared reference attribute,
+      # in the DSL word's own crow's-foot reading (see `relationship_diagram`).
+      #
+      # @param holder [Bluebook::Aggregate, Class] the aggregate or entity class (a
+      #   `Bluebook::Entity` subclass) that declares `attribute`
+      # @param attribute [Bluebook::Attribute] a reference attribute (`attribute.reference?`
+      #   is true); its `relationship` names which DSL word minted it
+      # @return [String] the rendered `erDiagram` edge line
       def relationship_edge(holder, attribute)
         target = attribute.type.target_name
         case attribute.relationship
@@ -205,14 +265,18 @@ module Hecks
 
       # ── dispatch -> flowchart ─────────────────────────────────────────
 
-      # A COMMAND NODE, STADIUM-SHAPED (`(["..."])`); AN EVENT NODE,
-      # HEXAGONAL (`{{"..."}}`) — one visual vocabulary for "a thing
+      # A command node, stadium-shaped (`(["..."])`); an event node,
+      # hexagonal (`{{"..."}}`) — one visual vocabulary for "a thing
       # someone does" versus "a fact that happened", matching the
       # language's own verb/event distinction. Command ids are qualified
       # by their owning aggregate (`cmd_Order_Purchase`) since two
       # aggregates may share a command name; event ids are bare
       # (`evt_PizzaCreated`) since an event is this domain's own
       # addressing key, the same way `policy.on_event` reaches it.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @return [String, nil] the rendered Mermaid flowchart source, or `nil` if the
+      #   domain declares no command `emits` and no policy at all
       def dispatch_diagram(bluebook)
         lines = []
 
@@ -231,21 +295,33 @@ module Hecks
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
+      # One flowchart edge from a command to one event it declares it `emits`.
+      #
+      # @param holder [Bluebook::Aggregate, Class] the aggregate or entity class (a
+      #   `Bluebook::Entity` subclass) that declares `command`
+      # @param command [Class] the command class (a `Bluebook::Command` subclass) that
+      #   emits `event`
+      # @param event [String] the emitted event's name
+      # @return [String] the rendered `-->|emits|` edge line
       def emits_edge(holder, command, event)
         %(    #{command_node(holder.hecks_name, command.hecks_name)} -->|emits| #{event_node(event)})
       end
 
-      # `on_event` IS SOMETIMES AGGREGATE-QUALIFIED
-      # (`"Account.AccountFrozen"`) AND SOMETIMES BARE
+      # `on_event` is sometimes aggregate-qualified
+      # (`"Account.AccountFrozen"`) and sometimes bare
       # (`"CustomerSuspended"`) in the real corpus — `emits` never is,
       # so this always matches against the bare tail, the same
       # normalization a reader has to do by eye today.
       #
-      # A TRIGGER CROSSING INTO ANOTHER DOMAIN (`policy.target_domain`)
+      # A trigger crossing into another domain (`policy.target_domain`)
       # still draws — the target command just has no incoming `emits`
       # edge of its own here, which honestly shows "dispatch continues
       # elsewhere" rather than silently dropping the edge. The label
       # names which domain, so that's not a dead end on the page either.
+      #
+      # @param policy [Bluebook::Policy] the policy to draw as a trigger edge
+      # @return [String] the rendered `-->|triggers|` (or `-->|triggers in <domain>|`)
+      #   edge line
       def trigger_edge(policy)
         bare_event = policy.on_event.to_s.split(".").last
         aggregate_name, command_name = policy.trigger_command.to_s.split(".", 2)
@@ -253,21 +329,39 @@ module Hecks
         %(    #{event_node(bare_event)} -->|#{label}| #{command_node(aggregate_name, command_name)})
       end
 
+      # Mermaid stadium-shaped node id and label for one command, qualified by
+      # its owning aggregate since two aggregates may share a command name.
+      #
+      # @param aggregate_name [String] the command's owning aggregate/entity name
+      # @param command_name [String] the command's own name
+      # @return [String] the rendered `cmd_<aggregate>_<command>(["..."])` node
       def command_node(aggregate_name, command_name)
         %(cmd_#{aggregate_name}_#{command_name}(["#{aggregate_name}.#{command_name}"]))
       end
 
+      # Mermaid hexagonal node id and label for one event, addressed bare since
+      # an event is this domain's own addressing key.
+      #
+      # @param event_name [String] the event's own name
+      # @return [String] the rendered `evt_<event>{{"..."}}` node
       def event_node(event_name) = %(evt_#{event_name}{{"#{event_name}"}})
 
       # ── roles -> flowchart ────────────────────────────────────────────
 
-      # WHO ISSUES WHAT, ACROSS THE WHOLE DOMAIN — data no existing
+      # Renders every command's declared `role` as a Mermaid flowchart, one
+      # edge per role issuing a command.
+      #
+      # Who issues what, across the whole domain — data no existing
       # projection draws at all today (the reference pages' own
       # `command_entry` only ever prints a command's role as a single
       # line of prose, never assembled across commands). A command with
       # no declared `role` draws nothing — there is no fact to state.
       # Circle-shaped so a role reads as "who" beside `dispatch.mmd`'s
       # stadium ("what someone does") and hexagon ("what happened").
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @return [String, nil] the rendered Mermaid flowchart source, or `nil` if no
+      #   command in the domain declares a `role`
       def roles_diagram(bluebook)
         lines = holders(bluebook).flat_map do |holder|
           holder.commands.select(&:role).map { |command| role_edge(holder, command) }
@@ -278,22 +372,41 @@ module Hecks
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
+      # One flowchart edge from a command's declared role to the command
+      # itself.
+      #
+      # @param holder [Bluebook::Aggregate, Class] the aggregate or entity class (a
+      #   `Bluebook::Entity` subclass) that declares `command`
+      # @param command [Class] the command class (a `Bluebook::Command` subclass); its
+      #   `role` is drawn
+      # @return [String] the rendered `-->|issues|` edge line
       def role_edge(holder, command)
         %(    #{role_node(command.role)} -->|issues| #{command_node(holder.hecks_name, command.hecks_name)})
       end
 
+      # Mermaid circular node id and label for one role, keeping the real
+      # free-text role string as the displayed label (see `role_id`).
+      #
+      # @param role_name [String] the command's declared `role` text
+      # @return [String] the rendered `role_<id>((<role>))` node
       def role_node(role_name) = %(#{role_id(role_name)}((#{role_name})))
 
-      # A ROLE NAME IS FREE TEXT ("Back office", "Vault officer") —
+      # Sanitizes a free-text role name into a legal Mermaid node id.
+      #
+      # A role name is free text ("Back office", "Vault officer") —
       # unlike every other name this file uses as a bare id, this one
       # has to be sanitized to become a legal Mermaid identifier. The
       # real string still appears as the node's own label
       # (`role_node`); only the id is mangled.
+      #
+      # @param role_name [String] the command's declared `role` text
+      # @return [String] `role_` followed by `role_name` with every run of
+      #   non-alphanumeric characters collapsed to a single underscore
       def role_id(role_name) = "role_#{role_name.to_s.gsub(/[^A-Za-z0-9]+/, '_')}"
 
       # ── ports -> flowchart ───────────────────────────────────────────
 
-      # A PORT OPERATION IS A BOUNDARY TRANSLATION, NOT A VERB OR A FACT —
+      # A port operation is a boundary translation, not a verb or a fact —
       # its own reference page says so plainly ("the builder behind it
       # defines no `given` or `sets`, so an operation cannot read
       # aggregate state or mutate a record itself"), so it gets a third
@@ -302,21 +415,25 @@ module Hecks
       # state landing somewhere, the same reason a data store gets one
       # in an ordinary flowchart.
       #
-      # TWO EDGE KINDS PER OPERATION: a dotted "exposes" edge from the
+      # Two edge kinds per operation: a dotted "exposes" edge from the
       # aggregate the port hangs off (always present — a port always
       # belongs to exactly one aggregate), and a solid "to:" edge to
       # whichever aggregate the operation itself names as its receiver
-      # (present only when `to:` is declared — PR #351's own real
-      # addition; before it, this data didn't exist to draw at all).
+      # (present only when `to:` is declared — an operation with no
+      # declared target has no destination of its own to draw).
       # `emits` reuses `dispatch.mmd`'s own `event_node` unchanged — the
       # same fact, reached from a different direction.
       #
-      # `bluebook.aggregates`, NOT the shared `holders` — unlike a
-      # lifecycle/relationship/command, a port belongs to an AGGREGATE
+      # `bluebook.aggregates`, not the shared `holders` — unlike a
+      # lifecycle/relationship/command, a port belongs to an aggregate
       # only; an entity has no `ports` method at all (confirmed: calling
       # it raises, it isn't just always empty), so walking entities here
       # the way every other diagram in this file does would crash on
       # the first entity-bearing domain.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @return [String, nil] the rendered Mermaid flowchart source, or `nil` if the
+      #   domain declares no port operation at all
       def ports_diagram(bluebook)
         lines = bluebook.aggregates.flat_map do |holder|
           holder.ports.flat_map { |port| port.operations.map { |operation| port_edges(holder, port, operation) } }
@@ -328,6 +445,14 @@ module Hecks
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
+      # All of one port operation's own edges: the aggregate that exposes it,
+      # its optional `to:` routing target, and one edge per event it `emits`.
+      #
+      # @param holder [Bluebook::Aggregate] the aggregate `port` is attached to
+      # @param port [Bluebook::DomainPort] the port `operation` belongs to
+      # @param operation [Bluebook::PortOperation] the operation to draw
+      # @return [Array<String>] the rendered edge lines: one "exposes" edge, plus a
+      #   "to:" edge when `operation.to` is declared, plus one "emits" edge per event
       def port_edges(holder, port, operation)
         op = port_operation_node(holder.hecks_name, port.name, operation.hecks_name)
         edges = ["    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|exposes| #{op}"]
@@ -336,6 +461,13 @@ module Hecks
         edges
       end
 
+      # Mermaid trapezoidal node id and label for one port operation, qualified
+      # by both its owning aggregate and its owning port.
+      #
+      # @param aggregate_name [String] the operation's owning aggregate name
+      # @param port_name [String] the operation's owning port name
+      # @param operation_name [String] the operation's own name
+      # @return [String] the rendered `op_<aggregate>_<port>_<operation>[/"..."/]` node
       def port_operation_node(aggregate_name, port_name, operation_name)
         id = "op_#{aggregate_name}_#{port_name}_#{operation_name}"
         %(#{id}[/"#{port_name}.#{operation_name}"/])
@@ -343,17 +475,20 @@ module Hecks
 
       # ── read models -> flowchart ─────────────────────────────────────
 
-      # THE READ-SIDE COMPLEMENT TO `relationships.mmd` — that diagram
-      # shows how aggregates reference each other for WRITES
+      # Renders the whole domain's declared `read_models` as a Mermaid
+      # flowchart, one edge per aggregate a read model is assembled from.
+      #
+      # The read-side complement to `relationships.mmd` — that diagram
+      # shows how aggregates reference each other for writes
       # (`has_many`/`belongs_to`/`reference_to`); this shows how a
-      # `read_model` ASSEMBLES data for READS, from
+      # `read_model` assembles data for reads, from
       # `aggregate_heads` — the same list `where`/`group_by`/`order_by`
       # all operate over, and the one fact every read_model has
       # regardless of whether it's rooted (`reference_target`) or
       # gathers heads with no root at all (a rootless read model, real
       # in the corpus: `AccountsByKind`).
       #
-      # A READ MODEL IS A SUBROUTINE SHAPE (`[[...]]`, "a predefined
+      # A read model is a subroutine shape (`[[...]]`, "a predefined
       # process") — a fourth shape, beside `ports.mmd`'s trapezoid and
       # `dispatch.mmd`'s stadium/hexagon: not a verb, not a fact, not a
       # boundary translation, but a standing, reusable view. Every
@@ -363,12 +498,16 @@ module Hecks
       # (real in banking: `Account` feeds four) merges into one node
       # across the whole diagram.
       #
-      # THE LABEL NAMES THE SHAPE OF THE ANSWER, NOT JUST THE NAME —
+      # The label names the shape of the answer, not just the name —
       # `(count)`/`(median: field)` for the two real aggregations in the
       # corpus, nothing appended for an ordinary row-returning
       # read_model. Still MVP scope: `where`/`group_by`/`order_by`
       # aren't drawn at all yet — real facts, not invented, just not
       # this diagram's job yet.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @return [String, nil] the rendered Mermaid flowchart source, or `nil` if the
+      #   domain declares no `read_model` at all
       def read_model_diagram(bluebook)
         lines = bluebook.read_models.flat_map { |read_model| read_model_edges(read_model) }
         return nil if lines.empty?
@@ -377,16 +516,22 @@ module Hecks
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
+      # One edge per aggregate one read model is assembled from, into that
+      # read model's own subroutine-shaped node.
+      #
+      # @param read_model [Bluebook::ReadModel] the read model to draw
+      # @return [Array<String>] the rendered edge lines, one per entry in
+      #   `read_model.to_h[:aggregate_heads]`
       def read_model_edges(read_model)
         shape = read_model.to_h
         node = %(rm_#{shape[:name]}[["#{read_model_label(shape)}"]])
         Array(shape[:aggregate_heads]).map do |head|
-          # QUOTED, NOT BARE — an edge label containing `[` or `]`
+          # **Quoted, not bare** — an edge label containing `[` or `]`
           # (`accounts[]`, marking the "many" side) breaks Mermaid's own
           # `|label|` parser outright if left unquoted: it reads the
-          # `[` as the START OF A NEW NODE SHAPE mid-label, not text.
+          # `[` as the start of a new node shape mid-label, not text.
           # Confirmed live against the real parser before this quoting
-          # existed — every OTHER edge label in this file happens to be
+          # existed — every other edge label in this file happens to be
           # a bare word or already-quoted string, so this is the one
           # spot that needed it.
           label = head[:many] ? "#{head[:as]}[]" : head[:as]
@@ -394,6 +539,13 @@ module Hecks
         end
       end
 
+      # The read model's own subroutine node label — its name, with
+      # `(count)`/`(median: field)` appended for the two aggregations this
+      # diagram states.
+      #
+      # @param shape [Hash{Symbol => Object}] a `Bluebook::ReadModel#to_h` result;
+      #   reads `:name`, `:count` and `:median_field`
+      # @return [String] the node's display label
       def read_model_label(shape)
         return "#{shape[:name]} (count)" if shape[:count]
         return "#{shape[:name]} (median: #{shape[:median_field]})" if shape[:median_field]
@@ -403,50 +555,59 @@ module Hecks
 
       # ── surface -> flowchart ─────────────────────────────────────────
 
-      # "WHAT CAN I DO TO THIS, WHAT CAN I ASK ABOUT IT" — one file per
+      # Renders one holder's own commands (and what each writes) and queries
+      # as a Mermaid flowchart.
+      #
+      # "What can I do to this, what can I ask about it" — one file per
       # holder, unlike every other diagram here: `dispatch.mmd` already
       # shows a command's own onward reaction chain, but never an
-      # aggregate's own FULL command/query menu in one place, and
+      # aggregate's own full command/query menu in one place, and
       # `roles.mmd` shows who issues a command without saying what else
       # that same aggregate answers. This is the one diagram meant to
       # be read starting from the aggregate, not from a verb or a fact.
       #
-      # A QUERY IS A DIAMOND — a fifth shape, beside `dispatch.mmd`'s
+      # A query is a diamond — a fifth shape, beside `dispatch.mmd`'s
       # stadium/hexagon, `ports.mmd`'s trapezoid, and `read_models.mmd`'s
       # subroutine: a question with an answer, not a verb that changes
       # anything. Command edges are solid ("does"); query edges are
       # dotted ("asks") — the same solid/dotted split `ports.mmd`
       # already uses for "routes to:" versus "exposes".
       #
-      # A WRITE TARGET IS A PLAIN RECTANGLE — a sixth shape, the first
+      # A write target is a plain rectangle — a sixth shape, the first
       # here with no special bracket at all: an attribute is the
       # smallest, most passive thing this vocabulary names, a single
-      # field living INSIDE the cylinder rather than a bounded thing of
+      # field living inside the cylinder rather than a bounded thing of
       # its own. `command.mutations` (`sets`/`increment`/`decrement`/
       # `append`) was invisible everywhere before this — not just in a
-      # diagram, in ANY projection, including the prose ones — despite
+      # diagram, in any projection, including the prose ones — despite
       # being the single densest fact in the whole IR (53 real
       # mutations across pizzas + banking). `dispatch.mmd` draws what a
-      # command EMITS; this draws what it WRITES, the other half of
+      # command emits; this draws what it writes, the other half of
       # "what actually happens" a command never showed before.
       #
-      # THE SAME ATTRIBUTE NODE MERGES ACROSS COMMANDS — real in
+      # The same attribute node merges across commands — real in
       # banking: `Account.Credit` and `Account.Debit` both point at the
       # same `balance` node, the same "one node, several incoming
       # edges" merge `read_models.mmd` already does for an aggregate
       # fed by several read_models.
       #
-      # THE LABEL NAMES THE REAL SOURCE, NOT JUST THE VERB — an
+      # The label names the real source, not just the verb — an
       # increment/decrement/set almost always takes its value from an
-      # argument, but not always the SAME-NAMED one: real in banking,
+      # argument, but not always the same-named one: real in banking,
       # `Account.Credit`'s own `balance` is incremented by its
       # `amount` argument, and `LedgerEntry.Amend`'s own `amount` is
       # incremented by its `adjustment` argument. A literal source
       # (pizzas' own `Order.Purchase` sets `status` to the literal
       # `"sold"`, not an argument at all) is named as verbatim as
       # every other fact in this file. `append`'s own fields carry no
-      # single source at all — its own field NAMES are the fact worth
+      # single source at all — its own field names are the fact worth
       # stating (real: `Order.AddTopping` appends `name, amount`).
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter `holder` belongs to, for the
+      #   file's re-run banner
+      # @param holder [Bluebook::Aggregate, Class] the aggregate or entity class (a
+      #   `Bluebook::Entity` subclass) whose commands and queries to draw
+      # @return [String] the rendered Mermaid flowchart source
       def surface_diagram(bluebook, holder)
         lines = holder.commands.map do |command|
           "    #{holder.hecks_name}[(#{holder.hecks_name})] -->|does| #{command_node(holder.hecks_name, command.hecks_name)}"
@@ -464,10 +625,25 @@ module Hecks
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
+      # Mermaid diamond-shaped node id and label for one query, qualified by
+      # its owning aggregate.
+      #
+      # @param aggregate_name [String] the query's owning aggregate/entity name
+      # @param query_name [String] the query's own name
+      # @return [String] the rendered `qry_<aggregate>_<query>{"..."}` node
       def query_node(aggregate_name, query_name)
         %(qry_#{aggregate_name}_#{query_name}{"#{aggregate_name}.#{query_name}"})
       end
 
+      # One flowchart edge from a command to one attribute it mutates,
+      # labeled with what the mutation writes (see `mutation_label`).
+      #
+      # @param holder [Bluebook::Aggregate, Class] the aggregate or entity class (a
+      #   `Bluebook::Entity` subclass) that declares `command` and the mutated attribute
+      # @param command [Class] the command class (a `Bluebook::Command` subclass) that
+      #   declares `mutation`
+      # @param mutation [Bluebook::Mutation] the mutation to draw
+      # @return [String] the rendered `-->|"..."|` edge line
       def mutation_edge(holder, command, mutation)
         shape = mutation.to_h
         label = mutation_label(shape)
@@ -475,11 +651,18 @@ module Hecks
         %(    #{command_node(holder.hecks_name, command.hecks_name)} -->|"#{label}"| #{target})
       end
 
+      # The edge label naming what one mutation writes — the op, and either
+      # its bound field names (an append/delegate/corrects) or its value
+      # source (see `mutation_source_detail`).
+      #
+      # @param shape [Hash{Symbol => Object}] a `Bluebook::Mutation#to_h` result;
+      #   reads `:op`, and either `:fields` or `:source`
+      # @return [String] the rendered `"<op>s: <detail>"` label text
       def mutation_label(shape)
         verb = "#{shape[:op]}s"
-        # `fields:` (not `source:`) IS the multi-binding shape
+        # `fields:` (not `source:`) is the multi-binding shape
         # (`Mutation#to_h`'s own `[:append, :delegate, :corrects]`
-        # branch) — checked by the KEY'S PRESENCE, not by re-listing
+        # branch) — checked by the key's presence, not by re-listing
         # which ops use it a second time here, the same lesson
         # `Change.op`'s own `admits: Vocabulary::MutationOp` already
         # drew (command.bluebook's own comment): a second list of "the
@@ -492,7 +675,7 @@ module Hecks
         "#{verb}: #{detail}"
       end
 
-      # A LITERAL VALUE CAN CONTAIN A DOUBLE QUOTE OF ITS OWN — real in
+      # A literal value can contain a double quote of its own — real in
       # banking: `Customer.Reinstate` sets `standing` to a rendered
       # value-object literal, `{:value=>"good"}`, whose own embedded `"`
       # broke this label's outer `|"..."|` quoting outright (caught by
@@ -501,33 +684,46 @@ module Hecks
       # was caught). Swapped for a single quote here rather than
       # escaped, the same "state it, don't invent it, just make it
       # legal Mermaid" trade `read_models.mmd`'s own quoting fix made.
+      #
+      # @param source [Hash{Symbol => Object}] a classified mutation source: `{kind:
+      #   "literal", value:}`, `{kind: "argument", name:}`, or `{kind: "state", name:}`
+      # @return [String] `source[:value]` quoted for a literal, `source[:name]` for an
+      #   argument, or `source[:kind]` itself for any other kind
       def mutation_source_detail(source)
         case source[:kind]
         when "literal"  then "'#{source[:value].to_s.tr('"', "'")}'"
         when "argument" then source[:name]
-        else source[:kind] # a source kind this file has no real corpus example of yet — named, not hidden
+        else
+          # A source kind this file has no real corpus example of yet — named, not hidden.
+          source[:kind]
         end
       end
 
+      # Mermaid plain-rectangle node id and label for one attribute a
+      # mutation writes, qualified by its owning holder.
+      #
+      # @param holder_name [String] the attribute's owning aggregate/entity name
+      # @param attribute_name [Symbol, String] the mutated attribute's own name
+      # @return [String] the rendered `attr_<holder>_<attribute>[<attribute>]` node
       def attribute_node(holder_name, attribute_name)
         %(attr_#{holder_name}_#{attribute_name}[#{attribute_name}])
       end
 
       # ── sagas -> stateDiagram-v2 ─────────────────────────────────────
 
-      # A SAGA HAS A LIFECYCLE TOO — the same `stateDiagram-v2` shape
+      # A saga has a lifecycle too — the same `stateDiagram-v2` shape
       # `lifecycle_diagram` already draws, one file per process_manager
       # the same way lifecycle is one file per lifecycle-bearing holder.
       # What's different is the label: a lifecycle's own edge is labeled
-      # by the COMMAND that causes it (an aggregate transitions because
-      # something was DONE to it); a saga's edge is labeled by the EVENT
-      # that causes it (a saga advances because something HAPPENED,
+      # by the command that causes it (an aggregate transitions because
+      # something was done to it); a saga's edge is labeled by the event
+      # that causes it (a saga advances because something happened,
       # possibly nowhere near the saga itself) — the same command/event
       # split `dispatch.mmd`'s own stadium/hexagon vocabulary already
       # draws, here spent on which noun labels a stateDiagram-v2 edge
       # instead.
       #
-      # THE LABEL ALSO NAMES WHAT THE TRANSITION DISPATCHES — a fact no
+      # The label also names what the transition dispatches — a fact no
       # existing diagram states for a saga at all: a lifecycle's own
       # edge only ever names the one command that caused it; a saga's
       # edge can fire several commands at once (real in banking:
@@ -538,12 +734,18 @@ module Hecks
       # fires lands inside its own bluebook chapter, so this never needs
       # `dispatch.mmd`'s own "triggers in X" cross-domain label.
       #
-      # THE COMPENSATING LEG READS LIKE ANY OTHER — its own trigger is
+      # The compensating leg reads like any other — its own trigger is
       # the literal string "refused" (`ProcessManager::REFUSED`, this
       # language's own Trigger vocabulary), not invented text: a
       # dispatch declined is exactly as real a cause of a state
       # transition as an event announced, and the diagram states it
       # exactly as verbatim as every other edge here does.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter `saga` belongs to, for the
+      #   file's re-run banner
+      # @param saga [Bluebook::ProcessManager] the process manager whose states and
+      #   dispatches to draw
+      # @return [String] the rendered Mermaid `stateDiagram-v2` source
       def saga_diagram(bluebook, saga)
         edges = saga.handlers.map { |handler| saga_edge(handler, saga) }
 
@@ -556,20 +758,29 @@ module Hecks
         MERMAID
       end
 
-      # THE REFUSED EDGE'S OWN DISPATCH LIST IS PARTLY DERIVED NOW —
+      # One stateDiagram-v2 edge for one saga handler, labeled by the event
+      # that causes it and what it dispatches.
+      #
+      # The `REFUSED` edge's own dispatch list is partly derived now —
       # per-dispatch saga compensation (`compensates`) moved a saga's own
-      # compensating dispatches OFF the hand-written `on :refused` leg
+      # compensating dispatches off the hand-written `on :refused` leg
       # and onto whichever forward dispatch each one undoes, so
-      # `handler.dispatches` alone would render an EMPTY compensating
-      # edge for any saga using it — accurate to the DECLARATION, wrong
+      # `handler.dispatches` alone would render an empty compensating
+      # edge for any saga using it — accurate to the declaration, wrong
       # about what the runtime actually does at refusal (it derives and
       # fires every declared `compensates`, newest first). `saga` is
-      # passed through for exactly this — only the REFUSED handler needs
+      # passed through for exactly this — only the `REFUSED` handler needs
       # it, every other edge's own `handler.dispatches` already says
       # everything real about it.
+      #
+      # @param handler [Bluebook::ProcessManagerHandler] the handler row to draw as
+      #   an edge
+      # @param saga [Bluebook::ProcessManager] the process manager `handler` belongs
+      #   to, needed only to derive the `REFUSED` edge's compensating dispatches
+      # @return [String] the rendered `-->` stateDiagram-v2 edge line
       def saga_edge(handler, saga)
         label = handler.event_type
-        # DERIVED FIRST, then the hand-written body — the same order
+        # Derived first, then the hand-written body — the same order
         # `SagaInterpreter#unwind` actually runs them in (every
         # completed leg's own `compensates` before this leg's own
         # hand-written dispatches), not declaration order on the page.
@@ -585,33 +796,41 @@ module Hecks
       # derives and fires (newest-first, at actual refusal time; this
       # diagram states them in declaration order, since it draws the
       # saga's own shape, not one instance's own runtime history).
+      #
+      # @param saga [Bluebook::ProcessManager] the process manager whose declared
+      #   compensations to list
+      # @return [Array<String>] the name of each compensating command declared anywhere
+      #   in `saga`, in declaration order
       def derived_compensations(saga)
         saga.handlers.flat_map { |handler| handler.dispatches.filter_map { |dispatch| dispatch.compensates&.command_name } }
       end
 
       # ── frameworks -> flowchart ─────────────────────────────────────
 
-      # EVERY OTHER DIAGRAM IN THIS FILE STAYS INSIDE ONE DOMAIN'S OWN
-      # BOUNDARY — this is the one that steps outside it. A real domain
+      # Renders the whole domain's declared `uses_framework` attachments and
+      # cross-domain policy targets as a Mermaid flowchart.
+      #
+      # Every other diagram in this file stays inside one domain's own
+      # boundary — this is the one that steps outside it. A real domain
       # depends on another domain's own aggregates in exactly two ways:
       # `uses_framework "X"` in its `.hecksagon` (`Hecksagon#framework_
-      # members`), which loads X's whole bluebook into THIS registry,
+      # members`), which loads X's whole bluebook into this registry,
       # unconditionally, the moment this domain boots; or a policy's own
       # `across "X"` (`Policy#target_domain`), which only reaches X when
       # the policy's declared event actually fires. Same underlying
       # fact `dispatch.mmd`'s own `trigger_edge` already draws from the
       # command's side ("triggers in X") — this draws it again from the
-      # DOMAIN's side, next to the structural `uses_framework` fact
+      # domain's side, next to the structural `uses_framework` fact
       # `dispatch.mmd` never sees at all (that lives in the `.hecksagon`,
       # which no other diagram here is handed).
       #
-      # NEITHER THIS DOMAIN NOR EACH DEPENDENCY GETS THE holders() TREATMENT
-      # — a whole domain is drawn as ONE cylinder, the same "a bounded,
+      # Neither this domain nor each dependency gets the holders() treatment
+      # — a whole domain is drawn as one cylinder, the same "a bounded,
       # addressable thing" shape every other diagram here already spends
       # on a single aggregate, just scaled up one level: a domain is a
       # bigger box the same kind of box lives inside.
       #
-      # DOTTED FOR `attaches`, SOLID FOR `reaches across` — the reverse
+      # Dotted for `attaches`, solid for `reaches across` — the reverse
       # of which fact is "always true" between the two: attaching a
       # framework is a standing declaration, true every time this domain
       # boots, so it gets the same dotted "this always belongs" treatment
@@ -621,14 +840,21 @@ module Hecks
       # draws for the identical fact, kept solid here so the same
       # relationship reads the same way in both diagrams.
       #
-      # `options[:hecksagon]` IS THE ONE DIAGRAM IN THIS FILE THAT NEEDS
-      # MORE THAN `bluebook` — `framework_members` lives on the
+      # `options[:hecksagon]` is the one diagram in this file that needs
+      # more than `bluebook` — `framework_members` lives on the
       # `Hecksagon`, a sibling IR object `bin/project_diagrams` already
       # has in hand (`registry.hecksagon(chapter_name)`) but `bluebook`
       # itself carries no reference to. No hecksagon handed in (an older
       # caller, or a spec that doesn't care) just means no frameworks.mmd
       # — same "nothing to state" skip every other diagram here already
       # takes when its own underlying data is empty.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @param hecksagon [Bluebook::Hecksagon, nil] the chapter's `.hecksagon`, holding
+      #   its `framework_members`, or `nil` if the caller has none to hand in
+      # @return [String, nil] the rendered Mermaid flowchart source, or `nil` if
+      #   `hecksagon` is `nil`, or the domain declares no `uses_framework` and no
+      #   cross-domain policy target
       def frameworks_diagram(bluebook, hecksagon)
         return nil unless hecksagon
 
@@ -641,6 +867,16 @@ module Hecks
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
+      # One flowchart edge from this domain to a dependency, dotted for a
+      # standing `attaches` and solid for a `reaches across` that only fires
+      # when a policy does.
+      #
+      # @param from [String] this domain's own name
+      # @param label [String] the edge label, `"attaches"` or `"reaches across"`
+      # @param to [String, Symbol] the dependency domain's name
+      # @param dotted [Boolean] whether to render a dotted (`true`) or solid (`false`)
+      #   arrow
+      # @return [String] the rendered edge line
       def domain_edge(from, label, to, dotted:)
         arrow = dotted ? "-.->" : "-->"
         %(    #{from}[(#{from})] #{arrow}|#{label}| #{to}[(#{to})])

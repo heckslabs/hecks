@@ -4,10 +4,10 @@ require_relative "form_census"
 
 module Hecks
   module Fuzzing
-    # AN AGENT READS THE ADVERSARIAL CORPUS AND WRITES THE NEXT MEETING.
+    # An agent reads the adversarial corpus and writes the next meeting.
     #
     # `DomainGenerator` forces two `FormCensus::FORMS` onto one aggregate
-    # from a seed — cheap, mechanical, and blind to WHY a combination
+    # from a seed — cheap, mechanical, and blind to why a combination
     # should break. The bugs the ledger actually logged came from someone
     # reading a stress domain, a bug title, and a runtime file side by
     # side and guessing where the next divergence lives (`corrections`
@@ -16,13 +16,13 @@ module Hecks
     # (what the corpus already puts together, which pairs nothing meets,
     # what the recent bugs were) is computed here; the judgment half is a
     # prompt (`qa/combination_miner/prompt.md`) an agent answers by
-    # WRITING candidate bluebooks, each with a hypothesis. Checking them
+    # writing candidate bluebooks, each with a hypothesis. Checking them
     # is not this module's job — `bin/qa_mine_combinations` hands every
     # valid candidate to `bin/qa_generated_domains --source`, the same
     # differential, self-consistency, Rust build and shrinking path a
     # generated domain takes.
     #
-    # OPT-IN, NEVER THE ROTATION. An agent call costs money and minutes
+    # **Opt-in, never the rotation**. An agent call costs money and minutes
     # and answers differently every time; `bin/qa_tick` never runs it and
     # no `QualityControlDials` entry turns it on. A person runs
     # `bin/qa_mine_combinations` when they want new shapes.
@@ -35,6 +35,10 @@ module Hecks
       # Every adversarial domain plus every example — the corpus the
       # census is measured over. Promoted generated domains are included:
       # their shapes are already swept too.
+      #
+      # @param root [String] repository root to search under
+      # @return [Array<String>] paths of every stress/example corpus member that
+      #   declares at least one bluebook file
       def corpus_paths(root)
         Hecks::Corpus.members(:stress, :example, root: root).map(&:path)
                      .select { |path| Hecks::Corpus.bluebook_files(path) }
@@ -44,6 +48,11 @@ module Hecks
       # The last `limit` bug commit subjects on this branch — cheap, needs
       # no ledger or Postgres, and names the mechanism in the title by
       # convention (`BUG#n: …`).
+      #
+      # @param root [String] repository root to run `git log` in
+      # @param limit [Integer] maximum number of commit subjects to return
+      # @return [Array<String>] matching commit subjects, newest first; empty if
+      #   `git log` fails
       def recent_bug_titles(root, limit: 60)
         out, status = Open3.capture2("git", "log", "--format=%s", "--grep=BUG#", "-n", limit.to_s, chdir: root)
         status.success? ? out.lines.map(&:strip).reject(&:empty?) : []
@@ -51,6 +60,20 @@ module Hecks
 
       # The mechanical half: which form pairs the corpus meets (and by
       # whom), which it never meets, and what could not be measured.
+      #
+      # @param paths [Array<String>] corpus member paths to census, as returned by
+      #   `#corpus_paths`
+      # @param root [String] repository root, to render `paths` relative to it
+      # @param bug_titles [Array<String>] recent bug commit subjects, as returned
+      #   by `#recent_bug_titles`
+      # @return [Hash] `"forms"` (`Array<String>`, every declared form name),
+      #   `"corpus"` (`Array<String>`, `paths` relative to `root`),
+      #   `"unmet_pairs"` (`Array<String>`, form pairs no corpus member meets),
+      #   `"single_carrier_pairs"` (`Array<String>`, pairs only one form name
+      #   meets), `"skipped"` (`Array<String>`, paths that could not be
+      #   censused, with the error), `"recent_bugs"` (`bug_titles`), and
+      #   `"covered"` (`Hash{String => Array<String>}`, pair to every form name
+      #   that meets it)
       def brief(paths, root:, bug_titles:)
         covered = Hash.new { |hash, key| hash[key] = [] }
         skipped = []
@@ -66,6 +89,16 @@ module Hecks
           "skipped" => skipped, "recent_bugs" => bug_titles, "covered" => covered }
       end
 
+      # Fills `PROMPT_TEMPLATE`'s `{{placeholders}}` with `brief`'s own data, for
+      # the agent to answer by writing candidate bluebooks.
+      #
+      # @param root [String] repository root the prompt template is read from
+      # @param brief [Hash] the mechanical brief, as returned by `#brief`
+      # @param count [Integer] how many candidates the prompt asks the agent for
+      # @param out_dir [String] where the prompt asks the agent to write candidates
+      # @return [String] the filled-in prompt text
+      # @raise [KeyError] if the template names a placeholder `substitutions` does
+      #   not provide
       def prompt(root, brief, count:, out_dir:)
         substitutions = {
           "count" => count.to_s, "out_dir" => out_dir, "forms" => brief["forms"].join(", "),
@@ -78,6 +111,11 @@ module Hecks
 
       # The second, narrower ask: these candidates did not boot, here is
       # why, fix them in place. Nothing else in the directory changes.
+      #
+      # @param failures [Array<Array(Hash, String)>] `[candidate, error]` pairs,
+      #   `candidate` as returned by `#candidates`, `error` the boot failure message
+      # @param out_dir [String] the directory the candidates were written under
+      # @return [String] the repair round's own prompt text
       def repair_prompt(failures, out_dir:)
         listed = failures.map { |candidate, error| "- #{candidate[:bluebook]}\n  boot error: #{error}" }.join("\n")
         <<~PROMPT
@@ -93,6 +131,11 @@ module Hecks
       # `<out_dir>/<slug>/<anything>.bluebook` plus an optional
       # HYPOTHESIS.md beside it. One bluebook per candidate: the first,
       # alphabetically, if an agent wrote more.
+      #
+      # @param out_dir [String] the directory candidates were written under
+      # @return [Array<Hash>] one `{slug:, dir:, bluebook:, hypothesis:}` entry per
+      #   candidate subdirectory that declares a `.bluebook` file; `hypothesis` is
+      #   `nil` when no `HYPOTHESIS.md` sits beside it
       def candidates(out_dir)
         Dir[File.join(out_dir, "*")].select { |dir| File.directory?(dir) }.sort.filter_map do |dir|
           bluebook = Dir[File.join(dir, "*.bluebook")].min
@@ -107,12 +150,28 @@ module Hecks
       # Pairs the candidate meets on one aggregate that no corpus domain
       # does — informational, never a gate: an agent may be aiming at a
       # shape the census does not name yet.
+      #
+      # @param candidate_dir [String] path to the candidate's own directory
+      # @param covered [Hash{String => Array<String>}] the corpus's own covered
+      #   pairs, as returned in `#brief`'s `"covered"` entry
+      # @return [Array<String>] form pairs the candidate meets that `covered` does
+      #   not already name, sorted
       def new_pairs(candidate_dir, covered)
         FormCensus.covered_pairs(FormCensus.census(candidate_dir)).keys.reject { |pair| covered.key?(pair) }.sort
       end
 
+      # Renders a path relative to the repository root.
+      #
+      # @param path [String] an absolute (or `root`-prefixed) path
+      # @param root [String] the prefix to strip
+      # @return [String] `path` with `root`'s own prefix removed
       def relative(path, root) = path.delete_prefix("#{root}/")
 
+      # Renders a list of strings as a Markdown bullet list.
+      #
+      # @param items [Array<String>] lines to render as a Markdown bullet list
+      # @return [String] one `"- item"` line per entry, newline-joined; `"(none)"`
+      #   when `items` is empty
       def bulleted(items) = items.empty? ? "(none)" : items.map { |item| "- #{item}" }.join("\n")
     end
   end

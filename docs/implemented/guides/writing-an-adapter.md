@@ -380,14 +380,14 @@ own; a driving adapter is any code that calls
 `Dispatcher#dispatch_port`:
 
 ```ruby skip
-def dispatch_port(domain, aggregate_name, port_name, operation_name, **args)
+def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, flat: {})
   aggregate = resolve_aggregate(domain, aggregate_name, "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}")
   port = aggregate.port(port_name) ||
          raise(UnknownVerb, "#{aggregate_name} has no port #{port_name.inspect}")
   operation = port.operation(operation_name) ||
               raise(UnknownVerb, "#{port_name} has no operation #{operation_name.inspect}")
 
-  announced = @port_ops.call(domain, aggregate, operation, args)
+  announced = @port_ops.call(domain, aggregate, operation, to: to, with: with, flat: flat)
 
   announced.each { |event| @policies.react(event, domain) }
   announced.each { |event| @sagas.advance(event, domain) }
@@ -410,9 +410,11 @@ a heavier path than this guide needs):
 # fields out of event.data.object; a reference is always a bare id.
 RUNTIME.dispatch_port(
   "Pizzas", "Order", "PaymentGateway", "Receive",
-  name:          NAME,
-  customer_name: { value: "Chris" },
-  amount:        { cents: 1200 }
+  flat: {
+    name:          NAME,
+    customer_name: { value: "Chris" },
+    amount:        { cents: 1200 }
+  }
 )
 ```
 
@@ -483,9 +485,11 @@ through the facade a command would use:
 ```ruby
 announced = runtime.dispatch_port(
   "Pizzas", "Order", "PaymentGateway", "Receive",
-  name:          NAME,
-  customer_name: { value: "Chris" },
-  amount:        { cents: 1200 }
+  flat: {
+    name:          NAME,
+    customer_name: { value: "Chris" },
+    amount:        { cents: 1200 }
+  }
 )
 announced.map(&:name)  # => ["PizzaPaymentReceived"]
 ```

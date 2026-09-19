@@ -1,51 +1,51 @@
 #!/usr/bin/env ruby
 
-# DOES A NEW STRESS DOMAIN EARN ITS PLACE? — the gate `.claude/skills/
+# Does a new stress domain earn its place? — the gate `.claude/skills/
 # hecks_qa/SKILL.md`'s "Authoring a new stress domain" step runs before
 # a domain is identified as a `QualityControl::Target`.
 #
 #   bin/qa_domain_novelty <domain-path>
 #   bin/qa_domain_novelty <domain-path> --against <path> [<path> ...]
 #
-# THE QUESTION IT ANSWERS, MECHANICALLY. Every bug class the QA loop has
+# **The question it answers, mechanically**. Every bug class the QA loop has
 # found so far (BUG#1–#23) came from either a new adversarial argument
-# shape or a new CONSTRUCT COMBINATION — two declared forms meeting on
+# shape or a new construct combination — two declared forms meeting on
 # one aggregate for the first time (`spec/combination_coverage_spec.rb`'s
 # own header has the four original defects, every one of them a pair).
 # So the honest test of "is this domain new" is not "does it look
 # different" but: does it put two forms together, on one aggregate, that
-# NO domain the ledger already sweeps does? `Hecks::Fuzzing::FormCensus`
+# no domain the ledger already sweeps does? `Hecks::Fuzzing::FormCensus`
 # (lib/hecks/fuzzing/form_census.rb) is the one table both this script
 # and that spec measure with — extracted from the spec so the two can
 # never drift on what a form is.
 #
-# WHAT IT COMPARES AGAINST. By default, every `Target.path` the ledger
+# **What it compares against**. By default, every `Target.path` the ledger
 # holds — read through `bin/run qa/bluebook ask target.all`, read-only,
 # so it needs the same `PGUSER` the ledger boots under. `--against`
 # names the paths directly instead (its own spec uses this; so can a
 # session with no ledger in reach). A path that is not on disk is
 # reported and skipped, never silently dropped — a stale ledger row is a
 # fact worth seeing. The candidate's own path, if it is already a
-# target, is left OUT of the comparison: measuring a domain against
+# target, is left out of the comparison: measuring a domain against
 # itself always answers "nothing new."
 #
-# A SATURATED CENSUS ANSWERS "NOTHING NEW" — AND THAT IS THE POINT. The
+# A saturated census answers "nothing new" — and that is the point. The
 # thirteen original forms are already met pairwise by banking alone, so
 # no domain can be novel in them: the first thing a new stress domain
-# does is NAME the form it exists for, in `FormCensus::FORMS` (each entry
+# does is name the form it exists for, in `FormCensus::FORMS` (each entry
 # there cites the gap it is one step from), and only then does this gate
-# have something to find. `qa/stress_domains/referral_chain` (ANGLE-2)
+# have something to find. `qa/stress_domains/referral_chain` (angle-2)
 # is the worked example — three reference-hop forms, none of which any
 # target paired with anything until it did.
 #
-# THE PATH SHAPE IS ENFORCED HERE TOO. A stress domain is
+# The path shape is enforced here too. A stress domain is
 # `<name>/bluebook/<name>.bluebook` — `bin/project_rust` reads exactly
 # that file for `source_text`, and a flat `<name>.bluebook` breaks it
-# (qa/stress_domains/ledger_ordering/NOTES.md, on PR #516's naming
+# (qa/stress_domains/ledger_ordering/NOTES.md documents this naming
 # constraint). Refused up front, before any ledger read, so the
 # mistake costs seconds rather than a failed Rust projection later.
 #
-# EXIT CODES — an agent reads these, not the prose:
+# **Exit codes** — an agent reads these, not the prose:
 #   0  at least one new pair; the domain earns its place
 #   1  no new pair; every pair it puts together is already met somewhere
 #   2  usage, or a candidate that is not shaped like a stress domain
@@ -65,6 +65,10 @@ EXIT_USAGE   = 2
 
 USAGE = "usage: bin/qa_domain_novelty <domain-path> [--against <path> ...]".freeze
 
+# Prints a usage error alongside the general usage line and exits.
+#
+# @param message [String] the specific problem with this invocation
+# @return [void] never returns — exits the process with `EXIT_USAGE`
 def usage!(message)
   warn message
   warn USAGE
@@ -73,6 +77,10 @@ end
 
 # `<name>/bluebook/<name>.bluebook` — the one shape every stress domain,
 # every example and the ledger itself share.
+#
+# @param path [String] path to the candidate domain directory
+# @return [void] exits with `EXIT_USAGE` via `usage!` if `path` is not shaped
+#   like a stress domain
 def refuse_unless_stress_domain_shaped!(path)
   expected = File.join(path, "bluebook", "#{File.basename(path)}.bluebook")
   return if File.file?(expected)
@@ -84,6 +92,9 @@ end
 
 # The ledger's own targets, by path — one read-only `ask`, parsed, never
 # a boot of the ledger in this process.
+#
+# @return [Array<String>] every `Target.path` value the ledger holds; exits
+#   with `EXIT_USAGE` instead if `bin/run qa/bluebook ask target.all` fails
 def ledger_target_paths
   out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(ROOT, "bin/run"),
                                     "qa/bluebook", "ask", "target.all", chdir: ROOT)
@@ -97,6 +108,10 @@ def ledger_target_paths
   JSON.parse(out).map { |row| row.dig("path", "value") }.compact
 end
 
+# Resolves a path to an absolute one, relative to the repository root.
+#
+# @param path [String] an absolute path, or one relative to `ROOT`
+# @return [String] the absolute path
 def normalize(path) = File.expand_path(path, ROOT)
 
 candidate = nil
@@ -148,6 +163,14 @@ if new_pairs.empty?
        "existing target. Either the domain is not new, or the form it exists for is not yet named in " \
        "Hecks::Fuzzing::FormCensus::FORMS (lib/hecks/fuzzing/form_census.rb) — name it there first, citing " \
        "the gap it is one step from, and run this again."
+  puts
+  puts "READ THAT AS A QUESTION ABOUT THE CENSUS, NOT A VERDICT ON THE DOMAIN. This gate measures ONE " \
+       "AGGREGATE's own declared forms, so a domain whose point is a chapter-level construct — a policy, an " \
+       "`across` target, a process manager, a read model's own group_by/median, an outbox, a dry run — is " \
+       "invisible to it by construction, not by omission. `corrects` and `role_gated` were exactly that: " \
+       "declared all over the corpus, unnamed here, so this line told three stress domains built around " \
+       "retroactive correction that they were redundant (their own NOTES.md each say so). If that is your " \
+       "domain's case, say which construct it exists for in its NOTES.md and keep it."
   exit EXIT_NOTHING
 end
 

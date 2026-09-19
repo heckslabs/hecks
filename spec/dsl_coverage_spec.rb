@@ -1,6 +1,6 @@
 require "hecks"
 # `Hecks.behaviors` is opt-in (lib/hecks/behaviors.rb's own
-# header), but once loaded ANYWHERE in the process it is a real,
+# header), but once loaded anywhere in the process it is a real,
 # permanent singleton method — required here directly so this file's own
 # coverage list is correct whether or not it happens to run alongside
 # something else that also requires it.
@@ -98,7 +98,7 @@ RSpec.describe "the DSL surface is fully covered" do
       %i[port method_missing to_s]
     ],
     "WorldConstProxy"             => [
-      # THE `.world` FILE'S OWN ConstShim BRIDGE (#143) — mirrors
+      # The `.world` file's own ConstShim bridge (#143) — mirrors
       # `BindingProxy`'s job for `.hecksagon` files, minus the
       # aggregate-qualifier bookkeeping `IR::World` never reads back
       # out; see this class's own header comment.
@@ -191,8 +191,8 @@ RSpec.describe "the DSL surface is fully covered" do
   end
 
   it "builds no runtime surface at all — the door is the facade's, at bind" do
-    # The builder used to keep `define_readers`/`define_command` private ; now
-    # there is nothing to keep private, because a build produces only IR. The
+    # There is nothing left to keep `define_readers`/`define_command` private
+    # for, because a build produces only IR. The
     # public surface is a per-boot projection installed by Loader.bind_runtime.
     builder = Hecks::Bluebook::DSL::AggregateBuilder
 
