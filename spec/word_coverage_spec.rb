@@ -280,25 +280,25 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # rule kinds this language admits have no real edge exercising them
     # anywhere in this repository yet — a real gap in the corpus, not
     # in the words.
-    "retired (Translation)"                => TRANSLATION_RULE_GAP,
-    "rename (TranslationAggregate)"        => TRANSLATION_RULE_GAP,
-    "convert (TranslationAggregate)"       => TRANSLATION_RULE_GAP,
-    "drop (TranslationAggregate)"          => TRANSLATION_RULE_GAP,
-    "retype (TranslationAggregate)"        => TRANSLATION_RULE_GAP,
-    "backfill (TranslationAggregate)"      => TRANSLATION_RULE_GAP,
-    "unresolved (TranslationAggregate)"    =>
-                                              "same finding as the rest of this group, plus a second, independent reason: " \
-                                              "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
-                                              "unresolved always raises Malformed) — a real declaration exists only to be " \
-                                              "refused, the same structural-impossibility shape `cursor (Query)` above " \
-                                              "already is, never to succeed and land in a corpus record.",
-    "translates (Hecksagon)"               =>
-                                              "used for real in lib/hecks/tenancy/bluebook/tenancy.hecksagon, a tooling-" \
-                                              "internal domain (booted centrally, never uses_framework-attached) in the " \
-                                              "same category CORPUS_GLOBS above already excludes for lib/hecks/deploy — " \
-                                              "neither is an example domain, a grammar chapter, or a framework member. " \
-                                              "Also directly, independently tested in spec/hecksagon_translates_spec.rb, " \
-                                              "which proves it builds a real Policy and fires end to end, not just parses."
+    "retired (Translation)"             => TRANSLATION_RULE_GAP,
+    "rename (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
+    "convert (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
+    "drop (TranslationAggregate)"       => TRANSLATION_RULE_GAP,
+    "retype (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
+    "backfill (TranslationAggregate)"   => TRANSLATION_RULE_GAP,
+    "unresolved (TranslationAggregate)" =>
+                                           "same finding as the rest of this group, plus a second, independent reason: " \
+                                           "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
+                                           "unresolved always raises Malformed) — a real declaration exists only to be " \
+                                           "refused, the same structural-impossibility shape `cursor (Query)` above " \
+                                           "already is, never to succeed and land in a corpus record.",
+    "translates (Hecksagon)"            =>
+                                           "used for real in lib/hecks/tenancy/bluebook/tenancy.hecksagon, a tooling-" \
+                                           "internal domain (booted centrally, never uses_framework-attached) in the " \
+                                           "same category CORPUS_GLOBS above already excludes for lib/hecks/deploy — " \
+                                           "neither is an example domain, a grammar chapter, or a framework member. " \
+                                           "Also directly, independently tested in spec/hecksagon_translates_spec.rb, " \
+                                           "which proves it builds a real Policy and fires end to end, not just parses."
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do
