@@ -99,9 +99,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::generated_revalued_shape::hangar::OpenArgs::from_json(facts_json)?;
-                      args.code.check_invariants()?;
-              crate::kernel::check_reference(&store.venue, &args.venue, "Venue", "code")?;
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_revalued_shape::hangar::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_revalued_shape::hangar::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_revalued_shape::hangar::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_revalued_shape::hangar::OpenArgs::from_json(v)?; args.code.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::generated_revalued_shape::hangar::OpenArgs| { crate::kernel::check_reference(&store.venue, &args.venue, "Venue", "code")?; Ok(()) } })?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "venue", as_name: "venue", target: "GeneratedRevaluedShape::Venue" }], &args);
@@ -112,31 +110,9 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("RepointArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["venue", "id", "hangar", "code"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Repoint",
-        unknown: &unknown,
-        declared: &["venue"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["venue"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Repoint",
-        absent: &absent,
-        declared: &["venue"],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Repoint", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
-              let args = crate::generated::generated_revalued_shape::hangar::RepointArgs::from_json(facts_json)?;
-                      args.venue.check_invariants()?;
-              crate::kernel::check_reference(&store.venue, &args.venue.value, "Venue", "code")?;
+              if let Some(route) = route { route.require_depth(0)?; }
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_revalued_shape::hangar::RepointArgs::from_json(v)?; args.venue.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::generated_revalued_shape::hangar::RepointArgs| { crate::kernel::check_reference(&store.venue, &args.venue.value, "Venue", "code")?; Ok(()) } })?;
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Repoint", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -147,21 +123,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CloseArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "hangar", "code"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Close",
-        unknown: &unknown,
-        declared: &[],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Close", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
-              let args = crate::generated::generated_revalued_shape::hangar::CloseArgs::from_json(facts_json)?;
+              if let Some(route) = route { route.require_depth(0)?; }
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_revalued_shape::hangar::CloseArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_revalued_shape::hangar::CloseArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_revalued_shape::hangar::CloseArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_revalued_shape::hangar::CloseArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_revalued_shape::hangar::CloseArgs| Ok(()) })?;
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Close", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -172,21 +136,9 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReopenArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "hangar", "code"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Reopen",
-        unknown: &unknown,
-        declared: &[],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reopen", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
-              let args = crate::generated::generated_revalued_shape::hangar::ReopenArgs::from_json(facts_json)?;
+              if let Some(route) = route { route.require_depth(0)?; }
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_revalued_shape::hangar::ReopenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_revalued_shape::hangar::ReopenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_revalued_shape::hangar::ReopenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_revalued_shape::hangar::ReopenArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_revalued_shape::hangar::ReopenArgs| Ok(()) })?;
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::generated_revalued_shape::hangar::Hangar::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reopen", aggregate: "Hangar", identity: "code.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedRevaluedShape::Hangar", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -198,8 +150,7 @@ if !unknown.is_empty() {
               let route = invocation.route();
               let facts_json = invocation.facts();
               if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::generated_revalued_shape::venue::OpenArgs::from_json(facts_json)?;
-                      args.code.check_invariants()?;
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_revalued_shape::venue::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_revalued_shape::venue::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_revalued_shape::venue::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_revalued_shape::venue::OpenArgs::from_json(v)?; args.code.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_revalued_shape::venue::OpenArgs| Ok(()) })?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

@@ -1,0 +1,6406 @@
+{
+  "generated_by": "bin/argument_gate_matrix",
+  "aggregate_order": [
+    "decode_arguments",
+    "refuse_unknown_arguments",
+    "refuse_absent_arguments",
+    "normalize_args",
+    "refuse_role_mismatch",
+    "resolve_references",
+    "hydrate",
+    "enforce_givens",
+    "admissible_transition",
+    "assign_creation_attributes",
+    "apply_mutations",
+    "advance_lifecycle",
+    "delegate_to_entity",
+    "enforce_ensures",
+    "enforce_invariants",
+    "save",
+    "emit"
+  ],
+  "entity_order": [
+    "decode_arguments",
+    "refuse_unknown_arguments",
+    "refuse_absent_arguments",
+    "normalize_args",
+    "refuse_role_mismatch",
+    "resolve_references",
+    "hydrate_parent",
+    "locate_element",
+    "enforce_givens",
+    "admissible_transition",
+    "apply_mutations",
+    "advance_lifecycle",
+    "enforce_ensures",
+    "enforce_invariants",
+    "save",
+    "emit"
+  ],
+  "rows": [
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Register",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "reference"
+      },
+      "role": null,
+      "args": {
+        "name": {
+          "given": "india",
+          "family": "india hotel"
+        },
+        "email": {
+          "address": "foxtrot@charlie.example"
+        },
+        "rank": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Register does not declare rank — it takes reference, name, email",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Register",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "reference",
+        "normalize_args": "name"
+      },
+      "role": null,
+      "args": {
+        "name": {
+          "given": {
+          },
+          "family": "india hotel"
+        },
+        "email": {
+          "address": "foxtrot@charlie.example"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Register was not given reference — it takes reference, name, email",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Register",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "reference",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": {
+          }
+        },
+        "name": {
+          "given": "india",
+          "family": "india hotel"
+        },
+        "email": {
+          "address": "foxtrot@charlie.example"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "CustomerNumber.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Suspend",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "standing"
+      },
+      "role": null,
+      "args": {
+        "reference": {
+          "value": "golf"
+        },
+        "rank": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Suspend does not declare rank — it takes standing",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Suspend",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "standing",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "standing": {
+          "value": {
+          }
+        },
+        "reference": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "CustomerStanding.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Suspend",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "standing": {
+          "value": "echo"
+        },
+        "reference": {
+          "value": "foxtrot delta"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Suspend refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Reinstate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "delta india bravo"
+        },
+        "note": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Reinstate does not declare note — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Reinstate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "hotel"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Reinstate refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Close",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "golf"
+        },
+        "flavour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Close does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Customer.Close",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "charlie charlie hotel"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Close refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "customer"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": "india alpha india"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 554
+        },
+        "flavour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Open does not declare flavour — it takes customer, number, kind, daily_limit",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "customer",
+        "normalize_args": "number"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": {
+          }
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 554
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Open was not given customer — it takes customer, number, kind, daily_limit",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Open",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "number",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "customer": "missing-22b2601c",
+        "number": {
+          "value": {
+          }
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 554
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "AccountNumber.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "customer"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "customer": "no-such-customer",
+        "number": {
+          "value": "india alpha india"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 554
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Open refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Credit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": "hotel juliet hotel"
+        },
+        "number": {
+          "value": "hotel"
+        },
+        "flavour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Credit does not declare flavour — it takes amount, narrative",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Credit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "amount",
+        "normalize_args": "narrative"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "foxtrot alpha india"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Credit was not given amount — it takes amount, narrative",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Credit",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "GBP"
+        },
+        "narrative": {
+          "text": "hotel juliet hotel"
+        },
+        "number": {
+          "value": "golf charlie juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Credit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 554,
+          "currency": "GBP"
+        },
+        "narrative": {
+          "text": "hotel juliet hotel"
+        },
+        "number": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Credit refused — role: Teller, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Debit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": "alpha"
+        },
+        "number": {
+          "value": "alpha foxtrot foxtrot"
+        },
+        "flavour": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Debit does not declare flavour — it takes amount, narrative",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Debit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "amount",
+        "normalize_args": "narrative"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Debit was not given amount — it takes amount, narrative",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Debit",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "JPY"
+        },
+        "narrative": {
+          "text": "alpha"
+        },
+        "number": {
+          "value": "hotel hotel juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Debit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 43,
+          "currency": "JPY"
+        },
+        "narrative": {
+          "text": "alpha"
+        },
+        "number": {
+          "value": "bravo golf"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Debit refused — role: Teller, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.FreezeAccount",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "echo foxtrot"
+        },
+        "rank": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "FreezeAccount does not declare rank — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.FreezeAccount",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "foxtrot golf"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "FreezeAccount refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Unfreeze",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "india echo delta"
+        },
+        "colour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Unfreeze does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.Unfreeze",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Unfreeze refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CloseAccount",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "delta alpha"
+        },
+        "flavour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "CloseAccount does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CloseAccount",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "echo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "CloseAccount refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.ApplyFee",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": "echo golf"
+        },
+        "number": {
+          "value": "delta alpha"
+        },
+        "flavour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "ApplyFee does not declare flavour — it takes amount, narrative",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.ApplyFee",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "amount",
+        "normalize_args": "narrative"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "ApplyFee was not given amount — it takes amount, narrative",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.ApplyFee",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "echo golf"
+        },
+        "number": {
+          "value": "foxtrot delta"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.ApplyFee",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 271,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "echo golf"
+        },
+        "number": {
+          "value": "alpha juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "ApplyFee refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CorrectFee",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": "alpha"
+        },
+        "rank": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "CorrectFee does not declare rank — it takes amount",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CorrectFee",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "GBP"
+        },
+        "number": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CorrectFee",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 555,
+          "currency": "GBP"
+        },
+        "number": {
+          "value": "charlie golf alpha"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "CorrectFee refused — role: Back office, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.AccrueInterest",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": "alpha golf alpha"
+        },
+        "flavour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AccrueInterest does not declare flavour — it takes amount",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.AccrueInterest",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "JPY"
+        },
+        "number": {
+          "value": "hotel bravo juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.AccrueInterest",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 437,
+          "currency": "JPY"
+        },
+        "number": {
+          "value": "alpha echo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "AccrueInterest refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CorrectInterest",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": "charlie india"
+        },
+        "note": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "CorrectInterest does not declare note — it takes amount",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CorrectInterest",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "EUR"
+        },
+        "number": {
+          "value": "golf delta india"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PositiveMoney.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.CorrectInterest",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 655,
+          "currency": "EUR"
+        },
+        "number": {
+          "value": "delta"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "CorrectInterest refused — role: Back office, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "adjustment"
+      },
+      "role": null,
+      "args": {
+        "sequence": {
+          "value": 851
+        },
+        "narrative": {
+          "text": "golf"
+        },
+        "number": {
+          "value": "alpha delta"
+        },
+        "colour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Amend does not declare colour — it takes adjustment, narrative",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "kind": "entity",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "adjustment",
+        "normalize_args": "narrative"
+      },
+      "role": null,
+      "args": {
+        "sequence": {
+          "value": 437
+        },
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "golf india charlie"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Amend was not given adjustment — it takes adjustment, narrative",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "adjustment",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 535
+        },
+        "adjustment": {
+          "cents": "not a integer",
+          "currency": "EUR"
+        },
+        "narrative": {
+          "text": "golf"
+        },
+        "number": {
+          "value": "alpha echo charlie"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "Money.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 522
+        },
+        "adjustment": {
+          "cents": 964,
+          "currency": "EUR"
+        },
+        "narrative": {
+          "text": "golf"
+        },
+        "number": {
+          "value": "echo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Amend refused — role: Back office, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "narrative"
+      },
+      "role": null,
+      "args": {
+        "sequence": {
+          "value": 150
+        },
+        "number": {
+          "value": "delta hotel charlie"
+        },
+        "rank": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Reverse does not declare rank — it takes narrative",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "narrative",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 724
+        },
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "india hotel charlie"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "Narrative.text expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 858
+        },
+        "narrative": {
+          "text": "bravo"
+        },
+        "number": {
+          "value": "bravo alpha foxtrot"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Reverse refused — role: Back office, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "customer"
+      },
+      "role": null,
+      "args": {
+        "reference": {
+          "value": "india"
+        },
+        "account_number": {
+          "value": "foxtrot charlie hotel"
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Open does not declare colour — it takes customer, reference, account_number",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "customer",
+        "normalize_args": "reference"
+      },
+      "role": null,
+      "args": {
+        "reference": {
+          "value": {
+          }
+        },
+        "account_number": {
+          "value": "foxtrot charlie hotel"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Open was not given customer — it takes customer, reference, account_number",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Open",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "reference",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "customer": "missing-29424791",
+        "reference": {
+          "value": {
+          }
+        },
+        "account_number": {
+          "value": "foxtrot charlie hotel"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "OnboardingReference.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "customer"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "customer": "no-such-customer",
+        "reference": {
+          "value": "india"
+        },
+        "account_number": {
+          "value": "foxtrot charlie hotel"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Open refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Clear",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "alpha"
+        },
+        "flavour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Clear does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Clear",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "echo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Clear refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Decline",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "juliet alpha"
+        },
+        "note": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Decline does not declare note — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::OnboardingCase.Decline",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "charlie alpha foxtrot"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Decline refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Issue",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "account"
+      },
+      "role": null,
+      "args": {
+        "serial": {
+          "value": "charlie bravo hotel"
+        },
+        "daily_fee": {
+          "amount": 673.77
+        },
+        "rank": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Issue does not declare rank — it takes account, serial, daily_fee",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Issue",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "account",
+        "normalize_args": "serial"
+      },
+      "role": null,
+      "args": {
+        "serial": {
+          "value": {
+          }
+        },
+        "daily_fee": {
+          "amount": 673.77
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Issue was not given account — it takes account, serial, daily_fee",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Issue",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "serial",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "account": "missing-bec7dfdd",
+        "serial": {
+          "value": {
+          }
+        },
+        "daily_fee": {
+          "amount": 673.77
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "CardSerial.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Issue",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "account"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "account": "no-such-account",
+        "serial": {
+          "value": "charlie bravo hotel"
+        },
+        "daily_fee": {
+          "amount": 673.77
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Issue refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Rename",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "nickname"
+      },
+      "role": null,
+      "args": {
+        "serial": {
+          "value": "delta alpha"
+        },
+        "note": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Rename does not declare note — it takes nickname",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Rename",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "nickname",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "nickname": {
+          "value": {
+          }
+        },
+        "serial": {
+          "value": "echo delta"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "CardNickname.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Rename",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "nickname": {
+          "value": "alpha echo alpha"
+        },
+        "serial": {
+          "value": "delta hotel"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Rename refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Withdraw",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "cents"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": "alpha foxtrot echo"
+        },
+        "serial": {
+          "value": "echo juliet alpha"
+        },
+        "rank": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Withdraw does not declare rank — it takes cents, narrative",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Withdraw",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "cents",
+        "normalize_args": "narrative"
+      },
+      "role": null,
+      "args": {
+        "narrative": {
+          "text": {
+          }
+        },
+        "serial": {
+          "value": "hotel india"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Withdraw was not given cents — it takes cents, narrative",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Withdraw",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "cents",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "cents": {
+          "cents": "not a integer"
+        },
+        "narrative": {
+          "text": "alpha foxtrot echo"
+        },
+        "serial": {
+          "value": "bravo delta"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "WithdrawalAmount.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Withdraw",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "cents": {
+          "cents": 976
+        },
+        "narrative": {
+          "text": "alpha foxtrot echo"
+        },
+        "serial": {
+          "value": "delta"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Withdraw refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Activate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": "delta"
+        },
+        "flavour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Activate does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Activate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": "alpha"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Activate refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Retire",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": "echo hotel"
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Retire does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Retire",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": "charlie foxtrot echo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Retire refused — role: Back office, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "narrative"
+      },
+      "role": null,
+      "args": {
+        "sequence": {
+          "value": 993
+        },
+        "serial": {
+          "value": "echo"
+        },
+        "flavour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Dispute does not declare flavour — it takes narrative",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "narrative",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 485
+        },
+        "narrative": {
+          "text": {
+          }
+        },
+        "serial": {
+          "value": "india golf foxtrot"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "Narrative.text expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 622
+        },
+        "narrative": {
+          "text": "hotel echo echo"
+        },
+        "serial": {
+          "value": "alpha"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Dispute refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Authorize",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "authorisation"
+      },
+      "role": null,
+      "args": {
+        "tags": {
+          "value": "india"
+        },
+        "account": "missing-d903db61",
+        "amount": {
+          "cents": 637
+        },
+        "merchant": {
+          "value": "golf"
+        },
+        "flavour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Authorize does not declare flavour — it takes authorisation, tags, account, amount, merchant",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Authorize",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "authorisation",
+        "normalize_args": "amount"
+      },
+      "role": null,
+      "args": {
+        "tags": {
+          "value": "india"
+        },
+        "account": "missing-d903db61",
+        "amount": {
+          "cents": "not a integer"
+        },
+        "merchant": {
+          "value": "golf"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Authorize was not given authorisation — it takes authorisation, tags, account, amount, merchant",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Authorize",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "resolve_references"
+      ],
+      "violates": {
+        "normalize_args": "authorisation",
+        "resolve_references": "account"
+      },
+      "role": null,
+      "args": {
+        "authorisation": {
+          "value": {
+          }
+        },
+        "tags": {
+          "value": "india"
+        },
+        "account": "no-such-account",
+        "amount": {
+          "cents": 637
+        },
+        "merchant": {
+          "value": "golf"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "AuthorisationCode.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Capture",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "golf golf"
+        },
+        "colour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Capture does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Capture",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Capture refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Void",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "india"
+        },
+        "colour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Void does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Void",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "charlie"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Void refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Refund",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "hotel"
+        },
+        "colour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Refund does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Refund",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "india golf juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Refund refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Reverse",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "juliet foxtrot delta"
+        },
+        "rank": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Reverse does not declare rank — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Reverse",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "delta india bravo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Reverse refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Dispute",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "disputed_by"
+      },
+      "role": null,
+      "args": {
+        "authorisation": {
+          "value": "foxtrot foxtrot"
+        },
+        "note": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Dispute does not declare note — it takes disputed_by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Dispute",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "disputed_by",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "echo echo"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Dispute was not given disputed_by — it takes disputed_by",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Dispute",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "disputed_by"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "disputed_by": "no-such-customer",
+        "authorisation": {
+          "value": "charlie echo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Dispute refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Dispute",
+      "kind": "aggregate",
+      "pair": [
+        "resolve_references",
+        "hydrate"
+      ],
+      "violates": {
+        "resolve_references": "disputed_by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "disputed_by": "no-such-customer",
+        "authorisation": {
+          "value": "hotel charlie"
+        }
+      },
+      "expected": {
+        "kind": "NotFound",
+        "error": "no Customer with reference \"no-such-customer\"",
+        "refused_at": "resolve_references"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Chargeback",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "foxtrot alpha juliet"
+        },
+        "flavour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Chargeback does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.Chargeback",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "bravo juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Chargeback refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.RejectDispute",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "hotel alpha foxtrot"
+        },
+        "flavour": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "RejectDispute does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::CardPayment.RejectDispute",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "RejectDispute refused — role: Compliance officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Rent",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "branch_code"
+      },
+      "role": null,
+      "args": {
+        "box_number": {
+          "value": 365
+        },
+        "size": {
+          "value": "medium"
+        },
+        "customer": "missing-1b3ffdae",
+        "rank": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Rent does not declare rank — it takes branch_code, box_number, size, customer",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Rent",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "branch_code",
+        "normalize_args": "box_number"
+      },
+      "role": null,
+      "args": {
+        "box_number": {
+          "value": "not a integer"
+        },
+        "size": {
+          "value": "medium"
+        },
+        "customer": "missing-1b3ffdae"
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Rent was not given branch_code — it takes branch_code, box_number, size, customer",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Rent",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "branch_code",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "branch_code": {
+          "value": {
+          }
+        },
+        "box_number": {
+          "value": 365
+        },
+        "size": {
+          "value": "medium"
+        },
+        "customer": "missing-1b3ffdae"
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "BranchCode.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Rent",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "customer"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "branch_code": {
+          "value": "charlie"
+        },
+        "box_number": {
+          "value": 365
+        },
+        "size": {
+          "value": "medium"
+        },
+        "customer": "no-such-customer"
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Rent refused — role: Branch clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Surrender",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "rank": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Surrender does not declare rank — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Surrender",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Surrender refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "date"
+      },
+      "role": null,
+      "args": {
+        "sequence": {
+          "value": 956
+        },
+        "note": {
+          "text": "india echo"
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "LogVisit does not declare colour — it takes date, sequence, note",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "date",
+        "normalize_args": "sequence"
+      },
+      "role": null,
+      "args": {
+        "sequence": {
+          "value": "not a integer"
+        },
+        "note": {
+          "text": "india echo"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "LogVisit was not given date — it takes date, sequence, note",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "date",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "date": {
+          "value": {
+          }
+        },
+        "sequence": {
+          "value": 956
+        },
+        "note": {
+          "text": "india echo"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "VisitDate.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "date": {
+          "value": "alpha hotel alpha"
+        },
+        "sequence": {
+          "value": 956
+        },
+        "note": {
+          "text": "india echo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "LogVisit refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.IssueKey",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "serial"
+      },
+      "role": null,
+      "args": {
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "IssueKey does not declare colour — it takes serial",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.IssueKey",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "serial",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": {
+          }
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "KeySerial.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.IssueKey",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": "bravo juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "IssueKey refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Visit.Annotate",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "note"
+      },
+      "role": null,
+      "args": {
+        "flavour": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Annotate does not declare flavour — it takes note",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Visit.Annotate",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "note",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "note": {
+          "text": {
+          }
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "VisitNote.text expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.Visit.Annotate",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "note": {
+          "text": "india bravo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Annotate refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "serial"
+      },
+      "role": null,
+      "args": {
+        "serial": {
+          "value": "bravo golf echo"
+        },
+        "note": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Return does not declare note — it takes serial",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "serial",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": {
+          }
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "KeySerial.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "serial": {
+          "value": "india delta"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Return refused — role: Vault officer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Statement.Generate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "period"
+      },
+      "role": null,
+      "args": {
+        "opening_balance": {
+          "cents": 197
+        },
+        "closing_balance": {
+          "cents": 295
+        },
+        "generated_on": {
+          "value": "delta alpha charlie"
+        },
+        "frequency": {
+          "cadence": "annual",
+          "retention_months": 240,
+          "paper_fee_cents": 500
+        },
+        "account": "missing-72244291",
+        "note": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Generate does not declare note — it takes period, opening_balance, closing_balance, generated_on, frequency, account",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Statement.Generate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "period",
+        "normalize_args": "opening_balance"
+      },
+      "role": null,
+      "args": {
+        "opening_balance": {
+          "cents": "not a integer"
+        },
+        "closing_balance": {
+          "cents": 295
+        },
+        "generated_on": {
+          "value": "delta alpha charlie"
+        },
+        "frequency": {
+          "cadence": "annual",
+          "retention_months": 240,
+          "paper_fee_cents": 500
+        },
+        "account": "missing-72244291"
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Generate was not given period — it takes period, opening_balance, closing_balance, generated_on, frequency, account",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Statement.Generate",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "period",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "period": {
+          "value": {
+          }
+        },
+        "opening_balance": {
+          "cents": 197
+        },
+        "closing_balance": {
+          "cents": 295
+        },
+        "generated_on": {
+          "value": "delta alpha charlie"
+        },
+        "frequency": {
+          "cadence": "annual",
+          "retention_months": 240,
+          "paper_fee_cents": 500
+        },
+        "account": "missing-72244291"
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "StatementPeriod.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Statement.Generate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "account"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "period": {
+          "value": "juliet"
+        },
+        "opening_balance": {
+          "cents": 197
+        },
+        "closing_balance": {
+          "cents": 295
+        },
+        "generated_on": {
+          "value": "delta alpha charlie"
+        },
+        "frequency": {
+          "cadence": "annual",
+          "retention_months": 240,
+          "paper_fee_cents": 500
+        },
+        "account": "no-such-account"
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Generate refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Request",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "reference"
+      },
+      "role": null,
+      "args": {
+        "amount": {
+          "cents": 962
+        },
+        "narrative": {
+          "text": "charlie"
+        },
+        "source": "missing-b9217981",
+        "destination": "missing-46409eac",
+        "colour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Request does not declare colour — it takes reference, amount, narrative, source, destination",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Request",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "reference",
+        "normalize_args": "amount"
+      },
+      "role": null,
+      "args": {
+        "amount": {
+          "cents": "not a integer"
+        },
+        "narrative": {
+          "text": "charlie"
+        },
+        "source": "missing-b9217981",
+        "destination": "missing-46409eac"
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Request was not given reference — it takes reference, amount, narrative, source, destination",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Request",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "reference",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": {
+          }
+        },
+        "amount": {
+          "cents": 962
+        },
+        "narrative": {
+          "text": "charlie"
+        },
+        "source": "missing-b9217981",
+        "destination": "missing-46409eac"
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "TransferReference.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Request",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "source"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "hotel india"
+        },
+        "amount": {
+          "cents": 962
+        },
+        "narrative": {
+          "text": "charlie"
+        },
+        "source": "no-such-account",
+        "destination": "missing-46409eac"
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Request refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Debited",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "india charlie golf"
+        },
+        "colour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Debited does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Debited",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "foxtrot india"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Debited refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Settle",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "hotel charlie"
+        },
+        "rank": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Settle does not declare rank — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Settle",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "echo juliet juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Settle refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Credited",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "echo charlie echo"
+        },
+        "flavour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Credited does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Credited",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "alpha bravo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Credited refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Reverse",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "hotel"
+        },
+        "note": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Reverse does not declare note — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Reverse",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "charlie delta"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Reverse refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Reject",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "hotel alpha foxtrot"
+        },
+        "note": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Reject does not declare note — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::Transfer.Reject",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "golf"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Reject refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.Request",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "end_to_end"
+      },
+      "role": null,
+      "args": {
+        "account": "missing-65cb5de0",
+        "amount": {
+          "cents": 167
+        },
+        "beneficiary": {
+          "value": "bravo echo"
+        },
+        "direction": {
+          "value": "alpha"
+        },
+        "rank": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Request does not declare rank — it takes end_to_end, account, amount, beneficiary, direction",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.Request",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "end_to_end",
+        "normalize_args": "amount"
+      },
+      "role": null,
+      "args": {
+        "account": "missing-65cb5de0",
+        "amount": {
+          "cents": "not a integer"
+        },
+        "beneficiary": {
+          "value": "bravo echo"
+        },
+        "direction": {
+          "value": "alpha"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Request was not given end_to_end — it takes end_to_end, account, amount, beneficiary, direction",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.Request",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "end_to_end",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": {
+          }
+        },
+        "account": "missing-65cb5de0",
+        "amount": {
+          "cents": 167
+        },
+        "beneficiary": {
+          "value": "bravo echo"
+        },
+        "direction": {
+          "value": "alpha"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "EndToEndReference.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.SendTransfer",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "delta"
+        },
+        "note": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "SendTransfer does not declare note — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.SendTransfer",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "bravo india india"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "SendTransfer refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.Recall",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "india"
+        },
+        "rank": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Recall does not declare rank — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.Recall",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "bravo delta india"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Recall refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.Return",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "delta golf"
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Return does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ExternalTransfer.Return",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "bravo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Return refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "instruction"
+      },
+      "role": null,
+      "args": {
+        "account": "missing-79e2879e",
+        "amount": {
+          "cents": 355
+        },
+        "recipient": {
+          "value": "charlie"
+        },
+        "due_on": {
+          "value": "juliet"
+        },
+        "flavour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Schedule does not declare flavour — it takes instruction, account, amount, recipient, due_on",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "instruction",
+        "normalize_args": "amount"
+      },
+      "role": null,
+      "args": {
+        "account": "missing-79e2879e",
+        "amount": {
+          "cents": "not a integer"
+        },
+        "recipient": {
+          "value": "charlie"
+        },
+        "due_on": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Schedule was not given instruction — it takes instruction, account, amount, recipient, due_on",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "instruction",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": {
+          }
+        },
+        "account": "missing-79e2879e",
+        "amount": {
+          "cents": 355
+        },
+        "recipient": {
+          "value": "charlie"
+        },
+        "due_on": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "InstructionReference.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "resolve_references"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "resolve_references": "account"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "delta"
+        },
+        "account": "no-such-account",
+        "amount": {
+          "cents": 355
+        },
+        "recipient": {
+          "value": "charlie"
+        },
+        "due_on": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Schedule refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Execute",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "bravo"
+        },
+        "flavour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Execute does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Execute",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "echo echo bravo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Execute refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Cancel",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "foxtrot alpha"
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Cancel does not declare colour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Cancel",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "charlie"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Cancel refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Fail",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "delta"
+        },
+        "note": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Fail does not declare note — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Fail",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "alpha bravo"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Fail refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Retry",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "golf bravo"
+        },
+        "flavour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Retry does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Retry",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "delta delta alpha"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Retry refused — role: System, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Abandon",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "foxtrot india delta"
+        },
+        "flavour": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Abandon does not declare flavour — it takes none",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/banking",
+      "verb": "Banking::ScheduledPayment.Abandon",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "hotel"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Abandon refused — role: Back office, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.CreatePizza",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "name"
+      },
+      "role": null,
+      "args": {
+        "pizza": {
+          "price_cents": {
+            "cents": 985
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "CreatePizza does not declare colour — it takes name, pizza",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.CreatePizza",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "name",
+        "normalize_args": "pizza"
+      },
+      "role": null,
+      "args": {
+        "pizza": {
+          "price_cents": "not a price",
+          "size": {
+            "value": "large"
+          }
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "CreatePizza was not given name — it takes name, pizza",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.CreatePizza",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "name",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "name": {
+          "value": {
+          }
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 985
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PizzaName.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.AddTopping",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "topping"
+      },
+      "role": null,
+      "args": {
+        "amount": {
+          "value": 358
+        },
+        "name": {
+          "value": "alpha echo india"
+        },
+        "rank": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AddTopping does not declare rank — it takes topping, amount",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.AddTopping",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "topping",
+        "normalize_args": "amount"
+      },
+      "role": null,
+      "args": {
+        "amount": {
+          "value": "not a integer"
+        },
+        "name": {
+          "value": "juliet alpha india"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "AddTopping was not given topping — it takes topping, amount",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.AddTopping",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "topping",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "topping": {
+          "value": {
+          }
+        },
+        "amount": {
+          "value": 358
+        },
+        "name": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "ToppingName.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.AddTopping",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "topping": {
+          "value": "india hotel"
+        },
+        "amount": {
+          "value": 358
+        },
+        "name": {
+          "value": "foxtrot delta"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "AddTopping refused — role: Chef, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.Purchase",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "customer_name": {
+          "value": "delta india bravo"
+        },
+        "name": {
+          "value": "delta alpha"
+        },
+        "colour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Purchase does not declare colour — it takes amount, customer_name",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.Purchase",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "amount",
+        "normalize_args": "customer_name"
+      },
+      "role": null,
+      "args": {
+        "customer_name": {
+          "value": {
+          }
+        },
+        "name": {
+          "value": "golf"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Purchase was not given amount — it takes amount, customer_name",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.Purchase",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer"
+        },
+        "customer_name": {
+          "value": "delta india bravo"
+        },
+        "name": {
+          "value": "juliet golf"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "Price.cents expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/pizzas",
+      "verb": "Pizzas::Order.Purchase",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 968
+        },
+        "customer_name": {
+          "value": "delta india bravo"
+        },
+        "name": {
+          "value": "charlie"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Purchase refused — role: Customer, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "name"
+      },
+      "role": null,
+      "args": {
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Open does not declare colour — it takes name",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Honor",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "rank"
+      },
+      "role": null,
+      "args": {
+        "name": {
+          "value": "india hotel"
+        },
+        "flavour": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Honor does not declare flavour — it takes rank",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Honor",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "rank",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "rank": {
+          "value": "not a declared member"
+        },
+        "name": {
+          "value": "golf golf juliet"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Rank admits \"hand\", \"officer\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.AddSeat",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "number"
+      },
+      "role": null,
+      "args": {
+        "row": {
+          "value": "front"
+        },
+        "name": {
+          "value": "hotel"
+        },
+        "note": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AddSeat does not declare note — it takes number, row",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.AddSeat",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "number",
+        "normalize_args": "row"
+      },
+      "role": null,
+      "args": {
+        "row": {
+          "value": "not a declared member"
+        },
+        "name": {
+          "value": "hotel"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "AddSeat was not given number — it takes number, row",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.AddSeat",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "number",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": "not a integer"
+        },
+        "row": {
+          "value": "front"
+        },
+        "name": {
+          "value": "foxtrot delta"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "SeatNumber.value expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Enlist",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "id"
+      },
+      "role": null,
+      "args": {
+        "age": {
+          "value": 436
+        },
+        "name": {
+          "value": "delta alpha"
+        },
+        "colour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Enlist does not declare colour — it takes id, age",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Enlist",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "id",
+        "normalize_args": "age"
+      },
+      "role": null,
+      "args": {
+        "age": {
+          "value": "not a integer"
+        },
+        "name": {
+          "value": "golf"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Enlist was not given id — it takes id, age",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Enlist",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "age": {
+          "value": 436
+        },
+        "name": {
+          "value": "juliet golf"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "MemberId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Assign",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "member"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": 323
+        },
+        "name": {
+          "value": "hotel golf india"
+        },
+        "colour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Assign does not declare colour — it takes member, number",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Assign",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "member",
+        "normalize_args": "number"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": "not a integer"
+        },
+        "name": {
+          "value": "juliet juliet"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "Assign was not given member — it takes member, number",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Assign",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "member",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "member": {
+          "value": {
+          }
+        },
+        "number": {
+          "value": 323
+        },
+        "name": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "MemberId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Retire",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "id"
+      },
+      "role": null,
+      "args": {
+        "name": {
+          "value": "hotel"
+        },
+        "flavour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Retire does not declare flavour — it takes id",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Retire",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "name": {
+          "value": "golf charlie juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "MemberId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Member.Retire",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "normalize_args": "id"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "name": {
+          "value": "india alpha charlie"
+        },
+        "colour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Retire does not declare colour — it takes id",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/roster",
+      "verb": "Roster::Roster.Member.Retire",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate_parent": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "name": {
+          "value": "foxtrot foxtrot"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "MemberId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.Start",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "label"
+      },
+      "role": null,
+      "args": {
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Start does not declare colour — it takes label",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.PlacePiece",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "id"
+      },
+      "role": null,
+      "args": {
+        "kind": {
+          "value": "king"
+        },
+        "color": {
+          "value": "white"
+        },
+        "square": {
+          "file": 824,
+          "rank": 358
+        },
+        "label": {
+          "value": "alpha echo india"
+        },
+        "rank": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "PlacePiece does not declare rank — it takes id, kind, color, square",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.PlacePiece",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "id",
+        "normalize_args": "kind"
+      },
+      "role": null,
+      "args": {
+        "kind": {
+          "value": "not a declared member"
+        },
+        "color": {
+          "value": "white"
+        },
+        "square": {
+          "file": 824,
+          "rank": 358
+        },
+        "label": {
+          "value": "juliet alpha india"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "PlacePiece was not given id — it takes id, kind, color, square",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.PlacePiece",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "kind": {
+          "value": "king"
+        },
+        "color": {
+          "value": "white"
+        },
+        "square": {
+          "file": 824,
+          "rank": 358
+        },
+        "label": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PieceId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.MovePiece",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "id"
+      },
+      "role": null,
+      "args": {
+        "destination": {
+          "file": 968,
+          "rank": 704
+        },
+        "by": {
+          "value": "black"
+        },
+        "outcome": {
+          "value": "checkmate"
+        },
+        "label": {
+          "value": "bravo"
+        },
+        "note": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "MovePiece does not declare note — it takes id, destination, by, outcome",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.MovePiece",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "id",
+        "normalize_args": "destination"
+      },
+      "role": null,
+      "args": {
+        "destination": {
+          "file": "not a integer",
+          "rank": 704
+        },
+        "by": {
+          "value": "black"
+        },
+        "outcome": {
+          "value": "checkmate"
+        },
+        "label": {
+          "value": "hotel"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "MovePiece was not given id — it takes id, destination, by, outcome",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.MovePiece",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "destination": {
+          "file": 968,
+          "rank": 704
+        },
+        "by": {
+          "value": "black"
+        },
+        "outcome": {
+          "value": "checkmate"
+        },
+        "label": {
+          "value": "golf"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PieceId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.CapturePiece",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "id"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "black"
+        },
+        "label": {
+          "value": "charlie"
+        },
+        "rank": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "CapturePiece does not declare rank — it takes id, by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.CapturePiece",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "id",
+        "normalize_args": "by"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "hotel golf india"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "CapturePiece was not given id — it takes id, by",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.CapturePiece",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "by": {
+          "value": "black"
+        },
+        "label": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PieceId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.AdvanceTurn",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "turn"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "juliet juliet"
+        },
+        "rank": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AdvanceTurn does not declare rank — it takes turn",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.AdvanceTurn",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "turn",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "turn": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "hotel india"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclareCheck",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "by"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "charlie foxtrot"
+        },
+        "colour": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "DeclareCheck does not declare colour — it takes by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclareCheck",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "india"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclareCheckmate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "by"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "alpha"
+        },
+        "note": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "DeclareCheckmate does not declare note — it takes by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclareCheckmate",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "bravo charlie"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclareStalemate",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "by"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "golf hotel"
+        },
+        "note": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "DeclareStalemate does not declare note — it takes by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclareStalemate",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "bravo echo foxtrot"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.Resign",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "by"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "foxtrot golf"
+        },
+        "rank": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Resign does not declare rank — it takes by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.Resign",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "echo"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.OfferDraw",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "by"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "juliet"
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "OfferDraw does not declare colour — it takes by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.OfferDraw",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "alpha"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.AcceptDraw",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "by"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "golf"
+        },
+        "flavour": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AcceptDraw does not declare flavour — it takes by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.AcceptDraw",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "juliet"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclineDraw",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "by"
+      },
+      "role": null,
+      "args": {
+        "label": {
+          "value": "delta foxtrot"
+        },
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "DeclineDraw does not declare colour — it takes by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.DeclineDraw",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "hydrate"
+      ],
+      "violates": {
+        "normalize_args": "by",
+        "hydrate": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "echo golf juliet"
+        }
+      },
+      "expected": {
+        "kind": "InvariantViolation",
+        "error": "Color admits \"white\", \"black\" — got \"not a declared member\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.Piece.Move",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "id"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": "bravo"
+        },
+        "destination": {
+          "file": 10,
+          "rank": 59
+        },
+        "by": {
+          "value": "white"
+        },
+        "outcome": {
+          "value": "checkmate"
+        },
+        "label": {
+          "value": "echo"
+        },
+        "note": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Move does not declare note — it takes id, destination, by, outcome",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.Piece.Move",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate_parent": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "destination": {
+          "file": 10,
+          "rank": 59
+        },
+        "by": {
+          "value": "white"
+        },
+        "outcome": {
+          "value": "checkmate"
+        },
+        "label": {
+          "value": "foxtrot"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PieceId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.Piece.Capture",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "rank",
+        "refuse_absent_arguments": "id"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": "delta"
+        },
+        "by": {
+          "value": "white"
+        },
+        "label": {
+          "value": "delta"
+        },
+        "rank": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Capture does not declare rank — it takes id, by",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "examples/chess",
+      "verb": "Chess::Game.Piece.Capture",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "normalize_args": "id",
+        "hydrate_parent": "no record exists"
+      },
+      "role": null,
+      "args": {
+        "id": {
+          "value": {
+          }
+        },
+        "by": {
+          "value": "white"
+        },
+        "label": {
+          "value": "golf delta india"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "PieceId.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "reference"
+      },
+      "role": null,
+      "args": {
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Open does not declare colour — it takes reference",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Open",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "reference",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": {
+          }
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "WorkspaceReference.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.AddBoard",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "number"
+      },
+      "role": null,
+      "args": {
+        "reference": {
+          "value": "india hotel"
+        },
+        "flavour": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AddBoard does not declare flavour — it takes number",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.AddBoard",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "number",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "not a integer"
+        },
+        "reference": {
+          "value": "golf golf juliet"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "BoardNumber.value expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.AddBoard",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 697
+        },
+        "reference": {
+          "value": "alpha india hotel"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "AddBoard refused — role: Owner, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Board.AddCard",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "sequence"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": 829
+        },
+        "reference": {
+          "value": "india"
+        },
+        "note": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AddCard does not declare note — it takes sequence",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Board.AddCard",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "sequence",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 1000
+        },
+        "sequence": {
+          "value": "not a integer"
+        },
+        "reference": {
+          "value": "delta india bravo"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "CardSequence.value expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Board.AddCard",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 860
+        },
+        "sequence": {
+          "value": 992
+        },
+        "reference": {
+          "value": "delta alpha"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "AddCard refused — role: Owner, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Board.Label",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "label"
+      },
+      "role": null,
+      "args": {
+        "number": {
+          "value": 717
+        },
+        "reference": {
+          "value": "juliet golf"
+        },
+        "note": "red"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Label does not declare note — it takes label",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Board.Label",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "label",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 554
+        },
+        "label": {
+          "value": {
+          }
+        },
+        "reference": {
+          "value": "india alpha india"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "BoardLabel.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/nested_pieces",
+      "verb": "NestedPieces::Workspace.Board.Label",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 139
+        },
+        "label": {
+          "value": "golf"
+        },
+        "reference": {
+          "value": "juliet juliet"
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Label refused — role: Owner, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.Open",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "colour",
+        "refuse_absent_arguments": "reference"
+      },
+      "role": null,
+      "args": {
+        "colour": "loud"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Open does not declare colour — it takes reference",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.Open",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "reference",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": {
+          }
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "FolderReference.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.AddSlip",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "flavour",
+        "refuse_absent_arguments": "reference"
+      },
+      "role": null,
+      "args": {
+        "amount": {
+          "value": 302
+        },
+        "flavour": "third"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "AddSlip does not declare flavour — it takes reference, amount",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.AddSlip",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_absent_arguments",
+        "normalize_args"
+      ],
+      "violates": {
+        "refuse_absent_arguments": "reference",
+        "normalize_args": "amount"
+      },
+      "role": null,
+      "args": {
+        "amount": {
+          "value": "not a integer"
+        }
+      },
+      "expected": {
+        "kind": "AbsentArgument",
+        "error": "AddSlip was not given reference — it takes reference, amount",
+        "refused_at": "refuse_absent_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.AddSlip",
+      "kind": "aggregate",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "reference",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": {
+          }
+        },
+        "amount": {
+          "value": 302
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "SlipReference.value expects String, got {}",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.AddSlip",
+      "kind": "aggregate",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "alpha india hotel"
+        },
+        "amount": {
+          "value": 302
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "AddSlip refused — role: Clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.Slip.Amend",
+      "kind": "entity",
+      "pair": [
+        "refuse_unknown_arguments",
+        "refuse_absent_arguments"
+      ],
+      "violates": {
+        "refuse_unknown_arguments": "note",
+        "refuse_absent_arguments": "amount"
+      },
+      "role": null,
+      "args": {
+        "reference": {
+          "value": "india"
+        },
+        "note": "scribbled"
+      },
+      "expected": {
+        "kind": "UnknownArgument",
+        "error": "Amend does not declare note — it takes amount",
+        "refused_at": "refuse_unknown_arguments"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.Slip.Amend",
+      "kind": "entity",
+      "pair": [
+        "normalize_args",
+        "refuse_role_mismatch"
+      ],
+      "violates": {
+        "normalize_args": "amount",
+        "refuse_role_mismatch": "a role this caller does not hold"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "delta india bravo"
+        },
+        "amount": {
+          "value": "not a integer"
+        }
+      },
+      "expected": {
+        "kind": "TypeMismatch",
+        "error": "SlipAmount.value expects Integer, got \"not a integer\"",
+        "refused_at": "normalize_args"
+      }
+    },
+    {
+      "domain": "qa/stress_domains/ledger_ordering",
+      "verb": "LedgerOrdering::Folder.Slip.Amend",
+      "kind": "entity",
+      "pair": [
+        "refuse_role_mismatch",
+        "hydrate_parent"
+      ],
+      "violates": {
+        "refuse_role_mismatch": "a role this caller does not hold",
+        "hydrate_parent": "no record exists"
+      },
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "delta alpha"
+        },
+        "amount": {
+          "value": 992
+        }
+      },
+      "expected": {
+        "kind": "Unauthorized",
+        "error": "Amend refused — role: Clerk, and the caller stated a role this caller does not hold",
+        "refused_at": "refuse_role_mismatch"
+      }
+    }
+  ]
+}

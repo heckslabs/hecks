@@ -702,25 +702,11 @@ module RustProjection
                   # `extract_id`/`extract_wants` — see this loop's own
                   # header comment above).
                   unrouted_supported: unrouted_supported,
-                  # BUG#38/#136 — see `entity_commands`' own identical
-                  # field, above, for the full reasoning; `nil` when
-                  # `unrouted_supported` is false, the SAME gate
-                  # `structural_precheck` uses for a CREATING aggregate
-                  # command's `id_line` (domain_generator.rb's own header
-                  # there): the ELSE branch (`route_binding`, registry.rb)
-                  # always requires an explicit route and never calls
-                  # `extract_id` against raw `facts_json` at all, so there
-                  # is no identity-resolution-before-structural-checks (or
-                  # -before-VO-coercion) race for either fix to close
-                  # there either.
-                  structural_precheck: unrouted_supported ? Projector.structural_precheck(
-                    "#{nested_rust_name}#{Projector.rust_ident(command[:name])}NestedEntityArgs", command[:name].to_s,
-                    command[:attributes],
-                    Projector.command_argument_allowlist(
-                      aggregate, command, ir[:process_managers],
-                      extra_identity_heads: (entity[:identified_by] + nested[:identified_by]).map { |path| path.split(".").first }
-                    )
-                  ) : nil,
+                  # ARGUMENT GATES — no `structural_precheck` field any more
+                  # (roadmap D2): `registry.rb` builds `kernel::ArgumentGates` out of
+                  # this command's own generated gate functions (`Projector.emit_
+                  # argument_gates`, json_codec.rb) and the kernel calls them in
+                  # vocabulary order, ahead of identity resolution.
                 }
               end
             end
@@ -824,63 +810,11 @@ module RustProjection
                 # is the full aggregate IR node, no new field needed there).
                 entity_name: entity[:name],
                 entity_identity_reading: entity[:identified_by].join(", "),
-                # BUG#38 (qa/bluebook/quality_control.bluebook) — the SAME
-                # BUG#23 fix `registry_commands`' own `structural_precheck`
-                # field applies here, one construct over: `registry.rb`'s
-                # route-less `entity_arms` used to resolve BOTH the
-                # parent's AND the entity's own identity (`extract_id`
-                # twice, against raw `facts_json`) BEFORE ever calling
-                # `#{args_struct}::from_json` — the ONE place the unknown/
-                # absent-argument check lived — so a malformed `id` (a
-                # route-shaped `{aggregate:, entities:}` value where the
-                # entity declares a plain scalar identity, say) ALWAYS
-                # short-circuited via `extract_id`'s own `?` before an
-                # unrelated undeclared argument on the SAME call was ever
-                # checked, refusing `TypeMismatch` where Ruby's own
-                # `ArgumentGate` (which runs BEFORE `locate_element`
-                # unconditionally) refuses `UnknownArgument` first. Uses
-                # the IDENTICAL allowlist this command's own `emit_from_
-                # json_flat` call above already built (`commands.rb`'s own
-                # `unknown_argument_allowlist:` argument, `extra_identity_
-                # heads:` included) so this can only ever refuse SOONER
-                # with the exact kind `from_json` would have produced
-                # anyway, never diverge from it — matching `registry_
-                # commands`' own `structural_precheck`'s "deliberately
-                # redundant, never conflicting" shape exactly.
-                #
-                # This USED TO BE the full story: at the time, deliberately
-                # NOT the broader "run the WHOLE `from_json` (including
-                # declared-argument type coercion) before `extract_id`"
-                # shape a first attempt at this fix took and reverted —
-                # that additionally coerced the entity's own identity
-                # argument through its value-object's `from_json` before
-                # `extract_id` got a chance to run at all, surfacing a
-                # SEPARATE, then-open bug in how a single-attribute value
-                # object's own `from_json` checked for unknown keys
-                # (confirmed independently reproducible via a bare,
-                # ordinary aggregate-creating command with no entity
-                # dispatch involved at all — logged as BUG#41).
-                #
-                # BUG#136 (qa/bluebook/quality_control.bluebook) — BUG#41
-                # is now fixed (PR #623): Ruby's `Value::Coercion#check_
-                # unknown_fields` and this SAME `from_json`'s own generated
-                # unknown-key check now agree. `registry.rb`'s own route-
-                # less `entity_arms`/`nested_entity_arms` `None` arms now
-                # ALSO splice a full, discarded `#{args_struct}::from_json`
-                # precheck ahead of their `extract_id` calls (that file's
-                # own header on the splice) — closing the gap THIS
-                # narrower, structural-only precheck deliberately left
-                # open: a declared identity-echo attribute (`optional:
-                # true`, not a routing source) offered a malformed, route-
-                # shaped value, where nothing is unknown or absent at the
-                # ARGUMENT-NAME level (so this precheck alone never fires)
-                # but the value itself fails its own VO-level coercion.
-                structural_precheck: Projector.structural_precheck(
-                  "#{entity_name}#{Projector.rust_ident(command[:name])}EntityArgs", command[:name].to_s,
-                  command[:attributes],
-                  Projector.command_argument_allowlist(aggregate, command, ir[:process_managers],
-                                                        extra_identity_heads: entity[:identified_by].map { |path| path.split(".").first })
-                ),
+                # ARGUMENT GATES — no `structural_precheck` field any more
+                # (roadmap D2): `registry.rb` builds `kernel::ArgumentGates` out of
+                # this command's own generated gate functions (`Projector.emit_
+                # argument_gates`, json_codec.rb) and the kernel calls them in
+                # vocabulary order, ahead of identity resolution.
               }
             end
           end
@@ -972,6 +906,12 @@ module RustProjection
             allowlist = Projector.command_argument_allowlist(aggregate, command, ir[:process_managers])
             f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name, unknown_argument_allowlist: allowlist, command_name: command[:name].to_s, absent_argument_check: true, interleave_checks: true, aggregates_by_name: aggregates_by_name)
             f.puts
+            # THE ARGUMENT GATES (roadmap D2) — one generated function per
+            # declared argument-gate step, called in vocabulary order by
+            # `kernel::decode_aggregate_arguments`; see
+            # `Projector.emit_argument_gates`' own header.
+            f.puts Projector.emit_argument_gates(args_struct, command[:name].to_s, command[:attributes], allowlist)
+            f.puts
 
             # A CREATING command's identity comes from its own typed args
             # (build_identity_expr, already inside emit_command's output) —
@@ -1057,25 +997,11 @@ module RustProjection
               # Ruby's `DISPATCH_ORDER` (VO invariant/admits/pattern is
               # enforced during `normalize_args`, which precedes both).
               invariant_check_lines: Projector.invariant_checks_for(command, aggregates_by_name, value_objects_by_name),
-              # BUG#23 (qa/bluebook/quality_control.bluebook) — the SAME
-              # `allowlist` this command's own `emit_from_json_flat` call
-              # above already built, run through `Projector.structural_
-              # precheck` so `registry.rb`'s router can run the identical
-              # unknown/absent-argument gate a second time, standalone,
-              # against raw `facts_json`, BEFORE `id_line` resolves —
-              # see that method's own header for the full reasoning.
-              # `nil` for a CREATING command: `id_line` (registry.rb's
-              # own `c[:creates] ? ... : ...`) resolves no IDENTITY at
-              # all there — a creating command's own identity comes from
-              # its declared attributes, never from `facts_json` — so
-              # there is no identity-resolution-before-structural-checks
-              # race for this fix to close there. BUG#56 (qa/bluebook/
-              # quality_control.bluebook) later gave a creating command's
-              # own `id_line` a real body too — an eager `route.require_
-              # depth(0)?` precheck — but that validates `route`, a piece
-              # of data entirely separate from `facts_json`, so it still
-              # cannot race this field's own check.
-              structural_precheck: creates ? nil : Projector.structural_precheck(args_struct, command[:name].to_s, command[:attributes], allowlist),
+              # ARGUMENT GATES — no `structural_precheck` field any more
+              # (roadmap D2): `registry.rb` builds `kernel::ArgumentGates` out of
+              # this command's own generated gate functions (`Projector.emit_
+              # argument_gates`, json_codec.rb) and the kernel calls them in
+              # vocabulary order, ahead of identity resolution.
             }
           end
 
