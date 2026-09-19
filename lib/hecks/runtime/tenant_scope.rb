@@ -35,8 +35,8 @@ module Hecks
 
         tenant = tenant.to_sym
         unless args.key?(tenant)
-          raise Unauthorized, RefusalWording.render("Unauthorized", "tenant_required",
-                                                    query: declared.name, field: tenant)
+          raise Unauthorized, RefusalWording.render_site("Unauthorized", "tenant_required",
+                                                         query: declared.name, field: tenant)
         end
 
         Scoped.new(declared, QuerySpecification::Common::WhereClause.new(field: tenant, op: "eq", value: tenant))

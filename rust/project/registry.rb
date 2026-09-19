@@ -110,15 +110,15 @@ module RustProjection
         "if let Some(target_tenant) = #{target_expr} { " \
         "let own_tenant = #{own_expr}; " \
         "if target_tenant != own_tenant { " \
-        "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[" \
-        "(\"aggregate\", #{check[:aggregate_name].inspect}), " \
-        "(\"field\", #{check[:own_tenant_field].to_s.inspect}), " \
-        "(\"tenant\", &format!(\"{:?}\", own_tenant)), " \
-        "(\"attribute\", #{check[:reference_field].to_s.inspect}), " \
-        "(\"target\", #{check[:target_name].inspect}), " \
-        "(\"target_field\", #{check[:target_tenant_field].to_s.inspect}), " \
-        "(\"other\", &format!(\"{:?}\", target_tenant))" \
-        "]))); " \
+        "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::refusal_wording::UnauthorizedCrossTenantReferenceArgs { " \
+        "aggregate: #{check[:aggregate_name].inspect}, " \
+        "field: #{check[:own_tenant_field].to_s.inspect}, " \
+        "tenant: &format!(\"{:?}\", own_tenant), " \
+        "attribute: #{check[:reference_field].to_s.inspect}, " \
+        "target: #{check[:target_name].inspect}, " \
+        "target_field: #{check[:target_tenant_field].to_s.inspect}, " \
+        "other: &format!(\"{:?}\", target_tenant)" \
+        " }.render_args())); " \
         "} } }"
     end
 
@@ -262,9 +262,18 @@ module RustProjection
           # to render `RefusalSite::NotFoundActingNoIdentity` — its ONE
           # possible `Err` is wrapped here, where both are already in
           # scope, into the exact same wording
-          # `RefusalWording.render("NotFound", "acting_no_identity", ...)`
-          # produces on the Ruby side.
-          acting_no_identity_message = "#{c[:name]} acts on an existing #{a[:record]} — pass #{Array(a[:identified_by]).join(', ')}:"
+          # `RefusalWording.render_site("NotFound", "acting_no_identity",
+          # ...)` produces on the Ruby side — off the same declared
+          # template and the same argument rows, never re-typed here.
+          # V3 — no longer a hand-typed copy of the template's own text:
+          # the three declared arguments go over to the site's typed
+          # `render_args`, so the wording itself lives in one place
+          # (Vocabulary::RefusalTemplate) and a missing argument does not
+          # compile.
+          acting_no_identity_args =
+            "crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { " \
+            "command: #{c[:name].to_s.inspect}, aggregate: #{a[:record].to_s.inspect}, " \
+            "identity: #{Array(a[:identified_by]).join(', ').inspect} }.render_args()"
           # BUG#56 (qa/bluebook/quality_control.bluebook) — an ACTING
           # command's own `id_line`, below, already validates an explicit
           # `to:`'s route depth EAGERLY, ahead of `role_line` — matching
@@ -389,7 +398,7 @@ module RustProjection
           #      that agreed before it.
           identity_heads = Array(a[:identified_by]).map { |path| path.split(".").first }
           collision_key = (!c[:creates] && identity_heads.length == 1 && c[:attributes].include?(identity_heads.first)) ? identity_heads.first : nil
-          not_found_expr = "crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string())"
+          not_found_expr = "crate::kernel::Refusal::NotFound(#{acting_no_identity_args})"
           id_line =
             if c[:creates]
               creating_route_precheck_line

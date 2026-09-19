@@ -87,18 +87,13 @@ pub fn emit_admits_check(
     let (scalar, optional_source) = optional_scalar_expr(value_expr, attr, value_objects_by_name)?;
 
     let members_array = format!("[{}]", members.iter().map(|m| naming::ruby_inspect_string(m)).collect::<Vec<_>>().join(", "));
-    let prefix = format!(
-        "{} admits {} — {} — got ",
-        crate::attr::name(attr),
-        admits,
-        members.iter().map(|m| naming::ruby_inspect_string(m)).collect::<Vec<_>>().join(", ")
-    );
     let check = exemplar.render(
         "admits_check",
         &[
             ("[\"tmpl_member_a\", \"tmpl_member_b\"]", members_array),
             ("tmpl_scalar", scalar),
-            ("\"tmpl_prefix_text\"", naming::ruby_inspect_string(&prefix)),
+            ("\"tmpl_admits_name\"", naming::ruby_inspect_string(crate::attr::name(attr))),
+            ("\"tmpl_admits_target\"", naming::ruby_inspect_string(admits)),
         ],
     );
     Some(wrap_if_optional(check, optional_source))
@@ -108,10 +103,14 @@ pub fn emit_pattern_check(exemplar: &Exemplar, value_expr: &str, attr: &Json, ow
     let pattern = crate::attr::pattern(attr)?;
     let (scalar, optional_source) = optional_scalar_expr(value_expr, attr, value_objects_by_name)?;
 
-    let prefix = format!("{owner_type_name}.{} must match {pattern}, got ", crate::attr::name(attr));
     let check = exemplar.render(
         "pattern_check",
-        &[("\"tmpl_pattern_text\"", naming::ruby_inspect_string(pattern)), ("tmpl_scalar", scalar), ("\"tmpl_prefix_text\"", naming::ruby_inspect_string(&prefix))],
+        &[
+            ("\"tmpl_pattern_text\"", naming::ruby_inspect_string(pattern)),
+            ("tmpl_scalar", scalar),
+            ("\"tmpl_pattern_owner\"", naming::ruby_inspect_string(owner_type_name)),
+            ("\"tmpl_pattern_field\"", naming::ruby_inspect_string(crate::attr::name(attr))),
+        ],
     );
     Some(wrap_if_optional(check, optional_source))
 }

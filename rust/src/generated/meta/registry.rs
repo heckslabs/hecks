@@ -229,21 +229,23 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["path", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Identify does not declare {} — it takes path",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Identify",
+        unknown: &unknown,
+        declared: &["path"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["path"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Identify"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "path"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Identify",
+        absent: &absent,
+        declared: &["path"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Identify acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Identify", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::IdentifyArgs::from_json(facts_json)?;
                       args.path.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "Identify", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -262,21 +264,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["type", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "bluebook"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Attribute does not declare {} — it takes type, name, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Attribute",
+        unknown: &unknown,
+        declared: &["type", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Attribute"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "type, name, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Attribute",
+        absent: &absent,
+        declared: &["type", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attribute acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Attribute", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::AttributeArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -302,21 +306,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "bluebook"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reference does not declare {} — it takes points_at, name, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Reference",
+        unknown: &unknown,
+        declared: &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "points_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Reference"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "points_at, name, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Reference",
+        absent: &absent,
+        declared: &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reference", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -342,21 +348,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "bluebook"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Holds does not declare {} — it takes holds, name, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Holds",
+        unknown: &unknown,
+        declared: &["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["holds", "list", "name"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Holds"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "holds, name, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Holds",
+        absent: &absent,
+        declared: &["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Holds acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Holds", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::HoldsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -382,21 +390,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["state_field", "state_start", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Lifecycle does not declare {} — it takes state_field, state_start",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Lifecycle",
+        unknown: &unknown,
+        declared: &["state_field", "state_start"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["state_field", "state_start"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Lifecycle"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "state_field, state_start"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Lifecycle",
+        absent: &absent,
+        declared: &["state_field", "state_start"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Lifecycle acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Lifecycle", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::LifecycleArgs::from_json(facts_json)?;
                       args.state_field.check_invariants()?;
                       args.state_start.check_invariants()?;
@@ -416,21 +426,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Transition does not declare {} — it takes command, from_state, to_state",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Transition",
+        unknown: &unknown,
+        declared: &["command", "from_state", "to_state"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["command", "to_state"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Transition"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "command, from_state, to_state"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Transition",
+        absent: &absent,
+        declared: &["command", "from_state", "to_state"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Transition acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Transition", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::TransitionArgs::from_json(facts_json)?;
                       args.command.check_invariants()?;
                       if let Some(v) = &args.from_state { v.check_invariants()?; }
@@ -451,13 +463,15 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Seal does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Seal",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Seal acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Seal", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::SealArgs::from_json(facts_json)?;
               crate::kernel::check_role_via(Some("Language"), "Seal", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
@@ -475,21 +489,23 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["name", "id", "bluebook"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Value does not declare {} — it takes name",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Value",
+        unknown: &unknown,
+        declared: &["name"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["name"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Value"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "name"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Value",
+        absent: &absent,
+        declared: &["name"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Value acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Value", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::ValueArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "Value", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -508,21 +524,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Invariant does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Invariant",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Invariant"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Invariant",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Invariant acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Invariant", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::InvariantArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -542,21 +560,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Precondition does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Precondition",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Precondition"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Precondition",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Precondition acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Precondition", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::PreconditionArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -576,21 +596,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["name", "reference", "remote_field", "id", "bluebook"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Projects does not declare {} — it takes name, reference, remote_field",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Projects",
+        unknown: &unknown,
+        declared: &["name", "reference", "remote_field"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["name", "reference", "remote_field"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Projects"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "name, reference, remote_field"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Projects",
+        absent: &absent,
+        declared: &["name", "reference", "remote_field"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Projects acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Projects", aggregate: "Aggregate", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::aggregate::ProjectsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.reference.check_invariants()?;
@@ -629,21 +651,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["context", "id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Attach does not declare {} — it takes context",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Attach",
+        unknown: &unknown,
+        declared: &["context"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["context"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Attach"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "context"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Attach",
+        absent: &absent,
+        declared: &["context"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attach acts on an existing Bluebook — pass name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Attach", aggregate: "Bluebook", identity: "name.value" }.render_args()))?, };
               let args = crate::generated::meta::bluebook::AttachArgs::from_json(facts_json)?;
                       args.context.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "Attach", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -662,21 +686,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["capability", "key", "verb", "id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Provide does not declare {} — it takes capability, key, verb",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Provide",
+        unknown: &unknown,
+        declared: &["capability", "key", "verb"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["capability", "key", "verb"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Provide"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "capability, key, verb"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Provide",
+        absent: &absent,
+        declared: &["capability", "key", "verb"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Provide acts on an existing Bluebook — pass name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Provide", aggregate: "Bluebook", identity: "name.value" }.render_args()))?, };
               let args = crate::generated::meta::bluebook::ProvideArgs::from_json(facts_json)?;
                       args.capability.check_invariants()?;
                       args.key.check_invariants()?;
@@ -697,21 +723,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Normalise does not declare {} — it takes strategy, source_token, replacement, boundary, position",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Normalise",
+        unknown: &unknown,
+        declared: &["strategy", "source_token", "replacement", "boundary", "position"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["boundary", "replacement", "source_token", "strategy"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Normalise"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "strategy, source_token, replacement, boundary, position"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Normalise",
+        absent: &absent,
+        declared: &["strategy", "source_token", "replacement", "boundary", "position"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Normalise acts on an existing Bluebook — pass name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Normalise", aggregate: "Bluebook", identity: "name.value" }.render_args()))?, };
               let args = crate::generated::meta::bluebook::NormaliseArgs::from_json(facts_json)?;
                       args.strategy.check_invariants()?;
                       args.source_token.check_invariants()?;
@@ -756,21 +784,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "owner_id"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Argument does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Argument",
+        unknown: &unknown,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Argument"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Argument",
+        absent: &absent,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Argument", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::command::ArgumentArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.r#type.check_invariants()?;
@@ -796,21 +826,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "owner_id"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reference does not declare {} — it takes points_at, name, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Reference",
+        unknown: &unknown,
+        declared: &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "points_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Reference"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "points_at, name, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Reference",
+        absent: &absent,
+        declared: &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reference", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::command::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -836,21 +868,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Rule does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Rule",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Rule"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Rule",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Rule acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Rule", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::command::RuleArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -870,21 +904,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Ensure does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Ensure",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Ensure"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Ensure",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Ensure acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Ensure", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::command::EnsureArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -904,24 +940,26 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["target", "op", "field", "kind", "source", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Change does not declare {} — it takes target, op, field, kind, source",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Change",
+        unknown: &unknown,
+        declared: &["target", "op", "field", "kind", "source"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["field", "kind", "op", "source", "target"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Change"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "target, op, field, kind, source"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Change",
+        absent: &absent,
+        declared: &["target", "op", "field", "kind", "source"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Change acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Change", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::command::ChangeArgs::from_json(facts_json)?;
                       args.target.check_invariants()?;
-                      if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\", \"corrects\" — got ", args.op.value))); }
+                      if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "op", admits: "Vocabulary::MutationOp", admitted: &["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"], offered: format!("{:?}", args.op.value).as_str() }.render_args())); }
                       args.op.check_invariants()?;
                       args.field.check_invariants()?;
                       args.kind.check_invariants()?;
@@ -942,21 +980,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["root", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ActsOn does not declare {} — it takes root",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "ActsOn",
+        unknown: &unknown,
+        declared: &["root"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["root"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "ActsOn"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "root"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "ActsOn",
+        absent: &absent,
+        declared: &["root"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("ActsOn acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "ActsOn", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::command::ActsOnArgs::from_json(facts_json)?;
                       args.root.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "ActsOn", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -975,21 +1015,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["announces", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Announce does not declare {} — it takes announces",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Announce",
+        unknown: &unknown,
+        declared: &["announces"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["announces"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Announce"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "announces"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Announce",
+        absent: &absent,
+        declared: &["announces"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Announce acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Announce", aggregate: "Command", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::command::AnnounceArgs::from_json(facts_json)?;
                       args.announces.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "Announce", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1026,21 +1068,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["path", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Identify does not declare {} — it takes path",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Identify",
+        unknown: &unknown,
+        declared: &["path"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["path"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Identify"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "path"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Identify",
+        absent: &absent,
+        declared: &["path"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Identify acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Identify", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::IdentifyArgs::from_json(facts_json)?;
                       args.path.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "Identify", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1059,13 +1103,15 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Seal does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Seal",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Seal acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Seal", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::SealArgs::from_json(facts_json)?;
               crate::kernel::check_role_via(Some("Language"), "Seal", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
@@ -1083,21 +1129,23 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["type", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Attribute does not declare {} — it takes type, name, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Attribute",
+        unknown: &unknown,
+        declared: &["type", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Attribute"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "type, name, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Attribute",
+        absent: &absent,
+        declared: &["type", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attribute acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Attribute", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::AttributeArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -1123,21 +1171,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reference does not declare {} — it takes points_at, name, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Reference",
+        unknown: &unknown,
+        declared: &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "points_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Reference"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "points_at, name, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Reference",
+        absent: &absent,
+        declared: &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reference", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -1163,21 +1213,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Holds does not declare {} — it takes holds, name, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Holds",
+        unknown: &unknown,
+        declared: &["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["holds", "list", "name"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Holds"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "holds, name, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Holds",
+        absent: &absent,
+        declared: &["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Holds acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Holds", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::HoldsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -1203,21 +1255,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Precondition does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Precondition",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Precondition"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Precondition",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Precondition acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Precondition", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::PreconditionArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -1237,21 +1291,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Invariant does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Invariant",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Invariant"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Invariant",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Invariant acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Invariant", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::InvariantArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -1271,13 +1327,15 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["state_field", "state_start", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Lifecycle does not declare {} — it takes state_field, state_start",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Lifecycle",
+        unknown: &unknown,
+        declared: &["state_field", "state_start"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Lifecycle acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Lifecycle", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::LifecycleArgs::from_json(facts_json)?;
                       if let Some(v) = &args.state_field { v.check_invariants()?; }
                       if let Some(v) = &args.state_start { v.check_invariants()?; }
@@ -1297,21 +1355,23 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Transition does not declare {} — it takes command, from_state, to_state",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Transition",
+        unknown: &unknown,
+        declared: &["command", "from_state", "to_state"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["command", "to_state"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Transition"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "command, from_state, to_state"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Transition",
+        absent: &absent,
+        declared: &["command", "from_state", "to_state"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Transition acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Transition", aggregate: "Entity", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::entity::TransitionArgs::from_json(facts_json)?;
                       args.command.check_invariants()?;
                       if let Some(v) = &args.from_state { v.check_invariants()?; }
@@ -1355,21 +1415,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Bind does not declare {} — it takes key, value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Bind",
+        unknown: &unknown,
+        declared: &["key", "value"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Bind"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "key, value"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Bind",
+        absent: &absent,
+        declared: &["key", "value"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::policy::Policy::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on an existing Policy — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::policy::Policy::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Bind", aggregate: "Policy", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::policy::BindArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
@@ -1408,21 +1470,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["name", "id", "bluebook"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "State does not declare {} — it takes name",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "State",
+        unknown: &unknown,
+        declared: &["name"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["name"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "State"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "name"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "State",
+        absent: &absent,
+        declared: &["name"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("State acts on an existing ProcessManager — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "State", aggregate: "ProcessManager", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::processmanager::StateArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "State", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1441,21 +1505,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["event_type", "from_state", "to_state", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Handler does not declare {} — it takes event_type, from_state, to_state",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Handler",
+        unknown: &unknown,
+        declared: &["event_type", "from_state", "to_state"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["event_type", "from_state", "to_state"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Handler"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "event_type, from_state, to_state"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Handler",
+        absent: &absent,
+        declared: &["event_type", "from_state", "to_state"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Handler acts on an existing ProcessManager — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Handler", aggregate: "ProcessManager", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::processmanager::HandlerArgs::from_json(facts_json)?;
                       args.event_type.check_invariants()?;
                       args.from_state.check_invariants()?;
@@ -1496,21 +1562,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["aggregate", "as", "many", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Gather does not declare {} — it takes aggregate, as, many",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Gather",
+        unknown: &unknown,
+        declared: &["aggregate", "as", "many"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["aggregate", "as", "many"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Gather"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "aggregate, as, many"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Gather",
+        absent: &absent,
+        declared: &["aggregate", "as", "many"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Gather acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Gather", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::readmodel::GatherArgs::from_json(facts_json)?;
                       args.aggregate.check_invariants()?;
                       args.r#as.check_invariants()?;
@@ -1531,21 +1599,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["field", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "GroupBy does not declare {} — it takes field",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "GroupBy",
+        unknown: &unknown,
+        declared: &["field"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["field"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "GroupBy"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "field"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "GroupBy",
+        absent: &absent,
+        declared: &["field"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("GroupBy acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "GroupBy", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::readmodel::GroupByArgs::from_json(facts_json)?;
                       args.field.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "GroupBy", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1564,13 +1634,15 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["count", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Count does not declare {} — it takes count",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Count",
+        unknown: &unknown,
+        declared: &["count"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Count acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Count", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::readmodel::CountArgs::from_json(facts_json)?;
                       if let Some(v) = &args.count { v.check_invariants()?; }
               crate::kernel::check_role_via(Some("Language"), "Count", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1589,13 +1661,15 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["median_field", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Median does not declare {} — it takes median_field",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Median",
+        unknown: &unknown,
+        declared: &["median_field"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Median acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Median", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::readmodel::MedianArgs::from_json(facts_json)?;
                       if let Some(v) = &args.median_field { v.check_invariants()?; }
               crate::kernel::check_role_via(Some("Language"), "Median", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1614,21 +1688,23 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Option does not declare {} — it takes option, key, value, at",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Option",
+        unknown: &unknown,
+        declared: &["option", "key", "value", "at"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["key", "option"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Option"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "option, key, value, at"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Option",
+        absent: &absent,
+        declared: &["option", "key", "value", "at"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Option acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Option", aggregate: "ReadModel", identity: "bluebook, name.value" }.render_args()))?, };
               let args = crate::generated::meta::readmodel::OptionArgs::from_json(facts_json)?;
                       args.option.check_invariants()?;
                       args.key.check_invariants()?;
@@ -1672,24 +1748,26 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["field", "op", "value", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Filter does not declare {} — it takes field, op, value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Filter",
+        unknown: &unknown,
+        declared: &["field", "op", "value"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["field", "op", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Filter"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "field, op, value"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Filter",
+        absent: &absent,
+        declared: &["field", "op", "value"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Filter acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Filter", aggregate: "Query", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::query::FilterArgs::from_json(facts_json)?;
                       args.field.check_invariants()?;
-                      if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", args.op.value))); }
+                      if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "op", admits: "Vocabulary::QueryComparator", admitted: &["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"], offered: format!("{:?}", args.op.value).as_str() }.render_args())); }
                       args.op.check_invariants()?;
                       args.value.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "Filter", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1708,21 +1786,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Option does not declare {} — it takes option, key, value, at",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Option",
+        unknown: &unknown,
+        declared: &["option", "key", "value", "at"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["key", "option"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Option"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "option, key, value, at"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Option",
+        absent: &absent,
+        declared: &["option", "key", "value", "at"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Option acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Option", aggregate: "Query", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::query::OptionArgs::from_json(facts_json)?;
                       args.option.check_invariants()?;
                       args.key.check_invariants()?;
@@ -1744,21 +1824,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "owner_id"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Argument does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Argument",
+        unknown: &unknown,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Argument"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Argument",
+        absent: &absent,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Argument", aggregate: "Query", identity: "owner_id, name.value" }.render_args()))?, };
               let args = crate::generated::meta::query::ArgumentArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.r#type.check_invariants()?;
@@ -1800,21 +1882,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Field does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Field",
+        unknown: &unknown,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Field"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Field",
+        absent: &absent,
+        declared: &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Field acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Field", aggregate: "ValueObject", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::valueobject::FieldArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.r#type.check_invariants()?;
@@ -1840,13 +1924,15 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["rows", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes rows",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Close",
+        unknown: &unknown,
+        declared: &["rows"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Close", aggregate: "ValueObject", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::valueobject::CloseArgs::from_json(facts_json)?;
                       if let Some(v) = &args.rows { v.check_invariants()?; }
               crate::kernel::check_role_via(Some("Language"), "Close", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1865,21 +1951,23 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["description", "canonical", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Assert does not declare {} — it takes description, canonical",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Assert",
+        unknown: &unknown,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Assert"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "description, canonical"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Assert",
+        absent: &absent,
+        declared: &["description", "canonical"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Assert acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Assert", aggregate: "ValueObject", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::valueobject::AssertArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -1899,21 +1987,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["position", "id", "aggregate", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Member does not declare {} — it takes position",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Member",
+        unknown: &unknown,
+        declared: &["position"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["position"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Member"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "position"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Member",
+        absent: &absent,
+        declared: &["position"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Member acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Member", aggregate: "ValueObject", identity: "aggregate, name.value" }.render_args()))?, };
               let args = crate::generated::meta::valueobject::MemberArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
               crate::kernel::check_role_via(Some("Language"), "Member", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1948,35 +2038,37 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["position", "word", "context", "body", "inner", "opens", "fills", "was", "resolves_via", "disambiguator", "calls", "id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Keyword does not declare {} — it takes position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator, calls",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Keyword",
+        unknown: &unknown,
+        declared: &["position", "word", "context", "body", "inner", "opens", "fills", "was", "resolves_via", "disambiguator", "calls"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["body", "context", "fills", "inner", "opens", "position", "word"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Keyword"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator, calls"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Keyword",
+        absent: &absent,
+        declared: &["position", "word", "context", "body", "inner", "opens", "fills", "was", "resolves_via", "disambiguator", "calls"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Keyword acts on an existing Syntax — pass name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Keyword", aggregate: "Syntax", identity: "name.value" }.render_args()))?, };
               let args = crate::generated::meta::syntax::KeywordArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
                       args.word.check_invariants()?;
-                      if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"Dispatch\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", args.context.value))); }
+                      if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"], offered: format!("{:?}", args.context.value).as_str() }.render_args())); }
                       args.context.check_invariants()?;
-                      if !["none", "keywords", "source", "rows"].contains(&args.body.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "body admits Syntax::Body — \"none\", \"keywords\", \"source\", \"rows\" — got ", args.body.value))); }
+                      if !["none", "keywords", "source", "rows"].contains(&args.body.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "body", admits: "Syntax::Body", admitted: &["none", "keywords", "source", "rows"], offered: format!("{:?}", args.body.value).as_str() }.render_args())); }
                       args.body.check_invariants()?;
                       args.inner.check_invariants()?;
                       args.opens.check_invariants()?;
                       args.fills.check_invariants()?;
                       if let Some(v) = &args.was { v.check_invariants()?; }
-                      if let Some(__optional_value) = &args.resolves_via { if !["hash_chain", "owner_keyed", "sibling_scan"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "resolves_via admits Syntax::ResolutionScope — \"hash_chain\", \"owner_keyed\", \"sibling_scan\" — got ", __optional_value.value))); } }
+                      if let Some(__optional_value) = &args.resolves_via { if !["hash_chain", "owner_keyed", "sibling_scan"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "resolves_via", admits: "Syntax::ResolutionScope", admitted: &["hash_chain", "owner_keyed", "sibling_scan"], offered: format!("{:?}", __optional_value.value).as_str() }.render_args())); } }
                       if let Some(v) = &args.resolves_via { v.check_invariants()?; }
-                      if let Some(__optional_value) = &args.disambiguator { if !["declared_by"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "disambiguator admits Syntax::Disambiguator — \"declared_by\" — got ", __optional_value.value))); } }
+                      if let Some(__optional_value) = &args.disambiguator { if !["declared_by"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "disambiguator", admits: "Syntax::Disambiguator", admitted: &["declared_by"], offered: format!("{:?}", __optional_value.value).as_str() }.render_args())); } }
                       if let Some(v) = &args.disambiguator { v.check_invariants()?; }
                       if let Some(v) = &args.calls { v.check_invariants()?; }
               crate::kernel::check_role_via(Some("Language"), "Keyword", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -1995,29 +2087,31 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["position", "keyword", "context", "at", "named", "kind", "required", "fills", "selects", "pair_key_fills", "pair_value_fills", "pairs_shape", "variadic", "minimum", "coerce", "blank_message", "id", "name"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Argument does not declare {} — it takes position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic, minimum, coerce, blank_message",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Argument",
+        unknown: &unknown,
+        declared: &["position", "keyword", "context", "at", "named", "kind", "required", "fills", "selects", "pair_key_fills", "pair_value_fills", "pairs_shape", "variadic", "minimum", "coerce", "blank_message"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["context", "fills", "keyword", "kind", "position", "required"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Argument"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic, minimum, coerce, blank_message"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Argument",
+        absent: &absent,
+        declared: &["position", "keyword", "context", "at", "named", "kind", "required", "fills", "selects", "pair_key_fills", "pair_value_fills", "pairs_shape", "variadic", "minimum", "coerce", "blank_message"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Syntax — pass name.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Argument", aggregate: "Syntax", identity: "name.value" }.render_args()))?, };
               let args = crate::generated::meta::syntax::ArgumentArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
                       args.keyword.check_invariants()?;
-                      if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"Dispatch\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", args.context.value))); }
+                      if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"], offered: format!("{:?}", args.context.value).as_str() }.render_args())); }
                       args.context.check_invariants()?;
                       if let Some(v) = &args.at { v.check_invariants()?; }
                       if let Some(v) = &args.named { v.check_invariants()?; }
-                      if !["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"].contains(&args.kind.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "kind admits Syntax::ArgumentKind — \"text\", \"symbol\", \"number\", \"flag\", \"literal\", \"constant\", \"pairs\", \"list\" — got ", args.kind.value))); }
+                      if !["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"].contains(&args.kind.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "kind", admits: "Syntax::ArgumentKind", admitted: &["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"], offered: format!("{:?}", args.kind.value).as_str() }.render_args())); }
                       args.kind.check_invariants()?;
                       args.required.check_invariants()?;
                       args.fills.check_invariants()?;
@@ -2045,18 +2139,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["command_name", "position", "id", "bluebook", "name", "event_type", "from_state"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Dispatch does not declare {} — it takes command_name, position",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Dispatch",
+        unknown: &unknown,
+        declared: &["command_name", "position"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["command_name", "position"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Dispatch"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "command_name, position"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Dispatch",
+        absent: &absent,
+        declared: &["command_name", "position"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::processmanager::HandlerDispatchEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispatch acts on a ProcessManager's Handler — pass bluebook, name.value:".to_string()))?; let element_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispatch acts on one Handler — pass event_type.value, from_state.value:".to_string()))?; let element_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::processmanager::HandlerDispatchEntityArgs::from_json(facts_json)?;
@@ -2078,18 +2174,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["key", "value", "id", "aggregate", "name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Pair does not declare {} — it takes key, value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Pair",
+        unknown: &unknown,
+        declared: &["key", "value"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Pair"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "key, value"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Pair",
+        absent: &absent,
+        declared: &["key", "value"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::valueobject::MemberPairEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Pair acts on a ValueObject's Member — pass aggregate, name.value:".to_string()))?; let element_id = crate::generated::meta::valueobject::Member::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Pair acts on one Member — pass position.value:".to_string()))?; let element_wants = crate::generated::meta::valueobject::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::valueobject::MemberPairEntityArgs::from_json(facts_json)?;
@@ -2111,10 +2209,12 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Deprecate does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Deprecate",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::syntax::KeywordDeprecateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Deprecate acts on a Syntax's Keyword — pass name.value:".to_string()))?; let element_id = crate::generated::meta::syntax::Keyword::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Deprecate acts on one Keyword — pass position.value:".to_string()))?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::KeywordDeprecateEntityArgs::from_json(facts_json)?;
@@ -2134,10 +2234,12 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Retire",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::syntax::KeywordRetireEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on a Syntax's Keyword — pass name.value:".to_string()))?; let element_id = crate::generated::meta::syntax::Keyword::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on one Keyword — pass position.value:".to_string()))?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::KeywordRetireEntityArgs::from_json(facts_json)?;
@@ -2157,10 +2259,12 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Deprecate does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Deprecate",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::syntax::ArgumentDeprecateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Deprecate acts on a Syntax's Argument — pass name.value:".to_string()))?; let element_id = crate::generated::meta::syntax::Argument::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Deprecate acts on one Argument — pass position.value:".to_string()))?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::ArgumentDeprecateEntityArgs::from_json(facts_json)?;
@@ -2180,10 +2284,12 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retire does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Retire",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::syntax::ArgumentRetireEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on a Syntax's Argument — pass name.value:".to_string()))?; let element_id = crate::generated::meta::syntax::Argument::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on one Argument — pass position.value:".to_string()))?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::ArgumentRetireEntityArgs::from_json(facts_json)?;
@@ -2203,18 +2309,20 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Bind does not declare {} — it takes key, value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Bind",
+        unknown: &unknown,
+        declared: &["key", "value"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Bind"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "key, value"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Bind",
+        absent: &absent,
+        declared: &["key", "value"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on a ProcessManager's Handler.Dispatch — pass bluebook, name.value:".to_string()))?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on one Handler — pass event_type.value, from_state.value:".to_string()))?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on one Dispatch — pass command_name.value, position.value:".to_string()))?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::from_json(facts_json)?;
@@ -2235,18 +2343,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["compensates_command_name", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Compensates does not declare {} — it takes compensates_command_name",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Compensates",
+        unknown: &unknown,
+        declared: &["compensates_command_name"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["compensates_command_name"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Compensates"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "compensates_command_name"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Compensates",
+        absent: &absent,
+        declared: &["compensates_command_name"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Compensates acts on a ProcessManager's Handler.Dispatch — pass bluebook, name.value:".to_string()))?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Compensates acts on one Handler — pass event_type.value, from_state.value:".to_string()))?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Compensates acts on one Dispatch — pass command_name.value, position.value:".to_string()))?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::from_json(facts_json)?;
@@ -2266,18 +2376,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "BindCompensation does not declare {} — it takes key, value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "BindCompensation",
+        unknown: &unknown,
+        declared: &["key", "value"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "BindCompensation"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "key, value"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "BindCompensation",
+        absent: &absent,
+        declared: &["key", "value"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("BindCompensation acts on a ProcessManager's Handler.Dispatch — pass bluebook, name.value:".to_string()))?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("BindCompensation acts on one Handler — pass event_type.value, from_state.value:".to_string()))?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("BindCompensation acts on one Dispatch — pass command_name.value, position.value:".to_string()))?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::from_json(facts_json)?;
