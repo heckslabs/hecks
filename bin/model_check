@@ -30,7 +30,15 @@ ROOT = File.expand_path("..", __dir__)
 #   `.bluebook` file path
 # @return [Runtime::Registry] the registry populated with the booted bluebook(s)
 def boot(source)
-  registry = Hecks::Runtime::Registry.new
+  # `root:` — see spec/model_check_spec.rb's own copy of this comment:
+  # without it, a real corpus member declaring `uses_embryonaut_bluebook`
+  # (docs/decisions/0058) refuses here with "needs a registry with a root
+  # to vendor from". `source` is already the domain's own `bluebook/`
+  # folder for every directory-kind corpus member, so its own parent is
+  # the domain root, exactly `Runtime::Loader.boot`'s own
+  # `root: File.dirname(directory)`.
+  root = File.directory?(source) ? File.dirname(source) : nil
+  registry = Hecks::Runtime::Registry.new(root: root)
   Hecks.with_registry(registry) do
     Kernel.load(File.join(ROOT, "lib/hecks/ports/persistence.port"))
     Kernel.load(File.join(ROOT, "lib/hecks/ports/extraction.port"))

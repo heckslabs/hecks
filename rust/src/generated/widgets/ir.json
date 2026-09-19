@@ -1,0 +1,266 @@
+{
+  "ir_version": 1,
+  "name": "Widgets",
+  "version": null,
+  "vision": "A vendored package's own smallest domain: one widget, created then retired — the fewest moving parts that still exercise uses_embryonaut_bluebook end to end (create, refuse, retire, query).",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Widget",
+      "description": "One widget: available until retired, never the other way around.",
+      "identified_by": [
+        "name.value"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": "WidgetName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "status",
+          "type": "WidgetStatus",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "WidgetName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "WidgetStatus",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "available"
+              ]
+            ],
+            [
+              [
+                "value",
+                "retired"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Create",
+          "role": null,
+          "goal": "Bring a widget into existence, available",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "WidgetName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              }
+            },
+            {
+              "target": "status",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "available"
+              }
+            }
+          ],
+          "emits": [
+            "WidgetCreated"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Retire",
+          "role": null,
+          "goal": "Retire a widget — once; a retired widget cannot retire again",
+          "references": "Widget",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "only an available widget may retire",
+              "canonical": "status.value == \"available\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "available"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "status",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "retired"
+              }
+            }
+          ],
+          "emits": [
+            "WidgetRetired"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "Available",
+          "description": "Widgets still available — the vendored package's own smallest read model.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"available\""
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

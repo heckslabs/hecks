@@ -300,7 +300,7 @@ fn aggregate_port_operation_does_not_declare_its_receiver_as_a_fact() {
 }
 
 // STAGE 8: `hecks-parse resolve --chapter <Name> <file.hecksagon>` is
-// now REAL (`parse::chapter::resolve_uses_framework`, built for
+// now REAL (`parse::chapter::resolve_hecksagon_dependencies`, built for
 // `bin/project_rust`'s own opt-in Rust orchestration path) — these two
 // fixtures used to be genuine `not yet implemented` cases (resolve was
 // a Stage 1 stub that always failed, regardless of input) and are now

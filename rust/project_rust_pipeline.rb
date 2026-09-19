@@ -95,12 +95,12 @@ module RustProjectPipeline
     target_chapter_name = header_chapter_name(bluebook_paths.first)
     target_bluebooks = bluebook_paths.select { |path| header_chapter_name(path) == target_chapter_name }
 
-    uses_framework_names =
+    uses_framework_names, uses_embryonaut_bluebook_names =
       if hecksagon_path
-        resolved = run_capture!(PARSER_BIN, "resolve", "--chapter", target_chapter_name, hecksagon_path)
-        JSON.parse(resolved).fetch("uses_framework")
+        resolved = JSON.parse(run_capture!(PARSER_BIN, "resolve", "--chapter", target_chapter_name, hecksagon_path))
+        [resolved.fetch("uses_framework"), resolved.fetch("uses_embryonaut_bluebook")]
       else
-        []
+        [[], []]
       end
 
     target_files = target_bluebooks + [hecksagon_path].compact
@@ -127,10 +127,68 @@ module RustProjectPipeline
       end
       fw_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", fw_chapter_name, fw_path))
       {
-        mod_name: fw_name.downcase,
+        mod_name:     fw_name.downcase,
         source_label: "#{domain} (uses_framework #{fw_name.inspect})",
-        ir_text: fw_ir_text,
+        ir_text:      fw_ir_text
       }
+    end
+
+    # EVERY VENDORED PACKAGE `uses_embryonaut_bluebook` NAMES — same real
+    # packages the DEFAULT path's own `EmbryonautBluebook.load!` pulls in
+    # (`lib/hecks/embryonaut_bluebook.rb`), resolved here the SAME way
+    # that module resolves them: every `.bluebook` file directly under
+    # `<domain>/vendor/embryonaut_bluebooks/<name>/bluebook/`, sorted
+    # (that module's own header — "a plain alphabetical sort already
+    # gives the right order"). A vendored package has no `.hecksagon` of
+    # its own either (same restriction Framework draws, same reason —
+    # that module's own header) — just its `.bluebook` file(s), possibly
+    # more than one reopening the same chapter, exactly like the
+    # target's own `target_bluebooks` above.
+    chapters += uses_embryonaut_bluebook_names.map do |pkg_name|
+      pkg_dir = File.join(domain, "vendor", "embryonaut_bluebooks", pkg_name.to_s, "bluebook")
+      pkg_files = Dir.glob(File.join(pkg_dir, "*.bluebook")).sort
+      if pkg_files.empty?
+        abort "bin/project_rust (Rust path): uses_embryonaut_bluebook #{pkg_name.inspect} names no vendored " \
+              "bluebook at #{pkg_dir} — run bin/vendor_embryonaut_bluebooks #{pkg_name}"
+      end
+      pkg_chapter_name = header_chapter_name(pkg_files.first)
+      expected_chapter_name = Hecks::Naming.pascal(pkg_name.to_s)
+      unless pkg_chapter_name == expected_chapter_name
+        abort "bin/project_rust (Rust path): #{pkg_files.first} declares chapter #{pkg_chapter_name.inspect}, but " \
+              "uses_embryonaut_bluebook #{pkg_name.inspect} expects #{expected_chapter_name.inspect}"
+      end
+      pkg_bluebooks = pkg_files.select { |path| header_chapter_name(path) == pkg_chapter_name }
+      pkg_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", pkg_chapter_name, *pkg_bluebooks))
+      {
+        # SAME DERIVATION as the DEFAULT path's own generated module name
+        # (`bin/project_rust`'s `chapter_name.downcase`, off the DECLARED
+        # chapter name) — not `pkg_name.to_s.downcase` off the raw
+        # argument, which diverges from it the moment a package name
+        # contains an underscore (`Naming.pascal("my_widget").downcase !=
+        # "my_widget".downcase`). `expected_chapter_name` above already IS
+        # that declared chapter name (`pkg_chapter_name` is asserted equal
+        # to it just above), so reusing it here keeps both pipelines
+        # writing to the same output directory for the same package.
+        mod_name:     expected_chapter_name.downcase,
+        source_label: "#{domain} (uses_embryonaut_bluebook #{pkg_name.inspect})",
+        ir_text:      pkg_ir_text
+      }
+    end
+
+    # NO SILENT COLLISION between a `uses_framework`- and a
+    # `uses_embryonaut_bluebook`-derived entry — the DEFAULT path
+    # (`bin/project_rust`) is immune for free, since it iterates
+    # `target_registry.bluebooks.keys`, a Hash that cannot hold a literal
+    # duplicate key; this opt-in path builds `chapters` as a plain Array
+    # via two separate `map`s, so nothing else stops two entries sharing
+    # one `mod_name` from silently overwriting each other's sidecars in
+    # `write_sidecars!` below.
+    chapters.group_by { |c| c[:mod_name] }.each_value do |group|
+      next if group.size == 1
+
+      abort "bin/project_rust (Rust path): #{group.map { |c| c[:source_label] }.join(' and ')} both resolve to the " \
+            "same generated module #{group.first[:mod_name].inspect} — attach #{target_chapter_name} to at most one " \
+            "of them"
     end
 
     # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO — same nine files, same
@@ -409,7 +467,7 @@ module RustProjectPipeline
         f.puts "// it whenever any other domain feature is present)."
         non_default_domains.combination(2).each do |a, b|
           f.puts "#[cfg(all(feature = #{a.inspect}, feature = #{b.inspect}))]"
-          f.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{domains.join(", ")} (both #{a} and #{b} are enabled)\");"
+          f.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{domains.join(', ')} (both #{a} and #{b} are enabled)\");"
         end
       end
     end
