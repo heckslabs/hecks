@@ -967,7 +967,7 @@ pub fn dispatch_credit(
         None,
         |record| {
         { let current = record.balance_cents.clone().unwrap(); record.balance_cents = Some(LedgerAmountCents { value: { let amount = args.amount_cents.value; current.value.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.value, amount)))? }, ..current }); }
-        if record.entries.iter().any(|e| e.sequence == args.sequence.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Entry"), ("aggregate", "Ledger"), ("identity", "sequence.value"), ("offered", &format!("{:?}", args.sequence.clone()))]))); }
+        if record.entries.iter().any(|e| e.sequence == args.sequence.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Entry"), ("aggregate", "Ledger"), ("identity", "sequence.value"), ("offered", &format!("{:?}", args.sequence.clone().value))]))); }
         record.entries.push(Entry { sequence: args.sequence.clone(), amount_cents: args.amount_cents.clone(), note: None });
             Ok(())
         },

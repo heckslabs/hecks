@@ -818,7 +818,7 @@ pub fn dispatch_add_slot(
         ],
         None,
         |record| {
-        if record.slots.iter().any(|e| e.number == args.number.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Slot"), ("aggregate", "Manifest"), ("identity", "number.value"), ("offered", &format!("{:?}", args.number.clone()))]))); }
+        if record.slots.iter().any(|e| e.number == args.number.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Slot"), ("aggregate", "Manifest"), ("identity", "number.value"), ("offered", &format!("{:?}", args.number.clone().value))]))); }
         record.slots.push(Slot { number: args.number.clone(), item: None });
             Ok(())
         },
