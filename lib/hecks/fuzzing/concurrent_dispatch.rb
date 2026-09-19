@@ -77,9 +77,20 @@ module Hecks
       # same lifecycle `persistence_parity_schema` already has.
       def check(domain_path, steps, database:, race_schema:, reference_schema:)
         normalized = steps.map { |step| step.transform_keys(&:to_s) }
-        lockable = lockable_verbs(domain_path, normalized, database: database, schema: reference_schema)
+        lockable, probe_errors = lockable_verbs(domain_path, normalized, database: database, schema: reference_schema)
         race_index = pick_race_index(normalized, lockable)
-        return [] unless race_index
+        unless race_index
+          # `[]` HERE MEANS "NOTHING TO RACE", AND MUST ONLY EVER MEAN THAT.
+          # A sequence of pure queries/dry-runs is a legitimate clean
+          # result; a probe that raised for every verb is not — that one
+          # used to produce the identical `[]` and be logged as a clean
+          # concurrency Check (see `lockable_verbs`).
+          return [] if probe_errors.empty?
+
+          return [{ field:  "concurrency_unraceable",
+                    detail: "no command step could be raced because the cross-process-lock probe failed: " \
+                            "#{probe_errors.uniq.join('; ')}" }]
+        end
 
         setup_steps = normalized[0...race_index]
         race_step   = normalized[race_index]
@@ -151,19 +162,28 @@ module Hecks
       # even in play for that aggregate. A verb this boot can't resolve
       # at all (a malformed adversarial verb, say) is conservatively
       # excluded, not raced on a guess.
+      # ANSWERS `[lockable, probe_errors]`. The errors half exists because
+      # the probe below rescues to `false`: a verb that cannot be RESOLVED
+      # is indistinguishable, from the outside, from one that resolves fine
+      # and simply declares no `:cross_process_lock`. If resolution broke
+      # for every verb (a renamed capability symbol, a wiring change),
+      # `lockable` came back empty, `check` returned `[]`, and the sweep
+      # logged a CLEAN concurrency Check for a race that never happened.
+      # `check` reports that case now instead of holding it.
       def lockable_verbs(domain_path, steps, database:, schema:)
         verbs = steps.select { |step| COMMAND_STEP.call(step) }.map { |step| step["verb"] }.uniq
         lockable = []
+        probe_errors = []
         boot_preserving_schema(domain_path, database: database, schema: schema) do |copy|
           runtime = Hecks.boot(copy)
           verbs.each do |verb|
-            lockable << verb if verb_cross_process_lockable?(runtime, verb)
+            lockable << verb if verb_cross_process_lockable?(runtime, verb, probe_errors)
           end
         end
-        lockable
+        [lockable, probe_errors]
       end
 
-      def verb_cross_process_lockable?(runtime, verb)
+      def verb_cross_process_lockable?(runtime, verb, probe_errors = [])
         domain, aggregate_name, = Naming.split_verb(verb)
         return false unless domain && aggregate_name
 
@@ -172,7 +192,11 @@ module Hecks
 
         repository = runtime.registry.repository(domain, aggregate)
         repository.capabilities.include?(:cross_process_lock)
-      rescue StandardError
+      rescue StandardError => e
+        # STILL `false` — a verb this boot cannot resolve is not raced on a
+        # guess — but no longer SILENT: `check` needs to tell "nothing here
+        # declares a cross-process lock" from "asking broke".
+        probe_errors << "#{verb}: #{e.class}: #{e.message}"
         false
       end
 
