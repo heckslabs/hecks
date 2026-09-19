@@ -1,0 +1,3 @@
+Hecks.adapter "TenantProvisioner" do
+  port "TenantProvisioning"
+end

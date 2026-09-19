@@ -1,0 +1,15 @@
+# `translates` — a Hecksagon-context word building the EXACT SAME
+# `Policy` IR shape a `.bluebook`'s own `policy` block would
+# (`lib/hecks/language/hecksagon/hecksagon.bluebook`'s own `translates`
+# KeywordSeed row: `inner`/`opens: "Policy"`, reusing that context's
+# `on`/`trigger`/`with:` wholesale -- `parse::policy::parse_body`, zero
+# new IR fields). Declared here rather than the sibling `.bluebook`
+# because which FOREIGN domain's event this chapter conforms to is a
+# wiring/context-mapping decision, not a fact this domain states about
+# its own model (`HecksagonBuilder#translates`'s own header).
+Hecks.hecksagon "FixtureTranslates" do
+  translates "RegisterProvisionedTenant" do
+    on Provisioning::TenantProvisioned
+    trigger Tenant::Register, with: { slug: :slug, domain: :domain }
+  end
+end

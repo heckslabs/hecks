@@ -40,6 +40,7 @@ require_relative "driven/prism"
 require_relative "driven/folder"
 require_relative "driven/d1"
 require_relative "driven/mock_stripe_adapter"
+require_relative "driven/tenant_provisioner"
 require_relative "driven/secure_random_identity"
 require_relative "driven/system_clock"
 # `SequentialIdentity` — the deterministic identity_generation test

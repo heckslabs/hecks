@@ -309,6 +309,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("transition", "ProcessManager"),    // banking, settlement (was `state`/`on`)
     ("dispatch", "Handler"),             // STAGE 4
     ("port", "Hecksagon"),
+    ("translates", "Hecksagon"),
     ("operation", "DomainPort"),
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),

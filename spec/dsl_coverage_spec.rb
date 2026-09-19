@@ -107,9 +107,12 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "HecksagonBuilder"            => [
       Hecks::Bluebook::DSL::HecksagonBuilder,
-      # `port` -> `port_impl`, same reasoning, slice 5.
+      # `port` -> `port_impl`, same reasoning, slice 5. `translates` is
+      # an ordinary method (no `_impl` split — nothing calls it through
+      # `word_gate_dispatch`'s `calls:` machinery, Ruby's own method
+      # lookup finds it directly), tested in spec/hecksagon_translates_spec.rb.
       %i[binds subscribe subscriptions port_impl uses_framework framework_members
-         uses_embryonaut_bluebook vendored_bluebooks method_missing]
+         uses_embryonaut_bluebook vendored_bluebooks translates method_missing]
     ],
     "TranslationBuilder"          => [
       Hecks::Bluebook::DSL::TranslationBuilder,

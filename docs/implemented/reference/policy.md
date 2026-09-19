@@ -1,7 +1,7 @@
 # Policy
 
 <!-- generated:begin id=page -->
-Words available inside `policy do ... end`.
+Words available inside `policy do ... end` / `translates do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)

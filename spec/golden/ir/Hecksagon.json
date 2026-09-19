@@ -1837,6 +1837,32 @@
                 "calls",
                 "port_impl"
               ]
+            ],
+            [
+              [
+                "word",
+                "translates"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Policy"
+              ],
+              [
+                "opens",
+                "Policy"
+              ],
+              [
+                "fills",
+                ""
+              ]
             ]
           ],
           "name": "KeywordSeed"
@@ -2123,6 +2149,36 @@
               [
                 "keyword",
                 "port"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "translates"
               ],
               [
                 "context",

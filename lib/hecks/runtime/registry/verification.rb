@@ -22,6 +22,7 @@ module Hecks
         def verify!
           verify_default_adapter!
           verify_singleton_port_answers!
+          refuse_cross_package_bluebook_merge!
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
@@ -274,6 +275,61 @@ module Hecks
         # itself needs at dispatch time, just walked ahead of time here.
         def commands_in(bluebook_ir)
           bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
+        end
+
+        # TWO UNRELATED PACKAGES, ONE CHAPTER NAME BY COINCIDENCE — the
+        # real risk `Registry#bluebook_sources` exists to catch (found
+        # live: a stale `vendor/hecksagain` fork's own copy of Governance/
+        # Identity/Deploy, still reachable on 4 consuming apps' own load
+        # paths alongside the real gem). `BluebookBuilder.build`'s own
+        # accumulation (several files declaring the SAME chapter name ON
+        # PURPOSE — `lib/hecks/language/bluebook/*.bluebook` all open
+        # `Hecks.bluebook "Bluebook"`) is never touched here — that merge
+        # stays unconditional, checked only AFTER every file has loaded,
+        # the same "check the merged final result once" timing
+        # `refuse_ungoverned_roles!` already uses and for the same reason
+        # (a check against an incomplete load can never see the real
+        # shape). What distinguishes intentional accumulation from
+        # coincidence is PACKAGE ROOT, not file identity: files a real
+        # gemspec or a `vendor/` boundary already treats as one unit are
+        # expected to share a name; files from two DIFFERENT roots never
+        # legitimately do.
+        def refuse_cross_package_bluebook_merge!
+          @bluebook_sources.each do |name, paths|
+            roots = paths.map { |path| package_root_for(path) }.uniq
+            next if roots.size <= 1
+
+            raise WiringError,
+                  "#{name.inspect} is declared by more than one package: #{roots.join(' and ')} — " \
+                  "these are two unrelated sources sharing a chapter name by coincidence, not one " \
+                  "domain split across files, and merging their declarations into one chapter is " \
+                  "almost certainly a stale/vendored copy left on the load path (paths: " \
+                  "#{paths.join(', ')})"
+          end
+        end
+
+        # THE NEAREST BOUNDARY A PATH ALREADY BELONGS TO — a real
+        # gemspec (this IS a package, whatever depends on it or vendors
+        # it), or a bare `vendor/` path component, treated as its OWN
+        # root regardless of what gemspec might sit above it: vendored
+        # code should never be considered "the same package" as whatever
+        # it's vendored into, even when nothing else marks the boundary.
+        # Neither found, the path's own directory is the root — two
+        # files with no closer marker only "belong together" if they are
+        # literally the same file.
+        def package_root_for(path)
+          return path.to_s if path.nil?
+
+          dir = File.dirname(File.expand_path(path))
+          loop do
+            return "vendor:#{dir}" if File.basename(dir) == "vendor"
+            return dir if Dir.glob(File.join(dir, "*.gemspec")).any?
+
+            parent = File.dirname(dir)
+            return dir if parent == dir
+
+            dir = parent
+          end
         end
 
         # A domain that declares a `process_manager` but whose

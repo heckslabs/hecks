@@ -135,6 +135,47 @@ module Hecks
           bluebook_ir.add_port(built)
         end
 
+        # A TRANSLATION BOUNDARY, NOT A BUSINESS RULE — `translates "Name"
+        # do on Foreign::Domain::SomeEvent; trigger Local.Command; end`
+        # builds the EXACT SAME `Policy` a `policy` block inside this
+        # domain's own `.bluebook` would (same `on_impl`/`trigger_impl`,
+        # same `PolicyInterpreter` runtime — reusing `PolicyBuilder`
+        # directly, zero new runtime semantics). What's new is only WHERE
+        # it can be written: a cross-domain reaction is a wiring/context-
+        # mapping decision (this chapter conforming to a foreign chapter's
+        # published event), the same kind of decision `port`/
+        # `uses_framework` already are — not a fact this domain's own
+        # model states about itself, which `policy` (inside the bluebook)
+        # remains the right word for.
+        #
+        # MUST BE A BLOCK, not `translates Event, into: Command` — a flat
+        # call's arguments are evaluated eagerly, under THIS builder's own
+        # `ConstShim` resolver (`BindingProxy.namespace`, set up by
+        # `self.build` below), which mints a `BindingProxy` INSTANCE per
+        # segment and cannot answer a further `::` (it is not a Module) —
+        # a multi-segment reference like `Deploy::Tenant::TenantProvisioned`
+        # would raise before this method ever ran. `port_impl`'s own
+        # `ConstShim.with(->(const) { const })` swap only works because
+        # its own callers never pass a multi-segment bare constant as an
+        # eagerly-evaluated argument — everything of that shape lives
+        # inside ITS block, evaluated later, under the swapped resolver.
+        # A block defers evaluation the same way; a flat call cannot.
+        def translates(name, &block)
+          bluebook_ir = Hecks.current_registry.bluebook(@domain) or
+            raise Malformed, "#{@domain} declares no such bluebook — translates needs one to attach its reaction to"
+
+          # SAME RESOLVER BluebookBuilder ITSELF uses for a `policy`
+          # block's own `on`/`trigger` (bluebook_builder.rb) — a
+          # `ScopedConstant`, not the bare passthrough `port_impl` swaps
+          # to, because `on`/`trigger` here take genuinely multi-segment
+          # references (`Deploy::Tenant::TenantProvisioned`), not a
+          # single-segment type name.
+          resolver = ->(const) { ConstShim::ScopedConstant.for(const) }
+          built = ConstShim.with(resolver) { PolicyBuilder.build(name, &block) }
+
+          bluebook_ir.add_policy(built)
+        end
+
         # Assembles the collected binds, subscriptions and attachments into a `Hecksagon`.
         #
         # No ungoverned-role check here — see
