@@ -251,7 +251,7 @@ async fn route(
     // refusal, from this host's own router, for a request the Ruby
     // engine answers with data.
     if path.starts_with("/api/") {
-        return api::route(method, path, session.as_ref(), client).await;
+        return api::route(domain_ir, method, path, session.as_ref(), client).await;
     }
 
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
