@@ -59,7 +59,18 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
   HELD_OUTSIDE_THE_GOLDENS = {
     "two_hop_given"      => "qa/stress_domains/referral_chain (Referral.Issue)",
     "multi_hop_where"    => "qa/stress_domains/referral_chain (Referral.FromGoodSponsors)",
-    "revalued_reference" => "qa/stress_domains/referral_chain (Referral.Reassign)"
+    "revalued_reference" => "qa/stress_domains/referral_chain (Referral.Reassign)",
+    # JOINED THE CENSUS LATE, THOUGH THE CORPUS HAD IT ALL ALONG —
+    # `examples/banking` declares `corrects` mutations, and the census
+    # simply had no form naming them, so `bin/qa_domain_novelty` told
+    # three stress domains built around retroactive correction that they
+    # met "no new pair". The goldens pair it with most forms already; the
+    # six rare ones they do not (composite_id, two_entities,
+    # composite_piece, multi_emit, has_default, has_optional) are paired
+    # where corrections actually get stressed — and both of those domains
+    # are in the rotation now.
+    "corrects"           => "qa/stress_domains/corrections (Ledger.AmendEntry), " \
+                            "qa/stress_domains/case_escalation (Invoice.AmendCharge)"
   }.freeze
 
   def aggregates
@@ -129,6 +140,20 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
   # aggregate that carries the rare forms together now — Market::Stall proved
   # the same six reachable before that domain folded into banking; if this
   # stops, the walk has broken rather than the corpus.
+  # THE CORPUS HAD BOTH ALL ALONG — that is the point. `corrects` and
+  # `role_gated` were declared, dispatched and fuzzed for months while
+  # this census had no form naming either, so `bin/qa_domain_novelty`
+  # could tell a domain built around retroactive correction that it met
+  # "no new pair" (three stress domains' NOTES.md say so in as many
+  # words). A form that measures nothing in the corpus would be the
+  # opposite mistake, so this names where each one actually lives.
+  it "sees the two forms it was blind to, on the corpus that already carried them" do
+    carrying = ->(form) { aggregates.select { |_, shows| shows[form] }.map(&:first) }
+
+    expect(carrying.call("corrects")).not_to be_empty, "no golden aggregate carries a corrects mutation"
+    expect(carrying.call("role_gated")).not_to be_empty, "no golden aggregate carries a role-gated command"
+  end
+
   it "measures an aggregate it knows carries several rare forms at once" do
     box = aggregates.find { |name, _| name == "Banking::SafeDepositBox" }
     expect(box).not_to be_nil, "Banking::SafeDepositBox is gone from the goldens"
