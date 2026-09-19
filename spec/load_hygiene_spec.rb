@@ -60,7 +60,9 @@ RSpec.describe "load hygiene", :io do
                       "#{broken.sort.join("\n")}"
   end
 
-  it "lets no two spec files disagree about a top-level constant" do
+  # io: false — this one only reads spec files, so it runs with the unit
+  # suite and the pre-push hook instead of first failing in a Postgres shard.
+  it "lets no two spec files disagree about a top-level constant", io: false do
     # A constant assigned inside an RSpec.describe block lands at TOP
     # LEVEL — the block captures its file's lexical scope, at ANY
     # nesting depth (a describe block is not a module or class, so
