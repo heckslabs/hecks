@@ -56,7 +56,7 @@ module RustCommentStyle
   # are exact-string sentinels `rust/project/exemplar.rb` parses back out of
   # this source verbatim, casing included — never prose, never a shout to
   # fix. Every prose rule skips a comment matching this outright.
-  TMPL_MARKER = /\bTMPL:\S+\s+(?:BEGIN|END)\b/i.freeze
+  TMPL_MARKER = /\bTMPL:\S+\s+(?:BEGIN|END)\b/i
   MOD_DOC_LINE = %r{\A\s*//!}
   ATTR_LINE = /\A\s*#\[/
   BOLD_HEADING = %r{\A(/{2,3}!?\s*(?:[-*]\s+)?)\*\*([^*]+)\*\*}
