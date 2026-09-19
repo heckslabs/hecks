@@ -37,6 +37,7 @@ module Hecks
       qa:        "qa/bluebook/*.bluebook",
       language:  "lib/hecks/language/**/*.bluebook",
       deploy:    "lib/hecks/deploy/bluebook/*.bluebook",
+      tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
       fixture:   "spec/fixtures/**/*.bluebook"
     }.freeze
 

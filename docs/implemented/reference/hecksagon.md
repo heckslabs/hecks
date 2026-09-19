@@ -9,8 +9,11 @@ by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
-All three words are wiring, so they run against `examples/banking` with
-a hecksagon written here rather than the one the example ships:
+`port`, `subscribe`, and `uses_framework` are wiring, so they run against
+`examples/banking` with a hecksagon written here rather than the one the
+example ships. `translates` gets its own small boot further down — it
+needs two cooperating domains, which this page's own Banking boot never
+declares two of:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
@@ -186,15 +189,63 @@ Only `on`/`trigger` are meaningful inside the block; `where`/`for_each`/`across`
 
 Two things to get right that are easy to get wrong: command and event references use `::` throughout (`Tenant::Register`, never `Tenant.Register`), and `on` should name the FOREIGN aggregate and event WITHOUT the domain prefix (`on Tenant::TenantProvisioned`, not `on Deploy::Tenant::TenantProvisioned`) — matching happens on event name plus the aggregate's own demodulised name only, never the domain, so a domain-qualified reference silently never matches.
 
-```ruby
+```ruby boot
+Hecks.bluebook "Provisioning" do
+  aggregate "Tenant" do
+    identified_by :id
+    attribute :id, Id
+
+    value_object "Id" do
+      attribute :value, String
+      invariant("an id is present") { !value.to_s.empty? }
+    end
+
+    command "Provision" do
+      goal "provision a tenant, for real, elsewhere"
+      attribute :id, Id
+      sets :id
+      emits "TenantProvisioned"
+    end
+  end
+end
+
+Hecks.bluebook "Tenancy" do
+  aggregate "Tenant" do
+    identified_by :id
+    attribute :id, Id
+
+    value_object "Id" do
+      attribute :value, String
+      invariant("an id is present") { !value.to_s.empty? }
+    end
+
+    command "Register" do
+      goal "record that a tenant now exists"
+      attribute :id, Id
+      sets :id
+      emits "TenantRegistered"
+    end
+  end
+end
+
+Hecks.hecksagon "Provisioning" do
+  Provisioning::Tenant.persisted_by("Memory")
+end
+
 Hecks.hecksagon "Tenancy" do
-  Tenancy::Tenant.persisted_by("LocalStorage")
+  Tenancy::Tenant.persisted_by("Memory")
 
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned
     trigger Tenant::Register
   end
 end
+```
+
+```ruby
+runtime.dispatch("Provisioning::Tenant.Provision", to: "acme", with: { id: { value: "acme" } })
+runtime.registry.repository("Tenancy", runtime.registry.bluebook("Tenancy").aggregate("Tenant")).find("acme").nil?
+# => false
 ```
 
 Once `Deploy::Tenant.Provision` emits `TenantProvisioned`, this reaction dispatches `Tenancy::Tenant.Register` — the two domains stay separately modeled; this is the one explicit seam where a fact from one becomes a fact in the other.
