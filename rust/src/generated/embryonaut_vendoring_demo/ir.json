@@ -49,9 +49,13 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "GadgetStatus",
@@ -67,7 +71,9 @@
               "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": true,
           "members": [
             [
@@ -103,8 +109,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "name",
@@ -136,7 +146,9 @@
           "role": null,
           "goal": "Activate a gadget — once; an already-active gadget cannot activate again",
           "references": "Gadget",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "only an idle gadget may activate",
@@ -162,7 +174,9 @@
               }
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "status",
@@ -181,21 +195,43 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
-  "provides": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -213,7 +249,9 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": []
+    "capable_aggregates": [
+
+    ]
   },
   "persistence": {
     "aggregates": [
@@ -224,6 +262,8 @@
       }
     ]
   },
-  "translations": [],
+  "translations": [
+
+  ],
   "source_text": "Hecks.bluebook \"EmbryonautVendoringDemo\" do\n  vision \"The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through uses_embryonaut_bluebook, exercising the same dispatch-table merge uses_framework already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.\"\n  supporting\n\n  # DELIBERATELY NO reference_to THE VENDORED Widget — this session's own\n  # earlier confirmed finding: reference_to is same-chapter-scoped even\n  # across a framework/vendored attachment (examples/banking's own\n  # Banking aggregates never reference_to a Governance/Identity aggregate\n  # either). Gadget and Widget coexist in the same merged dispatch table,\n  # the same shallow relationship Banking has with Governance/Identity —\n  # a dispatch-table merge, never an attribute-level reference.\n  aggregate \"Gadget\" do\n    description \"One gadget: registered idle, then activated once.\"\n\n    attribute :name,   GadgetName\n    attribute :status, GadgetStatus\n\n    identified_by :name\n\n    value_object(\"GadgetName\") { attribute :value, String }\n\n    value_object \"GadgetStatus\" do\n      attribute :value, String, one_of: [\"idle\", \"active\"]\n    end\n\n    command \"Register\" do\n      goal \"Register a gadget, idle\"\n\n      attribute :name, GadgetName\n\n      sets :name\n      sets :status, to: \"idle\"\n\n      emits GadgetRegistered\n    end\n\n    command \"Activate\" do\n      goal \"Activate a gadget — once; an already-active gadget cannot activate again\"\n\n      reference_to Gadget\n\n      given(\"only an idle gadget may activate\") { status.value == \"idle\" }\n\n      sets :status, to: \"active\"\n\n      emits GadgetActivated\n    end\n  end\nend\n"
 }

@@ -86,9 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::from_json(facts_json)?;
-                      args.name.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::from_json(v)?; args.name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs::from_json(v)?; args.name.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::embryonaut_vendoring_demo::gadget::RegisterArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -99,19 +97,8 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ActivateArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "gadget", "name"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Activate does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::embryonaut_vendoring_demo::gadget::Gadget::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Activate acts on an existing Gadget — pass name.value:".to_string()))?, };
-              let args = crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::embryonaut_vendoring_demo::gadget::ActivateArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::embryonaut_vendoring_demo::gadget::Gadget::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Activate", aggregate: "Gadget", identity: "name.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "EmbryonautVendoringDemo::Gadget", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
