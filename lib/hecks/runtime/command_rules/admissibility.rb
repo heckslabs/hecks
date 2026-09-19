@@ -67,17 +67,17 @@ module Hecks
             return nil if attribute.nil? || attribute.optional?
 
             raise AttributeAbsent,
-                  RefusalWording.render("AttributeAbsent", "absent_read",
-                                        aggregate: @instance.aggregate.hecks_name, field: name)
+                  RefusalWording.render_site("AttributeAbsent", "absent_read",
+                                             aggregate: @instance.aggregate.hecks_name, field: name)
           end
 
           private
 
           def raise_projection_absent(projected)
             raise ProjectionAbsent,
-                  RefusalWording.render("ProjectionAbsent", "absent_read",
-                                        aggregate: @instance.aggregate.hecks_name, field: projected.name,
-                                        reference: projected.reference, remote_field: projected.remote_field)
+                  RefusalWording.render_site("ProjectionAbsent", "absent_read",
+                                             aggregate: @instance.aggregate.hecks_name, field: projected.name,
+                                             reference: projected.reference, remote_field: projected.remote_field)
           end
         end
         private_constant :GuardState
@@ -239,10 +239,10 @@ module Hecks
           # property, a spec, a caller) had to know both existed rather
           # than one.
           raise LifecycleRefused,
-                RefusalWording.render("LifecycleRefused", "transition_blocked",
-                                      command: command.hecks_name, field: lifecycle.field,
-                                      current: Rendering.describe(current),
-                                      allowed: Array(command.from).map(&:inspect).join(" or "))
+                RefusalWording.render_site("LifecycleRefused", "transition_blocked",
+                                           command: command.hecks_name, field: lifecycle.field,
+                                           current: Rendering.describe(current),
+                                           allowed: Array(command.from))
         end
 
         # The far side of the contract: evaluated against the settled record
@@ -399,10 +399,10 @@ module Hecks
 
           allowed = candidates.flat_map { |t| Array(t.from) }.uniq
           raise LifecycleRefused,
-                RefusalWording.render("LifecycleRefused", "transition_blocked",
-                                      command: command.hecks_name, field: lifecycle.field,
-                                      current: Rendering.describe(current),
-                                      allowed: allowed.map(&:inspect).join(" or "))
+                RefusalWording.render_site("LifecycleRefused", "transition_blocked",
+                                           command: command.hecks_name, field: lifecycle.field,
+                                           current: Rendering.describe(current),
+                                           allowed: allowed)
         end
       end
     end

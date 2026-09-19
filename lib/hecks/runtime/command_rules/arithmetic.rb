@@ -128,12 +128,12 @@ module Hecks
           # counters before this corpus existed. Integer stays the common
           # case; Float is now accepted the same way.
           unless amount.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
-                                                      op: op, target: target, offered: Rendering.describe(amount))
+            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_amount",
+                                                           op: op, target: target, offered: Rendering.describe(amount))
           end
           unless current.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
-                                                      op: op, target: target, offered: Rendering.describe(current))
+            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_current",
+                                                           op: op, target: target, offered: Rendering.describe(current))
           end
 
           bounded(current + (sign * amount), op, current, sign * amount, sign.positive? ? "+" : "-")
@@ -201,7 +201,7 @@ module Hecks
           end
           unless shared_numeric.size == 1
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
+                  RefusalWording.render_site("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
           end
 
           field = shared_numeric.first
@@ -271,9 +271,9 @@ module Hecks
           amount = unwrap_single_numeric_field(amount) if amount.is_a?(Value)
 
           unless amount.is_a?(Numeric) && current.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
-                                                      op: "multiply", target: target,
-                                                      offered: Rendering.describe(current.is_a?(Numeric) ? amount : current))
+            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_amount",
+                                                           op: "multiply", target: target,
+                                                           offered: Rendering.describe(current.is_a?(Numeric) ? amount : current))
           end
 
           bounded(current * amount, "multiply", current, amount, "*")
@@ -303,14 +303,14 @@ module Hecks
           if current.is_a?(Value)
             fields = current.to_h
             field  = fields.keys.find { |f| fields[f].is_a?(Numeric) } or
-              raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
-                                                        op: "clamp", target: target, offered: Rendering.describe(current))
+              raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_current",
+                                                             op: "clamp", target: target, offered: Rendering.describe(current))
             return current.with(field, fields[field].clamp(min, max))
           end
 
           unless current.is_a?(Numeric)
-            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
-                                                      op: "clamp", target: target, offered: Rendering.describe(current))
+            raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "arithmetic_current",
+                                                           op: "clamp", target: target, offered: Rendering.describe(current))
           end
 
           current.clamp(min, max)
@@ -345,7 +345,7 @@ module Hecks
           end
           unless shared_numeric.size == 1
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
+                  RefusalWording.render_site("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
           end
 
           field = shared_numeric.first

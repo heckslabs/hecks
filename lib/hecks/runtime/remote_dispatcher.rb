@@ -75,10 +75,10 @@ module Hecks
         saga_correlation = args.delete(:saga_correlation)
         domain, aggregate_name, = Naming.split_verb(verb) ||
                                   raise(UnknownVerb,
-                                        RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
+                                        RefusalWording.render_site("UnknownVerb", "not_fully_qualified", verb: verb))
         aggregate = @registry.bluebook(domain)&.aggregate(aggregate_name) ||
                     raise(UnknownVerb,
-                          RefusalWording.render("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name.inspect))
+                          RefusalWording.render_site("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name))
 
         # Not every aggregate in a lambda-routed domain is itself
         # lambda-bound — Member's real name->email rekey carries a

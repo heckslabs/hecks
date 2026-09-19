@@ -220,8 +220,8 @@ module Hecks
             # path.
             if port
               operation = port.operation(sub) ||
-                          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "port_no_operation",
-                                                                   port: head, operation: sub.inspect))
+                          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "port_no_operation",
+                                                                        port: head, operation: sub))
               invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args,
                                                       receiver: :port, aggregate: aggregate) { operation }
               [nil, @port_ops.call(domain, aggregate, operation, invocation), nil, nil, :enqueue]
@@ -411,10 +411,10 @@ module Hecks
         domain, query_name = verb.to_s.split(".", 2)
         if query_name && !domain.include?("::")
           bluebook = @registry.bluebook(domain) ||
-                     raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
+                     raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_domain", domain: domain, verb: verb))
           model = bluebook.read_model(query_name) ||
-                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_read_model",
-                                                           domain: domain, query: query_name.inspect))
+                  raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_read_model",
+                                                                domain: domain, query: query_name))
           return @read_models.call(domain, model, args)
         end
 
@@ -507,21 +507,21 @@ module Hecks
 
       def parse(verb)
         Naming.split_verb(verb) ||
-          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
+          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "not_fully_qualified", verb: verb))
       end
 
       def command_of(aggregate, aggregate_name, command_name)
         aggregate.command(command_name) ||
-          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
-                                                   aggregate: aggregate_name, command: command_name.inspect))
+          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "aggregate_no_command",
+                                                        aggregate: aggregate_name, command: command_name))
       end
 
       def resolve_aggregate(domain, aggregate_name, verb)
         bluebook = @registry.bluebook(domain) ||
-                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
+                   raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_domain", domain: domain, verb: verb))
         bluebook.aggregate(aggregate_name) ||
-          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate",
-                                                   domain: domain, aggregate: aggregate_name.inspect))
+          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_aggregate",
+                                                        domain: domain, aggregate: aggregate_name))
       end
     end
   end

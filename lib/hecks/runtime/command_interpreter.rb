@@ -342,10 +342,10 @@ module Hecks
         return unless ctx.strategy == DependencyPlanning::ATOMIC_PUT && ctx.command.creates?
         return unless ctx.repository.find(ctx.instance.id)
 
-        raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                   command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
-                                                   identity: identity_reading(ctx.aggregate),
-                                                   offered: Rendering.describe(ctx.instance.id)))
+        raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "creating_duplicate",
+                                                        command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
+                                                        identity: identity_reading(ctx.aggregate),
+                                                        offered: Rendering.describe(ctx.instance.id)))
       end
 
       def persist_instance(ctx)
@@ -373,10 +373,10 @@ module Hecks
 
       def raise_for_persistence_outcome!(ctx)
         if ctx.persistence_outcome.status == :conflicted
-          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                     command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
-                                                     identity: identity_reading(ctx.aggregate),
-                                                     offered: Rendering.describe(ctx.instance.id)))
+          raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "creating_duplicate",
+                                                          command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
+                                                          identity: identity_reading(ctx.aggregate),
+                                                          offered: Rendering.describe(ctx.instance.id)))
         elsif ctx.persistence_outcome.status == :stale
           # Not a `RefusalWording.render` call — this is not a declared
           # vocabulary refusal, just a plain, informative message. See
@@ -454,24 +454,24 @@ module Hecks
       def hydrate_existing(repository, aggregate, command, args, route = nil)
         if route
           found = repository.find(route.aggregate) ||
-                  raise(NotFound, RefusalWording.render("NotFound", "record_missing",
-                                                        aggregate: aggregate.hecks_name,
-                                                        identity:  identity_reading(aggregate),
-                                                        offered:   Rendering.describe(route.aggregate)))
+                  raise(NotFound, RefusalWording.render_site("NotFound", "record_missing",
+                                                             aggregate: aggregate.hecks_name,
+                                                             identity:  identity_reading(aggregate),
+                                                             offered:   Rendering.describe(route.aggregate)))
           return found.dup
         end
 
         id = identity_of(aggregate, args) ||
              identity_from(aggregate, args, :id) ||
              identity_from(aggregate, args, reference_key(command)) ||
-             raise(NotFound, RefusalWording.render("NotFound", "acting_no_identity",
-                                                   command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                   identity: identity_reading(aggregate)))
+             raise(NotFound, RefusalWording.render_site("NotFound", "acting_no_identity",
+                                                        command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                        identity: identity_reading(aggregate)))
         found = repository.find(id) ||
-                raise(NotFound, RefusalWording.render("NotFound", "record_missing",
-                                                      aggregate: aggregate.hecks_name,
-                                                      identity:  identity_reading(aggregate),
-                                                      offered:   Rendering.describe(id)))
+                raise(NotFound, RefusalWording.render_site("NotFound", "record_missing",
+                                                           aggregate: aggregate.hecks_name,
+                                                           identity:  identity_reading(aggregate),
+                                                           offered:   Rendering.describe(id)))
         found.dup
       end
 
@@ -536,14 +536,14 @@ module Hecks
 
       def hydrate_legacy_creation(repository, aggregate, command, args)
         id = identity_of(aggregate, args) ||
-             raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
-                                                   command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                   identity: identity_reading(aggregate)))
+             raise(NotFound, RefusalWording.render_site("NotFound", "creating_no_identity",
+                                                        command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                        identity: identity_reading(aggregate)))
         if repository.find(id)
-          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                     identity: identity_reading(aggregate),
-                                                     offered: Rendering.describe(id)))
+          raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "creating_duplicate",
+                                                          command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                          identity: identity_reading(aggregate),
+                                                          offered: Rendering.describe(id)))
         end
 
         Instance.new(aggregate: aggregate, id: id, args: args)
@@ -557,10 +557,10 @@ module Hecks
         end
 
         id = route&.aggregate || derived ||
-             raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
-                                                   command:   command.hecks_name,
-                                                   aggregate: aggregate.hecks_name,
-                                                   identity:  identity_reading(aggregate)))
+             raise(NotFound, RefusalWording.render_site("NotFound", "creating_no_identity",
+                                                        command:   command.hecks_name,
+                                                        aggregate: aggregate.hecks_name,
+                                                        identity:  identity_reading(aggregate)))
 
         # **A second creation is not a fresh one** — `creates?` on an identity
         # a record already exists under refuses (`AlreadyExists`) rather
@@ -576,10 +576,10 @@ module Hecks
         # deferring it — the very "no such call — no such check" gap Wave
         # 8 exists to close everywhere else.
         if command.creates? && strategy != DependencyPlanning::ATOMIC_PUT && repository.find(id)
-          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                     identity: identity_reading(aggregate),
-                                                     offered: Rendering.describe(id)))
+          raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "creating_duplicate",
+                                                          command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                          identity: identity_reading(aggregate),
+                                                          offered: Rendering.describe(id)))
         end
 
         Instance.new(aggregate: aggregate, id: id, args: args)
@@ -598,10 +598,10 @@ module Hecks
         end
 
         id = route&.aggregate || derived ||
-             raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
-                                                   command:   command.hecks_name,
-                                                   aggregate: aggregate.hecks_name,
-                                                   identity:  identity_reading(aggregate)))
+             raise(NotFound, RefusalWording.render_site("NotFound", "creating_no_identity",
+                                                        command:   command.hecks_name,
+                                                        aggregate: aggregate.hecks_name,
+                                                        identity:  identity_reading(aggregate)))
         found = repository.find(id)
 
         # **A second creation is not a fresh one** — see hydrate_complete_
@@ -619,10 +619,10 @@ module Hecks
         # for the wrong reason (not vacant) instead of the right one
         # (already exists).
         if found && command.creates?
-          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                     identity: identity_reading(aggregate),
-                                                     offered: Rendering.describe(id)))
+          raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "creating_duplicate",
+                                                          command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                          identity: identity_reading(aggregate),
+                                                          offered: Rendering.describe(id)))
         end
 
         found ? found.dup : Instance.new(aggregate: aggregate, id: id, args: args)

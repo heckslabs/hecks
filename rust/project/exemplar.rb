@@ -29,7 +29,7 @@ module RustProjection
     # (else the caller forgot a placeholder, and literal `TmplType` text
     # would otherwise leak into real generated output). One regex covers
     # both identifier-shaped placeholders (`TmplType`, `tmpl_field`,
-    # `TMPL_TABLE`) and literal-content placeholders (`"tmpl_prefix_text"`,
+    # `TMPL_TABLE`) and literal-content placeholders (`"tmpl_admits_name"`,
     # `["tmpl_member_a", "tmpl_member_b"]`) — every literal placeholder
     # this file ever writes embeds a `tmpl_`/`Tmpl`/`TMPL_` token
     # somewhere inside it for exactly this reason.

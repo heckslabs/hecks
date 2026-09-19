@@ -106,9 +106,9 @@ module Hecks
           rows = if head[:aggregate] == model.reference_target
                    [select_projected(aggregate, reference_id) ||
                      raise(Runtime::NotFound,
-                           Runtime::RefusalWording.render("NotFound", "read_model_reference_missing",
-                                                          aggregate: head[:aggregate],
-                                                          offered:   Hecks::Rendering.describe(reference_id)))]
+                           Runtime::RefusalWording.render_site("NotFound", "read_model_reference_missing",
+                                                               aggregate: head[:aggregate],
+                                                               offered:   Hecks::Rendering.describe(reference_id)))]
                  else
                    select_related(aggregate, projected)
                  end

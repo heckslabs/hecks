@@ -142,21 +142,23 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["amount_cents", "sequence", "reference", "id", "ledger", "code"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Credit does not declare {} — it takes amount_cents, sequence, reference",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Credit",
+        unknown: &unknown,
+        declared: &["amount_cents", "sequence", "reference"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["amount_cents", "reference", "sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Credit"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "amount_cents, sequence, reference"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Credit",
+        absent: &absent,
+        declared: &["amount_cents", "sequence", "reference"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Credit acts on an existing Ledger — pass code.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Credit", aggregate: "Ledger", identity: "code.value" }.render_args()))?, };
               let args = crate::generated::tenant_ledger::ledger::CreditArgs::from_json(facts_json)?;
                       args.amount_cents.check_invariants()?;
                       args.sequence.check_invariants()?;
@@ -179,7 +181,7 @@ if !absent.is_empty() {
                       args.amount_cents.check_invariants()?;
               crate::kernel::check_role_via(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               crate::kernel::check_reference(&store.ledger, &args.ledger, "Ledger", "code")?;
-              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = (|| -> Result<(), crate::kernel::Refusal> { if let Some(record) = store.ledger.find(&args.ledger) { if let Some(target_tenant) = record.region.as_ref().map(|v| v.value.clone()) { let own_tenant = args.region.value.clone(); if target_tenant != own_tenant { return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[("aggregate", "Transfer"), ("field", "region"), ("tenant", &format!("{:?}", own_tenant)), ("attribute", "ledger"), ("target", "Ledger"), ("target_field", "region"), ("other", &format!("{:?}", target_tenant))]))); } } } Ok(()) })();
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = (|| -> Result<(), crate::kernel::Refusal> { if let Some(record) = store.ledger.find(&args.ledger) { if let Some(target_tenant) = record.region.as_ref().map(|v| v.value.clone()) { let own_tenant = args.region.value.clone(); if target_tenant != own_tenant { return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::refusal_wording::UnauthorizedCrossTenantReferenceArgs { aggregate: "Transfer", field: "region", tenant: &format!("{:?}", own_tenant), attribute: "ledger", target: "Ledger", target_field: "region", other: &format!("{:?}", target_tenant) }.render_args())); } } } Ok(()) })();
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "ledger", as_name: "ledger", target: "TenantLedger::Ledger" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -211,21 +213,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["ends_at", "id", "role_assignment", "actor_id", "role_name", "starts_at"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Revoke does not declare {} — it takes ends_at",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Revoke",
+        unknown: &unknown,
+        declared: &["ends_at"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["ends_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Revoke"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "ends_at"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Revoke",
+        absent: &absent,
+        declared: &["ends_at"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Revoke acts on an existing RoleAssignment — pass actor_id.value, role_name.value, starts_at.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Revoke", aggregate: "RoleAssignment", identity: "actor_id.value, role_name.value, starts_at.value" }.render_args()))?, };
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(facts_json)?;
                       args.ends_at.check_invariants()?;
               crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -260,21 +264,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["ends_at", "id", "role_transition", "from_role", "to_role", "starts_at"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Revoke does not declare {} — it takes ends_at",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Revoke",
+        unknown: &unknown,
+        declared: &["ends_at"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["ends_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Revoke"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "ends_at"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Revoke",
+        absent: &absent,
+        declared: &["ends_at"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Revoke acts on an existing RoleTransition — pass from_role.value, to_role.value, starts_at.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Revoke", aggregate: "RoleTransition", identity: "from_role.value, to_role.value, starts_at.value" }.render_args()))?, };
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(facts_json)?;
                       args.ends_at.check_invariants()?;
               crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -293,18 +299,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["note", "id", "code", "sequence", "reference"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Annotate does not declare {} — it takes note",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Annotate",
+        unknown: &unknown,
+        declared: &["note"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Annotate"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "note"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Annotate",
+        absent: &absent,
+        declared: &["note"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Ledger's Entry — pass code.value:".to_string()))?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?;

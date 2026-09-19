@@ -331,25 +331,32 @@ module RustProjection
     # SORTED (Ruby's own `(required - given).sort`), refused as
     # `AbsentArgument` through the same wording site — BEFORE any field is
     # built, so a missing top-level argument is never a nested field's own
-    # `TypeMismatch` (ADR 0037 finding 3, closed here). `declared` reads
-    # `declared_reading`'s way: every attribute in declaration order, or
-    # "none". Only ever emitted for a command's own args struct
-    # (`absent_argument_check:` below) — a value object's missing field is
-    # `required_field_expr`'s business.
+    # `TypeMismatch` (ADR 0037 finding 3, closed here). `declared` is the
+    # RAW list of declared names, in declaration order — the "none"
+    # reading for a command that declares nothing is applied by
+    # `render_args`, off that argument's own `Vocabulary::
+    # RefusalSiteArgument` row, never re-decided here. Only ever emitted
+    # for a command's own args struct (`absent_argument_check:` below) —
+    # a value object's missing field is `required_field_expr`'s business.
+    #
+    # V3 — THE TYPED DOOR. `RefusalSite::...render` is private to the
+    # generated vocabulary module now; the only way in is a site's own
+    # `<Variant>Args` struct, whose fields ARE that site's declared
+    # arguments. Leaving one out, or passing a list where a scalar is
+    # declared, does not compile.
     def emit_absent_argument_check(command_name, attributes)
       required = attributes.reject { |a| a[:optional] }.map { |a| rust_field(a[:name]) }.sort
       return "" if required.empty?
 
       declared = attributes.map { |a| a[:name].to_s }
-      reading  = declared.empty? ? "none" : declared.join(", ")
       <<~RUST
                 let absent: Vec<&str> = [#{required.map(&:inspect).join(', ')}].into_iter().filter(|key| v.get(key).is_none()).collect();
                 if !absent.is_empty() {
-                    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-                        ("command", #{command_name.inspect}),
-                        ("absent", absent.join(", ").as_str()),
-                        ("declared", #{reading.inspect}),
-                    ])));
+                    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                        command: #{command_name.inspect},
+                        absent: &absent,
+                        declared: &[#{declared.map(&:inspect).join(', ')}],
+                    }.render_args()));
                 }
       RUST
     end
@@ -360,20 +367,30 @@ module RustProjection
     # trailing the sentence off mid-clause: "Close does not declare
     # parcel — it takes ". `declared_reading`'s own "none" fallback
     # (argument_gate.rb, quoted on that method) never reached this path
-    # at all, because this check builds its wording directly rather than
-    # through `RefusalSite::UnknownArgumentUnknownArgs.render` the way
-    # `emit_absent_argument_check` (above) already does — found live via
+    # at all, because this check used to build its wording directly
+    # rather than through the site — found live via
     # `bin/qa_generated_domains` (BUG#134), a policy trigger whose event
     # payload named a field the triggered command doesn't declare.
+    #
+    # V3 CLOSES THAT WHOLE CLASS rather than the one instance: neither
+    # the "none" reading nor the ", " join nor the sort lives here any
+    # more. Both lists go over RAW and are written by
+    # `UnknownArgumentUnknownArgsArgs::render_args`, which reads the same
+    # `Vocabulary::RefusalSiteArgument` rows Ruby's own
+    # `RefusalWording.render_site` does — and the generated test in
+    # rust/src/kernel/vocab/refusal_template.rs pins the two equal, per
+    # site, per list edge case, against values Ruby computed.
     def emit_unknown_argument_check(command_name, known_keys, declared_names)
-      reading = declared_names.empty? ? "none" : declared_names.join(", ")
+      declared = declared_names.map(&:to_s)
       <<~RUST
                 let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
                 if !unknown.is_empty() {
-                    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-                        "#{command_name} does not declare {} — it takes #{reading}",
-                        unknown.join(", ")
-                    )));
+                    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+                    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                        command: #{command_name.inspect},
+                        unknown: &unknown,
+                        declared: &[#{declared.map(&:inspect).join(', ')}],
+                    }.render_args()));
                 }
       RUST
     end
@@ -832,7 +849,13 @@ module RustProjection
       row_subs = rows.map { |variant, raw| { "TmplKind" => name, "TmplMemberA" => variant, '"tmpl_member_a"' => raw.inspect } }
 
       type_name = vo[:name].to_s
-      admitted  = rows.map { |_variant, raw| raw.inspect }.join(", ")
+      # V3 — THE MEMBER LIST GOES OVER RAW. It used to be `.inspect`-
+      # quoted and joined with ", " right here, reproducing
+      # `admit_member`'s own formatting (admission.rb) by hand; that
+      # formatting is now `admitted`'s own `Vocabulary::
+      # RefusalSiteArgument` row, applied by
+      # `InvariantViolationClosedSetMemberArgs::render_args`.
+      admitted  = "[#{rows.map { |_variant, raw| raw.inspect }.join(', ')}]"
       # BUG#14 — the SAME "numeric_field" wording `required_field_expr`
       # already gives every OTHER composite field's own missing-key case
       # ("{type}.{field} expects {expected}, got nil"), resolved here at
@@ -846,7 +869,7 @@ module RustProjection
           "TmplKind" => name,
           '"tmpl_field_name"' => field_name.inspect,
           '"tmpl_closed_set_type"' => type_name.inspect,
-          '"tmpl_closed_set_admitted"' => admitted.inspect,
+          '["tmpl_closed_set_member_a"]' => admitted,
           '"tmpl_null_field_message"' => null_message.inspect,
         },
         slots: {

@@ -35,7 +35,7 @@ impl crate::kernel::Fielded for InstructionReference {
 
 impl InstructionReference {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "InstructionReference.value must match [^ \\t\\n\\r], got ", self.value))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "InstructionReference", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
         Ok(())
     }
 }
@@ -55,10 +55,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "InstructionReference does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "InstructionReference",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InstructionReference.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("InstructionReference.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("InstructionReference.value: expected String".to_string()) })? },
@@ -106,11 +108,11 @@ impl ScheduledAmount {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "ScheduledAmount"),
-            ("description", "a scheduled payment amount is positive"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "ScheduledAmount",
+            description: "a scheduled payment amount is positive",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -132,10 +134,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["cents"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "ScheduledAmount does not declare {} — it takes cents",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "ScheduledAmount",
+        unknown: &unknown,
+        declared: &["cents"],
+    }.render_args()));
 }
         Ok(Self {
         cents: { let x = v.get("cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledAmount.cents expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ScheduledAmount.cents expects Integer, got {}", x.inspect())))? },
@@ -175,7 +179,7 @@ impl crate::kernel::Fielded for PaymentRecipient {
 
 impl PaymentRecipient {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "PaymentRecipient.value must match [^ \\t\\n\\r], got ", self.value))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "PaymentRecipient", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -184,11 +188,11 @@ impl PaymentRecipient {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "PaymentRecipient"),
-            ("description", "a payment recipient is present"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "PaymentRecipient",
+            description: "a payment recipient is present",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -210,10 +214,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "PaymentRecipient does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "PaymentRecipient",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentRecipient.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("PaymentRecipient.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PaymentRecipient.value: expected String".to_string()) })? },
@@ -253,7 +259,7 @@ impl crate::kernel::Fielded for PaymentDueDate {
 
 impl PaymentDueDate {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "PaymentDueDate.value must match [^ \\t\\n\\r], got ", self.value))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "PaymentDueDate", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -262,11 +268,11 @@ impl PaymentDueDate {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "PaymentDueDate"),
-            ("description", "a payment due date is present"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "PaymentDueDate",
+            description: "a payment due date is present",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -288,10 +294,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "PaymentDueDate does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "PaymentDueDate",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentDueDate.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("PaymentDueDate.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PaymentDueDate.value: expected String".to_string()) })? },
@@ -339,11 +347,11 @@ impl RetryCount {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "RetryCount"),
-            ("description", "a retry count is non-negative"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "RetryCount",
+            description: "a retry count is non-negative",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -365,10 +373,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RetryCount does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "RetryCount",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RetryCount.value expects Integer, got {}", x.inspect())))?, None => 0 },
@@ -416,11 +426,11 @@ impl RetryLimit {
             fields.sort_by(|a, b| a.0.cmp(&b.0));
         }
         let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-            ("name", "RetryLimit"),
-            ("description", "a retry limit is positive"),
-            ("offered", offered.as_str()),
-        ])));
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "RetryLimit",
+            description: "a retry limit is positive",
+            offered: offered.as_str(),
+        }.render_args()));
     }
 }
         Ok(())
@@ -442,10 +452,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "RetryLimit does not declare {} — it takes value",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "RetryLimit",
+        unknown: &unknown,
+        declared: &["value"],
+    }.render_args()));
 }
         Ok(Self {
         value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RetryLimit.value expects Integer, got {}", x.inspect())))?, None => 3 },
@@ -704,18 +716,20 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["instruction", "account", "amount", "recipient", "due_on", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Schedule does not declare {} — it takes instruction, account, amount, recipient, due_on",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Schedule",
+        unknown: &unknown,
+        declared: &["instruction", "account", "amount", "recipient", "due_on"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["account", "amount", "due_on", "instruction", "recipient"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Schedule"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "instruction, account, amount, recipient, due_on"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Schedule",
+        absent: &absent,
+        declared: &["instruction", "account", "amount", "recipient", "due_on"],
+    }.render_args()));
 }
         let instruction = InstructionReference::from_json(&(match v.get("instruction").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.instruction expects InstructionReference, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         instruction.check_invariants()?;
@@ -819,10 +833,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Execute does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Execute",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
         Ok(Self {
 
@@ -913,10 +929,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Cancel does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Cancel",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
         Ok(Self {
 
@@ -1007,10 +1025,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Fail does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Fail",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
         Ok(Self {
 
@@ -1103,10 +1123,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Retry does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Retry",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
         Ok(Self {
 
@@ -1198,10 +1220,12 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
 }
 let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Abandon does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Abandon",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
         Ok(Self {
 
