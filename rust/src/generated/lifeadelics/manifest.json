@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Lifeadelics::Event",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::Event.Schedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::Event.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Lifeadelics::Registration",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::Registration.Request",
+    "generated": true,
+    "routed": true
+  }
+]
