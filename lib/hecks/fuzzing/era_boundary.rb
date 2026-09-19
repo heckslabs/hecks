@@ -8,7 +8,9 @@ module Hecks
     # target's own real, already-configured `PostgresEra` ledger:
     # does any ancestor era still hold writes nobody has merged forward?
     #
-    # **The bug this targets, named exactly**. Minting a new era (an attribute
+    # ## The bug this targets, named exactly
+    #
+    # Minting a new era (an attribute
     # or aggregate addition — `StorageShape.project`, lib/hecks/ports/
     # persistence/plugins/era/storage_shape.rb) advances the readable head
     # to a new partition; an old checkout, or a process that boots slower
@@ -25,6 +27,8 @@ module Hecks
     # automatic version of the question `bin/merge_tail`'s own diagnostic
     # line already answers by hand, run as an ordinary sweep Check instead
     # of only when a human remembers to ask.
+    #
+    # ## Connection and safety
     #
     # The target's real database, read-only, never a disposable one — every
     # other Postgres-touching mode here (`persistence_parity`,
@@ -44,19 +48,27 @@ module Hecks
     module EraBoundary
       module_function
 
+      # Reports whether any ancestor `PostgresEra` era still holds writes the
+      # head has never merged forward, for one target's real database.
+      #
       # `{ checked: true, diverged_total:, breakdown: [{ordinal:, diverged:}] }`
       # or `{ checked: false, kind:, reason: "..." }`. A `true` with
       # `diverged_total.positive?` is the finding this module exists to
       # surface: real post-cut writes an ancestor era is still holding.
       #
-      # `kind:` splits the two things `checked: false` used to mean. Both
-      # answered the same shape, and `bin/qa_sweep` logged that shape as a
-      # held Check either way — so a refused connection or a `Lineage`
-      # defect read, in the ledger, exactly like an audit that ran and
-      # found nothing: counted toward `sweep.made` and the target's clean
+      # `kind:` distinguishes the two different reasons `checked: false` can
+      # occur — without it, `bin/qa_sweep` would log a refused connection
+      # and a `Lineage` defect exactly like an audit that ran and found
+      # nothing, counting either toward `sweep.made` and the target's clean
       # streak. `:not_applicable` is a target with no lineage to audit at
       # all; `:error` is the audit failing to run, which the caller
       # surfaces as a finding rather than holding.
+      #
+      # @param domain_path [String] filesystem path to the target domain's bluebook
+      #   directory, or a directory containing one
+      # @return [Hash{Symbol => Object}] on success, `{checked: true, era_count: Integer,
+      #   breakdown: Array<Hash{ordinal: Integer, diverged: Integer}>, diverged_total: Integer}`;
+      #   otherwise `{checked: false, kind: Symbol, reason: String}`
       def diverged_ancestor_writes(domain_path)
         registry, directory = load_registry(domain_path)
         bluebook = registry.bluebooks.values.first
@@ -92,22 +104,40 @@ module Hecks
         end
       rescue StandardError => e
         # Could not audit is not the same as nothing to audit — a refused
-        # connection, a `Lineage` defect, malformed `.world` settings. Every
-        # one of these used to answer the benign shape and be held.
+        # connection, a `Lineage` defect, malformed `.world` settings. Each
+        # of these answers `:error`, not the benign `:not_applicable` shape,
+        # so `bin/qa_sweep` surfaces it as a finding rather than holding it
+        # as a clean audit.
         failed("#{e.class}: #{e.message}")
       end
 
-      # Nothing to audit — this target holds no PostgresEra lineage, so no
-      # ancestor era can carry post-cut writes. Not a finding, and not
-      # evidence of anything either: the caller logs no Check at all.
+      # Builds the `checked: false` result for a target with no PostgresEra
+      # lineage to audit — no ancestor era can carry post-cut writes when
+      # there is no lineage at all. Not a finding, and not evidence of
+      # anything either: the caller logs no Check at all.
+      #
+      # @param reason [String] human-readable explanation of why no lineage applies
+      # @return [Hash{Symbol => Object}] `{checked: false, kind: :not_applicable, reason: String}`
       def not_applicable(reason) = { checked: false, kind: :not_applicable, reason: reason }
 
-      # The audit itself could not run — reported as a finding, never held.
+      # Builds the `checked: false` result for an audit that could not run
+      # — reported as a finding, never held.
+      #
+      # @param reason [String] human-readable explanation of what failed, typically
+      #   `"#{exception.class}: #{exception.message}"`
+      # @return [Hash{Symbol => Object}] `{checked: false, kind: :error, reason: String}`
       def failed(reason) = { checked: false, kind: :error, reason: reason }
 
-      # The same load `bin/merge_tail` itself performs (that script's own
-      # top half) — a fresh `Registry`, never the ledger's own (this asks
-      # about the swept target's lineage, not QualityControl's own).
+      # Boots a fresh registry for the domain at `domain_path` — the same
+      # load `bin/merge_tail` itself performs (that script's own top half),
+      # never the ledger's own registry (this asks about the swept target's
+      # lineage, not QualityControl's own).
+      #
+      # @param domain_path [String] filesystem path to the target domain's bluebook
+      #   directory, or a directory containing one
+      # @return [Array(Runtime::Registry, String)] the booted registry and the resolved
+      #   bluebook directory path
+      # @raise [Errno::ENOENT] if `domain_path` names no existing domain directory
       def load_registry(domain_path)
         loading = Hecks::Ports::Loading.bootstrap
         directory = loading.bluebook_directory(domain_path)

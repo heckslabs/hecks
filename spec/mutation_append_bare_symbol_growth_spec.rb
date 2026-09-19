@@ -6,7 +6,7 @@ require "tempfile"
 # `Mutation#appended_fields`/`MutationApplier#appended`/the meta-validator
 # Judge's own `mutation_rows` all call `Hash#transform_values` on
 # `mutation.source` unconditionally, and a bare Symbol has no such method.
-# Confirmed genuinely crashing before this fix (`git stash`): a plain
+# Confirmed genuinely crashing with the fix reverted (`git stash`): a plain
 # `NoMethodError: undefined method 'transform_values' for :tag:Symbol`,
 # raised from `Mutation#appended_fields` the moment the bluebook's own IR
 # was built (`BluebookBuilder#build` -> `MetaValidator.call` -> `Command#to_h`

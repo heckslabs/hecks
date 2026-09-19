@@ -29,12 +29,21 @@ module Hecks
       @locks = {}
 
       class << self
+        # Returns the Mutex striped to one record, creating it on first use.
+        #
         # `AggregateLock.for(domain, aggregate, id).synchronize { ... }`
         # `id: nil` — identity could not be resolved yet (see
         # `Identity.best_effort`) — locks by aggregate type alone, coarser
         # (every record of this aggregate serializes against every other)
         # but still correct: it can only ever make dispatch more
         # conservative than a resolved id would.
+        #
+        # @param domain [String] the domain the aggregate belongs to
+        # @param aggregate [Bluebook::Aggregate] the aggregate being dispatched
+        # @param id [String, nil] the resolved record id, or nil to stripe by aggregate type
+        #   alone
+        # @return [Mutex] the mutex for this `[domain, aggregate, id]` key, held for the full
+        #   hydrate-through-save critical section
         def for(domain, aggregate, id = nil)
           key = id.nil? ? [domain.to_s, aggregate.hecks_name] : [domain.to_s, aggregate.hecks_name, id.to_s]
           @registry_lock.synchronize { @locks[key] ||= Mutex.new }

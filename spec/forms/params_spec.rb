@@ -2,12 +2,12 @@ require "spec_helper"
 require "hecks/forms/params"
 
 # The Rust web host's own `nest()` (rust/host/src/web.rs) mirrors this
-# method exactly, and carried the identical path-prefix collision bug: a
+# method exactly, and shares the identical path-prefix collision case: a
 # flat, dotted payload where one field is a plain scalar ("price") and
-# another implies it should be a nested group ("price.cents") used to
-# either crash with a raw `TypeError` or silently clobber a whole nested
-# hash down to a lone scalar, depending only on which pair the input
-# hash happened to iterate first.
+# another implies it should be a nested group ("price.cents") raises
+# `ArgumentError` by name, rather than crashing with a raw `TypeError` or
+# silently clobbering a whole nested hash down to a lone scalar,
+# regardless of which pair the input hash happens to iterate first.
 RSpec.describe Hecks::Forms::Params do
   describe ".nest" do
     it "nests ordinary dotted pairs into their tree shape" do

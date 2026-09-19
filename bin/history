@@ -13,6 +13,15 @@ require "json"
 domain = ARGV.fetch(0)
 runtime = Hecks.boot(domain)
 
+# Reads one aggregate's full journal as plain JSON-ready hashes.
+#
+# @param repository [Object] the aggregate's repository, as `Runtime::Registry#repository`
+#   returns it
+# @param _aggregate [Bluebook::Aggregate] the aggregate being read; unused — kept so every
+#   call site passes the same two arguments regardless of repository kind
+# @return [Array<Hash{String => Object}>] one hash per entry (`"operation"`, `"id"`,
+#   `"state"`) when `repository` is a `Ports::Persistence::AppendOnly`; `[]` for any other
+#   repository kind
 def entries_for(repository, _aggregate)
   case repository
   when Hecks::Ports::Persistence::AppendOnly

@@ -1,36 +1,36 @@
 require "spec_helper"
 
-# A REGRESSION GUARD FOR THE O(N^2) BOOT COST `Adapters::Memory#bootstrap_
+# A regression guard for the O(N^2) boot cost `Adapters::Memory#bootstrap_
 # fast_path?`'s own header traces start to finish. The language's own
-# self-hosted grammar boots by DISPATCHING every declaration in `lib/hecks/
+# self-hosted grammar boots by dispatching every declaration in `lib/hecks/
 # language/bluebook/` into a fresh, private `Memory` store
 # (`MetaValidator.grammar_registry`), and every dispatch that touches an
 # entity nested under an aggregate (a `ValueObject`'s own `Member`, and each
-# `Member`'s own `Pair` — S17, ADR 0026) re-saves the WHOLE parent
-# aggregate, because an entity has no storage of its own. PR #738 added a
-# 128-row `member` table to `vocabulary.bluebook` and, without a fix, that
-# alone tripled ONE aggregate's own save time (6.7s -> 18.2s) by re-encoding
+# `Member`'s own `Pair` — S17, ADR 0026) re-saves the whole parent
+# aggregate, because an entity has no storage of its own. A 128-row
+# `member` table added to `vocabulary.bluebook`, without a fix, alone
+# tripled one aggregate's own save time (6.7s -> 18.2s) by re-encoding
 # an aggregate whose own state kept growing, on every one of ~1,160 extra
 # saves.
 #
-# A SAVE COUNT, NOT A DURATION — the task this file backs is explicit that
-# a wall-clock assertion flakes on CI; a save COUNT is deterministic. It
-# does not, on its own, distinguish O(N) dispatches from the O(N^2) COST
+# **A save count, not a duration** — the task this file backs is explicit that
+# a wall-clock assertion flakes on CI; a save count is deterministic. It
+# does not, on its own, distinguish O(N) dispatches from the O(N^2) cost
 # the real bug was (this fix changed the cost per save, not how many saves
 # happen) — but a budget on the count is still real protection against the
 # other half of the same failure mode: a future change that dispatches a
-# save MORE THAN ONCE per declared row (the mechanism a naive fix — or a
+# save more than once per declared row (the mechanism a naive fix — or a
 # second accidental table — could reintroduce), and it is the fast, non-
 # flaky signal available without instrumenting wall-clock.
 #
-# TODAY'S REAL NUMBERS (measured against this same commit, warm cache):
+# Today's real numbers (measured against this same commit, warm cache):
 # total saves during a full `grammar_registry` boot ~6,346 ; the busiest
 # single aggregate (`ValueObject`, S17's own Member/Pair table) ~5,271.
 # Both budgets below give real headroom for organic corpus growth (a new
 # vocabulary table, another attached chapter) while still catching a
-# regression on PR #738's own scale.
+# regression at that 128-row member table's own scale.
 RSpec.describe "grammar boot save budget" do
-  # THE SAME RESET/RESTORE SHAPE `fixpoint_spec.rb`'s own "registry and the
+  # The same reset/restore shape `fixpoint_spec.rb`'s own "registry and the
   # installed door agree from bind" example and `syntax_boot_memo_spec.rb`'s
   # own "boots at most once per distinct chapter set" example already use —
   # `@grammar_registry` is process-global and memoized
@@ -41,9 +41,9 @@ RSpec.describe "grammar boot save budget" do
   it "does not dispatch more saves than a generous budget while booting the language's own grammar" do
     original_registry = Hecks::Bluebook::MetaValidator.instance_variable_get(:@grammar_registry)
     original_ready_for = Hecks::Bluebook::MetaValidator.instance_variable_get(:@grammar_ready_for)
-    # THE VERDICT CACHE, ALSO RESET — `MetaValidator.call`'s own `verdicts[key]
+    # **The verdict cache, also reset** — `MetaValidator.call`'s own `verdicts[key]
     # ||= hold(bluebook)` (keyed on the IR itself, meta_validator.rb's own
-    # header) answers a SECOND `grammar_registry` build in the same process
+    # header) answers a second `grammar_registry` build in the same process
     # from cache without dispatching a single new command, since the
     # language's own grammar content never changes mid-suite. Nil'd here the
     # same way `@grammar_registry` is, or this example measures zero saves

@@ -2,8 +2,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all`, proven against the real thing — split out of what
-# used to be one 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
+# `bin/qa_sweep --all`, proven against the real thing — split out of one
+# 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
 # effort; see `spec/support/qa_sweep_all_fixture.rb`'s own header for the
 # full "why a disposable ledger, why QA_SWEEP_DOMAIN_DIR" reasoning this
 # fixture rests on). This file covers the ledger-lifecycle surface: the

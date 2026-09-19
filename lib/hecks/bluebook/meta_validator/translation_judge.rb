@@ -22,6 +22,7 @@ module Hecks
       class TranslationJudge
         attr_reader :refusals
 
+        # @param translation [Bluebook::Translation] the built translation to judge
         def initialize(translation)
           @translation = translation
           @refusals    = []
@@ -43,10 +44,10 @@ module Hecks
         # their own runtime. `TranslationBuilder#aggregate` appends every
         # block to a plain Array (`@aggregates << builder.build`) with no
         # dedup — two `aggregate "Account" do ... end` blocks in the same
-        # translation are syntactically legal and reach here for real. Left
-        # unrescued, the second Declare's `AlreadyExists` crashed straight
-        # through `call_translation` instead of becoming a clean refusal —
-        # confirmed via direct dispatch before this fix.
+        # translation are syntactically legal and reach here for real.
+        # Left unrescued, the second Declare's `AlreadyExists` would crash
+        # straight through `call_translation` instead of becoming a clean
+        # refusal — confirmed via direct dispatch.
         def offer(label)
           yield
         rescue Runtime::GivenNotMet, Runtime::InvariantViolation, Runtime::TypeMismatch,

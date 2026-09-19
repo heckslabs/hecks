@@ -125,6 +125,7 @@ if options[:check]
 
       attr_reader :structural_skips
 
+      # Starts this differ's own tracked-skip set empty.
       def initialize
         @structural_skips = Set.new
       end
@@ -140,6 +141,11 @@ end
 
 # ── promotion: a finding becomes an ordinary stress domain ───────────
 
+# Converts a snake_case domain name into the CamelCase module name a
+# promoted bluebook uses.
+#
+# @param name [String] a snake_case identifier, e.g. `"case_escalation"`
+# @return [String] the CamelCase form, e.g. `"CaseEscalation"`
 def camelize(name) = name.split("_").map(&:capitalize).join
 
 if options[:promote]
@@ -184,8 +190,8 @@ if options[:promote]
   puts "next:"
   puts "  bin/qa_domain_novelty qa/stress_domains/#{name}"
   puts "  bin/project_rust qa/stress_domains/#{name}        # when the finding needs the Rust comparison"
-  # One command, and it reads the corpus. This used to print a hand-typed
-  # `target.identify` for the promoted name, which is exactly how ten
+  # One command, and it reads the corpus. Printing a hand-typed
+  # `target.identify` for the promoted name instead is exactly how ten
   # promoted or authored stress domains ended up never swept: the line
   # was printed, nobody ran it, and nothing anywhere noticed the domain
   # was not in the rotation. `bin/qa_seed_targets` now derives every
@@ -203,6 +209,13 @@ end
 # the ledger or needs its Postgres. `QA_GENERATED_DOMAINS_PER_TICK`
 # overrides the count for one run (a spec's throwaway tick sets it to 0).
 
+# Reads one `QualityControlDials` constant, falling back when the
+# constant (or the whole dials module) is not defined.
+#
+# @param name [Symbol] the constant name to read off `QualityControlDials`
+# @param fallback [Object] the value to use when `QualityControlDials` is undefined or
+#   lacks that constant
+# @return [Object] the dial's declared value, or `fallback` if not defined
 def dial(name, fallback)
   defined?(QualityControlDials) && QualityControlDials.const_defined?(name) ? QualityControlDials.const_get(name) : fallback
 end
@@ -228,6 +241,19 @@ start   = options[:start] || (Time.now.to_i % 1_000_000)
 run_dir = File.join(ROOT, "tmp/qa-generated/run-#{start}-#{Process.pid}")
 scratch = File.join(ROOT, "tmp/qa-generated/rust")
 
+# Re-invokes this script in a fresh child process to check one domain,
+# then reads back its `QA_GENERATED_RESULT` result line.
+#
+# @param dir [String] the generated (or adopted) domain's directory to check
+# @param options [Hash] the parsed CLI options; `:seeds`, `:steps`, and `:adversarial` are read
+# @param binary [String, nil] a built Rust binary to differential-check against, or nil to
+#   skip the Rust comparison
+# @param match [Hash, nil] a `{"mode"=>..., "signature"=>...}` filter narrowing which finding
+#   counts as a match, or nil to accept any finding
+# @param shrink_budget [Integer] the step-shrink budget passed through as the child's own
+#   `--shrink-budget`
+# @return [Hash] the parsed `QA_GENERATED_RESULT` JSON line from the child, or
+#   `{"status" => "error", "error" => <detail>}` if the child produced no result line
 def child_check(dir, options, binary: nil, match: nil, shrink_budget: 0)
   command = ["bundle", "exec", "ruby", __FILE__, "--check", dir, "--seeds", options[:seeds].to_s,
              "--steps", options[:steps].to_s, "--adversarial", options[:adversarial].to_s,
@@ -243,6 +269,11 @@ end
 
 # Projects `dir` into the scratch crate and builds it. Answers
 # `[binary, nil]` or `[nil, { "mode" => …, "detail" => … }]`.
+#
+# @param dir [String] the domain directory to project into the scratch crate
+# @param scratch [String] the scratch copy of the `rust/` crate to build in
+# @return [Array(String, nil), Array(nil, Hash)] `[binary_path, nil]` on success, or
+#   `[nil, {"mode" => String, "detail" => String}]` if projection or the cargo build fails
 def build_rust(dir, scratch)
   project, status = Open3.capture2e({ "HECKS_RUST_DIR" => scratch }, "bundle", "exec", "ruby",
                                     File.join(ROOT, "bin/project_rust"), dir, chdir: ROOT)
@@ -257,6 +288,11 @@ def build_rust(dir, scratch)
   [binary, nil]
 end
 
+# Rsyncs the checked-in Rust crate's source into the scratch copy `--rust`
+# builds against, deleting anything the scratch copy no longer needs.
+#
+# @param scratch [String] the scratch crate directory to sync into
+# @return [void]
 def sync_scratch!(scratch)
   FileUtils.mkdir_p(scratch)
   sources = %w[Cargo.toml Cargo.lock src].map { |entry| File.join(ROOT, "rust", entry) }
@@ -266,6 +302,16 @@ end
 # One candidate check against a written blueprint: build (when --rust),
 # then a child run. A build failure is its own result shape, so a
 # rust_build finding shrinks by "does it still fail to build".
+#
+# @param blueprint [Hash] the domain blueprint to write and check
+# @param dir_root [String] the directory to write the generated domain under
+# @param options [Hash] the parsed CLI options; `:rust` is read directly, the rest forwarded
+#   to `child_check`
+# @param scratch [String] the scratch Rust crate directory, used only when `options[:rust]`
+# @param match [Hash, nil] a `{"mode"=>..., "signature"=>...}` filter, forwarded to `child_check`
+# @param shrink_budget [Integer] the step-shrink budget, forwarded to `child_check`
+# @return [Hash] a result: `"status"` is `"clean"` or `"found"`, plus, when found, `"mode"`,
+#   `"signature"`, `"dir"`, `"divergences"`, `"steps"`, and `"binary"`
 def evaluate(blueprint, dir_root, options, scratch, match: nil, shrink_budget: 0)
   dir = Generator.write(blueprint, dir_root)
   binary = nil
@@ -282,6 +328,16 @@ def evaluate(blueprint, dir_root, options, scratch, match: nil, shrink_budget: 0
   child_check(dir, options, binary: binary, match: match, shrink_budget: shrink_budget).merge("binary" => binary, "dir" => dir)
 end
 
+# Repeatedly removes one element from a found blueprint while the finding
+# still reproduces, within a fixed candidate budget.
+#
+# @param blueprint [Hash] the domain blueprint that produced `found`
+# @param found [Hash] the "found" result to keep reproducing while shrinking
+# @param root [String] the directory candidates are written under
+# @param options [Hash] the parsed CLI options, forwarded to `evaluate`
+# @param scratch [String] the scratch Rust crate directory, forwarded to `evaluate`
+# @return [Array(Hash, Integer)] the smallest blueprint still reproducing the finding, and
+#   how many candidates were attempted
 def shrink_domain(blueprint, found, root, options, scratch)
   match = { "mode" => found["mode"], "signature" => found["signature"] }
   current = blueprint
@@ -303,6 +359,10 @@ def shrink_domain(blueprint, found, root, options, scratch)
   [current, attempts]
 end
 
+# Prints the finding's banner: seed, forms, domain path, and shrink-attempt summary.
+#
+# @param report [Hash] a finding report, as built by `record_finding`
+# @return [void]
 def print_finding_header(report)
   puts
   puts "=" * 72
@@ -314,6 +374,11 @@ def print_finding_header(report)
   puts "blueprint:   #{File.join(report[:root], 'blueprint.json').delete_prefix("#{ROOT}/")}"
 end
 
+# Prints a finding's full report: header, mode, signature, shrunk steps,
+# a promote command, and every divergence.
+#
+# @param report [Hash] a finding report, as built by `record_finding`
+# @return [void]
 def print_finding(report)
   found = report[:final]
   options = report[:options]
@@ -334,6 +399,12 @@ def print_finding(report)
   end
 end
 
+# Prints the step-shrink summary and a replay command, if step shrinking ran.
+#
+# @param report [Hash] a finding report, as built by `record_finding`
+# @param steps [Array<Hash>] the original, unshrunk steps
+# @param shrunk [Array<Hash>, nil] the shrunk steps, or nil if step shrinking did not run
+# @return [void]
 def print_shrunk(report, steps, shrunk)
   return unless shrunk
 
@@ -350,6 +421,16 @@ def print_shrunk(report, steps, shrunk)
   end
 end
 
+# Shrinks a found blueprint and its steps, writes the minimal finding and
+# its replay script to disk, and builds the report `print_finding` prints.
+#
+# @param blueprint [Hash] the domain blueprint that produced `result`
+# @param result [Hash] the original "found" result before shrinking
+# @param root [String] the directory this finding's files are written under
+# @param options [Hash] the parsed CLI options, forwarded to `shrink_domain`/`evaluate`
+# @param scratch [String] the scratch Rust crate directory, forwarded to `shrink_domain`/`evaluate`
+# @return [Hash] the finding report: `:forms`, `:root`, `:dir`, `:binary`, `:final`,
+#   `:options`, `:steps_file`, `:domain_attempts`, `:size_before`, `:size_after`
 def record_finding(blueprint, result, root, options, scratch)
   minimal, attempts = shrink_domain(blueprint, result, root, options, scratch)
   final_root = File.join(root, "minimal")

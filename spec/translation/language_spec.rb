@@ -306,7 +306,7 @@ RSpec.describe "the translation language" do
     BLUEBOOK
 
     # Rewritten under ADR 0032: `EraGuard.check!`/`check_bluebook!` (the
-    # file-based `data/eras/*.bluebook` driver this used to round-trip
+    # file-based `data/eras/*.bluebook` driver this once round-tripped
     # through) is gone — it had no production caller, `PostgresEra` never
     # used it, and it duplicated the same per-aggregate walk `CoverageCheck`
     # already performs against its own DB-held shapes. This calls the

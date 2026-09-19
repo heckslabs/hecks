@@ -14,18 +14,33 @@ module Hecks
         include QuerySpecification::Common::DSL
         include WordGate
 
+        # @param name [String] the read model's own name, as written after `read_model`
         def initialize(name)
           @name = name
         end
 
+        # Sets the human-readable description shown for this read model.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def description(value)
           # moved to the language: ProjectionText / purpose, on Projection.Declare
           @description = value
         end
 
-        # Renamed from `reference_to` — item #13's full metaprogrammed
-        # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # Declares the read model's own "one" side — the aggregate head every row projects
+        # around, keyed by its identity.
+        #
+        # Reached through `calls: "reference_to_impl"`. Bootstrap-reachable — the self-hosted
+        # `Bluebook.WholeBluebook` read model declares one — so it's exercised while
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` is still in play, not only afterwards.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the field name to project the reference under; `nil` derives it
+        #   from the target's own name
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `reference_to` was already declared
         def reference_to_impl(type, as: nil)
           raise Malformed, "#{@name} already has a projection reference" if @reference_target
 
@@ -33,22 +48,28 @@ module Hecks
           @reference_name   = (as || Naming.snake(@reference_target)).to_sym
         end
 
-        # Order-independent. `many:` is decided by comparing the included type
-        # against the reference target, so this used to refuse an include
-        # declared before the reference — a rule guarding an implementation
-        # limitation rather than a truth about read models. The includes are
-        # collected raw and resolved at build, when the reference is known, so
-        # there is no rule left to enforce.
-        # Renamed from `include`/`group_by` — item #13's full
-        # metaprogrammed dispatch (slice 4c). `include` is bootstrap-
-        # reachable (every core chapter's own `read_model` names which
-        # aggregates it includes with it — a first grep dismissed this
-        # as `Module#include` noise and was wrong; the cold-boot test
-        # after this rename caught it directly), so it's in
-        # BOOTSTRAP_CALLS_FALLBACK; `group_by` is not (no core read_model
-        # groups). The class-level `include WordGate` this file's own
-        # class body uses is `Module#include`, a different receiver,
-        # unaffected by renaming this instance method either way.
+        # Adds one aggregate head this read model projects.
+        #
+        # Order-independent: `many:` is decided by comparing the included type
+        # against the reference target, resolved at build time (when the
+        # reference is known), not at the moment `include` itself runs — so
+        # an include declared before `reference_to` resolves exactly like one
+        # declared after it.
+        #
+        # Reached through `calls: "include_impl"`. Bootstrap-reachable —
+        # every core chapter's own `read_model` names which aggregates it
+        # includes with it — so it's exercised while
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` is still in play.
+        # `group_by_impl`, below, is table-routed the same way but is not
+        # bootstrap-reachable (no core read_model groups). The class-level
+        # `include WordGate` this file's own class body uses is
+        # `Module#include`, a different receiver, unrelated to this
+        # instance method sharing its name.
+        #
+        # @param type [Module, Symbol, String] the included aggregate, written as a bare constant
+        # @param as [Symbol, nil] the field name to project this head's rows under; `nil` derives
+        #   it from the target's own name (pluralized for a many-side head)
+        # @return [void]
         def include_impl(type, as: nil)
           @includes ||= []
           @includes << [Naming.demodulise(type), as]
@@ -96,6 +117,21 @@ module Hecks
         # not this `Struct`) — found directly by reproducing "undefined
         # method `new' for module WhereClause" against a real corpus load,
         # not guessed.
+        #
+        # Records one `WhereClause` per `field => value` pair, targeted at a named many-side
+        # include when this read model has more than one.
+        #
+        # @param positional [Array<Hash{Symbol => Object}>] at most one bare Hash of where
+        #   clauses; in practice always empty, since Ruby routes an ordinary
+        #   `where(field: value)` call entirely into `rest` (see the comment above)
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate these clauses
+        #   apply to; `nil` when this read model has at most one many-side head
+        # @param rest [Hash{Symbol => Object}] `field => value` where clauses; a value is either
+        #   a literal, a Symbol naming a query argument, or a one-pair Hash `{ comparator =>
+        #   operand }` such as `{ gte: :minimum }` — a bare value means `eq`
+        # @return [void]
+        # @raise [ArgumentError] if more than one positional argument is given, or a Hash value
+        #   does not have exactly one pair, or names a comparator outside `COMPARATORS`
         def where_impl(*positional, on: nil, **rest)
           raise ArgumentError, "wrong number of arguments (given #{positional.size}, expected 1)" if positional.size > 1
 
@@ -108,14 +144,36 @@ module Hecks
           end
         end
 
+        # Records the read model's single ordering, replacing any declared earlier.
+        #
+        # @param field [Symbol, String] the field to order by; a dotted path such as
+        #   `:"order.value"` reaches a value object's member
+        # @param direction [Symbol, String] `:asc` or `:desc`
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate this ordering
+        #   applies to; `nil` when this read model has at most one many-side head
+        # @return [QuerySpecification::Common::OrderBy] the ordering just recorded
         def order_by_impl(field, direction = :asc, on: nil)
           @order_by = QuerySpecification::Common::OrderBy.new(field: field, direction: direction, target: resolve_target(on))
         end
 
+        # Records the most rows the targeted collection returns.
+        #
+        # @param value [Integer, Symbol] a literal row count, or a Symbol naming the query
+        #   argument that supplies it
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate this limit
+        #   applies to; `nil` when this read model has at most one many-side head
+        # @return [QuerySpecification::Common::LimitSpec] the limit just recorded
         def limit_impl(value, on: nil)
           @limit = QuerySpecification::Common::LimitSpec.new(value: value, target: resolve_target(on))
         end
 
+        # Records how many matched rows the targeted collection skips before the limit applies.
+        #
+        # @param value [Integer, Symbol] a literal row count, or a Symbol naming the query
+        #   argument that supplies it
+        # @param on [Module, Symbol, String, nil] the many-side included aggregate this offset
+        #   applies to; `nil` when this read model has at most one many-side head
+        # @return [QuerySpecification::Common::OffsetSpec] the offset just recorded
         def offset_impl(value, on: nil)
           @offset = QuerySpecification::Common::OffsetSpec.new(value: value, target: resolve_target(on))
         end
@@ -127,6 +185,9 @@ module Hecks
         # `seal_query_options` already enforces for where/order_by/etc
         # applies here too (`seal_group_by`) — grouping is a question
         # about one collection's own rows, same as those are.
+        # @param fields [Array<Symbol>] the eligible many-side head's own fields to nest its rows
+        #   under, one level per field
+        # @return [void]
         def group_by_impl(*fields)
           # Hash rows, `{field:}`, not bare symbols — same shape
           # `aggregate_heads` already uses for exactly the reason it
@@ -168,16 +229,24 @@ module Hecks
         # same shape as `count`, above (a bare, kind-driven coerce-and-
         # assign).
 
-        # `reference_to` is now optional — a read model with no root is a
+        # Assembles the declared references, includes and clauses into a `ReadModel`, after
+        # validating them.
+        #
+        # `reference_to` is optional — a read model with no root is a
         # bulk one: every `include`d head reads its own aggregate whole
         # (no FK match against a root that doesn't exist), and dispatch
-        # takes no id argument at all. This used to be required, on the
-        # assumption a read model was always "one root record's own
-        # cross-aggregate view" — true of every real corpus report so
-        # far, but not a truth about read models themselves: `group_by`'s
-        # own real use (nesting an aggregate's own whole table by its own
-        # field values) has no root to speak of. Still needs to describe
-        # something — zero includes and no reference is refused.
+        # takes no id argument at all. Requiring one would refuse a real,
+        # legitimate shape: `group_by`'s own real use (nesting an
+        # aggregate's own whole table by its own field values) has no root
+        # to speak of. Still needs to describe something — zero includes
+        # and no reference is refused.
+        #
+        # @return [Bluebook::ReadModel] the built read model
+        # @raise [Bluebook::DSL::Malformed] if neither `reference_to` nor any `include` is
+        #   declared, if `where`/`order_by`/`limit`/`offset`/`group_by`/`count`/`median` name an
+        #   `on:` that isn't a many-side include or are left untargeted with more than one
+        #   many-side head, if `count` and `median` are both declared or combined with
+        #   `group_by`, or if `cursor` is declared
         def build
           if !@reference_target && Array(@includes).empty?
             raise Malformed,
@@ -200,6 +269,12 @@ module Hecks
                         count: @count, median_field: @median_field)
         end
 
+        # Evaluates a `read_model` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the read model's own name
+        # @yield the read model's body, `instance_eval`'d against a new builder
+        # @return [Bluebook::ReadModel] the built read model
+        # @raise [Bluebook::DSL::Malformed] see `#build`
         def self.build(name, &block)
           builder = new(name)
           builder.instance_eval(&block) if block

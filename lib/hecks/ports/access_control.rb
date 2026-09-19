@@ -28,8 +28,7 @@ module Hecks
       # No adapter or spec double for this port ships in this repository, so every shape
       # below other than `registry` is adapter-defined: the port forwards it untouched.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param identity_id [Object] adapter-defined identity key, forwarded unchanged
       # @return [Object] adapter-defined session representation
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
@@ -44,8 +43,7 @@ module Hecks
       # answers `issuer`, `subject` and `email`), but nothing in this repository wires the
       # two together, so their shapes here are adapter-defined.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param email [Object] adapter-defined, forwarded unchanged; the person's email
       # @param issuer [Object] adapter-defined, forwarded unchanged; the OIDC issuer that
       #   authenticated the person
@@ -60,8 +58,7 @@ module Hecks
 
       # Asks the domain's adapter which roles it can grant.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @return [Object] adapter-defined collection of grantable roles
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
       #   (see `adapter`)
@@ -71,8 +68,7 @@ module Hecks
 
       # Grants a role to a person, by whatever means the domain's adapter records a grant.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param email [Object] adapter-defined, forwarded unchanged; the person receiving the role
       # @param role [Object] adapter-defined, forwarded unchanged; the role to grant
       # @return [Object] adapter-defined representation of the grant
@@ -84,8 +80,7 @@ module Hecks
 
       # Lists every person the domain's adapter knows about.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @return [Object] adapter-defined collection of people
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
       #   (see `adapter`)

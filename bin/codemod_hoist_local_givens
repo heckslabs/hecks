@@ -67,6 +67,11 @@ Candidate = Struct.new(:description, :canonical, :owner, :locations, keyword_ini
 # owner up front is what finds every safe, single-owner candidate
 # instead of silently skipping all of them the moment two owners
 # happen to phrase a rule identically.
+#
+# @param registry [Runtime::Registry] a booted registry to scan for duplicate `given` rules
+# @return [Array<Candidate>] one candidate per owner-scoped description/predicate pair that
+#   recurs at least twice and is not yet hoisted (no `" (declared)"` location among its
+#   occurrences)
 def find_candidates(registry)
   Hecks::QueryIR.collect_rules(registry)
                 .select { |r| r.kind == "given" }
@@ -90,6 +95,12 @@ end
 # segment; if that name isn't unique in the file, bail rather than
 # guess which one, the same discipline the append-fields codemod
 # already applies to its own single-match check.
+#
+# @param text [String] one bluebook file's full source text
+# @param owner [String] the dotted owner path from `QueryIR.owner_of`, e.g. `"Account.LedgerEntry"`
+# @return [Array(MatchData, Integer), nil] the owner's opening-line `MatchData` and the
+#   character offset of its closing `end` line, or nil if the owner's bare name does not
+#   match exactly once in this text, or its closing line cannot be found
 def owner_window(text, owner)
   bare_name = owner.split(".").last
   open_re = /^([ \t]*)(?:aggregate|entity)\s+"#{Regexp.escape(bare_name)}"\s+do\n/
@@ -107,6 +118,11 @@ end
 # owner's own window textually contains every entity nested inside it,
 # and an entity can independently declare its own `given` under the
 # same description text for a genuinely different predicate.
+#
+# @param window [String] one owner's own source window, from just after its opening line to
+#   just before its closing `end`
+# @return [Array<Array(String, Boolean)>] the window split into `[text, nested]` segments, in
+#   order; `nested` is true for a segment that is a whole nested `entity ... do ... end` block
 def strip_nested_entities(window)
   entity_re = /^([ \t]*)entity\s+"[^"]+"\s+do\n/
   segments  = []
@@ -132,14 +148,34 @@ end
 # `account.customer.status == "active"` — coincidentally the same
 # words for a genuinely different rule, which a description-only match
 # would have silently rewired onto the wrong precondition).
+#
+# @param predicate_src [String] the captured predicate source text of one `given` occurrence
+# @param candidate [Candidate] the candidate being matched against
+# @return [Boolean] true if the occurrence's predicate, stripped, equals the candidate's own
+#   canonical predicate
 def matching_occurrence?(predicate_src, candidate)
   predicate_src.strip == candidate.canonical
 end
 
+# Builds the regex that matches one local `given(description) { predicate }`
+# line for a specific description, capturing its indent and predicate source.
+#
+# @param description [String] the given's description text to match, exactly
+# @return [Regexp] a two-capture-group regex: the leading indent, and the predicate source
+#   text between the braces
 def desc_pattern_for(description)
   /^([ \t]*)given\(#{Regexp.escape(description.inspect)}\)\s*\{([^\n}]*)\}\n/
 end
 
+# Hoists one candidate's duplicate `given` occurrences within its owner's
+# own window into a single owner-level declaration, replacing each
+# matching local occurrence with a bare reference.
+#
+# @param text [String] one bluebook file's full source text
+# @param candidate [Candidate] the duplicate-rule candidate to hoist
+# @return [Array(String, Boolean)] the (possibly rewritten) text, and whether a change was
+#   made; returns the unchanged text and false if the owner's window cannot be found or fewer
+#   than two matching occurrences are found outside nested entities
 def apply_candidate(text, candidate)
   bounds = owner_window(text, candidate.owner)
   return [text, false] unless bounds
@@ -188,6 +224,11 @@ end
 # `.givens`/`.ensures` walk — is byte-for-byte unchanged. Owner-level
 # "(declared)" entries are deliberately excluded from this comparison;
 # they are exactly what is supposed to differ.
+#
+# @param registry [Runtime::Registry] a booted registry to compute rule sets over
+# @return [Hash{String => Array<Array(String, String, String)>}] each command location mapped
+#   to its sorted `[kind, description, canonical]` triples, excluding owner-level
+#   `" (declared)"` entries
 def command_rule_map(registry)
   Hecks::QueryIR.collect_rules(registry)
                 .reject { |r| r.location.end_with?(" (declared)") }
@@ -201,6 +242,18 @@ end
 # that a split across methods would have to thread `originals`/`texts`/
 # `before_rules`/`applied` through as parameters just to preserve.
 # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+#
+# Applies every safe hoist candidate found across a domain's bluebook
+# files, verifying each command's own effective rule set is unchanged
+# afterward and reverting the whole batch if it is not.
+#
+# @param files [Array<String>] the bluebook file paths making up one domain's chapter(s)
+# @param dry_run [Boolean] when true, an applied edit is written and then reverted rather
+#   than left on disk
+# @return [Hash] a result: `:file` [String] the scanned path (or its directory for multiple
+#   files); `:status` [Symbol] one of `:clean`, `:applied`, `:skipped`; `:candidates`
+#   [Array<Candidate>] the candidates involved (present for `:applied`/`:skipped`); `:reason`
+#   [String] why nothing was kept (present for `:skipped`)
 def run_files(files, dry_run:)
   files = files.sort
   originals = files.to_h { |file| [file, File.read(file)] }

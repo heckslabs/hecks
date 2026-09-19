@@ -31,6 +31,21 @@ module Hecks
     module ReferenceHop
       module_function
 
+      # Folds every hop clause in `declared.wheres` into a synthetic local `in` clause.
+      #
+      # @param declared [Bluebook::Query, Runtime::TenantScope::Scoped,
+      #   QuerySpecification::Common::Options] the declared query specification to fold hop
+      #   clauses of
+      # @param args [Hash] the query's arguments, read when resolving each hop's own query
+      # @param registry [Runtime::Registry] the booted registry to resolve each hop's target
+      #   repository from
+      # @param domain [String] the domain `aggregate` belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate `declared` queries
+      # @return [Bluebook::Query, Runtime::TenantScope::Scoped, QuerySpecification::Common::
+      #   Options, Hecks::Runtime::ReferenceHop::Folded] `declared` unchanged when it has no
+      #   hop clauses; otherwise a `Folded` wrapper whose `#wheres` replaces each hop clause
+      #   with its folded `in` clause
+      # @raise [Runtime::WiringError] if a hop's target no longer resolves (see `fold`)
       def apply(declared, args, registry:, domain:, aggregate:)
         hopped, local = declared.wheres.partition { |clause| QuerySpecification::HopPath.hop_head?(clause.field, aggregate.attributes) }
         return declared if hopped.empty?
@@ -39,6 +54,18 @@ module Hecks
         Folded.new(declared, local + folded)
       end
 
+      # Folds one hop clause into a synthetic `in` clause over the hop attribute's own ids.
+      #
+      # @param clause [QuerySpecification::Common::WhereClause] the hop clause to fold; its
+      #   `field` names the hop path, dotted past the first segment
+      # @param args [Hash] the query's arguments, read when resolving the inner query
+      # @param registry [Runtime::Registry] the booted registry to resolve the hop's target
+      #   repository from
+      # @param domain [String] the domain `aggregate` belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate `clause` is declared against
+      # @return [QuerySpecification::Common::WhereClause] a synthetic `in` clause on the hop
+      #   attribute's name, whose value is every id the inner clause admits on the target
+      # @raise [Runtime::WiringError] if the hop's target aggregate no longer resolves
       def fold(clause, args, registry:, domain:, aggregate:)
         step = QuerySpecification::HopPath.next_hop(clause.field, aggregate.attributes)
         hop, rest = step
@@ -70,6 +97,16 @@ module Hecks
       # aggregate is actually bound to (which may not be the engine
       # the outer aggregate is bound to at all) rather than by a
       # second reading of the comparators.
+      #
+      # @param domain [String] the domain `target` belongs to
+      # @param target [Bluebook::Aggregate] the hop's target aggregate to query
+      # @param wheres [Array<QuerySpecification::Common::WhereClause>] the inner clause(s) to
+      #   run against `target`
+      # @param args [Hash] the outer query's arguments, read when resolving the inner query
+      # @param registry [Runtime::Registry] the booted registry to resolve `target`'s
+      #   repository from
+      # @return [Array<String>] every distinct id the inner clause(s) admit on `target`
+      # @raise [Runtime::WiringError] if a hop nested inside `wheres` no longer resolves
       def matching_ids(domain, target, wheres, args, registry:)
         spec       = apply(QuerySpecification::Common::Options.new(wheres: wheres), args,
                            registry: registry, domain: domain, aggregate: target)
@@ -87,6 +124,11 @@ module Hecks
       # same reason: SimpleDelegator only intercepts calls made
       # directly on the wrapper.
       class Folded < SimpleDelegator
+        # @param declared [Bluebook::Query, Runtime::TenantScope::Scoped,
+        #   QuerySpecification::Common::Options] the wrapped query specification, delegated to
+        #   for everything but `#wheres`
+        # @param wheres [Array<QuerySpecification::Common::WhereClause>] the replacement
+        #   where-clauses, hop clauses folded to synthetic `in` clauses
         def initialize(declared, wheres)
           super(declared)
           @wheres = wheres

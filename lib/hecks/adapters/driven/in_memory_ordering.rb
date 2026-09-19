@@ -16,10 +16,24 @@ module Hecks
     module InMemoryOrdering
       module_function
 
+      # Orders decoded records by a declared attribute, then by id as the total-order
+      # tiebreaker.
+      #
       # order_by is a runtime value (an HTTP query param, in the
       # console's case), not framework-authored bluebook source — see
       # postgres.rb's own all for the full reasoning. Whitelisted the
       # identical way before FieldPath.dig ever runs.
+      #
+      # @param records [Array<Runtime::Instance>] the records to order
+      # @param aggregate [Bluebook::Aggregate] the aggregate `records` belong to, checked for
+      #   `order_by`'s attribute
+      # @param order_by [String, Symbol, nil] a dotted attribute path to sort by; nil returns
+      #   `records` unchanged
+      # @param direction [Symbol] `:asc` or `:desc`
+      # @return [Array<Runtime::Instance>] `records`, ordered by `order_by` then id; unchanged
+      #   when `order_by` is nil
+      # @raise [Runtime::WiringError] if `order_by` names no attribute of `aggregate` and is
+      #   not its lifecycle field
       def ordered(records, aggregate:, order_by:, direction:)
         return records unless order_by
 
@@ -36,6 +50,14 @@ module Hecks
         end
       end
 
+      # Resolves the dotted path `FieldPath.dig` should read to compare a value object field.
+      #
+      # @param aggregate [Bluebook::Aggregate] the aggregate `field` belongs to
+      # @param field [String, Symbol] a dotted order_by path, such as `"price"` or
+      #   `"price.cents"`
+      # @return [String] `field` unchanged for an already-dotted path, the lifecycle field, or
+      #   an attribute with no value-object type; otherwise `"<name>.<member>"` naming the
+      #   attribute's numeric member, its sole member, or the bare `"value"` convention
       def sortable_path(aggregate, field)
         name, *path = field.to_s.split(".")
         return field.to_s unless path.empty?

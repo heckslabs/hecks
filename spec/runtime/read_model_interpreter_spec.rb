@@ -2,8 +2,8 @@ require "spec_helper"
 require "tmpdir"
 require "json"
 
-# where/order_by/limit/offset used to be accepted by a read_model's DSL
-# and silently ignored by every interpreter — a declared filter that
+# where/order_by/limit/offset, accepted by a read_model's DSL, would
+# otherwise be silently ignored by every interpreter — a declared filter that
 # never filtered, an order that was always id order regardless. This
 # holds the fix: the options apply to the one many-side collection they
 # can unambiguously mean, on both the in-memory path (Memory, and
@@ -211,7 +211,7 @@ RSpec.describe "a read model's query options" do
   # many-side heads — a real typo shape (naming the wrong included type,
   # or the root itself), distinct from the "forgot `on:` entirely"
   # ambiguity the spec just above already covers. `Account` here is the
-  # ROOT (a single row — ordering/paging/filtering one row means
+  # root (a single row — ordering/paging/filtering one row means
   # nothing), never a many-side head, so it can never be a legal target
   # regardless of how many many-side heads exist.
   # rubocop:disable-next RSpec/ExampleLength
@@ -266,8 +266,8 @@ RSpec.describe "a read model's query options" do
 
   # The real gap this session closes (ADR 0055) — a `NovelSummary`-shaped
   # read model (children-of-the-light's own production use, four
-  # many-side includes around one root, wanting to filter exactly one)
-  # used to be impossible: `where`/`order_by`/`limit`/`offset` refused
+  # many-side includes around one root, wanting to filter exactly one) —
+  # without `on:`, `where`/`order_by`/`limit`/`offset` would refuse
   # outright the moment a read model declared more than one many-side
   # `include`, with no way to name which one a caller meant. `on:` closes
   # that: `CardPayment` here is filtered to its own disputed set (the
@@ -306,10 +306,10 @@ RSpec.describe "a read model's query options" do
   # Adversarial, not incidental: read_model_builder.rb's own `include`
   # comment says this is "Order-independent" — the `:many` flag really
   # is, resolved at build time once @reference_target is known. The
-  # join never was: this loop used to match a many-side head against
+  # join never was: this loop matching a many-side head against
   # whatever was already accumulated in `projected`, which is empty
-  # the very first time through — so a many-side head declared before
-  # the root silently returned an empty array, no error, just a
+  # the very first time through, would mean a many-side head declared
+  # before the root silently returned an empty array, no error, just a
   # wrong, too-small answer. Every real corpus read model (both of
   # Banking's) happens to declare its root first, so this never
   # surfaced there; caught only by deliberately reversing the order.
@@ -385,13 +385,13 @@ RSpec.describe "a read model's query options" do
     expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
   end
 
-  # **The ROOT-first fix's own gap** — root-first alone only guarantees the
-  # ROOT is in `projected` before any other head is matched. A chain of
+  # **The root-first fix's own gap** — root-first alone only guarantees the
+  # root is in `projected` before any other head is matched. A chain of
   # non-root heads (a head referencing another non-root head, not the
   # root) is one level deeper than that reaches: `include Coupon` before
   # `include Promotion`, where Coupon references Promotion (which
-  # references the root, Item), used to silently return an empty
-  # `coupons` array — Coupon was matched while `projected` held only
+  # references the root, Item), would silently return an empty
+  # `coupons` array — Coupon matched while `projected` held only
   # Item, one level short of what it needed (Promotion). Declared in
   # the worst order for the old code (deepest dependency declared
   # first, root last) to prove this isn't declaration order working by
@@ -497,8 +497,8 @@ RSpec.describe "a read model's query options" do
   # (nested entities under ValueObject/ProcessManager, spec/executes_spec.rb).
   # `bluebook.aggregate` only ever searches top-level aggregates
   # (Behaviour::Chapter#aggregate), so it returns nil for an entity
-  # head — `depends_on` used to call straight into
-  # `reference_fields(nil, ...)` for that head and blow up with
+  # head — calling straight into `reference_fields(nil, ...)` for that
+  # head in `depends_on` would blow up with
   # `NoMethodError: undefined method 'attributes' for nil` before a
   # single record was ever read. `records`, the pre-existing runtime
   # matcher, already tolerated this (a nil aggregate reads as "no rows
@@ -987,11 +987,11 @@ RSpec.describe "a read model's query options" do
   end
 end
 
-# A read model used to always need exactly one root record — `reference_to`
-# was required, and dispatch always took exactly one id argument. `group_by`
-# is what a report can't do without either: nesting an aggregate's own whole
+# A read model needing exactly one root record — `reference_to`
+# required, and dispatch always taking exactly one id argument — is what a
+# report can't do without `group_by`: nesting an aggregate's own whole
 # table by its own field values has no root to anchor to. So `reference_to`
-# became optional (a rootless read model, bulk, no id at dispatch), and
+# is optional (a rootless read model, bulk, no id at dispatch), and
 # `group_by` nests one eligible head's rows into a Hash — unwrapping every
 # single-attribute value object on that head's own rows to its bare scalar
 # along the way, since grouping needs a real scalar to key by regardless.

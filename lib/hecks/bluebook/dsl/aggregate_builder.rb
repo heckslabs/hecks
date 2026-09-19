@@ -21,6 +21,15 @@ module Hecks
         include WordGate
         include Sealing
 
+        # @param name [String] the aggregate's name, as written after `aggregate`
+        # @param chapter_named_givens [Hash{String => Hash{String => Bluebook::Given}}] the
+        #   chapter-wide given pool, shared and written through by `given_impl`
+        # @param chapter_pending_givens [Array<Hash>] unresolved chapter-wide bare given
+        #   references, appended to when this aggregate's own reference cannot resolve yet
+        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
+        #   the chapter-wide, entity-scoped given pool, threaded unchanged to every entity
+        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide,
+        #   entity-scoped bare given references, threaded unchanged to every entity
         def initialize(name, chapter_named_givens: {}, chapter_pending_givens: [],
                        chapter_entity_named_givens: {}, chapter_entity_pending_givens: [])
           @name          = name
@@ -66,33 +75,45 @@ module Hecks
           @pending_queries  = []
         end
 
+        # Sets the human-readable description shown for this aggregate.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def description(value)
           # moved to the language: Description invariant, on Root.Declare
 
           @description = value
         end
 
+        # Names where a concept adopted from a canonical source came from.
+        #
         # Origin, not runtime identity — a concept adopted from a canonical
         # source (§28) names where it came from without that fact ever
         # touching `hecks_fqn`/dispatch. Captured raw, the same way
         # `attribute ..., default: { value: "small" }` captures a literal
         # Hash untouched — no re-parsing, no structure imposed beyond
         # "whatever the author wrote."
-        # Renamed from `provenance`/`projects`/`lifecycle`/`entity`/
-        # `query`/`policy`/`command` (all below) — item #13's full
+        #
+        # Answers the `provenance` word (and, via the same table rows,
+        # its siblings `projects`/`lifecycle`/`entity`/
+        # `query`/`policy`/`command` below) through the table's `calls:`
+        # column — item #13's full
         # metaprogrammed dispatch (slice 4c). All bootstrap-reachable
         # (used throughout the core/attached chapters), all in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param from [Object] the canonical source, captured exactly as written
+        # @return [Object] `from` as stored
         def provenance_impl(from:)
           @provenance = from
         end
 
+        # Declares a reference from this aggregate's own head to another aggregate's identity.
+        #
         # `optional:` — matching `CommandBuilder#reference_to`'s own
-        # signature, which already had it; this one used to never
-        # forward it to `attribute_impl()`/`relationship_attribute`
-        # even though those already accept it — closed in the same
-        # commit that added this comment (`optional: optional`, below).
-        # It was a real gap because an aggregate that can point at one
+        # signature, which already had it, and forwarded here to
+        # `attribute_impl()`/`relationship_attribute` (`optional: optional`, below). A real
+        # need: an aggregate that can point at one
         # of several targets (Item's own `personal_list_id`/
         # `camping_list_id`, never both) needs each reference optional
         # on the aggregate's own persisted schema, not just as a
@@ -100,10 +121,19 @@ module Hecks
         # `spec/fixtures/hop_chain.bluebook`'s own `Proposal` aggregate
         # declares `reference_to Engagement, optional: true` at the
         # aggregate head.
-        # Renamed from `reference_to` — item #13's full metaprogrammed
+        #
+        # Answers the `reference_to` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable (every core/attached
         # grammar chapter uses reference_to to describe itself), so also
-        # named in GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # named in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the reference may be absent
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `as` (or the derived name) is already declared
         def reference_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           @reference_targets << target
@@ -111,13 +141,15 @@ module Hecks
                                  as || default_reference_name(target), optional: optional)
         end
 
+        # Declares that this aggregate holds its own kept-fresh copy of a field reached through
+        # a reference, so a rule can read it locally instead of reaching across the boundary.
+        #
         # A rule may only read within its own aggregate boundary (S12,
-        # ADR 0025 — "Consistency across aggregate boundaries"). A
-        # `given`/`ensures`/`invariant` used to reach through a
+        # ADR 0025 — "Consistency across aggregate boundaries"). Reaching through a
         # `reference_to` at rule-evaluation time (`References#
         # dereference`, a live query against another aggregate's own
-        # repository, unbounded and inconsistent with the "a rule reads
-        # only this record" model everywhere else) — `projects` is what
+        # repository) would be unbounded and inconsistent with the "a rule reads
+        # only this record" model everywhere else — `projects` is what
         # replaces that: `projects :customer_status, from: :"customer.
         # status"` declares that this aggregate holds its own copy of
         # `Customer`'s own `:status`, kept fresh by a rebuild sweep
@@ -137,6 +169,14 @@ module Hecks
         # aggregate in the chapter is real, not by `AggregateBuilder`
         # itself) — `validate_projected_fields!` is where that half
         # happens.
+        #
+        # @param name [Symbol, String] the local field's name this aggregate projects the
+        #   remote value into
+        # @param from [Symbol, String] the local reference and remote field, dotted, such as
+        #   `:"customer.status"`
+        # @return [Array<Bluebook::ProjectedField>] every projected field declared so far, this
+        #   one last
+        # @raise [Bluebook::DSL::Malformed] if `from` is not `reference.field` shaped
         def projects_impl(name, from:)
           reference, _, remote_field = from.to_s.rpartition(".")
 
@@ -165,12 +205,27 @@ module Hecks
         # did when it was written — real, if rare corpus: "Combined corpus
         # uses: one."
         #
-        # Renamed from `has_many`/`has_one`/`belongs_to` — item #13's full
-        # metaprogrammed dispatch (slice 4). Each Keyword row's own
-        # `calls:` names the matching `_impl`; not bootstrap-reachable
-        # (no core/attached chapter uses one of these to describe itself),
-        # so no BOOTSTRAP_CALLS_FALLBACK entry is needed, unlike
-        # `attribute`/`role`.
+        # Declares a list-typed relationship to another aggregate, referenced by its plural name.
+        #
+        # Answers the `has_many` word (and, via the same table rows, its
+        # siblings `has_one`/`belongs_to` below) through the table's
+        # `calls:` column — item #13's full metaprogrammed dispatch
+        # (slice 4). Each Keyword row's own `calls:` names the matching
+        # `_impl`, so all three are carried in
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` like every other
+        # `calls:`-routed word, but never actually exercised during real
+        # bootstrap (no core/attached chapter uses one of these to
+        # describe itself), unlike `attribute`/`role`.
+        #
+        # @param type [Module, Symbol, String] the related aggregate's plural name, a bare
+        #   constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param legacy_options [Hash] must be empty outside shadow-parsing; under
+        #   shadow-parsing, `:optional` is read for the legacy single-reference form
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] outside shadow-parsing, if `legacy_options` is
+        #   non-empty; may also raise from `relationship_attribute` if the derived name is
+        #   already declared
         def has_many_impl(type, as: nil, **legacy_options)
           return legacy_has_many(type, as: as, optional: legacy_options.fetch(:optional, false)) if MetaValidator.shadow_parsing?
 
@@ -186,6 +241,12 @@ module Hecks
                                  list: true)
         end
 
+        # Declares a single-valued relationship this aggregate holds toward another.
+        #
+        # @param type [Module, Symbol, String] the related aggregate, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the relationship may be absent
+        # @return [void]
         def has_one_impl(type, as: nil, optional: false)
           return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
 
@@ -195,6 +256,12 @@ module Hecks
                                  optional: optional)
         end
 
+        # Declares a single-valued relationship toward the aggregate that owns this one.
+        #
+        # @param type [Module, Symbol, String] the owning aggregate, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the relationship may be absent
+        # @return [void]
         def belongs_to_impl(type, as: nil, optional: false)
           return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
 
@@ -204,10 +271,19 @@ module Hecks
                                  optional: optional)
         end
 
+        # Declares this aggregate's own state machine.
+        #
+        # @param field [Symbol, String] the attribute the state machine lives on
+        # @param default [String, Symbol] the state a new record starts in
+        # @yield the lifecycle body of `transition` rows, evaluated against a `LifecycleBuilder`
+        # @return [Bluebook::Lifecycle] the built state machine
+        # @raise [Bluebook::DSL::Malformed] if two transitions for one command overlap
         def lifecycle_impl(field, default:, &)
           @lifecycle = LifecycleBuilder.build(field, default: default, &)
         end
 
+        # Queues a piece nested in this aggregate, built later once every sibling has been seen.
+        #
         # A piece is declared in this aggregate — its owner is stamped by
         # `Aggregate#initialize`, once the aggregate exists. Its own
         # commands were given the piece as their owner when it was declared,
@@ -230,25 +306,42 @@ module Hecks
         # different canonical — bare `customer.status`, not
         # `parent.customer.status`, wrong scope for a piece's own command
         # to evaluate) nor round 4's single-piece `given` could reach.
+        # @param name [String] the nested piece's name
+        # @yield the piece body, evaluated against an `EntityBuilder` once drained
+        # @return [Array<Array>] every pending piece queued so far, this one last
         def entity_impl(name, &block)
           @pending_entities << [name, block]
         end
 
+        # Queues a query declared on this aggregate, built later once every sibling has been seen.
+        #
+        # @param name [String] the query's name
+        # @yield the query body, evaluated against a `QueryBuilder` once drained
+        # @return [Array<Array>] every pending query queued so far, this one last
         def query_impl(name, &block)
           @pending_queries << [name, block]
         end
 
+        # Declares a policy scoped to this aggregate, stamping it with the aggregate's own name.
+        #
+        # @param name [String] the policy's name
+        # @yield the policy body, evaluated against a `PolicyBuilder`
+        # @return [Array<Bluebook::Policy>] every policy declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if the body fails any check the policy builder raises
         def policy_impl(name, &)
           reaction = PolicyBuilder.build(name, &)
           reaction.aggregate = @name
           @policies << reaction
         end
 
-        # `builder.closed_sets` too, not only `builder.build` — a real,
-        # previously-unreachable gap this exact fix exposed: a
-        # value_object's own inline `attribute :x, one_of(...)` (now legal
-        # — S3, ADR 0025 removed the wrong-arity collision that used to
-        # make this crash before it could ever matter) synthesises its own
+        # Declares a value object on this aggregate, either as a block of `attribute` lines or
+        # (the `type` shorthand) as a single `:value` attribute.
+        #
+        # `builder.closed_sets` too, not only `builder.build` — a real
+        # gap this exact fix closes: a
+        # value_object's own inline `attribute :x, one_of(...)` (legal
+        # since S3, ADR 0025 removed the wrong-arity collision that would
+        # otherwise crash it) synthesises its own
         # anonymous value object via the same `AttributeCollector#closed_
         # sets` mechanism an aggregate's own attributes already use — and
         # nothing installed it anywhere. `Box.attributes` said `size:
@@ -278,6 +371,16 @@ module Hecks
         # Neither type nor block keeps its historical behavior untouched
         # (an empty attribute list — judged, or not, by the language
         # downstream, the same as before this parameter existed).
+        #
+        # @param name [String] the value object's name
+        # @param type [Module, nil] the bare shorthand's single attribute type; mutually
+        #   exclusive with `block`
+        # @yield the value object body of `attribute`/`invariant`/`one_of` lines; mutually
+        #   exclusive with `type`
+        # @return [Array<Bluebook::ValueObject>] this aggregate's own value objects, including
+        #   this one and any closed sets its attributes synthesised
+        # @raise [Bluebook::DSL::Malformed] if both `type` and a block are given, or the body
+        #   fails any check the value object language or its builder raises
         def value_object(name, type = nil, &block)
           if type && block
             raise Malformed,
@@ -293,6 +396,9 @@ module Hecks
           @value_objects.concat(builder.closed_sets)
         end
 
+        # Queues a command declared on this aggregate, built later once every sibling has been
+        # seen.
+        #
         # `from:` — lifecycle state becomes a command guard (S10, ADR
         # 0025) — `command "Debit", from: "open"` replaces `given
         # ("account is open") { status == "open" }`, written 35 times
@@ -302,6 +408,12 @@ module Hecks
         # the lifecycle already declares which states exist, so naming
         # the legal ones is checkable against it, where a free-text
         # given could drift out of sync with the state machine and did.
+        #
+        # @param name [String] the command's name
+        # @param from [String, Symbol, Array<String, Symbol>, nil] the lifecycle state(s) this
+        #   command guards from; nil admits from any state
+        # @yield the command body, evaluated against a `CommandBuilder` once drained
+        # @return [Array<Array>] every pending command queued so far, this one last
         def command_impl(name, from: nil, &block)
           # The verb is declared on this aggregate — the owner `acts_on` answers
           # with — stamped by `Aggregate#initialize` once the aggregate
@@ -312,6 +424,9 @@ module Hecks
           @pending_commands << [name, from, block]
         end
 
+        # Declares a rule this aggregate's own commands must satisfy, or references one a
+        # sibling aggregate in the chapter already declared.
+        #
         # A precondition shared across commands, declared once (S10, ADR
         # 0025) — an aggregate-level `given`, block required, stored by
         # its own description rather than appended anywhere: a command
@@ -354,9 +469,23 @@ module Hecks
         # textually-different canonical registers under the same
         # description; see `reference_named_chapter_given`'s own
         # ambiguity error for how that surfaces.
-        # Renamed from `given` — item #13's full metaprogrammed dispatch
-        # (slice 4b), same reasoning as reference_to_impl above:
-        # bootstrap-reachable, in BOOTSTRAP_CALLS_FALLBACK.
+        # Answers the `given` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch
+        # (slice 4b), same reasoning as `reference_to_impl` above:
+        # bootstrap-reachable, in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param description [String] the rule's description; also the name a sibling aggregate
+        #   references it by when no block is given
+        # @param declared_by [Module, Symbol, String, nil] disambiguates which aggregate's own
+        #   rule to reference, a bare constant, when more than one shares `description`; only
+        #   meaningful with no block
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if given a block whose source cannot be extracted;
+        #   given no block, the description is immediately ambiguous between more than one
+        #   already-loaded aggregate with no `declared_by` to disambiguate; an unresolved
+        #   reference defers instead, and may still raise once the whole chapter has loaded, if
+        #   it then resolves to none or more than one candidate
         def given_impl(description, declared_by: nil, &predicate)
           return reference_named_chapter_given(description, declared_by: declared_by) unless predicate
 
@@ -448,23 +577,39 @@ module Hecks
 
         public
 
+        # Declares a rule the whole aggregate must satisfy, checked after every command, before
+        # save.
+        #
         # The aggregate boundary is what an invariant defines (S10, ADR
-        # 0025 — "Rules") — checked after every command, before save,
-        # the same way a value object's already is
+        # 0025 — "Rules") — the same check a value object's already gets
         # (`ValueObjectBuilder#invariant`, whose own shape this mirrors
-        # exactly). Today `invariant` lived only inside `value_object`;
-        # an aggregate-level rule had nowhere to live, so "the balance
+        # exactly). Without an aggregate-level rule, "the balance
         # never goes negative" was three different `given`/`ensures`
         # texts across banking's six balance-moving commands, and the
         # four that only increase it said nothing at all — completeness
         # depended on someone noticing which commands could decrease it.
-        # Renamed from `invariant` — item #13's full metaprogrammed
-        # dispatch (slice 4b), same reasoning as given_impl above.
+        #
+        # Answers the `invariant` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
+        # dispatch (slice 4b), same reasoning as `given_impl` above.
+        #
+        # @param description [String] the rule's description
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if the block's source could not be extracted
         def invariant_impl(description, &predicate)
           @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
                                      extraction_failure: "it would be a rule the IR cannot carry")
         end
 
+        # Assembles every declared attribute, construct and rule into an `Aggregate`, after
+        # draining pending commands/queries/entities and running every `seal_*` check.
+        #
+        # @return [Bluebook::Aggregate] the built aggregate
+        # @raise [Bluebook::DSL::Malformed] if identity resolution or any `seal_*` check fails —
+        #   a mutation or query naming an undeclared field, an inconsistent default, a lifecycle
+        #   guard with no lifecycle, a lifecycle-field mutation outside a transition, a projected
+        #   field naming an undeclared reference, or a correction targeting an unreferenced field
         def build
           drain_pending!
           resolve_pending_identity!
@@ -500,6 +645,20 @@ module Hecks
           ir
         end
 
+        # Evaluates an `aggregate` block against a fresh builder and returns the built aggregate.
+        #
+        # @param name [String] the aggregate's name
+        # @param chapter_named_givens [Hash{String => Hash{String => Bluebook::Given}}] the
+        #   chapter-wide given pool
+        # @param chapter_pending_givens [Array<Hash>] unresolved chapter-wide bare given
+        #   references
+        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
+        #   the chapter-wide, entity-scoped given pool
+        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide,
+        #   entity-scoped bare given references
+        # @yield the aggregate body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::Aggregate] the built aggregate
+        # @raise [Bluebook::DSL::Malformed] if the body fails any check `#build` raises
         def self.build(name, chapter_named_givens: {}, chapter_pending_givens: [],
                        chapter_entity_named_givens: {}, chapter_entity_pending_givens: [], &block)
           builder = new(name, chapter_named_givens: chapter_named_givens, chapter_pending_givens: chapter_pending_givens,
@@ -511,9 +670,9 @@ module Hecks
 
         private
 
-        # **Deferred construction** — `entity`/`command`/`query` used to build
-        # immediately, inline, the moment their own DSL line ran during
-        # `instance_eval` — meaning a command's own resolution (`sets
+        # Deferred construction — `entity`/`command`/`query` queue a descriptor rather than
+        # building immediately, inline, the moment their own DSL line runs during
+        # `instance_eval`. Building immediately would mean a command's own resolution (`sets
         # :field` importing the owner's own attribute, `given("desc")`
         # referencing an aggregate-level precondition, a query's own
         # positional-param resolution) only ever saw whatever `@entities`/

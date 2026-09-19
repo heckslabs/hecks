@@ -18,6 +18,19 @@ module Hecks
 
         module_function
 
+        # Filters, orders and pages `records` against a declared query specification.
+        #
+        # @param records [Array<Runtime::Instance, Hash>] the candidate records to filter —
+        #   an Instance, a Value, or a plain row hash per record (see `FieldPath.dig`)
+        # @param declared [QuerySpecification::Common::Options,
+        #   Bluebook::Behaviour::ReadModel::FilteredOptions] the specification providing
+        #   `wheres`, `order_by`, `offset` and `limit`
+        # @param args [Hash{Symbol => Object}] bound values for any Symbol placeholder in a
+        #   where clause, `offset`, or `limit`
+        # @param registry [Runtime::Registry, nil] the booted registry, passed through to a
+        #   registry-aware comparison; nil when none is available
+        # @return [Array<Runtime::Instance, Hash>] the matching records, ordered and paged;
+        #   the same element type as `records`
         def execute(records, declared, args = {}, registry: nil)
           matched = records.select do |record|
             declared.wheres.all? do |clause|
@@ -47,18 +60,38 @@ module Hecks
         end
 
         # The comparator table itself lives in
-        # QuerySpecification::Common::Comparison — this module and
-        # Runtime::QueryInterpreter used to carry a copy each, and the two
-        # drifted (see that file's own comment for what it cost). What
-        # stays here is how a value is reached for this path: a registry
-        # arrives as an argument rather than as instance state, and the
-        # field is dug through FieldPath before it arrives.
+        # QuerySpecification::Common::Comparison, not duplicated per
+        # caller — this module and Runtime::QueryInterpreter drifted
+        # when each carried its own copy (see that file's own comment
+        # for what it cost). What stays here is how a value is reached
+        # for this path: a registry arrives as an argument rather than
+        # as instance state, and the field is dug through FieldPath
+        # before it arrives.
+        # @param clause [QuerySpecification::Common::WhereClause] the declared comparison
+        # @param held [Object, nil] the record's own value for `clause.field`
+        # @param args [Hash{Symbol => Object}] bound values for a Symbol-named `clause.value`
+        # @param registry [Runtime::Registry, nil] used only by `none_in_state`; see
+        #   `Comparison.holds?`
+        # @return [Boolean] whether the comparison holds
+        # @raise [Runtime::WiringError] if `clause.op` names no comparator in
+        #   `Comparison`'s table, or `none_in_state`'s target aggregate has no wired repository
         def holds?(clause, held, args, registry: nil)
           Comparison.holds?(clause.op, held, comparable(resolve(clause.value, args)), registry: registry)
         end
 
+        # Resolves a where-clause value, looking up a Symbol placeholder in `args`.
+        #
+        # @param value [Object] a literal value, or a Symbol naming a key in `args`
+        # @param args [Hash{Symbol => Object}] bound argument values
+        # @return [Object] `args[value]` when `value` is a Symbol, else `value` unchanged
         def resolve(value, args) = value.is_a?(Symbol) ? args[value] : value
 
+        # Normalises a value into the shape `Comparison` compares against.
+        #
+        # @param value [Runtime::Value, Hash, Object, nil] a held or wanted value; a
+        #   `Runtime::Value` is read through its `to_h`
+        # @return [Object, nil] the sole numeric member, or the sole member, of a Hash-shaped
+        #   value; otherwise `value` unchanged
         def comparable(value) = Comparison.comparable(value)
       end
     end

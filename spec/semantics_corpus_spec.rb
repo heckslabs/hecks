@@ -107,7 +107,8 @@ RSpec.describe "the semantics corpus" do
   end
 
   # The same fixtures, answered by the compiled Rust kernel — refusal
-  # kinds included, which spec/rust_conformance historically dropped.
+  # kinds included, matching the same C8.3 discipline spec/rust_conformance
+  # holds Rust to.
   # `io: true`: a cargo build inside rspec, by this suite's convention.
   describe "the Rust kernel answers every fixture as written", :io do
     include RustConformanceHelpers

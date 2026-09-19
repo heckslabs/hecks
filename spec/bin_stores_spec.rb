@@ -6,7 +6,7 @@ require "open3"
 # require, so this runs it as a real subprocess (Open3) against a real
 # path, the same way bin/project_tenant's own spec does.
 #
-# Pins the one bug fixed here: a nonexistent domain path used to
+# Pins the one bug fixed here: a nonexistent domain path would
 # `exit 0` with no output at all, indistinguishable from a domain that
 # legitimately has zero aggregates.
 RSpec.describe "bin/stores" do

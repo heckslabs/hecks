@@ -2,9 +2,9 @@ require "spec_helper"
 require "tempfile"
 
 # Real dispatch coverage for the Value.scalar unwrap fix in the lifecycle-
-# transition matcher: a VO-typed lifecycle field's bare `.to_s` used to hit
+# transition matcher: a VO-typed lifecycle field's bare `.to_s` would hit
 # Ruby's default Object#to_s instead of unwrapping the inner scalar, so
-# `current` came back as a raw object-pointer string that could never match
+# `current` would come back as a raw object-pointer string that could never match
 # any declared `from` state. Bites on the second transition specifically:
 # the field starts as a raw, unwrapped default, and only becomes a real
 # Value once the first transition's `sets` wraps it -- a subsequent

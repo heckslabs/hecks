@@ -15,28 +15,48 @@ module Hecks
         include QuerySpecification::Common::DSL
         include WordGate
 
+        # @param name [String] the query's name, as written after `query`
         def initialize(name)
           @name   = name
           @wheres = []
         end
 
+        # Sets the human-readable description shown for this query.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def description(value) = @description = value
 
+        # Declares a query parameter that names another aggregate's identity.
+        #
         # A query parameter naming another aggregate's own identity
         # (Card.Active's own `Board`, filtering to one board's cards) —
         # just a plain attribute typed as a reference,
-        # AttributeCollector#attribute already handling an Reference
+        # `AttributeCollector#attribute_impl` already handling a Reference
         # exactly like any other. No "acts on itself" case to
         # distinguish here the way a command's own reference_to has —
         # a query has no root of its own to act on, only parameters.
-        # Renamed from `reference_to` — item #13's full metaprogrammed
-        # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        #
+        # Answers the `reference_to` word through the table's `calls:`
+        # column — item #13's full metaprogrammed dispatch (slice 4b).
+        # Bootstrap-reachable, in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the parameter's name; nil derives it from the target
+        # @param optional [Boolean] whether the parameter may be omitted when the query runs
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `as` (or the derived name) is already declared
         def reference_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
         end
 
+        # Assembles the declared parameters and filtering into a `Query`.
+        #
+        # @return [Bluebook::Query] the built query
+        # @raise [Bluebook::DSL::Malformed] if the body declares `cursor`, which no interpreter
+        #   implements
         def build
           seal_cursor
           Query.new(
@@ -54,6 +74,15 @@ module Hecks
           )
         end
 
+        # Evaluates a `query` block against a fresh builder, then fills in owner-derived types.
+        #
+        # @param name [String] the query's name
+        # @param owner_attributes [Array<Bluebook::Attribute>] the enclosing aggregate or
+        #   entity's own attributes, matched against the block's own parameter names
+        # @yield the query body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::Query] the built query
+        # @raise [Bluebook::DSL::Malformed] if the body declares `cursor`, a duplicate attribute,
+        #   or a filtering clause the query language refuses
         def self.build(name, owner_attributes: [], &block)
           builder = new(name)
           builder.instance_eval(&block) if block

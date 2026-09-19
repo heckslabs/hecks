@@ -83,6 +83,13 @@ module Hecks
       DEFAULT_PATH = File.expand_path("../../../qa/settings.yml", __dir__)
 
       class << self
+        # Loads and validates `qa/settings.yml` (or `path`), returning a frozen instance.
+        #
+        # @param path [String] path to the YAML settings file; defaults to `DEFAULT_PATH`
+        # @return [Hecks::Fuzzing::QaSettings] the validated, frozen settings
+        # @raise [ArgumentError] if `path` does not exist, is not valid YAML, is not a
+        #   YAML mapping at the top level, is missing a required key, declares an
+        #   unknown key, or gives a value the wrong type for its dial
         def load(path = DEFAULT_PATH)
           raise ArgumentError, "qa settings file not found: #{path}" unless File.file?(path)
 
@@ -97,6 +104,11 @@ module Hecks
         end
       end
 
+      # @param raw [Hash] parsed YAML settings keyed by symbol, one entry per dial in
+      #   `EXPECTED_TYPES`
+      # @param path [String] path to the settings file, used only in error messages
+      # @raise [ArgumentError] if `raw` is missing a required key, declares an unknown
+      #   key, or gives a value the wrong type for its dial
       def initialize(raw, path)
         missing = EXPECTED_TYPES.keys - raw.keys
         raise ArgumentError, "#{path} is missing #{missing.sort.join(', ')}" if missing.any?

@@ -19,6 +19,8 @@ module Hecks
 
         attr_reader :classification
 
+        # @param name [String] the chapter's declared name
+        # @param version [String, nil] the chapter's pinned version, or nil for unversioned
         def initialize(name, version: nil)
           @name       = name
           @version    = version
@@ -62,17 +64,26 @@ module Hecks
         end
         private :adopt_version
 
+        # Records the chapter's vision statement.
+        #
+        # @param value [String] the vision text, as given to `vision "..."`
+        # @return [void]
         def vision(value)
           # moved to the language: Vision invariant, on Chapter.Declare
 
           @vision = value
         end
 
-        # A domain's own identity can change — this names what it used to
-        # be, so the storage layer can recognize its own history under the
-        # old name instead of minting a brand-new lineage from nothing.
+        # Records the chapter's earlier name, so the storage layer recognizes its own history
+        # under that old name instead of minting a brand-new lineage from nothing — a chapter's
+        # identity can change, and this is where the new declaration says what it was.
+        #
+        # @param value [String, Symbol] the chapter's earlier name
+        # @return [String] `value`, stringified, as stored
         def formerly_known_as(value) = @formerly_known_as = value.to_s
 
+        # Names a core grammar context this chapter's sub-language extends.
+        #
         # **A sub-language names where it lands**. ADR 0026's own seam: the core
         # grammar does not name its extension points, so this chapter names
         # itself onto them instead — the core contexts (e.g. "Query",
@@ -80,12 +91,18 @@ module Hecks
         # aggregate contributes rows for. Variadic, and accumulating across
         # calls the same reason `identified_by`/`group_by` are: nothing here
         # requires one call to name every context at once.
-        # Renamed from `attaches_to` — item #13's full metaprogrammed
-        # dispatch (slice 4c). Not bootstrap-reachable (only sub-language
-        # chapters like Paging use it; the core chapters never describe
-        # themselves with it).
+        #
+        # Reached through `calls: "attaches_to_impl"` rather than `GenericDispatch`'s default —
+        # not bootstrap-reachable, since only sub-language chapters like Paging use it, never a
+        # core chapter.
+        #
+        # @param contexts [Array<String>] one or more core grammar context names, such as
+        #   `"Query"`/`"ReadModel"`
+        # @return [Array<String>] every context named so far, this call's included
         def attaches_to_impl(*contexts) = (@attaches_to ||= []).concat(contexts.map(&:to_s))
 
+        # Records a capability this chapter answers for other domains.
+        #
         # A capability this chapter answers for other domains, declared so
         # nothing has to recognise the chapter by name — Governance's
         # `provides "authorization", assignments: ..., grant: ...,
@@ -93,6 +110,13 @@ module Hecks
         # each capability requires is checked once the chapter is whole
         # (`Validation#validate_provisions!`), since the verbs it names may
         # be declared further down the file.
+        #
+        # @param capability [String] the capability's own name, such as `"authorization"`
+        # @param verbs [Hash{Symbol => String}] one command/query reference per capability
+        #   key, e.g. `grant: "RoleAssignment.Assign"`
+        # @return [Array<Bluebook::Chapter::Provision>] every provision row declared so far,
+        #   this capability's included
+        # @raise [Bluebook::DSL::Malformed] if `verbs` is empty
         def provides_impl(capability, **verbs)
           if verbs.empty?
             raise Malformed, "#{@name}'s provides #{capability.inspect} names no verb — say which of this " \
@@ -103,10 +127,24 @@ module Hecks
           (@provides ||= []).concat(rows)
         end
 
+        # Classifies this chapter as core to the framework, rather than a domain built on it.
+        #
+        # @return [Symbol] `:core`
         def core       = @classification = :core
+
+        # Classifies this chapter as a supporting piece of the framework, rather than a domain
+        # built on it.
+        #
+        # @return [Symbol] `:supporting`
         def supporting = @classification = :supporting
+
+        # Classifies this chapter as generic infrastructure, rather than a domain built on it.
+        #
+        # @return [Symbol] `:generic`
         def generic    = @classification = :generic
 
+        # Declares an aggregate belonging to this chapter.
+        #
         # `@chapter_named_givens` is threaded into every aggregate this
         # chapter builds — see `AggregateBuilder#given`'s own comment
         # for the sharing this enables; not a new top-level DSL word
@@ -115,10 +153,16 @@ module Hecks
         # the identical shape `EntityBuilder#given`'s own write-through
         # to its owner aggregate's pool already takes — no new spelling
         # for "declare a precondition," one level wider, same word).
-        # Renamed from `aggregate` — item #13's full metaprogrammed
-        # dispatch (slice 4c). Bootstrap-reachable (every core/attached
-        # chapter's own top-level shape is written with it), so also
-        # named in GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        #
+        # Reached through `calls: "aggregate_impl"`, not `GenericDispatch`'s default —
+        # bootstrap-reachable (every core/attached chapter's own top-level shape is written
+        # with it), so also named in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param name [String] the aggregate's own name
+        # @yield the aggregate body, evaluated against a new `AggregateBuilder`; may be omitted
+        # @return [Array<Bluebook::Aggregate>] every aggregate declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if the aggregate's own body fails any check
+        #   `AggregateBuilder#build` raises
         def aggregate_impl(name, &)
           @aggregates << AggregateBuilder.build(name, chapter_named_givens:          @chapter_named_givens,
                                                       chapter_pending_givens:        @chapter_pending_givens,
@@ -126,6 +170,8 @@ module Hecks
                                                       chapter_entity_pending_givens: @chapter_entity_pending_givens, &)
         end
 
+        # Declares a read model belonging to this chapter.
+        #
         # `read_model` is the word (ADR 0025 reverts `report` — the IR
         # construct, the registry API, and the docs filename all said
         # `read_model` the whole time; no era was ever minted under
@@ -134,6 +180,12 @@ module Hecks
         # bridge) for the same reason `has_many` does — frozen era text
         # that used it must keep booting; live source refuses it, naming
         # the replacement.
+        #
+        # @param name [String] the read model's own name
+        # @yield the read model body, evaluated against a new `ReadModelBuilder`
+        # @return [Array<Bluebook::ReadModel>] every read model declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if the body fails any check `ReadModelBuilder#build`
+        #   raises
         def read_model(name, &)
           # A read model gathers heads from several aggregates, so no single head
           # declares it — the chapter does. Its owner is stamped in `build`, where
@@ -141,20 +193,49 @@ module Hecks
           @read_models << ReadModelBuilder.build(name, &)
         end
 
+        # The retired spelling of `read_model`, still answered under shadow-parsing so frozen
+        # era text keeps booting; live source refuses it and names the replacement.
+        #
+        # @param name [String] the read model's own name
+        # @yield the read model body, evaluated against a new `ReadModelBuilder`
+        # @return [Array<Bluebook::ReadModel>] every read model declared so far, this one last,
+        #   under shadow-parsing
+        # @raise [Bluebook::DSL::Malformed] always, outside shadow-parsing — `report` is retired
         def report(name, &)
           return read_model(name, &) if MetaValidator.shadow_parsing?
 
           raise Malformed, "report is gone — read_model is the word now"
         end
 
+        # Declares a policy belonging to this chapter.
+        #
+        # @param name [String] the policy's own name
+        # @yield the policy body, evaluated against a new `PolicyBuilder`
+        # @return [Array<Bluebook::Policy>] every chapter-level policy declared so far,
+        #   this one last
         def policy(name, &)
           @policies << PolicyBuilder.build(name, &)
         end
 
+        # Declares a process manager (saga) belonging to this chapter.
+        #
+        # @param name [String] the process manager's own name
+        # @yield the process manager body, evaluated against a new `ProcessManagerBuilder`
+        # @return [Array<Bluebook::ProcessManager>] every process manager declared so far,
+        #   this one last
         def process_manager(name, &)
           @process_managers << ProcessManagerBuilder.build(name, &)
         end
 
+        # Assembles this builder's accumulated declarations into a judged `Chapter`.
+        #
+        # @return [Bluebook::Chapter] the built chapter, judged by the language when not
+        #   deferring across a multi-file chapter
+        # @raise [Bluebook::DSL::Malformed] if a chapter-wide given reference cannot be
+        #   resolved, if cross-construct validation fails, or if the language's own
+        #   whole-document judgment refuses the chapter
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a process
+        #   manager's own structural check fails
         def build
           # The chapter is the top of the construct chain — `Bluebook` is a
           # root, and its constructor stamps every aggregate and read model with
@@ -226,6 +307,12 @@ module Hecks
         # which only exists on the builder instance still open for this
         # chapter (`MetaValidator.judge_deferred!` reaches it via
         # `registry.bluebook_builder(name)`, guaranteed already present).
+        #
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if a pending reference's own `description` names no
+        #   precondition any aggregate in this chapter declares, is ambiguous across several
+        #   aggregates with no `declared_by:` to disambiguate, or `declared_by:` names an
+        #   aggregate that does not declare it
         def resolve_pending_chapter_givens!
           @chapter_pending_givens.each do |entry|
             resolved = resolve_pending_chapter_given(entry)
@@ -268,6 +355,12 @@ module Hecks
         # The entity-scoped analogue, one level down — see
         # `#resolve_pending_chapter_givens!`'s own comment; identical
         # shape, resolved against `@chapter_entity_named_givens` instead.
+        #
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if a pending reference's own `description` names no
+        #   precondition any piece in this chapter declares, is ambiguous across several pieces
+        #   with no `declared_by:` to disambiguate, or `declared_by:` names a piece that does
+        #   not declare it
         def resolve_pending_chapter_entity_givens!
           @chapter_entity_pending_givens.each do |entry|
             resolved = resolve_pending_chapter_entity_given(entry)
@@ -307,21 +400,35 @@ module Hecks
         end
         private :resolve_pending_chapter_entity_given
 
+        # Builds a `Chapter` from a `Hecks.bluebook "Name" do ... end` block, reusing the same
+        # open builder across several files that share one chapter name.
+        #
         # A chapter may be declared in several files, meant to merge into one
         # domain — `lib/hecks/language/bluebook/*.bluebook` all open
-        # `Hecks.bluebook "Bluebook" do ... end`. Each `Hecks.bluebook` call used to
-        # mint a fresh builder, so a second file with the same chapter name
-        # silently replaced the first's aggregates instead of adding to them.
+        # `Hecks.bluebook "Bluebook" do ... end`. The registry holds the builder open across
+        # calls — the first file for a name creates it, every later file for the same name
+        # reuses the same instance — rather than minting a fresh builder per call, which would
+        # let a second file with the same chapter name silently replace the first's aggregates
+        # instead of adding to them.
         #
-        # The registry now holds the builder open across calls : the first file
-        # for a name creates it, every later file for the same name reuses the
-        # same instance, so `@aggregates`/`@read_models` accumulate. `#build` is
-        # safe to call once per file on the same builder — it constructs a fresh
+        # `@aggregates`/`@read_models` accumulate across calls on the reused instance. `#build`
+        # is safe to call once per file on the same builder — it constructs a fresh
         # `Bluebook` from whatever is currently held and re-`Namespace.install`s
         # over the previous one, so the last file's call leaves every aggregate
         # seen so far reachable, and each call's IR is a strict superset of the
         # one before. `Registry#add_bluebook` still simply stores by name — with
         # this in place, "last write wins" is the cumulative, correct write.
+        #
+        # @param name [String] the chapter's declared name
+        # @param version [String, nil] the chapter's pinned version, or nil for unversioned
+        # @yield the chapter's body, `instance_eval`'d against the builder, with a `const_missing`
+        #   resolver installed so a bare constant resolves to a `ConstShim::ScopedConstant`
+        # @return [Bluebook::Chapter] the built, judged chapter
+        # @raise [Bluebook::DSL::Malformed] if this call's `version` conflicts with a version
+        #   already adopted for this chapter name, or if the built chapter fails any check
+        #   `#build` raises
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a process
+        #   manager's own structural check fails
         def self.build(name, version: nil, &block)
           registry = Hecks.current_registry
           builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
@@ -330,8 +437,9 @@ module Hecks
           # not a reference to something Ruby has heard of. `const_missing` hands
           # over a `ConstShim::ScopedConstant` (S0b, const_shim.rb's own comment),
           # and that is still the whole answer for a bare name: `Attribute` spells
-          # it with `to_s`, so the `TypeName` wrapper this used to build existed
-          # only long enough to be stringified. The concept still has a home — the
+          # it with `to_s`, so the concept never needed a `TypeName` wrapper class
+          # of its own — any such wrapper would exist only long enough to be
+          # stringified. The concept still has a home — the
           # language declares `value_object "TypeName"` — it just needed no Ruby
           # class of its own. A Module rather than a Symbol is what also lets
           # `Account::Debit`/`admits: Account::LedgerDirection` answer their own

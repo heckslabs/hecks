@@ -53,14 +53,31 @@ module Hecks
 
         module_function
 
-        # Keyed by the exact string `call` receives. Canonical text is already
+        # Memoizes each distinct predicate string's own parsed AST, keyed by
+        # the exact string `call` receives. Canonical text is already
         # normalised at DSL-build time, so the same given/invariant's text is
         # byte-identical across every dispatch that evaluates it — parsed once
         # here, interpreted fresh against each call's own state/attrs. Matches
         # MetaValidator.verdicts' unsynchronized `||= {}` idiom : redundant
         # parse work under real parallelism, never corruption.
+        #
+        # @return [Hash{String => Object}] the process-wide parse cache,
+        #   keyed by predicate string; each value is one of `Or`, `And`,
+        #   `Not`, `Compare`, `Include`, or `Resolve`
         def ast_cache = @ast_cache ||= {}
 
+        # Parses `expr` (cached per distinct string) and interprets it
+        # against `state`/`attrs`.
+        #
+        # @param expr [String] the canonical predicate text to evaluate
+        # @param state [Hash{Symbol => Object}] the stored attribute values
+        #   a `Resolve`/`Compare` leaf may resolve against
+        # @param attrs [Hash{Symbol => Object}] the call's own argument
+        #   values, checked before `state`
+        # @return [Boolean] whether `expr` holds
+        # @raise [EvaluationError] if `expr` resolves an unknown attribute
+        #   or argument, or applies an operation to a value of the wrong
+        #   type
         def call(expr, state, attrs = {})
           interpret(ast_cache[expr] ||= parse(expr), state, attrs)
         end
@@ -77,31 +94,60 @@ module Hecks
         #
         # HECKS_EVAL=string reverts to the text path wholesale, kept for
         # one release as the escape hatch while the ast path beds in.
+        #
+        # @param rule [Bluebook::Given, Bluebook::Invariant] the rule to
+        #   evaluate
+        # @param state [Hash{Symbol => Object}] the stored attribute values
+        #   a `Resolve`/`Compare` leaf may resolve against
+        # @param attrs [Hash{Symbol => Object}] the call's own argument
+        #   values, checked before `state`
+        # @return [Boolean] whether `rule` holds
+        # @raise [EvaluationError] if `rule` resolves an unknown attribute
+        #   or argument, or applies an operation to a value of the wrong
+        #   type
         def call_rule(rule, state, attrs = {})
           return call(rule.canonical, state, attrs) if ENV["HECKS_EVAL"] == "string"
 
           interpret(ast_cache[rule.canonical] ||= nodes_for(rule), state, attrs)
         end
 
+        # Returns `rule`'s own AST, read back from its `ast` field when
+        # present, otherwise parsed fresh from `canonical`.
+        #
+        # @param rule [Bluebook::Given, Bluebook::Invariant] the rule to
+        #   read
+        # @return [Object] one of `Or`, `And`, `Not`, `Compare`, `Include`,
+        #   or `Resolve`
         def nodes_for(rule)
           rule.ast ? AstReader.read_predicate(rule.ast) : parse(rule.canonical)
         end
 
-        # A refused `given`/`ensures`/`invariant` names its own description
-        # ("not already superseded") but, on its own, not what the block
-        # actually evaluated to — the difference between "the rule is right
-        # and my data is wrong" and "the rule is subtly wrong" is often just
-        # seeing the two operands. Scoped to the single shape that has one
-        # honest answer: `expr`'s own top-level node is a bare `Compare` —
-        # not `Or`/`And`/`Not` (which of several sub-comparisons would even
-        # be "the" one at fault is genuinely ambiguous), `Include` (no
-        # left/right to show), or `Resolve` (a bare boolean read, nothing to
-        # compare against). Values are rendered with `Rendering.describe`,
-        # the same house style every other refusal already prints a value
-        # through. Returns `nil` — not raised — on anything else, including
-        # an operand that itself fails to resolve (`EvaluationError`): a
+        # Renders `expr`'s own two operands, for a refusal message to show
+        # alongside a failed `given`/`ensures`/`invariant`. A refused rule
+        # names its own description ("not already superseded") but, on its
+        # own, not what the block actually evaluated to — the difference
+        # between "the rule is right and my data is wrong" and "the rule
+        # is subtly wrong" is often just seeing the two operands. Scoped
+        # to the single shape that has one honest answer: `expr`'s own
+        # top-level node is a bare `Compare` — not `Or`/`And`/`Not` (which
+        # of several sub-comparisons would even be "the" one at fault is
+        # genuinely ambiguous), `Include` (no left/right to show), or
+        # `Resolve` (a bare boolean read, nothing to compare against).
+        # Values are rendered with `Rendering.describe`, the same house
+        # style every other refusal already prints a value through.
+        # Returns `nil` — not raised — on anything else, including an
+        # operand that itself fails to resolve (`EvaluationError`): a
         # missing diagnostic is a worse debugging experience than none, a
         # crash while building one is worse still.
+        #
+        # @param expr [String] the canonical predicate text that was just
+        #   refused
+        # @param state [Hash{Symbol => Object}] the stored attribute values
+        #   the operands may resolve against
+        # @param attrs [Hash{Symbol => Object}] the call's own argument
+        #   values, checked before `state`
+        # @return [String, nil] `"left: X, right: Y"` when `expr` is a bare
+        #   comparison whose operands both resolve; `nil` otherwise
         def comparison_detail(expr, state, attrs = {})
           node = ast_cache[expr] ||= parse(expr)
           return nil unless node.is_a?(Compare)
@@ -113,6 +159,12 @@ module Hecks
           nil
         end
 
+        # Parses `expr`'s boolean/comparison grammar into an AST, recursing
+        # into `Resolver.parse` for each leaf.
+        #
+        # @param expr [String] the canonical predicate text to parse
+        # @return [Object] one of `Or`, `And`, `Not`, `Compare`, `Include`,
+        #   or `Resolve`, chosen by `expr`'s own shape
         def parse(expr)
           expr = strip_parens(expr.to_s.strip)
 
@@ -127,13 +179,13 @@ module Hecks
           # means `!(names.include?(x))`, never "call .include? on the negated
           # receiver"), so the leading marker has to be stripped and the
           # remainder re-parsed before anything downstream gets a chance to
-          # mis-scan across it. It used to sit after `match_include`, whose
+          # mis-scan across it. Tried after `match_include` instead, its
           # naive `rindex(".include?(")` has no concept of a leading `!` —
-          # for `!names.include?(x)` it swallowed the `!` straight into the
-          # haystack text ("!names"), which `Resolver.parse` cannot resolve,
-          # so every spelling of negated membership raised instead of
-          # evaluating. Moving the check here fixes both the bare prefix
-          # (`!names.include?(x)`) and the parenthesized form
+          # for `!names.include?(x)` it would swallow the `!` straight into
+          # the haystack text ("!names"), which `Resolver.parse` cannot
+          # resolve, so every spelling of negated membership would raise
+          # instead of evaluating. Checking here first fixes both the bare
+          # prefix (`!names.include?(x)`) and the parenthesized form
           # (`!(names.include?(x))`) — the recursive `parse` call sees the
           # clean remainder and correctly finds the `.include?` (or `&&`/`||`)
           # inside it.
@@ -150,6 +202,19 @@ module Hecks
           Resolve.new(expr: Resolver.parse(expr))
         end
 
+        # Interprets a parsed boolean/comparison node against `state`/
+        # `attrs`.
+        #
+        # @param node [Object] a node `parse` produced (`Or`, `And`, `Not`,
+        #   `Compare`, `Include`, or `Resolve`)
+        # @param state [Hash{Symbol => Object}] the stored attribute values
+        #   a leaf may resolve against
+        # @param attrs [Hash{Symbol => Object}] the call's own argument
+        #   values, checked before `state`
+        # @return [Boolean] whether `node` holds
+        # @raise [EvaluationError] if `node` is not one of the handled
+        #   types, or a leaf it delegates to (`compare`, `includes?`,
+        #   `Resolver.interpret`) refuses its operand
         def interpret(node, state, attrs)
           case node
           when Or      then interpret(node.left, state, attrs) || interpret(node.right, state, attrs)
@@ -162,16 +227,30 @@ module Hecks
             # Every node `parse` can produce has a `when` above — a
             # backstop against the day this grammar grows a new node
             # type and `interpret` doesn't grow to match it. A missing
-            # arm here used to return bare `nil`, and `Or`/`And` fold
-            # that straight into the boolean algebra as ordinary falsy
-            # — reading exactly like "the rule legitimately does not
-            # hold" rather than "the runtime cannot evaluate this rule
-            # at all", the one silent no-op this language otherwise
+            # arm here would instead return bare `nil`, and `Or`/`And`
+            # fold that straight into the boolean algebra as ordinary
+            # falsy — reading exactly like "the rule legitimately does
+            # not hold" rather than "the runtime cannot evaluate this
+            # rule at all", the one silent no-op this language otherwise
             # refuses.
             raise EvaluationError, "no interpreter handles #{node.class} — add a case before parse can produce it"
           end
         end
 
+        # Resolves `left`/`right` and applies `comparator` to the results.
+        #
+        # @param comparator [Operator] the comparison operator to apply
+        # @param left [Object] a `Resolver` leaf node (`Resolver.parse`'s
+        #   own return) for the left operand
+        # @param right [Object] a `Resolver` leaf node (`Resolver.parse`'s
+        #   own return) for the right operand
+        # @param state [Hash{Symbol => Object}] the stored attribute values
+        #   the operands may resolve against
+        # @param attrs [Hash{Symbol => Object}] the call's own argument
+        #   values, checked before `state`
+        # @return [Boolean] the comparison's result
+        # @raise [EvaluationError] if an operand does not resolve, or
+        #   `less_than`/`equal?` cannot compare the resolved values
         def compare(comparator, left, right, state, attrs)
           lhs = Resolver.interpret(left, state, attrs)
           rhs = Resolver.interpret(right, state, attrs)
@@ -183,12 +262,27 @@ module Hecks
         # test (SignTest#compares_via names an Operator symbol) can apply the
         # same primitives compare() uses against the literal 0, rather than
         # re-deriving positive?/negative?/zero? by hand a second time.
+        #
+        # @param comparator [Operator] the comparison operator to apply
+        # @param lhs [Object] the already-resolved left operand
+        # @param rhs [Object] the already-resolved right operand
+        # @return [Boolean] `comparator`'s result over `lhs`/`rhs`
+        # @raise [EvaluationError] if `comparator` tests less-than and
+        #   `lhs`/`rhs` are not both numeric or both String
         def apply(comparator, lhs, rhs)
           result = (comparator.compares_less_than && less_than(lhs, rhs)) ||
                    (comparator.compares_equal && equal?(lhs, rhs))
           comparator.negated ? !result : result
         end
 
+        # Compares two already-resolved operands for the `<` primitive.
+        #
+        # @param lhs [Object] the already-resolved left operand
+        # @param rhs [Object] the already-resolved right operand
+        # @return [Boolean] whether `lhs` is less than `rhs`, comparing
+        #   numerically if both are numeric, lexically if both are String
+        # @raise [EvaluationError] if `lhs`/`rhs` are not both numeric or
+        #   both String
         def less_than(lhs, rhs)
           left  = Resolver.numeric(lhs)
           right = Resolver.numeric(rhs)
@@ -199,6 +293,12 @@ module Hecks
                 "comparison of #{class_of(lhs)} with #{Resolver.describe(rhs)} failed"
         end
 
+        # Compares two already-resolved operands for the `equal` primitive.
+        #
+        # @param lhs [Object] the already-resolved left operand
+        # @param rhs [Object] the already-resolved right operand
+        # @return [Boolean] whether `lhs` equals `rhs`, comparing
+        #   numerically if both are numeric, `==` otherwise
         def equal?(lhs, rhs)
           left  = Resolver.numeric(lhs)
           right = Resolver.numeric(rhs)
@@ -207,10 +307,19 @@ module Hecks
           lhs == rhs
         end
 
+        # Reports whether `value` is truthy, for a bare `Resolve` node.
+        #
+        # @param value [Object] the value to test
+        # @return [Boolean] Ruby's own truthiness: `false` for `nil` and
+        #   `false`, `true` for everything else
         def truthy?(value)
           !value.nil? && value != false
         end
 
+        # Names `value`'s class, for a refusal message.
+        #
+        # @param value [Object] the value to name
+        # @return [String] `"nil"` for `nil`, otherwise `value.class.name`
         def class_of(value)
           value.nil? ? "nil" : value.class.name
         end
@@ -227,6 +336,13 @@ module Hecks
         # string's last character — `Resolver.matching_paren` is reused
         # directly rather than duplicated, the same depth-tracking rule
         # either grammar layer needs here.
+        # Splits `expr` at its outermost `.include?(...)` call, if any.
+        #
+        # @param expr [String] the boolean-position expression text
+        # @return [Array(String, String), nil] the `[haystack_text,
+        #   needle_text]` pair for the outermost `.include?(` occurrence
+        #   whose matching close paren reaches `expr`'s last character, or
+        #   `nil` if none does
         def match_include(expr)
           start = 0
           marker = ".include?("
@@ -246,6 +362,19 @@ module Hecks
         # does.
         INCLUDE_HAYSTACKS = Hecks::Vocabulary.fetch("IncludeHaystack")
 
+        # Resolves and evaluates an `Include` node's own `.include?` test.
+        #
+        # @param parts [Array(Object, Object)] the `[haystack, needle]`
+        #   pair of `Resolver` leaf nodes from `Include#haystack`/`#needle`
+        # @param state [Hash{Symbol => Object}] the stored attribute values
+        #   the operands may resolve against
+        # @param attrs [Hash{Symbol => Object}] the call's own argument
+        #   values, checked before `state`
+        # @return [Boolean] whether the resolved haystack includes the
+        #   resolved needle (`equal?`-compared for an Array, `#include?`
+        #   for a String); `false` for any other resolved haystack type
+        # @raise [EvaluationError] if the haystack resolves to a String and
+        #   the needle does not
         def includes?(parts, state, attrs)
           haystack, needle = parts
           wanted = Resolver.interpret(needle, state, attrs)
@@ -260,6 +389,11 @@ module Hecks
           end
         end
 
+        # Strips a redundant outer pair of parens, recursively.
+        #
+        # @param expr [String] the expression text
+        # @return [String] `expr` with every redundant outer `(...)` pair
+        #   removed; `expr` unchanged if it is not wholly parenthesized
         def strip_parens(expr)
           return expr unless expr.start_with?("(") && expr.end_with?(")")
 
@@ -272,6 +406,14 @@ module Hecks
           strip_parens(expr[1..-2].strip)
         end
 
+        # Splits `expr` at its first top-level occurrence of `operator`.
+        #
+        # @param expr [String] the expression text
+        # @param operator [String] the operator text to split on, such as
+        #   `"||"` or `"&&"`
+        # @return [Array(String, String), nil] the `[left, right]` operand
+        #   text around the split, or `nil` if `expr` has no top-level
+        #   occurrence
         def split_top_level(expr, operator)
           index = top_level_index(expr, operator)
           return nil unless index
@@ -279,6 +421,17 @@ module Hecks
           [expr[0...index].strip, expr[(index + operator.length)..].strip]
         end
 
+        # Splits `expr` at its first top-level occurrence of `operator`
+        # that is not part of a longer operator's own spelling (`==` is
+        # not mistaken for the middle of `===`, `<` is not mistaken for
+        # the leading `<` of `<=`).
+        #
+        # @param expr [String] the expression text
+        # @param operator [String] the comparison operator text to split
+        #   on, such as `"=="` or `"<"`
+        # @return [Array(String, String), nil] the `[left, right]` operand
+        #   text around the split, or `nil` if `expr` has no matching
+        #   top-level occurrence
         def split_comparison(expr, operator)
           index = top_level_index(expr, operator) { |at| !part_of_longer?(expr, at, operator) }
           return nil unless index
@@ -286,6 +439,15 @@ module Hecks
           [expr[0...index].strip, expr[(index + operator.length)..].strip]
         end
 
+        # Reports whether the occurrence of `operator` at `index` is
+        # actually the middle of a longer operator's own spelling (`==`
+        # inside `===`, or `<`/`>`/`!`/`=` immediately before a bare `=`).
+        #
+        # @param expr [String] the expression text
+        # @param index [Integer] the index of the candidate occurrence
+        # @param operator [String] the operator text being tried
+        # @return [Boolean] whether this occurrence belongs to a longer
+        #   operator and should be skipped
         def part_of_longer?(expr, index, operator)
           after  = expr[index + operator.length]
           before = index.positive? ? expr[index - 1] : nil
@@ -296,6 +458,21 @@ module Hecks
           false
         end
 
+        # A grammar's own depth-aware scanner, shared by `split_top_level`/
+        # `split_comparison` — one pass finds the first top-level
+        # occurrence of `operator`, tracking quotes and every bracket
+        # kind (`(`/`)`, `{`/`}`, `[`/`]`) so an operator inside a nested
+        # call, block predicate, or array literal is never mistaken for a
+        # split point at this level.
+        #
+        # @param expr [String] the expression text
+        # @param operator [String] the operator text to search for
+        # @yieldparam index [Integer] a candidate top-level occurrence's
+        #   index, offered so the caller can reject it (`split_comparison`
+        #   uses this to skip a longer operator's own spelling)
+        # @yieldreturn [Boolean] whether to accept this occurrence
+        # @return [Integer, nil] the accepted occurrence's index, or `nil`
+        #   if `operator` has no top-level occurrence the block accepts
         def top_level_index(expr, operator)
           depth = 0
           quote = nil
@@ -335,10 +512,11 @@ module Hecks
             # (`[a, b]`) can appear as a general sub-expression, not only
             # as `.include?`'s own haystack, the moment an array-typed
             # attribute or a synthesized literal is embedded anywhere else
-            # -- and an element containing a top-level `+`/comparison of
-            # its own (`[0, 0 + 0]`) used to read as a split point for
-            # this expression's own boolean/comparison grammar, exactly
-            # the way an un-tracked `{`/`}` once did for block predicates.
+            # -- so without counting `[`/`]` toward depth here too, an
+            # element containing a top-level `+`/comparison of its own
+            # (`[0, 0 + 0]`) reads as a split point for this expression's
+            # own boolean/comparison grammar, exactly the way an
+            # un-tracked `{`/`}` does for block predicates.
             elsif ["(", "{", "["].include?(char)
               depth += 1
             elsif [")", "}", "]"].include?(char)

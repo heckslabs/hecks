@@ -24,6 +24,14 @@ require "hecks/fuzzing"
 ROOT = File.expand_path("..", __dir__)
 FIXTURES = Dir.glob(File.join(ROOT, "spec/corpus/semantics", "*.json"))
 
+# Replays `fixture`'s script against the Ruby runtime and shapes the result into a
+# semantics-corpus fixture's `"expect"` block.
+#
+# @param fixture [Hash{String => Object}] a parsed corpus fixture; `"domain"` is the
+#   domain's path relative to the repository root, `"steps"` the script to replay
+# @return [Hash{String => Object}] `"refusals"`, `"instances"` and `"events"`, each JSON-
+#   round-tripped to String keys; each refusal's `"kind"` reduced to its bare class name,
+#   and `"occurred_at"` stripped from every event as environmental (C7.3/C9.1)
 def expectation_for(fixture)
   result = Hecks::Fuzzing::Replay.call(File.join(ROOT, fixture["domain"]), fixture["steps"])
   {

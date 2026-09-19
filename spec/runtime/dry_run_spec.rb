@@ -2,9 +2,9 @@ require "spec_helper"
 
 # Dispatcher#dry_run?'s own comment has the full reasoning — built for a
 # downstream chess domain's own whole-board postcondition tests ("does
-# this move leave my own king in check"), which previously had to
+# this move leave my own king in check"), which would otherwise have to
 # dispatch a real, unrelated piece's own move purely to trigger the
-# check, and that move then had to avoid interfering with the very
+# check, with that move then having to avoid interfering with the very
 # position being tested. Reuses the delegates_to fixture — it already
 # has a plain entity command (Piece.Move) and a delegating aggregate
 # command (Board.MovePiece) and a policy reacting to the entity's own

@@ -166,13 +166,15 @@ RSpec.describe "the model checker" do
     # than a plain command (`Aggregate::Command`, two). The real-world
     # case, not a synthetic one: `qa/bluebook/quality_control.bluebook`'s
     # own `FileWhenSubmitted`/`AskOnceMore` policies, both `trigger
-    # Ticket::IssueTracker::File`. Before the fix this always reported
-    # `unknown_trigger` — `verbs_of` never enumerated a port operation as
-    # a triggerable verb, and the comparison read raw strings instead of
-    # `Naming.split_verb` triples — even though the same trigger genuinely
-    # dispatches at runtime (`PolicyInterpreter#deliver` re-qualifies with
-    # this domain's own name, and `Naming.split_verb` already folds the
-    # leftover `::` correctly, PR #520). See `Hecks::Bluebook::ModelCheck::
+    # Ticket::IssueTracker::File`. `triggerable_verbs` unions `verbs_of`
+    # (ordinary/entity commands) with `port_verbs_of` (port operations)
+    # and compares both as `Naming.split_verb` triples, matching how the
+    # same trigger genuinely dispatches at runtime (`PolicyInterpreter#
+    # deliver` re-qualifies with this domain's own name, and
+    # `Naming.split_verb` already folds the leftover `::` correctly).
+    # Never enumerating a port operation as a triggerable verb, and
+    # comparing raw strings instead of triples, would always report
+    # `unknown_trigger` here instead. See `Hecks::Bluebook::ModelCheck::
     # ALLOWED_FINDINGS`'s own now-removed "quality_control" entry for the
     # full trace.
     it "does not flag a policy triggering a real, declared port operation (BUG#23)" do

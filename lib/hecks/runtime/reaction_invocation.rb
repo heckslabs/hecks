@@ -6,10 +6,10 @@ require_relative "value"
 module Hecks
   module Runtime
     # Turns facts selected by a policy or process manager into the same
-    # receiver/payload envelope an outside caller uses. Reaction declarations
-    # historically selected both through one `with:` map, so this is the one
-    # compatibility seam that separates receiver identities from facts after
-    # resolving the declaration and before re-entering the dispatcher.
+    # receiver/payload envelope an outside caller uses. A reaction declares
+    # both receiver identities and facts through one `with:` map, so this is
+    # the one compatibility seam that separates them after resolving the
+    # declaration and before re-entering the dispatcher.
     module ReactionInvocation
       Target = Struct.new(:aggregate, :entities, :command, keyword_init: true)
       # :facts, not :values — Struct.new already defines #values (every
@@ -19,10 +19,17 @@ module Hecks
 
       module_function
 
-      # The holding IR historically represented both an omitted projection and
-      # an explicitly empty `with: {}` as the same empty array. Builders now
-      # preserve declaration presence off-wire; reconstructed/legacy IR falls
-      # back to the old non-empty reading.
+      # Reports whether a reaction declared an explicit `with:` projection.
+      #
+      # An omitted projection and an explicitly empty `with: {}` both hold
+      # as the same empty array on the holding IR. Builders preserve
+      # declaration presence off-wire, in `@projection_declared`;
+      # reconstructed/legacy IR without that ivar falls back to reading
+      # presence off whether `with_spec` is non-empty.
+      #
+      # @param declaration [Bluebook::Policy, Bluebook::DispatchSpec] the reacting
+      #   declaration to check
+      # @return [Boolean] true if the declaration names an explicit `with:` projection
       def projection_declared?(declaration)
         if declaration.instance_variable_defined?(:@projection_declared)
           declaration.instance_variable_get(:@projection_declared)
@@ -31,11 +38,27 @@ module Hecks
         end
       end
 
+      # Resolves a declared `with:` projection against the scopes and bindings visible to it.
+      #
       # A reaction's source names resolve lexically, not globally. Policies
       # supply one event/row scope. Process managers supply current event then
       # opening-event memory, while correlation is an explicit binding ahead
       # of both. Missing names are refused here rather than materialized as nil
       # and accidentally presented as target command facts.
+      #
+      # @param with_spec [Hash{Symbol => Object}] each target fact name mapped to its source:
+      #   a Symbol naming a fact visible in `bindings` or `scopes`, or any other value taken
+      #   as a literal
+      # @param scopes [Array<Hecks::Runtime::ReactionInvocation::Scope, Array(String,
+      #   Hash)>] the named fact scopes to resolve a Symbol source against, checked in order;
+      #   a bare `[name, facts]` pair is wrapped into a `Scope`
+      # @param bindings [Hash] explicit bindings (such as a saga's correlation key), checked
+      #   before any scope
+      # @param label [String] names this resolution in an `UnknownArgument` refusal
+      # @return [Hash{Symbol => Object}] `with_spec`'s keys mapped to their resolved,
+      #   materialized values
+      # @raise [Runtime::UnknownArgument] if a Symbol source names a fact visible in no
+      #   binding and no scope
       def resolve_mapping(with_spec:, scopes:, bindings: {}, label: "reaction")
         normalized_bindings = bindings.transform_keys(&:to_sym)
         normalized_scopes = scopes.map do |scope|
@@ -86,6 +109,28 @@ module Hecks
       # piece that is self-contained; what remains is the sequencing
       # itself, which further splitting would only relocate, not remove.
       # rubocop:disable-next Metrics/MethodLength, Metrics/PerceivedComplexity
+      #
+      # @param registry [Runtime::Registry] the booted registry to resolve `verb` against
+      # @param verb [String] the fully qualified target command verb
+      # @param projected [Hash] the facts to send, already resolved (e.g. by
+      #   `resolve_mapping`) or, for a legacy reaction, the raw event/row payload
+      # @param explicit [Boolean] true when the reaction declared its own `with:` projection
+      #   (`projection_declared?`); false forwards `projected` wholesale as legacy args
+      # @param passthrough [Array<String, Symbol>] extra fact names allowed to ride along
+      #   unconsumed, beyond the receiver identity and declared command facts
+      # @param source_receiver [Hash{Symbol => Object}, nil] the triggering event's own
+      #   `{aggregate:, identity:}`, offered as a same-aggregate receiver when nothing else
+      #   supplies one; nil when there is no such event to inherit from
+      # @return [Hash{Symbol => Object}] `{to:, with:}` for an explicit projection targeting
+      #   a non-creating command (`with:` only for a creating command); otherwise `projected`
+      #   (with `to:` merged in when a receiver could be inherited)
+      # @raise [Runtime::UnknownVerb] if `verb` does not resolve to a declared command,
+      #   entity command, or port operation (only when `explicit` is true; a legacy call
+      #   resolving `verb` only to check inheritance swallows this and forwards unchanged)
+      # @raise [Runtime::TypeMismatch] if an explicit projection resolves no receiver
+      #   identity for the target aggregate or one of its entities
+      # @raise [Runtime::UnknownArgument] if an explicit projection's facts include a name
+      #   that is neither a consumed receiver identity nor a declared command fact
       def build(registry:, verb:, projected:, explicit:, passthrough: [], source_receiver: nil)
         args = projected.transform_keys(&:to_sym)
         unless explicit

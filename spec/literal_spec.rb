@@ -39,10 +39,10 @@ RSpec.describe Hecks::Literal do
     # The exact regression `render_value`'s old `.to_s`-for-everything
     # collapse produced: a numeric-looking string wears its own quotes on
     # the wire rather than being indistinguishable from the bare digits a
-    # real Integer renders as ("007" used to cross the wire as the text
-    # `007`, identical to what `7` itself would have written, and came
-    # back an Integer on the other side — `where code == "007"` then
-    # matched nothing).
+    # real Integer renders as ("007" would otherwise cross the wire as the
+    # text `007`, identical to what `7` itself would have written, and come
+    # back an Integer on the other side — `where code == "007"` would then
+    # match nothing).
     it "quotes a numeric-looking string differently from the number itself" do
       expect(described_class.render("007")).to eq('"007"')
       expect(described_class.render(7)).to eq("7")

@@ -256,7 +256,8 @@ RSpec.describe Hecks::Forms::App do
 
       get "/Banking/Customer/Close.html"
       expect(last_response.status).to eq(200)
-      expect(last_response.body).to include("status: active") # the record's state, not a command form
+      # the record's state, not a command form
+      expect(last_response.body).to include("status: active")
       expect(last_response.body).not_to include("<form")
     end
 

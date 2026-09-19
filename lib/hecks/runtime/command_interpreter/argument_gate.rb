@@ -10,10 +10,10 @@ module Hecks
       module ArgumentGate
         private
 
-        # Anything else used to ride along in the payload untouched —
-        # normalize_args walks the declared attributes, so a name the command
-        # never had was simply never looked at. A misspelled argument did
-        # nothing, in silence.
+        # Without this check, anything else would ride along in the payload
+        # untouched — normalize_args walks only the declared attributes, so
+        # a name the command never had is simply never looked at, and a
+        # misspelled argument would do nothing, in silence.
         #
         # The keys that are legitimately not attributes are the ones that address
         # the aggregate rather than describe it : `id`, whatever the aggregate is
@@ -49,12 +49,13 @@ module Hecks
         # until fuzz went looking : a name the command never declared was refused,
         # while a name it did declare could simply be left out.
         #
-        # `Customer.Register` without its `name` used to be refused — but by
-        # accident, and with a lie for a message. `then_set :name, to: :name` found
-        # nothing to resolve, passed the literal symbol on, and coercion reported
-        # `name is a PersonName — pass its fields as an object`, which describes a
-        # mistake the caller did not make. The real mistake — an argument simply
-        # missing — was never the one named, and nothing refused it on purpose.
+        # Refusing `Customer.Register` for a missing `name` needs to be
+        # deliberate, not an accident with a lie for a message. Without this
+        # check, `then_set :name, to: :name` finds nothing to resolve, passes
+        # the literal symbol on, and coercion reports `name is a PersonName —
+        # pass its fields as an object`, which describes a mistake the caller
+        # did not make. The real mistake — an argument simply missing — is
+        # never the one named unless this refuses it on purpose.
         #
         # No command attribute anywhere in the corpus carries a default — checked,
         # all eight chapters, zero — so there is no optional argument for this to
@@ -65,16 +66,17 @@ module Hecks
         # (`CommandBuilder#reference_to`'s bare self-reference mints no
         # attribute to be absent) — but `PortOperationBuilder#reference_to`
         # always mints one (this file's own header on `PortOperation`: "no
-        # creates?/acts_on distinction to protect"), because an operation
-        # historically had no other way to say which record it addressed.
-        # `to:` is that other way now (`Dispatcher#port_invocation`
-        # promotes the identity attribute's own value out of the payload
-        # and into routing) — which left the attribute still declared,
-        # still non-optional, and now never present in `args` at all: every
-        # operation with an identity attribute refused its own well-formed
-        # calls, dispatched exactly the way `to:` intends. Exempted here on
-        # the same terms an aggregate command's self-address always was —
-        # an address, not a fact the operation still needs handed back.
+        # creates?/acts_on distinction to protect"), because an operation had
+        # no other way to say which record it addressed before `to:` existed.
+        # `to:` is that way now (`Dispatcher#port_invocation` promotes the
+        # identity attribute's own value out of the payload and into
+        # routing) — which leaves the attribute still declared, still
+        # non-optional, and never present in `args` at all: without this
+        # exemption, every operation with an identity attribute would refuse
+        # its own well-formed calls, dispatched exactly the way `to:`
+        # intends. Exempted here on the same terms an aggregate command's
+        # self-address always was — an address, not a fact the operation
+        # still needs handed back.
         def refuse_absent_arguments(command, args, aggregate: nil)
           given    = args.keys.map(&:to_sym)
           exempt   = aggregate && command.respond_to?(:identity_attribute) &&
@@ -92,7 +94,7 @@ module Hecks
                                            declared: declared_names(command))
         end
 
-        # **A command that declares nothing still has to say so**. `Account
+        # A command that declares nothing still has to say so. `Account
         # .Freeze` is `reference_to Account` and no attributes at all, so
         # `{declared}` rendered empty and the sentence trailed off mid-
         # clause : "Freeze does not declare standing — it takes ". Read

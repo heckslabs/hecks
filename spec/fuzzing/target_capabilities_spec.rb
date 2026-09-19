@@ -148,7 +148,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
 
   # Constructs come from a manifest.json, the generator's own record of why
   # it skipped each verb — not from the Ruby declaration. A synthetic one:
-  # the real banking manifest this used to read now declares no gaps.
+  # the real banking manifest this would otherwise read declares no gaps.
   describe Hecks::Fuzzing::StructuralSkips do
     let(:skips) { described_class }
     let(:gaps)  { Hecks::Fuzzing::RustGapManifest.new(rust_dir: @gap_root, feature: "shop") }

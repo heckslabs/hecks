@@ -8,7 +8,7 @@ require "hecks/fuzzing/bounded_exhaustive_expressions"
 # under a second) — this runs in the default suite, no `io:`/`fuzzing:`
 # tag needed.
 #
-# Found four real, previously-undiscovered parsing bugs live, all fixed
+# Found four real parsing bugs live, none caught before, all fixed
 # alongside this file (see each one's own comment at its fix site):
 #   - `Resolver#match_call` (nested and chained `.modulo(...)`)
 #   - `Evaluator#match_include` (nested `.include?(...)`)

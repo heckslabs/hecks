@@ -9,6 +9,9 @@ module Hecks
     class StateTransition
       attr_reader :target, :from
 
+      # @param target [String, Symbol] the state this transition moves the record to
+      # @param from [String, Symbol, Array<String, Symbol>, nil] the state, or states, this
+      #   transition applies from; `nil` means any current state admits it
       def initialize(target:, from: nil)
         @target = target.to_s
         @from   = case from
@@ -18,6 +21,10 @@ module Hecks
                   end
       end
 
+      # Says whether this transition is guarded to specific source states.
+      #
+      # @return [Boolean] whether this transition is guarded to specific source states,
+      #   rather than applying from any current state
       def constrained? = !@from.nil?
     end
 
@@ -41,6 +48,10 @@ module Hecks
 
       attr_reader :field, :default, :transitions
 
+      # @param field [Symbol, String] the attribute this state machine lives on
+      # @param default [String, Symbol] the state a new record starts in
+      # @param transitions [Array<Array(String, Bluebook::StateTransition)>] each declared
+      #   `command name, StateTransition` pair, in declaration order
       def initialize(field:, default:, transitions: [])
         @field       = field.to_sym
         @default     = default.to_s

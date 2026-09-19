@@ -17,12 +17,28 @@ module Hecks
         :unresolved_dependencies,
         keyword_init: true
       ) do
+        # Reports whether every owner field this command could touch is a known,
+        # deterministic write.
+        #
+        # @return [Boolean] `complete_state`
         def complete_state? = complete_state
+
+        # Reports whether the command needs no prior state at all (implies `complete_state?`).
+        #
+        # @return [Boolean] `state_independent`
         def state_independent? = state_independent
 
+        # Chooses the dispatch strategy this plan's proof and the adapter's own
+        # capabilities together allow.
+        #
         # Capability negotiation is correctness-first: an optimization is
         # selected only when both the semantic proof and adapter capability
         # are present. This is planning data only; no runtime path calls it yet.
+        #
+        # @param capabilities [Array<String, Symbol>] the repository's declared capabilities
+        # @return [Symbol] `DependencyPlanning::ATOMIC_PUT` when the plan is complete,
+        #   state-independent, and the adapter declares that capability;
+        #   `DependencyPlanning::TRANSACTIONAL_FALLBACK` otherwise
         def strategy_for(capabilities: [])
           return TRANSACTIONAL_FALLBACK unless complete_state? && state_independent?
           return TRANSACTIONAL_FALLBACK unless capabilities.map(&:to_sym).include?(ATOMIC_PUT)
@@ -38,13 +54,27 @@ module Hecks
       module ExpressionReads
         module_function
 
+        # Finds every dotted path a canonical expression reads, without evaluating it.
+        #
         # Read the same parsed canonical-expression nodes the evaluator uses.
         # A generic Struct walk keeps this additive when the expression grammar
         # gains a composed node; only Lookup nodes carry domain dependencies.
+        #
+        # @param canonical [String] the canonical expression text, such as a rule's `canonical`
+        # @return [Array<String>] the dotted paths the expression reads
         def paths(canonical)
           collect(Bluebook::Expression::Evaluator.parse(canonical), Set.new)
         end
 
+        # Walks one parsed expression node, collecting the dotted paths it reads.
+        #
+        # @param node [Object] a node from `Bluebook::Expression::Evaluator.parse` — a
+        #   `Bluebook::Expression::Resolver::Lookup`, a `Bluebook::Expression::Resolver::
+        #   BlockPredicate`, a `Struct` composed of further nodes, an `Array` of them, or any
+        #   other value (a literal), which contributes no paths
+        # @param bound_names [Set<String>] names locally bound by an enclosing block
+        #   predicate's own parameter, excluded from the result rather than reported as reads
+        # @return [Array<String>] the dotted paths read under `node`, excluding `bound_names`
         def collect(node, bound_names)
           case node
           when Bluebook::Expression::Resolver::Lookup
@@ -87,8 +117,20 @@ module Hecks
         # unresolved regardless of correctness. Defaults to `aggregate`
         # (a no-op) for the plain-aggregate case — `CommandInterpreter`'s
         # own call site never needed to change.
+        #
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct the command
+        #   is dispatched against; an entity for an entity-owned command
+        # @param command [Bluebook::Command] the command to analyze
+        # @param root_aggregate [Bluebook::Aggregate] the owning aggregate a `parent.*` read
+        #   resolves against; defaults to `aggregate` for a plain-aggregate command
+        # @return [Hecks::Runtime::DependencyPlanning::Plan] the derived, frozen plan
         def self.call(aggregate:, command:, root_aggregate: aggregate) = new(aggregate, command, root_aggregate).call
 
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct the command
+        #   is dispatched against
+        # @param command [Bluebook::Command] the command to analyze
+        # @param root_aggregate [Bluebook::Aggregate] the owning aggregate `parent.*` reads
+        #   resolve against; defaults to `aggregate`
         def initialize(aggregate, command, root_aggregate = aggregate)
           @aggregate = aggregate
           @command = command
@@ -126,6 +168,9 @@ module Hecks
           @unresolved = Set.new
         end
 
+        # Runs the analysis and derives the command's dependency plan.
+        #
+        # @return [Hecks::Runtime::DependencyPlanning::Plan] the derived, frozen plan
         def call
           analyze_initial_state
           analyze_mutations

@@ -25,6 +25,18 @@ module Hecks
 
       module_function
 
+      # Renders one reference page per DSL keyword context, carrying prose
+      # over from whatever is already committed under `options[:from]`.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
+      #   Syntax aggregate to render pages from; unused beyond admission, since the
+      #   keyword table this reads comes from the global `Syntax` grammar
+      # @param options [Hash] must include `:from`
+      # @option options [String] :from directory holding the already-committed
+      #   reference pages, read to harvest their prose
+      # @return [Hash{String => String}] each page's filename => its rendered
+      #   Markdown, including `"index.md"`
+      # @raise [ArgumentError] if `options[:from]` is missing or falsy
       def call(bluebook:, options: {})
         from = options[:from] or
           raise ArgumentError,

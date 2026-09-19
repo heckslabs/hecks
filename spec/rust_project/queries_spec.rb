@@ -2,7 +2,7 @@ require "spec_helper"
 require_relative "../../rust/project/naming"
 require_relative "../../rust/project/queries"
 
-# gt/gte/lt/lte against a literal value used to be refused
+# gt/gte/lt/lte against a literal value was once refused
 # unconditionally — the stated reason ("Json::Num-vs-Json::Str fidelity
 # this generator can't recover from the exported IR") went stale the
 # moment WhereClause#to_h started rendering through Hecks::Literal.render

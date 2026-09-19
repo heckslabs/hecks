@@ -75,10 +75,10 @@ RSpec.describe Hecks::Ports::Projection::Worker do
       .to raise_error(Hecks::Runtime::WiringError, /does not match/)
   end
 
-  # Before this fix, any policy other than the exact Symbol `:strict`
-  # (a typo, or any other spelling meaning the same thing) silently fell
-  # through the consistency check and appended onto divergent history —
-  # no error, no refresh, just a wrong answer built on top of a mismatch.
+  # Any policy other than the exact Symbol `:strict` (a typo, or any other
+  # spelling meaning the same thing) would otherwise silently fall through
+  # the consistency check and append onto divergent history — no error, no
+  # refresh, just a wrong answer built on top of a mismatch.
   # `:refresh` and `:strict` are the only two policies anything in this
   # codebase ever passes (`bin/project`, every spec) — there is no third,
   # legitimate policy to silently fall back to, so an unrecognized one

@@ -40,6 +40,14 @@ module Hecks
       # streak does not exceed wins — rows are read in order, so the table
       # must be ascending, and the last row's `Float::INFINITY` is what
       # makes it the ceiling rather than a gap.
+      #
+      # @param streak [Integer] `Target.clean_streak`, the number of consecutive clean sweeps
+      # @param tiers [Array<Hash{Symbol => Numeric}>] ascending `{ upto:, seeds:, steps: }` rows;
+      #   defaults to `DEFAULT_TIERS`
+      # @return [Array(Integer, Integer)] `[seeds, steps]` for the first row `streak` fits under
+      # @raise [ArgumentError] if `streak` is negative
+      # @raise [ArgumentError] if no row in `tiers` covers `streak` (the last row must declare
+      #   `upto: Float::INFINITY`)
       def for_streak(streak, tiers: DEFAULT_TIERS)
         raise ArgumentError, "streak must not be negative" if streak.negative?
 

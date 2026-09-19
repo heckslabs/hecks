@@ -69,7 +69,7 @@ RSpec.describe "receiver routing outside the command payload" do
 
   # BUG#18 — a routing envelope naming only the aggregate (`entities: []`,
   # or `entity`/`entities` absent altogether) on an aggregate-level command
-  # (entity_depth 0) used to satisfy `envelope`'s own `entities.size !=
+  # (entity_depth 0) would satisfy `envelope`'s own `entities.size !=
   # entity_depth` check trivially (`0 != 0` is false) and reach the
   # command's own validation instead of being refused as a malformed
   # route — Rust's `RoutingEnvelope::from_json` always refused this Hash

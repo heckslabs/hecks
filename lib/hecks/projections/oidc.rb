@@ -7,7 +7,8 @@ module Hecks
     # an identity provider has to know about this domain before it can
     # issue a token that means anything here.
     #
-    # The artifact half of something already half-built.
+    # ## The artifact half of something already half-built
+    #
     # `spec/oidc_projection_spec.rb` covers the integration half — verified
     # claims in, `IdentityResolution.resolve` → `Authorization.holds_role?`
     # → a dispatch scoped by `Hecks.as_caller(role:)`. That half enforces
@@ -24,8 +25,9 @@ module Hecks
     # `Ports::Authorization.holds_role?` compares against a real
     # `Governance::RoleAssignment`.
     #
-    # Roles come from the commands, not from governance. A command's own
-    # `role "Compliance officer"` is in the bluebook IR
+    # ## Roles come from the commands, not from governance
+    #
+    # A command's own `role "Compliance officer"` is in the bluebook IR
     # (`Command#role`), whereas `uses_framework "Governance"` is
     # declared in the `.hecksagon` — which `call(bluebook:, options:)`
     # cannot see at all. Reading the commands is both the only thing
@@ -47,6 +49,13 @@ module Hecks
       # `audience:` overrides the domain name, for the ordinary case
       # where the IdP's registered audience is a URL rather than a bare
       # chapter name.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter being projected
+      # @param options [Hash{Symbol => Object}] `:audience` (String, Symbol, nil)
+      #   overrides the manifest's `"audience"` value
+      # @return [Hash{String => Object}] `"audience"` (String), `"scopes"` (see
+      #   `scopes_for`) and `"roles"` (`Array<String>`, every distinct declared role,
+      #   sorted)
       def call(bluebook:, options: {})
         scopes = scopes_for(bluebook)
 
@@ -67,11 +76,22 @@ module Hecks
       # through `Dispatcher#dispatch`'s dotted `Entity.Command` routing
       # is real and callable, so a manifest that never names it can
       # never grant a client a scope for it either.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter being projected
+      # @return [Array<Hash{String => Object}>] every command's scope entry (see
+      #   `command_scopes`), sorted by `"scope"`
       def scopes_for(bluebook)
         bluebook.aggregates.flat_map { |aggregate| aggregate_scopes(bluebook, aggregate) }
                 .sort_by { |scope| scope["scope"] }
       end
 
+      # Projects one aggregate's own commands and every entity nested inside it.
+      #
+      # @param bluebook [Bluebook::Chapter] the aggregate's owning chapter, for the
+      #   verb and scope prefixes
+      # @param aggregate [Bluebook::Aggregate] the aggregate being projected
+      # @return [Array<Hash{String => Object}>] the aggregate's and its entities'
+      #   scope entries (see `command_scopes`)
       def aggregate_scopes(bluebook, aggregate)
         verb_prefix  = "#{bluebook.name}::#{aggregate.hecks_name}"
         scope_prefix = "#{Naming.snake(bluebook.name)}:#{Naming.snake(aggregate.hecks_name)}"
@@ -84,6 +104,14 @@ module Hecks
       # inside `Handler`), so this recurses the same way `Chapter#verbs`
       # now does. The verb and scope prefixes grow in lockstep, each
       # `.`-joined the same way its own kind already was.
+      #
+      # @param entity [Bluebook::Entity] the entity being projected
+      # @param verb_prefix [String] the enclosing aggregate or entity's own verb
+      #   prefix, extended with this entity's name
+      # @param scope_prefix [String] the enclosing aggregate or entity's own scope
+      #   prefix, extended with this entity's snake-cased name
+      # @return [Array<Hash{String => Object}>] this entity's and its nested entities'
+      #   scope entries (see `command_scopes`)
       def entity_scopes(entity, verb_prefix, scope_prefix)
         verb_prefix  = "#{verb_prefix}.#{entity.hecks_name}"
         scope_prefix = "#{scope_prefix}.#{Naming.snake(entity.hecks_name)}"
@@ -96,6 +124,15 @@ module Hecks
       # spelled in, and snake_cased through the same `Naming.snake` the
       # facade uses to name a command's own door method, so a scope and
       # the Ruby call that satisfies it cannot drift apart.
+      #
+      # @param commands [Array<Bluebook::Command>] the commands to project
+      # @param verb_prefix [String] the owning aggregate or entity's fully-qualified
+      #   verb prefix
+      # @param scope_prefix [String] the owning aggregate or entity's snake-cased
+      #   scope prefix
+      # @return [Array<Hash{String => Object}>] one entry per command: `"scope"`
+      #   (String), `"verb"` (String), `"role"` (String, `nil` if the command
+      #   declares none)
       def command_scopes(commands, verb_prefix, scope_prefix)
         commands.map do |command|
           {

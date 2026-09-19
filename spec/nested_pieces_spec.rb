@@ -3,9 +3,9 @@ require "spec_helper"
 # qa/stress_domains/nested_pieces — see its own NOTES.md and the header
 # comment on nested_pieces.bluebook for why this domain exists: a genuine
 # two-level "piece nested inside a piece" (ADR 0026), unexercised anywhere
-# else in the fuzzed corpus, used to confirm BUG#3's fix (PR #526, merged
-# as of this domain's own PR) generalizes to a hop this corpus had never
-# actually reached before. BUG#3 was an addressing identity that failed
+# else in the fuzzed corpus, confirms BUG#3's fix generalizes to a hop
+# this corpus had never actually reached before. BUG#3 was an addressing
+# identity that failed
 # its own invariant raising InvariantViolation instead of NotFound; these
 # two tests assert the fixed behavior (NotFound) at both hop one (Board)
 # and hop two (Card) — a regression pin, not an open-bug demonstration.
@@ -35,17 +35,17 @@ RSpec.describe "NestedPieces" do
 
   let(:runtime) { boot_nested_pieces }
 
-  # BUG#12 — an entity created via `sets :list, append: {...}` used to
-  # leave a declared attribute the append mapping doesn't name (`Board
+  # BUG#12 — an entity created via `sets :list, append: {...}` would leave
+  # a declared attribute the append mapping doesn't name (`Board
   # .label`, `Card.note`, both `optional: true`) absent from the stored
   # hash entirely, at both nesting depths this domain exercises: the
   # aggregate-level append that creates `Board` (`Workspace.AddBoard`,
   # `MutationApplier#entity_element`) and the entity-level append that
   # creates `Card` (`Board.AddCard`, `EntityElement#appended_to_element`
-  # — nested two levels deep, the shape that comment used to call "out
+  # — nested two levels deep, a shape a stale comment once called "out
   # of scope"). Rust's generated `to_json` (`json_codec.rb#
   # emit_to_json_flat`) always emits every declared field, `null` when
-  # unset — pinning that Ruby's own stored state now matches, key for
+  # unset — pinning that Ruby's own stored state matches, key for
   # key, not just value for value.
   it "gives a freshly appended Board and Card a key for every declared attribute, unset ones included" do
     runtime
@@ -96,7 +96,7 @@ RSpec.describe "NestedPieces" do
     expect(board[:cards].first[:note][:text]).to eq("done")
   end
 
-  # **Hop one** — the same single-level shape BUG#3 was originally found on
+  # **Hop one** — the same single-level shape BUG#3 was found on
   # (`Banking::Account.LedgerEntry.Amend`), re-triggered here: `board.number`
   # is both nonexistent (the workspace holds no boards at all) and fails
   # `BoardNumber`'s own invariant (`0`, never positive). Post-fix, this
@@ -108,7 +108,7 @@ RSpec.describe "NestedPieces" do
   # }` resolves through `Routing::Envelope` into `route.entities`, which
   # `EntityElement#element_of` matches by raw string (`element_identity(
   # ...).to_s == routed_identity.to_s`, no typed rebuild, no invariant
-  # ever consulted) — was already immune to BUG#3 even before the fix,
+  # ever consulted) — is immune to BUG#3 regardless of the fix,
   # the same raw-comparison convention `Identity.from` uses for a root
   # aggregate. The original finding (and the original `LedgerEntry.
   # Reverse` spec) dispatches with the entity's own identity riding as a

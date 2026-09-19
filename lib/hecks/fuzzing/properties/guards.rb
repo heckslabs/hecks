@@ -54,6 +54,11 @@ module Hecks
         # branches shares logic with the others beyond that shared setup.
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/PerceivedComplexity
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every tenant-scoped query answer, and every
+        #   refusal of one, agrees with `TenantScope.apply`'s own contract; otherwise a
+        #   message naming the offending query, its args, and what it should have done
         def authorize_scopes_or_refuses(history)
           bluebooks = history.fetch(:bluebooks)
 
@@ -116,6 +121,14 @@ module Hecks
         # those; the raised class does not.
         GUARD_REFUSAL_KINDS = %w[Hecks::Runtime::GivenNotMet Hecks::Runtime::EnsuresNotMet].freeze
 
+        # Checks that every given/ensures refusal a run actually raised names a rule
+        # the refusing command actually declares.
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every guard refusal's quoted description matches
+        #   a `given`/`ensures` the refusing command (or its delegation target) declares;
+        #   otherwise a message naming the refusal and the declared descriptions it does
+        #   not match
         def guard_refusals_are_declared(history)
           bluebooks = history.fetch(:bluebooks)
 
@@ -190,6 +203,12 @@ module Hecks
         # false positive.
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/PerceivedComplexity
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every stored record's `reference_to` attribute
+        #   points at a record sharing the same tenant value (or has no resolvable
+        #   target, or neither side declares a tenant field); otherwise a message naming
+        #   the referencing record, the reference, and the tenant mismatch
         def commands_respect_tenant_scope(history)
           bluebooks = history.fetch(:bluebooks)
           instances = history.fetch(:instances)
@@ -236,6 +255,10 @@ module Hecks
         # ..., tenant:` on any of its own queries — not every aggregate
         # is tenant-scoped, and one that isn't has nothing for this
         # property to check either side of.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate to look up
+        # @return [Symbol, nil] the tenant field name, or nil if no query on the
+        #   aggregate declares `authorize ..., tenant:`
         def tenant_field_for(aggregate)
           authorization = aggregate.queries.filter_map(&:authorization).find(&:tenant)
           authorization&.tenant&.to_sym
@@ -267,6 +290,14 @@ module Hecks
         # own guards first, then every delegation target's; an offence is
         # only a description neither declares. Found live mining chess's
         # history: every refused move through a door read as undeclared.
+        #
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
+        #   keyed by domain name
+        # @param verb [String] the dispatched verb, `"Domain::Aggregate.Command"` or
+        #   `"Domain::Aggregate.Entity.Command"`
+        # @param command [Bluebook::Command] the command `verb` resolves to
+        # @return [Array<String>] `command`'s own declared given/ensures descriptions,
+        #   plus every `delegate`d command's, in that order
         def effective_guard_descriptions(bluebooks, verb, command)
           own = command.guard_descriptions
           delegated = command.mutations.select { |m| m.op == :delegate }.flat_map do |delegation|
@@ -277,6 +308,14 @@ module Hecks
           own + delegated
         end
 
+        # Resolves a dispatched verb back to the declared command it names.
+        #
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
+        #   keyed by domain name
+        # @param verb [String] the dispatched verb, `"Domain::Aggregate.Command"` or
+        #   `"Domain::Aggregate.Entity.Command"`
+        # @return [Bluebook::Command, nil] the declared command, or nil if `verb`'s
+        #   domain, aggregate, entity, or command is not found among `bluebooks`
         def command_for_verb(bluebooks, verb)
           domain, aggregate_name, command_path = Naming.split_verb(verb)
           return nil unless command_path
@@ -337,6 +376,11 @@ module Hecks
         # different named precondition `"customer is not closed"` instead
         # (a suspended customer must still be freezable), so it is not a
         # `"customer is active"` example, just the same mechanism.
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every recomputed `enforce_givens`/
+        #   `enforce_lifecycle_guard` check agrees with what the real dispatch did;
+        #   otherwise a message naming the verb and the disagreement
         def lifecycle_guard_and_given_violations_are_refused(history)
           offenders = history.fetch(:guard_checks).filter_map do |check|
             next if check[:recomputed_refused] == check[:actual_refused]

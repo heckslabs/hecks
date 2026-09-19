@@ -10,6 +10,8 @@ module Hecks
       # capture, one entry per step whose dispatch enqueued at least one
       # row):
       #
+      # ## The two checks
+      #
       #   1. "delivery is inline by default" — a row this replay's own
       #      dispatch enqueued must not still be `pending`/`claimed` once
       #      that same call returns (nothing here ever simulates a
@@ -38,10 +40,9 @@ module Hecks
       #      it should have dispatched to) is `fanout_dispatches_once_
       #      per_matching_row`'s job, not this one's.
       #
-      # A `saga:` row has no equivalent second check, deliberately — this
-      # was the first shape this property shipped with, and it was wrong,
-      # caught live against `examples/banking` before this comment
-      # existed: `Fanout.sagas`' own `listens?` (starts_on/ends_on/
+      # ## Why a `saga:` row is exempt from check 2
+      #
+      # Deliberately: `Fanout.sagas`' own `listens?` (starts_on/ends_on/
       # handler_for matching the event name alone) says nothing about
       # whether a correlation resolves or a live instance exists, and
       # `begin_saga`/`end_saga` (saga_interpreter.rb) both have silent,
@@ -57,11 +58,18 @@ module Hecks
       # `saga_log` entries is therefore not a finding — only check 1
       # applies to it.
       #
-      # **Not a grammar construct** — `FEATURE_COVERAGE`'s own `dry_runs_
-      # leave_no_trace` precedent: the outbox is a runtime door
-      # (`Runtime::Outbox`), not a word a bluebook declares, so there is
-      # no feature string here to claim.
+      # ## Not a grammar construct
+      #
+      # `FEATURE_COVERAGE`'s own `dry_runs_leave_no_trace` precedent: the
+      # outbox is a runtime door (`Runtime::Outbox`), not a word a
+      # bluebook declares, so there is no feature string here to claim.
       module Outbox
+        # Checks every outbox row a replay's history recorded against the
+        # outbox's own contract (see this file's own header).
+        #
+        # @param history [Hash] a replayed history, as returned by `Fuzzing::Replay.call`
+        # @return [true, String] true if every outbox row satisfies the contract; otherwise
+        #   a semicolon-joined message naming each offending row
         def outbox_rows_match_reactions(history)
           bluebooks = history.fetch(:bluebooks, {})
 
@@ -72,6 +80,17 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
+        # Checks one outbox row against the outbox's own contract.
+        #
+        # @param row [Hash] one `Runtime::Outbox::Row#to_h` entry, `trace[:rows]`'s shape:
+        #   at least `:status`, `:delivery_id`, `:consumer`, `:event`, and (when failed)
+        #   `:error`
+        # @param trace [Hash] this row's outbox trace entry, one of `history[:outbox_traces]`,
+        #   carrying `:rows` and `:reactions`
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
+        #   keyed by domain name
+        # @return [Array<String>] zero or one offending message naming what this row got
+        #   wrong; empty when the row is fine or its status names no check
         def outbox_row_offenders(row, trace, bluebooks)
           on = row.dig(:event, :name)
 
@@ -90,9 +109,20 @@ module Hecks
           end
         end
 
+        # Checks one delivered `policy:` outbox row for a missing `reaction_log` entry.
+        #
         # See this file's own header for why a `saga:` row is exempt: its
         # own `listens?` gives no such guarantee, unlike a policy's single,
         # deterministic `where` gate.
+        #
+        # @param row [Hash] the delivered outbox row being checked
+        # @param on [String] the row's event name, `row.dig(:event, :name)`
+        # @param trace [Hash] this row's outbox trace entry, carrying `:reactions`
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
+        #   keyed by domain name
+        # @return [Array<String>] zero or one offending message; empty when the row is
+        #   not a policy row, the policy is undeclared or fans out, or the policy's
+        #   `where` does not independently re-evaluate true
         def outbox_delivered_policy_offenders(row, on, trace, bluebooks)
           kind, fqn = row[:consumer].to_s.split(":", 2)
           return [] unless kind == "policy"
@@ -101,11 +131,14 @@ module Hecks
           return [] if trace[:reactions].any? { |entry| entry[:policy] == name && entry[:on] == on }
 
           policy = bluebooks[home]&.policies&.find { |candidate| candidate.name == name }
-          return [] unless policy # nothing declared under this name — inconclusive, not a claimed mismatch
-          return [] if policy.fans_out? # fan-out row count is fanout_dispatches_once_per_matching_row's job
+          # Nothing declared under this name — inconclusive, not a claimed mismatch.
+          return [] unless policy
+          # Fan-out row count is fanout_dispatches_once_per_matching_row's job.
+          return [] if policy.fans_out?
 
           held = independently_re_evaluate_policy_where(policy, row[:event])
-          return [] if held != true # false, or inconclusive (the where itself raised) — never a claimed mismatch
+          # False, or inconclusive (the where itself raised) — never a claimed mismatch.
+          return [] if held != true
 
           ["outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) drained as delivered, but no matching " \
            "reaction_log entry exists and the policy's own where clause independently re-evaluates true — " \
@@ -128,6 +161,11 @@ module Hecks
         # claimed pass or a claimed mismatch from a resolution this replay
         # cannot actually reproduce" discipline `build_guard_check`'s own
         # rescue clause already follows.
+        #
+        # @param policy [Bluebook::Policy] the policy whose `where` clause is re-evaluated
+        # @param event [Hash] the outbox row's own recorded event, read for `:payload`
+        # @return [Boolean, nil] whether `policy`'s `where` holds against `event`'s payload,
+        #   or nil if the where clause cannot be re-evaluated from it
         def independently_re_evaluate_policy_where(policy, event)
           return true if policy.where.to_s.empty?
 

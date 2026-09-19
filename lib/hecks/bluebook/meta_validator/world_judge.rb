@@ -10,6 +10,7 @@ module Hecks
       class WorldJudge
         attr_reader :refusals
 
+        # @param world [Bluebook::World] the built world to judge
         def initialize(world)
           @world    = world
           @refusals = []

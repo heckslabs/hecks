@@ -8,6 +8,8 @@ module Hecks
       # IR it stores must equal the IR the DSL builder produces". The judge is the
       # first half. This reads the records back and assembles `to_h`.
       #
+      # ## One table, both directions
+      #
       # It is the inverse of the walk and shares its plan: the walk reads a node's
       # lists through the command that appends to each, and this reads them back out
       # of the rows those commands wrote. The retired `experiment/replay.rb` needed
@@ -16,6 +18,12 @@ module Hecks
       #
       # This file is the traversal. The hashes at its tips, and the encodings they
       # undo, are in Shapes.
+      #
+      # The parent key of every level is read from the language's own plan, the same
+      # Plan the walk dispatches from — so the two directions really are one table,
+      # which is what the header above has always claimed.
+      #
+      # ## Reads level by level, not through the read model
       #
       # It reads level by level, through `DeclaredIn`, and not through the read
       # model — which is the difference between a reconstruction that can be the
@@ -31,9 +39,7 @@ module Hecks
       # `DeclaredIn` preserves it (spec/executes_spec says so), so this asks each
       # level for its own children rather than filtering one sorted gather.
       #
-      # The parent key of every level is read from the language's own plan, the same
-      # Plan the walk dispatches from — so the two directions really are one table,
-      # which is what the header above has always claimed.
+      # ## What it cannot rebuild
       #
       # What it cannot rebuild matters as much as what it can, and
       # spec/round_trip_spec pins the difference as an exact set: a field the language
@@ -43,8 +49,22 @@ module Hecks
         include Readings
         include Shapes
 
+        # Reads one judged chapter back out of `runtime` and assembles it.
+        #
+        # @param runtime [Runtime::Dispatcher] the dispatcher holding the
+        #   judge's own records
+        # @param chapter [String] the chapter's own `hecks_name`
+        # @return [Hash{Symbol => Object}] the reconstructed IR, in the
+        #   shape the DSL builder's own `to_h` produces
+        # @raise [Runtime::NotFound] if `runtime` holds no bluebook named
+        #   `chapter`
         def self.of(runtime, chapter) = new(runtime, chapter).to_h
 
+        # @param runtime [Runtime::Dispatcher] the dispatcher holding the
+        #   judge's own records
+        # @param chapter [String] the chapter's own `hecks_name`
+        # @raise [Runtime::NotFound] if `runtime` holds no bluebook named
+        #   `chapter`
         def initialize(runtime, chapter)
           @runtime = runtime
           @plan    = Plan.for(MetaValidator.grammar_registry)

@@ -1,10 +1,11 @@
 require "spec_helper"
 require "time"
 
-# `role` used to be pure decoration — declared, stored, read by nothing at
-# dispatch time. This holds the fix: opt-in on both sides (no caller bound,
-# or a command with no declared role, both dispatch exactly as before), and
-# a real refusal once a caller states a role and it doesn't match.
+# Without a check at dispatch time, `role` would be pure decoration —
+# declared, stored, read by nothing. This holds the fix: opt-in on both sides
+# (no caller bound, or a command with no declared role, both dispatch exactly
+# as they would with no role at all), and a real refusal once a caller states
+# a role and it doesn't match.
 RSpec.describe "role-based command rejections" do
   def build(&block)
     registry = Hecks::Runtime::Registry.new

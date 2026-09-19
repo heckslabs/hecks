@@ -219,10 +219,10 @@ RSpec.describe "a command's corrects" do
   end
 
   # BUG#30 — `corrects` declared on an entity-level command, not the
-  # aggregate. Before this fix, `Ledger::Entry.Amend` (below) crashed
+  # aggregate, would otherwise crash `Ledger::Entry.Amend` (below)
   # outright with `Hecks::Runtime::WiringError` — `EntityInterpreter`
-  # never called `enforce_correction_target` at all, and
-  # `EntityElement.apply_to_element`'s own `case mutation.op` had no
+  # would never call `enforce_correction_target` at all, and
+  # `EntityElement.apply_to_element`'s own `case mutation.op` would have no
   # `:corrects` branch. `qa/stress_domains/corrections` found this live
   # (angle-9); this is the runtime regression coverage for the fix.
   #

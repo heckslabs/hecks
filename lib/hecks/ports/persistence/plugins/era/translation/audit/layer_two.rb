@@ -92,6 +92,12 @@ module Hecks
         # header names. Only reached once `layer_two!` has already ruled
         # out "no declared edge" and "rekeyed" (see its own comment on
         # that second guard); this method assumes both are false.
+        # @param violations [Array<String>] mutated in place with one message per divergent id
+        # @param aggregate [Bluebook::Aggregate] the aggregate being audited
+        # @param declared [Bluebook::Translation] the declared translation to check against
+        # @param before [Hash{String => Hash}] the old world's own records, keyed by id
+        # @param after [Hash{String => Hash}] the new world's own records, keyed by id
+        # @return [void]
         def check_value_preservation!(violations, aggregate, declared, before, after)
           rules = Ports::Persistence::Lineage.from_declared(declared, aggregate.name)
           compute_paths = declared.computes.flat_map { |compute| [compute.from, compute.to] }.map(&:to_s)

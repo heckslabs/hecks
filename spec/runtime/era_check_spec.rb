@@ -124,8 +124,8 @@ RSpec.describe "the era check at boot" do
   end
 
   # The four examples below are independent facts about shape_guard!'s
-  # re-attestation, previously bundled into one example that shared a
-  # stored_hash. Each recomputes it via the shared shaped_bluebook
+  # re-attestation, kept apart rather than bundled into one example that
+  # shares a stored_hash. Each recomputes it via the shared shaped_bluebook
   # helper (cheap: no real I/O, just an in-memory bluebook boot), so
   # nothing here re-pays real setup cost by being split.
   it "cosmetic edits (comments, whitespace) still project to the minted era name" do
@@ -185,8 +185,8 @@ RSpec.describe "the era check at boot" do
   end
 
   # The three examples below are independent facts about shape_guard!
-  # preferring stored_projection over stored_hash, previously bundled
-  # into one example that shared a projection. Each recomputes it via
+  # preferring stored_projection over stored_hash, kept apart rather than
+  # bundled into one example that shares a projection. Each recomputes it via
   # the shared shaped_projection helper (cheap: no real I/O), so
   # nothing here re-pays real setup cost by being split.
   #

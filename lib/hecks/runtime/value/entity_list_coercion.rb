@@ -15,10 +15,10 @@ module Hecks
       # own header, and this repo's `.rubocop_todo.yml` for the merge that
       # made the split necessary). Cross-calls into `Coercion`'s own
       # `for_attribute`/`build`/`fields_for`/`value_object_for`/
-      # `trusting_stored_state?` work unqualified here exactly as they did
-      # before the split, because both modules land on the same `Value`
-      # singleton class once extended — `self` never has to know which file
-      # a sibling method actually lives in.
+      # `trusting_stored_state?` work unqualified here, exactly as they do
+      # within `Coercion` itself, because both modules land on the same
+      # `Value` singleton class once extended — `self` never has to know
+      # which file a sibling method actually lives in.
       module EntityListCoercion
         # S17, ADR 0026 — searches the whole entity tree, not only the
         # root's own direct children. `aggregate` here is always the
@@ -31,6 +31,12 @@ module Hecks
         # a nested entity — Dispatch, inside Handler — is not a direct
         # child of the root the way Handler itself is, and a plain
         # `aggregate.entities.find` stops one level short of it.
+        #
+        # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct to
+        #   search, and every entity nested under it
+        # @param name [String] the entity's declared `hecks_name` to find
+        # @return [Bluebook::Entity, nil] the matching entity anywhere in the tree, or
+        #   nil if none matches
         def find_entity(construct, name)
           construct.entities.each do |candidate|
             return candidate if candidate.hecks_name == name
@@ -41,39 +47,54 @@ module Hecks
           nil
         end
 
+        # Hydrates a `list_of` attribute's offered value — each element of a
+        # whole-list offering, or a single remove-target value, depending on
+        # `attribute.type` and `value`'s own shape.
+        #
         # Frozen through: a list read back out of the store is an answer,
         # not a handle on what is stored.
         #
-        # ADR 0047 — this used to bail (`return value unless entity`) the
-        # moment `attribute.type` named a value object rather than an
-        # entity, handing back the raw, un-hydrated argument untouched.
-        # A `sets :field` mutation sourced from a whole-array argument (as
-        # opposed to element-by-element `append:`) went straight through
+        # ADR 0047 — bailing (`return value unless entity`) the moment
+        # `attribute.type` names a value object rather than an entity would
+        # hand back the raw, un-hydrated argument untouched. A `sets :field`
+        # mutation sourced from a whole-array argument (as opposed to
+        # element-by-element `append:`) goes straight through
         # `for_attribute`'s `:list` branch, so `Banking::CardPayment.
-        # Authorize`'s own `sets :tags` (`list_of(Tag)`) stored plain
+        # Authorize`'s own `sets :tags` (`list_of(Tag)`) would store plain
         # Ruby Hashes as its `tags` elements forever — never a real
         # `Value`, never through `Tag`'s own `pattern:`/`invariant`
         # checks. `remove:`'s `==` comparison (a real `Value` against a
-        # raw `Hash`) then always failed, since `Hash#==` refuses anything
-        # that isn't itself a compatible Hash — the bug ADR 0047 traces in
-        # full. Delegating to `hydrate_value_object_list` below closes
-        # that gap the same way the entity branch already worked: build a
-        # real, validated `Value` per element, reusing `for_attribute`'s
-        # own composite-construction path rather than inventing a second
-        # one.
-        # BUG#32 (QualityControl ledger) — `remove:`'s own single-target
-        # value used to fall straight into `Array(value).map { ... }`
-        # below unguarded, unlike this method's own delegated
-        # `hydrate_value_object_list` sibling, whose `value.is_a?(Array)`
-        # check exists for exactly this shape (see that method's own
-        # comment). For an entity-typed list, `remove:`'s scalar target
-        # (`Ledger.Void`'s `sequence: EntrySequence`) is never a Hash, so
-        # `Array(2)` merely wrapped it as `[2]` rather than shredding it —
-        # but the wrapping itself was still wrong: `MutationApplier#
-        # removed`'s `element == value` then compared a stored `Entry`
-        # Hash against a one-element Array, which can never be `==` a
-        # Hash, so nothing was ever removed and nothing ever refused
-        # either. Routed to `hydrate_entity_identity` instead, below.
+        # raw `Hash`) would then always fail, since `Hash#==` refuses
+        # anything that isn't itself a compatible Hash — the bug ADR 0047
+        # traces in full. Delegating to `hydrate_value_object_list` below
+        # closes that gap the same way the entity branch already works:
+        # build a real, validated `Value` per element, reusing
+        # `for_attribute`'s own composite-construction path rather than
+        # inventing a second one.
+        # BUG#32 (QualityControl ledger) — without this, `remove:`'s own
+        # single-target value would fall straight into
+        # `Array(value).map { ... }` below unguarded, unlike this method's
+        # own delegated `hydrate_value_object_list` sibling, whose
+        # `value.is_a?(Array)` check exists for exactly this shape (see
+        # that method's own comment). For an entity-typed list, `remove:`'s
+        # scalar target (`Ledger.Void`'s `sequence: EntrySequence`) is
+        # never a Hash, so `Array(2)` would merely wrap it as `[2]` rather
+        # than shredding it — but the wrapping itself would still be wrong:
+        # `MutationApplier#removed`'s `element == value` would then compare
+        # a stored `Entry` Hash against a one-element Array, which can
+        # never be `==` a Hash, so nothing would ever be removed and
+        # nothing would ever refuse either. Routed to `hydrate_entity_identity`
+        # instead, below.
+        #
+        # @param aggregate [Bluebook::Aggregate] the root aggregate `attribute` is
+        #   declared on
+        # @param attribute [Bluebook::Attribute] the `list_of` attribute being hydrated
+        # @param value [Array<Hash, Object>, Object] the offered value: a whole-list
+        #   Array (a `sets`/hydrate load) or a single remove-target value
+        # @return [Object] a frozen Array of hydrated elements when `value` is a
+        #   whole-list Array and `attribute.type` names an entity; otherwise whatever
+        #   `hydrate_entity_identity` (a non-Array value naming an entity) or
+        #   `hydrate_value_object_list` (`attribute.type` naming no entity) returns
         def hydrate_entity_list(aggregate, attribute, value)
           entity = find_entity(aggregate, attribute.type.to_s)
           return hydrate_value_object_list(aggregate, attribute, value) unless entity
@@ -127,10 +148,23 @@ module Hecks
         # same pre-existing, narrower gap BUG#13 documented and left open,
         # not widened here.
         #
+        # Refuses a whole-list offering that misnames its own entities' identities —
+        # a duplicate identity across two elements, or an element missing one.
+        #
         # Skipped under `trusting_stored_state?`, the same guard `validate!`
         # already gives every value object (C6.3): a record already
         # written is trusted as it was, so tightening this check can never
         # make an old, already-persisted record unreadable.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate `entity` belongs to,
+        #   named in a refusal
+        # @param entity [Bluebook::Entity] the entity type `elements` are shaped as
+        # @param elements [Array<Hash, Object>] the hydrated whole-list offering; a
+        #   non-Hash element is skipped, not checked
+        # @return [void]
+        # @raise [Runtime::TypeMismatch] if `entity` declares a single-field identity
+        #   and an element offers no value for it
+        # @raise [Runtime::AlreadyExists] if two elements offer the same identity value
         def check_entity_list_identities(aggregate, entity, elements)
           identity = entity.identified_by
           return unless identity
@@ -183,9 +217,20 @@ module Hecks
         # "nothing in this corpus needs it yet" boundary
         # `MutationApplier#check_entity_collision`'s own header already
         # draws for entity identity elsewhere in this runtime.
+        # Coerces a `remove:` target against an entity's own single-field
+        # identity type, rather than the entity's full shape.
+        #
         # `list_element_match?` treats an uncoerced value the same way
         # it always treated the pre-fix wrapped Array: never a match, a
         # documented no-op rather than a crash.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate `entity` belongs to
+        # @param entity [Bluebook::Entity] the entity type `value` addresses
+        # @param value [Object] the offered remove-target value
+        # @return [Runtime::Value, Object] `value` already coerced (returned unchanged);
+        #   the value coerced against the identity field's declared type when `entity`
+        #   has a single identity head and a matching attribute; `value` unchanged
+        #   otherwise (no identity head, a composite identity, or no matching attribute)
         def hydrate_entity_identity(aggregate, entity, value)
           return value if value.is_a?(self)
 
@@ -198,6 +243,9 @@ module Hecks
           for_attribute(aggregate, field, value)
         end
 
+        # Hydrates a `list_of` attribute's offered value when `attribute.type`
+        # names a value object rather than an entity.
+        #
         # The value-object sibling of the entity branch above: an element
         # already shaped like the target `Value` (or a `Hash`/scalar that
         # `fields_for` can still open) is rebuilt through the same `build`
@@ -225,6 +273,17 @@ module Hecks
         # `value.is_a?(Array)` up front (true only for a genuine whole-list
         # `sets`/hydrate load) keeps the single-target shape a single
         # target, hydrated the same way, never listified.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate `attribute` is declared
+        #   on, or a construct that does not respond to `value_object` (an entity), in
+        #   which case `value` passes through unchanged
+        # @param attribute [Bluebook::Attribute] the `list_of` attribute being hydrated
+        # @param value [Array<Hash, Object>, Object] the offered value: a whole-list
+        #   Array, or a single remove-target value
+        # @return [Object] `value` unchanged when `aggregate` does not respond to
+        #   `value_object`, or `attribute.type` names no value object; otherwise a
+        #   frozen Array of built `Value`s for a whole-list Array, or a single built
+        #   `Value` (via `hydrate_value_object_element`) otherwise
         def hydrate_value_object_list(aggregate, attribute, value)
           return value unless aggregate.respond_to?(:value_object)
 
@@ -237,6 +296,19 @@ module Hecks
           Freezer.deep(hydrated)
         end
 
+        # Rebuilds one `list_of` element into a real, validated `Value`, unless it
+        # already is one of `value_object`'s own type.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate `value_object` is
+        #   resolved against
+        # @param attribute [Bluebook::Attribute] the `list_of` attribute `element`
+        #   belongs to
+        # @param value_object [Class] the `Bluebook::ValueObject` subclass `element`
+        #   is built as
+        # @param element [Object] the raw element to build: a Hash of fields, a scalar
+        #   `fields_for` can still open, or an already-built `Value`
+        # @return [Runtime::Value] `element` unchanged if it is already a `Value` of
+        #   `value_object`'s own type; otherwise a freshly built one
         def hydrate_value_object_element(aggregate, attribute, value_object, element)
           return element if element.is_a?(self) && element.type_name == value_object.hecks_name
 

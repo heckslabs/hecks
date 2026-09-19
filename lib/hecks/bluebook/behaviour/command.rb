@@ -10,6 +10,9 @@ module Hecks
 
         # Indexed once — attributes are final once absorbed, and every
         # dispatch asks this finder by name.
+        #
+        # @return [Class] self — the command class, once its attributes are
+        #   indexed
         def settle
           index_attributes(@attributes)
           self
@@ -26,6 +29,11 @@ module Hecks
         #
         # On an aggregate, a creating command acts on no existing root, so nil is
         # the truth: there is nothing there yet.
+        #
+        # @return [Class, Bluebook::Aggregate, nil] the entity class (a
+        #   `Bluebook::Entity` subclass) this verb acts on when declared on an
+        #   entity, the aggregate instance when declared on an aggregate and
+        #   non-creating, or `nil` for a creating command
         def acts_on
           # Fully qualified, and it has to be: inside `module Behaviour`
           # the bare name `Entity` resolves to Behaviour::Entity — this
@@ -37,6 +45,10 @@ module Hecks
           creates? ? nil : hecks_owner
         end
 
+        # Whether this command creates a new root rather than acting on one.
+        #
+        # @return [Boolean] whether this command creates a new root — true when
+        #   it declares no `reference_to` back to its own owner
         def creates? = @references.nil?
 
         # Every reason this verb can refuse on a rule — the descriptions of
@@ -47,6 +59,9 @@ module Hecks
         # the language wrote" reads this rather than re-deriving the two
         # collections; `compact` because a rule's description is optional
         # (behavior.bluebook's Rule) and an unnamed one quotes nothing.
+        #
+        # @return [Array<String>] every named given's and ensure's own
+        #   description text, skipping unnamed rules
         def guard_descriptions = (@givens + @ensures).map(&:description).compact
 
         # The argument name that addresses an instance of `aggregate_name`
@@ -84,6 +99,11 @@ module Hecks
         # aggregate at all. A caller minting a fan-out dispatch is
         # expected to treat `nil` as "this command cannot be addressed by
         # a row of this aggregate," not to fall back on a guess.
+        #
+        # @param aggregate_name [String, Symbol] the aggregate a fan-out dispatch is
+        #   addressing an instance of
+        # @return [String, nil] the argument name that addresses it, or nil if this command
+        #   cannot be addressed by a row of that aggregate
         def addressing_key_for(aggregate_name)
           return Naming.reference_key(aggregate_name) if references.to_s == aggregate_name.to_s
 
@@ -96,11 +116,21 @@ module Hecks
       # a Struct, so these are instance methods.
       module Mutation
         # An append binds several fields at once, each from either a command
-        # argument (a Symbol) or a literal. It used to spell the Symbol bare
-        # and inspect the rest, which is the opposite of what a where-clause
-        # did with the same two kinds — see Hecks::Literal.
+        # argument (a Symbol) or a literal. Spelled through `Literal.render`,
+        # the same self-describing form a where-clause's own value already
+        # uses, rather than a bare Symbol paired with an inspected literal —
+        # see Hecks::Literal.
+        #
+        # @return [Hash{Symbol => String}] the append's field bindings, each
+        #   value rendered through `Literal.render`
         def appended_fields = source.transform_values { |value| Literal.render(value) }
 
+        # Classifies this mutation's source for the wire, the counterpart
+        # `Assembly::Marks#classified` reads back.
+        #
+        # @return [Hash{Symbol => Object}] `{kind: "argument", name:}` for a
+        #   command argument, `{kind: "state", name:}` for a state
+        #   self-reference, or `{kind: "literal", value:}` for a literal value
         def classified_source
           if source.is_a?(Symbol)
             { kind: "argument", name: source.to_s }

@@ -158,8 +158,9 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
       def fans_out_policy.fans_out? = true
 
       row = outbox_row(consumer: "policy:Banking::FreezeAccountsOnSuspension", status: "delivered")
+      # no matching reaction — where held but 0 rows matched
       history = { bluebooks:     { "Banking" => OutboxSpecFakeBluebook.new([fans_out_policy]) },
-                  outbox_traces: [outbox_trace(rows: row)] } # no matching reaction — where held but 0 rows matched
+                  outbox_traces: [outbox_trace(rows: row)] }
 
       expect(Hecks::Fuzzing::Properties.outbox_rows_match_reactions(history)).to be(true)
     end
@@ -167,7 +168,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
     it "does not flag a delivered saga row with no matching saga_log entry — Fanout.sagas' own listens? gives " \
        "no such guarantee (see this spec's own real-replay case above)" do
       row = outbox_row(consumer: "saga:Fake::Flow", status: "delivered")
-      history = { bluebooks: {}, outbox_traces: [outbox_trace(rows: row)] } # no matching saga_log entry
+      # no matching saga_log entry
+      history = { bluebooks: {}, outbox_traces: [outbox_trace(rows: row)] }
 
       expect(Hecks::Fuzzing::Properties.outbox_rows_match_reactions(history)).to be(true)
     end

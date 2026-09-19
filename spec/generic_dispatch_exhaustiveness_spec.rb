@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# `GenericDispatch.try`'s own `case shape[:kind]` used to have no `else` —
+# `GenericDispatch.try`'s own `case shape[:kind]` has an `else` backstop —
 # `shape_for` names exactly four kinds today (:calls_through/:opens_block/
 # :zero_arg/:single_fill), but a fifth added there without a matching `when`
-# here would fall through to bare `nil`, which `WordGate#method_missing`'s
+# here would otherwise fall through to bare `nil`, which `WordGate#method_missing`'s
 # own caller reads as "handled" (anything but NOT_HANDLED counts) — so a
 # self-hosted DSL word would silently execute as a no-op rather than raise
 # the "not yet implemented" refusal a genuinely unmigrated word already

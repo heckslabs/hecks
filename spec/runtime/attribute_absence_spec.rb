@@ -2,7 +2,7 @@ require "spec_helper"
 
 # ADR 0025, "Added attributes and absence": the read-side half of S11.
 # GuardState's own nil-read (hydrate_defaults_spec.rb's boot-time half —
-# `Instance.hydrate_with_defaults` — is the write-side companion) used to
+# `Instance.hydrate_with_defaults` — is the write-side companion) would
 # answer nil for any declared-but-absent field, optional or not. That is
 # exactly right for optional — nil is what optional means — and exactly
 # wrong for a required field with no default: a `given`/`ensures` reading

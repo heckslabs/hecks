@@ -56,8 +56,8 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
             attribute :price, Price
 
             # A dotted where and a dotted order_by, on the only engine
-            # entity queries have — element_where_holds? used to answer
-            # `[]` for this whatever the data, and offset was never read.
+            # entity queries have — a bare element_where_holds? would answer
+            # `[]` for this whatever the data, and offset would never be read.
             query "ByPrice" do
               where("price.cents": { gt: 0 })
               order_by :"price.cents"
@@ -82,8 +82,8 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
           end
 
           # A dotted order_by on an ordinary, aggregate-level query —
-          # the reference engine's own `ordered` used to read
-          # `record[field]` directly and land on nil for every row.
+          # the reference engine's own `ordered` reading
+          # `record[field]` directly would land on nil for every row.
           query "ByFeaturedPrice" do
             order_by :"featured_price.cents"
           end

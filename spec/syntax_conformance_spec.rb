@@ -45,8 +45,8 @@ RSpec.describe "the declared syntax" do
   # still-static seed rows `rows` above still reads directly for Context/
   # Body/ArgumentKind, which stay ordinary closed sets) and dispatches
   # each one through the real admission/lifecycle door, handing back the
-  # exact shape `rows` used to read straight off the closed set — nothing
-  # below this line needed to change.
+  # exact shape `rows` reads straight off the closed set — nothing
+  # below this line needs to change.
   KEYWORDS      = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
   ARGUMENTS     = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
   CONTEXTS      = rows("Context").map { |row| row[:name] }
@@ -76,7 +76,7 @@ RSpec.describe "the declared syntax" do
   #
   # `OneOf` shares ValueObjectBuilder with `ValueObject`: `one_of` instance_evals
   # its block on the builder itself, so the two contexts are one Ruby object.
-  # That is why the completeness check below groups contexts by BUILDER rather
+  # That is why the completeness check below groups contexts by `BUILDER` rather
   # than comparing each context to a class of its own.
   BUILDER = {
     "File"                 => Hecks,
@@ -361,7 +361,7 @@ RSpec.describe "the declared syntax" do
     entered = KEYWORDS.map { |row| row[:inner] }.reject(&:empty?).uniq
     spoken  = KEYWORDS.map { |row| row[:context] }.uniq
 
-    # Two CONTEXTS are not entered by a word, for two different reasons. `File`
+    # Two `CONTEXTS` are not entered by a word, for two different reasons. `File`
     # is the outside of every body — nothing opens it. `Type` is the second
     # argument of `attribute` rather than a body, so it is entered by a position
     # and never by a `do`. Every other context must be opened by something, or
@@ -394,7 +394,7 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # The other direction, grouped by BUILDER because two contexts can share one
+  # The other direction, grouped by `BUILDER` because two contexts can share one
   # (ValueObject and OneOf) and because AttributeCollector's words are mixed in
   # to five builders rather than answered by a builder of their own.
   #

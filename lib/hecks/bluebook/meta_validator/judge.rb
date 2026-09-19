@@ -3,18 +3,19 @@ module Hecks
     module MetaValidator
       # Offers every declaration in a built bluebook to the meta-domain.
       #
-      # This used to be one hand-written branch per category, and the cost of that
-      # shape was fourteen verbs the language declared and the judge never offered
-      # — among them `Command.Argument` and `ValueObject.Field`, so a command's own
-      # arguments and a value object's own fields were never judged. Every rule
-      # hanging off them was decoration. Nothing went red, because a branch that
-      # does not exist cannot fail.
+      # There are no hand-written branches, one per category: that shape's
+      # real cost is any verb the language declares that the judge never
+      # offers — a branch nobody wrote for it — going undetected, since a
+      # branch that does not exist cannot fail. `Command.Argument` and
+      # `ValueObject.Field` were both admitted that way once, undetected;
+      # every rule hanging off them was decoration until offered for real.
       #
-      # So there are no branches. The judge walks: it reads the plan the language
-      # makes of itself (Plan), and for each node offers the creating command, then
-      # each list through the command that appends to it, then each child. A verb
-      # in the plan with no offer is now impossible — there is no branch left in
-      # which to forget one, and spec/judge_coverage_spec holds it to that.
+      # So instead the judge walks: it reads the plan the language makes of
+      # itself (Plan), and for each node offers the creating command, then
+      # each list through the command that appends to it, then each child. A
+      # verb in the plan with no offer is now impossible — there is no
+      # branch left in which to forget one, and spec/judge_coverage_spec
+      # holds it to that.
       #
       # What is not uniform lives in Readings, and only where the IR's shape
       # differs from the language's. Naming differences do not appear at all: the
@@ -61,6 +62,8 @@ module Hecks
         # not a curiosity, so the runtime is simply readable.
         attr_reader :runtime
 
+        # @param bluebook [Object] a built bluebook chapter graph, as
+        #   `MetaValidator.call` receives it
         def initialize(bluebook)
           @bluebook = bluebook
           @refusals = []
@@ -160,12 +163,12 @@ module Hecks
 
         # Declared before detailed, for every set of siblings.
         #
-        # A node used to be offered whole — declared, then its lists, then its
-        # children — one sibling at a time. Which means an aggregate's attributes
-        # were offered before its later siblings existed, and an attribute that
-        # points at another aggregate could only resolve if that aggregate happened
-        # to be declared earlier in the file. Banking survives on luck: Customer is
-        # written above Account.
+        # Offering a node whole — declared, then its lists, then its children
+        # — one sibling at a time would mean an aggregate's attributes are
+        # offered before its later siblings exist, so an attribute that
+        # points at another aggregate could only resolve if that aggregate
+        # happens to be declared earlier in the file: banking would survive
+        # on luck, Customer written above Account.
         #
         # So siblings are declared in one pass and detailed in a second. It is the
         # same ordering the walk already used one level down — value objects before
@@ -256,7 +259,7 @@ module Hecks
         #
         #   the parent link   (plan.parent_key)   -> `parent_id`, the id
         #                     the walk already carries in from one level up
-        #   a walk-minted one (POSITION)           -> the walk index itself ;
+        #   a walk-minted one (`POSITION`)         -> the walk index itself ;
         #                     never a stored field (Member's own header:
         #                     "position is not a mint — it is read straight
         #                     out of the source file")
@@ -265,12 +268,12 @@ module Hecks
         #                     (Handler's own `event_type`, Dispatch's own
         #                     `command_name`)
         #
-        # `carried` still decides bare-vs-wrapped the normal way ; POSITION
+        # `carried` still decides bare-vs-wrapped the normal way ; `POSITION`
         # is the one case with no verb to ask `carried` about (`plan.
         # declare` is always nil for an entity-owned category — Plan#read's
         # own comment says why), so it is minted straight as a value object,
         # matching exactly what `declare`'s own field loop already mints a
-        # POSITION field as.
+        # `POSITION` field as.
         def node_identity(plan, category, node, index, parent_id)
           plan.identity_paths.each_with_object({}) do |path, fields|
             head = path.to_s.split(".").first
@@ -384,10 +387,11 @@ module Hecks
         # Where it sits among its siblings is a fact about the walk, not about the
         # node : a command does not know it is the third command on its aggregate.
         # The walk knows, so the walk supplies it, and every other field still
-        # comes from the node. Declaration order used to survive only because the
-        # meta store happened to iterate in insertion order — an accident that an
-        # ask ordered any other way would have taken away, and Reconstruction is
-        # the one reader that must have the source's order rather than a stable one.
+        # comes from the node. Without this, declaration order would survive only
+        # because the meta store happens to iterate in insertion order — an
+        # accident that an ask ordered any other way would take away, and
+        # Reconstruction is the one reader that must have the source's order
+        # rather than a stable one.
         # `private` above has no effect on a constant; kept here anyway,
         # beside the method that reads it, for the narrative.
         # rubocop:disable-next Lint/UselessConstantScoping
@@ -654,8 +658,8 @@ module Hecks
 
         # Command -> commands, ValueObject -> value_objects, Query -> queries.
         # Convention, not a table : the IR names a collection after what it holds.
-        # The pluraliser lives in Naming because there used to be two of them and
-        # one was wrong — see Naming.plural.
+        # The pluraliser lives in Naming, kept to exactly one implementation — a
+        # second one risks disagreeing with it — see Naming.plural.
         def collection_reader(category) = Naming.plural(Naming.snake(category))
       end
     end

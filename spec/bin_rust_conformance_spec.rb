@@ -4,8 +4,8 @@ require "open3"
 require "tmpdir"
 require_relative "support/rust_conformance_helpers"
 
-# `bin/rust_conformance` compares dry runs. Before this, a `{"dry_run":
-# verb}` step's answer was invisible to the script, so a dry-run split
+# `bin/rust_conformance` compares dry runs. Without that, a `{"dry_run":
+# verb}` step's answer would be invisible to the script, so a dry-run split
 # `bin/qa_sweep` had found (`Hecks::Fuzzing::Differential` compares
 # `dry_runs`) could not be given a failing demonstration for
 # `bin/qa_log_bug`.

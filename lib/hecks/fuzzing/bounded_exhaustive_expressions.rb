@@ -20,6 +20,8 @@ module Hecks
     # `canonical_form.rb` aliasing bug — neither would have been caught by
     # sampling alone, which is the whole reason this phase exists).
     #
+    # ## Type-directed generation
+    #
     # Type-directed, not exhaustive-over-strings: this generator only ever
     # recurses into a sub-expression whose own type the surrounding
     # construct actually accepts (never `"x".modulo(true)`) — mirroring,
@@ -36,7 +38,9 @@ module Hecks
     # 3" claim for exactly the sublanguage that already bit this project
     # twice.
     #
-    # **What "PROVEN" means here, precisely**: every expression this generator
+    # ## What "PROVEN" means here, precisely
+    #
+    # Every expression this generator
     # produces is well-typed by construction (every sub-expression's type
     # matches what its parent construct actually accepts, per this file's
     # own TYPE_RULES). Interpreting a well-typed expression must never
@@ -133,20 +137,25 @@ module Hecks
       # instance (which responds to `#to_h` but is never itself a bare
       # Hash) down to its lone scalar field, and just as deliberately
       # leaves an actual Hash alone (a genuinely un-hydrated, multi-
-      # field record has no single scalar to collapse to). A first
-      # version of this generator's own synthetic state used plain
-      # `{value: X}` Hashes to stand in for a single-field VO — which
-      # `is_a?(Hash)` is true for, so `unwrap_scalar` correctly left them
-      # wrapped, and every VO-typed synthetic attribute then failed
-      # `Addition`/`Compare`/every scalar-typed operation with "expects a
-      # number, got {\"value\":5}" — a bug in this generator's own
-      # synthetic state, not in `Resolver`, caught only by noticing that
-      # `num_b == 5` (`num_b` a plain `{value: 5}` Hash) evaluated to
-      # `false` instead of `true` before this fix.
+      # field record has no single scalar to collapse to). A plain
+      # `{value: X}` Hash cannot stand in here: `is_a?(Hash)` is true for
+      # it, so `unwrap_scalar` leaves it wrapped, and every VO-typed
+      # synthetic attribute then fails `Addition`/`Compare`/every
+      # scalar-typed operation with "expects a number, got
+      # {\"value\":5}" — a bug in this generator's own synthetic state,
+      # not in `Resolver`, that would surface only as `num_b == 5`
+      # (`num_b` a plain `{value: 5}` Hash) evaluating to `false` instead
+      # of `true`.
       SingleFieldVO = Struct.new(:value) do
         def to_h = { value: value }
       end
 
+      # Builds the fixed state every generated predicate is interpreted against.
+      #
+      # @return [Hash{Symbol => Object}] symbol-keyed synthetic state: half bare
+      #   scalars (`num_a`, `str_a`, `bool_a`, half of `arr_num`'s/`arr_str`'s
+      #   elements), half wrapped `SingleFieldVO` instances (`num_b`, `str_b`,
+      #   `bool_b`, the other half)
       def synthetic_state
         {
           num_a:   3,
@@ -160,18 +169,27 @@ module Hecks
         }
       end
 
+      # The `attrs` half of the interpret call — always empty, since every
+      # synthetic name this generator uses lives in `synthetic_state` instead.
+      #
+      # @return [Hash] always `{}`
       def synthetic_attrs = {}
 
-      # `leaves(type, depth)` — every terminal (non-recursive) expression
-      # of `type`: the fixed literal palette plus every synthetic
-      # attribute name declared for that type (never their values — this
-      # generates text, the same source a real `given`/`invariant` author
-      # would write; `synthetic_state`, above, is what gives those names
-      # meaning at `interpret` time).
+      # Lists every terminal (non-recursive) expression of `type`: the fixed
+      # literal palette plus every synthetic attribute name declared for that
+      # type (never their values — this generates text, the same source a
+      # real `given`/`invariant` author would write; `synthetic_state`,
+      # above, is what gives those names meaning at `interpret` time).
+      #
+      # @param type [Symbol] one of `TYPES`
+      # @return [Array<String>] `type`'s literal palette, synthetic attribute
+      #   names, and any currently-bound block-parameter leaf for `type`
       def leaves(type)
         (TYPE_LEAVES[type] || []) + (SYNTHETIC_ATTRS[type] || []) + Array(bound_leaves[type])
       end
 
+      # The per-type stack of currently-bound block-parameter leaf names.
+      #
       # A stack, not a single slot — a nested block predicate (the real
       # corpus already does this two levels deep, roster.bluebook's own
       # `seats.any? { |s| assignments.none? { |a| … } }`) pushes a second
@@ -184,8 +202,20 @@ module Hecks
       # outer level already bound, so a shadowed name still interprets
       # correctly — this generator is proving "does it crash," not "is
       # every generated predicate semantically distinct."
+      #
+      # @return [Hash{Symbol => Array<String>}] each type's own stack of bound
+      #   leaf names, usually `[]` or `["el"]`
       def bound_leaves = @bound_leaves ||= Hash.new { |h, k| h[k] = [] }
 
+      # Runs the block with `BLOCK_PARAM` admitted as a leaf of `element_type`,
+      # for building a block predicate's own body.
+      #
+      # @param element_type [Symbol] the type `BLOCK_PARAM` is bound to for the
+      #   duration of the block
+      # @yield runs with the leaf pushed and any cached `element_type` productions
+      #   invalidated
+      # @yieldreturn [Object] the block's own result
+      # @return [Object] the block's own result, unchanged
       def with_element_leaf(element_type)
         bound_leaves[element_type] << BLOCK_PARAM
         cache.delete_if { |(type, _depth), _| type == element_type }
@@ -195,13 +225,18 @@ module Hecks
         cache.delete_if { |(type, _depth), _| type == element_type }
       end
 
-      # `productions(type, depth)` — every expression of `type` reachable
-      # in at most `depth` recursive steps, memoized (the same sub-
-      # expression set is reused at every enclosing recursion, so without
-      # memoizing, cost would compound multiplicatively per level instead
-      # of additively). `depth` 0 is exactly `leaves(type)`; each
-      # increment adds every construct this file's own TYPE_RULES (below)
-      # says can produce `type`, built from `depth - 1` sub-expressions.
+      # Lists every expression of `type` reachable in at most `depth`
+      # recursive steps, memoized (the same sub-expression set is reused at
+      # every enclosing recursion, so without memoizing, cost would compound
+      # multiplicatively per level instead of additively). `depth` 0 is
+      # exactly `leaves(type)`; each increment adds every construct this
+      # file's own production methods (below) say can produce `type`, built
+      # from `depth - 1` sub-expressions.
+      #
+      # @param type [Symbol] one of `TYPES`
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] every expression of `type` reachable in at most
+      #   `depth` steps, deduplicated
       def productions(type, depth)
         cache[[type, depth]] ||= begin
           base = leaves(type)
@@ -209,8 +244,18 @@ module Hecks
         end
       end
 
+      # The `productions` memo, keyed by `[type, depth]`.
+      #
+      # @return [Hash{Array(Symbol, Integer) => Array<String>}] the memoized productions cache
       def cache = @cache ||= {}
 
+      # Dispatches to the recursive (non-leaf) production rule for `type`.
+      #
+      # @param type [Symbol] one of `TYPES`
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] every non-leaf expression of `type` reachable in at
+      #   most `depth` steps; `[]` for `:nil_type`, which has no recursive producer
+      # @raise [ArgumentError] if `type` names anything outside `TYPES`
       def recursive_productions(type, depth)
         case type
         when :numeric  then numeric_productions(depth)
@@ -237,12 +282,21 @@ module Hecks
       # final output) keeps the shape diversity `sample`'s even-spacing
       # already preserves while keeping growth roughly linear in depth
       # instead of combinatorial.
+      #
+      # @param type [Symbol] one of `TYPES`
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] `productions(type, depth)`, sampled down to at most
+      #   `SAMPLE_CAP` entries
       def bounded(type, depth) = sample(productions(type, depth))
 
       # NUMERIC ← Addition(numeric, numeric) | Modulo(numeric, numeric) |
       # Size(sized) | First/Last(numeric array). `Size` returns an
       # Integer for a String or an Array receiver alike (`SizedType` —
       # `size_of`, resolver.rb) — both sides generated here.
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] numeric expressions one construct deep: `Addition`,
+      #   `Modulo`, `Size` (of a string or array), `First`/`Last` (of a numeric array)
       def numeric_productions(depth)
         sub = bounded(:numeric, depth - 1)
         # `Modulo`'s own receiver (not its argument — that side already
@@ -290,6 +344,11 @@ module Hecks
       # `StartsWith`/`EndsWith`, `BlockPredicate` — every one of them
       # parsed via a suffix regex inside `Resolver.parse` itself, per
       # this generator's own design report) are eligible here.
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] boolean-typed expressions safe to embed as a
+      #   Resolver-level suffix receiver: literals/lookups, sign tests, string
+      #   predicates, `.empty?`, and sampled block predicates
       def resolver_boolean_leaves(depth)
         leaves(:boolean) +
           resolver_numeric_leaves(depth).flat_map { |n| ["#{n}.positive?", "#{n}.negative?", "#{n}.zero?"] } +
@@ -320,6 +379,10 @@ module Hecks
       # `Resolver.parse`'s greedy `(.+)\.suffix\z` regexes correctly
       # isolate them as a receiver regardless of what precedes them —
       # only bare top-level `+` has this problem).
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] numeric-typed expressions safe to embed as a
+      #   Resolver-level suffix receiver (never a bare top-level `Addition`)
       def resolver_numeric_leaves(depth)
         return leaves(:numeric) if depth <= 0
 
@@ -342,6 +405,10 @@ module Hecks
       # can't-actually-produce-it" mistake this sublanguage's own
       # `ArrayLiteral` bug (§1 of this generator's own design report) was
       # found from, inverted.
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] string expressions one construct deep: `ToS` of a
+      #   numeric, boolean, nil, or string operand, or `First`/`Last` of a string array
       def string_productions(depth)
         sample(resolver_numeric_leaves(depth - 1)).map { |n| "#{n}.to_s" } +
           sample(resolver_boolean_leaves(depth - 1)).map { |b| "#{b}.to_s" } +
@@ -357,6 +424,10 @@ module Hecks
       # /`.any?`/`.include?`/…), rarely a produced value; the two real
       # producers are enough to exercise every array-typed consumer
       # elsewhere in this file at least once via a non-leaf path.
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] array expressions one construct deep: a string
+      #   `Split`, a numeric array literal, and a string array literal; `[]` at depth 0
       def array_productions(depth)
         return [] if depth <= 0
 
@@ -364,7 +435,16 @@ module Hecks
           [numeric_array_literal(depth - 1), string_array_literal(depth - 1)]
       end
 
+      # Builds a two-element numeric array literal at `depth`.
+      #
+      # @param depth [Integer] maximum recursive steps remaining for its own elements
+      # @return [String] a `"[a, b]"` numeric array literal source text
       def numeric_array_literal(depth) = "[#{bounded(:numeric, depth).first(2).join(', ')}]"
+
+      # Builds a two-element string array literal at `depth`.
+      #
+      # @param depth [Integer] maximum recursive steps remaining for its own elements
+      # @return [String] a `"[a, b]"` string array literal source text
       def string_array_literal(depth)  = "[#{bounded(:string, depth).first(2).join(', ')}]"
 
       # Arrays known (by construction, not merely by type) to hold numeric
@@ -375,6 +455,10 @@ module Hecks
       # this (and `string_array_productions`, its twin) is how that extra
       # bit of type information flows without inventing a second, richer
       # AST just to carry it.
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] array expressions known to hold numeric elements:
+      #   `"arr_num"`, plus a numeric array literal at `depth`
       def numeric_array_productions(depth)
         ["arr_num", numeric_array_literal(depth)]
         # a Split of a string never yields numeric elements — no third
@@ -382,6 +466,12 @@ module Hecks
         # `string_array_productions`, its non-empty twin, right below).
       end
 
+      # Arrays known (by construction) to hold string elements — `arr_str`'s
+      # own twin of `numeric_array_productions`, above.
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] `"arr_str"`, a string array literal at `depth`, and
+      #   every string `Split` expression at `depth`
       def string_array_productions(depth)
         ["arr_str", string_array_literal(depth)] + bounded(:string, depth).map { |s| "#{s}.split(\",\")" }
       end
@@ -401,6 +491,12 @@ module Hecks
       # need `sub`/`num`/`str` threaded into each as parameters and
       # would separate every rule from the comment justifying it.
       # rubocop:disable-next Metrics/AbcSize
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] every boolean-typed construct in the grammar, one
+      #   level deep: comparisons, sign tests, `.empty?`/`.match?`/`.present?`/
+      #   `.blank?`/`.start_with?`/`.end_with?`, `&&`/`||`/`!`, block predicates,
+      #   and `include?`
       def boolean_productions(depth)
         sub = bounded(:boolean, depth - 1)
         num = bounded(:numeric, depth - 1)
@@ -444,6 +540,11 @@ module Hecks
       # corpus already does this two levels deep —
       # `examples/roster/bluebook/roster.bluebook`'s own `seats.any? { |s|
       # assignments.none? { |a| … } }`).
+      #
+      # @param depth [Integer] maximum recursive steps remaining for the predicate body
+      # @return [Array<String>] `.all?`/`.any?`/`.none?` calls over each
+      #   known-element-typed array source, one per predicate body `predicate_bodies`
+      #   produces; `[]` if `depth` is negative
       def block_predicate_productions(depth)
         return [] if depth.negative?
 
@@ -467,6 +568,11 @@ module Hecks
       # feeds three more constructs per body (`all?`/`any?`/`none?`) times
       # four array sources, so an unbounded body list here is exactly the
       # kind of multiplier this file's own `bounded` comment warns about.
+      #
+      # @param element_type [Symbol] the type `BLOCK_PARAM` is bound to inside the block
+      # @param depth [Integer] maximum recursive steps remaining for the body
+      # @return [Array<String>] a sampled set of boolean expressions, with
+      #   `BLOCK_PARAM` admitted as a leaf of `element_type`
       def predicate_bodies(element_type, depth)
         sample(with_element_leaf(element_type) { boolean_productions(depth) })
       end
@@ -476,6 +582,11 @@ module Hecks
       # haystack admits any needle type (compared via `equal?`, itself
       # numeric-coerced-first). Both sides generated here, matching
       # `Vocabulary::IncludeHaystack` exactly.
+      #
+      # @param depth [Integer] maximum recursive steps remaining
+      # @return [Array<String>] `haystack.include?(needle)` expressions: a String
+      #   haystack with a String needle, or a numeric/string array haystack with a
+      #   matching-type needle
       def include_productions(depth)
         str = bounded(:string, depth)
         pairs(str).map { |haystack, needle| "#{haystack}.include?(#{needle})" } +
@@ -507,8 +618,18 @@ module Hecks
       # to enumerate first) rather than every possible pairing of them.
       SAMPLE_CAP = 14
 
+      # Evenly samples `list` down to at most `SAMPLE_CAP` entries, so a list
+      # size never compounds unbounded across recursive passes.
+      #
+      # @param list [Array<String>] the list to sample
+      # @return [Array<String>] `list` unchanged if it is at most `SAMPLE_CAP` entries;
+      #   otherwise every `list.size.fdiv(SAMPLE_CAP).ceil`-th entry, evenly spaced
       def sample(list) = list.size <= SAMPLE_CAP ? list : list.each_slice(list.size.fdiv(SAMPLE_CAP).ceil).map(&:first)
 
+      # Builds every pair of one sampled list with itself.
+      #
+      # @param list [Array<String>] the list to sample and pair with itself
+      # @return [Array<Array(String, String)>] the sampled list's own self cross product
       def pairs(list)
         sampled = sample(list)
         sampled.product(sampled)
@@ -518,6 +639,10 @@ module Hecks
       # and right of a construct have genuinely different safety
       # requirements (`Modulo`'s own receiver vs. argument, below) and
       # squaring the same sampled list wouldn't be correct.
+      #
+      # @param left [Array<String>] the left-hand list to sample
+      # @param right [Array<String>] the right-hand list to sample
+      # @return [Array<Array(String, String)>] the two sampled lists' own cross product
       def cross(left, right) = sample(left).product(sample(right))
 
       # The full set — every boolean-typed expression up to `MAX_DEPTH`,
@@ -525,6 +650,10 @@ module Hecks
       # wrapped, at every deeper level — `.uniq` inside `productions`
       # already collapses most of that; this is the final pass over the
       # complete depth-`MAX_DEPTH` set specifically).
+      #
+      # @param max_depth [Integer] maximum recursive depth to generate up to
+      # @return [Array<String>] every boolean-typed expression up to `max_depth`,
+      #   deduplicated
       def all_predicates(max_depth = MAX_DEPTH)
         productions(:boolean, max_depth).uniq
       end
@@ -536,6 +665,12 @@ module Hecks
       # correctly, never a finding) and `{ok: false, error: ...}` only
       # for anything else escaping — the one shape this whole file exists
       # to prove never happens for well-typed input.
+      #
+      # @param expr [String] a generated (or hand-written) expression source string
+      # @return [Hash{Symbol => Object}] `{ok: true, result: Object}` for a real
+      #   answer, `{ok: true, result: :refused, message: String}` for a clean
+      #   `EvaluationError`, or `{ok: false, error: StandardError}` for anything else
+      #   escaping
       def check(expr)
         result = Hecks::Bluebook::Expression::Evaluator.call(expr, synthetic_state, synthetic_attrs)
         { ok: true, result: result }

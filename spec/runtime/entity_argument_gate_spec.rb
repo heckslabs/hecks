@@ -1,11 +1,11 @@
 require "spec_helper"
 
-# H1 (docs/audits/2026-08-10-main-bug-audit.md) — an entity command used to
+# H1 (docs/audits/2026-08-10-main-bug-audit.md) — an entity command would
 # run neither `refuse_unknown_arguments` nor `refuse_absent_arguments` at
-# all, on a comment claiming it "inherits its aggregate's own gate."
-# Nothing on the entity dispatch path ever ran one: a bogus argument was
+# all, on a comment claiming it "inherits its aggregate's own gate," if
+# nothing on the entity dispatch path ran one: a bogus argument would be
 # accepted outright, and a command that both declares an argument and
-# `sets` a field from it (`Advance`'s own `note`, below) silently wrote
+# `sets` a field from it (`Advance`'s own `note`, below) would silently write
 # `nil` over the stored value when that argument was simply omitted —
 # persisted data loss, no refusal. `EntityInterpreter` now `include`s the
 # same `CommandInterpreter::ArgumentGate` an aggregate command's own dispatch

@@ -142,7 +142,7 @@ RSpec.describe "QualityControl" do
 
     def target = @target ||= a_target("banking")
 
-    # **The friction this removed**. Every claim used to want
+    # **The friction this removed**. Without it, every claim would want
     # `now.value=$(date +%s) window.value=900` typed in front of it, which is a
     # shell incantation an agent gets wrong by pasting a stale number.
     it "fills now from the clock when the caller leaves it out" do
@@ -204,7 +204,7 @@ RSpec.describe "QualityControl" do
     # The one thing a query cannot do is count. `Bug.Open` answers rows and
     # leaves the arithmetic to whoever is reading; a tally is the arithmetic,
     # and it is grouped by the lifecycle state — which no `attribute` declares
-    # and `group_by` used to refuse.
+    # and which `group_by` admits rather than refuses.
     it "counts every bug under what became of it" do
       one = a_logged_bug("BUG#1")
       a_logged_bug("BUG#2")
@@ -781,7 +781,7 @@ RSpec.describe "QualityControl" do
     # Fixed: `trigger Ticket::IssueTracker::File` — a policy triggering an
     # `asks`/`tells` port operation (three segments: aggregate, port,
     # operation) rather than a plain command (two segments: aggregate,
-    # command) used to never resolve. `Naming.command_ref`'s bare-constant
+    # command) would otherwise never resolve. `Naming.command_ref`'s bare-constant
     # rewrite (only the last `::` becomes `.`) turns this into
     # "Ticket::IssueTracker.File", which `Naming.split_verb` now folds any
     # leftover `::` past the already-resolved domain boundary into the
@@ -992,8 +992,8 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
-    # **Real, not hypothetical** — PR #543 (a deliberate proof-only PR, never
-    # meant to merge) was closed by a human the moment its point was made,
+    # **Real, not hypothetical** — a deliberate proof-only PR, never
+    # meant to merge, closed by a human the moment its point was made,
     # while still sitting at "opened" in this ledger: `bin/qa_pr_check`
     # never got a chance to dispatch `Land` at all. `retire_if_settled?`
     # dispatches `Close` the instant `gh pr view` reports closed, whatever
@@ -1277,7 +1277,7 @@ RSpec.describe "QualityControl" do
 
   # ── a surprised chapter waits for a person ───────────────────────────
 
-  # `suspended` — the state `held` used to stand in for. Nothing here
+  # `suspended` — its own state, distinct from `held`. Nothing here
   # dispatches `Target.Suspend` by hand: `SuspendOnSurprise` (the
   # chapter's own foot) does it, from the `target` a surprising check
   # restates, and that is the whole claim under test.

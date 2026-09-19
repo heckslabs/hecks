@@ -2,6 +2,10 @@ require_relative "value/invariant_violation"
 require_relative "../vocabulary"
 
 module Hecks
+  # What runs a booted domain: dispatch, the command/entity/query/policy/saga
+  # interpreters, the registry a boot assembles, and the errors below —
+  # everything downstream of a `.bluebook`/`.hecksagon`/`.world` declaration.
+  # See `lib/hecks/runtime.rb` for the module's own facade and boot entry points.
   module Runtime
     class UnknownVerb < StandardError; end
     class EnsuresNotMet < StandardError; end
@@ -21,11 +25,21 @@ module Hecks
     class GivenNotMet < StandardError
       attr_reader :detail
 
+      # @param message [String, nil] the refusal text, pinned byte-for-byte across specs
+      # @param detail [String, nil] the failing comparison's resolved operands ("left: X,
+      #   right: Y"), or nil when the given's top-level shape is not a bare comparison
       def initialize(message = nil, detail: nil)
         super(message)
         @detail = detail
       end
 
+      # Renders `message` with `detail` appended, for a human reading an unhandled refusal.
+      #
+      # @param highlight [Boolean] unused; accepted for compatibility with `Exception#
+      #   detailed_message`'s own signature
+      # @param opts [Hash] unused; accepted for compatibility with `Exception#
+      #   detailed_message`'s own signature
+      # @return [String] `message`, with `" (#{detail})"` appended when `detail` is present
       def detailed_message(highlight: false, **opts)
         base = super
         detail ? "#{base} (#{detail})" : base
@@ -119,10 +133,10 @@ module Hecks
     #
     # Everything else is a defect : a NoMethodError in an interpreter, a
     # NameError from a missing constant, a TypeError from a bad assumption. A
-    # blanket `rescue StandardError` used to fold both into one line —
-    # `delivered: false, reason: "..."` — so a crash in the runtime was
-    # indistinguishable from a rule doing its job, and read as normal operation
-    # in the log.
+    # blanket `rescue StandardError` would fold both into one line —
+    # `delivered: false, reason: "..."` — making a crash in the runtime
+    # indistinguishable from a rule doing its job, reading as normal
+    # operation in the log.
     #
     # UnknownVerb is one of these, and deliberately : a cross-domain policy
     # (`across "Notifications"`) fires in deployments where that domain is not

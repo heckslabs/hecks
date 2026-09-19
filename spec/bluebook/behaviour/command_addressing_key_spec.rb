@@ -2,9 +2,9 @@ require "spec_helper"
 
 # `Behaviour::Command#addressing_key_for` — the fix for a real bug found
 # wiring `for_each` into banking (this session's own property-testing
-# arc): a fan-out dispatch used to mint `<aggregate>_id` for every
-# target command unconditionally, which refuses every dispatch to a
-# command declared on the very aggregate it self-references
+# arc): a fan-out dispatch minting `<aggregate>_id` for every target
+# command unconditionally refuses every dispatch to a command declared
+# on the very aggregate it self-references
 # (`Account.FreezeAccount`, addressed by `account`/its own identity, never a
 # synthetic foreign key).
 #

@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# S17, ADR 0026 — proves EntityInterpreter#apply_to_element's new
-# :append/:remove/:multiply/:clamp cases (previously missing, and
-# silently no-op'd rather than raised) against a dedicated fixture,
-# before either mechanism is used to convert the meta-domain's own
+# S17, ADR 0026 — proves EntityInterpreter#apply_to_element's
+# :append/:remove/:multiply/:clamp cases (a missing case would otherwise
+# silently no-op rather than raise) against a dedicated fixture,
+# before either mechanism converts the meta-domain's own
 # Member/Dispatch to real entities.
 RSpec.describe "an entity's own list-typed attribute" do
   # Not `FIXTURE` — a real, pre-existing gotcha this file's own first
@@ -103,11 +103,12 @@ factor: 10)
     expect(list[:count][:value]).to eq(10)
   end
 
-  # ADR 0047 — `Value::Coercion#hydrate_entity_list` used to bail out to a
-  # raw, un-hydrated passthrough the moment its target attribute's type
-  # named a value object rather than an entity, so a bare `sets :field`
+  # ADR 0047 — `Value::Coercion#hydrate_entity_list` delegates to
+  # `hydrate_value_object_list` the moment its target attribute's type
+  # names a value object rather than an entity, rather than bailing out to
+  # a raw, un-hydrated passthrough: a bare `sets :field`
   # (a whole-array argument, as opposed to element-by-element `append:`)
-  # left the list holding plain Hashes forever — never real `Value`
+  # would otherwise leave the list holding plain Hashes forever — never real `Value`
   # instances, never through the value object's own `pattern:`/
   # `invariant` checks. `SetTags`/`RemoveTagFromBoard` exist on this
   # fixture's `Board` aggregate (not `TaggedList`, its entity — this is

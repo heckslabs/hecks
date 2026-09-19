@@ -40,6 +40,12 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 require "hecks/query_ir"
 
+# Prints the structural diff between each named IR class (or every one) and
+# what the self-hosted meta-domain declares for it.
+#
+# @param args [Array<String>] construct names from `ARGV`, or empty for every
+#   known construct
+# @return [void]
 def run_constructs(args)
   puts Hecks::QueryIR.format_constructs(Hecks::QueryIR.constructs(args))
 rescue ArgumentError => e
@@ -47,6 +53,13 @@ rescue ArgumentError => e
   exit 1
 end
 
+# Prints every duplicated given/ensures/invariant declaration across the
+# given domains.
+#
+# @param args [Array<String>] domain directory paths from `ARGV`, plus an
+#   optional `"--meta"` flag; empty (or `"--meta"` alone) means every real
+#   example domain plus the self-hosted meta-domain
+# @return [void]
 def run_duplicates(args)
   use_meta = args.delete("--meta") || args.empty?
   domains  = args.empty? ? nil : args
@@ -54,6 +67,11 @@ def run_duplicates(args)
   puts Hecks::QueryIR.format_duplicates(Hecks::QueryIR.duplicates(domains: domains, include_meta: use_meta))
 end
 
+# Prints the six propagation touchpoints for one construct/field pair.
+#
+# @param args [Array<String>] `[name, field]` from `ARGV`; prints a usage
+#   message and exits if either is missing
+# @return [void]
 def run_impact(args)
   name, field = args
   unless name && field

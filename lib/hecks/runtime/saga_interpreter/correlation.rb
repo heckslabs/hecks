@@ -50,18 +50,16 @@ module Hecks
 
           # A self-referencing leg carries the correlation forward under its
           # own emitting record's identity — `event.id`, not a field dug back
-          # out of the payload. This used to read `event.payload[own_key]`
-          # (`own_key` the aggregate's own reference-key convention, "wire",
-          # "transfer"), which only ever held a value because legacy dispatch
-          # left the self-addressing key riding along in the payload
-          # unfiltered. Routing separated from payload (`to:`/`with:`, the
-          # facade's own `Handle#run` always uses it) closed exactly that
-          # leak — correctly, since an addressing key is not a fact the
-          # payload should carry — which left this tier reading an empty
-          # Hash for any self-referencing leg with no other declared
-          # attributes (`OnboardingCase.Clear`, `.Decline` — no `attribute`
-          # lines at all): the saga silently stopped advancing, forever, for
-          # exactly the leg this tier exists to correlate.
+          # out of the payload, because an addressing key is not a fact the
+          # payload should carry: routing is kept separate from payload
+          # (`to:`/`with:`, the facade's own `Handle#run` always uses it), so
+          # `own_key` (the aggregate's own reference-key convention, "wire",
+          # "transfer") never rides along in the payload unfiltered. Digging
+          # for it there would read an empty Hash for any self-referencing
+          # leg with no other declared attributes (`OnboardingCase.Clear`,
+          # `.Decline` — no `attribute` lines at all), silently stopping the
+          # saga from advancing, forever, for exactly the leg this tier
+          # exists to correlate.
           #
           # `event.id` says the identical thing this tier always meant —
           # "the record that just emitted this event, by its own identity" —

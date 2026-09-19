@@ -196,6 +196,12 @@ module Hecks
           # duplicate manually after a merge; teaching this intersect
           # about a rekey mapping is real, separate work, deliberately
           # out of scope for rekey's first pass.
+          # @param aggregate [Bluebook::Aggregate] the aggregate to check for conflicting ids
+          # @param edges [Hash] the fork's own era edges, as `names_by_era` reads them
+          # @param era [Integer] the new world's own era
+          # @param cut [Integer] the ordinal the fork happened at
+          # @return [Array<Array(String, String)>] `[storage_name, aggregate_id]` pairs touched
+          #   by both worlds since the cut
           def conflict_ids(aggregate, edges, era, cut)
             names = names_by_era(aggregate, edges)
             olds = (1...era).map { |ancestor| text_literal(names[:storage][ancestor - 1]) }.join(", ")
