@@ -1537,7 +1537,7 @@ pub fn dispatch_place_piece(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["in_progress", "check"] }),
         |record| {
-        if record.pieces.iter().any(|e| e.id == args.id.clone()) { let offered = format!("{:?}", args.id.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Piece", aggregate: "Game", identity: "id.value", offered: &[offered.as_str()] }.render_args())); }
+        if record.pieces.iter().any(|e| e.id == args.id.clone()) { let offered = format!("{:?}", args.id.clone().value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Piece", aggregate: "Game", identity: "id.value", offered: &[offered.as_str()] }.render_args())); }
         record.pieces.push(Piece { id: args.id.clone(), kind: args.kind.clone(), color: args.color.clone(), square: args.square.clone(), moved: MovedFlag::Unmoved, status: "on_board".to_string() });
             Ok(())
         },

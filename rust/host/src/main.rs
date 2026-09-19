@@ -15,6 +15,7 @@
 // place that sees both at once. The `.wasm` module itself never learns
 // either exists.
 
+mod api;
 mod approval;
 mod auth;
 mod checkout;
@@ -25,10 +26,13 @@ mod ir;
 mod journal;
 mod lambda_client;
 mod mint;
+mod presentation;
+mod presentation_write;
 mod reference_transform;
 mod reference_validate;
 mod secrets;
 mod storage_shape;
+mod ui_schema;
 mod wasm_runner;
 mod web;
 

@@ -253,11 +253,13 @@ module Hecks
         # by anything this boot does.
         def declare_syntax(runtime, bluebook)
           syntax = bluebook.aggregate("Syntax")
-          runtime.dispatch("Bluebook::Bluebook.Declare", name:           v(bluebook.hecks_name),
-                                                         vision:         v("the language's own grammar table, " \
-                                                                           "dispatched into itself"),
-                                                         classification: v("core"))
-          runtime.dispatch("Bluebook::Syntax.Declare", bluebook: bluebook.hecks_name, name: v(syntax.hecks_name))
+          runtime.dispatch("Bluebook::Bluebook.Declare",
+                           with: { name:           v(bluebook.hecks_name),
+                                   vision:         v("the language's own grammar table, " \
+                                                     "dispatched into itself"),
+                                   classification: v("core") })
+          runtime.dispatch("Bluebook::Syntax.Declare",
+                           with: { bluebook: bluebook.hecks_name, name: v(syntax.hecks_name) })
         end
 
         # `to: "Syntax"` NAMES THE RECORD ALREADY OPENED BY `declare_syntax`

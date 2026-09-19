@@ -7,6 +7,117 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Deprecated: command facts as loose keyword arguments to `dispatch`.**
+`runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
+amount: { cents: 100 })` still works and now warns once per call site;
+pass the facts as `with: { ... }` with the receiver's identity in `to:`
+instead. Removal is 1.4.0 (`Hecks::Runtime::Dispatcher::
+LEGACY_ARGS_REMOVAL`). One bag holding both the route and the payload is
+the shape behind nine past routing bugs, and `Runtime::Invocation` now
+reads every call's shape in one place — this closes the door that made
+the ambiguity possible. `bin/codemod_legacy_dispatch_args` rewrites
+existing callers: it records how each site's facts really split (against
+the live registry, not the call's text), then rewrites only the sites
+every observation agrees on, reporting the rest by name. The framework's
+own doors — `Hecks::Router` and the namespace shortcut, the forms app,
+the CLI and JSON doors, `Storehouse`, reaction re-entry, `bin/run`,
+corpus replay and the fuzzers — hand their argument bag to the new
+`Dispatcher#dispatch_flat(verb, args)` instead, the wire form the corpus
+JSON, `cli.rs` and a `with:`-less reaction all carry; it routes exactly
+as `dispatch(verb, **args)` always did and is not deprecated. Silence the
+warning with `HECKS_SILENCE_DEPRECATIONS=1`.
+
+**`rust/host` answers the console's writes: `POST /api/:coll` and
+`POST /api/:coll/:id/:command`.** A create runs the aggregate's one
+creating command, with the two things the console does around it that
+the domain itself cannot — minting an identity nobody should be asked
+to type (`slug` from another submitted field, `sequence` from the
+records already there) and checking a precondition a creating command's
+own `given` cannot express, because a `given` only reads its own
+aggregate. Both are the same config `/api/ui-schema` already tells the
+client about, so the picker only offers what the server will accept. A
+command against an existing record is matched by the snake_cased name
+the ui-schema handed the client, refusing an unknown record before an
+unknown command exactly as the Ruby engine does. A refused command
+comes back `422 {"error": <refusal class>, "message": ...}` — the
+kernel names the same classes Ruby's `DOMAIN_REFUSALS` does, so that
+envelope agrees name for name. The one strategy that cannot be ported
+says so: `identity: {strategy: port}` delegates to the domain's own
+`identity_assignment` adapter, Ruby this host has no runtime for, and
+refuses with `501` rather than dispatching without the field.
+
+**`rust/host` answers the console's collection reads: `GET /api/:coll`
+and `GET /api/:coll/:id`.** Records come out of the kernel's own
+`instances` with the record's id beside its fields, exactly as
+`Handle#to_h` builds them; the collection key resolves through the same
+`collections.<Name>.key` config `/api/ui-schema` advertises, so a
+renamed collection (Engagement's own "pipeline") answers under the name
+the client was given and a `404 {"error":"NotFound"}` names the
+unknown one. `?query=<name>` runs one of the aggregate's OWN declared
+queries through the compiled kernel — a new `dispatch::query`, seeding
+from the existing snapshot read and running the kernel's `{"query"}`
+step — with its arguments taken from same-named params and shaped the
+way each one wires (a reference or primitive bare, a value object
+wrapped in its own single field). An unknown query name or a missing
+required argument degrades to the plain `.all()` rather than erroring,
+which is the Ruby engine's own rule. `?sort=`/`?direction=` honour the
+collection's own sortable config and only the shapes an ORDER BY can
+actually push down, sorting in memory here (there is no SQL to push
+into) with Postgres's own null placement.
+
+**`rust/host` answers the console's `/api/ui-schema` and `/api/schema`.**
+`UiSchema.build` ported to Rust, rule for rule: one live domain IR plus
+the presentation config in, the same nav / columns / detail fields /
+field shapes / lifecycle transitions / create forms document
+embryonaut_console has always served out. Verified differentially, not
+just by unit test — the Rust document is BYTE-IDENTICAL to the Ruby
+engine's for the real Embryonaut domain, both with its real 8KB
+presentation config and with none at all. That diff found the one real
+disagreement in the port (Ruby's `String#split` drops trailing empty
+segments and Rust's does not, which showed up as `"  State  "` where
+Ruby renders `"  State"` in every table header) and it is fixed and
+pinned. `/api/schema` — every aggregate's real lifecycle states and
+real declared queries, each query argument shaped through the same
+`field` a create form's inputs go through — is identical too.
+
+**`rust/host` answers the console's `/api/*` surface: `/api/me` and
+`/api/presentation`.** The deployed Rust host already refused an
+unauthenticated `/api/...` request exactly the way the Ruby console
+engine does; an authenticated one fell through to this host's own
+`/<Domain>/<aggregate>` router and came back `404 no domain "api"
+loaded`. The refusal contract matched and the success contract didn't.
+`/api/me` now answers the same signed-in member hash
+(`email`/`name`/`identity_id`/`role`) embryonaut_console's own
+`session[:member]` carries, and `/api/presentation` the same nested
+config `PresentationConfig.load` returns — read from the `ConsoleSettings`
+chapter's own Postgres head views (`state_style_head`,
+`collection_head`, `overview_head`), in the database this host already
+holds a connection to, since that chapter is pinned to Ruby's Postgres
+adapter deliberately and permanently and is not in this crate's flat
+journal. A domain with no such relations reads back an empty config
+rather than failing. `PUT /api/presentation` is deliberately NOT ported
+and refuses with `501 NotImplemented` naming why: this host has no
+`ConsoleSettings` kernel to dispatch that chapter's commands through,
+and writing the rows behind its back would skip the invariants those
+commands enforce.
+
+**`rust/host`: an unauthenticated JSON request gets a 401, not a
+redirect to the login page.** The web gate used to answer every
+unauthenticated request the same way — `302` to `/login` — including
+ones that asked for JSON, so a `fetch()` or a `curl` followed the
+redirect and got `200` and an HTML login page where it expected data.
+A JSON-shaped request now gets `401 application/json` with
+`{"error":"Unauthenticated","message":"sign in first"}`, the Ruby
+console engine's own refusal body, key for key; everything else still
+redirects to `/login` exactly as before. JSON-shaped means a path under
+`/api/` (the Ruby engine's own rule, which likewise ignores `Accept:`)
+or one of this host's own routes asking for any format but `.html` —
+read through the same `split_format` the renderers use, so the gate
+can't disagree with the response the same path would have produced
+with a session. Found in production, where a deployed domain's own CI
+assertion that `/api/clients` is `401` had quietly stopped holding once
+the Rust host, rather than the Ruby engine, was serving it.
+
 **`deployed_to("AwsLambda") { stack_prefix "..." }`.** An optional
 setting for the `hecks-` half of a domain's own stack name (and so both
 Lambda function names, the Google OAuth secret, and the bastion stack),

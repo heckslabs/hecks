@@ -934,7 +934,7 @@ pub fn dispatch_add_slot(
         ],
         None,
         |record| {
-        if record.slots.iter().any(|e| e.number == args.number.clone()) { let offered = format!("{:?}", args.number.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Slot", aggregate: "Manifest", identity: "number.value", offered: &[offered.as_str()] }.render_args())); }
+        if record.slots.iter().any(|e| e.number == args.number.clone()) { let offered = format!("{:?}", args.number.clone().value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Slot", aggregate: "Manifest", identity: "number.value", offered: &[offered.as_str()] }.render_args())); }
         record.slots.push(Slot { number: args.number.clone(), item: None });
             Ok(())
         },

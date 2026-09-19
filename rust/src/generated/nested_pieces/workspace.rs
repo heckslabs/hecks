@@ -891,7 +891,7 @@ pub fn dispatch_entity_board_add_card(
         ],
         None,
         |record| {
-        if record.cards.iter().any(|e| e.sequence == args.sequence.clone()) { let offered = format!("{:?}", args.sequence.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Card", aggregate: "Board", identity: "sequence.value", offered: &[offered.as_str()] }.render_args())); }
+        if record.cards.iter().any(|e| e.sequence == args.sequence.clone()) { let offered = format!("{:?}", args.sequence.clone().value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Card", aggregate: "Board", identity: "sequence.value", offered: &[offered.as_str()] }.render_args())); }
         record.cards.push(Card { sequence: args.sequence.clone(), note: None });
             Ok(())
         },
@@ -1351,7 +1351,7 @@ pub fn dispatch_add_board(
         ],
         None,
         |record| {
-        if record.boards.iter().any(|e| e.number == args.number.clone()) { let offered = format!("{:?}", args.number.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Board", aggregate: "Workspace", identity: "number.value", offered: &[offered.as_str()] }.render_args())); }
+        if record.boards.iter().any(|e| e.number == args.number.clone()) { let offered = format!("{:?}", args.number.clone().value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Board", aggregate: "Workspace", identity: "number.value", offered: &[offered.as_str()] }.render_args())); }
         record.boards.push(Board { number: args.number.clone(), cards: Vec::new(), label: None });
             Ok(())
         },

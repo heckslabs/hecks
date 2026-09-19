@@ -96,10 +96,18 @@ attrs = admin.exec_params("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rol
 if attrs.ntuples.zero?
   # CREATE ROLE has no IF NOT EXISTS — the DO block is the race-safe
   # spelling, so two concurrent runs (parallel_rspec) both succeed.
+  #
+  # BOTH CONDITIONS, NOT JUST duplicate_object. That one is what a create
+  # finds when the role is already COMMITTED. Two creates in flight at the
+  # same instant both pass that check, and the loser dies on the catalog's
+  # own index instead — unique_violation on pg_authid_rolname_index. Seen
+  # live (PR #748's first run, two qa_sweep_all specs on one Postgres) and
+  # reproduced: 16 concurrent creates x 40 rounds raised it 141 times with
+  # duplicate_object alone, and never with both.
   admin.exec(<<~SQL)
     DO $$ BEGIN
       CREATE ROLE #{admin.quote_ident(role)} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
-    EXCEPTION WHEN duplicate_object THEN NULL;
+    EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL;
     END $$
   SQL
   done << "created role #{role} (LOGIN, no SUPERUSER, no BYPASSRLS)"

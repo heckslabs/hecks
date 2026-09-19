@@ -251,7 +251,7 @@ module Hecks
             attribute = entity.attribute(entity.identified_by)
             fields[entity.identified_by] = Value.from_identifier(aggregate, attribute, next_identity(current, entity))
           else
-            check_entity_collision(aggregate, entity, current, fields)
+            EntityElement.check_entity_collision(aggregate, entity, current, fields)
           end
           fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
           # BUG#12 — every one of THIS entity's own declared attributes
@@ -276,37 +276,16 @@ module Hecks
           held.max.to_i + 1
         end
 
-        # THE SAME CHECK #hydrate GIVES EVERY CREATING AGGREGATE COMMAND
-        # (`repository.find(id)`, above this file in command_interpreter.rb),
-        # one level down. Reached only on the two branches #entity_element
-        # does NOT auto-mint: a CALLER-SUPPLIED identity (the field is
-        # already in the append's own field map, so the `if` above skips
-        # it) or a COMPOSITE one (`entity.identified_by` is nil for those —
-        # Runtime::Identified#derive_identity — so the `if` above is false
-        # unconditionally). Neither used to check the sibling list at all:
-        # a second LogVisit with the same date+sequence, or a second
-        # IssueKey with the same serial, appended a silent duplicate — worse
-        # than an ordinary duplicate row, because EntityInterpreter#element_of's
-        # `find_index` always matches the FIRST match, so the second becomes
-        # permanently unaddressable by any later command.
-        #
-        # Auto-minted entities never reach here — `identity_heads` for them
-        # is still checked at mint time by construction (`current.size + 1`
-        # can only repeat if something `remove:`s from the list between
-        # mints, which no real domain does today), so they can't be flagged
-        # by mistake.
-        def check_entity_collision(aggregate, entity, current, fields)
-          heads = entity.identity_heads
-          return if heads.empty?
-
-          collision = Array(current).find { |element| heads.all? { |head| element[head] == fields[head] } }
-          return unless collision
-
-          raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "entity_duplicate",
-                                                          entity: entity.hecks_name, aggregate: aggregate.hecks_name,
-                                                          identity: Identity.reading(entity),
-                                                          offered: heads.map { |head| Rendering.describe(fields[head]) }))
-        end
+        # MOVED to `EntityElement.check_entity_collision` (entity_element.rb)
+        # — BUG#145. Used to live here, called only from `#entity_element`
+        # above (an AGGREGATE's own entity list, e.g. `Workspace.boards`).
+        # `EntityElement#appended_to_element`'s own nested-entity branch (an
+        # ENTITY's own entity list one hop further in, e.g. `Board.cards`)
+        # needs the exact same guard — see that method's own call site and
+        # comment for why a caller-supplied nested identity was silently
+        # duplicating before this moved. Pure relocation, not a behavior
+        # change here: the check's own doc comment (heads/composite/
+        # auto-mint reasoning) now lives with the code, in entity_element.rb.
       end
     end
   end

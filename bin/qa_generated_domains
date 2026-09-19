@@ -181,7 +181,14 @@ if options[:promote]
   puts "next:"
   puts "  bin/qa_domain_novelty qa/stress_domains/#{name}"
   puts "  bin/project_rust qa/stress_domains/#{name}        # when the finding needs the Rust comparison"
-  puts "  bin/run qa/bluebook target.identify reference.value=#{name} path.value=qa/stress_domains/#{name}"
+  # ONE COMMAND, AND IT READS THE CORPUS. This used to print a hand-typed
+  # `target.identify` for the promoted name, which is exactly how ten
+  # promoted or authored stress domains ended up never swept: the line
+  # was printed, nobody ran it, and nothing anywhere noticed the domain
+  # was not in the rotation. `bin/qa_seed_targets` now derives every
+  # target from `Hecks::Corpus.rotation_targets`, so this domain is in
+  # that list already, by virtue of being on disk.
+  puts "  bin/qa_seed_targets                               # idempotent; picks this domain up from the corpus"
   exit EXIT_OK
 end
 

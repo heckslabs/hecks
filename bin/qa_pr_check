@@ -271,11 +271,11 @@ end
 def retire_if_settled?(view, number, label, runtime, aggregate)
   case view[:state]
   when "MERGED"
-    runtime.dispatch("QualityControl::#{aggregate}.Merge", id: number)
+    runtime.dispatch_flat("QualityControl::#{aggregate}.Merge", { id: number })
     puts "#{label}: merged — retired from the worklist"
     true
   when "CLOSED"
-    runtime.dispatch("QualityControl::#{aggregate}.Close", id: number)
+    runtime.dispatch_flat("QualityControl::#{aggregate}.Close", { id: number })
     puts "#{label}: closed without merging — retired from the worklist"
     true
   else
@@ -369,7 +369,7 @@ end
 # only one that fires.
 def ask_the_ledger(sha, label, citation, number, runtime, newly_red, aggregate:)
   QualityControl::Clearance.start!(commit: { value: sha })
-  runtime.dispatch("QualityControl::Clearance.CI.Run", commit: sha)
+  runtime.dispatch_flat("QualityControl::Clearance.CI.Run", { commit: sha })
 
   cleared = QualityControl::Clearance.find(sha)
   summary = cleared.summary.to_h[:value]

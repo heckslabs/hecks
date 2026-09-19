@@ -67,10 +67,12 @@ deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecks/deploy", __dir__))
 begin
   deploy_dispatcher.dispatch(
     "Deploy::Tenant.Declare",
-    slug:   { value: slug },
-    domain: { value: options[:domain] },
-    realm:  { value: options[:realm] },
-    schema: { value: options[:schema] }
+    with: {
+      slug:   { value: slug },
+      domain: { value: options[:domain] },
+      realm:  { value: options[:realm] },
+      schema: { value: options[:schema] }
+    }
   )
 rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "tenant #{slug.inspect} is invalid: #{e.message}"

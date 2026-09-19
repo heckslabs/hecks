@@ -37,7 +37,7 @@ module Hecks
 
       attr_reader :registry
 
-      def initialize(registry, region: "us-east-1")
+      def initialize(registry, region: "us-east-1", function: nil)
         @registry = registry
         # `File.basename(registry.root)`, not `bluebooks.keys.first` —
         # matches `Adapters::Lambda`'s own function-name resolution
@@ -49,7 +49,12 @@ module Hecks
         # inside a deployed Lambda, giving "task" instead of the real
         # domain name (a real, live AccessDeniedException on
         # "hecks-task" caught this).
-        @client = Adapters::Lambda::Client.new(domain: ENV["DOMAIN_NAME"] || File.basename(registry.root), region: region)
+        # `function:` — the `.world`'s own `dispatched_by("Lambda")`
+        # naming of which function this is, for a deployment whose stack
+        # name isn't `hecks-<domain>` (Client's own comment has the real
+        # case). Absent, the resolution above is unchanged.
+        @client = Adapters::Lambda::Client.new(domain: ENV["DOMAIN_NAME"] || File.basename(registry.root),
+                                               region: region, function: function)
         # READ-SIDE DELEGATE ONLY (see class comment) — never dispatched
         # through; a real Dispatcher's own `query`/`reference_query`
         # already resolve generically via `registry.repository(...)`,
@@ -57,7 +62,17 @@ module Hecks
         @local = Dispatcher.new(registry)
       end
 
+      # Same deprecation as `Dispatcher#dispatch` — loose keyword facts warn;
+      # `to:`/`with:` do not.
       def dispatch(verb, saga_correlation: nil, **args)
+        Dispatcher.deprecate_loose_facts(args.except(:to, :with))
+        dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
+      end
+
+      # Same flat-facts wire form as `Dispatcher#dispatch_flat`.
+      def dispatch_flat(verb, args = {})
+        args = args.dup
+        saga_correlation = args.delete(:saga_correlation)
         domain, aggregate_name, = Naming.split_verb(verb) ||
                                   raise(UnknownVerb,
                                         RefusalWording.render_site("UnknownVerb", "not_fully_qualified", verb: verb))
@@ -82,7 +97,7 @@ module Hecks
         # all.
         adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
         unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
-          return @local.dispatch(verb, saga_correlation: saga_correlation, **args)
+          return @local.dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
         end
 
         response = @client.dispatch(verb, args)

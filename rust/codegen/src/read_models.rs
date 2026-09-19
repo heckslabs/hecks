@@ -5,11 +5,12 @@
 use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::queries;
+use crate::skip_reason::{reskip, skip, SkipReason};
 use std::collections::HashMap;
 
 const READ_MODEL_BARE_KEYS: &[&str] = &["name", "description", "reference_name", "reference_target", "query_name", "aggregate_heads", "wheres", "order_by", "offset", "limit", "freshness", "index_hints", "group_by", "null_semantics", "authorization", "count", "median_field"];
 
-pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<String> {
+pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
     let keys: Vec<&str> = match read_model {
         Json::Object(pairs) => pairs.iter().filter(|(_, v)| !matches!(v, Json::Null)).map(|(k, _)| k.as_str()).collect(),
         _ => Vec::new(),
@@ -39,8 +40,9 @@ pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<St
     // Rootless (no `reference_to`) is generated — `read_models.rb`'s own
     // comment on this check.
     if root.is_none() && !reference_target.is_empty() {
-        return Some(format!(
-            "declares reference_to {reference_target}, but includes no matching aggregate head — nothing for this generator's own root fetch to key off"
+        return Some(skip(
+            "missing_root_head",
+            format!("declares reference_to {reference_target}, but includes no matching aggregate head — nothing for this generator's own root fetch to key off"),
         ));
     }
 
@@ -62,13 +64,13 @@ pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<St
     aggregation_skip_reason(read_model, aggregates_by_name)
 }
 
-fn read_model_options_skip_reason(extra: &[&str]) -> String {
+fn read_model_options_skip_reason(extra: &[&str]) -> SkipReason {
     let mut sorted: Vec<&str> = extra.to_vec();
     sorted.sort();
-    format!(
+    skip(sorted[0], format!(
         "declares {} — out of scope for this generator: cursor/consistency/inspection are real capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator does not port (this file's own header has the full argument, the same boundary queries.rb already draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — neither is read by the in-memory interpreter path this kernel matches",
         sorted.join(", ")
-    )
+    ))
 }
 
 /// ADR 0055's own guard — mirrors `rust/project/read_models.rb`'s
@@ -89,12 +91,14 @@ fn multi_target_options(read_model: &Json) -> bool {
         || read_model.get("offset").is_some()
 }
 
-fn multi_target_options_skip_reason() -> String {
-    "declares where/order_by/limit/offset with more than one many-side included aggregate — ADR 0055's own `on:` \
+fn multi_target_options_skip_reason() -> SkipReason {
+    skip(
+        "multi_target_options",
+        "declares where/order_by/limit/offset with more than one many-side included aggregate — ADR 0055's own `on:` \
      lets Ruby's interpreter apply each option to a specific many-side head, but this generator still trusts \"the \
      first many-side head is the eligible one\" (read_model_filtered_head_as) and has no per-head codegen yet — not \
-     generated yet, refused rather than risk applying an option to the wrong head"
-        .to_string()
+     generated yet, refused rather than risk applying an option to the wrong head",
+    )
 }
 
 /// `IR::ReadModel#filtered_head_name`, ported directly.
@@ -112,7 +116,7 @@ pub fn read_model_filtered_head_as(read_model: &Json) -> Option<String> {
     heads.iter().find(|h| h.get("many").map(Json::as_bool).unwrap_or(false)).and_then(|h| h.get("as")).map(Json::to_s)
 }
 
-fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<String> {
+fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let eligible_as = read_model_filtered_head_as(read_model)?;
 
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
@@ -124,10 +128,32 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
     let vos = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
     let value_objects_by_name: HashMap<String, &Json> = vos.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
 
+    // A hop through a reference is generated when `query_hop_plan` resolves
+    // it — `read_models.rb`'s own loop, check for check.
     let wheres = read_model.get("wheres").map(Json::each).unwrap_or(&[]);
     for where_clause in wheres {
+        let field = where_clause.get("field").map(Json::to_s).unwrap_or_default();
+        let hop = queries::query_hop_plan(aggregate, &field, aggregates_by_name);
+        if hop.is_none() && field.contains('/') {
+            return Some(skip(
+                "reference_hop_where",
+                format!(
+                    "eligible head {aggregate_name}'s own where clause on {} hops through a reference this generator can't resolve yet (more than one hop, the head isn't a real reference attribute, or the target aggregate isn't declared in this domain) — not generated yet",
+                    crate::naming::ruby_inspect_string(&field)
+                ),
+            ));
+        }
+
+        if let Some(plan) = hop {
+            let target_value_objects_by_name = queries::value_objects_of(plan.target);
+            if let Some(reason) = queries::query_where_skip_reason(&queries::with_field(where_clause, &plan.inner_field), plan.target, &target_value_objects_by_name) {
+                return Some(reskip(&reason, format!("eligible head {aggregate_name}'s own hop through {} to {}'s own {reason}", plan.via_field, plan.target_aggregate)));
+            }
+            continue;
+        }
+
         if let Some(reason) = queries::query_where_skip_reason(where_clause, aggregate, &value_objects_by_name) {
-            return Some(format!("eligible head {aggregate_name}'s own {reason}"));
+            return Some(reskip(&reason, format!("eligible head {aggregate_name}'s own {reason}")));
         }
     }
 
@@ -153,7 +179,7 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
 /// by the time this ever runs — this doesn't re-derive either. `count`
 /// needs no further check (a bare row count has nothing to validate);
 /// `median`'s own FIELD is the one genuinely new thing to confirm.
-fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<String> {
+fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let median_field = read_model.get("median_field")?;
     let field = Json::to_s(median_field);
 
@@ -167,10 +193,11 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
     let value_objects_by_name: HashMap<String, &Json> = vos.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
 
     match queries::query_field_kind(aggregate, &field, &value_objects_by_name) {
-        queries::FieldKind::Unknown => Some(format!("median names {field:?}, but {aggregate_name} declares no such attribute — not generated yet")),
+        queries::FieldKind::Unknown => Some(skip("median_field", format!("median names {field:?}, but {aggregate_name} declares no such attribute — not generated yet"))),
         queries::FieldKind::Number => None,
-        _ => Some(format!(
-            "median names {field:?} on {aggregate_name}, which is not numeric — median needs a numeric field (a bare number, or a value object carrying one) — not generated yet"
+        _ => Some(skip(
+            "median_field",
+            format!("median names {field:?} on {aggregate_name}, which is not numeric — median needs a numeric field (a bare number, or a value object carrying one) — not generated yet"),
         )),
     }
 }
@@ -178,24 +205,24 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
 /// `group_by`'s own eligibility — mirrors `rust/project/read_models.rb`'s
 /// own `group_by_skip_reason` exactly: the ONE real shape the corpus
 /// declares, a single ROOTLESS head, group_by alone.
-fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<String> {
+fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     if heads.len() != 1 {
-        return Some(format!("declares group_by across {} aggregate heads — not generated yet (only a single, rootless head is)", heads.len()));
+        return Some(skip("group_by", format!("declares group_by across {} aggregate heads — not generated yet (only a single, rootless head is)", heads.len())));
     }
     let reference_target = read_model.get("reference_target");
     if reference_target.is_some() && !matches!(reference_target, Some(Json::Null)) {
-        return Some(format!("declares group_by on a NON-rootless read model (reference_to {}) — not generated yet", reference_target.map(Json::to_s).unwrap_or_default()));
+        return Some(skip("group_by", format!("declares group_by on a NON-rootless read model (reference_to {}) — not generated yet", reference_target.map(Json::to_s).unwrap_or_default())));
     }
     if read_model.get("count").is_some() || read_model.get("median_field").is_some() {
-        return Some("declares group_by alongside count/median — not generated yet".to_string());
+        return Some(skip("group_by", "declares group_by alongside count/median — not generated yet"));
     }
     let has_wheres = read_model.get("wheres").map(Json::each).unwrap_or(&[]).iter().any(|_| true);
     if has_wheres || read_model.get("order_by").is_some() || read_model.get("limit").is_some() || read_model.get("offset").is_some() {
-        return Some("declares group_by alongside where/order_by/limit/offset — not generated yet".to_string());
+        return Some(skip("group_by", "declares group_by alongside where/order_by/limit/offset — not generated yet"));
     }
     if read_model.get("authorization").is_some() {
-        return Some("declares group_by with an authorize policy — not generated yet".to_string());
+        return Some(skip("group_by", "declares group_by with an authorize policy — not generated yet"));
     }
 
     let head = &heads[0];
@@ -214,7 +241,7 @@ fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, 
         let is_attr = attrs.iter().any(|a| crate::attr::name(a) == field);
         let is_lifecycle = lifecycle_field.as_deref() == Some(field.as_str());
         if !is_attr && !is_lifecycle {
-            return Some(format!("group_by names {field:?}, but {aggregate_name} declares no such attribute — not generated yet"));
+            return Some(skip("group_by", format!("group_by names {field:?}, but {aggregate_name} declares no such attribute — not generated yet")));
         }
     }
     None
@@ -238,22 +265,26 @@ fn nested_entity_names(aggregates_by_name: &HashMap<String, &Json>) -> Vec<Strin
 }
 
 /// Port of `read_models.rb#entity_head_skip_reason`.
-fn entity_head_skip_reason(aggregate_name: &str, role: &str, purpose: &str) -> String {
-    format!(
-        "includes {aggregate_name}, a nested entity, as the {role} — an entity has no rows of its own (ReadModelInterpreter#records reads it as empty), so there is nothing to {purpose} — not generated yet"
+fn entity_head_skip_reason(aggregate_name: &str, role: &str, purpose: &str) -> SkipReason {
+    skip(
+        "include_entity_head",
+        format!("includes {aggregate_name}, a nested entity, as the {role} — an entity has no rows of its own (ReadModelInterpreter#records reads it as empty), so there is nothing to {purpose} — not generated yet"),
     )
 }
 
-fn read_model_head_skip_reason(head: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<String> {
+fn read_model_head_skip_reason(head: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
     if !aggregates_by_name.contains_key(&aggregate_name) {
         if nested_entity_names(aggregates_by_name).contains(&aggregate_name) {
             return None;
         }
-        return Some(format!("includes {aggregate_name}, which this domain never declares"));
+        return Some(skip("include_undeclared_aggregate", format!("includes {aggregate_name}, which this domain never declares")));
     }
     if unsupported_names.contains(&aggregate_name) {
-        return Some(format!("includes {aggregate_name}, which this generator couldn't itself generate (unsupported attribute type — see this domain's own aggregate-level manifest entry)"));
+        return Some(skip(
+            "include_unsupported_aggregate",
+            format!("includes {aggregate_name}, which this generator couldn't itself generate (unsupported attribute type — see this domain's own aggregate-level manifest entry)"),
+        ));
     }
     None
 }
@@ -342,6 +373,7 @@ pub struct ReadModelDef {
     pub heads: Vec<String>,
     pub filtered_head: Option<String>,
     pub conditions: Vec<queries::Condition>,
+    pub reference_hop_conditions: Vec<queries::HopCondition>,
     pub order_by: Option<String>,
     pub offset: Option<String>,
     pub limit: Option<String>,
@@ -364,6 +396,17 @@ pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: 
         .collect();
 
     let eligible_as = read_model_filtered_head_as(read_model);
+    // `local_wheres, hop_wheres` — `read_models.rb#read_model_def`'s own
+    // partition over the eligible head's aggregate.
+    let eligible_aggregate: Option<&Json> = eligible_as
+        .as_ref()
+        .and_then(|as_name| heads_json.iter().find(|h| h.get("as").map(Json::to_s).unwrap_or_default() == *as_name))
+        .and_then(|h| aggregates_by_name.get(&h.get("aggregate").map(Json::to_s).unwrap_or_default()).copied());
+    let wheres = read_model.get("wheres").map(Json::each).unwrap_or(&[]);
+    let (local_wheres, hop_wheres): (Vec<&Json>, Vec<&Json>) = match eligible_aggregate {
+        Some(aggregate) => wheres.iter().partition(|w| queries::query_hop_plan(aggregate, &w.get("field").map(Json::to_s).unwrap_or_default(), aggregates_by_name).is_none()),
+        None => (wheres.iter().collect(), Vec::new()),
+    };
     let read_model_name = read_model.get("name").map(Json::to_s).unwrap_or_default();
     let group_by_fields: Vec<String> = read_model.get("group_by").map(Json::each).unwrap_or(&[]).iter().map(|row| row.get("field").map(Json::to_s).unwrap_or_default()).collect();
     let (group_by_fn, group_by_fn_body) = if !group_by_fields.is_empty() {
@@ -380,7 +423,11 @@ pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: 
         reference_name: read_model.get("reference_name").map(Json::to_s),
         heads,
         filtered_head: eligible_as.clone(),
-        conditions: if eligible_as.is_some() { queries::query_conditions_with_authorization(read_model) } else { Vec::new() },
+        conditions: if eligible_as.is_some() { queries::query_conditions_with_authorization(&with_wheres(read_model, &local_wheres)) } else { Vec::new() },
+        reference_hop_conditions: match (&eligible_as, eligible_aggregate) {
+            (Some(_), Some(aggregate)) => queries::read_model_hop_conditions(domain_name, &hop_wheres, aggregate, aggregates_by_name),
+            _ => Vec::new(),
+        },
         order_by: if eligible_as.is_some() { read_model.get("order_by").map(|ob| emit_read_model_order_by(ob, read_model.get("null_semantics"))) } else { None },
         offset: if eligible_as.is_some() { read_model.get("offset").map(emit_read_model_offset) } else { None },
         limit: if eligible_as.is_some() { read_model.get("limit").map(emit_read_model_limit) } else { None },
@@ -389,6 +436,19 @@ pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: 
         group_by_fn_body,
         count: read_model.get("count").is_some(),
         median_field: read_model.get("median_field").map(Json::to_s),
+    }
+}
+
+/// `read_model.merge(wheres: local_wheres)`.
+fn with_wheres(read_model: &Json, wheres: &[&Json]) -> Json {
+    let wheres = Json::Array(wheres.iter().map(|w| (*w).clone()).collect());
+    match read_model {
+        Json::Object(pairs) => {
+            let mut pairs: Vec<(String, Json)> = pairs.iter().filter(|(key, _)| key != "wheres").cloned().collect();
+            pairs.push(("wheres".to_string(), wheres));
+            Json::Object(pairs)
+        }
+        other => other.clone(),
     }
 }
 
@@ -429,25 +489,12 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
         None => "None".to_string(),
     };
 
-    // ALWAYS EMPTY — item 2.4 (D1) of the equivalence-gap plan, ported
-    // from `rust/project/read_models.rb`'s own `read_model_hop_
-    // conditions`. That function's real hop-detection logic
-    // (`query_hop_plan`, queries.rb) is NOT ported here: a full corpus
-    // check (confirmed directly, the same way that Ruby work was
-    // verified) found zero real read models across the whole corpus
-    // declare a reference-hop where clause today, so an always-empty
-    // slice is byte-correct for every real domain this tool's own
-    // parity spec covers — not a stub standing in for missing behavior,
-    // the exact value the real detection logic would also compute for
-    // every one of them. Porting `query_hop_plan` itself against zero
-    // real examples to prove it against would be exactly the kind of
-    // speculative generality this codebase's own comments elsewhere
-    // warn against; do that the day a real corpus read model actually
-    // needs it, against that real example. Rendered as an EMPTY LINE
-    // inside `&[ ]` (`.join("\n")` over zero elements), matching Ruby's
-    // own `conditions`/every other empty-array field's rendering here —
-    // never the tighter `&[]` a hand-typed empty literal would use.
-    let reference_hop_conditions = "";
+    let reference_hop_conditions = rmd
+        .reference_hop_conditions
+        .iter()
+        .map(|h| format!("        {}", queries::emit_reference_hop_condition(h)))
+        .collect::<Vec<_>>()
+        .join("\n");
     format!(
         "crate::kernel::read_model::ReadModelDef {{\n    verb: {},\n    reference_name: {reference_name},\n    heads: &[\n{heads}\n    ],\n    filtered_head: {filtered_head},\n    conditions: &[\n{conditions}\n    ],\n    reference_hop_conditions: &[\n{reference_hop_conditions}\n    ],\n    order_by: {order_by},\n    offset: {offset},\n    limit: {limit},\n    authorization: {authorization},\n    group_by: {group_by},\n    count: {count},\n    median_field: {median_field},\n}},",
         crate::naming::ruby_inspect_string(&rmd.verb)

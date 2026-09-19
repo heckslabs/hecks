@@ -1470,7 +1470,7 @@ pub fn dispatch_add_line(
         ],
         None,
         |record| {
-        if record.lines.iter().any(|e| e.sequence == args.sequence.clone()) { let offered = format!("{:?}", args.sequence.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Line", aggregate: "Kiosk", identity: "sequence.value", offered: &[offered.as_str()] }.render_args())); }
+        if record.lines.iter().any(|e| e.sequence == args.sequence.clone()) { let offered = format!("{:?}", args.sequence.clone().value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Line", aggregate: "Kiosk", identity: "sequence.value", offered: &[offered.as_str()] }.render_args())); }
         record.lines.push(Line { sequence: args.sequence.clone(), label: None });
             Ok(())
         },

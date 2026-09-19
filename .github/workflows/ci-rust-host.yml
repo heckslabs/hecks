@@ -43,6 +43,7 @@ jobs:
   # honors PGUSER/PGPASSWORD). `rspec_rust_host_lineage` drops both.
   rspec_rust_host_cargo:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
     # need this job.
@@ -97,6 +98,7 @@ jobs:
 
   rspec_rust_host_lineage:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     if: github.event_name != 'push'
 

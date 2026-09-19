@@ -174,6 +174,69 @@ pub fn literal_problem(mutation: &Json, field_name: &str, lit: &Literal, field_a
     Some(format!("{target}.{field_name}: literal doesn't bridge to {}", crate::attr::type_name(field_attr)))
 }
 
+/// Port of `rust/project/mutations.rb#state_source_problems` — a `set` from
+/// `state(:field)`, or an `append` field sourced from one, whose state field
+/// the aggregate doesn't declare or whose type/cardinality differs from the
+/// target's. Same checks, same order, same message text.
+pub fn state_source_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    mutations
+        .iter()
+        .flat_map(|m| {
+            let target = m.get("target").map(Json::to_s).unwrap_or_default();
+            match m.get("op").map(Json::to_s).unwrap_or_default().as_str() {
+                "set" => {
+                    let source = m.get("source");
+                    if source.and_then(|s| s.get("kind")).map(Json::to_s).unwrap_or_default() != "state" {
+                        return Vec::new();
+                    }
+                    let state_name = source.and_then(|s| s.get("name")).map(Json::to_s).unwrap_or_default();
+                    state_source_problem(&target, &state_name, aggregate, attrs.iter().find(|a| crate::attr::name(a) == target)).into_iter().collect()
+                }
+                "append" => {
+                    let Some(target_attr) = attrs.iter().find(|a| crate::attr::name(a) == target) else { return Vec::new() };
+                    let Some(element) = append_element(aggregate, crate::attr::type_name(target_attr), value_objects_by_name) else { return Vec::new() };
+                    let element_attrs = element.get("attributes").map(Json::each).unwrap_or(&[]);
+                    let Some(Json::Object(fields)) = m.get("fields") else { return Vec::new() };
+                    fields
+                        .iter()
+                        .filter_map(|(field_name, source)| {
+                            let text = source.to_s();
+                            let state_name = text.strip_prefix("state(:")?.strip_suffix(')')?;
+                            state_source_problem(&format!("{target}.{field_name}"), state_name, aggregate, element_attrs.iter().find(|a| crate::attr::name(a) == field_name))
+                        })
+                        .collect()
+                }
+                _ => Vec::new(),
+            }
+        })
+        .collect()
+}
+
+fn state_source_problem(label: &str, state_name: &str, aggregate: &Json, target_attr: Option<&Json>) -> Option<String> {
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let Some(state_attr) = attrs.iter().find(|a| crate::attr::name(a) == state_name) else {
+        let aggregate_name = aggregate.get("name").map(Json::to_s).unwrap_or_default();
+        return Some(format!("{label}: sources state(:{state_name}), which {aggregate_name} does not declare"));
+    };
+    let Some(target_attr) = target_attr else {
+        return Some(format!("{label}: no such target field"));
+    };
+    let same = crate::attr::type_name(state_attr) == crate::attr::type_name(target_attr) && crate::attr::list(state_attr) == crate::attr::list(target_attr);
+    if same {
+        return None;
+    }
+    let list_of = |a: &Json| if crate::attr::list(a) { "a list of " } else { "" };
+    Some(format!(
+        "{label}: state(:{state_name}) is {}{}, the target wants {}{} — not generated yet",
+        list_of(state_attr),
+        crate::attr::type_name(state_attr),
+        list_of(target_attr),
+        crate::attr::type_name(target_attr)
+    ))
+}
+
 /// Every `append` mutation's own field(s), checked against the element
 /// they're building.
 pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
@@ -228,6 +291,59 @@ pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_
                 }
             }
             problems
+        })
+        .collect()
+}
+
+/// BUG#32 — port of `rust/project/mutations.rb#remove_field_problems`
+/// (read that method's own comment for the full argument): a `remove:`
+/// is generatable only against an ENTITY-typed list whose single-head
+/// identity `entity_identity_mint` accepts, sourced from a declared
+/// argument that bridges to that identity's type. Same checks, same
+/// order, same message text.
+pub fn remove_field_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+    let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    mutations
+        .iter()
+        .filter(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "remove")
+        .filter_map(|m| {
+            let target_name = m.get("target").map(Json::to_s).unwrap_or_default();
+            let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+            let Some(target_attr) = attrs.iter().find(|a| crate::attr::name(a) == target_name).filter(|a| crate::attr::list(a)) else {
+                return Some(format!("{target_name}: not a declared list attribute"));
+            };
+
+            let entities = aggregate.get("entities").map(Json::each).unwrap_or(&[]);
+            let Some(entity) = entities.iter().find(|e| e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr))) else {
+                return Some(format!("{target_name}: remove on a value-object-typed list is not generated yet"));
+            };
+            let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("");
+
+            if entity.get("identified_by").map(Json::each).unwrap_or(&[]).len() != 1 {
+                return Some(format!("{target_name}: {entity_name}'s identity is composite — remove not generated yet"));
+            }
+
+            let Some((id_attr, _)) = entity_identity_mint(entity, value_objects_by_name) else {
+                return Some(format!("{target_name}: {entity_name}'s identity isn't a single bridgeable field — remove not generated yet"));
+            };
+
+            let source = m.get("source");
+            let Some(source) = source.filter(|s| matches!(s, Json::Object(_)) && s.get("kind").map(Json::to_s).unwrap_or_default() == "argument") else {
+                return Some(format!("{target_name}: remove sources a literal or record state, not an argument — not generated yet"));
+            };
+
+            let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
+            let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+            let Some(source_attr) = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name) else {
+                return Some(format!("{target_name}: remove sources undeclared argument {source_name}"));
+            };
+
+            let (source_type, id_type) = (crate::attr::type_name(source_attr), crate::attr::type_name(id_attr));
+            if !crate::bridging::bridgeable_value_types(source_type, id_type, value_objects_by_name) {
+                return Some(format!("{target_name}: {source_type} doesn't bridge to {id_type}"));
+            }
+
+            None
         })
         .collect()
 }
@@ -537,8 +653,25 @@ fn emit_mutation_line_body(
                         let entity_lit = naming::ruby_inspect_string(entity_name);
                         let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
                         let identity_lit = naming::ruby_inspect_string(&identity_reading);
+                        // BUG#143 — `Rendering.describe`'s own single-field
+                        // unwrap (rendering.rb), matched here so `format!`
+                        // renders the SAME bare scalar Ruby's own
+                        // `RefusalWording.render`'s "offered" arm does, the
+                        // identical fix `entity_list_replace_guard` (BUG#33,
+                        // above) already applies to the sibling whole-list
+                        // `:set` REPLACE guard. `{id_rhs}` alone Debug-prints
+                        // the WHOLE identity value object (`SlipReference {
+                        // value: "juliet" }`), not the bare `"juliet"` a
+                        // reader (and `bin/rust_conformance`'s own
+                        // byte-exact comparison) expects. `id_vo` here is
+                        // `entity_identity_mint`'s own return — this branch
+                        // only runs inside its `if let Some((id_attr,
+                        // id_vo))`, so it is already guaranteed exactly one
+                        // attribute; no fallback arm is needed.
+                        let offered_field = naming::rust_ident_field(crate::attr::name(&id_vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+                        let offered_expr = format!("{id_rhs}.{offered_field}");
                         collision_guard = format!(
-                            "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ let offered = format!(\"{{:?}}\", {id_rhs}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }}\n        "
+                            "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ let offered = format!(\"{{:?}}\", {offered_expr}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }}\n        "
                         );
                     }
                 }
@@ -709,6 +842,28 @@ fn emit_mutation_line_body(
         // `corrects` command reached it — never possible before BUG#31's
         // own `corrects_given_specs` prepend made ENTITY-level `corrects`
         // admissible enough to reach real codegen at all in this crate.
+        "remove" => {
+            // BUG#32 — port of rust/project/mutations.rb's own `when
+            // "remove"` (see that comment for the full "identity, not
+            // whole-value equality" argument). `remove_field_problems`
+            // already confirmed every lookup below resolves.
+            let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+            let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name).expect("remove target must be a declared aggregate attribute");
+            let entities = aggregate.get("entities").map(Json::each).unwrap_or(&[]);
+            let entity = entities.iter().find(|e| e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr))).expect("remove target must be an entity-typed list");
+            let (id_attr, _) = entity_identity_mint(entity, value_objects_by_name).expect("remove target entity's identity must mint");
+            let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
+            let source_name = mutation.get("source").and_then(|s| s.get("name")).map(Json::to_s).unwrap_or_default();
+            let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+            let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name).expect("remove source must be a declared argument");
+            let match_expr = crate::bridging::value_rhs(
+                &format!("args.{}", naming::rust_ident_field(crate::attr::name(source_attr))),
+                crate::attr::type_name(source_attr),
+                crate::attr::type_name(id_attr),
+                value_objects_by_name,
+            );
+            exemplar.render("mutation_remove", &[("tmpl_field", target_field.to_string()), ("tmpl_id_field", id_field), ("tmpl_remove_match_placeholder()", match_expr)])
+        }
         "corrects" => String::new(),
         other => panic!("unsupported mutation op {other:?} — command_skip_reason should have caught this"),
     }

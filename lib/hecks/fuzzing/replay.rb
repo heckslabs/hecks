@@ -334,7 +334,7 @@ module Hecks
               # sibling `kernel/cli.rs` already read (its own comment on
               # the key): with it, a Governance-attached domain runs the
               # real `holds_role?` lookup instead of the string fallback.
-              result = as_step_caller(step) { runtime.dispatch(step["verb"], **args) }
+              result = as_step_caller(step) { runtime.dispatch_flat(step["verb"], args) }
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
 
