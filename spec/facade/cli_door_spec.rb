@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **Flat strings in, nested typed arguments out** — the translation a command line
+# Flat strings in, nested typed arguments out — the translation a command line
 # needs and `JsonDoor` does not, because JSON arrives already nested and
 # already typed.
 RSpec.describe Hecks::Facade::CliDoor do
@@ -25,7 +25,7 @@ RSpec.describe Hecks::Facade::CliDoor do
       .to eq(pizza: { price_cents: { cents: 1500 }, size: { value: "large" } })
   end
 
-  # **The type comes from the projection, never from the value**. A door that
+  # The type comes from the projection, never from the value. A door that
   # guessed would send the Integer 99 for a version string of "99" and be wrong
   # in a way nothing downstream could detect.
   describe "typing" do

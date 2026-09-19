@@ -106,7 +106,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   # the same method, which already read current state first for exactly
   # this reason ("Postgres does not skip the lock just because the
   # statement would be a no-op"). Two real sessions reissuing either
-  # raced Postgres's own catalog mvcc into `PG::InternalError: tuple
+  # raced Postgres's own catalog MVCC into `PG::InternalError: tuple
   # concurrently updated`. Real threads, real separate PG connections (each
   # `described_class.new` opens its own) — not a synthetic simulation.
   it "boots the same already-provisioned domain from many concurrent connections without a catalog race" do

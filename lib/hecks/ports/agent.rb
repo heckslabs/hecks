@@ -92,7 +92,7 @@ module Hecks
       # prose reasoning a human typed does not carry on its own.
       Proposal = Struct.new(:verb, :arguments, :rationale, keyword_init: true)
 
-      # Critique reuses `Bluebook::ModelCheck::Finding`'S own shape —
+      # Critique reuses `Bluebook::ModelCheck::Finding`'s own shape —
       # same fields, same severities, so a mechanical finding
       # (`Session#gaps`) and a judgement (this) print in one list and
       # sort together. The kind vocabulary is not shared — ModelCheck's
@@ -110,59 +110,90 @@ module Hecks
         def to_s = "#{severity.to_s.upcase.ljust(7)} #{kind.to_s.ljust(20)} #{subject}  —  #{message}"
       end
 
-      # One suggested NAME. `rejected` carries the near-misses and why
+      # One suggested name. `rejected` carries the near-misses and why
       # they were passed over — free at the point the model is choosing
       # anyway, and the part a human actually learns from.
       Suggestion = Struct.new(:name, :because, :rejected, keyword_init: true)
 
       module_function
 
-      # The next best question. `state` is the whole picture — normally
+      # Asks the adapter for the next best question and validates its raw answer into structs.
+      #
+      # `state` is the whole picture — normally
       # `Interview::Session#declaration` plus `#gaps`, so an adapter
       # needs no memory of its own between calls; that is what lets a
       # headless run be a series of one-shot processes, same as
       # `bin/interview` itself already is.
       #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param state [Object] the interview's whole current picture (declaration plus gaps)
-      # @param asked [Array] questions already asked, so the adapter doesn't repeat itself
-      # @return [Array<Question>]
-      # @raise [ValidationError] if the adapter's answer doesn't parse into a Question
-      # @raise [Unavailable] if the adapter cannot answer at all
+      # @param state [Hash] the interview's whole current picture (declaration plus gaps),
+      #   JSON-able because an adapter may serialise it into a prompt
+      # @param asked [Array<Object>] JSON-able record of the questions already asked, so the
+      #   adapter does not repeat one; `[]` when nothing has been asked
+      # @return [Array<Ports::Agent::Question>] the questions the adapter answered with, in
+      #   its order; `[]` if it offered none
+      # @raise [Ports::Agent::ValidationError] if the answer is not a Hash holding a
+      #   `"questions"` array whose rows each carry a non-blank `"text"` and `"because"`
+      # @raise [Ports::Agent::Unavailable] if the adapter cannot answer at all (missing
+      #   binary, failed subprocess, timeout, or an exhausted scripted queue)
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def ask(registry, state:, asked: [])
         Answers.questions(adapter(registry).ask(state: state, asked: asked))
       end
 
-      # Prose -> proposed declarations. Returns `[]` when the sentence
+      # Turns a human's sentence into proposed declarations, validated into structs.
+      #
+      # Returns `[]` when the sentence
       # carried no declaration at all (a clarifying question back from
       # the human, say) — a legitimate answer, not a failure.
       #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param prose [String] a human's plain-English sentence
-      # @param state [Object] the interview's whole current picture
-      # @return [Array<Proposal>]
-      # @raise [ValidationError] if the adapter's answer doesn't parse into Proposals
-      # @raise [Unavailable] if the adapter cannot answer at all
+      # @param state [Hash] the interview's whole current picture, JSON-able because an
+      #   adapter may serialise it into a prompt
+      # @return [Array<Ports::Agent::Proposal>] one proposal per declaration the sentence
+      #   named; `[]` when it named none
+      # @raise [Ports::Agent::ValidationError] if the answer is not a Hash holding a
+      #   `"proposals"` array, a row's `"verb"` is not `Chapter::Aggregate.Command`, its
+      #   `"rationale"` is blank, or one of its argument rows has no `"name"`
+      # @raise [Ports::Agent::Unavailable] if the adapter cannot answer at all (missing
+      #   binary, failed subprocess, timeout, or an exhausted scripted queue)
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def interpret(registry, prose:, state:)
         Answers.proposals(adapter(registry).interpret(prose: prose, state: state))
       end
 
+      # Asks the adapter to judge a declared model on taste, validated into structs.
+      #
       # What is wrong with this as a model — handed everything already
       # known (the language's own refusals, `Session#gaps`'s mechanical
       # findings) so it spends its judgement on what neither of those
       # can see, rather than restating them.
       #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param declared [Object] the chapter as declared so far
-      # @param refusals [Array] refusals the language itself already raised
-      # @param findings [Array] mechanical findings `Session#gaps` already found
-      # @return [Array<Finding>]
-      # @raise [ValidationError] if the adapter's answer doesn't parse into Findings
-      # @raise [Unavailable] if the adapter cannot answer at all
+      # @param declared [Hash] the chapter as declared so far, JSON-able because an adapter
+      #   may serialise it into a prompt
+      # @param refusals [Array<Object>] JSON-able refusals the language itself already
+      #   raised; `[]` when there are none
+      # @param findings [Array<Object>] JSON-able mechanical findings `Session#gaps` already
+      #   found; `[]` when there are none
+      # @return [Array<Ports::Agent::Finding>] the adapter's judgements; `[]` when it has
+      #   nothing worth saying
+      # @raise [Ports::Agent::ValidationError] if the answer is not a Hash holding a
+      #   `"findings"` array, a row's `"kind"` is outside `CRITIQUE_KINDS`, its `"severity"`
+      #   is outside `SEVERITIES`, or its `"subject"` or `"message"` is blank
+      # @raise [Ports::Agent::Unavailable] if the adapter cannot answer at all (missing
+      #   binary, failed subprocess, timeout, or an exhausted scripted queue)
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def critique(registry, declared:, refusals: [], findings: [])
         Answers.findings(adapter(registry).critique(declared: declared, refusals: refusals, findings: findings))
       end
 
+      # Asks the adapter to suggest a name for a construct, validated into structs.
+      #
       # Vocabulary help. `near` is what the chapter already calls
       # things, so a suggestion cannot collide with a name in use.
       #
@@ -176,22 +207,31 @@ module Hecks
       # own name. Measured, not theoretical: this exact collision broke
       # RSpec's own failure-message formatting the first time it was
       # named `name` here.
+      #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param meaning [String] what the new name needs to mean
-      # @param kind [Symbol] the kind of construct being named
-      # @param near [Array<String>] names already in use in this chapter, to avoid colliding with
-      # @return [Array<Suggestion>]
-      # @raise [ValidationError] if the adapter's answer doesn't parse into Suggestions
-      # @raise [Unavailable] if the adapter cannot answer at all
+      # @param kind [String] the kind of construct being named, such as `"event"`; an
+      #   adapter interpolates it into its prompt
+      # @param near [Array<String>] names already in use in this chapter, which a suggestion
+      #   must not collide with; `[]` when there are none
+      # @return [Array<Ports::Agent::Suggestion>] the suggested names, each with its
+      #   `rejected` near-misses as Strings
+      # @raise [Ports::Agent::ValidationError] if the answer is not a Hash holding a
+      #   `"names"` array whose rows each carry a non-blank `"name"` and `"because"`
+      # @raise [Ports::Agent::Unavailable] if the adapter cannot answer at all (missing
+      #   binary, failed subprocess, timeout, or an exhausted scripted queue)
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def suggest_name(registry, meaning:, kind:, near: [])
         Answers.suggestions(adapter(registry).suggest_name(meaning: meaning, kind: kind, near: near))
       end
 
-      # Finds the single adapter bound to this port.
+      # Finds the single adapter bound to this port, refusing an ambiguous wiring.
       #
       # @param registry [Runtime::Registry] the booted registry to search
-      # @return [Class] the adapter class implementing this port
-      # @raise [Runtime::WiringError] if zero or more than one adapter implements it
+      # @return [Module] the adapter module or class implementing this port
+      # @raise [Runtime::WiringError] if no adapter, or more than one, implements this port,
+      #   or the one that does has no Ruby implementation under `Hecks::Adapters`
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

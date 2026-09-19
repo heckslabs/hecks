@@ -40,7 +40,7 @@ require "open3"
 require_relative "../../lib/hecks/fuzzing/nondeterministic"
 
 module RustConformanceHelpers
-  # **A declared feature that did not build** — raised, never answered as nil.
+  # A declared feature that did not build — raised, never answered as nil.
   # `build_rust_for` answers nil for exactly one reason (the crate declares
   # no such feature, so the caller's own named skip applies); a failed
   # `cargo build` used to read as that same nil and silently become a skip.
@@ -101,7 +101,7 @@ module RustConformanceHelpers
     end
   end
 
-  # **The cross-process critical section** — see the module header for the
+  # The cross-process critical section — see the module header for the
   # race this closes. Held across `cargo build` through the copy-out,
   # not just the copy: only that stretch, start to finish, is what
   # "safely rescue the shared `target/debug/rust` artifact before
@@ -209,7 +209,7 @@ module RustConformanceHelpers
   # (`Hecks::Fuzzing::RustGapManifest`, applied by `Hecks::Fuzzing::
   # Differential.manifest_partition`).
 
-  # **The wire format's own loss, not a behavioral divergence**. `Json::Num`
+  # The wire format's own loss, not a behavioral divergence. `Json::Num`
   # (rust/src/kernel/json.rs) is a plain `f64` end to end — every integer
   # this kernel's own JSON parser reads, including a query's own echoed
   # `args`, goes through it. An integer outside `f64`'s 53-bit exact

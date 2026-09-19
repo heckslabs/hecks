@@ -418,7 +418,7 @@ RSpec.describe "the DSL surface" do
                          /UseCode#attributes\[0\]: no Aggregate with bluebook, name "HeadOnly:Code"/)
     end
 
-    # **A default fills the shape it is declared on**. `default: "open"` on a
+    # A default fills the shape it is declared on. `default: "open"` on a
     # value-object attribute built cleanly and then refused every create at
     # dispatch, which cost a corpus member 33 refusals out of 40 steps while
     # every downstream check still passed — refusing consistently is
@@ -2821,7 +2821,7 @@ RSpec.describe "the DSL surface" do
       expect(command.attribute(:balance).type).to eq("Tag")
     end
 
-    # **A literal that spells the field's own name is not the shorthand** —
+    # A literal that spells the field's own name is not the shorthand —
     # `sets :moved, to: "moved"` (a chess rook recording that it has
     # moved, into a closed set whose member is literally "moved") used
     # to read as `sets :moved` and import the owner's attribute as a

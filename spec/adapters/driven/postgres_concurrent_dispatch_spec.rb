@@ -26,7 +26,7 @@ require_relative "../../support/postgres_probe"
 # reads prior aggregate state, on a command Postgres persists through the
 # plain, lock-free `save` path.
 #
-# **This spec demonstrates the gap, it does not fix it**. Two independent
+# This spec demonstrates the gap, it does not fix it. Two independent
 # Dispatcher instances (the same shape two separate application processes
 # take in production) both bound to the same Postgres database and the same
 # "a" account row. Both concurrently dispatch `Debit` for an amount that
@@ -77,7 +77,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
   # production; the only thing they share is the Postgres row for account
   # "a".
   #
-  # **One inline bluebook, declared whole** — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
@@ -163,7 +163,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
   # not a fabricated seam; it is the one real method every state-dependent
   # dispatch already calls at exactly this point.
   #
-  # **Only the first `find` per adapter pauses**. The fix under test retries a
+  # Only the first `find` per adapter pauses. The fix under test retries a
   # losing dispatch's whole `#call` on `StaleWrite` (CommandInterpreter's
   # own optimistic-concurrency CAS) — a real, correct second `find` inside
   # that retry, re-reading the first debit's now-committed balance. That

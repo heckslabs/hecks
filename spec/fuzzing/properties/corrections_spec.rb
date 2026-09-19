@@ -102,7 +102,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.corrections_reference_an_emitted_even
     end
   end
 
-  # **The entity-level case this property exists to watch**. `Ledger.Entry.
+  # The entity-level case this property exists to watch. `Ledger.Entry.
   # Amend` cannot be reached through a real dispatch — see this file's own
   # header comment — so `history` is entirely hand-built here: real
   # `Aggregate`/`Entity`/`Command` objects (from a zero-step boot, no

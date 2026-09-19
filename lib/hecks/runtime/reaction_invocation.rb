@@ -49,7 +49,7 @@ module Hecks
         end
       end
 
-      # **One `with:` source, resolved** — pulled out of resolve_mapping
+      # One `with:` source, resolved — pulled out of resolve_mapping
       # because it is a pure function of its own arguments (a literal, a
       # binding, or a name visible in some scope), with no dependency on
       # anything else resolve_mapping's own to_h block is doing.
@@ -99,7 +99,7 @@ module Hecks
           rescue UnknownVerb
             return args
           end
-          # **An entity target has no shape this branch can build** — an
+          # An entity target has no shape this branch can build — an
           # implicit (unprojected) `to:` is always a bare scalar, the
           # aggregate's own identity alone; an entity command's receiver is
           # `{aggregate:, entities:}`, which needs the entity's own

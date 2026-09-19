@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **Does a new stress domain earn its place**? — the gate `.claude/skills/
+# Does a new stress domain earn its place? — the gate `.claude/skills/
 # hecks_qa/SKILL.md`'s "Authoring a new stress domain" step runs before
 # a domain is identified as a `QualityControl::Target`.
 #
@@ -38,7 +38,7 @@
 # is the worked example — three reference-hop forms, none of which any
 # target paired with anything until it did.
 #
-# **The path shape is enforced here too**. A stress domain is
+# The path shape is enforced here too. A stress domain is
 # `<name>/bluebook/<name>.bluebook` — `bin/project_rust` reads exactly
 # that file for `source_text`, and a flat `<name>.bluebook` breaks it
 # (qa/stress_domains/ledger_ordering/NOTES.md, on PR #516's naming

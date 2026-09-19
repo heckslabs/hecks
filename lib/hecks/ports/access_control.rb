@@ -23,53 +23,82 @@ module Hecks
 
       module_function
 
-      # Looks up the session an already-resolved identity is signed into.
+      # Asks the domain's adapter for the session an already-resolved identity signs into.
       #
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param identity_id [String] the identity to look up
-      # @return [Object, nil] the adapter's own session representation, or nil if none
+      # No adapter or spec double for this port ships in this repository, so every shape
+      # below other than `registry` is adapter-defined: the port forwards it untouched.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @param identity_id [Object] adapter-defined identity key, forwarded unchanged
+      # @return [Object] adapter-defined session representation
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def session_for_identity(registry, identity_id:)
         adapter(registry).session_for_identity(registry, identity_id: identity_id)
       end
 
       # Admits a new person, in whatever way this domain's adapter defines admission.
       #
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param email [String] the person's email
-      # @param issuer [String] the OIDC issuer that authenticated them
-      # @param subject [String] the OIDC subject the issuer vouches for
-      # @return [Object] the adapter's own representation of the newly-admitted person
+      # The keywords carry the names of a verified sign-in (`Ports::Authentication.verify`
+      # answers `issuer`, `subject` and `email`), but nothing in this repository wires the
+      # two together, so their shapes here are adapter-defined.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @param email [Object] adapter-defined, forwarded unchanged; the person's email
+      # @param issuer [Object] adapter-defined, forwarded unchanged; the OIDC issuer that
+      #   authenticated the person
+      # @param subject [Object] adapter-defined, forwarded unchanged; the OIDC subject the
+      #   issuer vouches for
+      # @return [Object] adapter-defined representation of the newly admitted person
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def provision(registry, email:, issuer:, subject:)
         adapter(registry).provision(registry, email: email, issuer: issuer, subject: subject)
       end
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @return [Array] the roles this domain's adapter can grant
+      # Asks the domain's adapter which roles it can grant.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @return [Object] adapter-defined collection of grantable roles
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def available_roles(registry)
         adapter(registry).available_roles(registry)
       end
 
-      # Grants a role to an already-admitted person.
+      # Grants a role to a person, by whatever means the domain's adapter records a grant.
       #
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param email [String] the person to grant the role to
-      # @param role [Symbol, String] the role to grant, one of `available_roles`
-      # @return [Object] the adapter's own representation of the grant
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @param email [Object] adapter-defined, forwarded unchanged; the person receiving the role
+      # @param role [Object] adapter-defined, forwarded unchanged; the role to grant
+      # @return [Object] adapter-defined representation of the grant
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def grant(registry, email:, role:)
         adapter(registry).grant(registry, email: email, role: role)
       end
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @return [Array] every person this domain's adapter knows about
+      # Lists every person the domain's adapter knows about.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @return [Object] adapter-defined collection of people
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def all_people(registry)
         adapter(registry).all_people(registry)
       end
 
-      # Finds the single adapter bound to this port.
+      # Finds the single adapter bound to this port, refusing an ambiguous wiring.
       #
       # @param registry [Runtime::Registry] the booted registry to search
-      # @return [Class] the adapter class implementing this port
-      # @raise [Runtime::WiringError] if zero or more than one adapter implements it
+      # @return [Module] the adapter module or class implementing this port
+      # @raise [Runtime::WiringError] if no adapter, or more than one, implements this port,
+      #   or the one that does has no Ruby implementation under `Hecks::Adapters`
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

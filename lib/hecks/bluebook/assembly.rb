@@ -17,7 +17,7 @@ module Hecks
     # Feed it the reconstruction instead and the same code assembles what the
     # language holds — the only difference being where the declarations came from.
     #
-    # **Every field is read from one table**. There is no method per category here:
+    # Every field is read from one table. There is no method per category here:
     # `Contracts` names what the language cannot say about a construct, `Build`
     # reads it, and the coverage gate holds the table to the language. The first
     # draft of this file did have a method each, which is the shape the judge used

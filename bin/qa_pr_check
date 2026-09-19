@@ -87,7 +87,7 @@
 # stays outside the port" below); `GithubChecks` reaches `gh` on its own,
 # by commit, for the verdict itself.
 #
-# **Pending stays outside the port, on purpose**. `Clearance`'s own two
+# Pending stays outside the port, on purpose. `Clearance`'s own two
 # endings are `Passed`/`Failed` — final, and minted once per commit
 # forever (see `Clearance`'s own header). There is no "ask me again
 # later" a `refuses` could mean without lying: refusing "checks are still
@@ -111,7 +111,7 @@
 # rather than trusting `Patch.commit` (frozen at `Open`, useful as
 # provenance, not as this run's own question).
 #
-# **The loop closes from this end too**. `Patch`'s own lifecycle is
+# The loop closes from this end too. `Patch`'s own lifecycle is
 # `opened` → `merged`/`closed`, however GitHub reports it — the same
 # `raised` → `filed`/`closed` shape `Ticket` already keeps for an issue.
 # Nothing in this repository is told the moment a PR merges or closes, so
@@ -143,7 +143,7 @@
 #      bigger. Never re-verify or re-close this script's own way; that is
 #      exactly the judgment step it does not have.
 #
-# **What this script deliberately does not do**: decide whether a red run
+# What this script deliberately does not do: decide whether a red run
 # means the fix was wrong, judge which failing check matters, write a new
 # regression test, open a second PR, record a new `Patch` for one it does
 # not already know about (that is the orchestrator's own job, at the
@@ -261,7 +261,7 @@ if worklists.values.all?(&:empty?)
   exit EXIT_OK
 end
 
-# **The loop closes from this end**. Neither `Patch` nor `Improvement` moves
+# The loop closes from this end. Neither `Patch` nor `Improvement` moves
 # off its own open states when something tells it to — nothing in this
 # repository is notified the moment GitHub merges or closes a PR, so this
 # is the one place that asks and records what it hears, before spending
@@ -283,7 +283,7 @@ def retire_if_settled?(view, number, label, runtime, aggregate)
   end
 end
 
-# **The one place this script still looks at `gh` itself** — deciding whether
+# The one place this script still looks at `gh` itself — deciding whether
 # a commit is even worth asking the ledger about yet. See this file's own
 # header, "pending stays outside the port." Returns whether the checks
 # have settled (a verdict is worth asking `Clearance.CI.Run` for);
@@ -311,7 +311,7 @@ def checks_settled?(number, label, citation, sha, operational_errors)
   true
 end
 
-# **One PR, start to finish** — pulled out of the loop below so the loop
+# One PR, start to finish — pulled out of the loop below so the loop
 # itself reads as "for every tracked-open PR, check it" rather than
 # burying that shape under every early-exit this one PR's own checking
 # needs. Appends to `newly_red`/`operational_errors` in place rather than
@@ -352,7 +352,7 @@ def check_one_pr(row, runtime, newly_red, operational_errors, aggregate:, citati
   ask_the_ledger(sha, label, citation, number, runtime, newly_red, aggregate: aggregate)
 end
 
-# **The ask, and the verdict read back** — this is the whole replacement for
+# The ask, and the verdict read back — this is the whole replacement for
 # the old `record_clearance`, which used to compute pass/fail itself and
 # dispatch `Clearance::Passed`/`Failed` by hand. `Clearance.Start` still
 # happens here (starting a run is this script's own decision); everything

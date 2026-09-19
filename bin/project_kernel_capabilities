@@ -43,7 +43,7 @@
 # sites give once a human closes the gap by adding the file
 # (bin/rust_kernel_coverage checks for exactly that file, mechanically).
 #
-# **A third capability used to be written here too, and no longer is** —
+# A third capability used to be written here too, and no longer is —
 # worth recording why, since its absence could otherwise look like an
 # oversight rather than a decision. `Hecks::QuerySpecification::
 # Common::COMPARATORS` (lib/hecks/query_specification/common/
@@ -103,7 +103,7 @@ def write_atomically(target, content)
 end
 
 # snake_case grammar/Ruby name -> PascalCase Rust variant name. Plain
-# ASCII splitting on "_" — every name this ever sees (shapes' own
+# ASCII splitting on "_" — every name this ever sees (SHAPES' own
 # symbols, Grammar's own `category` strings) is already a simple
 # lowercase/underscore token, never anything richer.
 def pascal(name)
@@ -152,7 +152,7 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
   write_atomically(target, content)
 end
 
-# ── Attribute shapes ──────────────────────────────────────────────────
+# ── Attribute SHAPES ──────────────────────────────────────────────────
 shape_names = Hecks::Runtime::Value::Coercion::SHAPES
 emit_mod(
   File.join(ROOT, "rust/src/kernel/attribute_shapes/mod.rs"),

@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **The model's shape, held to the language that declares it**.
+# The model's shape, held to the language that declares it.
 #
 # Every construct's `emits_ir` restates what `bluebook.bluebook` already
 # says — and the two are allowed to differ, in five specific ways that

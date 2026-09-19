@@ -1,4 +1,4 @@
-# **Nothing here requires a gem at load time** — this file arrives through
+# Nothing here requires a gem at load time — this file arrives through
 # RUBYOPT, ahead of `bundler/setup`, and activating a default gem (json)
 # that early makes Bundler refuse the Gemfile's own version. `json` is
 # required on first write instead, by which point Bundler has resolved.
@@ -75,7 +75,7 @@ module Hecks
         end
       end
 
-      # **Every key the dispatch's own events carry**. A loose fact reaches the
+      # Every key the dispatch's own events carry. A loose fact reaches the
       # event payload whether the command declares it or not, and a policy
       # with no `with:` projection forwards that payload verbatim — so
       # moving a key out of the facts and into `to:` can silently empty a

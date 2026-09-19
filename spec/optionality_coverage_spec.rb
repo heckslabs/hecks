@@ -1,7 +1,7 @@
 require "spec_helper"
 require "json"
 
-# **A field the corpus never sets is a field the runtime has never been asked to read**.
+# A field the corpus never sets is a field the runtime has never been asked to read.
 #
 # The sibling of spec/plurality_coverage_spec.rb, in the other direction. That one
 # asks whether a declared list is ever filled with two. This asks whether a
@@ -21,7 +21,7 @@ require "json"
 # declare one, proving the keyword is really read, before that domain folded into
 # banking (`Hecks.bluebook "Banking", version: "v1"`) and carried the proof forward.
 #
-# **Why this is measured on the wire and not from the language**. The language's
+# WHY this is measured on the wire and not from the language. The language's
 # `optional` marks a command argument that may be left out — a dispatch-time
 # property that never appears in the IR at all. Reading optionality off the
 # language and looking for it in the goldens conflates two different questions

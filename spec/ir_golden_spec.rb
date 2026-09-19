@@ -28,7 +28,7 @@ require "fileutils"
 RSpec.describe "the IR the builder produces, frozen" do
   GOLDEN_DIR = File.join(InMemoryDomain::ROOT, "spec/golden/ir").freeze
 
-  # **The guard for the comment above, made executable**. Gemfile.lock is
+  # The guard for the comment above, made executable. Gemfile.lock is
   # gitignored (this is a library gem — Bundler convention holds lockfiles
   # for applications, not gems consumers install), so nothing commits the
   # exact dependency graph that produced these fixtures. What does commit
@@ -56,7 +56,7 @@ RSpec.describe "the IR the builder produces, frozen" do
   # Chapters that load from a file, name => path.
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
-    # **The flagship domain, carrying what market and relay used to alone**.
+    # The flagship domain, carrying what market and relay used to alone.
     # Composite identity (`SafeDepositBox`, branch_code + box_number), a
     # command that announces twice (`Surrender`), two entities on one head,
     # a second read_model and a second process_manager — every rare form this

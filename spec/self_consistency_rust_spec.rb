@@ -22,7 +22,7 @@ class Differ
 end
 
 RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
-  # **Prefixed, not the bare name every other spec file also reaches for** —
+  # Prefixed, not the bare name every other spec file also reaches for —
   # `spec/load_hygiene_spec.rb`'s own "lets no two spec files disagree
   # about a top-level constant" check flags any name two files both
   # assign, `PIZZAS`/`BANKING`/`RUST_DIR`/`ROOT` included (an

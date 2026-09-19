@@ -19,7 +19,7 @@ RSpec.describe "Banking across persistence adapters" do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # **One fixture boot, declared whole** — every aggregate's persisted_by/
+  # One fixture boot, declared whole — every aggregate's persisted_by/
   # projected_by pairing has to be read alongside the same `projected`
   # flag deciding whether that pairing applies at all; splitting this
   # into smaller methods would mean threading `adapter`/`projected`/

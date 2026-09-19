@@ -113,7 +113,7 @@ if candidates.empty?
   exit 0
 end
 
-# **Deep, key-type-and-order-independent comparison** — written when Heki's
+# Deep, key-type-and-order-independent comparison — written when Heki's
 # own state hashes were only symbolized at the top level while a
 # `PostgresEra`-backed read came back deeply symbolized. Since PR A3 both
 # sides decode through `Ports::Persistence::StateCodec` (and PR A4 guards

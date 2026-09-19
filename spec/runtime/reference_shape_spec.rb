@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **A reference is an ID, so an object is not one**.
+# A reference is an ID, so an object is not one.
 #
 # Nothing coerced a reference anywhere: the value-object lookup misses
 # on "Reference<Drawer>", which is no value object's name, so the argument was

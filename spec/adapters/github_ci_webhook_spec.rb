@@ -13,7 +13,7 @@ require_relative "../../qa/adapters/github_ci_webhook"
 # test the Rack app directly" trade this whole suite already makes for
 # `Hecks::Forms::App` in spec/forms/app_spec.rb).
 #
-# **End to end, for real, against the actual domain** — not a mock of
+# End to end, for real, against the actual domain — not a mock of
 # `QualityControl`. A real `Target`/`Sweep`/`Bug` is logged and fixed
 # with a real commit exactly the way `spec/quality_control_spec.rb`'s own
 # "the CI watch" examples do; the only thing synthetic here is the
@@ -41,7 +41,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     def now = 1_000
   end
 
-  # **Neither tracker nor CI adapter is exercised by this spec** — the
+  # Neither tracker nor CI adapter is exercised by this spec — the
   # webhook settles a `Clearance` directly (see
   # `Hecks::QA::ClearanceRecorder`), never asking the `CI` port at all.
   # Both are still bound because `registry.verify!` below refuses to
@@ -132,7 +132,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     bug.fix!(reference: { value: reference }, commit: { value: commit })
   end
 
-  # **A real `check_suite` payload shape** — trimmed to the fields this
+  # A real `check_suite` payload shape — trimmed to the fields this
   # adapter (or a human reading a fixture) would actually look at, but
   # every field present is a real field GitHub's own webhook payload
   # documentation for `check_suite` describes, not an invented one:
@@ -216,7 +216,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
-  # **A conclusion this adapter does not special-case** — GitHub's own
+  # A conclusion this adapter does not special-case — GitHub's own
   # `conclusion` enum has more members than "success" and "failure"
   # (`neutral`, `skipped`, `cancelled`, `timed_out`, `action_required`,
   # `stale`). Handled the same way `Hecks::Adapters::GithubChecks::

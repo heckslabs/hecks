@@ -15,13 +15,10 @@ module Hecks
         include WordGate
 
         # `to:` — the sanctioned replacement for `reference_to` inside an
-        # operation body, added here rather than left as a documented-but-
-        # unbuilt promise: reference_to_impl's own refusal message has told
-        # authors to "pass the receiving aggregate in to:" since #335, but
-        # no `to:` argument existed anywhere in DomainPort's own grammar
-        # (domain_port.bluebook) for operation/tells/asks to receive it —
-        # confirmed by grep across every lib/hecks/language file, not
-        # assumed.
+        # operation body: `reference_to_impl`'s own refusal message tells
+        # authors to "pass the receiving aggregate in to:", and this is
+        # the argument DomainPort's own grammar (domain_port.bluebook)
+        # gives operation/tells/asks to receive it.
         #
         # **Genuine routing metadata, not an attribute** — matching
         # rust/parser/src/parse/domain_port.rs's own header comment ("The
@@ -39,6 +36,12 @@ module Hecks
         # existing Reference-attribute scan, which every operation already
         # in the corpus (Banking, pizzas, lifeadelics' own vendored
         # PaymentGateway) still relies on unchanged.
+        #
+        # @param name [String] the operation's name
+        # @param to [Symbol, String, Module, nil] the aggregate the operation routes to; stored
+        #   demodulised, and nil when the operation names none
+        # @param owner [String, nil] name of the aggregate the enclosing port is declared on
+        # @param direction [Symbol] `:inbound` for `operation`/`tells`, `:outbound` for `asks`
         def initialize(name, to: nil, owner: nil, direction: :inbound)
           @name      = name
           @to        = to && Naming.demodulise(to)
@@ -47,14 +50,17 @@ module Hecks
           @emits     = []
         end
 
+        # Refuses `reference_to` inside an operation body, except while shadow-parsing, where it
+        # adds the reference attribute frozen era text declared.
+        #
         # Always an attribute, never the self-reference `CommandBuilder`
         # spells — a port operation has no `creates?`/`acts_on` distinction
         # to protect, so there is nothing for the self-reference branch to be
         # for here. `reference_to Payment, as: :payment_id` reads the same
         # even though the target happens to equal the owning aggregate.
-        # Renamed from `reference_to` — item #13's full metaprogrammed
-        # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # Answers the `reference_to` word through the table's `calls:`
+        # column — item #13's full metaprogrammed dispatch (slice 4b).
+        # Bootstrap-reachable, in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
         #
         # Disabled, #335 — kept only for MetaValidator's own shadow-parsing
         # pass (the self-hosted grammar's own KeywordSeed/ArgumentSeed rows
@@ -64,6 +70,13 @@ module Hecks
         # authors). Every real domain author reaches `to:` instead, above —
         # a genuinely different mechanism now, not a relocated spelling of
         # this one (see `to:`'s own comment).
+        #
+        # @param type [Symbol, String, Module] the referenced aggregate, written as a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from the target, as in
+        #   `:payment_id` under shadow-parsing
+        # @return [nil] nothing useful; the reference lands in `attributes`
+        # @raise [Bluebook::DSL::Malformed] always outside shadow-parsing, since routing belongs
+        #   in `to:`; under shadow-parsing, if the attribute name is already declared
         def reference_to_impl(type, as: nil)
           unless MetaValidator.shadow_parsing?
             raise Malformed,
@@ -74,6 +87,10 @@ module Hecks
           add_reference!(type, as: as)
         end
 
+        # Names one event an inbound operation records once the external fact has arrived.
+        #
+        # @param event_name [String, Symbol] the event's name, such as `"PaymentSettled"`
+        # @return [Array<String>] every event named so far, this one last
         def emits(event_name) = @emits << event_name.to_s
 
         # The two halves of an `asks`. An outbound call has exactly two
@@ -87,6 +104,12 @@ module Hecks
         # kind-driven coerce-and-assign with nothing else, now executed
         # by `GenericDispatch`.
 
+        # Assembles the operation, refusing words that belong to the other direction.
+        #
+        # @return [Bluebook::PortOperation] the operation with its attributes, events and routing
+        # @raise [Bluebook::DSL::Malformed] if an inbound operation declares no `emits` or
+        #   declares `answers`/`refuses`, or an outbound one declares `emits` or lacks either
+        #   `answers` or `refuses`
         def build
           outbound = @direction == :outbound
           refuse_wrong_words!(outbound)
@@ -96,7 +119,7 @@ module Hecks
             direction: @direction, answers: @answers, refuses: @refuses, to: @to
           )
 
-          # **An inbound operation still has to say something**. Only inbound: an
+          # An inbound operation still has to say something. Only inbound: an
           # `asks` says it with `answers`/`refuses` instead, and
           # `refuse_wrong_words!` above has already insisted on both.
           if !outbound && @emits.empty?
@@ -147,10 +170,21 @@ module Hecks
           end
         end
 
+        # Evaluates one operation block against a fresh builder and returns what it built.
+        #
         # `private` above (scoping the instance methods between it and here)
         # doesn't reach a singleton method — correctly so: `.build` is this
         # builder's real public entry point (DomainPortBuilder calls it),
         # never meant to be private.
+        #
+        # @param name [String] the operation's name
+        # @param to [Symbol, String, Module, nil] the aggregate the operation routes to, or nil
+        # @param owner [String, nil] name of the aggregate the enclosing port is declared on
+        # @param direction [Symbol] `:inbound` for `operation`/`tells`, `:outbound` for `asks`
+        # @yield the operation body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::PortOperation] the built operation
+        # @raise [Bluebook::DSL::Malformed] if the body uses the other direction's words, omits
+        #   the ones its own direction requires, or uses a word the grammar does not admit
         # rubocop:disable-next Lint/IneffectiveAccessModifier
         def self.build(name, to: nil, owner: nil, direction: :inbound, &block)
           builder = new(name, to: to, owner: owner, direction: direction)

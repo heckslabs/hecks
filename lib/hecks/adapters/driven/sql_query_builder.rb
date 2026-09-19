@@ -7,8 +7,8 @@ require_relative "../../runtime/value"
 module Hecks
   module Adapters
     # The one SQL query compilation, shared by the SQLite and Postgres
-    # adapters — each used to carry its own copy of this walk, near-line-
-    # identical, and the copies could only drift. Every declared operator
+    # adapters — one walk rather than a near-line-identical copy per
+    # adapter, because copies can only drift. Every declared operator
     # compiles fully into SQL or the query refuses loudly; the null-policy
     # predicate, the comma-separated `in` convention, and the identity
     # ORDER BY fallback are spelled once, here.
@@ -33,6 +33,18 @@ module Hecks
         "eq" => "=", "ne" => "<>", "gt" => ">", "gte" => ">=", "lt" => "<", "lte" => "<="
       }.freeze
 
+      # Compiles a declared query into one SQL statement and runs it through the dialect's
+      # own `execute_query`, so filtering, ordering and paging all happen in the database.
+      #
+      # @param declared [QuerySpecification::Common::Options] the declared query: its
+      #   `wheres`, `order_by`, `limit` and `offset` are compiled; nothing else is read
+      # @param args [Hash{Symbol => Object}] values for the specification's symbolic operands
+      # @param context [Hash] execution context from `Ports::Query.execute`; accepted for the
+      #   port's call shape and not read
+      # @return [Array<Runtime::Instance>] the matching records in declared order, then by
+      #   id; `[]` when none match
+      # @raise [ArgumentError] if a where clause uses an operator this builder cannot compile,
+      #   or `contains` targets a list of a value object with more than one field
       def query(declared, args = {}, context: {})
         sql = "SELECT #{select_list} FROM #{from_relation}"
         binds = []
@@ -112,16 +124,16 @@ module Hecks
         end
       end
 
-      # **A real array already says where its members end**. Splitting one on
+      # A real array already says where its members end. Splitting one on
       # commas re-reads a boundary it already drew — and an id is a
       # domain value (Naming::IDENTITY_JOIN joins a composite identity's
       # own parts, and the parts it joins are whatever an identity path
       # pulled out of real data), so a name carrying a comma would
       # silently become two members matching the wrong rows, or nothing.
-      # This branch used to call `value.to_s` unconditionally, which
-      # meant only a comma-joined string ever worked here, while
+      # Calling `value.to_s` unconditionally would mean only a
+      # comma-joined string ever works here, while
       # Ports::Query::InMemory and QueryInterpreter's own `members`
-      # already handled a real Array — three implementations of `in`,
+      # handle a real Array — three implementations of `in`,
       # two readings of it. Narrower than those two on one point,
       # deliberately: they unwrap a value-object/Hash element to its
       # own scalar first (`comparable`) before stringifying, a rule
@@ -224,8 +236,8 @@ module Hecks
       # `contains` on a `list_of` field means real element membership, not
       # a substring search over the column's raw JSON text — the reading
       # QueryInterpreter#holds? and Ports::Query::InMemory already give a
-      # real Array, and the SQL side used to disagree with it (a substring
-      # match over `[{"value":"not_high_risk"}]` falsely matches
+      # real Array, and a substring search would disagree with it (a
+      # substring match over `[{"value":"not_high_risk"}]` falsely matches
       # "high_risk"). Returns nil for a non-list field (the caller falls
       # back to `contains_clause`, unchanged), "" for a list of bare
       # scalars (no member to walk into), or the one field name a

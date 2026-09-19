@@ -95,7 +95,7 @@ module Hecks
         wasm_front:                 %w[rust]
       }.freeze
 
-      # **Which of those modes `bin/qa_sweep` can actually run today**.
+      # Which of those modes `bin/qa_sweep` can actually run today.
       # `MODE_REQUIREMENTS` above says what a mode needs; this says what
       # exists to do it, and the two are not the same. Conflating them is
       # how `qa/settings.yml` came to enable `wasm_front` and
@@ -142,7 +142,7 @@ module Hecks
         (required - capabilities).empty?
       end
 
-      # **The one rule**. `enabled` is whatever the dial (or `--modes`) turned
+      # The one rule. `enabled` is whatever the dial (or `--modes`) turned
       # on, in the dial's own declaration order — that order is preserved
       # so the printed line reads the same way the dial does. Then the
       # single exclusion named on `MODE_REQUIREMENTS`.

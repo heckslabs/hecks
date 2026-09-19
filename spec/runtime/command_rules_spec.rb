@@ -64,7 +64,7 @@ narrative: { text: "Opening" })
                          'Money.cents expects Integer, got "a lot"')
     end
 
-    # **An absent argument is NIL, not its own name**.
+    # An absent argument is NIL, not its own name.
     #
     # `resolve_source` used to fall through to the Symbol when the argument was
     # missing, so an absent `amount` arrived at coercion as `:amount` and was
@@ -430,7 +430,7 @@ narrative: { text: "Opening" })
   # status/state guard that has nothing to do with customer/account at
   # all. Section 223's "dereferencing a related record's field" tests,
   # above, already prove several more of these guards fire as a side
-  # effect of proving the dereferencing mechanism itself — this section
+  # effect of proving the DEREFERENCING mechanism itself — this section
   # is about the guards, not the mechanism.
   describe "the ported customer/account status guards" do
     it "refuses on a bare CUSTOMER status guard — ATMCard.Issue for a suspended customer" do

@@ -11,6 +11,14 @@ module Hecks
         class << self
           attr_accessor :resolver
 
+          # Installs a resolver for the duration of a block, restoring the earlier one afterwards
+          # even if the block raises.
+          #
+          # @param resolver [#call] called with the missing constant's name as a Symbol; whatever
+          #   it returns is what the bare constant evaluates to
+          # @yield the DSL code whose undeclared constants the resolver should answer
+          # @yieldreturn [Object] any value; it becomes this method's result
+          # @return [Object] whatever the block returns
           def with(resolver)
             previous  = @resolver
             @resolver = resolver
@@ -19,6 +27,9 @@ module Hecks
             @resolver = previous
           end
 
+          # Reports whether a resolver is installed, meaning code is running inside a DSL block.
+          #
+          # @return [Boolean] true inside a `with` block, or after `resolver=` set one directly
           def active? = !@resolver.nil?
         end
 
@@ -32,32 +43,47 @@ module Hecks
         # DSL code runs at all, unless that value is itself a Module.
         #
         # A real `Module` subclass, not a decorated Symbol, for exactly
-        # that reason — nothing else answers `::`. Every existing
-        # consumer keeps working duck-typed, not because nothing
-        # changed: `Attribute#spell`'s `type.is_a?(Module)` branch now
-        # fires where it used to fall to `type.to_s`, and
-        # `Naming.demodulise` (`path.split("::").last`) gives the
-        # identical string either way for a single segment — the two
-        # branches were already equivalent for a name with no `::` in
-        # it, which is every bareword before this.
+        # that reason — nothing else answers `::`. Every consumer of a
+        # bareword type keeps working duck-typed: `Attribute#spell`'s
+        # `type.is_a?(Module)` branch fires for one of these where a
+        # bare Symbol falls to `type.to_s`, and `Naming.demodulise`
+        # (`path.split("::").last`) gives the identical string either
+        # way for a single segment — the two branches are equivalent
+        # for a name with no `::` in it, which is every unscoped
+        # bareword.
         class ScopedConstant < Module
+          # Wraps a constant path, the form a `ConstShim` resolver hands back for a bareword.
+          #
+          # @param path [Symbol, String] one segment such as `:Account`, or a `::`-joined path
+          # @return [Bluebook::DSL::ConstShim::ScopedConstant] a module standing in for that path
           def self.for(path) = new(path.to_s)
 
+          # @param path [String] the constant path this module stands in for
           def initialize(path)
             super()
             @path = path
           end
 
+          # Extends the path by one segment, so `Account::Debit` resolves past `Account`.
+          #
           # One more segment, the same way an unresolved const anywhere
           # else does — `Account::Debit::Anything` keeps chaining rather
           # than refusing, since nothing here knows how deep a reference
           # is meant to go; the DSL keyword that finally reads `.to_s`
           # is the one place that does.
+          #
+          # @param name [Symbol] the segment written after `::`
+          # @return [Bluebook::DSL::ConstShim::ScopedConstant] a new constant for the longer path
           def const_missing(name) = ScopedConstant.for("#{@path}::#{name}")
 
           def to_s     = @path
           def to_sym   = @path.to_sym
           def inspect  = @path
+
+          # Exposes the raw path under a name no ordinary `Module` answers, so `==` can compare
+          # two scoped constants without going through `to_s`.
+          #
+          # @return [String] the `::`-joined path, such as `"Account::Debit"`
           def hecks_path = @path
 
           def ==(other) = other.is_a?(ScopedConstant) ? @path == other.hecks_path : @path.to_sym == other
@@ -65,7 +91,7 @@ module Hecks
           def hash = @path.hash
         end
 
-        # **A scoped name is written as text, not as a constant path** — see the
+        # A scoped name is written as text, not as a constant path — see the
         # note on `admits:` in AttributeCollector. A resolver returning a
         # Module (so that `Vocabulary::QueryComparator` reaches a second
         # `const_missing`) was tried and cannot be made to hold : `Facade::
@@ -74,6 +100,11 @@ module Hecks
         # and never reaches this hook at all. A spelling that works only
         # before a facade exists is worse than one that always works.
         module Hook
+          # Answers an undeclared top-level constant from the active resolver, if there is one.
+          #
+          # @param name [Symbol] the missing constant's name
+          # @return [Object] whatever the active resolver returns for `name`
+          # @raise [NameError] if no resolver is installed, as Ruby raises for any unknown constant
           def const_missing(name)
             resolver = ConstShim.resolver
             resolver ? resolver.call(name) : super

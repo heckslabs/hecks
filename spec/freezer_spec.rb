@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **What the domain freezes, asserted against a real dispatch**.
+# What the domain freezes, asserted against a real dispatch.
 #
 # Freezing has been fixed four times in four places — list attributes,
 # the event log, query rows, value objects — and each fix topped the
@@ -128,7 +128,7 @@ RSpec.describe Hecks::Freezer do
     end
   end
 
-  # **The walk, pointed at a real dispatch**. These are the three the QA
+  # The walk, pointed at a real dispatch. These are the three the QA
   # branch fixed and never landed — found by pointing `unfrozen_within`
   # at a booted domain rather than by reasoning about which paths exist.
   describe "collections the domain hands back" do

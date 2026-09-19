@@ -144,7 +144,7 @@ module PersistenceLegacyFixture
     adapter
   end
 
-  # The codec alone, no connection: `decode(row)` only reads `@aggregate`.
+  # The Codec alone, no connection: `decode(row)` only reads `@aggregate`.
   # Lets a default (non-io) run pin what Postgres/PostgresEra make of the
   # exact rows `pg` handed back when the fixture was written.
   def codec(klass, aggregate)

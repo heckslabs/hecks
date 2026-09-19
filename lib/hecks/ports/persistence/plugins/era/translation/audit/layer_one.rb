@@ -13,6 +13,13 @@ module Hecks
       # construct, and the remedy is relaxing the invariant or explicit
       # remediation, never a translation rule.
       module LayerOne
+        # Hydrates every translated state as a current-era instance and records each one
+        # the era's types, invariants or lifecycle refuse.
+        #
+        # @param violations [Array<String>] collector this method appends messages to
+        # @param aggregate [Bluebook::Aggregate] the current era's IR for the aggregate
+        # @param after [Hash{String => Hash}] translated state per record id, as parsed JSON
+        # @return [void]
         def layer_one!(violations, aggregate, after)
           after.each do |id, state|
             symbolized = JSON.parse(JSON.generate(state), symbolize_names: true)

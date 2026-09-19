@@ -30,6 +30,7 @@ require "ripper"
 module CommentStyle
   MAX_LINE = 100
   LONG_CLASS_DOC = 25
+  MAX_HEADING_WORDS = 6
 
   CATEGORIES = {
     "undocumented_method"    => "public method has no doc comment",
@@ -40,15 +41,19 @@ module CommentStyle
     "unstructured_class_doc" => "long class doc has no ## section headers",
     "missing_summary"        => "doc comment has tags but no lead sentence",
     "all_caps"               => "all-caps emphasis",
-    "bare_constant"          => "capitalised word matches a constant here: backtick or lowercase it",
+    "long_bold"              => "bold heading over #{MAX_HEADING_WORDS} words reads as shouting",
+    "bare_constant"          => "capitalised word names something in this file's code: backtick or lowercase it",
+    "unknown_capitals"       => "capitalised token is not an English word: backtick it or list it as an acronym",
     "design_history"         => "narrates design history instead of citing an ADR",
     "long_line"              => "comment line exceeds #{MAX_LINE} characters"
   }.freeze
 
-  FIXABLE = %w[all_caps long_line].freeze
+  FIXABLE = %w[all_caps long_bold long_line].freeze
 
   # Initialisms and keywords that are correctly written in capitals.
   ACRONYMS = %w[
+    ARGV ARN AZ ECR ES FSM GVL IAM IGW IPC IRB LLM MB MVCC NAT OOM RDS SG SIGKILL SIGTERM STDIO TOML
+    UI VCS VM VPC WASI
     ABC ACID ADR API ASC ASCII AST AWS BFS BYPASSRLS CAS CDN CEO CI CLI CPU CRUD CSRF CSS CSV CTE DB DBA DDD DDL
     DELETE DESC DFS DML DNS DSL ENV ERB ERD FIFO FIXME FK FQN GC GET GIN HMAC HTML HTTP HTTPS ID INSERT IO IR ISO
     JS JSON JSONB JSONL JWKS JWT LIFO LRU MCP MDN MRI MVP NAMEDATALEN NIL NULL OIDC OK ORM OS
@@ -59,6 +64,7 @@ module CommentStyle
 
   # Names whose correct spelling is neither all-caps nor all-lowercase.
   PROPER_NOUNS = {
+    "CLOUDFLARE" => "Cloudflare", "OAUTH" => "OAuth", "RSPEC" => "RSpec", "JAVASCRIPT" => "JavaScript",
     "GITHUB" => "GitHub", "GOOGLE" => "Google", "GRAPHVIZ" => "Graphviz", "HECKS" => "Hecks",
     "POSTGRES" => "Postgres", "POSTGRESQL" => "PostgreSQL", "PUMA" => "Puma", "RAILS" => "Rails",
     "RUBY" => "Ruby", "RUST" => "Rust", "SQLITE" => "SQLite"
@@ -75,19 +81,20 @@ module CommentStyle
     /\bADD (?:COLUMN|CONSTRAINT)\b/, /\bDELETE FROM\b/, /\bUNION ALL\b/, /\bSET LOCAL\b/,
     /\bBEGIN (?:IMMEDIATE|EXCLUSIVE|DEFERRED)\b/, /\bROW LEVEL SECURITY\b/,
     /\bCREATE \.\.\. PARTITION OF\b/, /\bPARTITION OF\b/, /\bIF (?:NOT )?EXISTS\b/,
-    /\b(?:LEFT|INNER|OUTER|CROSS) JOIN\b/, /\bLIMIT \d+\b/
+    /\b(?:LEFT|INNER|OUTER|CROSS) JOIN\b/, /\bLIMIT \d+\b/, /\bOWNER TO\b/, /\b(?:on|in|onto) PATH\b/
   ).freeze
 
   # SQL keywords that are rarely English emphasis. Kept in capitals on a line
   # that reads as SQL, and always kept in a file that talks to a database.
   SQL_STRONG = %w[
-    ALTER ATTACH BEGIN CASCADE COMMIT CONCURRENTLY DETACH DISTINCT GRANT LIMIT MATERIALIZED NULLS
-    OFFSET PARTITION RETURNING REVOKE ROLLBACK SERIALIZABLE VACUUM
+    ALTER ATTACH BEGIN CASCADE COMMIT CONCURRENTLY DETACH DISTINCT FORCE GRANT LIMIT MATERIALIZED
+    NULLS OFFSET PARTITION RETURNING REVOKE ROLLBACK SERIALIZABLE VACUUM
   ].to_set.freeze
 
   # SQL keywords that are also everyday emphasis targets (`FROM`, `FIRST`, `SET`).
   SQL_WEAK = %w[
-    COLUMN CONSTRAINT CREATE DEFAULT DROP EXCLUSIVE EXISTS FIRST FROM INDEX JOIN LAST LOCK POLICY
+    COLUMN CONSTRAINT CREATE DEFAULT DROP EXCLUSIVE EXISTS FIRST FROM INDEX JOIN LAST LOCK LOGIN
+    NOBYPASSRLS NOCREATEDB NOCREATEROLE NOLOGIN NOSUPERUSER OWNER POLICY
     REFERENCES ROLE SCHEMA SET SHARE TABLE TRANSACTION TRIGGER UNION UNIQUE UPDATE VALUES VIEW WHERE
   ].to_set.freeze
 
@@ -128,6 +135,9 @@ module CommentStyle
   # What may sit between the words of one all-caps heading run.
   GAP = %r{\A(?:[\s,/&'\-\d]|#{FILLER}|[A-Z]{2,})*\z}
 
+  # A bold phrase opening a comment line, after an optional bullet.
+  BOLD_HEADING = /\A(#+\s*(?:[-*]\s+)?)\*\*([^*]+)\*\*/
+
   # What ends a heading run: an em dash, or sentence punctuation.
   HEADING_END = /\A(?:\s+—|[.:!?](?:\s|\z))/
 
@@ -137,6 +147,69 @@ module CommentStyle
   MethodDef = Struct.new(:name, :line, :params, :visibility, :raises, :block_param)
   TypeDef = Struct.new(:fqn, :line, :namespace_only)
   Comment = Struct.new(:line, :col, :text, :full_line)
+
+  # Decides whether a capitalised token is an English word being shouted.
+  # Anything else (an initialism, an identifier, a product name) keeps its
+  # capitals and is reported for a person to look at.
+  module Dictionary
+    WORDS = "/usr/share/dict/words"
+
+    # Technical vocabulary the system word list lacks.
+    EXTRA = %w[
+      adversarial allowlist anymore app apps arg args arity async backend backtrace baseline
+      boolean bootable bootstrapping bluebook byte callee canonicalized changelog checklist
+      checkpoint codebase codemod config database dataset dedupe deduped enqueue evaluator
+      filename fixpoint formatting frontend glob grep handover hardcoded hecksagon heredoc held
+      hoc hostname idempotency idempotent inline keyword landmine lifecycle lookup mapping
+      memoised memoized memoizes metadata metaprogrammed monkeypatch monorepo multi mutex
+      namespace noop numeric op ops parameterized params pathname payload plugin postcondition
+      pre reachability reentrant refactor regex regexes rekey rekeyed repo restartable retrofit
+      reusable roadmap rollup runtime shortcut standalone stringified struct subprocess
+      subprocesses subroutine substring superuser symlink sync timestamp tmp tmpl touchpoint
+      trickiest triggerable tuple undecoded unsanitized untargeted upsert username webhook
+      widget workaround worklist worklists
+    ].freeze
+
+    SUFFIXES = [
+      ["", ""], ["s", ""], ["es", ""], ["ed", ""], ["d", ""], ["ing", ""], ["ing", "e"], ["ies", "y"],
+      ["ied", "y"], ["ly", ""], ["er", ""], ["est", ""], ["ier", "y"], ["ised", "ized"], ["ise", "ize"],
+      ["isation", "ization"], ["our", "or"], ["lling", "ling"], ["lled", "led"]
+    ].freeze
+
+    module_function
+
+    # @return [Set<String>, nil] lower-case word list, or nil when this machine has none
+    def words
+      return @words if defined?(@words)
+
+      @words = File.exist?(WORDS) ? Set.new(File.foreach(WORDS, chomp: true).map(&:downcase)).merge(EXTRA) : nil
+    end
+
+    # @param word [String] a token, in any case, possibly a contraction
+    # @return [Boolean] true for an English word, and always true with no word list to consult
+    def english?(word)
+      return true unless words
+
+      bare = word.downcase.sub(/n't\z/, "").sub(/'.*\z/, "")
+      SUFFIXES.any? do |suffix, replacement|
+        next false unless bare.end_with?(suffix)
+
+        stem = bare.delete_suffix(suffix) + replacement
+        words.include?(stem) || words.include?(stem.sub(/(.)\1\z/, '\1'))
+      end
+    end
+  end
+
+  # Class and module names defined under `lib/`, keyed by their shouted form.
+  #
+  # @return [Hash{String => String}] such as `"POSTGRESERA" => "PostgresEra"`
+  def self.class_names
+    @class_names ||= Dir["lib/**/*.rb"].each_with_object({}) do |file, names|
+      File.read(file).scan(/^\s*(?:class|module)\s+([A-Z]\w*)/) do |(name)|
+        names[name.upcase] ||= name if name.match?(/[a-z]/)
+      end
+    end
+  end
 
   # @param source [String] Ruby source
   # @return [Array<String>] every token that is not a comment or whitespace
@@ -157,12 +230,14 @@ module CommentStyle
       @comments = lex_comments
       @by_line = @comments.to_h { |c| [c.line, c] }
       @open_spans = open_spans
-      @constants = @source.scan(/^\s*([A-Z][A-Z0-9]+)\s*=(?!=)/).flatten.to_set
+      @constants = code_words
     end
 
     # @param only [Array<String>, nil] categories to keep, all when nil
     # @return [Array<Violation>]
     def violations(only: nil)
+      return [] if generated?
+
       found = text_violations + (test_file? ? [] : structure_violations)
       found = found.select { |v| only.include?(v.category) } if only
       found.sort_by { |v| [v.line, v.category] }
@@ -174,6 +249,8 @@ module CommentStyle
     # @return [String] the fixed source, or the original when nothing changed
     # @raise [RuntimeError] if the rewrite would alter a non-comment token
     def fixed(only: nil)
+      return @source if generated?
+
       wanted = (only || FIXABLE) & FIXABLE
       output = @lines.map.with_index(1) { |line, number| fix_line(line, number, wanted) }.join
       return @source if output == @source
@@ -186,7 +263,15 @@ module CommentStyle
 
     # @return [Array<TypeDef>] every class and module opened in this file
     def types
-      test_file? ? [] : structure.last
+      test_file? || generated? ? [] : structure.last
+    end
+
+    # A generated file's comments belong to its generator, and its
+    # `GENERATED ... DO NOT EDIT` banner is a convention tools recognise.
+    #
+    # @return [Boolean]
+    def generated?
+      @lines.first(8).join.match?(/\bgenerated\b.*?\bdo not edit\b/im)
     end
 
     # Helpers defined inside a spec are test scaffolding, not API, so the
@@ -218,9 +303,34 @@ module CommentStyle
       @comments.flat_map do |comment|
         next [] if comment.text.match?(DIRECTIVE)
 
-        caps_violations(comment) + constant_violations(comment) + history_violations(comment) +
-          length_violations(comment)
+        caps_violations(comment) + constant_violations(comment) + unknown_violations(comment) +
+          bold_violations(comment) + history_violations(comment) + length_violations(comment)
       end
+    end
+
+    # All-caps names in this file's code: constants, heredoc delimiters, and
+    # strings that are nothing but one such name (`ENV["PATH"]`).
+    def code_words
+      Ripper.lex(@source).each_with_object(Set.new) do |(_, type, text, _), words|
+        case type
+        when :on_const, :on_tstring_content then words << text if text.match?(/\A[A-Z][A-Z0-9_]+\z/)
+        when :on_heredoc_beg, :on_heredoc_end then words.merge(text.scan(/[A-Z][A-Z0-9_]+/))
+        end
+      end
+    end
+
+    def unknown_violations(comment)
+      words = mask(comment).scan(CAPS_WORD).uniq - ["A"]
+      words.reject { |word| keep_capitals?(word) }.select { |word| unknown?(word) }.map do |word|
+        Violation.new(path, comment.line, "unknown_capitals", word)
+      end
+    end
+
+    def bold_violations(comment)
+      heading = comment.text[BOLD_HEADING, 2]
+      return [] unless heading && heading.split.size > MAX_HEADING_WORDS
+
+      [Violation.new(path, comment.line, "long_bold", "#{heading.split.size} words")]
     end
 
     def caps_violations(comment)
@@ -261,7 +371,7 @@ module CommentStyle
       sql = sql_keywords(comment, matches.map { |match| match[0] })
       found = matches.filter_map do |match|
         word = match[0]
-        next if word != "A" && (keep_capitals?(word) || sql.include?(word))
+        next if word != "A" && (keep_capitals?(word) || sql.include?(word) || unknown?(word))
 
         [match.begin(0), word, recase(word, sentence_start?(comment, masked, match.begin(0)))]
       end
@@ -318,7 +428,7 @@ module CommentStyle
       end
       return false unless only_sql
 
-      database_file ? (strong.any? || weak.size >= 2) : (strong.any? && (strong + weak).size >= 2)
+      database_file ? (strong.any? || weak.any?) : (strong.any? && (strong + weak).size >= 2)
     end
 
     # `Finding`'s: the capital follows a code span, so `CAPS_WORD` never sees it.
@@ -349,14 +459,28 @@ module CommentStyle
 
     def recase(word, sentence_start)
       bare, suffix = word.split("'", 2)
-      proper = PROPER_NOUNS[bare]
+      proper = proper_name(bare)
       return [proper, suffix&.downcase].compact.join("'") if proper
 
       sentence_start ? word.capitalize : word.downcase
     end
 
+    # A shouted product or class name (`POSTGRESERA`) gets its real spelling
+    # back. An English word that is also a class name (`VALUE`) stays prose.
+    def proper_name(bare)
+      PROPER_NOUNS[bare] || (CommentStyle.class_names[bare] unless Dictionary.english?(bare))
+    end
+
+    # Neither English nor a known name, so lowercasing it would be a guess.
+    def unknown?(word)
+      bare = word.split("'", 2).first
+      !Dictionary.english?(word) && !proper_name(bare)
+    end
+
     def keep_capitals?(word)
       bare = word.sub(/'[A-Z]{1,2}\z/, "")
+      return false if PROPER_NOUNS.key?(bare)
+
       ACRONYMS.include?(bare) || @constants.include?(bare) || bare.match?(/\A[IVX]+\z/)
     end
 
@@ -378,10 +502,18 @@ module CommentStyle
       return line if comment.nil? || comment.text.match?(DIRECTIVE)
 
       text = wanted.include?("all_caps") ? fix_caps(comment) : comment.text
+      text = unbold(text) if wanted.include?("long_bold")
       code = line.byteslice(0, comment.col)
       return wrap(code, text) if wanted.include?("long_line") && comment.full_line
 
       "#{code}#{text}#{"\n" if line.end_with?("\n")}"
+    end
+
+    def unbold(text)
+      heading = text[BOLD_HEADING, 2]
+      return text unless heading && heading.split.size > MAX_HEADING_WORDS
+
+      text.sub(BOLD_HEADING) { "#{Regexp.last_match(1)}#{heading}" }
     end
 
     def fix_caps(comment)
@@ -406,8 +538,17 @@ module CommentStyle
       finish = run.last[0] + run.last[1].length
       finish += 2 if masked[finish, 2] == "'s"
       return unless run.size >= 2 && masked[finish..].match?(HEADING_END)
+      return if masked[run.first[0]...finish].split.size > MAX_HEADING_WORDS || documents_method?(comment)
 
       [run.first[0], finish]
+    end
+
+    # The first line above a `def` has to be a sentence about the method, so a
+    # heading there stays plain text.
+    def documents_method?(comment)
+      line = comment.line
+      line += 1 while @by_line[line + 1]&.full_line
+      @lines[line].to_s.match?(/\A\s*(?:\w+\s+)?def\s/)
     end
 
     def paragraph_start?(comment, masked, offset)
@@ -470,13 +611,31 @@ module CommentStyle
     end
 
     def tag_violations(method, doc)
+      param_violations(method, doc) + summary_violations(method, doc) + outcome_violations(method, doc)
+    end
+
+    def param_violations(method, doc)
       found = method.params.reject { |name| doc.match?(/@(?:param|option)\s+(?:\[[^\]\n]*\]\s*)?#{Regexp.escape(name)}\b/) }
                     .map { |name| violation(method, "missing_param", "lacks @param #{name}") }
       block = method.block_param
       if block && !doc.match?(/@yield|@param\s+(?:\[[^\]\n]*\]\s*)?#{Regexp.escape(block)}\b/)
         found << violation(method, "missing_param", "lacks @yield for &#{block}")
       end
+      found
+    end
+
+    def summary_violations(method, doc)
+      found = []
       found << violation(method, "missing_summary", "") if tags_only?(doc) && method.name != "initialize"
+      if heading_lead?(doc)
+        found << violation(method, "missing_summary",
+                           "opens with a bold heading: add a verb-first lead sentence above it")
+      end
+      found
+    end
+
+    def outcome_violations(method, doc)
+      found = []
       returns = method.name == "initialize" || method.name.end_with?("=") || doc.include?("@return")
       found << violation(method, "missing_return", "") unless returns
       found << violation(method, "missing_raise", "") if method.raises && !doc.include?("@raise")
@@ -484,8 +643,16 @@ module CommentStyle
     end
 
     def tags_only?(doc)
-      first = doc.lines.map { |line| line.sub(/\A\s*#+\s?/, "").strip }.reject(&:empty?).first
-      first.to_s.start_with?("@")
+      lead_line(doc).start_with?("@")
+    end
+
+    # A bold heading is a paragraph title, not a sentence about the method.
+    def heading_lead?(doc)
+      lead_line(doc).start_with?("**")
+    end
+
+    def lead_line(doc)
+      doc.lines.map { |line| line.sub(/\A\s*#+\s?/, "").strip }.reject(&:empty?).first.to_s
     end
 
     def violation(method, category, detail)
@@ -659,6 +826,9 @@ module CommentStyle
 
     # @return [Integer] number of files rewritten
     def fix!
+      wants_caps = @only.nil? || @only.include?("all_caps")
+      abort "fixing all_caps needs the word list at #{Dictionary::WORDS}" if wants_caps && !Dictionary.words
+
       @files.count do |path|
         original = File.read(path)
         output = SourceFile.new(path, original).fixed(only: @only)

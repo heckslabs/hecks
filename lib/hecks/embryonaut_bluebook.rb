@@ -27,7 +27,7 @@ module Hecks
   # itself only runs at hecksagon-build time, when a real registry is
   # current.
   #
-  # **Every `.bluebook` file in the package, sorted** — not just one. Unlike a
+  # Every `.bluebook` file in the package, sorted — not just one. Unlike a
   # framework member (one file, named by its own stem), a vendored package
   # can span several bluebook files that reopen the same `Hecks.bluebook`
   # (embryonaut_bluebooks/payments/bluebook/{payment,payments,policies}

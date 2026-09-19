@@ -82,7 +82,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   RUBY
 
-  # **One standalone script, run as two real concurrent processes** — the
+  # One standalone script, run as two real concurrent processes — the
   # mechanism `--all`'s own "no extra lock needed" claim rests on,
   # exercised directly: two racers dispatch the exact same
   # `QualityControl::Target.claim!`, both against the same target
@@ -179,7 +179,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), FIXTURE_HECKSAGON)
-    # **The same URL shape the real ledger binds**: the database by URL, as
+    # The same URL shape the real ledger binds: the database by URL, as
     # `hecks_qa`, an ordinary owner role — PostgresEra refuses to boot as
     # the ambient superuser (BUG#24). `bin/qa_postgres_role`, run for
     # real below, is what makes it connectable.
@@ -190,7 +190,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
       end
     RUBY
 
-    # Living inside the real repo root, not `/tmp` — `bin/qa_sweep`
+    # Living inside the real repo ROOT, not `/tmp` — `bin/qa_sweep`
     # always resolves a `Target`'s own `path` against the real repository
     # root, independent of `QA_SWEEP_DOMAIN_DIR`.
     @target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_target-", InMemoryDomain::ROOT)
@@ -259,7 +259,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     )
   end
 
-  # **The non-blocking reap loop** — see the `keeps at most SWEEP_MAX_PARALLEL`
+  # The non-blocking reap loop — see the `keeps at most SWEEP_MAX_PARALLEL`
   # example's own comment (wherever that example landed) for why this is
   # `Process.waitpid2(pid, Process::WNOHANG)`, polled, and not a
   # `Process.kill(0, pid)` liveness check in a loop (a zombie answers it just as

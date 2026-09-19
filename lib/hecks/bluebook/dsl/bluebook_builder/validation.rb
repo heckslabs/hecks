@@ -102,7 +102,7 @@ module Hecks
             kind == :command ? aggregate.commands.map(&:hecks_name) : aggregate.queries.map(&:name)
           end
 
-          # **An entity command may not name itself as its root**.
+          # An entity command may not name itself as its root.
           #
           # That is the whole of what is left here, and it needs saying plainly
           # because the sentence this used to raise — "references must target
@@ -248,7 +248,7 @@ module Hecks
             source_shape  = event_name && event_shape_for(event_name, aggregates)
             memory_shape  = process_manager && event_shape_for(process_manager.starts_on, aggregates)
             correlation   = process_manager&.correlates_by && process_manager.correlation_head
-            # **A policy's source also carries the emitter's own identity** —
+            # A policy's source also carries the emitter's own identity —
             # `PolicyInterpreter#emitter_identity`, the runtime half of this.
             # An entity command's event never declares its aggregate's
             # identity (it arrives through `reference_to`, not an
@@ -421,7 +421,7 @@ module Hecks
             return [] unless aggregate
 
             heads = aggregate.identity_heads.map(&:to_sym)
-            # **An entity's event also carries the piece's own identity** — the
+            # An entity's event also carries the piece's own identity — the
             # args a piece was addressed by are the args its event announces
             # (`Emission#emit`: `payload: args`), so `id`-shaped heads are
             # genuinely there at runtime even though no `attribute` line on

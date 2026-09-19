@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 
-# **The rotation, seeded with every domain the practice already owns** — the
+# The rotation, seeded with every domain the practice already owns — the
 # `Target` counterpart to `bin/qa_seed_angles`, and the same shape as
 # `bin/qa_sweep`'s own `seed_default_targets!` (which mints only
 # pizzas/banking, the two the rotation cannot be empty without).
 #
-# **Why a script and not a hand-typed `bin/run ... identify` per domain**:
+# Why a script and not a hand-typed `bin/run ... identify` per domain:
 # item 6 of the detection plan ("free targets") — every domain listed
-# below is a real, bootable, already-fuzzable directory this repository
+# below is a real, bootable, already-FUZZABLE directory this repository
 # ships, most with a compiled Rust conformance feature (`rust/Cargo.toml`
 # `[features]`) that `spec/rust_conformance_fuzz_spec.rb` never wired
 # in (angle-3). Nothing about them needed building; they only needed

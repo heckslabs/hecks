@@ -125,7 +125,7 @@ module Hecks
         JSON.pretty_generate(translations(registry))
       end
 
-      # **The digest-relevant shape** — `ApprovalDigest.edge_digest` hashes
+      # The digest-relevant shape — `ApprovalDigest.edge_digest` hashes
       # exactly this, and only this, for exactly the reason `compiled_
       # translation_aggregate` below must never be used for that
       # purpose: a digest bound to the compiled SQL, not just the
@@ -174,7 +174,7 @@ module Hecks
         }
       end
 
-      # **The export shape** — `translation_aggregate`'s own digest-relevant
+      # The export shape — `translation_aggregate`'s own digest-relevant
       # fields, plus the precompiled SQL (`compiled_state_expression`/
       # `compiled_id_expression`) a consumer embedding this JSON
       # (rust/host's own boot-time mint) needs to execute the edge

@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **Every bluebook in the repo lands in a check** — a partition, not a filter.
+# Every bluebook in the repo lands in a check — a partition, not a filter.
 # Each one is either inside some Hecks::Corpus kind (and so walked by the
 # model checker, parser parity, the sweep, ...) or sent by a route to the
 # check that owns it instead. A route is not a reason to look away: its

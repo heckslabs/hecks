@@ -8,7 +8,7 @@ require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
-    # **The Ruby-vs-Rust comparison of one generated sequence** — moved here,
+    # The Ruby-vs-Rust comparison of one generated sequence — moved here,
     # unchanged, out of `bin/qa_sweep`'s own `diff_ruby_vs_rust` so a second
     # caller (`bin/qa_generated_domains --rust`, which compares domains the
     # generator wrote rather than ones on the rotation) runs the same
@@ -23,7 +23,7 @@ module Hecks
     # Which query verbs may diverge is not the differ's call: it is read
     # off the binary's own manifest.json (`manifest_partition`, below).
     #
-    # **Returns one divergence list per active mode** — `{ differential: [...],
+    # Returns one divergence list per active mode — `{ differential: [...],
     # self_consistency: [...], properties_in_differential: [...],
     # adapter_parity_sqlite: [...] }`, keys present only for the modes in
     # `modes:` (`differential` always). `adapter_parity_sqlite:` is the
@@ -32,7 +32,7 @@ module Hecks
     module Differential
       module_function
 
-      # **The one place a Ruby/Rust query divergence may be tolerated** — and
+      # The one place a Ruby/Rust query divergence may be tolerated — and
       # only for a verb `gaps` (a `RustGapManifest`) declares not generated.
       # Rust refuses such a verb outright while Ruby answers it for real
       # (or refuses it for its own business reason), so both sides' rows for

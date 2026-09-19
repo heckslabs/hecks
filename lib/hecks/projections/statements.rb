@@ -87,7 +87,7 @@ module Hecks
       # word starting with a consonant letter but a vowel sound.
       def article(word) = word.to_s.match?(/\A[AEIOUaeiou]/) ? "An" : "A"
 
-      # **Invariants live in two places** — directly on the holder (an
+      # Invariants live in two places — directly on the holder (an
       # aggregate-level rule, checked after every command) and on every
       # value object nested inside it — `DocsProjector#rules_of`'s own
       # `value_object_for` lookup is the precedent for walking both.
@@ -97,7 +97,7 @@ module Hecks
         (own + nested).map { |invariant| invariant_statement(invariant) }
       end
 
-      # **The domain author's own words, capitalized and punctuated** —
+      # The domain author's own words, capitalized and punctuated —
       # nothing else. `invariant("a pizza is named")` already reads as
       # a sentence; this is the entire transformation.
       def invariant_statement(invariant)

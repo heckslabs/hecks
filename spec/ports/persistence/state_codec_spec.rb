@@ -3,7 +3,7 @@ require "tmpdir"
 require "sqlite3"
 require_relative "../../support/persistence_legacy_fixture"
 
-# The state codec (Phase 2, Track A, PR A2) — one IR-driven spelling of an
+# The state Codec (Phase 2, Track A, PR A2) — one IR-driven spelling of an
 # aggregate's state across the store boundary. The first half pins each
 # shape the codec walks; the second decodes every A1 legacy fixture
 # (spec/fixtures/persistence_legacy/, pinned as today's per-adapter decode

@@ -106,7 +106,7 @@ module Hecks
       # the correct bare identity. `@id` merged last always wins.
       def to_h = @state.merge(id: @id)
 
-      # **A copy a mutation may touch**. Every adapter but Memory hands `find`
+      # A copy a mutation may touch. Every adapter but Memory hands `find`
       # a freshly-decoded Instance already; Memory's holds the record it
       # eventually saves — the same state Hash, aliased. Before `ensures`
       # existed, nothing could refuse between apply_mutations and save, so

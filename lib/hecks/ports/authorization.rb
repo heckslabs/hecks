@@ -29,36 +29,62 @@ module Hecks
 
       module_function
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param actor_id [String] the actor whose grants are being checked
-      # @param role [Symbol, String] the role to check for
-      # @param as_of [Object, nil] a point in time to check the grant as of, instead of now
-      # @param scope [Object, nil] a scope to check the grant within, instead of ungoverned
-      # @return [Boolean] whether the actor holds the role (as of that time, within that scope)
+      # Answers whether an actor holds a live (not ended) grant of a role.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @param actor_id [String] the actor whose grants are checked
+      # @param role [String, Symbol] the role name to look for, compared as a String
+      # @param as_of [Integer, nil] Unix epoch seconds (from `Ports::Clock.now`); a grant whose
+      #   `starts_at` is later, or does not parse as a time, does not count. nil skips the
+      #   `starts_at` check entirely
+      # @param scope [String, nil] the scope the caller acts in; only a grant made for that
+      #   scope counts. nil skips the scope check, so a grant in any scope counts
+      # @return [Boolean] true if at least one live grant of `role` to `actor_id` passes the
+      #   `as_of` and `scope` checks
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`), or the governance-backed adapter finds no single loaded chapter
+      #   providing `"authorization"`
       def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
         adapter(registry).holds_role?(registry, actor_id: actor_id, role: role, as_of: as_of, scope: scope)
       end
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param from_role [Symbol, String] the role a transition would start from
-      # @param to_role [Symbol, String] the role a transition would end at
-      # @return [Boolean] whether `from_role` is permitted to transition to `to_role`
+      # Answers whether one role may act as another.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @param from_role [String, Symbol] the role the caller holds, compared as a String
+      # @param to_role [String, Symbol] the role the caller wants to act as, compared as a
+      #   String
+      # @return [Boolean] true if a live (not ended) allowance lets `from_role` act as
+      #   `to_role`
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`), or the governance-backed adapter finds no single loaded chapter
+      #   providing `"authorization"`
       def authorized_as?(registry, from_role:, to_role:)
         adapter(registry).authorized_as?(registry, from_role: from_role, to_role: to_role)
       end
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
+      # Looks up the role an actor holds right now, rather than checking a guessed one.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
       # @param actor_id [String] the actor to look up
-      # @return [Symbol, String, nil] the actor's currently-live role, or nil if it holds none
+      # @return [String, nil] the role name of the actor's first live (not ended) grant, or
+      #   nil if it has none; the caller supplies any fallback
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`), or the governance-backed adapter finds no single loaded chapter
+      #   providing `"authorization"`
       def live_role_for(registry, actor_id:)
         adapter(registry).live_role_for(registry, actor_id: actor_id)
       end
 
-      # Finds the single adapter bound to this port.
+      # Finds the single adapter bound to this port, refusing an ambiguous wiring.
       #
       # @param registry [Runtime::Registry] the booted registry to search
-      # @return [Class] the adapter class implementing this port
-      # @raise [Runtime::WiringError] if zero or more than one adapter implements it
+      # @return [Module] the adapter module or class implementing this port
+      # @raise [Runtime::WiringError] if no adapter, or more than one, implements this port,
+      #   or the one that does has no Ruby implementation under `Hecks::Adapters`
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

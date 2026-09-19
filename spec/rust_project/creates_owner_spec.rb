@@ -13,7 +13,7 @@ require_relative "../../rust/project"
 # `identity_components`'s bare-name check into treating it as the owner's
 # own id and misassigning it into the wrong-typed identity slot.
 #
-# **Unexercised by the ordinary suite on purpose** — Ruby's own runtime stopped
+# Unexercised by the ordinary suite on purpose — Ruby's own runtime stopped
 # consulting `Command#creates?` for hydration this session
 # (`CommandInterpreter#step_hydrate` uses `Runtime::DependencyPlanning::
 # Analyzer` instead), so nothing in spec/*.rb exercises this exact path;

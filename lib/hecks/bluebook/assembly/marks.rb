@@ -9,7 +9,7 @@ module Hecks
       # is that Shapes rebuilds hashes and this rebuilds objects, so it has to
       # recover types rather than just strings.
       #
-      # Encoding losses are the largest family of bug in this codebase, and every
+      # Encoding losses are the LARGEST family of bug in this codebase, and every
       # member has the same shape: reading an object where `to_h` holds a spelling.
       # So each method below names the spelling it inverts.
       module Marks
@@ -52,7 +52,7 @@ module Hecks
         # both — `Aggregate.Attribute` and `Command.Argument` are separate verbs.
         def shape_field(field) = attribute(field)
 
-        # **One part of an identity**. It goes in as a row so the language can hold an
+        # One part of an identity. It goes in as a row so the language can hold an
         # ordered list of them, and comes back out as the path it always was —
         # a String, because `identity_paths` splits paths and never symbols.
         def identity_path(part) = part[:value].to_s

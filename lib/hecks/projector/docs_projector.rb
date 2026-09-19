@@ -2,7 +2,7 @@ require_relative "../naming"
 
 module Hecks
   module Projector
-    # **A bluebook, projected as its own usage documentation**.
+    # A bluebook, projected as its own usage documentation.
     #
     # **What this is for**. A chapter in this corpus already contains everything a
     # user of it needs: what each aggregate is (`description`), what each verb
@@ -19,7 +19,7 @@ module Hecks
     # down: the usage document for a domain, generated from that domain, so it
     # cannot drift from the domain either.
     #
-    # **Why it is a projection and not a generator script**. `Projector` is the
+    # Why it is a projection and not a generator script. `Projector` is the
     # repository's registry of "canonical IR in, external artifact out" (§30
     # of the implementation plan), and this is exactly that shape: one
     # bluebook's IR in, markdown out, no runtime needed and no store touched.
@@ -75,7 +75,7 @@ module Hecks
 
       def chapter_header(bluebook, depth)
         out = [h(depth, bluebook.name), ""]
-        # **The vision first and as a quote**. It is the one sentence in a chapter
+        # The vision first and as a quote. It is the one sentence in a chapter
         # written for somebody who does not know the domain yet.
         out += ["> #{bluebook.vision}", ""] if bluebook.vision
         out << "#{bluebook.classification.to_s.capitalize} domain." if bluebook.classification
@@ -88,7 +88,7 @@ module Hecks
 
       def anchor(name) = Naming.snake(name).tr("_", "-")
 
-      # **What happens without anybody asking** — the part of a domain a caller
+      # What happens without anybody asking — the part of a domain a caller
       # cannot discover from any verb list, and the part most likely to surprise
       # them. A policy means one dispatch causes another, sometimes into a
       # different domain entirely; a saga means a sequence is being driven on
@@ -145,7 +145,7 @@ module Hecks
       def entity_section(aggregate, entity, depth)
         out = [h(depth, "#{entity.hecks_name} (within #{aggregate.hecks_name})"), ""]
         out += [entity.description, ""] if entity.description
-        # **The thing a caller gets wrong first**. An entity has no door of its
+        # The thing a caller gets wrong first. An entity has no door of its
         # own: its verb is spelled through the aggregate that holds it, and
         # the parent's id travels alongside the entity's own identity.
         out << "Addressed through its holder — `#{aggregate.hecks_name}.#{entity.hecks_name}.<Verb>`, " \
@@ -171,7 +171,7 @@ module Hecks
         table(%w[attribute shape rules], rows)
       end
 
-      # **A value object's fields, not its name**. `commit` typed `CommitRef` tells
+      # A value object's fields, not its name. `commit` typed `CommitRef` tells
       # a caller nothing; `{ value: String }` tells them what to send, which is
       # the single most common thing to get wrong at this boundary — a bare
       # scalar where an object is wanted.

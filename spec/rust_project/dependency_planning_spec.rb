@@ -11,7 +11,7 @@ require_relative "../../rust/project"
 # whole-file byte-identity check already proves this Ruby port agrees
 # with its own Rust sibling (`rust/codegen/src/dependency_planning.rs`);
 # this spec proves the Ruby port agrees with the real Analyzer it exists
-# to mirror, across every `creates?`-true aggregate-root command in the
+# to mirror, across every `creates?`-true aggregate-ROOT command in the
 # whole live example-domain corpus — not just the handful of IR fixtures
 # the parity spec happens to enumerate.
 RSpec.describe "RustProjection::Projector.state_independent_creation? matches the live Analyzer" do

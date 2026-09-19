@@ -7,7 +7,7 @@ module Hecks
       module ProcessManager
         def hecks_name = @name
 
-        # **The leg that answers** — selected by (event, current state), C10.3
+        # The leg that answers — selected by (event, current state), C10.3
         # (docs/semantics/bluebook-semantics.md). Two legs may answer the
         # same event from different states; which one runs is decided by
         # the state the instance is in, never by declaration order. With
@@ -25,7 +25,7 @@ module Hecks
 
         def handles?(event) = @handlers.any? { |h| h.event_type == event.to_s }
 
-        # **Whether a state is one this procedure declares** — asked of a value
+        # Whether a state is one this procedure declares — asked of a value
         # a real run left a saga instance holding (its live or rehydrated
         # state), the way `Lifecycle#states` is asked of an aggregate's
         # resting field. A rehydrated instance in a state no handler could
@@ -35,7 +35,7 @@ module Hecks
         def correlation_head = @correlates_by.to_s.split(".").first.to_sym
 
         # The compensation half of a procedure, read off the handler that
-        # answers refused.
+        # answers REFUSED.
         #
         # nil for a procedure with no answer to a refusal, which is a legitimate
         # thing to be — a hiring pipeline cannot un-interview anybody.

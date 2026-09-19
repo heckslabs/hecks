@@ -5,7 +5,7 @@ require "spec_helper"
 # regenerate in memory from the language's own Keyword rows and refuse a
 # diff.
 #
-# **Why it is checked in at all**: `WordGate#method_missing` and
+# Why it is checked in at all: `WordGate#method_missing` and
 # `RuleReference#lookup` read it while `MetaValidator.bootstrapping?` —
 # before the grammar table it is projected from exists. Built at boot, it
 # would need itself to have been built already.

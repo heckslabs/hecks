@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# **The gate that automates the thing this arc exists for** — "we don't do
+# The gate that automates the thing this arc exists for — "we don't do
 # a good job of adding the properties when we add to the language."
 # `Bluebook::MetaValidator.grammar_registry` is the language (that
 # module's own header: "the language IS the source" — every real
@@ -267,7 +267,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                      "declares — a rename or removal left a property's claim pointing at nothing"
   end
 
-  # **The third table had no rot check, and said so** — `Properties`' own
+  # The third table had no rot check, and said so — `Properties`' own
   # comment on `dispatch_binding_fidelity` records the consequence: two
   # `Dispatch#*` entries sat here naming strings the grammar walk never
   # produces, so they exempted nothing and nothing noticed. A gap naming
@@ -281,7 +281,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                      "declares — delete the entry, or fix the name it was meant to point at"
   end
 
-  # **Every property the battery runs declares what it answers for**. This
+  # Every property the battery runs declares what it answers for. This
   # file walks grammar -> claim; nothing walked property -> claim, so a
   # property could join `Properties.check` and never appear in
   # `FEATURE_COVERAGE` at all — which is how `commands_respect_tenant_scope`

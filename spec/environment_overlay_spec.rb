@@ -19,7 +19,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     File.write(path, content)
   end
 
-  # **A minimal real domain, one command, one role** — just enough to prove
+  # A minimal real domain, one command, one role — just enough to prove
   # the ungoverned-role check runs correctly against the merged
   # hecksagon, which is the actual regression this recovery fixes (see
   # Registry::Verification#refuse_ungoverned_roles!'s own comment).

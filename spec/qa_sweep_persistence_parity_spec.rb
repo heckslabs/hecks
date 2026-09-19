@@ -82,7 +82,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     end
   RUBY
 
-  # A non-postgresera-bound target, for the eligibility gate's own
+  # A non-PostgresEra-bound target, for the eligibility gate's own
   # negative example — `Heki`-bound, the plainest "not PostgresEra at
   # all" binding this corpus has, needing no real server of its own.
   INELIGIBLE_TARGET_BLUEBOOK = <<~RUBY.freeze
@@ -126,7 +126,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
       end
     RUBY
 
-    # Living inside the real repo root, exactly `qa_sweep_all_fixture.rb`'s
+    # Living inside the real repo ROOT, exactly `qa_sweep_all_fixture.rb`'s
     # own reasoning — `bin/qa_sweep` resolves a `Target`'s own `path` as
     # `File.join(ROOT, target_path)` against the real repository root.
     @ineligible_dir = Dir.mktmpdir("qa_sweep_persistence_parity_spec_target-", InMemoryDomain::ROOT)

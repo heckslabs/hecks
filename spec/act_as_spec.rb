@@ -59,7 +59,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
   let(:governance) { governance_runtime }
   let(:pizzas) { pizzas_runtime }
 
-  # **The application-level check**. Not library code — the same reasoning
+  # The application-level check. Not library code — the same reasoning
   # `Ports::IdentityGeneration`'s own spec demonstrates a real dispatch
   # against, rather than inventing facade machinery for a pattern that
   # composes out of what already exists. `Allowed` returns the record

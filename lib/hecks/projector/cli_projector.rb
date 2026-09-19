@@ -2,7 +2,7 @@ require_relative "../naming"
 
 module Hecks
   module Projector
-    # **A bluebook, projected as its own command-line surface**.
+    # A bluebook, projected as its own command-line surface.
     #
     # Every verb a domain declares is a subcommand; every argument is an
     # option whose type, whose admitted values and whose required-ness are
@@ -10,7 +10,7 @@ module Hecks
     # then drifts — and the first thing to drift is the help text, which is the
     # only part anybody reads.
     #
-    # **What is projected, and what is not**. This answers the surface — the verb
+    # What is projected, and what is not. This answers the surface — the verb
     # tree, the argument spec, the usage text — and nothing executes here. One
     # small generic runner (`bin/run`) boots a domain, asks for this, parses
     # against it and dispatches.
@@ -32,7 +32,7 @@ module Hecks
     module CliProjector
       module_function
 
-      # **Two namespaces, not one** — `{ verbs:, questions:, usage: }`.
+      # Two namespaces, not one — `{ verbs:, questions:, usage: }`.
       #
       # A chapter may legally declare a command and a query of one name: the
       # language namespaces them and `Banking::Account.Open` is both, in the
@@ -96,7 +96,7 @@ module Hecks
           claim(questions, Naming.snake(model.hecks_name), report_spec(bluebook, model))
         end
 
-        # **The short spelling, where it cannot be ambiguous**. `pizzas
+        # The short spelling, where it cannot be ambiguous. `pizzas
         # create_pizza` rather than `pizzas order.create_pizza` — the
         # aggregate is worth typing only when two of them declare the same
         # verb, and in a one-aggregate domain it never is. Both spellings are
@@ -129,7 +129,7 @@ module Hecks
         end
       end
 
-      # **A name is claimed once**. A command and a query of one name are legal in
+      # A name is claimed once. A command and a query of one name are legal in
       # a chapter — the language namespaces them — and ambiguous as
       # subcommands. Refused here rather than silently resolving to whichever
       # was walked first, which is how `Ticket.Filed` (a command) and
@@ -156,7 +156,7 @@ module Hecks
          entity ? "#{entity.hecks_name}." : "", verb.hecks_name].join
       end
 
-      # **The arguments a receiver adds, before any verb-specific one**. Shared by
+      # The arguments a receiver adds, before any verb-specific one. Shared by
       # `command_spec` and `port_spec` — a port operation always addresses an
       # aggregate record (`port_spec` passes `receiver: :aggregate`, never
       # `:entity` or `nil`, because a port is declared on an aggregate, never
@@ -194,7 +194,7 @@ module Hecks
                       (command.creates? ? nil : :aggregate)
                     end
 
-        # **The receiver is not a command argument**. An aggregate command names
+        # The receiver is not a command argument. An aggregate command names
         # its record through to; an entity command needs both the aggregate
         # record and the entity element within it. Keeping those paths in the
         # projected option list makes the human-facing request complete while
@@ -215,7 +215,7 @@ module Hecks
           refusals: refusals(command, holder), arguments: arguments }
       end
 
-      # **A port operation reads as a verb but reports as a boundary**.
+      # A port operation reads as a verb but reports as a boundary.
       #
       # `creates: false` because it makes no record, and `refusals: []`
       # because it has none in the sense every other verb means: a command's
@@ -233,7 +233,7 @@ module Hecks
         arguments = receiver_options(:aggregate, aggregate, nil) +
                     operation.attributes.flat_map { |a| options_for(a, aggregate, aggregate) }
 
-        # **The wire name carries the port, the typed name does not**.
+        # The wire name carries the port, the typed name does not.
         #
         # `Dispatcher#dispatch` splits a verb into head and sub and looks the
         # head up as a port, so a port operation is addressed
@@ -316,7 +316,7 @@ module Hecks
         value_object = value_object_for(attribute, holder, aggregate)
         return [scalar_option(path, attribute, optional)] unless value_object
 
-        # **A list says so, all the way down to its leaves**.
+        # A list says so, all the way down to its leaves.
         #
         # Without this a `list_of(Tag)` projected exactly like a single Tag:
         # one option, `tags.value`, indistinguishable from a scalar. So the
@@ -428,7 +428,7 @@ module Hecks
         text.to_s.split(/(?<=\.)\s/).first.to_s
       end
 
-      # **Four text blocks, in fixed display order** — meta (name/kind/role),
+      # Four text blocks, in fixed display order — meta (name/kind/role),
       # invocation, arguments, refusals. Each block is independent of the
       # others' content (only the output order is fixed, and stays fixed
       # below), so each is its own method returning the lines it

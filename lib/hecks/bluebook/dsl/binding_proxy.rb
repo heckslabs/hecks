@@ -7,6 +7,13 @@ module Hecks
       # `Payment.persisted_by "Postgres"` into a queued `Bind`, and `#port`
       # is the one real method, for `Aggregate.port("Name") do ... end`.
       class BindingProxy
+        # Mints the stand-in module a bare domain constant resolves to inside a `.hecksagon` block.
+        #
+        # @param domain [Symbol, String] the domain name, the first segment of `Domain::Aggregate`
+        # @param collector [Array<Bluebook::Bind>] the list every bind made through the module's
+        #   proxies is appended to
+        # @return [Module] an anonymous module whose `const_missing` answers a `BindingProxy`
+        #   for `"Domain::Aggregate"`
         def self.namespace(domain, collector)
           Module.new do
             define_singleton_method(:const_missing) do |aggregate|
@@ -15,17 +22,30 @@ module Hecks
           end
         end
 
+        # @param fqn [String] the aggregate's qualified name, `"Domain::Aggregate"`
+        # @param collector [Array<Bluebook::Bind>] the list each bind made on this proxy is
+        #   appended to
         def initialize(fqn, collector)
           @fqn       = fqn
           @collector = collector
         end
 
+        # Declares a port on this aggregate and attaches it to the already-registered bluebook.
+        #
         # **The aggregate-scoped port** — `Payments::Payment.port("Gateway") do
         # ... end`, the same receiver a plain bind like `.persisted_by(...)`
         # already reaches, because a port belongs to exactly one aggregate
         # the same way a bind does. A real method, not method_missing : its
         # shape (a name and a block building operations) has nothing to do
         # with `Bind`, so it does not belong in that generic verb path.
+        #
+        # @param name [String] the port's name, such as `"Gateway"`
+        # @yield the port body, evaluated against a `DomainPortBuilder`: either `verb`/`signal`
+        #   or `operation`/`tells`/`asks` blocks
+        # @return [Bluebook::DSL::BindingProxy] this proxy, so further binds can chain
+        # @raise [Bluebook::DSL::Malformed] if the current registry holds no such aggregate, or
+        #   the body declares both a verb and operations, neither, or an operation the port
+        #   grammar refuses
         def port(name, &block)
           domain, aggregate_name = @fqn.split("::")
           aggregate_ir = Hecks.current_registry.bluebook(domain)&.aggregate(aggregate_name) or

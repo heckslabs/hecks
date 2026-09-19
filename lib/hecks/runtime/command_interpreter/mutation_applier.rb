@@ -19,7 +19,7 @@ module Hecks
           end
         end
 
-        # **A case statement over a closed, declared set** — every mutation op
+        # A case statement over a closed, declared set — every mutation op
         # the grammar can emit gets its own branch, including the `else`
         # backstop for the day a new op reaches this method undeclared (see
         # its own comment). Splitting each branch into its own method would

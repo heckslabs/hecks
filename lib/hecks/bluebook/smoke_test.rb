@@ -4,7 +4,7 @@ require "fileutils"
 
 module Hecks
   module Bluebook
-    # **Boots a real bluebook and actually dispatches against it** — the
+    # Boots a real bluebook and actually dispatches against it — the
     # sibling `bin/model_check` never had: that tool proves a bluebook
     # is structurally sound (no dead states, no unreachable transitions)
     # without ever running a single command; this proves it works,
@@ -58,7 +58,7 @@ module Hecks
       # was never actually required for this, only its own namespace
       # sugar (`Domain.report_name(...)` as a bare method call) was.
       #
-      # **Never boots `dir`'s own real bindings** — measured, not a
+      # Never boots `dir`'s own real bindings — measured, not a
       # precaution taken on spec: pointed at `examples/pizzas` (a real,
       # persistent store carrying real accumulated records), a
       # synthesized `CreatePizza` collided with an actual pre-existing
@@ -93,7 +93,7 @@ module Hecks
         end
       end
 
-      # **Only the `.bluebook`, never `.world` either** — a real world's own
+      # Only the `.bluebook`, never `.world` either — a real world's own
       # settings (`persisted_by("Heki") { dir "..." }`) are keyed to the
       # real adapter it names, not to Memory; copied verbatim, they
       # apply to the wrong binding and refuse with a `WiringError`

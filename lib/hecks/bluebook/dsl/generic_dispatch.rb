@@ -14,6 +14,8 @@ module Hecks
       # ever sees a word whose (context, word) pair the grammar already
       # admits.
       #
+      # ## What is covered
+      #
       # Scope, deliberately narrow and verified word-by-word — a full
       # audit read every real Ruby builder method's own source before
       # any of this was written, not inferred from the table's shape
@@ -56,6 +58,8 @@ module Hecks
       #     blank, so this needed a real per-row signal, not an
       #     assumption from `required:` alone)
       #
+      # ## What stays hand-written
+      #
       # Explicitly out of this slice (found live, during the audit, not
       # assumed) — stays hand-written, unaffected, until a later slice's
       # own new table columns (`gated_by:`/`calls:`) can name
@@ -85,6 +89,8 @@ module Hecks
       # to `calls:`'s own territory than a simple fill); and every
       # `File`-context word (routes through `Runtime.current_registry`,
       # a side effect this module has no business performing).
+      #
+      # ## Words that look table-safe and are not
       #
       # Two further, different reasons a word can look table-safe and
       # still be excluded, both found live rather than assumed:
@@ -144,8 +150,8 @@ module Hecks
         # time into the committed lib/hecks/bluebook/dsl/bootstrap_table.rb
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).
         #
-        # This used to be a hand-kept subset — 48 of 87 rows, each checked
-        # for bootstrap-reachability by grepping the core chapters. Carrying
+        # Every row is carried, rather than a hand-kept subset checked for
+        # bootstrap-reachability by grepping the core chapters. Carrying
         # all of them costs nothing: a builder with its own `def` never
         # reaches `method_missing`, and one without gains the same dispatch
         # it gets once bootstrapping ends. `["Type", word]` rows still cover
@@ -155,16 +161,28 @@ module Hecks
 
         module_function
 
+        # Reports whether `try` would execute a (context, word) pair, without executing anything.
+        #
         # **The static predicate** — does this (context, word) pair fall
         # within this slice's own verified scope, without executing
         # anything? The same row-shape checks `try` itself runs before
         # ever touching a real argument, shared so a conformance spec
         # (which has no real call, no real builder instance) can ask the
         # same question `method_missing` answers live.
+        #
+        # @param context [String] the grammar context, a builder's `GRAMMAR_CONTEXT` such as
+        #   `"Aggregate"`, or `"Type"`
+        # @param word [String] the DSL word; a Symbol never matches a row
+        # @param rows [Hash{Symbol => Array<Hash{Symbol => String}>}] the grammar table, with
+        #   `:keywords` and `:arguments` row lists; defaults to the live self-hosted table
+        # @return [Boolean] true when `try` would execute the word rather than answer `NOT_HANDLED`
         def handles?(context, word, rows: MetaValidator::SyntaxBoot.call)
           !shape_for(context, word, rows).nil?
         end
 
+        # Executes a grammar-admitted word straight off the table when its row shape is one of
+        # the four verified safe ones.
+        #
         # `NOT_HANDLED` for anything outside this slice's own verified
         # scope — the caller (`WordGate#method_missing`) falls through
         # to its own existing "not yet implemented" refusal, unchanged,
@@ -173,6 +191,23 @@ module Hecks
         # hand-written method of the same arity would raise — for a
         # call whose shape the grammar admits but whose actual argument
         # count doesn't match; never a silent wrong answer.
+        #
+        # @param builder [Bluebook::DSL::WordGate] the builder instance the word was called on
+        # @param context [String] the grammar context the word was admitted under
+        # @param word [String] the DSL word being executed
+        # @param args [Array<Object>] the call's positional arguments
+        # @param kwargs [Hash{Symbol => Object}] the call's keyword arguments
+        # @param block [Proc, nil] the block given to the word, if any
+        # @param rows [Hash{Symbol => Array<Hash{Symbol => String}>}] the grammar table, with
+        #   `:keywords` and `:arguments` row lists
+        # @return [Object] what executing the word produced — the target method's own result
+        #   for a `calls:` row, otherwise the stored value or the list appended to — or
+        #   `NOT_HANDLED` when the word is outside the verified scope
+        # @raise [ArgumentError] if the word is table-executed and the positional argument count
+        #   does not match what its row admits
+        # @raise [Bluebook::DSL::Malformed] if a single-fill row names a `blank_message:` and the
+        #   value is blank, or the `calls:` target itself refuses the declaration
+        # @raise [Runtime::WiringError] if `shape_for` names a kind this method has no arm for
         def try(builder, context, word, args, kwargs, block, rows)
           shape = shape_for(context, word, rows)
           return NOT_HANDLED unless shape
@@ -197,7 +232,9 @@ module Hecks
           end
         end
 
-        # **The one place row shape is judged** — returns a small Hash naming
+        # Classifies a (context, word) pair into the table-executable shape its rows describe.
+        #
+        # The one place row shape is judged — returns a small Hash naming
         # which of the four safe shapes (context, word) is, or `nil` if
         # it falls outside this slice's own verified scope. No argument
         # values are read here; this only ever looks at the table.
@@ -207,6 +244,14 @@ module Hecks
         # checks before it. Splitting per shape would mean re-deriving or
         # threading those locals across method boundaries for a
         # classification that is only ever read top-to-bottom once, here.
+        #
+        # @param context [String] the grammar context to look the word up under
+        # @param word [String] the DSL word; retired rows never match
+        # @param rows [Hash{Symbol => Array<Hash{Symbol => String}>}] the grammar table, with
+        #   `:keywords` and `:arguments` row lists
+        # @return [Hash{Symbol => Object}, nil] `:kind` is `:calls_through` (with `:calls`, the
+        #   target method name), `:opens_block` or `:zero_arg` (with `:keyword`, the row), or
+        #   `:single_fill` (with `:fills` and `:argument`); nil when the word is out of scope
         # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def shape_for(context, word, rows)
           keyword = rows[:keywords].find { |k| k[:context] == context && k[:word] == word && k[:status] != "retired" }
@@ -232,6 +277,8 @@ module Hecks
           { kind: :single_fill, fills: fills, argument: arg }
         end
 
+        # Forwards a word's whole call to the builder method its row's `calls:` column names.
+        #
         # `keyword[:calls]` names a real Ruby method whose whole call —
         # every positional, every kwarg, the block, all of it — forwards
         # here unchanged. No argument-shape interpretation at all,
@@ -241,10 +288,33 @@ module Hecks
         # the lowest-risk possible shape for a word whose own logic is
         # too complex to re-derive from the table (type-quoting refusal,
         # closed-set synthesis, pattern validation, ...).
+        #
+        # @param builder [Bluebook::DSL::WordGate] the builder instance to send the call to
+        # @param calls [String, Symbol] the target method's name, such as `"attribute_impl"`
+        # @param args [Array<Object>] positional arguments, forwarded unchanged
+        # @param kwargs [Hash{Symbol => Object}] keyword arguments, forwarded unchanged
+        # @param block [Proc, nil] the block, forwarded unchanged
+        # @return [Object] whatever the target method returns
+        # @raise [Bluebook::DSL::Malformed] if the target method refuses the declaration
         def try_calls_through(builder, calls, args, kwargs, block)
           builder.send(calls, *args, **kwargs, &block)
         end
 
+        # Builds a child construct from a block-opening word and appends it to the builder's list.
+        #
+        # @param builder [Bluebook::DSL::WordGate] the builder whose list receives the child
+        # @param keyword [Hash{Symbol => String}] the word's Keyword row; `:opens` names the
+        #   child builder class without its `Builder` suffix, and the pair of `:context` and
+        #   `:word` must be a `SAFE_OPENS_BLOCK` key
+        # @param args [Array<Object>] the call's positional arguments; exactly one, the child's
+        #   name
+        # @param kwargs [Hash{Symbol => Object}] the call's keyword arguments
+        # @param block [Proc, nil] the child's body, evaluated against the child builder
+        # @return [Array<Object>, Object] the builder's list with the built child appended, or
+        #   `NOT_HANDLED` when any keyword argument was given
+        # @raise [ArgumentError] if the call does not carry exactly one positional argument
+        # @raise [KeyError] if the row's context and word are not in `SAFE_OPENS_BLOCK`
+        # @raise [Bluebook::DSL::Malformed] if the child builder refuses its own body
         def try_opens_block(builder, keyword, args, kwargs, block)
           return NOT_HANDLED unless kwargs.empty?
 
@@ -260,6 +330,15 @@ module Hecks
           list << child
         end
 
+        # Stores a zero-argument word's value into the instance variable its row's `fills:` names.
+        #
+        # @param builder [Bluebook::DSL::WordGate] the builder whose instance variable is set
+        # @param keyword [Hash{Symbol => String}] the word's Keyword row, read for `:context`,
+        #   `:fills` and `:word`
+        # @param args [Array<Object>] the call's positional arguments, which must be empty
+        # @return [Symbol, true] the stored value: the word itself as a Symbol when sibling words
+        #   share the same `fills:` target (`core`/`generic`/`supporting`), otherwise `true`
+        # @raise [ArgumentError] if any positional argument was given
         def try_zero_arg(builder, keyword, args)
           raise ArgumentError, "wrong number of arguments (given #{args.size}, expected 0)" unless args.empty?
 
@@ -272,6 +351,20 @@ module Hecks
           builder.instance_variable_set(:"@#{keyword[:fills]}", value)
         end
 
+        # Coerces a word's one positional argument and stores it, appending when the target
+        # instance variable already holds an Array and assigning otherwise.
+        #
+        # @param builder [Bluebook::DSL::WordGate] the builder whose instance variable is filled
+        # @param fills [String] the instance variable's name, without the `@`
+        # @param arg [Hash{Symbol => String}] the word's single Argument row, read for `:kind`,
+        #   `:coerce` and `:blank_message`
+        # @param args [Array<Object>] the call's positional arguments; exactly one
+        # @param kwargs [Hash{Symbol => Object}] the call's keyword arguments
+        # @return [Object] the stored value, or the Array it was appended to, or `NOT_HANDLED`
+        #   when any keyword argument was given
+        # @raise [ArgumentError] if the call does not carry exactly one positional argument
+        # @raise [Bluebook::DSL::Malformed] if the row names a `blank_message:` and the coerced
+        #   value is blank
         def try_single_fill(builder, fills, arg, args, kwargs)
           return NOT_HANDLED unless kwargs.empty?
 

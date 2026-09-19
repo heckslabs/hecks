@@ -66,7 +66,7 @@ module Hecks
         error_result(test, "#{e.class}: #{e.message}")
       end
 
-      # **One boot per suite, not per test**. The isolation a test needs is a
+      # One boot per suite, not per test. The isolation a test needs is a
       # runtime with nothing in it — and a boot of the same files gives
       # exactly that back for the price of `Registry#reset_runtime_state!`
       # instead of ~2s of loading, verifying and era-checking the same

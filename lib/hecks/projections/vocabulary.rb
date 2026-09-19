@@ -2,7 +2,7 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # The closed sets, projected — lib/hecks/vocabulary.rb rendered
+    # **The closed sets, projected** — lib/hecks/vocabulary.rb rendered
     # from whichever chapter declares a `Vocabulary` aggregate, which in
     # practice is the language projecting its own tables.
     #

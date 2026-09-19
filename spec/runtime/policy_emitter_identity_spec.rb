@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **A policy's `with:` may read the emitting record's own identity**.
+# A policy's `with:` may read the emitting record's own identity.
 #
 # Routing separated from payload (`to:`/`with:`) stopped carrying the
 # emitting aggregate's identity in an event's payload — right for the
@@ -16,7 +16,7 @@ require "spec_helper"
 # emitter's own identity heads, to an explicit projection only;
 # `BluebookBuilder.check_with_spec!` admits the same names.
 RSpec.describe "a policy projecting its emitter's identity" do
-  # **One inline bluebook, declared whole** — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.

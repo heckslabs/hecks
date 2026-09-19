@@ -23,7 +23,7 @@ RSpec.describe "the first specializer" do
       expect(derived).to eq(hand)
     end
 
-    # **The other half of the same claim**. Deriving the plain fields is only
+    # The other half of the same claim. Deriving the plain fields is only
     # worth anything if it derives all of them — a specializer that
     # silently skipped one would pass the comparison above by matching a
     # table it had itself shrunk.

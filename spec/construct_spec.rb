@@ -1,7 +1,7 @@
 require "spec_helper"
 require "stringio"
 
-# **A construct is a record with an owner chain, and what points at one is an edge**.
+# A construct is a record with an owner chain, and what points at one is an edge.
 #
 # The chain is IR objects end to end : the chapter (Bluebook) owns its
 # aggregates, an aggregate owns its commands, value objects, entities and asks,

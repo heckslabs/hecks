@@ -29,7 +29,7 @@ RSpec.describe "the declared syntax" do
   # The same chapter, reachable from inside an example.
   def meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
-  # **Every cell as text**. A member's fields decode back through typed literal
+  # Every cell as text. A member's fields decode back through typed literal
   # decoding on the way out of reconstruction — the same path Attribute#list
   # takes — so `at: "1"` comes back as the Integer 1 and `required: "true"` as
   # true. The language wrote text and the reconstruction is right to decode it;
@@ -281,7 +281,7 @@ RSpec.describe "the declared syntax" do
     }
   }.freeze
 
-  # **The one place a spelling and a Ruby signature diverge**. `transition` takes one
+  # The one place a spelling and a Ruby signature diverge. `transition` takes one
   # Hash and deletes `:from` out of it, so `from:` is written exactly like a
   # keyword argument and received as a reserved key of the pairs argument. The
   # language declares the spelling, which is what a parser reads, so it declares

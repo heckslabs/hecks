@@ -2,14 +2,14 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # **A domain's own shape, projected as mermaid diagrams** — the same
+    # A domain's own shape, projected as MERMAID diagrams — the same
     # trick `Projections::Reference`/`DocsProjector` already play for
     # prose, one level further: a diagram generated from the
     # declaration can't drift from it the way a hand-drawn one
     # inevitably does, because there is no second copy to forget to
     # update.
     #
-    # Mermaid, not Graphviz (the two considered) — every diagram type
+    # MERMAID, not Graphviz (the two considered) — every diagram type
     # below has a Mermaid form purpose-built for exactly what the
     # underlying construct already is (a `lifecycle` is a state
     # machine, `has_many`/`belongs_to` already speaks in cardinality,
@@ -261,7 +261,7 @@ module Hecks
 
       # ── roles -> flowchart ────────────────────────────────────────────
 
-      # **Who issues what, across the whole domain** — data no existing
+      # Who issues what, across the whole domain — data no existing
       # projection draws at all today (the reference pages' own
       # `command_entry` only ever prints a command's role as a single
       # line of prose, never assembled across commands). A command with
@@ -293,7 +293,7 @@ module Hecks
 
       # ── ports -> flowchart ───────────────────────────────────────────
 
-      # **A port operation is a boundary translation, not a verb or a fact** —
+      # A port operation is a boundary translation, not a verb or a fact —
       # its own reference page says so plainly ("the builder behind it
       # defines no `given` or `sets`, so an operation cannot read
       # aggregate state or mutate a record itself"), so it gets a third
@@ -302,7 +302,7 @@ module Hecks
       # state landing somewhere, the same reason a data store gets one
       # in an ordinary flowchart.
       #
-      # **Two edge kinds per operation**: a dotted "exposes" edge from the
+      # Two edge kinds per operation: a dotted "exposes" edge from the
       # aggregate the port hangs off (always present — a port always
       # belongs to exactly one aggregate), and a solid "to:" edge to
       # whichever aggregate the operation itself names as its receiver
@@ -363,7 +363,7 @@ module Hecks
       # (real in banking: `Account` feeds four) merges into one node
       # across the whole diagram.
       #
-      # **The label names the shape of the answer, not just the name** —
+      # The label names the shape of the answer, not just the name —
       # `(count)`/`(median: field)` for the two real aggregations in the
       # corpus, nothing appended for an ordinary row-returning
       # read_model. Still MVP scope: `where`/`group_by`/`order_by`
@@ -411,14 +411,14 @@ module Hecks
       # that same aggregate answers. This is the one diagram meant to
       # be read starting from the aggregate, not from a verb or a fact.
       #
-      # **A query is a diamond** — a fifth shape, beside `dispatch.mmd`'s
+      # A query is a diamond — a fifth shape, beside `dispatch.mmd`'s
       # stadium/hexagon, `ports.mmd`'s trapezoid, and `read_models.mmd`'s
       # subroutine: a question with an answer, not a verb that changes
       # anything. Command edges are solid ("does"); query edges are
       # dotted ("asks") — the same solid/dotted split `ports.mmd`
       # already uses for "routes to:" versus "exposes".
       #
-      # **A write target is a plain rectangle** — a sixth shape, the first
+      # A write target is a plain rectangle — a sixth shape, the first
       # here with no special bracket at all: an attribute is the
       # smallest, most passive thing this vocabulary names, a single
       # field living inside the cylinder rather than a bounded thing of
@@ -430,13 +430,13 @@ module Hecks
       # command emits; this draws what it writes, the other half of
       # "what actually happens" a command never showed before.
       #
-      # **The same attribute node merges across commands** — real in
+      # The same attribute node merges across commands — real in
       # banking: `Account.Credit` and `Account.Debit` both point at the
       # same `balance` node, the same "one node, several incoming
       # edges" merge `read_models.mmd` already does for an aggregate
       # fed by several read_models.
       #
-      # **The label names the real source, not just the verb** — an
+      # The label names the real source, not just the verb — an
       # increment/decrement/set almost always takes its value from an
       # argument, but not always the same-named one: real in banking,
       # `Account.Credit`'s own `balance` is incremented by its
@@ -492,7 +492,7 @@ module Hecks
         "#{verb}: #{detail}"
       end
 
-      # **A literal value can contain a double quote of its own** — real in
+      # A literal value can contain a double quote of its own — real in
       # banking: `Customer.Reinstate` sets `standing` to a rendered
       # value-object literal, `{:value=>"good"}`, whose own embedded `"`
       # broke this label's outer `|"..."|` quoting outright (caught by
@@ -515,7 +515,7 @@ module Hecks
 
       # ── sagas -> stateDiagram-v2 ─────────────────────────────────────
 
-      # **A saga has a lifecycle too** — the same `stateDiagram-v2` shape
+      # A saga has a lifecycle too — the same `stateDiagram-v2` shape
       # `lifecycle_diagram` already draws, one file per process_manager
       # the same way lifecycle is one file per lifecycle-bearing holder.
       # What's different is the label: a lifecycle's own edge is labeled
@@ -527,7 +527,7 @@ module Hecks
       # draws, here spent on which noun labels a stateDiagram-v2 edge
       # instead.
       #
-      # **The label also names what the transition dispatches** — a fact no
+      # The label also names what the transition dispatches — a fact no
       # existing diagram states for a saga at all: a lifecycle's own
       # edge only ever names the one command that caused it; a saga's
       # edge can fire several commands at once (real in banking:
@@ -538,7 +538,7 @@ module Hecks
       # fires lands inside its own bluebook chapter, so this never needs
       # `dispatch.mmd`'s own "triggers in X" cross-domain label.
       #
-      # **The compensating leg reads like any other** — its own trigger is
+      # The compensating leg reads like any other — its own trigger is
       # the literal string "refused" (`ProcessManager::REFUSED`, this
       # language's own Trigger vocabulary), not invented text: a
       # dispatch declined is exactly as real a cause of a state
@@ -556,7 +556,7 @@ module Hecks
         MERMAID
       end
 
-      # **The refused edge's own dispatch list is partly derived now** —
+      # The REFUSED edge's own dispatch list is partly derived now —
       # per-dispatch saga compensation (`compensates`) moved a saga's own
       # compensating dispatches off the hand-written `on :refused` leg
       # and onto whichever forward dispatch each one undoes, so
@@ -564,7 +564,7 @@ module Hecks
       # edge for any saga using it — accurate to the declaration, wrong
       # about what the runtime actually does at refusal (it derives and
       # fires every declared `compensates`, newest first). `saga` is
-      # passed through for exactly this — only the refused handler needs
+      # passed through for exactly this — only the REFUSED handler needs
       # it, every other edge's own `handler.dispatches` already says
       # everything real about it.
       def saga_edge(handler, saga)

@@ -12,7 +12,7 @@
 # `proposed` → `investigating` → `built` in one pass, so the backlog opens
 # already telling the truth about what is and is not still open.
 #
-# **Idempotent, the same way `seed_default_targets!` already is** — only the
+# Idempotent, the same way `seed_default_targets!` already is — only the
 # references not already on file get proposed. Safe to run again from a
 # fresh worktree, or after a human has already proposed some of these by
 # hand; re-running never re-proposes, re-investigates, or re-builds a

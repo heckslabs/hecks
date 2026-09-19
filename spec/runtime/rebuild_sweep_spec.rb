@@ -46,7 +46,7 @@ RSpec.describe "the rebuild sweep" do
       .not_to raise_error
   end
 
-  # **The one case synchronous seeding cannot cover**: a record that
+  # The one case synchronous seeding cannot cover: a record that
   # never went through `CommandInterpreter#step_save` at all — a
   # direct repository write, the same shape a bulk import or a
   # migration script would use. This is `ProjectionAbsent`'s real

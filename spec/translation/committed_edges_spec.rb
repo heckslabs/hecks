@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# **Every committed translation edge, checked without a database**.
+# Every committed translation edge, checked without a database.
 #
 # A domain's `bluebook/translations/*.bluebook` edges are the record of
 # how its storage shape moved from era to era. Nothing else gated reads

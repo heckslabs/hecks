@@ -32,7 +32,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
-  # **Empty, and it has to stay that way**.
+  # Empty, and it has to stay that way.
   #
   # It held thirteen entries, all of them justified by the same wrong belief: that
   # the language may only hold what `to_h` carries. `ReadModel#to_h` omits a read

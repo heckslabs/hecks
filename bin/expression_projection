@@ -15,7 +15,7 @@
 # the checked-in table, derives the fresh one from the domain (never
 # from what it just read), and replaces the file atomically.
 #
-# **One guard stands where a wedge was found**. The chapter's own
+# One guard stands where a wedge was found. The chapter's own
 # `status != "retired"` givens evaluate through the very operator table
 # being projected — a projection missing a self-bearing operator cannot
 # even boot the chapter to fix itself. So this script refuses to write a

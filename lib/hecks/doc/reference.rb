@@ -19,7 +19,7 @@ module Hecks
       GENERATED_END = "<!-- generated:end -->".freeze
       TODO_SENTINEL = "<!-- TODO: document this word -->".freeze
 
-      # A page's own hand-written opening, harvested under a key no word
+      # A PAGE'S own hand-written opening, harvested under a key no word
       # can ever collide with (words are strings off the Syntax chapter;
       # this is a Symbol). It exists so a page can boot once — load a real
       # corpus chapter, wire its hexagon — and have every word's example
@@ -56,7 +56,7 @@ module Hecks
       # same shape `rows` used to produce — nothing below this needed to
       # change.
       #
-      # **No separate `@keywords ||=` here anymore**. This module used to
+      # No separate `@keywords ||=` here anymore. This module used to
       # memoize its own copy on top of `SyntaxBoot.call`'s own memo — a
       # double cache with no way to invalidate either half, and a real
       # bug: whichever call in the whole process happened to land first
@@ -86,7 +86,7 @@ module Hecks
         end.merge("index.md" => render_index)
       end
 
-      # **A word admitting two forms has two rows** — syntax.bluebook's own
+      # A WORD admitting two forms has two rows — syntax.bluebook's own
       # stated rule, and `identified_by` (a block, or a bare argument and
       # none) is the case that made it real again. One section per word all
       # the same: the prose is the word's rather than the form's, and the
@@ -204,7 +204,7 @@ module Hecks
       # Prose keyed by word: everything between a section's generated
       # region and the next `## ` heading (or end of file).
       #
-      # Starts on PREAMBLE rather than nil so the text between the page's
+      # Starts on PREAMBLE rather than nil so the text between the PAGE's
       # own generated lede and its first word heading is carried over too
       # instead of being silently dropped. A page written before that
       # region existed has no generated marker ahead of its first `## `,
@@ -221,7 +221,7 @@ module Hecks
         collecting = false
         buffer = []
 
-        # **A heading inside a fence is not a heading**. `## something` is an
+        # A heading inside a fence is not a heading. `## something` is an
         # ordinary Ruby comment, and now that every word's section carries
         # runnable code, one written at the left margin would otherwise
         # end that section mid-example and orphan the rest of it under a
@@ -317,7 +317,7 @@ module Hecks
         text.length > 140 ? "#{text[0, 137]}..." : text
       end
 
-      # **One real, committed file, read fresh** — not re-derived from a boot
+      # One real, committed file, read fresh — not re-derived from a boot
       # (this module never requires `hecks/projections/diagrams`, and
       # shouldn't just to draw one example). `docs/generated/diagrams/`
       # is already held to the declaration by `spec/diagrams_spec.rb`'s
@@ -373,7 +373,7 @@ module Hecks
 
       def exemplified?(prose) = prose.to_s.match?(EXAMPLE_FENCE)
 
-      # **Every live word, paired with its prose**. Both coverage gates ask a
+      # Every live WORD, paired with its prose. Both coverage gates ask a
       # question about this same walk and differ only in what they ask of
       # the prose, so they share it rather than each re-deriving the page
       # set — the two are meant to move together, and one drifting past

@@ -54,7 +54,7 @@ module Hecks
         InMemoryOrdering.ordered(@records.values, aggregate: @aggregate, order_by: order_by, direction: direction)
       end
 
-      # **The decision the guide asks for, made explicitly**: no compiled
+      # The decision the guide asks for, made explicitly: no compiled
       # dialect of its own, same as Heki/Memory — a personal-scale local
       # store answering by walking `all` is correct on day one, and
       # nothing about a browser tab's own data volume asks for pushdown.

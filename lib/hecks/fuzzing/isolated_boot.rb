@@ -4,7 +4,7 @@ require "securerandom"
 
 module Hecks
   module Fuzzing
-    # **A fresh, in-process adapter for every ephemeral boot**.
+    # A fresh, in-process adapter for every ephemeral boot.
     #
     # Fuzzing/replay copies a domain to a tmpdir and boots from there
     # specifically to get zero-history state — `rm_rf`ing the copy's own
@@ -100,7 +100,7 @@ module Hecks
         end
       end
 
-      # **Symlinks are followed, not copied**. `FileUtils.cp_r` reproduces a
+      # Symlinks are followed, not copied. `FileUtils.cp_r` reproduces a
       # symlink as a symlink, and a relative one then points at nothing
       # from a tmpdir — `lib/hecks/framework/bluebook/compliance
       # .bluebook` is exactly that, a link to
@@ -154,7 +154,7 @@ module Hecks
         Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
       end
 
-      # **Same dance as memory, one adapter over** — `Adapters::Sqlite#
+      # Same dance as memory, one adapter over — `Adapters::Sqlite#
       # resolve_path` (adapters/driven/sqlite.rb) defaults to
       # `data/<table>.db` under the boot's own root when no `database`
       # setting is declared, which `data/` already being cleared makes a
@@ -179,7 +179,7 @@ module Hecks
       # binding decision, nothing about a real deployment's own settings
       # is relevant or safe to half-preserve here.
       #
-      # **One shared schema, dropped and recreated before every boot** — not a
+      # One shared schema, dropped and recreated before every boot — not a
       # fresh randomly-named one per call. `bin/fuzz` drives every
       # ephemeral boot sequentially (one `IsolatedBoot.call` fully exits
       # before the next begins — see that file's own single-threaded
@@ -236,7 +236,7 @@ module Hecks
         end
       end
 
-      # **Admin connection lives outside the tmp copy entirely** — same as
+      # Admin connection lives outside the tmp copy entirely — same as
       # every other real-Postgres spec in this repo (`support/
       # postgres_probe.rb`'s own header). Database created once per
       # process and remembered (`@fuzz_database_ready` on this module's
@@ -292,7 +292,7 @@ module Hecks
         db.close
       end
 
-      # **The adapter `:postgres` never touches** — `Postgres` and `PostgresEra`
+      # The adapter `:postgres` never touches — `Postgres` and `PostgresEra`
       # are sibling, not interchangeable, adapters (see postgres_era.rb's
       # own header: "the only one that declares the LINEAGE capability").
       # PRD 02 (docs/prds/02-fuzzer-real-adapters.md) shipped `:postgres`
@@ -305,7 +305,7 @@ module Hecks
       # `:memory` included, structurally cannot reach it. This mode closes
       # that — `bin/qa_sweep --persistence-parity` is its first caller.
       #
-      # **No shared constant database, unlike `:postgres` above** — deliberate.
+      # No shared constant database, unlike `:postgres` above — deliberate.
       # `rebind_to_postgres!`'s own `FUZZ_POSTGRES_DATABASE`/`_SCHEMA` are
       # module-level constants because `bin/fuzz --adapter postgres` is a
       # general-purpose, run-it-anytime tool with no caller-tracked
@@ -386,7 +386,7 @@ module Hecks
         end
       end
 
-      # **The zero-history guarantee for this mode** — `DROP SCHEMA ... CASCADE`
+      # The zero-history guarantee for this mode — `DROP SCHEMA ... CASCADE`
       # before every ephemeral boot, mirroring `ensure_fuzz_schema!` above
       # (same `GC.start`-before-connecting fix for the identical
       # `max_connections` exhaustion that method's own comment documents —
@@ -417,7 +417,7 @@ module Hecks
         db.close
       end
 
-      # **The shared rewrite** — factored out of `rebind_to_memory!` when
+      # The shared rewrite — factored out of `rebind_to_memory!` when
       # Sqlite/Postgres modes needed the identical `.hecksagon` surgery
       # with only the target adapter name differing. `persisted_by`/
       # `projected_by` can be spelled two ways: aggregate-scoped
@@ -453,7 +453,7 @@ module Hecks
       # all" once the era plugin is loaded, which every real
       # `bin/qa_sweep` invocation already does.
       #
-      # **The fix is to drop the edge, not to chase the refusal** — an
+      # The fix is to drop the edge, not to chase the refusal — an
       # ephemeral, zero-history replay boot (every mode `IsolatedBoot`
       # offers) never has a pre-existing era-1 row to translate in the
       # first place, so the translation edge is irrelevant to anything a

@@ -159,7 +159,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
                               ruby: ruby_events, rust: rust_output["events"] }
           end
 
-          # **Tolerated only where the manifest says so** — a query/read-model
+          # Tolerated only where the manifest says so — a query/read-model
           # verb this binary's manifest.json declares `generated: false`
           # leaves both sides; any other refusal is compared, whatever its
           # wording. A tolerated verb Rust answered anyway is its own
@@ -201,7 +201,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
           end
         end
 
-        # **A real divergence here is a finding, not just a failing spec** —
+        # A real divergence here is a finding, not just a failing spec —
         # per the plan's own text: shrink it with `bin/fuzz`'s existing
         # shrinker (`bin/fuzz shrink #{domain} <seed>` — see that script's
         # own header) before filing it, the same red-before/green-after

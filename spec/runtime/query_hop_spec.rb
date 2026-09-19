@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **A dotted where hops through a reference** — end to end, on Memory, the
+# A dotted where hops through a reference — end to end, on Memory, the
 # same fixture single-hop, multi-hop, and self-referential.
 RSpec.describe "cross-aggregate query filtering" do
   HOP_CHAIN = File.join(InMemoryDomain::ROOT, "spec/fixtures/hop_chain.bluebook")

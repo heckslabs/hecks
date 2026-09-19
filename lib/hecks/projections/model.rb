@@ -10,7 +10,7 @@ module Hecks
     # what `bluebook.bluebook` already says, three times over in Ruby.
     # This renders it instead.
     #
-    # Only the holding half. `Behaviour::X` is hand-written and permanent,
+    # **Only the holding half**. `Behaviour::X` is hand-written and permanent,
     # and `settle` is the seam: everything a declaration cannot state
     # lives behind it, so regenerating can never be lossy. That property
     # was established construct by construct before any of this was
@@ -29,7 +29,7 @@ module Hecks
 
       projects_as :model, declares: "Bluebook", emits: :files
 
-      # Per-construct Ruby facts. `coerce` is the only fiddly column: a
+      # **Per-construct Ruby facts**. `coerce` is the only fiddly column: a
       # declared field arrives as whatever the builder handed over, and
       # each construct has always normalised its own on the way in.
       HOST = {

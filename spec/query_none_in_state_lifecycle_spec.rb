@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tempfile"
 
-# **The shape the other `query_none_in_state_*_spec.rb` files don't cover** —
+# The shape the other `query_none_in_state_*_spec.rb` files don't cover —
 # every one of them (growth, aggregate_level_growth, heki) declares its
 # target aggregate's state as a plain `attribute :state, ...`, never a
 # real `lifecycle :field, ...`. Most aggregates in this codebase (and

@@ -7,7 +7,7 @@ require "tmpdir"
 # `bin/qa_open_pr`, proven against the real thing — a real subprocess, a
 # real disposable PostgresEra ledger (`spec/support/qa_ledger_fixture.rb`),
 # a real throwaway git repository on a `qa/…` branch, and a fake `gh` on
-# path: a small script that records every argv it was called with and
+# PATH: a small script that records every argv it was called with and
 # answers `pr view`/`pr create`/`pr merge` the way the real one does, from
 # a state file. GitHub itself is the one thing this spec must never
 # touch; everything else the script does is exercised for real.

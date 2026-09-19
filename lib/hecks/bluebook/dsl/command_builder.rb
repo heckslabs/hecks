@@ -345,7 +345,7 @@ module Hecks
           @emits << Naming.event_ref(event_name)
         end
 
-        # **The record's own value as a mutation source** — `sets :positions,
+        # The record's own value as a mutation source — `sets :positions,
         # append: { ply: state(:ply), knights: state(:knights) }` copies
         # what the record holds now into the new element; `sets :last,
         # to: state(:current)` copies one field onto another. A bare
@@ -434,7 +434,7 @@ module Hecks
           @mutations << Mutation.new(target: target.to_s, op: :delegate, source: with)
         end
 
-        # **A command declaring what past fact it amends** — the append-only
+        # A command declaring what past fact it amends — the append-only
         # answer to "what if this record's history turns out to have been
         # wrong": never rewrite the original event (the log stays exactly
         # what it was), always append a new fact on top. `event` names the
@@ -485,7 +485,7 @@ module Hecks
                                      source: { as: as&.to_s, reason: reason.to_s, reverses: reverses })
         end
 
-        # **The effects that write a field of the record** — `delegate` and
+        # The effects that write a field of the record — `delegate` and
         # `corrects` name a command and an event, never a field.
         FIELD_EFFECTS = %i[set append remove increment decrement multiply clamp].freeze
 

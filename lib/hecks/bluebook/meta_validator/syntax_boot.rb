@@ -53,7 +53,7 @@ module Hecks
         # fixpoint judge swapping a raw chapter for its assembled self)
         # or added (`load_attached_grammar_into`) means a fresh boot.
         #
-        # **Why not the earlier `grammar_registry_ready?` guard**. That guard
+        # Why not the earlier `grammar_registry_ready?` guard. That guard
         # was right about the hazard — a snapshot taken mid-build, before
         # Paging attached, would be missing limit/offset/cursor/nulls
         # forever — and wrong about the cost of its cure. It refused to
@@ -107,7 +107,7 @@ module Hecks
         # scratch even when the grammar source hasn't changed at all since
         # the last process that built it.
         #
-        # **Not a fix for the two-builds-per-process shape** — investigated and
+        # Not a fix for the two-builds-per-process shape — investigated and
         # confirmed genuine, not waste (see this module's own header
         # history: the previous "wait for the whole registry" design cost
         # 42 rebuilds/32s per process precisely because real callers need a
@@ -127,7 +127,7 @@ module Hecks
         # source edit anywhere in that set correctly misses the old cache
         # entry rather than silently serving a stale table.
         #
-        # **Fails toward a real boot, never toward a wrong table** — same
+        # Fails toward a real boot, never toward a wrong table — same
         # loud-not-silent discipline this codebase already holds CI to
         # (`postgres_io_relevant_changed`'s own header). A missing file, a
         # corrupt Marshal blob, a permission error, an unwritable `tmp/` —
@@ -231,7 +231,7 @@ module Hecks
           { value: text.to_s }
         end
 
-        # **Absent stays absent**. A seed row's own optional columns ("was",
+        # Absent stays absent. A seed row's own optional columns ("was",
         # "at", "named", ...) are empty strings, not nil — `Literal`/CSV-
         # shaped grammar data has no `nil` to write — so this is the one
         # place that decides "" means "not given" for the purpose of an
@@ -308,7 +308,7 @@ module Hecks
           end
         end
 
-        # **Every aggregate-local table in every loaded language chapter**.
+        # Every aggregate-local table in every loaded language chapter.
         # The table's presence is the registration: no chapter, aggregate,
         # filename, or context catalog is maintained here. This finds the core
         # Bluebook concepts, the sibling artifact languages (World, Hecksagon,

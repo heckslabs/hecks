@@ -66,7 +66,7 @@ module Hecks
         )
       end
 
-      # **What is wrong with this as a model** — closed to the same kind
+      # What is wrong with this as a model — closed to the same kind
       # vocabulary `Ports::Agent::CRITIQUE_KINDS` declares, spelled out
       # here too since the system prompt is the only place the model
       # itself ever sees that list.

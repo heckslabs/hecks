@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **The name a fan-out's row ID arrives under**.
+# The name a fan-out's row ID arrives under.
 #
 # `spec/runtime/policy_spec.rb` already covers `for_each` end to end and
 # asserts delivery — and passed for a reason that was not the rule. Its

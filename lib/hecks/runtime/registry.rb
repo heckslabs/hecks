@@ -116,7 +116,7 @@ module Hecks
         @bluebook_builders[name.to_s] ||= yield
       end
 
-      # **Boot-time-only, single-threaded** — every `add_*` below (through
+      # Boot-time-only, single-threaded — every `add_*` below (through
       # `add_translation`) is called exclusively from `Hecks.collect`
       # (hecks.rb), which is what `Hecks.bluebook`/`.hecksagon`/`.port`/
       # `.adapter`/`.world`/`.translation` run inside while a `.bluebook`/
@@ -132,7 +132,7 @@ module Hecks
       # rubocop:disable Hecks/ThreadSharedIvarMutation
       def add_bluebook(item) = @bluebooks[item.name] = item
 
-      # **Merged, not replaced** — recovered, not new (see Runtime::Loader
+      # Merged, not replaced — recovered, not new (see Runtime::Loader
       # .boot's own comment for the provenance). A domain's hecksagon can
       # now load in more than one block for the same domain (base file
       # plus an `environments/<name>.hecksagon` overlay), and the second
@@ -146,7 +146,7 @@ module Hecks
       def add_port(item) = @ports[item.name] = item
       def add_adapter(item) = @adapters[item.name] = item
 
-      # **Merged, not replaced** — the same generalization for `World` that
+      # Merged, not replaced — the same generalization for `World` that
       # `add_hecksagon` above recovers for `Hecksagon`: an
       # `environments/<name>.world` overlay (or a host-owned tenancy
       # overlay world, same mechanism) can now add or override settings
@@ -298,7 +298,7 @@ module Hecks
         )
       end
 
-      # **Recovered and generalized** — see `add_world`'s own comment. `realm`/
+      # Recovered and generalized — see `add_world`'s own comment. `realm`/
       # `latest` are scalars, so the overlay's value wins when present,
       # else the base's survives; `settings` is a shallow merge keyed by
       # verb (and `"verb:adapter"`) — an overlay entry for a key the base

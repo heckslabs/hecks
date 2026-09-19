@@ -4,7 +4,7 @@ require_relative "../statements"
 module Hecks
   module Projections
     module Glossary
-      # **Every sentence the glossary says, and the rule each one obeys**.
+      # Every sentence the glossary says, and the rule each one obeys.
       #
       # Authored text is verbatim: an aggregate's `description`, a
       # command's `goal`, a query's `description`, an invariant's own
@@ -92,7 +92,7 @@ module Hecks
           field.list? ? "a list of #{inner}" : inner
         end
 
-        # **A closed set's rows** — a one-field set is its values; a set
+        # A closed set's rows — a one-field set is its values; a set
         # whose rows carry more (StatementFrequency's cadence plus a
         # retention and a fee) leads with the first field and keeps the
         # rest beside it, so no row loses what makes it distinct.
@@ -162,7 +162,7 @@ module Hecks
           sentence
         end
 
-        # **A noun list, deliberately** — "Responsible for Credit and Debit",
+        # A noun list, deliberately — "Responsible for Credit and Debit",
         # never "Can credit and debit": banking's System role raises
         # `Debited` and `Credited`, and "can … debited" is a wrong
         # sentence. The headwords are already what people say.

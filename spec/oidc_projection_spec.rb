@@ -58,7 +58,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
     )
   end
 
-  # **The application-level composition** — not new library code, the same
+  # The application-level composition — not new library code, the same
   # discipline `act_as_spec.rb`'s own helper follows: verified claims in,
   # a scoped dispatch out, refusing before the block ever runs if either
   # step says no.

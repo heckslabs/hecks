@@ -86,7 +86,7 @@ module Hecks
     # `CommandRules::Admissibility#enforce_correction_target`.
     class NothingToCorrect < StandardError; end
 
-    # **A runtime fault, not a domain refusal** — deliberately absent from
+    # A runtime fault, not a domain refusal — deliberately absent from
     # `DOMAIN_REFUSALS` below and from `vocabulary.bluebook`'s own
     # `DomainRefusal` list. Raised when an optimistic-concurrency CAS write
     # (`AppendOnly#save`'s `expected_version:`) finds the stored version has

@@ -30,7 +30,7 @@ require "fileutils"
 RSpec.describe Hecks::Fuzzing::PersistenceParity, :io do
   PERSISTENCE_PARITY_SPEC_DATABASE = "hecks_persistence_parity_spec".freeze
 
-  # **One aggregate, one command, one optional string attribute** — nothing
+  # One aggregate, one command, one optional string attribute — nothing
   # here needs a `compute`/`rekey` translation edge (this spec is about
   # `PersistenceParity.diff` itself, not about `examples/directory`'s own
   # edge — see this file's own header). `PostgresEra`-bound, same as
@@ -111,7 +111,7 @@ RSpec.describe Hecks::Fuzzing::PersistenceParity, :io do
     FileUtils.remove_entry(@fixture_root)
   end
 
-  # **One schema per example, never shared** — the same isolation
+  # One schema per example, never shared — the same isolation
   # `IsolatedBoot#ensure_postgres_era_schema!` gives every ephemeral boot
   # inside a single sweep, applied here at the example level so two
   # examples in this file can never see each other's own widgets.

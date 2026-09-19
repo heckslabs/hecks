@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **The glossary every domain carries with it** — `<domain>/glossary/` (the two
+# The glossary every domain carries with it — `<domain>/glossary/` (the two
 # examples, and the QA ledger under qa/) is a projection of the bluebook
 # beside it, and this refuses a diff the
 # same way spec/diagrams_spec.rb refuses one for the diagrams: regenerate

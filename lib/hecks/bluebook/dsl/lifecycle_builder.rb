@@ -12,16 +12,26 @@ module Hecks
 
         include WordGate
 
+        # @param field [Symbol, String] the attribute the state machine lives on, such as `:status`
+        # @param default [String, Symbol] the state a new record starts in
         def initialize(field, default:)
           @field       = field
           @default     = default
           @transitions = []
         end
 
-        # Renamed from `transition` — item #13's full metaprogrammed
+        # Records one transition row per command in `mapping`, all sharing its `from:` guard.
+        #
+        # Answers the `transition` word, which the grammar table routes here
+        # through its `calls:` column — item #13's full metaprogrammed
         # dispatch (slice 4c). Bootstrap-reachable (syntax.bluebook's
         # own Keyword/Argument entities describe their `status`
-        # lifecycle with it), so in BOOTSTRAP_CALLS_FALLBACK.
+        # lifecycle with it), so in `BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param mapping [Hash{String, Symbol => String, Symbol, Array<String>}] command name to
+        #   target state, as in `"Purchase" => "sold"`; the optional `:from` key holds the
+        #   state, or Array of states, the transition applies from, and nil or absent means any
+        # @return [Hash] the command-to-target pairs just recorded, `:from` removed
         def transition_impl(mapping)
           mapping = mapping.dup
           from    = mapping.delete(:from)
@@ -34,11 +44,24 @@ module Hecks
           end
         end
 
+        # Assembles the declared transitions into a `Lifecycle`, refusing an ambiguous table.
+        #
+        # @return [Bluebook::Lifecycle] the state machine: its field, default and transitions
+        # @raise [Bluebook::DSL::Malformed] if two transitions for one command could both apply
+        #   from the same state (C5.3); skipped while shadow-parsing frozen era text
         def build
           refuse_ambiguity!
           Lifecycle.new(field: @field, default: @default, transitions: @transitions)
         end
 
+        # Evaluates a `lifecycle` block against a fresh builder and returns what it built.
+        #
+        # @param field [Symbol, String] the attribute the state machine lives on
+        # @param default [String, Symbol] the state a new record starts in
+        # @yield the lifecycle body of `transition` rows, evaluated with the builder as `self`
+        # @return [Bluebook::Lifecycle] the built state machine
+        # @raise [Bluebook::DSL::Malformed] if two transitions for one command overlap, or the
+        #   block uses a word the `Lifecycle` grammar does not admit
         def self.build(field, default:, &block)
           builder = new(field, default: default)
           builder.instance_eval(&block) if block

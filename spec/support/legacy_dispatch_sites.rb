@@ -184,7 +184,7 @@ module LegacyDispatchSites
 
   module_function
 
-  # **The suite's own setting, in one place** — spec_helper.rb arms it at boot,
+  # The suite's own setting, in one place — spec_helper.rb arms it at boot,
   # and the spec that exercises the deprecation on purpose re-arms it here
   # rather than restating the predicate and drifting from it.
   def install_suite_guard!

@@ -80,7 +80,7 @@ module Hecks
     # A projection names the capabilities it needs; this refuses a
     # construct that lacks one, before the projector runs.
     #
-    # **One check covers both shapes**. An ordinary construct includes its
+    # One check covers both shapes. An ordinary construct includes its
     # capabilities and a class-shaped one — Command, Entity, ValueObject
     # — extends them, and `is_a?` consults the singleton chain, so it
     # answers for an extended module as readily as an included one. This
@@ -132,7 +132,7 @@ module Hecks
       target
     end
 
-    # **Writing is the caller's choice, not the projector's**. A projector
+    # Writing is the caller's choice, not the projector's. A projector
     # returns an artifact and never touches disk, which is what lets
     # spec/projector_spec.rb compare `:ir`'s output against a golden
     # fixture without a tmpdir. `out:` is the only thing that writes.

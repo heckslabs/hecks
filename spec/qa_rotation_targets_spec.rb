@@ -34,7 +34,7 @@ RSpec.describe "the QA rotation's own targets" do
     expect(missing).to be_empty, "these rotation targets hold no bluebook: #{missing.keys.join(', ')}"
   end
 
-  # **The seeder reads the corpus, not a list** — the drift this whole file
+  # The seeder reads the corpus, not a list — the drift this whole file
   # exists to stop is someone re-typing the membership somewhere. If that
   # happens again it fails here, rather than ten domains later going
   # quietly unswept.

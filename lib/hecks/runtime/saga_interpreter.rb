@@ -282,7 +282,7 @@ module Hecks
         end
 
         if @door.reaction_depth_reached?
-          # **The ceiling is not a domain decision either** — same reasoning as a
+          # The ceiling is not a domain decision either — same reasoning as a
           # crash, below — but unlike a crash there is nothing ambiguous
           # about it: the leg unambiguously did not run, so it unwinds
           # exactly like a refusal instead of stranding the instance for a
@@ -451,7 +451,7 @@ module Hecks
                           drain_compensations: true)
       end
 
-      # **A derived compensation** — `entry[:args]` is already resolved
+      # A derived compensation — `entry[:args]` is already resolved
       # (`record_completed_compensation`'s own comment for why), so this
       # skips `dispatch_args` entirely and goes straight to delivery,
       # through the same retry-on-defect path an ordinary forward leg

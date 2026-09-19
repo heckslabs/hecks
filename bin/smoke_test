@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **Boots a real domain and actually dispatches against it** — the sibling
+# Boots a real domain and actually dispatches against it — the sibling
 # `bin/model_check` never had. That tool proves a bluebook is
 # structurally sound (no dead states, no unreachable transitions)
 # without ever running a single command; this proves it works,
@@ -23,7 +23,7 @@
 # all. Smoke-testing proves nothing crashes; it does not prove the
 # answer is the right one.
 #
-# **A failure here is not necessarily a domain bug** — it may just be the
+# A failure here is not necessarily a domain bug — it may just be the
 # synthesizer's own naive values (0, an empty list, "smoke-test") not
 # satisfying a real invariant (a positive amount, a non-empty topping
 # list, an email pattern). Banking and Pizzas both show exactly that:

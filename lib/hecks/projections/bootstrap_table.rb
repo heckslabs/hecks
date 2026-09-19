@@ -2,7 +2,7 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # The bootstrap-window fallbacks, projected — lib/hecks/bluebook/dsl/
+    # **The bootstrap-window fallbacks, projected** — lib/hecks/bluebook/dsl/
     # bootstrap_table.rb rendered from the chapter's own Keyword rows.
     #
     #   Projector.call(:bootstrap_table, bluebook: <the Bluebook chapter>)

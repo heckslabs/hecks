@@ -1,6 +1,6 @@
 module Hecks
   module Fuzzing
-    # **What each query verb the differential comparison skipped was hiding**.
+    # What each query verb the differential comparison skipped was hiding.
     #
     # `Differential.manifest_partition` drops a named query or read model
     # from both sides of the Ruby/Rust comparison only when the binary's own

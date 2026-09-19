@@ -21,7 +21,7 @@ require "fileutils"
 # can fire; `divergences_for`'s own unit coverage proves that instead,
 # with synthetic outcome pairs.
 RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
-  # **A probe that broke is not a sequence with nothing to race**. Both used
+  # A probe that broke is not a sequence with nothing to race. Both used
   # to answer `[]`, which `bin/qa_sweep` logs as a clean concurrency
   # Check — so a renamed capability symbol or a wiring change could make
   # the race silently never happen while the ledger recorded the mode as

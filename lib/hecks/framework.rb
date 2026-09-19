@@ -48,7 +48,7 @@ module Hecks
     # directory — there is nothing here for a relocated copy to break,
     # the way a symlink carried along with the copy would.
     #
-    # **Only the bluebook** — a framework member's own `.hecksagon`, if it
+    # Only the bluebook — a framework member's own `.hecksagon`, if it
     # has one, is not auto-loaded. Persistence is a wiring decision, the
     # same as any other aggregate's, and belongs to whoever is doing the
     # deploying, not to a default baked into the framework member

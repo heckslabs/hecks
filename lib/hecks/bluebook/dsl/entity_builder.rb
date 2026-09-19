@@ -329,7 +329,7 @@ module Hecks
           @owner_named_givens[description] ||= named
         end
 
-        # **A chapter may be split across files** — the identical reason
+        # A chapter may be split across files — the identical reason
         # `AggregateBuilder#pending_chapter_given` defers rather than
         # raising the moment a bare reference outruns what's loaded so
         # far. Hands back a placeholder `Given`, embedded by Ruby object
@@ -344,7 +344,7 @@ module Hecks
           placeholder
         end
 
-        # **A piece's own `one_of` lands on its aggregate**. A type-position
+        # A piece's own `one_of` lands on its aggregate. A type-position
         # `one_of("never_moved", "moved")` on an entity attribute
         # synthesizes a closed-set value object — and until this, that
         # object was built and then dropped: `Entity.declare` carries no

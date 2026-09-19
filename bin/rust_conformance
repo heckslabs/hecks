@@ -86,7 +86,7 @@ comparable = {
   "refusals"  => result[:refusals].map { |r| { "verb" => r[:verb], "error" => r[:error], "kind" => r[:kind]&.split("::")&.last } }
 }
 
-# **Dry runs, compared only when there are any**. `verb`/`ok` — the same two
+# Dry runs, compared only when there are any. `verb`/`ok` — the same two
 # fields `Hecks::Fuzzing::Differential` compares for `bin/qa_sweep`
 # (`error` is prose, `before`/`after` Ruby's own no-trace oracle). Left
 # out of the printed JSON for a script with no dry-run step, so every
@@ -107,7 +107,7 @@ their_json =
                                  "`cd rust && cargo build` first"
     run_subprocess([bin], File.read(script))
   when "build"
-    # **The domain's own feature, built on demand** — `native` runs whichever
+    # The domain's own feature, built on demand — `native` runs whichever
     # domain the crate's `default` feature happens to name, which is the
     # wrong binary for every other domain. `build` builds `--features
     # <basename of domain>` through the same `RustConformanceHelpers#

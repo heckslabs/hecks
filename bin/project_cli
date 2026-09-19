@@ -50,7 +50,7 @@ rescue StandardError => e
   nil
 end
 
-# **A domain's command line lives with the domain**.
+# A domain's command line lives with the domain.
 #
 # These used to be minted into `bin/`, which put a chapter's front door a
 # directory away from the chapter, its adapters, its translations and its
@@ -58,7 +58,7 @@ end
 # actually runs it. Beside the domain, a folder is the whole unit: hand
 # somebody `qa/` and they have the tool, not a pointer to one.
 #
-# **And then everything is relative**. The launcher sits in the domain root, so
+# And then everything is relative. The launcher sits in the domain root, so
 # the domain it boots is simply `__dir__` — no path to spell, nothing to
 # re-point when a directory moves. Only `lib` is left to reach, and that is
 # counted from how deep the domain sits: `qa/` is one up, `examples/pizzas/`

@@ -26,11 +26,24 @@ module Hecks
       # no matching grant is refused, not waved through because it also
       # happens to type the right word.
       module Authorization
+        # Refuses the command when the ambient caller (`Caller.current`) does not hold the role
+        # the command declares.
+        #
         # Opt-in, on both sides. No caller bound: unchecked, exactly as
         # today. No role declared: unchecked too — `role` is genuinely
         # optional in this language (roughly a third of banking's own
         # commands declare none), so a command that never named a role has
         # nothing to check a caller against.
+        #
+        # @param command [Bluebook::Command] the command about to run; its `role` is the one
+        #   required, and a nil or empty role means no check
+        # @param domain [String] name of the command's domain, whose authorization provider
+        #   answers the check
+        # @return [nil] when no caller is bound, no role is declared, or the caller is authorized
+        # @raise [Runtime::Unauthorized] if an identified caller holds no live grant of the role
+        #   where a provider is attached, or otherwise if the caller's role string differs
+        # @raise [Runtime::WiringError] if an identified caller is checked and zero or more than
+        #   one adapter implements the authorization port
         def refuse_role_mismatch(command, domain)
           caller = Caller.current
           return unless caller

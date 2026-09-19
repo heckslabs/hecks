@@ -16,24 +16,34 @@ module Hecks
     # historical bluebook text under old grammar defaults. Both are real,
     # independent, currently-shipped consumers.
     #
-    # A prior version of this module also drove its own top-level check —
-    # `check!`/`check_bluebook!`, walking a registry and reading/writing a
-    # held snapshot under `data/eras/*.bluebook` — duplicating, on its own,
-    # the same per-aggregate walk `CoverageCheck` already performs against
-    # `PostgresEra`'s own DB-held shapes. Nothing in production ever called
-    # it (only a direct unit spec did); deleted rather than kept unwired,
-    # per ADR 0032. Wanted again, it's rebuilt informed by `CoverageCheck`'s
-    # real orchestration, not resurrected from here.
+    # There is deliberately no top-level `check!`/`check_bluebook!` here
+    # walking a registry and reading/writing a held snapshot under
+    # `data/eras/*.bluebook`: it would duplicate, on its own, the same
+    # per-aggregate walk `CoverageCheck` already performs against
+    # `PostgresEra`'s own DB-held shapes, and nothing in production would
+    # call it — an unwired driver is not kept, per ADR 0032. If one is
+    # wanted, it is built informed by `CoverageCheck`'s real orchestration.
     module EraGuard
       extend ShapeDiff
 
       module_function
 
+      # Refuses the boot when a held aggregate is gone and no translation says where it went.
+      #
       # An aggregate that existed in the held text and answers to no
       # current name — renamed silently, with nothing declaring `was:` to
       # explain where its data went — is exactly the disease this guards
       # against, and a plain per-aggregate diff would never see it: the
       # current aggregate simply has no held counterpart to compare to.
+      #
+      # @param registry [Runtime::Registry] the registry whose declared translations are
+      #   searched for a `was:` or a `retired` entry naming the held aggregate
+      # @param bluebook [Bluebook::Chapter] the bluebook booting now
+      # @param held_bluebook [Bluebook::Chapter] the bluebook parsed from the held era's text
+      # @return [void]
+      # @raise [Runtime::WiringError] if a held aggregate matches no current aggregate by
+      #   name, no current aggregate's translation declares it as `was:`, and no translation
+      #   for this domain retires it
       def check_vanished_aggregates!(registry, bluebook, held_bluebook)
         held_bluebook.aggregates.each do |held_aggregate|
           claimed = bluebook.aggregates.any? do |aggregate|
@@ -54,9 +64,18 @@ module Hecks
         end
       end
 
+      # Raises the refusal naming every changed path no translation rule explains.
+      #
       # The Layer-1 coverage refusal — one wording, shared with whoever
       # calls it (today, `PostgresEra::LineageManager::CoverageCheck`'s
       # own mint-time coverage check).
+      #
+      # @param bluebook [Bluebook::Chapter] the bluebook booting now, named in the message
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose shape changed
+      # @param uncovered [Array<String>] the unexplained paths, as `uncovered_attributes`
+      #   returns them; must not be empty, since the first one seeds the suggested rule
+      # @return [void] never returns; always raises
+      # @raise [Runtime::WiringError] always, carrying the refusal wording
       def refuse_uncovered!(bluebook, aggregate, uncovered)
         raise WiringError,
               "cannot boot #{bluebook.name}::#{aggregate.name}: its shape changed and " \
@@ -65,9 +84,18 @@ module Hecks
               "#{suggestion(uncovered.first)}."
       end
 
+      # Raises the refusal naming every new required attribute an existing record cannot fill.
+      #
       # The addition-side sibling of refuse_uncovered! above — same
       # wording shape, different cause: nothing vanished or changed type,
       # something new arrived that an existing record has no way to hold.
+      #
+      # @param bluebook [Bluebook::Chapter] the bluebook booting now, named in the message
+      # @param aggregate [Bluebook::Aggregate] the aggregate that gained the attributes
+      # @param unsafe [Array<Symbol>] the attribute names, as `unsafe_additions` returns them;
+      #   must not be empty, since the first one seeds the suggested `backfill`
+      # @return [void] never returns; always raises
+      # @raise [Runtime::WiringError] always, carrying the refusal wording
       def refuse_unsafe_addition!(bluebook, aggregate, unsafe)
         raise WiringError,
               "cannot boot #{bluebook.name}::#{aggregate.name}: #{unsafe.map { |name| ":#{name}" }.join(', ')} " \
@@ -77,8 +105,18 @@ module Hecks
               "`backfill :#{unsafe.first}, default: ...`."
       end
 
+      # Renders a path the way a translation file spells it.
+      #
+      # @param path [String] a bare attribute name or a dotted value-object member path
+      # @return [String] the path quoted (`"price.currency"`) when dotted, otherwise as a
+      #   Symbol literal (`:cost`)
       def render_path(path) = path.include?(".") ? path.inspect : ":#{path}"
 
+      # Proposes the translation rules that would explain one uncovered path.
+      #
+      # @param path [String] a bare attribute name or a dotted value-object member path
+      # @return [String] backticked example rules: `move`/`drop` for a dotted path,
+      #   `rename`/`drop` for a bare name
       def suggestion(path)
         if path.include?(".")
           "`move #{path.inspect}, to: #{path.inspect}` or `drop #{path.inspect}`"
@@ -90,21 +128,21 @@ module Hecks
       # Parses held source into its own IR, in a scratch registry so a past
       # era's text never touches the one actually booting.
       #
-      # Normal parse first, shadow only as a fallback — not shadow-parsing
-      # unconditionally, which is what this used to do. A handful of DSL
+      # Normal parse first, shadow only as a fallback — never shadow-parsing
+      # unconditionally. A handful of DSL
       # defaults fork on `MetaValidator.shadow_parsing?` for a reason
       # that has nothing to do with syntax the live grammar can no longer
       # read at all (`identified_by { }`, `belongs_to`, `has_one`,
       # `has_many` — genuinely removed spellings, exactly what shadow-
       # parsing exists to keep readable): `reference_to`'s own default
       # mint name (`default_reference_name`, attribute_collector.rb)
-      # changed from `_id`-suffixed to bare under ADR 0025, and that fork
-      # applies even to text using nothing but current, live syntax.
-      # Held text minted under the current grammar — every real era in
-      # this corpus today, since nothing has ever minted a second one —
-      # parses fine normally; only the reference-naming default differed
-      # once shadow mode engaged unconditionally, so it silently
-      # reconstructed a different shape (and hash) than a fresh parse of
+      # is bare under ADR 0025 and `_id`-suffixed under shadow mode, and
+      # that fork applies even to text using nothing but current, live
+      # syntax. Held text minted under the current grammar — every real
+      # era in this corpus today, since nothing has ever minted a second
+      # one — parses fine normally; under unconditional shadow mode only
+      # the reference-naming default differs, so it silently
+      # reconstructs a different shape (and hash) than a fresh parse of
       # the identical text — the same text hashing two different ways
       # depending on which code path read it, breaking `ensure_named!`'s
       # own from/to edge lookup with a spurious "no translation edge
@@ -121,7 +159,7 @@ module Hecks
       # source text always computes, whoever's asking. Only on a
       # `Malformed` refusal — the one signal that actually means "this
       # spelling doesn't exist anymore" — fall back to the legacy
-      # grammar, exactly as before this change. Any other exception (a
+      # grammar. Any other exception (a
       # genuine syntax error, an unrelated validation refusal) propagates
       # unchanged; swallowing it here to retry under shadow mode would
       # risk masking a real defect in the held text behind a confusing
@@ -138,12 +176,31 @@ module Hecks
       # so skipping the judge/assemble round-trip changes nothing this
       # method reads: `shape`, `uncovered_attributes`, and friends only
       # ever ask the built IR for its own structure.
+      #
+      # @param source [String] the held bluebook text to evaluate
+      # @param path [String] the file path the text is evaluated as, which the predicate
+      #   extractor reads from disk; callers pass a tempfile holding the same text
+      # @return [Bluebook::Chapter, nil] the first bluebook the text declares; nil when it
+      #   declares none
+      # @raise [Bluebook::DSL::Malformed] if the text parses under neither the live grammar
+      #   nor the legacy one
+      # @raise [SyntaxError] if the text is not valid Ruby
       def shadow_parse(source, path)
         parse_bluebook(source, path, shadow: false)
       rescue Hecks::Bluebook::DSL::Malformed
         parse_bluebook(source, path, shadow: true)
       end
 
+      # Evaluates bluebook text once, in a throwaway registry, under one chosen grammar.
+      #
+      # @param source [String] the bluebook text to evaluate
+      # @param path [String] the file path reported to `Kernel.eval` as the text's origin
+      # @param shadow [Boolean] true evaluates inside `MetaValidator.while_shadow_parsing`
+      #   (the legacy grammar); false evaluates under the live grammar
+      # @return [Bluebook::Chapter, nil] the first bluebook the text registered in the scratch
+      #   registry; nil when it declares none
+      # @raise [Bluebook::DSL::Malformed] if the chosen grammar refuses the text
+      # @raise [SyntaxError] if the text is not valid Ruby
       def parse_bluebook(source, path, shadow:)
         scratch = Registry.new
         loading = Ports::Loading.bootstrap

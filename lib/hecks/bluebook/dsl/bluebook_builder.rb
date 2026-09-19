@@ -205,7 +205,7 @@ module Hecks
           MetaValidator.call(bluebook)
         end
 
-        # **The other half of a chapter-wide `given` reference** —
+        # The other half of a chapter-wide `given` reference —
         # `AggregateBuilder#pending_chapter_given` recognised an
         # unresolved bare reference and deferred it here, unable to
         # check further: a later file in this same chapter might still

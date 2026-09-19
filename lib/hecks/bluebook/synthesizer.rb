@@ -16,7 +16,7 @@ module Hecks
     # got built and proved — the logic never actually knew anything
     # about the Interview domain or any one app; it only ever read IR.
     module Synthesizer
-      # **The only type names that are ever truly scalar** — anything else
+      # The only type names that are ever truly scalar — anything else
       # a value object's own field names is another value object,
       # nested (`Pizza.price_cents: Price`, itself wrapping `cents:
       # Integer` — a real, ordinary shape, not an edge case). Missing

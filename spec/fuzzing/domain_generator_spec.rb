@@ -16,7 +16,7 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
     expect(other).not_to eq(first)
   end
 
-  # **The two tables may differ, but only in one direction**. `FORMS` used to
+  # The two tables may differ, but only in one direction. `FORMS` used to
   # be `FormCensus::FORMS.keys` outright, so the day the census learned a
   # form this generator has no recipe for (`corrects`, `role_gated`),
   # `generate` raised KeyError for any seed that drew it. A census form

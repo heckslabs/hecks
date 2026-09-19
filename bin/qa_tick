@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **One tick of the practice, mechanical end to end** — the thing `/loop
+# One tick of the practice, mechanical end to end — the thing `/loop
 # hecks_qa` dispatches, and the only thing it dispatches on a clean tick.
 #
 # `.claude/skills/hecks_qa/SKILL.md` used to say, in three separate

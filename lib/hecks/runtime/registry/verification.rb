@@ -179,7 +179,7 @@ module Hecks
         # correct (a check against an incomplete, not-yet-merged
         # hecksagon can never see the real final shape).
         #
-        # **A provider is recognised by its declaration, not its name** —
+        # A provider is RECOGNISED by its declaration, not its name —
         # `authorization_provider_for` answers for the domain's own
         # chapter too, so Governance (which declares `provides
         # "authorization"`) passes here because of what it declares, and
@@ -230,7 +230,7 @@ module Hecks
         # 0025 named for an unchecked `role`, here applied to saga
         # durability instead.
         #
-        # **A warning, not a refusal** — unlike `refuse_ungoverned_roles!`,
+        # A warning, not a refusal — unlike `refuse_ungoverned_roles!`,
         # running sagas on a store with no `save_saga` is legitimate on
         # purpose in a fast in-memory test/dev boot (this project's own
         # `saga_durability_spec.rb` boots a process manager on `Memory`

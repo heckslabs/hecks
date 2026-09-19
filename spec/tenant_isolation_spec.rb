@@ -3,7 +3,7 @@ require "tmpdir"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 
-# **The architectural finding this spec proves, end to end**: hosting
+# The architectural finding this spec proves, end to end: hosting
 # multitenancy needs no ambient "current tenant" thread-local and no
 # adapter-level connection cache — `Bluebook::ProjectRegister` already
 # resolves an address's realm to a dispatcher at registration time, and
@@ -60,7 +60,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     BLUEBOOK
   end
 
-  # **One directory, two tenant overlays** — `environments/acme.world` and
+  # One directory, two tenant overlays — `environments/acme.world` and
   # `environments/bloom.world` each override realm (and, for the real
   # Postgres example below, persistence settings) the same way a host's
   # generated tenant overlay would (Q9's own `Deploy::Tenant` world-
@@ -163,7 +163,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     end
   end
 
-  # **The wiring itself, not just the predicate** — every example above
+  # The wiring itself, not just the predicate — every example above
   # calls `TenantCheck.refuse_unless_tenant_capable!` by hand, which
   # proves the gate works but not that anything actually reaches it.
   # This one instead drives the real integration point:
@@ -269,7 +269,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
         expect(router.query("Acme::Tenanted::Widget.all").map { |w| w[:ref][:value] }).to eq(["acme-only-real-postgres"])
         expect(router.query("Bloom::Tenanted::Widget.all")).to eq([])
 
-        # **The schemas are real, not just logically disjoint** — a direct
+        # The schemas are real, not just logically disjoint — a direct
         # query against tenant_bloom's own schema, bypassing the runtime
         # entirely, confirms the table itself holds nothing. Found by
         # name via information_schema rather than hardcoded — this is

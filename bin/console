@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# Boots a domain (pizzas by default) and drops into irb with its door
+# Boots a domain (pizzas by default) and drops into IRB with its door
 # installed — the fastest way to dispatch a real command by hand.
 #
 #   bin/console [domain]

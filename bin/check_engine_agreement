@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **The shape of bug this guards against**: `Ports::Query::InMemory` (the
+# The shape of bug this guards against: `Ports::Query::InMemory` (the
 # path a Memory- or Heki-backed aggregate query actually runs) and
 # `Runtime::QueryInterpreter` (entity/sub-list queries, and the fallback
 # for any adapter implementing no native `:query`) each used to carry

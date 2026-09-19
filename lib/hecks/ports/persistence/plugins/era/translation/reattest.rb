@@ -19,6 +19,20 @@ module Hecks
     module Reattest
       module_function
 
+      # Decides whether an edited era text still projects to the shape the era was frozen
+      # with, refusing the edit when it does not.
+      #
+      # @param domain [String] the domain's name, used in refusal messages
+      # @param ordinal [Integer] the era's ordinal, used in refusal messages
+      # @param text [String] the held era's bluebook source as it now stands
+      # @param stored_hash [String, nil] the era's minted shape hash (SHA-256 hex); nil for an
+      #   era that was never named
+      # @param stored_projection [Hash{String => Object}, nil] the era's stored
+      #   `Runtime::StorageShape.project` result as parsed JSON; nil for a store without one
+      # @return [Symbol] `:cosmetic` when the shape is unchanged, `:unnamed` when neither a
+      #   projection nor a hash is stored so no comparison is possible
+      # @raise [Runtime::WiringError] if `text` does not load as a bluebook, or it projects to
+      #   a shape other than the stored one
       def shape_guard!(domain:, ordinal:, text:, stored_hash:, stored_projection: nil)
         bluebook = shadow(text)
         unless bluebook
@@ -57,6 +71,12 @@ module Hecks
               "under it; restore a text with the original shape"
       end
 
+      # Parses bluebook source in a scratch registry, through a temporary file that is
+      # removed afterwards, without touching the live registry.
+      #
+      # @param source [String] bluebook source text
+      # @return [Bluebook::Chapter, nil] the first bluebook the source declares; nil when it
+      #   declares none or fails to parse or load for any reason
       def shadow(source)
         file = Tempfile.new(["hecks-reattest-", ".bluebook"])
         file.write(source)

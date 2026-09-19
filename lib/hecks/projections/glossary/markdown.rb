@@ -75,7 +75,7 @@ module Hecks
           parts
         end
 
-        # **The statements projection's own sentences, spoken**. An invariant
+        # The statements projection's own sentences, spoken. An invariant
         # is the author's words and stays exactly so. A relationship
         # sentence is built mechanically from construct names ("An
         # ATMCard references an Account."), and a construct name is the

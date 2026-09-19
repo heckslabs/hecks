@@ -9,7 +9,7 @@ require_relative "glossary/html"
 
 module Hecks
   module Projections
-    # **A chapter, projected as its ubiquitous language** — a glossary for the
+    # A chapter, projected as its ubiquitous language — a glossary for the
     # whole team, in the sense Evans meant (DDD ch. 2): one language,
     # shared by domain experts and developers, written the same way in
     # conversation, diagrams, documents and code, so that a subject-matter
@@ -87,7 +87,7 @@ module Hecks
         list
       end
 
-      # A headword is qualified only when it would repeat within its own
+      # A HEADWORD is qualified only when it would repeat within its own
       # section — "Open" the action and "Open (the list)" the question;
       # "Return (key issuance)" beside another Return — never numbered
       # (Chicago 18.9, MDN's disambiguation pages: qualify the headword).
@@ -111,14 +111,14 @@ module Hecks
 
       # ── gathering ────────────────────────────────────────────────────
 
-      # **An entity can carry its own commands and queries too** — walked the
+      # An entity can carry its own commands and queries too — walked the
       # same one level down `DocsProjector` and `Projections::Diagrams`
       # already walk it.
       def holders(bluebook)
         bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
       end
 
-      # **Every holder's own aggregate, one hop or zero** — an aggregate maps
+      # Every holder's own aggregate, one hop or zero — an aggregate maps
       # to itself, an entity to whichever aggregate declared it. The one
       # fact the grouping is built on.
       def holder_aggregate(bluebook)
@@ -128,7 +128,7 @@ module Hecks
         end
       end
 
-      # **Every event's raisers** — an event is never declared, only emitted,
+      # Every event's raisers — an event is never declared, only emitted,
       # so its home is whichever aggregate the first command that raises
       # it belongs to; a policy or saga reacting to it inherits that home.
       def event_raisers(bluebook)
@@ -165,7 +165,7 @@ module Hecks
         end
       end
 
-      # **Aggregates only** — an entity declares no value objects of its own
+      # Aggregates only — an entity declares no value objects of its own
       # (`Bluebook::Entity` deliberately does not answer `value_objects`).
       def value_object_entries(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
@@ -213,7 +213,7 @@ module Hecks
         end
       end
 
-      # **Cross-cutting by nature** — `System` and `Customer` issue commands
+      # Cross-cutting by nature — `System` and `Customer` issue commands
       # across half the aggregates here — so a role belongs to no single
       # one and gets its own section.
       def role_entries(bluebook)

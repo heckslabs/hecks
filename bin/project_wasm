@@ -6,14 +6,14 @@
 # compile target of the same generated artifact, not a separate
 # implementation"). rust/src/main.rs's stdin/stdout JSON CLI contract
 # (kernel/cli.rs) uses nothing but std — no filesystem, no network, no OS
-# calls — so it compiles for wasm32-wasip1 completely unchanged; wasi
+# calls — so it compiles for wasm32-wasip1 completely unchanged; WASI
 # implements stdin/stdout the same way a native process does. This script
 # is the only thing that's new: regenerate, then cross-compile.
 #
 #   bin/project_wasm <domain>
 #
 # Produces rust/dist/<domain>.wasm — run it with `wasmtime run
-# rust/dist/<domain>.wasm < script.json` (or any other wasi-preview1 host).
+# rust/dist/<domain>.wasm < script.json` (or any other WASI-preview1 host).
 
 domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
 

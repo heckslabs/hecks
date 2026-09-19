@@ -13,7 +13,7 @@ module RuboCop
       # `h[k.to_sym] || h[k]`, reading a value that could arrive keyed
       # either by symbol or by string off the wire).
       #
-      # **The fix this codebase already converged on** — see
+      # The fix this codebase already converged on — see
       # `lib/hecks/query_specification/field_path.rb#read`, the shared
       # digger this whole bug class got consolidated behind: check
       # `key?` first, never fall back through `||`.

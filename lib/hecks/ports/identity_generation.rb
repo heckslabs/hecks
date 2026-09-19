@@ -28,15 +28,22 @@ module Hecks
 
       module_function
 
+      # Mints a fresh identity value from the bound adapter.
+      #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @return [String] a newly-minted identity value
+      # @return [String] a newly minted identity: a random UUID from `SecureRandomIdentity`,
+      #   or a decimal counter (`"1"`, `"2"`, …) from the deterministic `SequentialIdentity`
+      #   spec double — unique per adapter, not guaranteed UUID-shaped
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def uuid(registry) = adapter(registry).uuid
 
-      # Finds the single adapter bound to this port.
+      # Finds the single adapter bound to this port, refusing an ambiguous wiring.
       #
       # @param registry [Runtime::Registry] the booted registry to search
-      # @return [Class] the adapter class implementing this port
-      # @raise [Runtime::WiringError] if zero or more than one adapter implements it
+      # @return [Module] the adapter module or class implementing this port
+      # @raise [Runtime::WiringError] if no adapter, or more than one, implements this port,
+      #   or the one that does has no Ruby implementation under `Hecks::Adapters`
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

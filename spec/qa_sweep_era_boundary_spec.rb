@@ -140,7 +140,7 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
       end
     RUBY
 
-    # **Prefixed `qa-sweep-eb-target-`, not the mode's own name** — the exact
+    # Prefixed `qa-sweep-eb-target-`, not the mode's own name — the exact
     # same reason `qa_sweep_adapter_parity_sqlite_spec.rb`'s own comment
     # gives: `Target.path`'s basename becomes the fuzzed `feature` string
     # bin/qa_sweep prints on every line, and a prefix spelling out

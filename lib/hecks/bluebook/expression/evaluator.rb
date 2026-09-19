@@ -65,7 +65,7 @@ module Hecks
           interpret(ast_cache[expr] ||= parse(expr), state, attrs)
         end
 
-        # **The rule-shaped entry** — evaluates a Given/Invariant (anything
+        # The rule-shaped entry — evaluates a Given/Invariant (anything
         # answering `canonical` and `ast`) by walking its structured form,
         # never re-parsing the text: the one parse happened at DSL-build
         # time behind `AstJson`, and `AstReader` turns that tree back into

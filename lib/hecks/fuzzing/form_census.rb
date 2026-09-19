@@ -3,7 +3,7 @@ require_relative "../corpus"
 
 module Hecks
   module Fuzzing
-    # **What an aggregate can exhibit, and which pairs it puts together**.
+    # What an aggregate can exhibit, and which pairs it puts together.
     #
     # Extracted from `spec/combination_coverage_spec.rb`'s own pairwise
     # table so it has exactly two consumers that can never drift: that
@@ -83,7 +83,7 @@ module Hecks
       def entities(aggregate)   = aggregate["entities"] || []
       def commands(aggregate)   = aggregate["commands"] || []
 
-      # **One aggregate's commands, its pieces' included** — a form carried by
+      # One aggregate's commands, its pieces' included — a form carried by
       # an entity command is carried by the aggregate that owns it, the
       # same way `composite_piece`/`piece_lifecycle` already read pieces.
       def every_command(aggregate) = commands(aggregate) + entities(aggregate).flat_map { |piece| commands(piece) }
@@ -161,7 +161,7 @@ module Hecks
         end
       end
 
-      # **Where a domain path keeps its bluebooks** — see
+      # Where a domain path keeps its bluebooks — see
       # `Hecks::Corpus.bluebook_files`, the one definition every corpus
       # walk shares. `nil` when neither shape holds a bluebook.
       def bluebook_files(domain_path)

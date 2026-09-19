@@ -4,7 +4,7 @@ require_relative "form_census"
 
 module Hecks
   module Fuzzing
-    # **An agent reads the adversarial corpus and writes the next meeting**.
+    # An agent reads the adversarial corpus and writes the next meeting.
     #
     # `DomainGenerator` forces two `FormCensus::FORMS` onto one aggregate
     # from a seed — cheap, mechanical, and blind to why a combination

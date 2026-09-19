@@ -3,22 +3,21 @@ require "json"
 module Hecks
   module Translation
     # The closed, pure half of Postgres's own SQL compiler
-    # (adapters/driven/postgres_era/lineage/head_compiler.rb) — the part
-    # that turns one TranslationAggregate's declared rules into a
-    # jsonb-transforming SQL expression. No database connection, no
-    # watermark, no era chain, no catalog lookup: those stay exactly
-    # where they were, in head_compiler.rb's own per-mint assembly,
-    # which calls into this module instead of defining these methods
-    # itself.
+    # (ports/persistence/plugins/era/postgres_era/lineage/head_compiler.rb)
+    # — the part that turns one TranslationAggregate's declared rules into
+    # a jsonb-transforming SQL expression. No database connection, no
+    # watermark, no era chain, no catalog lookup: those live in
+    # head_compiler.rb's own per-mint assembly, which calls into this
+    # module instead of defining these methods itself.
     #
-    # Extracted here — not left as private methods on
+    # A module of its own — not private methods on
     # Adapters::PostgresEra::Lineage — so a second, adapter-agnostic
     # caller (Exporter.translation_aggregate's build-time SQL export,
     # feeding rust/host's own future boot-time mint) can call the exact
     # same code Ruby's own mint path runs, not a hand-ported duplicate
-    # that could silently drift the way `Exporter.translation_hash`
-    # drifted from `hecks_eras`/`hecks_approvals`' real schema before
-    # this file existed (rekeys/backfills were missing for years).
+    # that could silently drift the way a hand-kept
+    # `Exporter.translation_hash` can drift from `hecks_eras`/
+    # `hecks_approvals`' real schema (leaving out rekeys and backfills).
     module RuleCompiler
       module_function
 
@@ -60,7 +59,7 @@ module Hecks
       # module builds SQL straight off the IR either way.
       def rekeyed?(declared) = declared && !declared.rekeys.empty?
 
-      # **The only two places `aggregate_id` needs to change** — guarded so
+      # The only two places `aggregate_id` needs to change — guarded so
       # the generated SQL for the overwhelming common case (no rekey
       # declared) stays the bare `aggregate_id` passthrough it always
       # was — this case only appears in an edge that actually declares

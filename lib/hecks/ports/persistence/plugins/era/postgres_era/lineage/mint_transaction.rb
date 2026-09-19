@@ -13,6 +13,8 @@ module Hecks
         module MintTransaction
           # ── the mint transaction ───────────────────────────────────────
           #
+          # Makes a new era real, or reports that a concurrent minter already did.
+          #
           # One transaction: the new era row (held text + minted name +
           # cut watermark), the new partition, and every aggregate's
           # recompiled matview + head view. The advisory lock is the
@@ -20,6 +22,24 @@ module Hecks
           # second finds the era already held. Populating the matview
           # inside the transaction means a convert meeting an unmapped
           # value refuses the whole mint, loudly, before anything boots.
+          #
+          # @param ordinal [Integer] ordinal of the era to mint, one past the newest held era
+          # @param hash [String] the new era's shape hash, SHA-256 hex
+          # @param label [String] the new era's short label, a prefix of `hash`
+          # @param held_text [String] the bluebook source text to freeze as this era
+          # @param aggregates [Array<Bluebook::Aggregate>] the current bluebook's aggregates, each
+          #   of which gets its head recompiled
+          # @param edges [Array<Hash{Symbol => Bluebook::Translation}>] the full edge chain in mint
+          #   order, one `{ translation: }` Hash per step, as `LineageManager.edge_chain` builds it
+          # @param role [String, nil] app role to grant base and head privileges to; nil grants
+          #   nothing
+          # @param projection [Hash{String => Object}, nil] the bluebook's storage-shape
+          #   projection, as `Runtime::StorageShape.project` returns it; nil stores none
+          # @return [Boolean] true once the era is committed; false, with everything rolled back,
+          #   when the domain already holds `ordinal`
+          # @raise [Runtime::WiringError] if another mint or merge holds the domain lock for over
+          #   10s, if Postgres refuses any statement (a convert meeting an unmapped value
+          #   included), or if a held era's text fails its integrity check
           def mint_era!(ordinal:, hash:, label:, held_text:, aggregates:, edges:, role: nil, projection: nil)
             @db.exec("BEGIN")
             # A concurrent minter blocks briefly, then refuses with a name
@@ -50,7 +70,7 @@ module Hecks
             # exist yet for any aggregate renamed in this very edge.
             aggregates.each { |aggregate| compile_head!(aggregate, ordinal, label, edges) }
             grant_role!(role, aggregates: aggregates, era: ordinal) if role
-            # LAST, right before COMMIT — not merely unconditional. Once
+            # **Last, right before `COMMIT`** — not merely unconditional. Once
             # acquired, a lock is held until the transaction ends, not
             # just for the statement that took it — so advance_era!'s
             # DROP POLICY/CREATE POLICY (AccessExclusiveLock, same family
@@ -59,11 +79,11 @@ module Hecks
             # below) blocks every concurrent writer for as long as it sits
             # before the expensive step. Ordered here, that block is the
             # width of a few catalog statements plus the commit itself,
-            # not the width of compile_head!'s matview build. Measured:
-            # moving this above compile_head! (an earlier ordering, caught
-            # only once a genuine concurrent-write test was built rather
-            # than assumed) reintroduced exactly the mint-stops-the-world
-            # cost ensure_partition!'s build-then-ATTACH exists to avoid.
+            # not the width of compile_head!'s matview build. Measured, not
+            # assumed: placed above compile_head!, this reintroduces
+            # exactly the mint-stops-the-world cost ensure_partition!'s
+            # build-then-ATTACH exists to avoid — a cost only a genuine
+            # concurrent-write test shows.
             #
             # Unconditional regardless of position — this is the line that
             # drops writing to the old schema. It does not wait for a role
@@ -93,6 +113,8 @@ module Hecks
             raise Runtime::WiringError, "cannot mint era #{ordinal} of #{@domain}: #{e.message.strip}"
           end
 
+          # Grants an app role what it needs to append to the journal and read and write heads.
+          #
           # Base privileges for a deployment's app role — a non-owner,
           # which may append and read once the shared era fence below
           # admits it, and owns nothing. Idempotent, and unconcerned with
@@ -107,7 +129,7 @@ module Hecks
           # `aggregates:`/`era:` cover the read-cache side of the same
           # story: unlike the journal (immutable, owner-provisioned once),
           # each aggregate's head_snapshot table is a table an app role
-          # must itself INSERT/update/DELETE into — PostgresEra#append writes
+          # must itself `INSERT`/`UPDATE`/`DELETE` into — PostgresEra#append writes
           # it directly, not through a view — so it needs real DML grants,
           # not just the SELECT a derived read surface would need. `era:`
           # is the ordinal this role is about to write under (the one
@@ -119,6 +141,15 @@ module Hecks
           # held-but-superseded checkout, since a role connecting to it
           # for the first time (a new instance of an old checkout) has no
           # privileges yet either.
+          #
+          # @param role [String] name of the Postgres role to grant to
+          # @param aggregates [Array<Bluebook::Aggregate>] aggregates whose head snapshot table,
+          #   and head view where one exists, the role is granted on; ignored when `era` is nil
+          # @param era [Integer, nil] ordinal of the era whose snapshot tables to grant on; nil
+          #   grants only the journal and sequence privileges
+          # @return [void]
+          # @raise [PG::Error] if Postgres refuses a grant, such as one naming a role or a
+          #   snapshot table that does not exist
           def grant_role!(role, aggregates: [], era: nil)
             return unless provisioner?
 
@@ -137,6 +168,8 @@ module Hecks
             end
           end
 
+          # Replaces the journal's row policies: one era accepts INSERTs, every row stays readable.
+          #
           # The current-era fence — one policy, shared by every granted
           # role, not one per role. Advancing it is what drops writing to
           # the old schema the instant the new one materializes: the
@@ -161,12 +194,17 @@ module Hecks
           # write any era (the merge re-enters a winner's state into the
           # current era, and compile_head! reads every ancestor).
           #
-          # **Call only with the new current ordinal** — from hold_first! (era
+          # Call only with the new current ordinal — from hold_first! (era
           # 1) or mint_era! (era N). Calling this with a superseded
           # ordinal — from a boot that merely recognizes an old checkout —
           # would roll the fence backward and silently reopen the old
           # schema for everyone. That path grants a role's privileges
           # (grant_role!) and stops there on purpose.
+          #
+          # @param ordinal [Integer] ordinal of the era that becomes the only writable one
+          # @return [void]
+          # @raise [PG::Error] if Postgres refuses the policy change, as it does for a role that
+          #   does not own the journal
           def advance_era!(ordinal)
             @db.exec("DROP POLICY IF EXISTS hecks_current_era ON #{quoted_journal}")
             @db.exec(

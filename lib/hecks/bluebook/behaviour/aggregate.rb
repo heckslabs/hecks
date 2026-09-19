@@ -63,7 +63,7 @@ module Hecks
         def value_object(named) = @value_objects_by_name[named.to_s]
         def port(named)         = @ports_by_name[named.to_s]
 
-        # **A port is declared in the hecksagon, not the bluebook** — the
+        # A port is declared in the hecksagon, not the bluebook — the
         # boundary between the domain and its adapters, in hexagonal terms,
         # is exactly what a `.hecksagon` file already is for every other
         # port (persistence, projection, ...). So this attaches after the

@@ -5,7 +5,7 @@ module Hecks
   # two readers never invent two different spellings for the same
   # derivation.
   module Naming
-    # **What separates the parts of a derived identity**.
+    # What separates the parts of a derived identity.
     #
     # An identity of several parts is their join, and the join has to be spelled the
     # same everywhere or two readers name two different records off one declaration.
@@ -39,7 +39,7 @@ module Hecks
           .downcase
     end
 
-    # **An identifier as a person would say it** — `ATMCard` -> "ATM card",
+    # An identifier as a person would say it — `ATMCard` -> "ATM card",
     # `AccrueInterest` -> "Accrue interest", `daily_limit` -> "Daily
     # limit", `Back office` -> "Back office". The same two word-boundary
     # splits `snake` uses, with a space instead of an underscore — plus

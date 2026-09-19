@@ -164,7 +164,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     admin.exec("DROP DATABASE IF EXISTS #{LINEAGE_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{LINEAGE_DB}")
     admin.exec("DROP ROLE IF EXISTS #{LINEAGE_OWNER}")
-    # Plain CREATE ROLE ... Login — no superuser, no BYPASSRLS. Either
+    # Plain CREATE ROLE ... LOGIN — no superuser, no BYPASSRLS. Either
     # attribute would make force ROW LEVEL SECURITY a no-op for this
     # role, same as it already is for the ambient dev connection.
     admin.exec("CREATE ROLE #{LINEAGE_OWNER} LOGIN")
@@ -302,7 +302,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect { check!(V1_SOURCE) }.not_to raise_error
   end
 
-  # **Every edit reaches the same generic wording now** — shape-changing,
+  # Every edit reaches the same generic wording now — shape-changing,
   # cosmetic, or unparseable alike. `EraTamper.refusal` used to re-parse
   # the edited text and distinguish a cosmetic edit from a real shape
   # change in the message ; that was a pure quality-of-message nicety, not
@@ -1686,7 +1686,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect(layered).not_to be_empty
   end
 
-  # **The same equivalence, for a rekey specifically** — `layered_chain_sql`'s
+  # The same equivalence, for a rekey specifically — `layered_chain_sql`'s
   # own `id_column` case (Translation::RuleCompiler.id_case) is dead code
   # the test above never exercises: `edge_source_v3`'s edge never changes
   # identity, so `aggregate_id` passes through unmodified whether the
@@ -1826,7 +1826,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   it "journal rows accept no UPDATE or DELETE from PUBLIC — immutability by privilege" do
     check!(V1_SOURCE)
     db = PG.connect(dbname: LINEAGE_DB)
-    # **The real property, not a proxy for it**. `provisioning.rb`'s own
+    # The real property, not a proxy for it. `provisioning.rb`'s own
     # REVOKE is guarded (`still_public = has_table_privilege(...)`) —
     # it only fires, and only then writes a pg_class.relacl row at
     # all, when public already held the privilege; skipping a no-op

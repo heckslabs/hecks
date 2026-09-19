@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-# **The mechanical, comment-tag-free half of the guarantee**.
-# bin/project_kernel_capabilities generates the enum half — the compiler
+# The mechanical, comment-tag-free half of the guarantee.
+# bin/project_kernel_capabilities generates the ENUM half — the compiler
 # already refuses to build once `rust/src/kernel/expr.rs`'s
 # `dispatch_operator` stops being exhaustive over a regenerated
 # `OperatorCategory`/`AttributeShape`. But an enum variant existing is

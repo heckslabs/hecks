@@ -351,7 +351,7 @@ domains = domain_arg ? [domain_arg] : Hecks::Corpus.sweepable_domains(ROOT)
 # asked otherwise — nobody has measured these domains sharing one server.
 workers ||= adapter == :postgres ? 1 : Etc.nprocessors
 
-# **One domain per child, as many at once as there are cores**. A domain's
+# One domain per child, as many at once as there are cores. A domain's
 # seeds are its own (1..N, nothing shared between domains), so the sweep
 # is the same sweep in any order — it was one CPU-bound loop on a 4-core
 # runner. Each child's output is held and printed whole, in the domains'

@@ -13,6 +13,12 @@ module Hecks
       # `persisted_by`-style binding collector a `.hecksagon` lands on, and
       # the aggregate-scoped `port` a `.hecksagon` lands on beside it.
       module AggregateDoor
+        # Builds the anonymous module that is one aggregate's door: a `name!` method per
+        # creating command, a bare method per query, `find`/`all`/`count`/`events`,
+        # `project`/`docs`/`narrate`, and the `.hecksagon` binding hooks.
+        #
+        # Warns once for each attribute whose name is in `RESERVED`.
+        #
         # One method building one `door` module's ~20 singleton methods
         # looks like it splits along each `define_singleton_method` call,
         # but three of those blocks (`:port`, `:method_missing`,
@@ -23,6 +29,15 @@ module Hecks
         # shared mutable state beyond the closed-over args, which just
         # become parameters), but it would sever that narrative across
         # method boundaries for no functional gain.
+        #
+        # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+        #   dispatcher the door's methods dispatch, query and read repositories through
+        # @param domain [String] the owning chapter's name, the first half of the
+        #   aggregate's FQN (`"Pizzas"` in `"Pizzas::Pizza"`)
+        # @param aggregate [Bluebook::Aggregate] the aggregate to build a door for
+        # @return [Module] a fresh, unnamed module carrying the door's singleton methods
+        # @raise [Bluebook::DSL::Malformed] never while building; the returned door's
+        #   `port` raises it when called with no boot in progress
         # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def aggregate_module(dispatcher, domain, aggregate)
           fqn  = "#{domain}::#{aggregate.hecks_name}"
@@ -37,7 +52,7 @@ module Hecks
           # A creating verb is a module method returning the new record in hand ;
           # a verb that reaches an existing record lives on the Handle. `!` —
           # a command does something (mutates, may refuse), Ruby's own
-          # convention for that ; `Naming.snake` alone used to leave a
+          # convention for that ; `Naming.snake` alone would leave a
           # creating command's bare name claiming the exact spelling a
           # query of the same business name also wants (`Account`'s own
           # "Open" — the creating command and a query listing open
@@ -74,8 +89,8 @@ module Hecks
           # A chapter-scoped target refuses here rather than inventing an
           # answer: `Projector.admits!` is what tells `Projections::IR`
           # (`from: :any`) apart from `Projections::Shape`
-          # (`from: :chapter`), which used to return a confidently empty
-          # `{"aggregates" => []}` for an aggregate.
+          # (`from: :chapter`), which would otherwise answer a confidently
+          # empty `{"aggregates" => []}` for an aggregate.
           door.define_singleton_method(:project) do |target, out: nil, **options|
             key      = Projector.key_for(target)
             artifact = Projector.call(key, bluebook: aggregate, options: options)
@@ -116,7 +131,7 @@ module Hecks
             end
           end
 
-          # **The same reason `method_missing` below exists at all** — a facade
+          # The same reason `method_missing` below exists at all — a facade
           # left over from a previous boot in this process shadows the fresh
           # `BindingProxy` a `.hecksagon` would otherwise reach through
           # `ConstShim`/`const_missing`, so `Pizzas::Pizza.port(...)` lands

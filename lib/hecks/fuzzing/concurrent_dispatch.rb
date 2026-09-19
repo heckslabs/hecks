@@ -18,7 +18,7 @@ module Hecks
     # domain, so the practice's own adversarial generator gets to pick the
     # conflict instead of a human picking it once and never again.
     #
-    # **The mechanism, generalized from that spec rather than rederived**: a
+    # The mechanism, generalized from that spec rather than REDERIVED: a
     # command step partway through a generated sequence is chosen as the
     # race step; every step before it is setup (replayed once, sequentially,
     # to bring a fresh disposable schema to the state the race step expects
@@ -42,7 +42,7 @@ module Hecks
     # (which real racer wins a genuine race is never controlled), the set
     # of outcomes does.
     #
-    # **What a broken lock looks like here**: the concurrent pair settling as
+    # What a broken lock looks like here: the concurrent pair settling as
     # {"succeeded", "succeeded"} where the sequential oracle says
     # {"succeeded", "refused"} — two processes each hydrated the
     # pre-write state, neither saw the other's write, and the second
@@ -103,7 +103,7 @@ module Hecks
         [{ field: "process", detail: "#{e.class}: #{e.message}" }]
       end
 
-      # **The command step closest to the middle of the sequence** — not the
+      # The command step CLOSEST to the middle of the sequence — not the
       # first (racing a bare identity-creation with no setup at all is a
       # legitimate, useful case, so index 0 is not excluded) and not
       # chosen for any domain-specific reason: a mid-sequence step has, on
@@ -212,7 +212,7 @@ module Hecks
                    "#{reference.sort} — the cross-process write lock did not correctly serialize this write" }]
       end
 
-      # **The oracle** — one boot, one process, the setup then the race step
+      # The oracle — one boot, one process, the setup then the race step
       # twice in immediate succession. Nothing else ever touches this
       # schema while this runs, so whatever the domain itself settles on
       # is correct by construction, not asserted.
@@ -227,7 +227,7 @@ module Hecks
         outcomes
       end
 
-      # **The race itself** — setup runs once, sequentially, in this process
+      # The race itself — setup runs once, sequentially, in this process
       # (the same `IsolatedBoot.call` wipe-then-boot every other mode
       # here already uses), and only then do the two real racers run.
       # Each racer boots its own fresh copy of the domain against the
@@ -281,7 +281,7 @@ module Hecks
         end
       end
 
-      # **One step, one outcome** — never raises: a declared domain refusal is
+      # One step, one outcome — never raises: a declared domain refusal is
       # "refused" (the expected, ordinary answer a `given`/invariant can
       # give), anything else escaping is "crashed:<class>: <message>", a
       # genuine finding this module's own caller surfaces rather than lets

@@ -102,7 +102,7 @@ puts "wrote #{overlay_path}"
 dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
 puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
 
-# **The gate, checked after a real boot** — belt-and-suspenders: a domain
+# The gate, checked after a real boot — belt-and-suspenders: a domain
 # whose bound adapter cannot actually keep two tenants apart should
 # never reach this point silently. Checked per bluebook this registry
 # declares, not just the one named --domain, the same completeness

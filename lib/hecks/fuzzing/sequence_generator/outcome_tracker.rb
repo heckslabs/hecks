@@ -47,7 +47,7 @@ module Hecks
           @appended_identities[key] << populator[:identity_arguments].to_h { |name| [name.to_s, args[name.to_s]] }
         end
 
-        # **A grant this sequence made for real** — the authorization provider's
+        # A grant this sequence made for real — the authorization provider's
         # declared `grant:` verb (`Governance::RoleAssignment.Assign` in
         # every boot today) succeeded with these exact args, so `actor_id` now holds
         # `role_name` in this boot's own store, on both replay sides. The
@@ -61,7 +61,7 @@ module Hecks
           @granted[role] << actor unless role.empty? || actor.empty?
         end
 
-        # **The pool an appended element lands in** — the aggregate's own
+        # The pool an appended element lands in — the aggregate's own
         # identity, then one scalar per owning hop (an aggregate-level
         # append has none; `Board.AddCard` has `Board`'s own `number`,
         # read straight back off the args this step addressed it by).

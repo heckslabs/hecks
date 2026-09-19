@@ -33,7 +33,7 @@ require "open3"
 #         bridge queried PublicSubnetId/BastionSubnetId outputs that
 #         don't exist until the OAuth-adding `sam deploy` itself creates
 #         them, so the pre-check failed before that deploy ever ran.
-#   M29 — rds master passwords may contain `%`, invalid in libpq's URI
+#   M29 — RDS master passwords may contain `%`, invalid in libpq's URI
 #         parser; DATABASE_URL now carries a percent-encoded password.
 RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   def self.root = File.expand_path("..", __dir__)
@@ -126,7 +126,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     chains
   end
 
-  # One own-rds fixture (a bare `region "us-east-1"` world, no .env.local),
+  # One own-RDS fixture (a bare `region "us-east-1"` world, no .env.local),
   # generated once and shared by H14 and M29 below — both used to generate
   # their own byte-identical copy of this same world under different names.
   before(:context) { @own_dir = self.class.generate!("h14_m29_own_fixture", <<~WORLD) }

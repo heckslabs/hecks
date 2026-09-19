@@ -4,7 +4,7 @@ require "hecks/fuzzing/target_capabilities"
 require "tmpdir"
 
 # The lightweight-formal-methods leg of the verification arc: every
-# lifecycle is a declared fsm and every process manager a declared
+# lifecycle is a declared FSM and every process manager a declared
 # protocol, so both can be model-checked — unreachable states, dead
 # transitions, saga states no handler chain reaches, a compensation
 # whose from_state is unreachable (the deadlock class this arc named),
@@ -82,7 +82,7 @@ RSpec.describe "the model checker" do
       # reachable-but-stuck too — a second, legitimate unreachable_state
       # (the untouched "abandoned") and a stuck_state ride along. The
       # fixture's job is proving each kind fires at least once, not
-      # pinning how many states a hand-written fsm happens to produce.
+      # pinning how many states a hand-written FSM happens to produce.
       expect(findings.select { |f| f.subject == "Widget" }.map(&:kind).uniq.sort)
         .to eq(%i[dead_transition stuck_state unknown_command unreachable_state].sort)
     end
@@ -307,7 +307,7 @@ RSpec.describe "the model checker" do
     # The same constant bin/model_check reads — one table, not a copy.
     MODEL_CHECK_ALLOWED = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS
 
-    # **Two passes over the same boots** — the identical structure
+    # Two passes over the same boots — the identical structure
     # bin/model_check's own main loop takes, own comment there. Every
     # corpus member's own bluebook/hecksagon name has to be known before
     # any member's own cross-domain check can trust "this target isn't

@@ -1,7 +1,7 @@
 module RuboCop
   module Cop
     module Hecks
-      # **Flags `hash[new] = hash.delete(old)` inside a loop** — a method that
+      # Flags `hash[new] = hash.delete(old)` inside a loop — a method that
       # both reads and writes the same hash across a loop's iterations,
       # in the specific rename/permutation shape this codebase has
       # already lost real data to once.

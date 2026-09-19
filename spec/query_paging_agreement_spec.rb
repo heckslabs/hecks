@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **Limit and offset together, on every engine, answering the same**.
+# Limit and offset together, on every engine, answering the same.
 #
 # `Ports::Query::InMemory` applied `limit` before `offset` — take n, then
 # drop m — where `SqlQueryBuilder` emits `LIMIT n OFFSET m`, which SQL

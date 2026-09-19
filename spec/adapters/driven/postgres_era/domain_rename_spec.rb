@@ -289,7 +289,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
     new_label = label_of(NEW_SOURCE_CHANGED)
 
-    # **An edge existing isn't a rubber stamp** — the second layer this
+    # An edge existing isn't a rubber stamp — the second layer this
     # example's own title promises. `:note` is new and required, with no
     # default: of its own; an edge that names the aggregate but never
     # backfills the field it actually added still hits mint!'s real

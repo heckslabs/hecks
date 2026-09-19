@@ -153,7 +153,7 @@ module Hecks
         # either. `qa/stress_domains/tenant_ledger` exists to give this
         # property a real place to fire.
         #
-        # **The rule**: an aggregate's own declared tenant field is whichever
+        # The rule: an aggregate's own declared tenant field is whichever
         # field one of its own queries names in `authorize policy, tenant:
         # :field` — the exact same declaration `authorize_scopes_or_
         # refuses` reads off a query above, reused here to name a field
@@ -172,7 +172,7 @@ module Hecks
         # tenant value, the write crossed a tenant boundary and nothing
         # refused it — a finding.
         #
-        # **A dangling/unresolvable reference is skipped** — a different,
+        # A dangling/unresolvable reference is skipped — a different,
         # existence-shaped property's claim, not this one's (the same
         # "inconclusive, not a claimed pass" restraint `lifecycle_guard_
         # and_given_violations_are_refused` already documents for a
@@ -230,7 +230,7 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # **The field an aggregate's own query names as tenant-scoping** —
+        # The field an aggregate's own query names as tenant-scoping —
         # shared by `commands_respect_tenant_scope` above for both sides
         # of a `reference_to`. `nil` for an aggregate with no `authorize
         # ..., tenant:` on any of its own queries — not every aggregate
@@ -241,7 +241,7 @@ module Hecks
           authorization&.tenant&.to_sym
         end
 
-        # **A declared process manager's own command** — `command.hecks_name`,
+        # A declared process manager's own command — `command.hecks_name`,
         # or an entity's own if the verb's second component is itself
         # dotted (`Aggregate.Entity.Command`, the same two shapes
         # `Dispatcher#dispatch` itself branches on). Shared by the guard

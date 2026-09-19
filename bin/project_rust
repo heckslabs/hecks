@@ -121,7 +121,7 @@ if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
   RustProjectPipeline.call(domain)
 else
 
-  # **Every IR handed to the generator goes through real JSON first** — never
+  # Every IR handed to the generator goes through real JSON first — never
   # the live Hash `Exporter.call` returns. That Hash carries real Ruby
   # Symbols (`Attribute#to_h`'s `name:`, `Mutation#to_h`'s
   # `op:`/`target:`); the `ir.json` sidecar the generator writes alongside
@@ -382,7 +382,7 @@ else
   target_queries = target_result[:queries]
   target_read_models = target_result[:read_models]
 
-  # **Every other bluebook now in the registry** — the target domain's own
+  # Every other bluebook now in the registry — the target domain's own
   # uses_framework calls (fired by loading its .hecksagon, above) pulled
   # these in as a side effect. Each gets generated into its own module
   # (rust/src/generated/governance/, .../identity/, ...), exactly the
@@ -503,7 +503,7 @@ else
   end
   RustProjection::WriteIfChanged.pop_and_prune(File.join(out_root, target_mod_name))
 
-  # **Every domain ever generated, scanned off disk** — not just the one this
+  # Every domain ever generated, scanned off disk — not just the one this
   # run targeted. A directory counts as an activatable domain (as opposed
   # to a shared framework chapter like governance/identity, declared as a
   # plain module below but never independently selectable) exactly when
@@ -603,7 +603,7 @@ else
   # `cargo build --no-default-features --features banking`.
   #
   # Inserted right after the `default = [...]` line, not appended to the
-  # end of the file — Cargo.toml is toml, and a bare `name = []` appended
+  # end of the file — Cargo.toml is TOML, and a bare `name = []` appended
   # past `[[bin]]` would parse as belonging to that table, not `[features]`.
   cargo_toml_path = File.join(rust_dir, "Cargo.toml")
   cargo_toml = File.read(cargo_toml_path)
@@ -627,7 +627,7 @@ else
   # Scoped to the `[features]` table only (R5) — checking `name = ` against
   # the whole file (as a bare `cargo_toml =~ /^name\s*=/` used to) false-
   # positives against `[package]`'s `name`/`version`/`edition`, `[lib]`'s
-  # `name`/`path`, `[[bin]]`'s `name`/`path` — real toml keys that share a
+  # `name`/`path`, `[[bin]]`'s `name`/`path` — real TOML keys that share a
   # word with a domain name (see the guard above, which now rejects a
   # domain named one of those outright, but this scoping is the honest
   # structural fix underneath it: a feature genuinely named e.g. `roster`
@@ -640,7 +640,7 @@ else
     features_table = cargo_toml[/^\[features\](?:\n(?!\[).*)*$/] || ""
   end
   cargo_toml = cargo_toml.sub(/^default\s*=.*$/, "default = [#{target_mod_name.inspect}]")
-  # **The single highest-leverage site of this whole fix** — regenerating
+  # The single highest-leverage site of this whole fix — regenerating
   # the same domain twice in a row needs no change here at all (its own
   # `default = [...]` line already names it), but the old unconditional
   # File.write rewrote it anyway, bumping Cargo.toml's mtime and forcing

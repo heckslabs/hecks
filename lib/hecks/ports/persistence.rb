@@ -26,30 +26,50 @@ module Hecks
     module Persistence
       module_function
 
-      # The public persistence port owns only authoritative aggregate heads.
+      # Builds the repository that reads and writes one aggregate's authoritative store.
       #
-      # @param registry [Runtime::Registry] the booted registry to resolve the binding against
-      # @param domain [String] the domain the aggregate belongs to
-      # @param aggregate [Object] the aggregate to build a repository for
-      # @return [Object] a repository backed by the aggregate's authoritative adapter
+      # The public persistence port owns only authoritative aggregate heads. The repository
+      # comes back already recovered: every journal entry has been re-projected.
+      #
+      # @param registry [Runtime::Registry] the booted registry holding the domain's
+      #   hecksagon, world and adapters
+      # @param domain [String, Symbol] name of the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate to persist
+      # @return [Persistence::AppendOnly] repository over the aggregate's authoritative
+      #   adapter, or over a `Memory` adapter when the domain declares no hecksagon
+      # @raise [Runtime::WiringError] if the aggregate has no authoritative bind, more than
+      #   one, or a bind with a role this port does not support; or if the bound adapter is
+      #   unknown, answers a different verb, is given a setting it does not declare, has no
+      #   Ruby implementation, or lacks a method its port's `answers` list or the
+      #   append-only contract (`append`, `project`, `entries`) requires
       def repository(registry, domain, aggregate)
         authoritative = BindingPolicy.resolve(registry, domain, aggregate)
         RepositoryFactory.build(registry, domain, aggregate, authoritative)
       end
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the binding against
-      # @param domain [String] the domain the aggregate belongs to
-      # @param aggregate [Object] the aggregate to resolve a binding for
-      # @return [Array(Object, Array)] the authoritative bind, and an empty array (there is
-      #   never more than one authoritative bind)
+      # Resolves an aggregate's authoritative bind, paired with an always-empty Array.
+      #
+      # @param registry [Runtime::Registry] the booted registry holding the domain's hecksagon
+      # @param domain [String, Symbol] name of the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose binding is wanted
+      # @return [Array(Bluebook::Bind, Array)] the authoritative `persisted_by` bind (the
+      #   default `Memory` bind when the domain declares no hecksagon), then an Array that
+      #   is always `[]`
+      # @raise [Runtime::WiringError] if the aggregate has no authoritative bind, more than
+      #   one, or a bind with a role this port does not support
       def binds_for(registry, domain, aggregate)
         [BindingPolicy.resolve(registry, domain, aggregate), []]
       end
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the binding against
-      # @param domain [String] the domain the aggregate belongs to
-      # @param aggregate [Object] the aggregate to resolve a binding for
-      # @return [Object] the aggregate's authoritative bind
+      # Resolves the one bind naming an aggregate's authoritative store.
+      #
+      # @param registry [Runtime::Registry] the booted registry holding the domain's hecksagon
+      # @param domain [String, Symbol] name of the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose binding is wanted
+      # @return [Bluebook::Bind] the authoritative `persisted_by` bind, or the default
+      #   `Memory` bind when the domain declares no hecksagon
+      # @raise [Runtime::WiringError] if the aggregate has no authoritative bind, more than
+      #   one, or a bind with a role this port does not support
       def bind_for(registry, domain, aggregate)
         binds_for(registry, domain, aggregate).first
       end

@@ -520,7 +520,7 @@ module Hecks
       # squaring the same sampled list wouldn't be correct.
       def cross(left, right) = sample(left).product(sample(right))
 
-      # **The full set** — every boolean-typed expression up to `MAX_DEPTH`,
+      # The full set — every boolean-typed expression up to `MAX_DEPTH`,
       # deduplicated (many shorter expressions are also produced, re-
       # wrapped, at every deeper level — `.uniq` inside `productions`
       # already collapses most of that; this is the final pass over the

@@ -6,11 +6,11 @@ require "yaml"
 # Regression coverage for the combination bin/project_deploy used to
 # refuse outright: a Shared-mode domain (database "Shared") with real
 # Google OAuth (web "Rust" + a .env.local carrying GOOGLE_CLIENT_ID).
-# The refusal assumed OAuth needed its own nat Gateway this domain has
+# The refusal assumed OAuth needed its own NAT Gateway this domain has
 # none of in Shared mode — but a Shared-mode rust_web domain's main
 # dispatch function already runs inside the owner's borrowed private
 # subnets/security group, which the owner's own template already
-# routes through its nat Gateway and already permits 443 egress on
+# routes through its NAT Gateway and already permits 443 egress on
 # (added there for the owner's own real, live OAuth token-exchange
 # bug). Nothing new to provision; this spec exists because the actual
 # bug found while lifting the refusal was elsewhere — the Parameters
@@ -158,7 +158,7 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
   # invalid shell text the moment it's concatenated with the line before
   # it. Checked per chain, not across the whole recipe: a target can
   # legitimately carry more than one independent '@'-prefixed line (see
-  # mint_era_recipe's own ownmint branch, which already does this).
+  # mint_era_recipe's own OWNMINT branch, which already does this).
   def self.shell_chains(lines)
     chains = []
     current = []

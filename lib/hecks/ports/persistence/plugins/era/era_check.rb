@@ -31,6 +31,8 @@ module Hecks
     module EraCheck
       module_function
 
+      # Runs both halves of the era gate over every bluebook in a registry.
+      #
       # Each bluebook's own source, not one file read once and reused
       # for every bluebook in the registry — true as long as a domain
       # directory only ever held exactly one, and silently wrong the
@@ -43,38 +45,70 @@ module Hecks
       # reconstructs a completely different shape, and every boot after
       # the first refuses toward a scaffold that was never the real
       # drift.
+      #
+      # @param registry [Runtime::Registry] the registry being booted
+      # @param directory [String] path of the domain's own bluebook directory, searched for
+      #   each bluebook's `.bluebook` source
+      # @return [void]
+      # @raise [Runtime::WiringError] if a compute rule is bound to an adapter that is not
+      #   lineage-capable, a persistence binding cannot be resolved, a lineage-bound bluebook
+      #   has no findable source, or the adapter's own `era_check!` refuses the boot
       def check!(registry, directory)
         check_compute_rules_for_registry!(registry)
         check_lineage!(registry, directory)
       end
 
+      # Refuses the boot when any bluebook's compute rule is bound away from Postgres.
+      #
       # The domain-agnostic half, split out for ADR 0031's boot-gate
       # registry: a compute rule requires Postgres whatever adapter is
       # actually bound, so this must run for every registry, the same way
       # `registry.verify!` does — it is not conditional on any adapter
       # being lineage-capable, and must never be skipped by
       # `check_lineage!`'s own capability gate below.
+      #
+      # @param registry [Runtime::Registry] the registry whose bluebooks are all checked
+      # @return [void]
+      # @raise [Runtime::WiringError] if an aggregate carrying a compute rule is bound to an
+      #   adapter that is not lineage-capable, or its persistence binding cannot be resolved
       def check_compute_rules_for_registry!(registry)
         registry.bluebooks.each_value { |bluebook| check_compute_rules!(registry, bluebook) }
       end
 
+      # Hands every bluebook, with its own source text, to its adapter's era check.
+      #
       # The capability-gated half — ADR 0031's registered `:era_check`
       # gate. Registration is conditional on `lineage_capable_registry?`;
       # `check_bluebook!` below still carries its own per-bluebook
       # `lineage_capable?` return-early, unchanged, for a registry with a
       # mix of lineage-capable and plain-adapter bluebooks.
+      #
+      # @param registry [Runtime::Registry] the registry being booted
+      # @param directory [String] path of the domain's own bluebook directory
+      # @return [void]
+      # @raise [Runtime::WiringError] if a persistence binding cannot be resolved, a
+      #   lineage-bound bluebook has no findable source, or the adapter's own `era_check!`
+      #   refuses the boot
       def check_lineage!(registry, directory)
         registry.bluebooks.each_value do |bluebook|
           check_bluebook!(registry, bluebook, source_text_for(bluebook, directory, registry: registry), directory: directory)
         end
       end
 
+      # Decides whether a registry binds anything that carries eras.
+      #
       # The `:era_check` gate's own registration predicate: true iff at
       # least one bluebook's own anchor (first) aggregate resolves to a
       # lineage-capable adapter — mirrors `check_bluebook!`'s existing
       # per-bluebook anchor check, just asked once, up front, of the
       # whole registry, so a registry with nothing lineage-capable bound
       # anywhere never registers the gate at all.
+      #
+      # @param registry [Runtime::Registry] the registry whose bluebooks are asked
+      # @return [Boolean] true when some bluebook's first aggregate is bound to a
+      #   lineage-capable adapter; false for an empty registry or one with no such binding
+      # @raise [Runtime::WiringError] if a first aggregate's persistence binding is missing,
+      #   ambiguous, or carries an unsupported role
       def lineage_capable_registry?(registry)
         registry.bluebooks.each_value.any? do |bluebook|
           first = bluebook.aggregates.first
@@ -84,6 +118,8 @@ module Hecks
         end
       end
 
+      # Reads the source text one bluebook was declared in, wherever that source lives.
+      #
       # The domain's own directory first, matched by name — a real app's
       # directory may hold more than one file once `uses_framework`
       # exists, so ".first" alone can no longer be trusted, the exact
@@ -104,7 +140,7 @@ module Hecks
       # two places a bluebook in this registry could have come from, per
       # `uses_framework` and `uses_embryonaut_bluebook`.
       #
-      # **The bug this guards against, found live**: `Framework.members` was
+      # The bug this guards against, found live: `Framework.members` was
       # the only exclusion checked here, so a domain attaching a
       # vendored bluebook instead (`uses_embryonaut_bluebook`, which has
       # no equivalent registry — see embryonaut_bluebook.rb's own
@@ -122,6 +158,13 @@ module Hecks
       # registry declared `uses_embryonaut_bluebook` for this exact
       # bluebook name, the same way `EmbryonautBluebook.load!` itself
       # already resolves the vendored package's own directory.
+      #
+      # @param bluebook [Bluebook::Chapter] the bluebook whose source is wanted
+      # @param directory [String] path of the domain's own bluebook directory
+      # @param registry [Runtime::Registry, nil] the registry asked whether some hecksagon
+      #   vendored this bluebook; nil skips the vendored lookup
+      # @return [String, nil] the UTF-8 text of every matching file joined with `"\n"`; nil
+      #   when no source file could be found
       def source_text_for(bluebook, directory, registry: nil)
         domain_files = Dir[File.join(directory, "*.bluebook")]
         own = domain_files.select { |path| declares_bluebook?(path, bluebook.name) }
@@ -131,12 +174,21 @@ module Hecks
         own.map { |path| File.read(path, encoding: "UTF-8") }.join("\n")
       end
 
+      # Scans a file for a `Hecks.bluebook "<name>"` line opening the named bluebook.
+      #
+      # @param path [String] path of the `.bluebook` file to scan, read as UTF-8
+      # @param bluebook_name [String] the declared bluebook name, matched in its `inspect`
+      #   (double-quoted) spelling
+      # @return [Boolean] true when some line, after leading whitespace, starts with
+      #   `Hecks.bluebook` followed by that quoted name
       def declares_bluebook?(path, bluebook_name)
         File.foreach(path, encoding: "UTF-8").any? do |line|
           line.match?(/\A\s*Hecks\.bluebook\s+#{Regexp.escape(bluebook_name.inspect)}/)
         end
       end
 
+      # Picks the files to read for a bluebook no file in the domain directory declares.
+      #
       # Only reached once nothing in the domain's own directory actually
       # declares this bluebook by name. Three remaining sources, in
       # order: a genuinely single-file domain directory whose one file
@@ -144,6 +196,14 @@ module Hecks
       # bluebook isn't already known to come from somewhere else
       # entirely — the exact guard the bug below was missing half of);
       # a framework member; a vendored embryonaut bluebook.
+      #
+      # @param bluebook [Bluebook::Chapter] the bluebook whose source is wanted
+      # @param directory [String] path of the domain's own bluebook directory
+      # @param domain_files [Array<String>] paths of every `.bluebook` file in `directory`
+      # @param registry [Runtime::Registry, nil] the registry asked for a vendored name; nil
+      #   skips the vendored lookup
+      # @return [Array<String>] file paths to read, in load order; `[]` when the bluebook
+      #   comes from none of the three sources
       def fallback_source_files(bluebook, directory, domain_files, registry)
         vendored_name = registry && vendored_bluebook_name_for(registry, bluebook.name)
         framework_path = Framework.members[bluebook.name]
@@ -159,13 +219,20 @@ module Hecks
         end
       end
 
-      # **The name `uses_embryonaut_bluebook` was actually called with** —
+      # Recovers the vendored package name behind a bluebook, if some hecksagon vendored it.
+      #
+      # The name `uses_embryonaut_bluebook` was actually called with —
       # recovered from whichever hecksagon in this registry recorded it
       # (`HecksagonBuilder#uses_embryonaut_bluebook`'s own
       # `@vendored_bluebooks`), matched the same way
       # `EmbryonautBluebook.load!` itself decides idempotency: the
       # vendored name Pascal-cases to this bluebook's own declared name.
       # Nil for an ordinary bluebook nothing ever vendored.
+      #
+      # @param registry [Runtime::Registry] the registry whose hecksagons are searched
+      # @param bluebook_name [String] the bluebook's declared Pascal-case name
+      # @return [String, nil] the package name as written in `uses_embryonaut_bluebook`; nil
+      #   when no hecksagon vendored a package whose name Pascal-cases to `bluebook_name`
       def vendored_bluebook_name_for(registry, bluebook_name)
         registry.hecksagons.each_value do |hecksagon|
           match = hecksagon.vendored_bluebooks.find { |name| Naming.pascal(name) == bluebook_name }
@@ -174,7 +241,9 @@ module Hecks
         nil
       end
 
-      # **The same path `EmbryonautBluebook.load!` itself resolves from** —
+      # Lists the `.bluebook` files a vendored embryonaut package ships.
+      #
+      # The same path `EmbryonautBluebook.load!` itself resolves from —
       # `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`,
       # rebuilt here from `directory` (the domain's own bluebook
       # directory, always `registry.root`'s immediate child — see
@@ -185,11 +254,34 @@ module Hecks
       # re-parsed whole (`EraCheck::shadow`) to reconstruct the shape a
       # held era claims, and that reconstruction must see the files in
       # the order that actually built the live shape.
+      #
+      # @param directory [String] path of the domain's own bluebook directory, whose parent
+      #   holds `vendor/embryonaut_bluebooks`
+      # @param name [String] the vendored package name, as `vendored_bluebook_name_for`
+      #   returns it
+      # @return [Array<String>] paths of the package's `.bluebook` files in `Dir.glob` order;
+      #   `[]` when the package directory is missing or empty
       def vendored_source_for(directory, name)
         dir = File.join(File.dirname(directory), "vendor", "embryonaut_bluebooks", name, "bluebook")
         Dir.glob(File.join(dir, "*.bluebook"))
       end
 
+      # Hands one bluebook to its adapter's `era_check!`, when that adapter carries eras.
+      #
+      # The bluebook's first aggregate is the anchor: its binding alone decides
+      # which adapter is asked, and a bluebook with no aggregates, or one bound
+      # to an adapter that is not lineage-capable, is skipped without a word.
+      #
+      # @param registry [Runtime::Registry] the registry being booted
+      # @param bluebook [Bluebook::Chapter] the bluebook to check
+      # @param current_text [String, nil] the bluebook's source, as `source_text_for` found
+      #   it; nil means no source file was found
+      # @param directory [String, nil] the domain's bluebook directory, named in the
+      #   missing-source refusal and passed through to the adapter
+      # @return [void]
+      # @raise [Runtime::WiringError] if the first aggregate's binding cannot be resolved,
+      #   `current_text` is nil for a lineage-bound bluebook, or the adapter's `era_check!`
+      #   refuses the boot
       def check_bluebook!(registry, bluebook, current_text, directory: nil)
         first = bluebook.aggregates.first
         return unless first
@@ -210,10 +302,19 @@ module Hecks
         )
       end
 
+      # Refuses the boot when one bluebook's compute rule is bound away from Postgres.
+      #
       # The per-rule capability gate — not an era fact, and so it
       # survives on every adapter: a compute rule's SQL is its only
       # implementation, so an aggregate carrying one cannot boot
       # anywhere but Postgres, whatever any shape comparison would say.
+      #
+      # @param registry [Runtime::Registry] the registry holding the declared translations
+      #   and the aggregate's bindings
+      # @param bluebook [Bluebook::Chapter] the bluebook whose aggregates are checked
+      # @return [void]
+      # @raise [Runtime::WiringError] if an aggregate carrying a compute rule is bound to an
+      #   adapter that is not lineage-capable, or its persistence binding cannot be resolved
       def check_compute_rules!(registry, bluebook)
         bluebook.aggregates.each do |aggregate|
           lineage = Ports::Persistence::Lineage.for(registry, bluebook.name, aggregate)
@@ -226,14 +327,32 @@ module Hecks
         end
       end
 
+      # Names the adapter an aggregate's authoritative persistence bind points at.
+      #
+      # @param registry [Runtime::Registry] the registry holding the domain's hecksagon
+      # @param domain [String, Symbol] name of the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose binding is resolved
+      # @return [String] the bound adapter's name, such as `"PostgresEra"`; `"Memory"` when
+      #   the domain declares no hecksagon
+      # @raise [Runtime::WiringError] if the aggregate has no persistence bind, more than one
+      #   authoritative bind, or a bind with a role the port does not support
       def adapter_for(registry, domain, aggregate)
         Ports::Persistence::BindingPolicy.resolve(registry, domain, aggregate).adapter
       end
 
+      # Asks a named adapter whether it carries eras.
+      #
       # The capability idiom: an adapter class that answers
       # lineage_capable? with true carries eras and may act on drift
       # (translate, fork, merge). Postgres alone does today; the seam is
       # what lets a second one arrive without touching this file.
+      #
+      # @param registry [Runtime::Registry] the registry whose `adapters` must list the name
+      # @param adapter_name [String] the adapter's name, as `adapter_for` returns it
+      # @return [Boolean] the adapter's own `lineage_capable?` answer; false when the registry
+      #   does not list the adapter, the adapter does not respond to `lineage_capable?`, or
+      #   any `StandardError` is raised on the way (including an adapter with no Ruby
+      #   implementation)
       def lineage_capable?(registry, adapter_name)
         adapter_class = registry.adapters[adapter_name] && registry.adapter_class(adapter_name)
         adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?

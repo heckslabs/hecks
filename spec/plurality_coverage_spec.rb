@@ -1,7 +1,7 @@
 require "spec_helper"
 require "json"
 
-# **A list the corpus only ever fills with one is a scalar as far as anything can tell**.
+# A list the corpus only ever fills with one is a scalar as far as anything can tell.
 #
 # The corpus specs prove the runtime answers as the frozen IR says it should,
 # and perturbing a declaration shows what changes. Neither can reach a form no
@@ -39,7 +39,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     false
   end
 
-  # **Where the language and the wire disagree about a name**.
+  # Where the language and the wire disagree about a name.
   #
   # **Empty, and it should stay empty**. "The language spells its fields exactly as
   # the IR spells them. One spelling, so there is no translation table to be
@@ -197,7 +197,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     WHY
   end
 
-  # **The allowlist is held to the corpus in both directions**. An entry that the
+  # The allowlist is held to the corpus in both directions. An entry that the
   # corpus has since grown to cover is a stale excuse, and a stale excuse is how a
   # gate quietly stops gating.
   it "carries no excuse the corpus has outgrown" do

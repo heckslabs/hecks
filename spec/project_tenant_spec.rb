@@ -11,8 +11,8 @@ require_relative "support/fenced_owner"
 # real tmpdir fixture and reads back what it actually produced, the
 # same way bin/project_deploy's own contract spec does.
 RSpec.describe "bin/project_tenant", :io do
-  # InMemoryDomain::ROOT, not a locally-aliased bare root — see
-  # word_coverage_spec.rb's own comment: a bare root once collided with
+  # InMemoryDomain::ROOT, not a locally-aliased bare ROOT — see
+  # word_coverage_spec.rb's own comment: a bare ROOT once collided with
   # another spec file's identical constant, caught by
   # load_hygiene_spec.rb's "no two spec files disagree about a
   # top-level constant" gate.

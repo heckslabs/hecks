@@ -90,7 +90,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     end
   end
 
-  # **A real, interleaved random run** — every one of `steps` iterations
+  # A real, interleaved random run — every one of `steps` iterations
   # flips a coin (seeded, deterministic) for which live tenant gets the
   # next write, mints a fresh ref, dispatches it for real, and records
   # which tenant it went to. Returns the two expected partitions so the

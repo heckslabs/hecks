@@ -18,7 +18,7 @@
 # an example body — both deferred until the example actually runs — means
 # a default run (`io: true` excluded) never dials out at all.
 #
-# **In CI, unreachable is a failure, not a skip**. Every caller turns `false`
+# In CI, unreachable is a failure, not a skip. Every caller turns `false`
 # into `skip`, and a skipped Postgres spec is a check that silently left
 # the suite: a CI job whose Postgres failed to come up used to go green
 # having run none of them. CI provisions Postgres for every job that runs

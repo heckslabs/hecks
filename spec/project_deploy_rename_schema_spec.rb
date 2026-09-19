@@ -7,7 +7,7 @@ require "open3"
 # lookup and an `ALTER SCHEMA "..." RENAME TO "..."`) with nothing checking
 # their shape first -- operator-only (this is a `make rename-schema
 # OLD=<old> NEW=<new>` command line, not user-facing web input), but
-# against production rds, so a typo'd or copy-pasted value containing SQL
+# against production RDS, so a typo'd or copy-pasted value containing SQL
 # metacharacters could execute unintended SQL. Fixed by allowlisting old
 # and new as bare identifiers (schema names can't be bound as a SQL
 # parameter the way a value can, so escaping isn't the available option --

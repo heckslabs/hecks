@@ -1,5 +1,5 @@
 module Hecks
-  # **The one place that knows how to freeze a domain value**.
+  # The one place that knows how to freeze a domain value.
   #
   # Freezing here has been fixed four times in four places, each time by
   # topping the container and leaving the contents: list attributes, the

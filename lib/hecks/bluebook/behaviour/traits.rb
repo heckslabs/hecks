@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # **The behaviour more than one construct shares**.
+      # The behaviour more than one construct shares.
       #
       # None of this is new duplication. `attribute(named)` was written
       # out four separate times — on Aggregate, Entity, Command and
@@ -16,7 +16,7 @@ module Hecks
       # one like Command), because every one of them reads instance
       # variables and nothing else.
 
-      # **A construct whose identity is a join of declared paths**.
+      # A construct whose identity is a join of declared paths.
       #
       # The paths, in declaration order, because the identity is their join.
       # "number.value" says which field carries the identity ; several paths
@@ -35,7 +35,7 @@ module Hecks
         end
       end
 
-      # **A construct that answers for its own declarations by name**.
+      # A construct that answers for its own declarations by name.
       #
       # Indexed once, since the declarations are final by the time the
       # construct exists — every dispatch asks these finders by name, and a
@@ -65,7 +65,7 @@ module Hecks
         def query(named)     = @queries_by_name[named.to_s]
       end
 
-      # **A construct that owns what it declares**.
+      # A construct that owns what it declares.
       #
       # Owner links are only ever read lazily — hecks_fqn at ask time,
       # Reference#resolve at dispatch time — so the moment the construct

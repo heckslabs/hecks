@@ -20,6 +20,7 @@ module Hecks
 
         attr_reader :binds, :subscriptions, :framework_members, :vendored_bluebooks
 
+        # @param domain [String] name of the domain whose wiring this hecksagon declares
         def initialize(domain)
           @domain             = domain
           @binds              = []
@@ -28,10 +29,14 @@ module Hecks
           @vendored_bluebooks = []
         end
 
-        # An event this hecksagon takes from outside the domain's own
-        # bluebook.
+        # Subscribes this hecksagon to an event it takes from outside the domain's own bluebook.
+        #
+        # @param event [String, Symbol] the external event's name
+        # @return [Array<String>] every subscription declared so far, this one last
         def subscribe(event) = @subscriptions << event.to_s
 
+        # Attaches a framework member to this domain and loads it into the current registry.
+        #
         # A framework/ member this domain wants attached —
         # Governance, Identity, whatever else lands beside them.
         # Attaching one is a wiring decision, the same kind `persisted_by`/
@@ -41,11 +46,19 @@ module Hecks
         # `subscriptions` — and loads the member's bluebook then its own
         # hecksagon into whatever registry this one is loading into, see
         # `Framework.load!`.
+        #
+        # @param name [String, Symbol] the member's name, such as `"Governance"`
+        # @return [Boolean, nil] true when this call loaded the member's bluebook, nil when the
+        #   current registry already held it
+        # @raise [Runtime::WiringError] if no framework member has that name
         def uses_framework(name)
           @framework_members << name.to_s
           Hecks::Framework.load!(name)
         end
 
+        # Attaches a vendored embryonaut bluebook to this domain and loads its files into the
+        # current registry.
+        #
         # A vendored, external bluebook this domain wants attached — same
         # wiring-decision shape `uses_framework` already is, one level
         # further out: not a member shipped inside hecks's own lib/,
@@ -57,15 +70,24 @@ module Hecks
         # Recorded onto @vendored_bluebooks, same shape `uses_framework`
         # already gives @framework_members — a separate list on purpose:
         # `framework_members` is load-bearing for `refuse_ungoverned_roles!`
-        # (below) and for Governance's own attachment check; conflating
-        # the two would make a vendored bluebook attachment satisfy a
-        # Governance check it has nothing to do with.
+        # (`Registry::Verification`) and for Governance's own attachment
+        # check; conflating the two would make a vendored bluebook attachment
+        # satisfy a Governance check it has nothing to do with.
+        #
+        # @param name [String, Symbol] the vendored package's directory name under
+        #   `vendor/embryonaut_bluebooks/`
+        # @return [Array<String>, nil] paths of the `.bluebook` files this call loaded, or nil
+        #   when the current registry already held the bluebook
+        # @raise [Runtime::WiringError] if the current registry has no root to vendor from, or
+        #   no vendored bluebook of that name exists under it
         def uses_embryonaut_bluebook(name)
           @vendored_bluebooks << name.to_s
           Hecks::EmbryonautBluebook.load!(name)
         end
 
-        # **The primary port, bare at the root** — belongs to the chapter as a
+        # Declares a port at the hecksagon's root and attaches it to the registered bluebook.
+        #
+        # The primary port, bare at the root — belongs to the chapter as a
         # whole, not one aggregate. `BindingProxy#port` is the aggregate-
         # scoped sibling (`Payments::Payment.port("Gateway") do ... end`);
         # this is what's left when a port isn't about any one record. The
@@ -73,14 +95,24 @@ module Hecks
         # loads after its bluebook, and this attaches to that real, final
         # object directly rather than building a second copy MetaValidator
         # would have to know how to reconstruct.
-        # Renamed from `port` — item #13's full metaprogrammed dispatch
-        # (slice 5). Not bootstrap-reachable (checked directly — no
-        # core/attached chapter declares a Hecksagon of its own). Reached
-        # through `WordGate#method_missing`'s new `word_gate_dispatch`,
-        # called explicitly below since `HecksagonBuilder`'s own
-        # class-level `method_missing` (the open-verb catch-all beneath
-        # this) always wins over the module's — see `word_gate.rb`'s own
-        # header for the full mechanism.
+        #
+        # Answers the `port` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch (slice 5). Not
+        # bootstrap-reachable (checked directly — no core/attached chapter
+        # declares a Hecksagon of its own). Reached through `WordGate`'s
+        # `word_gate_dispatch`, called explicitly below since
+        # `HecksagonBuilder`'s own class-level `method_missing` (the
+        # open-verb catch-all beneath this) always wins over the module's —
+        # see `word_gate.rb`'s own header for the full mechanism.
+        #
+        # @param name [String] the port's name
+        # @yield the port body, evaluated against a `DomainPortBuilder`: either `verb`/`signal`
+        #   or `operation`/`tells`/`asks` blocks
+        # @return [Bluebook::Port, Bluebook::DomainPort] the built port: a verb-shaped `Port`
+        #   registered on the current registry, or a `DomainPort` attached to the bluebook
+        # @raise [Bluebook::DSL::Malformed] if the current registry holds no bluebook for this
+        #   domain, or the body declares both a verb and operations, neither, or an operation
+        #   the port grammar refuses
         def port_impl(name, &block)
           bluebook_ir = Hecks.current_registry.bluebook(@domain) or
             raise Malformed, "#{@domain} declares no such bluebook — a port needs one to belong to"
@@ -103,9 +135,11 @@ module Hecks
           bluebook_ir.add_port(built)
         end
 
-        # No ungoverned-role check here anymore — see
-        # Registry::Verification#refuse_ungoverned_roles!. Moved out of
-        # per-block `build`, recovered alongside `environment:`
+        # Assembles the collected binds, subscriptions and attachments into a `Hecksagon`.
+        #
+        # No ungoverned-role check here — see
+        # Registry::Verification#refuse_ungoverned_roles!. It lives outside
+        # per-block `build`, alongside `environment:`
         # (Runtime::Loader.boot's comment has the provenance): a domain
         # split across multiple hecksagon blocks (base + an
         # `environments/<name>.hecksagon` overlay) would have every
@@ -117,11 +151,16 @@ module Hecks
         # need to repeat `uses_framework` in every file) and strictly
         # more correct (a check against an incomplete, not-yet-merged
         # hecksagon can never see the real final shape).
+        #
+        # @return [Bluebook::Hecksagon] this block's wiring, which `Registry#add_hecksagon` merges
+        #   with any other block declared for the same domain
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
                         framework_members: @framework_members, vendored_bluebooks: @vendored_bluebooks)
         end
 
+        # Records any verb the grammar does not own as a domain-wide bind to the named adapter.
+        #
         # **Domain-level default binds** — `persisted_by "Heki"` bare, at the top
         # of a hecksagon block, applies to every aggregate in this domain
         # that doesn't declare its own override. Mirrors `BindingProxy`'s own
@@ -130,6 +169,16 @@ module Hecks
         # `persisted_by`/`projected_by` specifically, so any future verb
         # gets a domain-level default for free too. See `Hecksagon#bind_for`
         # for the fallback lookup this feeds.
+        #
+        # @param verb [Symbol] the word called, such as `:persisted_by`
+        # @param args [Array<Object>] positional arguments; the first names the adapter
+        # @param kwargs [Hash{Symbol => Object}] keyword arguments; `:role` is kept on the bind
+        # @yield an optional block, called once after the bind is recorded
+        # @return [Object] this builder after recording a bind, or the grammar word's own result
+        #   when `verb` is one the `Hecksagon` grammar admits
+        # @raise [NoMethodError] if `verb` is no grammar word and names no adapter
+        # @raise [Bluebook::DSL::Malformed] if the grammar admits `verb` only in another context,
+        #   or admits it here and its implementation refuses the declaration
         def method_missing(verb, *args, **kwargs, &block)
           # A closed-set grammar word (`port`, today) gets first refusal
           # — item #13's full metaprogrammed dispatch (slice 5); see
@@ -150,6 +199,16 @@ module Hecks
 
         def respond_to_missing?(_name, _include_private = false) = true
 
+        # Evaluates a `Hecks.hecksagon` block with bare `Domain::Aggregate` constants resolving to
+        # bind-collecting proxies, and returns the wiring it declared.
+        #
+        # @param domain [String] name of the domain being wired
+        # @yield the hecksagon body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::Hecksagon] the declared wiring
+        # @raise [Bluebook::DSL::Malformed] if a `port` names no registered bluebook or aggregate,
+        #   or declares a shape the port grammar refuses
+        # @raise [Runtime::WiringError] if `uses_framework` or `uses_embryonaut_bluebook` names
+        #   something that cannot be found
         def self.build(domain, &block)
           builder  = new(domain)
           resolver = ->(name) { BindingProxy.namespace(name, builder.binds) }

@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
 
-# **Proving each check kind can actually fire** — not just that it stays
+# Proving each check kind can actually fire — not just that it stays
 # quiet against a well-behaved domain (the "clean" example below already
 # covers that; on its own it would prove nothing about whether a real
 # regression could ever be caught). Each `describe` block below
@@ -18,7 +18,7 @@ require "hecks/fuzzing/self_consistency"
 # a failing expectation never leaves a later example running against a
 # broken runtime.
 #
-# **The overlap is real, not a test bug**. `check_rehydration`/
+# The overlap is real, not a test bug. `check_rehydration`/
 # `check_idempotency`/`check_value_object_round_trip` all ultimately rest
 # on the same JSON serialize/deserialize boundary (`Adapters::Heki`'s own
 # journal write calls `Value#to_json` on every nested value object;

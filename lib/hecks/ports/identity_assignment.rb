@@ -22,20 +22,32 @@ module Hecks
 
       module_function
 
-      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param agg_name [String] the aggregate whose identity field is being assigned
-      # @param field_name [String] the identity field's name
-      # @param args [Hash] the creating command's own arguments
-      # @return [Object] the value to assign as the identity
+      # Asks the domain's adapter which value a creating command's identity field gets.
+      #
+      # No adapter, spec double or caller of this port ships in this repository, so every
+      # shape below other than `registry` is adapter-defined: the port forwards it untouched.
+      #
+      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
+      #   and handed on to it
+      # @param agg_name [Object] adapter-defined, forwarded unchanged; names the aggregate
+      #   whose identity field is being assigned
+      # @param field_name [Object] adapter-defined, forwarded unchanged; names the identity
+      #   field
+      # @param args [Object] adapter-defined, forwarded unchanged; the creating command's own
+      #   arguments
+      # @return [Object] adapter-defined value to assign as the identity
+      # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
+      #   (see `adapter`)
       def assign(registry, agg_name:, field_name:, args:)
         adapter(registry).assign(registry, agg_name: agg_name, field_name: field_name, args: args)
       end
 
-      # Finds the single adapter bound to this port.
+      # Finds the single adapter bound to this port, refusing an ambiguous wiring.
       #
       # @param registry [Runtime::Registry] the booted registry to search
-      # @return [Class] the adapter class implementing this port
-      # @raise [Runtime::WiringError] if zero or more than one adapter implements it
+      # @return [Module] the adapter module or class implementing this port
+      # @raise [Runtime::WiringError] if no adapter, or more than one, implements this port,
+      #   or the one that does has no Ruby implementation under `Hecks::Adapters`
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

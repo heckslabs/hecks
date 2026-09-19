@@ -103,7 +103,7 @@ module QaLedgerFixture
       FileUtils.remove_entry(@root) if @root
     end
 
-    # **A fresh schema before every example** — a row a prior example left
+    # A fresh schema before every example — a row a prior example left
     # behind must never leak into the next one's own ledger.
     def reset!
       scrub = PG.connect(dbname: @database)

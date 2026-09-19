@@ -130,7 +130,7 @@ RSpec.describe "the scoped-constant bridge" do
     end
   end
 
-  # **The adversarial case, two domains in one registry**: boot A, then
+  # The adversarial case, two domains in one registry: boot A, then
   # declare a second domain B that references A's aggregate by name —
   # cross-domain, after A's facade is already real, inside a fresh
   # ConstShim-active declaration of its own.

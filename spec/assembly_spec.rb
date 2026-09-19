@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **A graph assembled from declarations is the graph the builder makes**.
+# A graph assembled from declarations is the graph the builder makes.
 #
 # `Assembly` takes the hash `to_h` spells and returns the object graph the runtime
 # runs. That makes it the exact inverse of `to_h`, and this holds it to that for
@@ -78,7 +78,7 @@ RSpec.describe "a graph assembled from declarations" do
       )
     end
 
-    # **Every field the language declares is either assembled or named as derived**.
+    # Every field the language declares is either assembled or named as derived.
     #
     # This is the judge-coverage lesson, in the other direction. The judge used to
     # carry a hand-written branch per category, and the price was fourteen verbs the
@@ -224,7 +224,7 @@ RSpec.describe "a graph assembled from declarations" do
 
         "elsewhere is allow-listed one at a time, and this is not on the list"
       when :walk
-        # **Supplied by the walk, spent on the ordering**. A node does not know where it
+        # Supplied by the walk, spent on the ordering. A node does not know where it
         # sits among its siblings, so the walk supplies it and no construct carries
         # it. The claim is false in the one way that matters : if the ask does not
         # order by the field then nothing consumes it at all, and calling it derived
@@ -301,7 +301,7 @@ RSpec.describe "a graph assembled from declarations" do
       end
     end
 
-    # **The write direction is held to the language too**.
+    # The write direction is held to the language too.
     #
     # `Readings#rows_for` was nine cases keyed "Category.list" and now reads the
     # table, so the same question can be asked of it: does every list the language
@@ -328,7 +328,7 @@ RSpec.describe "a graph assembled from declarations" do
 
     def readings = Hecks::Bluebook::MetaValidator::Readings.instance_methods(false)
 
-    # **The read direction, held the same way**.
+    # The read direction, held the same way.
     #
     # `Reconstruction` had eleven methods, one per category, each spelling out keys
     # the table already names. Six read the table now, and the exceptions live in its

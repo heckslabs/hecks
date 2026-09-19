@@ -190,7 +190,7 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     registry.bluebooks.values.first.aggregate(aggregate_name).queries.find { |q| q.name == query_name }
   end
 
-  # **The real helper, not a second, hand-rolled copy of its hash** — this
+  # The real helper, not a second, hand-rolled copy of its hash — this
   # used to reimplement `Lineage#field_cache`'s own
   # `Digest::SHA256.hexdigest(...)` by hand, storage_name-only, and went
   # silently out of sync the moment `field_cache` started folding

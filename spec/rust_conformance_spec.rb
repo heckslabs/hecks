@@ -27,7 +27,7 @@ require_relative "support/rust_conformance_helpers"
 # the `queries` comparison — both engines report an empty array — so
 # adding it here costs those fixtures nothing.
 #
-# **The refusal-wording gap this file used to name is closed**. Fixtures used
+# The refusal-wording gap this file used to name is closed. Fixtures used
 # to be picked/maintained specifically to stay clear of `LifecycleRefused`'s
 # `transition_blocked`, the general VO-`invariant` message, `one_of`
 # closed-set membership, and entity-element-missing — `rust/project.rb`'s
@@ -117,7 +117,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # reaction-ordering gap described above is closed; its always-false
   # `known_reaction_gap?` predicate was deleted in Phase 4.
 
-  # The READ_MODEL/query-codegen boundary's own refusal, one level up
+  # The READ_MODEL/query-CODEGEN boundary's own refusal, one level up
   # from the single-step example below — the same gap
   # (rust/project/read_models.rb's and queries.rb's own headers, and
   # bin/rust_coverage's "known red, on purpose" citation for banking),
@@ -204,7 +204,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
     end
   end
 
-  # **The other "query" step shape's own remaining boundary** — a named/declared
+  # The other "query" step shape's own remaining boundary — a named/declared
   # bluebook ask (the string form) whose own shape this generator's query
   # codegen doesn't cover. Used to be `Banking::Account.Open` (it declared
   # `order_by`, which disqualified it outright) — that closed 2026-08-11,

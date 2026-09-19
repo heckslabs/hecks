@@ -35,7 +35,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     expect(described_class.call(dir)).to eq([])
   end
 
-  # **The exact shape this tool was built for** — a command that acts on an
+  # The exact shape this tool was built for — a command that acts on an
   # existing record but never says so (`reference_to Item` missing),
   # which makes it look creating instead. Reloads clean, checks clean —
   # only breaks once dispatched twice against the same identity, the
@@ -98,7 +98,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     expect(described_class.call(dir)).to eq([])
   end
 
-  # **The safety property this tool exists to guarantee** — measured against
+  # The safety property this tool exists to guarantee — measured against
   # a real collision, not assumed: pointed at `examples/pizzas` (a real,
   # file-backed store carrying real accumulated records), a synthesized
   # `CreatePizza` collided with an actual pre-existing record. This

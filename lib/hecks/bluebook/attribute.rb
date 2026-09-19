@@ -63,7 +63,7 @@ module Hecks
         @relationship = relationship&.to_s
       end
 
-      # **A bare constant in a bluebook is a name, even when Ruby has heard of it**.
+      # A bare constant in a bluebook is a name, even when Ruby has heard of it.
       #
       # `BluebookBuilder.build` says exactly this and installs a `const_missing`
       # resolver that hands back the symbol — `attribute :target, Target` becomes
@@ -77,7 +77,7 @@ module Hecks
       # built against somebody else's aggregate — silently, with no refusal —
       # and the attribute stops meaning what the file plainly says.
       #
-      # Demodulised, so both paths spell it the same: `:Target` and
+      # DEMODULISED, so both paths spell it the same: `:Target` and
       # `QualityControl::Target` are both "Target". A plain class stays itself —
       # `String` demodulises to "String" — so the ordinary case is untouched.
       # This does not undo the constant leak; it makes the leak unable to change

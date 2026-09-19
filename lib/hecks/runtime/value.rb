@@ -96,7 +96,7 @@ module Hecks
         end
       end
 
-      # **Reduces an append-only sub-log to its current state** — the same
+      # Reduces an append-only sub-log to its current state — the same
       # "a later fact supersedes an earlier one" reduction this runtime
       # already performs replaying an aggregate's own command history
       # into its current attributes, applied here to a single `list_of`

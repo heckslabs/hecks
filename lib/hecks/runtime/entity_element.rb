@@ -63,7 +63,7 @@ module Hecks
         container
       end
 
-      # **One element, matched on every part of its identity** — not just the first.
+      # One element, matched on every part of its identity — not just the first.
       # A piece's identity may be several paths, the same shape a head's can be,
       # so a dispatch that names the element has to supply every part and every
       # part has to agree with the stored one. `routed_identity`, when given,

@@ -1,6 +1,6 @@
 require_relative "doctest"
 
-# **Which markdown runs, and who owns which name**.
+# Which markdown runs, and who owns which name.
 #
 # Two sets of executable documentation now share one process: the guides,
 # which are narratives, and the DSL reference, which is one page per

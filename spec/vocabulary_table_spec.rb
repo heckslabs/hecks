@@ -47,7 +47,7 @@ RSpec.describe "the generated vocabulary table" do
     #
     # Each had a reason that did not survive being written down:
     # DOMAIN_REFUSALS "maps to classes rather than names" (one const_get),
-    # refused "is a single constant, not a set" (Trigger declares exactly
+    # REFUSED "is a single constant, not a set" (Trigger declares exactly
     # it), and the two DISPATCH_ORDERs "name methods" — which is true, and
     # is why a separate gate already checks every declared step resolves to
     # a real handler. Naming them here and resolving them there are

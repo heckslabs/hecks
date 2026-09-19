@@ -315,7 +315,7 @@ module Hecks
             spec
           end
 
-          # **The nested scope `dispatch ... do ... end` opens** — one word
+          # The nested scope `dispatch ... do ... end` opens — one word
           # only (`compensates`), the compensating half of the dispatch it
           # sits inside. Its own `compensates_impl` builds a second
           # `DispatchSpec`, shape-identical to `HandlerBuilder#dispatch_

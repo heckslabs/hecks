@@ -18,7 +18,7 @@ RSpec.describe "the generated model" do
     end
   end
 
-  # The property the split exists for. A generated holding half is only
+  # **The property the split exists for**. A generated holding half is only
   # safe to overwrite because nothing survives in it that the language
   # cannot say — everything else is behind `settle` in Behaviour::X.
   it "renders only the holding half, never behaviour" do

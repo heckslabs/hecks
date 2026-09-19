@@ -24,6 +24,13 @@ module Hecks
     # one layer up, where a dispatch is retried as a whole (fresh
     # hydrate, fresh `given`s), not as a lone SQL statement.
     module PostgresReconnect
+      # Runs one parameterless statement, replacing a dead connection before re-raising.
+      #
+      # @param sql [String] the statement to run
+      # @return [PG::Result] the statement's result
+      # @raise [PG::ConnectionBad] if the connection died; `@db` is reconnected for the next
+      #   caller, and this call is never retried
+      # @raise [PG::Error] if the server rejects the statement
       def pg_exec(sql)
         @db.exec(sql)
       rescue PG::ConnectionBad
@@ -31,6 +38,15 @@ module Hecks
         raise
       end
 
+      # Runs one statement with bind parameters, replacing a dead connection before
+      # re-raising.
+      #
+      # @param sql [String] the statement, with `$1`-style placeholders
+      # @param binds [Array<Object>] one value per placeholder, in order; nil binds NULL
+      # @return [PG::Result] the statement's result
+      # @raise [PG::ConnectionBad] if the connection died; `@db` is reconnected for the next
+      #   caller, and this call is never retried
+      # @raise [PG::Error] if the server rejects the statement
       def pg_exec_params(sql, binds)
         @db.exec_params(sql, binds)
       rescue PG::ConnectionBad

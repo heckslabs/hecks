@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **Domains nobody wrote, checked the way the rotation is**.
+# Domains nobody wrote, checked the way the rotation is.
 #
 #   bin/qa_generated_domains [--domains N] [--start seed] [--forms a,b] [--seeds K] [--steps M]
 #                            [--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget
@@ -184,7 +184,7 @@ if options[:promote]
   puts "next:"
   puts "  bin/qa_domain_novelty qa/stress_domains/#{name}"
   puts "  bin/project_rust qa/stress_domains/#{name}        # when the finding needs the Rust comparison"
-  # **One command, and it reads the corpus**. This used to print a hand-typed
+  # One command, and it reads the corpus. This used to print a hand-typed
   # `target.identify` for the promoted name, which is exactly how ten
   # promoted or authored stress domains ended up never swept: the line
   # was printed, nobody ran it, and nothing anywhere noticed the domain

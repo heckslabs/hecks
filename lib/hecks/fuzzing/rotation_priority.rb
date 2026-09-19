@@ -19,7 +19,7 @@ module Hecks
     # pure function cannot ask the time, so whoever calls this supplies
     # it, exactly as it supplies an id.
     #
-    # **Where this actually matters, and where it does not** — checked
+    # Where this actually matters, and where it does not — checked
     # against `bin/qa_sweep`'s own code, not assumed. `bin/qa_sweep
     # --all` sweeps every currently-waiting target in one pass,
     # regardless of order (`run_all_mode`'s own `waiting.map { spawn_
@@ -54,14 +54,14 @@ module Hecks
         ((old_score * decay_percent) / 100) + surprises_this_period
       end
 
-      # **The pick itself**. `rows` is whatever `Target.Rotation` returned —
+      # The pick itself. `rows` is whatever `Target.Rotation` returned —
       # each row a hash carrying at least `:last_swept` and
       # `:yield_score`, both `{ value: Integer }`, the shape every
       # VO-typed field in this ledger already comes back as. Returns
       # `nil` for an empty rotation, the same "nothing waiting" case
       # `bin/qa_sweep` already handles by seeding the default targets.
       #
-      # **The floor wins outright** — no starvation, on purpose (see
+      # The floor wins outright — no starvation, on purpose (see
       # `QualityControlDials::ROTATION_STALE_FLOOR_SECONDS`'s own
       # comment for why a floor and not a total exclusion). A row stale
       # past `floor_seconds` is picked ahead of every row that is not,
@@ -70,7 +70,7 @@ module Hecks
       # keeps the floor from becoming a new source of starvation between
       # two long-neglected targets.
       #
-      # **Below the floor, highest combined score wins**. `staleness +
+      # Below the floor, highest combined score wins. `staleness +
       # (yield_score * weight_seconds)` — plain addition, never a ratio
       # or anything that could divide by zero, and the units are
       # deliberately the same (seconds) so `weight_seconds` reads as

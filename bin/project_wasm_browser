@@ -3,11 +3,11 @@
 # The browser wasm-bindgen projector — decision
 # docs/decisions/0015-wasm-bindgen-browser-projection.md. Deliberately a
 # separate binary from bin/project_wasm's: that script cross-compiles
-# rust/src/main.rs (the stdin/stdout wasi CLI) unchanged; this one builds
+# rust/src/main.rs (the stdin/stdout WASI CLI) unchanged; this one builds
 # rust/web — a separate crate (docs/decisions/0012's "not rejected
 # forever... a plausible future layer" wasm-bindgen alternative), because
 # a wasm-bindgen build needs a `cdylib` crate-type and the `wasm-bindgen`
-# Cargo dependency itself, and 0012 deliberately kept the native/wasi
+# Cargo dependency itself, and 0012 deliberately kept the native/WASI
 # crate std-only with zero dependencies. Same generated domain code
 # either way — this regenerates it through the same bin/project_rust
 # every other projector uses, then builds the browser-only crate on top.
@@ -15,10 +15,10 @@
 #   bin/project_wasm_browser <domain>
 #
 # Produces rust/dist/browser/<domain>/{<domain>.js,<domain>_bg.wasm,*.d.ts}
-# — an es module for `--target web`: `import init, { dispatch } from
+# — an ES module for `--target web`: `import init, { dispatch } from
 # "./<domain>.js"; await init(); dispatch(JSON.stringify({steps: [...]}))`
 # returns the same `{"instances","events","refusals"}` JSON string
-# bin/rust_conformance and the wasi module already produce.
+# bin/rust_conformance and the WASI module already produce.
 
 domain = ARGV.shift or abort "usage: bin/project_wasm_browser <domain>"
 

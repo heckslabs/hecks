@@ -7,7 +7,7 @@ module Hecks
     # between this and Postgres's CAS+retry purely off
     # `repository.capabilities`).
     #
-    # **Why a lock suffices here and CAS is not needed**: both adapters hold
+    # Why a lock suffices here and CAS is not needed: both adapters hold
     # process-local data. `Adapters::Memory.tenant_capable?`'s own comment
     # states the confirmed fact this relies on — two `Runtime.boot` calls
     # get two entirely separate adapter instances; there is never a second

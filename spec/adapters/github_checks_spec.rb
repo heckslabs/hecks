@@ -59,7 +59,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
       expect(adapter.run(commit: { value: SHA })).to eq(summary: { value: "3 checks, all green (4f2a19c)" })
     end
 
-    # **A conclusion that isn't `success` but isn't a failure either** —
+    # A conclusion that isn't `success` but isn't a failure either —
     # GitHub's own words for "ran, and chose not to fail the commit."
     it "does not count neutral or skipped runs against the commit" do
       stub_gh(runs_json(check_run("rspec"), check_run("path-filtered", conclusion: "skipped"),

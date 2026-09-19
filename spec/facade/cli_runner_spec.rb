@@ -148,7 +148,7 @@ RSpec.describe Hecks::Facade::CliRunner do
       expect(output).to include("is not Integer")
     end
 
-    # **A near miss is worth more than the full list**.
+    # A near miss is worth more than the full list.
     it "suggests what a misspelling nearly named" do
       output, code = run("order.create_piza")
 

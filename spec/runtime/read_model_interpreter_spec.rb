@@ -211,7 +211,7 @@ RSpec.describe "a read model's query options" do
   # many-side heads — a real typo shape (naming the wrong included type,
   # or the root itself), distinct from the "forgot `on:` entirely"
   # ambiguity the spec just above already covers. `Account` here is the
-  # root (a single row — ordering/paging/filtering one row means
+  # ROOT (a single row — ordering/paging/filtering one row means
   # nothing), never a many-side head, so it can never be a legal target
   # regardless of how many many-side heads exist.
   # rubocop:disable-next RSpec/ExampleLength
@@ -385,8 +385,8 @@ RSpec.describe "a read model's query options" do
     expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
   end
 
-  # **The root-first fix's own gap** — root-first alone only guarantees the
-  # root is in `projected` before any other head is matched. A chain of
+  # **The ROOT-first fix's own gap** — root-first alone only guarantees the
+  # ROOT is in `projected` before any other head is matched. A chain of
   # non-root heads (a head referencing another non-root head, not the
   # root) is one level deeper than that reaches: `include Coupon` before
   # `include Promotion`, where Coupon references Promotion (which
@@ -848,7 +848,7 @@ RSpec.describe "a read model's query options" do
       expect(rows.first[:card_payments]).to eq(300)
     end
 
-    # **The definitional choice this session made, proven**: the average of
+    # The definitional choice this session made, proven: the average of
     # the two middle values (300 and 500, sorted from [500, 100, 300,
     # 700] -> [100, 300, 500, 700]), not the lower of the two (which
     # would silently read 300 here too) or the upper (500) — a real

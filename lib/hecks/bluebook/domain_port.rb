@@ -21,7 +21,7 @@ module Hecks
 
       attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to
 
-      # **Two directions through one door**.
+      # Two directions through one door.
       #
       # `:inbound` is what this class has always been — `tells`, spelled
       # `operation` before it had a twin: an external fact arriving, turned

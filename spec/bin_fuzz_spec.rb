@@ -3,7 +3,7 @@ require "hecks/fuzzing"
 
 # M24 — `bin/fuzz` is a CLI script, not a lib/ file: `shrink_arguments`,
 # `outcome`, and friends are plain top-level methods, and the file's own
-# tail (argv parsing, a real domain sweep, `exit`) runs unconditionally
+# tail (ARGV parsing, a real domain sweep, `exit`) runs unconditionally
 # the moment the file loads — `require`/`load`ing it directly would run
 # a full fuzz sweep and kill the spec process. `bin_fuzz_methods` slices
 # out only the method definitions (everything before the CLI's own

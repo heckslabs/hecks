@@ -10,7 +10,7 @@ module Hecks
       # names as duplication — "spelled as the IR spells them," field for field,
       # for every category simple enough to say so.
       #
-      # **One case, proven, not the whole table**. A field this can speak for is
+      # One case, proven, not the whole table. A field this can speak for is
       # scalar and not a reference — every other field (a list, a reference, a
       # fold like Lifecycle) is exactly what `contracts.rb`'s `reads:`/`derived:`
       # exist to say, and stays hand-written until a later projection learns to

@@ -28,7 +28,7 @@ module Hecks
           # `persisted_fields` (Codec), so it never appears in `decode`'s
           # domain-state hash or `Instance#to_h`.
           @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS hecks_version bigint NOT NULL DEFAULT 1")
-          # **Same self-healing shape, for domain attributes themselves** —
+          # Same self-healing shape, for domain attributes themselves —
           # `hecks_version` above only heals the adapter's own bookkeeping
           # column; a bluebook attribute added (or, via `translations/`,
           # renamed) after this table already exists is not bookkeeping,
@@ -186,7 +186,7 @@ module Hecks
           attribute = @aggregate.attribute(name)
           return if attribute&.list?
 
-          # **The same expression the query itself compiles to** — calling
+          # The same expression the query itself compiles to — calling
           # `query_expression`/`plain_column`, the real dialect methods,
           # rather than a second, hand-rolled derivation of the same
           # path that could silently drift from it. An index whose

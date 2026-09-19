@@ -42,7 +42,7 @@ module Hecks
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
-    # **Where a bluebook the sweep does not boot goes instead**. Not a filter:
+    # Where a bluebook the sweep does not boot goes instead. Not a filter:
     # nothing leaves `sweepable_domains` without naming the check that owns
     # it, and spec/corpus_accounting_spec.rb proves each destination exists
     # and actually exercises what is routed to it.
@@ -111,7 +111,7 @@ module Hecks
       DIRECTORY_KINDS.key?(member.kind) ? bluebook_dir(member.path) : member.path
     end
 
-    # **Where a domain path keeps its bluebooks** — `<domain>/bluebook/*.bluebook`
+    # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`
     # (every example and stress domain), or the directory itself
     # (`qa/bluebook`). `nil` when neither holds a bluebook.
     def bluebook_files(domain_path)
@@ -150,11 +150,11 @@ module Hecks
     # stress domain.
     ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
 
-    # **What the QA rotation is made of** — every example and stress domain
+    # What the QA rotation is made of — every example and stress domain
     # this repository owns, plus the ledger, as `reference => repo-relative
     # path`: exactly the shape `Target.path` is stored in.
     #
-    # **Derived, because the hand-kept version silently went stale**.
+    # Derived, because the hand-kept version silently went stale.
     # `bin/qa_seed_targets` carried a literal list naming three of the
     # thirteen stress domains; the other ten were authored, argued for in
     # their own NOTES.md, several promoted by `bin/qa_generated_domains

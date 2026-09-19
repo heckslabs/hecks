@@ -6,11 +6,11 @@
 # manual `bin/run` calls (boot check, pick a target, claim it, open a
 # sweep, run the existing fuzz infrastructure by hand and log a `Check`
 # per dispatch, conclude and release) — pure orchestration, no judgment,
-# and every single sweep re-paid the llm the cost of babysitting it one
+# and every single sweep re-paid the LLM the cost of babysitting it one
 # CLI call at a time. This script is that orchestration, run once,
 # deterministically, with zero agent involvement on a clean sweep.
 #
-# **The one thing this script deliberately does not do**: decide whether a
+# The one thing this script deliberately does not do: decide whether a
 # surprising check is a real bug, write the failing test that proves it
 # (`QualityControl::Bug.Log` requires a `demonstration` — an actual
 # reproducing test/command — which needs judgment to construct honestly),
@@ -58,7 +58,7 @@
 # effect, and every step that was mutated is listed with what was done
 # to it, so the Bug can name the mechanism.
 #
-# **A second comparison axis, also on by default**. Every check described
+# A second comparison axis, also on by default. Every check described
 # above is differential — Ruby vs the compiled Rust conformance binary
 # (`diff_ruby_vs_rust`), or, with no binary, Ruby's own declared
 # properties (`ruby_only_outcome`). Differential comparison can never
@@ -180,7 +180,7 @@
 # rather than copying it a second and third time) — flipping either dial
 # is the entire enablement once someone has measured the cost.
 #
-# **Clean-streak depth escalation** — why two sweeps of the same target can
+# Clean-streak depth ESCALATION — why two sweeps of the same target can
 # run a different number of seeds. A fixed `--seeds 10 --steps 25` forever
 # tests a target identically on its first ever pass and its five-hundredth
 # clean pass in a row — and real bugs this practice found (BUG#14/#15/#16)
@@ -216,7 +216,7 @@
 # many sequences, how long each is). None of them reads another's own
 # constant, and none needed to change to thread this one through.
 #
-# **A surprise is shrunk before it is reported**. The seed that surprised
+# A surprise is shrunk before it is reported. The seed that surprised
 # is typically 25 steps of which two or three matter; the rest used to
 # ride into the ledger's `demonstration` text ("seed 25, 25 steps, step
 # 16") and a human cut them away by hand. Every surprised check whose
@@ -276,7 +276,7 @@
 # both — but never on a `waiting` one.
 #
 # `--all` — why a second mode of the same script, not a separate one.
-# Sweeping the whole rotation used to mean dispatching one llm subagent
+# Sweeping the whole rotation used to mean dispatching one LLM subagent
 # per waiting target, each babysitting its own `bin/qa_sweep <target>`
 # run — real wall-clock cost (and real token cost) paid just to fan work
 # out that has no judgment in it at all on the clean path. `--all` makes
@@ -300,7 +300,7 @@
 # from scratch — exactly what an ordinary `bin/qa_sweep <target>` already
 # does today, run one more time.
 #
-# **Why this is safe without a second lock of its own**. Every child names a
+# Why this is safe without a second lock of its own. Every child names a
 # different target — this process enumerates the rotation exactly once,
 # up front, and never lets a child auto-pick (see `run_all_mode` below);
 # two children can never even attempt the same claim. What actually
@@ -464,7 +464,7 @@ USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--steps N] [--adver
         "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]\n       " \
         "bin/qa_sweep <target-reference> --release --notes \"what a person concluded, 40+ chars\"".freeze
 
-# **Modes are data** — `QualityControlDials::MODES` (qa/bluebook/quality_
+# MODES are data — `QualityControlDials::MODES` (qa/bluebook/quality_
 # control.bluebook) says which comparison modes are turned on;
 # `Hecks::Fuzzing::TargetCapabilities` (lib/hecks/fuzzing/target_
 # capabilities.rb — its own header is the design) infers what this
@@ -716,7 +716,7 @@ def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 # be worth running, unlike the adversarial layer's own "off is the safe
 # default" stance.
 adversarial ||= defined?(QualityControlDials::ADVERSARIAL_FRACTION) ? QualityControlDials::ADVERSARIAL_FRACTION.to_f : 0.0
-# **Remembered before the default fills it in** — the alias below only
+# Remembered before the default fills it in — the alias below only
 # applies when a human actually typed `--self-consistency`, never when
 # it is silently defaulting from the dial (or from `true` with no
 # dial). Without this, an explicit `--modes ruby_only` could never
@@ -732,7 +732,7 @@ end
 role_draw ||= defined?(QualityControlDials::ROLE_DRAW_PROBABILITY) ? QualityControlDials::ROLE_DRAW_PROBABILITY.to_f : 0.0
 dry_run   ||= defined?(QualityControlDials::DRY_RUN_FRACTION) ? QualityControlDials::DRY_RUN_FRACTION.to_f : 0.0
 
-# **The loop's own identity, from the dial** — `held_by` on every claim this
+# The loop's own identity, from the dial — `held_by` on every claim this
 # script takes, `engineer` on every sweep it opens, and the one literal
 # `WaivedBy` (the ledger's own value object) refuses. Named in the
 # bluebook rather than here so the refusal and the identity it refuses
@@ -741,7 +741,7 @@ dry_run   ||= defined?(QualityControlDials::DRY_RUN_FRACTION) ? QualityControlDi
 ENGINEER = defined?(QualityControlDials::AUTOMATED_ENGINEER) ? QualityControlDials::AUTOMATED_ENGINEER : "qa_sweep"
 
 # **The widening table, from the dial** — see this file's own top-of-file
-# comment ("clean-streak depth escalation") for the full reasoning.
+# comment ("clean-streak depth ESCALATION") for the full reasoning.
 # `QualityControlDials::WIDENING_TIERS` (qa/bluebook/quality_control.
 # bluebook) used to be a bare constant in this script — policy data
 # living in a script, duplicated as prose in SKILL.md — moved to the
@@ -766,7 +766,7 @@ FAVOR_RARE_VERBS = defined?(QualityControlDials::FAVOR_RARE_VERBS) ? QualityCont
 # fan-out.
 SWEEP_MAX_PARALLEL = defined?(QualityControlDials::SWEEP_MAX_PARALLEL) ? QualityControlDials::SWEEP_MAX_PARALLEL : 4
 
-# **How many candidate checks one surprised check may spend being shrunk** —
+# How many candidate checks one surprised check may spend being shrunk —
 # `QualityControlDials::SHRINK_BUDGET`; a ledger without the dial (an
 # isolated spec's own fixture) still shrinks, at the same default.
 SHRINK_BUDGET = defined?(QualityControlDials::SHRINK_BUDGET) ? QualityControlDials::SHRINK_BUDGET : 200
@@ -805,7 +805,7 @@ end
 # on regardless of what the dial says today.
 enabled_modes |= [:persistence_parity] if force_parity_wave
 
-# **Enabled is not the same as built**. `TargetCapabilities::RUNNABLE_MODES`
+# Enabled is not the same as built. `TargetCapabilities::RUNNABLE_MODES`
 # names the modes this script can actually run; `MODE_REQUIREMENTS` names
 # what each mode would need. A dial (or `--modes`) naming a mode with no
 # code behind it used to sail straight through `resolve` and print on the
@@ -850,7 +850,7 @@ def sweep_was_clean?(sweep)
   sweep.checks.none? { |c| c[:ever_surprised]&.[](:value) == "yes" }
 end
 
-# **The release itself** — one place, both callers. `capabilities` is
+# The release itself — one place, both callers. `capabilities` is
 # whatever `Hecks::Fuzzing::TargetCapabilities.infer` already returned
 # for this target (an array of strings — `sqlite`, `rust`,
 # `postgres_era`, …), comma-joined into `Target.capabilities`'s own
@@ -942,7 +942,7 @@ def collect_sweep_child(child, status)
   { target: child[:target], exit_status: status.exitstatus, termsig: status.termsig, output: output }
 end
 
-# **The bounded pool** — at most `max_parallel` children alive at once, the
+# The bounded pool — at most `max_parallel` children alive at once, the
 # next spawned the instant any one exits. `Process.wait2(-1)` reaps
 # whichever child finishes first (every child of this process is one of
 # ours — nothing else is spawned concurrently), and `running` maps its
@@ -990,12 +990,12 @@ end
 # exactly that, and a summary would be the one thing standing between
 # them and doing so correctly.
 #
-# **The one line every child prints, parsed back out** — every ordinary
+# The one line every child prints, parsed back out — every ordinary
 # `bin/qa_sweep <target>` run (this method's own caller included, since
 # `--all`'s children are ordinary runs) prints exactly one line of this
 # shape (see `puts "resolved depth: ..."` below, in the single-target
 # path) the moment it has claimed a target and worked out how hard to
-# fuzz it. Scraping stdout instead of, say, a second ipc channel back to
+# fuzz it. Scraping stdout instead of, say, a second IPC channel back to
 # the parent is deliberate: the child's own log is already the single
 # source of truth `print_all_mode_report` prints verbatim for a real
 # finding, so reading the same text back out here can never disagree with
@@ -1009,7 +1009,7 @@ def resolved_depth_for(output)
   "#{match[1]} seeds x #{match[2]} steps (clean streak #{match[3]})"
 end
 
-# **The second line every child prints, parsed the same way** — `resolved
+# The second line every child prints, parsed the same way — `resolved
 # modes: <active> (capabilities=<inferred>; deferred=<expensive modes
 # that resolved but run only by name or as wave 2>)`, printed right
 # after `resolved depth:` in the single-target path. Read back here for
@@ -1036,7 +1036,7 @@ def print_resolved_modes(results)
   results.each { |r| puts "  #{r[:target]}: #{resolved_modes_for(r[:output])}" }
 end
 
-# **Every target, its own resolved depth** — so a human can tell a target
+# Every target, its own resolved depth — so a human can tell a target
 # that just came off a 20-sweep clean streak (widest tier) from one
 # freshly added to the rotation (narrowest), without re-deriving either
 # by hand from `Target.clean_streak` itself. Pulled out of
@@ -1116,7 +1116,7 @@ def print_trace_output(results)
   end
 end
 
-# **The precedence** — a genuine finding always outranks an operational
+# The precedence — a genuine finding always outranks an operational
 # hiccup elsewhere: exit 2 the moment any child found something, no
 # matter how many other children also errored; exit 1 only when nothing
 # was found but at least one child hit an operational problem; exit 0
@@ -1132,7 +1132,7 @@ def all_mode_exit_code(found, errored)
   EXIT_OK
 end
 
-# **The second wave** — persistence parity, `--all`'s own. The mode used to
+# The second wave — persistence parity, `--all`'s own. The mode used to
 # be single-target only, by abort; now `--all` runs it for every target
 # that (1) came back clean from wave 1 — so it is waiting again and its
 # ledger row is exactly one clean release further along, never a target
@@ -1148,7 +1148,7 @@ end
 # children then ran it themselves — a second pass would just re-pay
 # the Postgres I/O for nothing new).
 #
-# **A separate function called after wave 1, not a branch inside it** —
+# A separate function called after wave 1, not a branch inside it —
 # `run_all_mode`'s own spawn/collect shape is untouched; this reuses
 # `spawn_sweep_child`/`run_pool` with `parity: true`, through the same
 # bounded pool wave 1 used (`max_parallel`) rather than a second,
@@ -1180,7 +1180,7 @@ def run_parity_wave(runtime, wave1, seeds_override, adversarial, role_draw, dry_
   results.map { |r| r.merge(wave: 2, target: "#{r[:target]} [parity wave]") }
 end
 
-# **A generalized, later wave** — `run_parity_wave` above stayed exactly as
+# A generalized, later wave — `run_parity_wave` above stayed exactly as
 # it was (its own `--persistence-parity` alias flag, its own single
 # hand-picked capability, its own report label) rather than being
 # rewritten onto this; this is what `era_boundary` and `concurrency`
@@ -1285,7 +1285,7 @@ end
 
 # ── pick a target ───────────────────────────────────────────────────
 
-# **Existence-checked, not blind**. `Target.Rotation` being empty does not
+# Existence-checked, not blind. `Target.Rotation` being empty does not
 # mean nothing has ever been `Identify`d — a target that is currently
 # `held` or `shelved` is invisible to `Rotation` too (it only answers
 # `where(status: "waiting")`), and re-`Identify`ing an id that already
@@ -1398,7 +1398,7 @@ end
 # resolved for this target but run only when asked by name or as
 # `--all`'s second wave — printed so a human sees they qualify.
 #
-# **A deferred mode runs only when it is the whole ask** — `--persistence-
+# A deferred mode runs only when it is the whole ask — `--persistence-
 # parity`, or `--modes persistence_parity` on its own (and, since
 # era_boundary/concurrency joined the deferred set, `--modes
 # era_boundary`, `--modes concurrency`, or any `--modes` list made up
@@ -1443,7 +1443,7 @@ unless active_modes.intersect?(%i[differential ruby_only persistence_parity conc
         "era_boundary."
 end
 
-# Seedless — modes with no per-seed loop at all. `era_boundary` is the
+# Seedless — MODES with no per-seed loop at all. `era_boundary` is the
 # first (and, today, only) one: nothing here generates a sequence for it
 # to check, so when it is the only active mode, the ordinary "pick a
 # primary seat, generate `seeds` sequences" machinery below has nothing
@@ -1465,7 +1465,7 @@ qa_trace.call("claim")
 
 # ── size this pass ───────────────────────────────────────────────────
 #
-# **Read once, right after claiming, and held** — `current_streak` is used
+# Read once, right after claiming, and held — `current_streak` is used
 # twice more below (sizing this sweep now, via `SweepDepth.for_streak`;
 # computing `next_streak` for `Target::Release` once the sweep concludes
 # clean) and nothing between here and there ever changes `clean_streak`
@@ -1649,7 +1649,7 @@ if active_modes.include?(:concurrency)
   ensure_scratch_database!(concurrency_database)
 end
 
-# **Shared by both differential-family modes** — `ruby_result`/`history`
+# Shared by both differential-family MODES — `ruby_result`/`history`
 # either way carries a `:self_consistency` key only when `Replay.call`
 # was asked for one (`self_consistency: true`); flattened from
 # `{rehydration:, idempotency:, value_object_round_trip:}` into the same
@@ -1659,7 +1659,7 @@ end
 # from.
 def self_consistency_divergences(history) = Hecks::Fuzzing::Differential.self_consistency_divergences(history)
 
-# The actual Ruby-vs-Rust diff `spec/rust_conformance_fuzz_spec.rb` runs
+# The actual Ruby-vs-Rust DIFF `spec/rust_conformance_fuzz_spec.rb` runs
 # per generated seed, factored out unchanged rather than re-derived —
 # same fields compared (instances, events, refusals, queries, sagas,
 # reactions), same known-gap filtering, same wire-precision reduction.
@@ -1669,7 +1669,7 @@ def self_consistency_divergences(history) = Hecks::Fuzzing::Differential.self_co
 # real gain — the spec itself keeps this inline in one `it` block for
 # the identical reason.
 #
-# **Returns one divergence list per active mode** — `{ differential: [...],
+# Returns one divergence list per active mode — `{ differential: [...],
 # self_consistency: [...], properties_in_differential: [...] }`, keys
 # present only for the modes in `modes:` (`differential` always) — so
 # `run_one_seed` can log one Check per mode with its own `[mode]`
@@ -1692,7 +1692,7 @@ end
 # the property's own name is the field, its message the detail.
 def property_divergences(history) = Hecks::Fuzzing::Differential.property_divergences(history)
 
-# **The single-runtime fallback** — `bin/fuzz`'s own `outcome` function,
+# The single-runtime fallback — `bin/fuzz`'s own `outcome` function,
 # unchanged: a declared property violated, or an exception that escaped
 # `Replay.call`'s own per-step DOMAIN_REFUSAL isolation (a real
 # interpreter defect, not an expected refusal). Reached only when this
@@ -1702,7 +1702,7 @@ def property_divergences(history) = Hecks::Fuzzing::Differential.property_diverg
 # run) — matching `bin/fuzz`'s own documented scope exactly rather than
 # inventing a narrower or wider one.
 #
-# **Returns the same per-mode hash `diff_ruby_vs_rust` does** — `{ ruby_only:
+# Returns the same per-mode hash `diff_ruby_vs_rust` does — `{ ruby_only:
 # [...], self_consistency: [...] }` — every entry the flat, `field:`-keyed
 # divergence shape, a property's own name as the field and its message
 # as the detail; a crash is one `crash` entry under `ruby_only`, so
@@ -1717,7 +1717,7 @@ def ruby_only_outcome(domain_path, steps, modes:)
   end
   outcomes
 rescue StandardError => e
-  # **The crash is one mode's finding, not every other mode's absence**.
+  # The crash is one mode's finding, not every other mode's absence.
   # `run_one_seed` logs one Check per key of this hash, so collapsing to
   # `{ ruby_only: … }` meant `self_consistency`/`adapter_parity_sqlite`
   # logged nothing for this seed — the ledger quietly holding fewer checks
@@ -1772,7 +1772,7 @@ def check_for(mode, feature, seed, shape, divergences)
     observation: divergences.empty? ? "held" : "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}" }
 end
 
-# **The extra `generate` arguments a guided seed needs to reproduce** — empty
+# The extra `generate` arguments a guided seed needs to reproduce — empty
 # for an unguided (or unspliced, unfavored) seed, so its `reproduce:` line
 # reads exactly as before.
 def plan_arguments(plan)
@@ -1784,7 +1784,7 @@ def plan_arguments(plan)
   parts.empty? ? "" : ", #{parts.join(', ')}"
 end
 
-# **Item 4 of the detection plan** — the once-per-sweep structural-skip
+# Item 4 of the detection plan — the once-per-sweep structural-skip
 # check. `differ.structural_skips` is every verb this sweep's seeds reached
 # that the binary's manifest.json declares `generated: false` (and so was
 # dropped from the comparison); `Hecks::Fuzzing::StructuralSkips` names each
@@ -1858,7 +1858,7 @@ else
        "dry-run fraction #{dry_run}, active modes #{active_modes.join(',')}"
 end
 
-# **The persistence-parity outcome** — `Hecks::Fuzzing::PersistenceParity
+# The persistence-parity outcome — `Hecks::Fuzzing::PersistenceParity
 # .diff`, called once per seed against this sweep's own disposable
 # schema (dropped between seeds by `IsolatedBoot#ensure_postgres_era_
 # schema!` itself, the same zero-history guarantee every other adapter
@@ -1877,7 +1877,7 @@ rescue StandardError => e
   [:crash, [{ field: "process", detail: "#{e.class}: #{e.message}" }]]
 end
 
-# **The adapter-parity-SQLite outcome** — the same `PersistenceParity.diff`
+# The adapter-parity-SQLite outcome — the same `PersistenceParity.diff`
 # mechanism as `persistence_parity_outcome` above, the cheaper pair
 # (`ADAPTER_PARITY_PAIRS.fetch(:adapter_parity_sqlite)`, `:memory` vs
 # `:sqlite`, neither side needing `database:`/`schema:`). Folded into
@@ -1894,7 +1894,7 @@ rescue StandardError => e
   [{ field: "process", detail: "#{e.class}: #{e.message}" }]
 end
 
-# **The concurrency outcome** — `Hecks::Fuzzing::ConcurrentDispatch.check`
+# The concurrency outcome — `Hecks::Fuzzing::ConcurrentDispatch.check`
 # already returns the flat, `field:`-keyed divergence shape every other
 # outcome here does (including its own `[]` for "this seed's generated
 # sequence had no command step to race at all," which is a legitimate
@@ -1909,7 +1909,7 @@ def concurrency_outcome(domain_path, steps, database, race_schema, reference_sch
                                                                 race_schema: race_schema, reference_schema: reference_schema)
 end
 
-# **The era-boundary check** — seedless, once per sweep, never per seed (see
+# The era-boundary check — seedless, once per sweep, never per seed (see
 # `SEEDLESS_MODES`, above, and `Hecks::Fuzzing::EraBoundary`'s own header
 # for why: it audits the target's own already-persisted real lineage,
 # generating nothing). `checked: false` (the target's real database
@@ -1958,7 +1958,7 @@ def era_boundary_check(domain_path)
     observation: divergences.empty? ? "no ancestor era holds an unmerged write" : "#{result[:diverged_total]} diverged" }
 end
 
-# **One seed, every active mode** — pulled out of the loop below so that
+# One seed, every active mode — pulled out of the loop below so that
 # loop reads as "run a seed, log its checks, stop on a surprise" rather
 # than burying that shape under each mode's own detail. Returns `{
 # steps:, checks: [...] }` — one check per active mode (`check_for`),
@@ -1967,7 +1967,7 @@ end
 # job. `database:`/`schema:` are only ever non-nil for
 # `:persistence_parity` — every other seat ignores them.
 #
-# **A generator crash is a finding too**. `SequenceGenerator` dispatches
+# A generator crash is a finding too. `SequenceGenerator` dispatches
 # every candidate step against a live throwaway runtime as it builds
 # the sequence, rescuing only genuine domain refusals — anything else
 # escaping it means an adversarial (or ordinary) step broke Ruby's own
@@ -1975,7 +1975,7 @@ end
 # kind of surprise this script exists to stop on, not an operational
 # error to abort with.
 #
-# **Three seats, one method** — each `case` branch shares `steps`/`shape`
+# Three seats, one method — each `case` branch shares `steps`/`shape`
 # with the other two, and splitting per seat would just re-thread those
 # locals through three call sites for no real gain. `:persistence_parity`
 # never receives the extra modes at all (see this file's own top-of-file
@@ -2030,7 +2030,7 @@ end
 SHRINKABLE_MODES = %i[differential properties_in_differential self_consistency ruby_only adapter_parity_sqlite
                       persistence_parity].freeze
 
-# **One candidate, one mode** — re-runs only the comparison that surprised,
+# One candidate, one mode — re-runs only the comparison that surprised,
 # never the whole active set: a `properties_in_differential` finding is
 # a Ruby-only question and pays for no Rust subprocess while it shrinks.
 # `seat` matters only for `self_consistency`, which reads the Rust
@@ -2071,7 +2071,7 @@ def shrink_check(check, seat, differ, domain_path, steps, binary, budget:, datab
     original_size: steps.size }
 end
 
-# **Where a shrunk sequence lands** — the same `{name, note, steps}` corpus
+# Where a shrunk sequence lands — the same `{name, note, steps}` corpus
 # shape `bin/fuzz` writes to tmp/fuzz-failures/, so `bin/run` and
 # `bin/rust_conformance` both replay it unchanged.
 def write_shrunk!(shrunk, sweep_reference, feature, seed)
@@ -2095,7 +2095,7 @@ begin
                                                     favor_count:        FAVOR_RARE_VERBS)
              end
 
-  # **No seed loop at all for a seedless-only sweep** — `seeded_modes.empty?`
+  # No seed loop at all for a seedless-only sweep — `seeded_modes.empty?`
   # is exactly the `mode == :seedless` case from the primary-seat
   # selection above; skipping the loop outright (rather than iterating
   # `seeds` times doing nothing) is what keeps a `--modes era_boundary`
@@ -2257,7 +2257,7 @@ if surprise
     puts "observation: #{check[:observation]}"
     puts
 
-    # **One generic printer, not one shape per check kind**. A differential
+    # One generic printer, not one shape per check kind. A differential
     # divergence carries `:ruby`/`:rust`; a persistence-parity one carries
     # `:memory`/`:postgres_era` (`Hecks::Fuzzing::PersistenceParity`'s own
     # header explains why that's a genuinely different pairing, not a
@@ -2299,7 +2299,7 @@ if surprise
   end
   puts
 
-  # **The shrunk demonstration, one per shrinkable surprised check** — what
+  # The shrunk demonstration, one per shrinkable surprised check — what
   # `bin/qa_log_bug --demonstration` should be built from. Every step and
   # its full args are printed (a shrunk sequence is short by construction),
   # and the file is written so the replay line below works as printed.

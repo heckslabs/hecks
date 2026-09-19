@@ -1,7 +1,7 @@
 require "open3"
 require "pg"
 
-# **The QA ledger's own ROLE, provisioned the way the operator does it** — by
+# The QA ledger's own ROLE, provisioned the way the operator does it — by
 # running the real `bin/qa_postgres_role` against a spec's disposable
 # database, never a re-implementation of it. `qa/bluebook/quality_control
 # .world` binds `postgres://hecks_qa@localhost/hecks_quality_control`,

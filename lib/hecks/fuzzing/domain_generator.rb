@@ -4,7 +4,7 @@ require_relative "form_census"
 
 module Hecks
   module Fuzzing
-    # **A small, valid bluebook, written from a seed** — so the QA loop can test
+    # A small, valid bluebook, written from a seed — so the QA loop can test
     # construct combinations nobody has hand-authored yet.
     #
     # The ledger's most productive moments were a new stress domain's first
@@ -20,7 +20,7 @@ module Hecks
     # policy, a role), and renders the whole thing as ordinary bluebook
     # source any runtime boots.
     #
-    # **A blueprint, not source, is the unit**. `generate` answers a plain,
+    # A blueprint, not source, is the unit. `generate` answers a plain,
     # JSON-shaped Hash (string keys) — a small IR of its own — and `render`
     # turns it into source. That split is what makes a finding shrinkable
     # at the domain level: `shrink_candidates` removes one element at a time
@@ -29,7 +29,7 @@ module Hecks
     # `requires` tokens every dependent element carries. Nothing here
     # parses Ruby back.
     #
-    # **Every generated domain is the same domain name** — `QaGenerated`, in a
+    # Every generated domain is the same domain name — `QaGenerated`, in a
     # `qa_generated/bluebook/qa_generated.bluebook` directory — because the
     # directory basename doubles as a Rust module and Cargo feature name
     # (`bin/project_rust`'s own landmine guard), and one fixed feature is
@@ -295,7 +295,7 @@ module Hecks
         owner["lifecycle"] = nil if transitions.empty?
       end
 
-      # **Every state a path from the default reaches**. A transition out of a
+      # Every state a path from the default reaches. A transition out of a
       # state nothing reaches can never fire, so a removal that orphans one
       # goes too: shrinking away `Close` used to leave `Reopen from closed`
       # behind — qa/stress_domains/generated_revalued_shape was promoted
@@ -677,7 +677,7 @@ module Hecks
         def snake(name) = DomainGenerator.snake(name)
       end
 
-      # **What this generator can build, not everything the census names**.
+      # What this generator can build, not everything the census names.
       # This read `FormCensus::FORMS.keys`, which quietly assumed the two
       # tables would always agree — and they stopped agreeing the moment
       # the census learned a form (`corrects`, `role_gated`) that

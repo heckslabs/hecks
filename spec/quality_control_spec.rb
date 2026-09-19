@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# **The QA ledger, exercised the way it will actually be used**.
+# The QA ledger, exercised the way it will actually be used.
 #
 # Booted against Memory rather than the chapter's own Postgres binding — a
 # spec that wrote to the real ledger would leave it different after every run,
@@ -16,7 +16,7 @@ RSpec.describe "QualityControl" do
   QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
 
   class StubTracker
-    # **The adapter returns what the answering command takes**. The answer is
+    # The adapter returns what the answering command takes. The answer is
     # spread into the event payload, and a policy re-enters with that
     # payload verbatim — so these keys are `Ticket.Filed`'s arguments, in the
     # shape the runtime coerces.
@@ -40,7 +40,7 @@ RSpec.describe "QualityControl" do
     def run(**) = raise "suite red against abc1234: 1335 examples, 2 failures"
   end
 
-  # **A fixed clock, which is the whole reason the clock is a port**. A staleness
+  # A fixed clock, which is the whole reason the clock is a port. A staleness
   # rule read against the real clock is untestable — the spec would either
   # sleep for fifteen minutes or never exercise the rule at all. Bound to this,
   # it is three lines.
@@ -153,7 +153,7 @@ RSpec.describe "QualityControl" do
       expect(JSON.parse(text).dig("state", "claimed_at", "value")).to eq(1_000)
     end
 
-    # **So a spec or a caller reproducing a moment is believed**. The door supplies
+    # So a spec or a caller reproducing a moment is believed. The door supplies
     # only what was omitted.
     it "believes an explicit time over the clock" do
       target
@@ -201,7 +201,7 @@ RSpec.describe "QualityControl" do
 
     let(:sweep) { a_sweep }
 
-    # **The one thing a query cannot do is count**. `Bug.Open` answers rows and
+    # The one thing a query cannot do is count. `Bug.Open` answers rows and
     # leaves the arithmetic to whoever is reading; a tally is the arithmetic,
     # and it is grouped by the lifecycle state — which no `attribute` declares
     # and `group_by` used to refuse.
@@ -227,7 +227,7 @@ RSpec.describe "QualityControl" do
       expect(by_submitter["agent-two"].keys).to eq(["BUG#2"])
     end
 
-    # **Reachable from the only door there is**. The dispatcher has always
+    # Reachable from the only door there is. The dispatcher has always
     # answered a report; the projected CLI never listed one, so a caller with
     # no Ruby could not ask for the one reading that counts.
     it "is a question the command line offers" do
@@ -276,7 +276,7 @@ RSpec.describe "QualityControl" do
       end.to raise_error(Hecks::Runtime::GivenNotMet, /not taken from the agent holding it/)
     end
 
-    # **And the failure mode every lock has**. An agent that dies holds the
+    # And the failure mode every lock has. An agent that dies holds the
     # chapter forever unless the claim can go stale.
     it "lets the next agent take a claim whose holder has gone quiet" do
       target = a_target
@@ -449,7 +449,7 @@ RSpec.describe "QualityControl" do
 
   # ── the other queue ──────────────────────────────────────────────────
 
-  # **Sweeping is not the only way to GET work**. An agent that is not sweeping
+  # Sweeping is not the only way to GET work. An agent that is not sweeping
   # takes the next open bug off the queue and fixes that instead — so a bug
   # is claimed for the same reason a chapter is.
   describe "taking a bug off the queue" do
@@ -832,7 +832,7 @@ RSpec.describe "QualityControl" do
 
   # ── which pull requests are ours ──────────────────────────────────────
 
-  # **The worklist `bin/qa_pr_check` now reads instead of searching**. A patch
+  # The worklist `bin/qa_pr_check` now reads instead of searching. A patch
   # is recorded the moment its number, branch and commit are already known
   # — at `gh pr create` — not rediscovered afterward by guessing at a
   # branch prefix or a title convention.
@@ -1018,7 +1018,7 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
-    # **A deliberate citation is real, not required** — `Angle.Build` already
+    # A deliberate citation is real, not required — `Angle.Build` already
     # marks a lead resolved-by-building-something; this is the other half
     # of that same loop, readable from the improvement's own side.
     it "can cite the angle it fulfills, and be found by it" do
@@ -1133,7 +1133,7 @@ RSpec.describe "QualityControl" do
       expect(runtime.registry.saga_instances["BugCiWatch"]).to be_empty
     end
 
-    # **The whole reason this correlates by commit and not by bug**: a red run
+    # The whole reason this correlates by commit and not by bug: a red run
     # against somebody else's commit must never touch this bug.
     it "ignores a clearance against an unrelated commit" do
       fixed_bug("4f2a19c")
@@ -1197,7 +1197,7 @@ RSpec.describe "QualityControl" do
       expect(QualityControl::Improvement.find(9001).status).to eq("landed")
     end
 
-    # **The whole reason `Open` and `Land` are two commands**: a fresh `Land`
+    # The whole reason `Open` and `Land` are two commands: a fresh `Land`
     # after `needs_fix` fires `ImprovementLanded` again, the same event
     # `starts_on` names, so the watch picks the new commit back up on its
     # own — proven here against a real, synthetic `Clearance` for the new
@@ -1311,7 +1311,7 @@ RSpec.describe "QualityControl" do
         .to raise_error(Hecks::Runtime::AbsentArgument, /target/)
     end
 
-    # **No stale-claim arithmetic reaches a suspended chapter** — that is the
+    # No stale-claim arithmetic reaches a suspended chapter — that is the
     # difference from `held`, and the reason the state exists.
     it "cannot be claimed, however old the suspension, and comes back only through Release" do
       target, sweep = held_target_with_open_sweep
@@ -1516,7 +1516,7 @@ RSpec.describe "QualityControl" do
       expect(references("Bug.NeedsJudgment")).to contain_exactly("BUG#1", "BUG#2")
     end
 
-    # **Fixed counts as still owed, on purpose**. A fix landing does not
+    # Fixed counts as still owed, on purpose. A fix landing does not
     # retroactively answer the bigger judgment call that was made about
     # it — the bug is not resolved until `Verify` or `Withdraw` says so.
     it "keeps a bigger-triaged bug once it is fixed and not yet verified" do

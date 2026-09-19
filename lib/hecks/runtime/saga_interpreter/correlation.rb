@@ -16,7 +16,7 @@ module Hecks
         # field with a single unambiguous rendering.
         def saga_correlation(process_manager, event)
           path  = process_manager.correlates_by.to_s.split(".")
-          # **A later event may already hold the scalar**. `reference.value` digs a
+          # A later event may already hold the scalar. `reference.value` digs a
           # value object's field out of a fresh declaration (TransferRequested's
           # `reference` is a TransferReference) — but a downstream event this
           # same value was smuggled through as a passthrough argument

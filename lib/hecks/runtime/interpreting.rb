@@ -71,7 +71,7 @@ module Hecks
         ctx.outbox_rows = @registry.outbox.enqueue(ctx.repository, Array(ctx.result), ctx.domain)
       end
 
-      # **The concurrency-control split** — see docs/decisions/ (concurrency
+      # The concurrency-control split — see docs/decisions/ (concurrency
       # control ADR) for the full mechanism. A repository that declares
       # `:optimistic_concurrency` (Postgres today) already closes the
       # lost-update gap itself, via `step_save`'s CAS + `#call`'s own

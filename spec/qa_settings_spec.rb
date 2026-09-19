@@ -12,7 +12,7 @@ require "tempfile"
 # booting the real chapter — this file is only about the adapter's own
 # refuse-or-accept behaviour.
 RSpec.describe Hecks::Fuzzing::QaSettings do
-  # **A minimal, complete fixture** — every key `EXPECTED_TYPES` names, small
+  # A minimal, complete fixture — every key `EXPECTED_TYPES` names, small
   # values chosen for clarity rather than realism (the real numbers are
   # `qa/settings.yml`'s job to carry, not this file's).
   def valid_yaml

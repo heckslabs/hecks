@@ -1,7 +1,7 @@
 require "hecks"
 require "tmpdir"
 
-# The heki/memory cousin of spec/adapters/driven/postgres_concurrent_dispatch_spec.rb
+# The Heki/memory cousin of spec/adapters/driven/postgres_concurrent_dispatch_spec.rb
 # — same fixture (an "Account" with a state-dependent `Debit`), same
 # invariant (two concurrent $6,000 debits against a $10,000 balance must
 # never both succeed), but modeling the shape these two adapters actually
@@ -20,7 +20,7 @@ require "tmpdir"
 # lock works means proving that window cannot be forced open, not that a
 # retry recovers from it.
 RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Memory)" do
-  # **One inline bluebook, declared whole** — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.

@@ -1,12 +1,12 @@
 require "pg"
 
-# **A non-superuser owner for a spec's own disposable database** — the kind of
+# A non-superuser owner for a spec's own disposable database — the kind of
 # role PostgresEra's boot now insists on. Its era write-fence is row-level
 # security, which the ambient dev/CI Postgres user (a superuser locally;
 # `PGUSER: postgres` in CI) walks straight through, so
 # `Lineage#check_fence_applies!` refuses to boot as one (BUG#24).
 # lineage_spec.rb, reset_spec.rb and field_cache_spec.rb each hand-roll
-# exactly this shape for a role of their own (CREATE ROLE ... Login, no
+# exactly this shape for a role of their own (CREATE ROLE ... LOGIN, no
 # superuser, no BYPASSRLS; re-grant on `public` after every scrub) because
 # the fence is their subject. This is the same shape, shared, for the
 # specs that boot a whole domain (`Hecks.boot`, or `LineageManager
@@ -16,7 +16,7 @@ require "pg"
 # one line each; binding a real fenced owner is what keeps every one of
 # them booting the way a deployment does.
 #
-# The role owns the database (alter database ... Owner to): a PostgresEra
+# The role owns the database (ALTER database ... OWNER TO): a PostgresEra
 # boot provisions — CREATE TABLE, CREATE POLICY, CREATE SCHEMA for a
 # `schema:` tenant — and an owner may, where a merely-CONNECTed role may
 # not. `own_public!` hands the `public` schema back over after a spec's
@@ -24,7 +24,7 @@ require "pg"
 # leaves it superuser-owned with create for nobody else (lineage_spec.rb's
 # own `before` comment found this first).
 #
-# **One ROLE name for every caller, never dropped**. `parallel_rspec` runs
+# One ROLE name for every caller, never dropped. `parallel_rspec` runs
 # these files concurrently: creation is race-safe (the do block swallows
 # the loser's error — duplicate_object once the winner has committed,
 # unique_violation on pg_authid_rolname_index when both are still in

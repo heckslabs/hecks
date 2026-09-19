@@ -52,7 +52,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     expect(result).to include("L-WEST").and include("west").and include("cross-tenant write nothing refused")
   end
 
-  # **The real fix, proven at dispatch time** — `CommandRules::References#
+  # The real fix, proven at dispatch time — `CommandRules::References#
   # enforce_tenant_boundary`, mirroring `TenantScope.apply`'s query-side
   # mechanism (runtime/tenant_scope.rb) for a command's own settled
   # state. `Transfer.Request` declaring `region: "east"` independently
@@ -81,7 +81,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
       expect(message).to include(fragment)
     end
 
-    # **The property itself has nothing to say** — the same "a refusal is
+    # The property itself has nothing to say — the same "a refusal is
     # correct behaviour, not a finding" rule the third example below
     # already states for a dangling reference, now true for this shape
     # too.
@@ -121,7 +121,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     expect(Hecks::Fuzzing::Properties.commands_respect_tenant_scope(replay(steps))).to be(true)
   end
 
-  # **A refused cross-tenant attempt is not a finding** — this domain's own
+  # A refused cross-tenant attempt is not a finding — this domain's own
   # aggregates admit a malformed/incomplete Request the same as any other
   # (AbsentArgument, a nonexistent ledger, …), and a step that never wrote
   # a record can never appear in `history[:instances]` for this property

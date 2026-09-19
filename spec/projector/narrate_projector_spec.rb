@@ -70,7 +70,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
       expect(banking).to match(/Issued by an? #{Regexp.escape(command.role)}\./)
     end
 
-    # The part docsprojector's own `creates?` gets wrong for an entity verb —
+    # The part DocsProjector's own `creates?` gets wrong for an entity verb —
     # see `Command#acts_on`'s comment. `LedgerEntry.Amend` never creates a
     # ledger entry; it corrects one that already exists.
     it "only claims a command creates the record when it actually does" do
@@ -103,7 +103,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
       expect(banking).to include(query.description)
     end
 
-    # **The double-quoting docsprojector itself has** — `w[:value]` already wears
+    # **The double-quoting DocsProjector itself has** — `w[:value]` already wears
     # its own quotes or colon (`Literal.render`ed), so re-`inspect`ing it
     # prints a literal backslash. Written for readers, this must not.
     it "renders an already-quoted filter value without a second, escaped layer of quoting" do

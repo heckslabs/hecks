@@ -31,7 +31,7 @@ module Hecks
         load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter])
       end
 
-      # **Chapters first, judged once, then everything that reads them**.
+      # Chapters first, judged once, then everything that reads them.
       # A chapter may be split across files (the language's own grammar is
       # nine), and judging file one before files two-through-nine exist
       # refuses references that are perfectly well declared a file later —
@@ -73,7 +73,7 @@ module Hecks
         load_each(directory, [File.join("environments", "#{environment}.world")])
       end
 
-      # **Every bluebook in a folder is one declaration set**. Individual files
+      # Every bluebook in a folder is one declaration set. Individual files
       # remain organized in the domain expert's language; the folder is the
       # unit callers load. Builders group declarations by the chapter name in
       # each file, so a folder may hold more than one chapter without a catalog.
@@ -93,7 +93,7 @@ module Hecks
       # tmpdir (see Loader.boot_files's own header for why that pattern is a
       # hazard, not a convenience).
       #
-      # **Ordered by category, not by the caller's own list order** — same four
+      # Ordered by category, not by the caller's own list order — same four
       # groups `Vocabulary.fetch("LoadOrder")` walks a directory in
       # (bluebook chapters, translations, hecksagons, worlds), because a
       # hecksagon can reference a bluebook's own constants and must not load

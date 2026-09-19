@@ -1,5 +1,5 @@
 module Hecks
-  # **What a construct emits, declared rather than written out**.
+  # What a construct emits, declared rather than written out.
   #
   # `IR` is a thing this framework produces, not a thing its model is.
   # The language self-hosts, and its own bluebook declares aggregates

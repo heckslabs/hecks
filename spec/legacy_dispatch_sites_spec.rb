@@ -38,7 +38,7 @@ RSpec.describe "loose keyword facts in dispatch" do
   # caller's line. Nothing under lib/ may reintroduce a loose call of its own,
   # or the deprecation would name a line its reader cannot change.
   #
-  # **The three files pinned here are not dispatcher calls** — they forward to a
+  # The three files pinned here are not dispatcher calls — they forward to a
   # different door of the same name, which only reads the same to a parser:
   # `Router.dispatch(address, **args)` and the namespace shortcut's own
   # `method_missing` hand their keywords to `Router#dispatch`, and

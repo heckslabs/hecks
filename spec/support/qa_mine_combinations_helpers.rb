@@ -3,7 +3,7 @@ require "open3"
 # Shared by the three `bin/qa_mine_combinations` spec files
 # (qa_mine_combinations_spec.rb, _check_spec.rb, _repair_spec.rb).
 #
-# **Three files, not one, for the shards**. Every subprocess example boots
+# Three files, not one, for the shards. Every subprocess example boots
 # Ruby and bundler several times over (the miner, its boot check, then
 # `bin/qa_generated_domains` and its child), ~5-25s each on a CI runner.
 # In one file they were ~70s that parallel_rspec cannot split across
@@ -12,7 +12,7 @@ require "open3"
 # other three ~45s). Separate files let runtime grouping spread them.
 module QaMineCombinationsHelpers
   FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_mine_combinations").freeze
-  # **One CORPUS domain, not all of them** — the full census (every stress
+  # One CORPUS domain, not all of them — the full census (every stress
   # domain and example) costs ~8s per run and every example here runs the
   # script; the brief's shape is the same over one domain as over nineteen.
   CORPUS = File.join(InMemoryDomain::ROOT, "qa/stress_domains/case_escalation").freeze

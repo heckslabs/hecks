@@ -92,7 +92,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     admin.close
   end
 
-  # **The same `check!` shape `lineage_spec.rb` already proves** — an
+  # The same `check!` shape `lineage_spec.rb` already proves — an
   # in-memory registry (a real `Kernel.eval`'d bluebook, never a file on
   # disk: this is setup, building real database state to later read back,
   # not the thing under test) minted/verified against the real database.
@@ -199,7 +199,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     expect(result[:reason]).to include("not PostgresEra")
   end
 
-  # **Nothing to audit and could-not-audit must not look alike** — they did,
+  # Nothing to audit and could-not-audit must not look alike — they did,
   # and `bin/qa_sweep` logged the second as a held Check, so a refused
   # connection or a `Lineage` defect counted toward the target's clean
   # streak. `kind:` is what the sweep now reads to tell a note (no Check
@@ -220,7 +220,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :io do
     expect(result).to eq(checked: true, era_count: 1, breakdown: [], diverged_total: 0)
   end
 
-  # **The finding this module exists to surface** — the exact recipe
+  # The finding this module exists to surface — the exact recipe
   # `lineage_spec.rb`'s own "however a post-cut row lands in a
   # superseded era..." example already proves at the SQL level, read
   # back through this module's own public API instead.

@@ -1,6 +1,6 @@
 module Hecks
   module Fuzzing
-    # **A failing step list, made small enough to read**.
+    # A failing step list, made small enough to read.
     #
     # `bin/fuzz` always shrank its findings; `bin/qa_sweep` — the loop that
     # actually finds the bugs — never did, so the ledger filled with
@@ -32,7 +32,7 @@ module Hecks
     #      one key at a time from the step's current args, keep it dropped
     #      only while the finding still reproduces.
     #
-    # **A budget, because a sweep has other targets waiting**. `budget:` caps
+    # A budget, because a sweep has other targets waiting. `budget:` caps
     # how many candidate checks one call may spend (nil = unbounded, the
     # `bin/fuzz` behaviour). When it runs out the best candidate found so
     # far is returned — every accepted candidate reproduced, so a partial

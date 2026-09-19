@@ -10,7 +10,7 @@ module Hecks
         def scalar?    = !@list
         def reference? = @type.is_a?(Reference)
 
-        # **May this fact be left out**?
+        # May this fact be left out?
         #
         # Required is the default and by far the common case — a command takes
         # the arguments it declares, and all of them — so the exception is what

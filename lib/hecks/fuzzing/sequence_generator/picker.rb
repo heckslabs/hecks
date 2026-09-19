@@ -31,7 +31,7 @@ module Hecks
           deep * Adversary::DEEP_ENTITY_WEIGHT
         end
 
-        # **While there is nothing to find, making something is the only useful move**.
+        # While there is nothing to find, making something is the only useful move.
         #
         # A flat weight is right once the domain has records in it, and badly
         # wrong before: banking declares ten queries, and from an empty store

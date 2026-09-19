@@ -16,7 +16,7 @@ require "spec_helper"
 # multiply, by unwrapping `amount`'s own single numeric field rather than
 # refusing on it.
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
-  # **One inline bluebook, declared whole** — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.

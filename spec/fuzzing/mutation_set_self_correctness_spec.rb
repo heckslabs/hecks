@@ -56,7 +56,7 @@ RSpec.describe "Ruby self-correctness — a defect only mutations_match_recomput
   # comparable.
   MUTATION_SET_STEPS = Hecks::Fuzzing::SequenceGenerator.generate(MUTATION_SET_NESTED_PIECES, seed: 2, steps: 25).freeze
 
-  # **Plants the defect**: `EntityElement#apply_to_element`'s own `:set`
+  # Plants the defect: `EntityElement#apply_to_element`'s own `:set`
   # branch (entity_element.rb) resolves a source via `rules.resolve_
   # source`, which — for a command's own declared attribute — already
   # arrives as an already-coerced `Runtime::Value` (`normalize_args` ran

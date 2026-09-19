@@ -5,7 +5,7 @@ module Hecks
   module Facade
     # **The door, without the classes**.
     #
-    # `Pizzas::Pizza.create_pizza(...)` is the public surface (handover rule 3),
+    # `Pizzas::Pizza.create_pizza!(...)` is the public surface (handover rule 3),
     # and this is what serves it now : anonymous per-boot modules whose
     # singleton methods close over the dispatcher and dispatch by FQN — the
     # same shape `Router::NamespaceInstaller` proved. Nothing here is a domain
@@ -30,6 +30,19 @@ module Hecks
 
       module_function
 
+      # Installs one top-level module per booted chapter, and one per aggregate, each
+      # closing over `dispatcher`, so `Pizzas::Pizza` and the bare `Pizza` both open the
+      # door of the boot that ran last.
+      #
+      # An aggregate sharing its chapter's name gets no second constant: the chapter
+      # module already holds that name. A name that user code or the stdlib already owns
+      # is left alone with a warning (see `Namespace.install`).
+      #
+      # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+      #   dispatcher every installed door dispatches and queries through
+      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the same `dispatcher`,
+      #   so a boot can return the call's result
+      # @raise [NameError] if a chapter or aggregate name is not a valid constant name
       def install(dispatcher)
         dispatcher.registry.bluebooks.each_value do |bluebook|
           chapter = chapter_module(dispatcher, bluebook)

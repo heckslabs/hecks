@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 
-# **The actual regression the saga-durability review asked for a test on** —
+# The actual regression the saga-durability review asked for a test on —
 # `advance_saga`/`unwind` checkpoint a saga's new state before the leg
 # that justifies it runs (the mutex they hold is not reentrant, so it is
 # released before `deliver_saga_dispatch` can recurse back through
@@ -9,7 +9,7 @@ require "tmpdir"
 # and looked at what the store was left holding. This does, by raising a
 # non-`StandardError` (nothing in `deliver_saga_dispatch`'s own rescue
 # ladder — `DOMAIN_REFUSALS`, `StandardError` — catches it, exactly the
-# way a real sigkill or oom wouldn't either) from inside the first leg's
+# way a real SIGKILL or OOM wouldn't either) from inside the first leg's
 # own dispatch, so nothing after that point in `settle_transition` — not
 # even its own "clear the pending marker" checkpoint — ever runs.
 RSpec.describe "saga durability across a process death mid-leg" do

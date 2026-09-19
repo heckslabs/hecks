@@ -13,7 +13,7 @@ require_relative "support/qa_sweep_all_fixture"
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_dry_run_spec"
 
-  # **The `dry_runs` comparison surface finds something on its own** — item 5
+  # The `dry_runs` comparison surface finds something on its own — item 5
   # of the detection plan. `--dry-run 1` turns every generated command
   # step into a `{"dry_run": …}` step, so the Ruby side of
   # `spec/fixtures/qa_sweep_all_dry_run_fixture` produces no instances,

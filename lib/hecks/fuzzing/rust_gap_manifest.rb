@@ -3,7 +3,7 @@ require "hecks/naming"
 
 module Hecks
   module Fuzzing
-    # **What a compiled Rust binary declares it did not generate** — read off the
+    # What a compiled Rust binary declares it did not generate — read off the
     # `manifest.json` files `rust/project/domain_generator.rb` writes beside
     # every generated module, never inferred from Rust's refusal wording.
     #

@@ -8,7 +8,7 @@
 #   bin/run <domain> -            # the same script, on stdin
 #   bin/run <domain> '{"steps":[…]}'
 #
-# **The last two are for a caller with one verb to issue**. A corpus member is a
+# The last two are for a caller with one verb to issue. A corpus member is a
 # file because it is kept; an agent dispatching a single command should not
 # have to leave a file behind to do it, and a temp file is exactly the friction
 # that sends somebody back to editing the store by hand. `bin/docs <domain>`
@@ -61,7 +61,7 @@ end
 # JSON, or a file that exists. Otherwise it names the domain.
 script_shaped = ->(arg) { arg == "-" || arg.match?(/\A\s*\{/) || File.file?(arg) }
 
-# **The first argument is a domain only when it is a directory**. Everything else
+# The first argument is a domain only when it is a directory. Everything else
 # — a verb, a script path, inline JSON — belongs to the domain you are standing
 # in, found by walking up for a `.hecksagon`.
 here = Hecks::Adapters::Folder.new.domain_root
@@ -76,7 +76,7 @@ cli_form(domain, argv) unless argv.first && script_shaped[argv.first]
 
 script = argv.first or abort USAGE
 
-# **A path, STDIN, or the JSON itself** — decided by looking, because a script
+# A path, STDIN, or the JSON itself — decided by looking, because a script
 # beginning with `{` is not a filename anybody meant.
 source =
   case script

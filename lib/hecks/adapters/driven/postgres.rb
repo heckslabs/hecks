@@ -23,13 +23,18 @@ module Hecks
     # actually needs to survive a live shape change. See
     # docs/implemented/postgres-era-adapter-split-plan.md for why the two are split.
     #
+    # ## What it is not
+    #
     # No `hecks_eras`, no lineage, no advisory-lock-per-write for era
     # tracking, no `lineage_capable?`/`era_check!` — this class simply
     # doesn't define those methods at all, and the capability idiom
     # elsewhere already treats their absence as "not lineage-capable".
     #
-    # Storage shape (see postgres/schema_builder.rb for the DDL,
-    # postgres/codec.rb for the encode/decode):
+    # ## Storage shape
+    #
+    # See postgres/schema_builder.rb for the DDL, postgres/codec.rb for the
+    # encode/decode.
+    #
     # - One real column per attribute, typed for a scalar
     #   (`SQL_TYPES`, `text` default), `jsonb` for a nested (value-object)
     #   or list-typed attribute — never JSON-in-text the way `Sqlite` has
@@ -53,8 +58,22 @@ module Hecks
 
       attr_reader :aggregate
 
+      # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
+      #
+      # @return [Array<Symbol>] `[:atomic_put, :optimistic_concurrency]`
       def persistence_capabilities = [:atomic_put, :optimistic_concurrency]
 
+      # Opens a connection to the database a world declares, scoped to its `schema` if any.
+      #
+      # @param name [String] the aggregate's name, used only in error messages
+      # @param settings [Hash{Symbol, String => Object}] world settings for the binding;
+      #   `database` (a database name or a `postgres://` URL) is required and `schema` is
+      #   optional, each read under a Symbol or a String key
+      # @return [PG::Connection] a live connection with `search_path` and
+      #   `client_min_messages` already set
+      # @raise [Runtime::WiringError] if the settings declare no `database`, or Postgres
+      #   refuses the connection or the `SET` statements
+      # @raise [LoadError] if the `pg` gem is not installed
       def self.connect_for(name, settings)
         # **Lazy, on purpose** — same reasoning as PostgresEra's own
         # connect_for: a domain that never wires Postgres should never
@@ -93,6 +112,17 @@ module Hecks
               "cannot bind Postgres at #{declared} for #{name}: #{e.message.strip}"
       end
 
+      # Connects and creates the aggregate, journal, event, saga and outbox tables if absent.
+      #
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose table this adapter owns
+      # @param settings [Hash{Symbol, String => Object}] world settings for the binding:
+      #   `database` (required), `schema` and `domain` (optional; `domain` defaults to the
+      #   aggregate's storage name and scopes saga rows)
+      # @param root [String, nil] project root directory; accepted for the shared adapter
+      #   constructor shape and ignored
+      # @raise [Runtime::WiringError] if the settings declare no `database` or the connection
+      #   is refused
+      # @raise [PG::Error] if creating a table or index fails
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
@@ -118,8 +148,18 @@ module Hecks
         create_outbox_table!
       end
 
+      # Names the aggregate's table; the journal table and outbox rows are keyed off it.
+      #
+      # @return [String] the aggregate's snake_case storage name, unquoted
       def table = @aggregate.storage_name
 
+      # Reads the current row for one aggregate identity, stamped with its stored version.
+      #
+      # @param id [String, Object] the aggregate identity, bound as `id.to_s`
+      # @return [Runtime::Instance, nil] the decoded record with `version` set, or nil when
+      #   no row has that id
+      # @raise [PG::Error] if the statement fails; a `PG::ConnectionBad` also triggers a
+      #   reconnect for the next caller
       def find(id)
         result = pg_exec_params("SELECT * FROM #{quoted_table} WHERE id = $1", [id.to_s])
         return nil if result.ntuples.zero?
@@ -127,9 +167,20 @@ module Hecks
         instance_from_row(result[0])
       end
 
+      # Lists every stored record, ordered by id unless an ordering attribute is given.
+      #
       # order_by is a runtime value — see Sqlite#all's own reasoning;
       # whitelisted the identical way before it ever reaches
       # order_expression.
+      #
+      # @param order_by [String, Symbol, nil] attribute (or dotted value-object path) to sort
+      #   by, with id as the tie-break; nil orders by id alone
+      # @param direction [Symbol, String] `:asc` or `:desc`, case-insensitive; anything else
+      #   sorts ascending
+      # @return [Array<Runtime::Instance>] the decoded records with `version` set, `[]` when
+      #   the table is empty
+      # @raise [Runtime::WiringError] if `order_by` names no attribute of the aggregate
+      # @raise [PG::Error] if the statement fails
       def all(order_by: nil, direction: :asc)
         order_sql = "ORDER BY id"
         if order_by
@@ -146,8 +197,18 @@ module Hecks
         pg_exec("SELECT * FROM #{quoted_table} #{order_sql}").map { |row| instance_from_row(row) }
       end
 
+      # Counts the rows in the aggregate's table, deleted records excluded.
+      #
+      # @return [Integer] number of current records
+      # @raise [PG::Error] if the statement fails
       def count = pg_exec("SELECT COUNT(*) FROM #{quoted_table}")[0]["count"].to_i
 
+      # Inserts one journal row, outside any transaction of its own.
+      #
+      # @param entry [Ports::Persistence::Entry] the save or delete to journal; `state` is
+      #   encoded through the state codec and `mirrors` stored as JSON, or NULL when nil
+      # @return [Ports::Persistence::Entry] the same `entry`
+      # @raise [PG::Error] if the insert fails
       def append(entry)
         pg_exec_params(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES ($1, $2, $3, $4)",
@@ -162,6 +223,8 @@ module Hecks
         entry
       end
 
+      # Upserts or deletes the aggregate's row for one journal entry, bumping its version.
+      #
       # `expected_version:` requests optimistic-concurrency CAS (see
       # `persistence_capabilities`/`Ports::Persistence::AppendOnly#save`).
       # `hecks_version` is adapter bookkeeping — never in `persisted_fields`
@@ -178,6 +241,15 @@ module Hecks
       # zero rows back means the conflict branch's where excluded the row
       # entirely — the version had already moved — so `nil` is returned
       # for the caller (`AppendOnly#save`) to treat as "stale, no-op".
+      #
+      # @param entry [Ports::Persistence::Entry] the save or delete to materialize
+      # @param expected_version [Integer, nil] the `hecks_version` the row must still hold for
+      #   an update to apply; nil writes unconditionally. Ignored for a delete
+      # @return [Runtime::Instance, PG::Result, nil] for a save, a new instance over the
+      #   entry's state with `version` set to the stored `hecks_version`, or nil when
+      #   `expected_version` no longer matched and nothing was written; for a delete, the
+      #   `DELETE` statement's `PG::Result`
+      # @raise [PG::Error] if the statement fails
       # rubocop:disable Metrics/AbcSize -- the CAS/plain upsert split is one
       # protocol; splitting it would hide the version handshake.
       def project(entry, expected_version: nil)
@@ -206,6 +278,13 @@ module Hecks
       end
       # rubocop:enable Metrics/AbcSize
 
+      # Reads the whole journal back in append order, for `AppendOnly#recover!` to replay.
+      #
+      # @return [Array<Ports::Persistence::Entry>] every journalled entry, state decoded
+      #   through the state codec and `mirrors` parsed with String keys (nil when none were
+      #   stored); `[]` when nothing has been appended
+      # @raise [PG::Error] if the statement fails
+      # @raise [JSON::ParserError] if a stored `state` or `mirrors` value is not valid JSON
       def entries
         pg_exec("SELECT aggregate_id, operation, state, mirrors FROM #{quoted_entry_table} ORDER BY sequence").map do |row|
           state = JSON.parse(row["state"])
@@ -218,12 +297,19 @@ module Hecks
         end
       end
 
+      # Deletes every row of the aggregate's table and its journal; events, saga rows and
+      # outbox rows are left in place.
+      #
+      # @return [Adapters::Postgres] self
+      # @raise [PG::Error] if a statement fails
       def reset!
         pg_exec("DELETE FROM #{quoted_table}")
         pg_exec("DELETE FROM #{quoted_entry_table}")
         self
       end
 
+      # Journals and upserts an instance's current state atomically.
+      #
       # One transaction, not the plain append-then-project two-step a
       # file-based adapter needs a crash-recovery replay for (Heki) —
       # real Postgres ACID atomicity is sitting right there, so a crash
@@ -231,6 +317,11 @@ module Hecks
       # the two disagreeing. `append`/`project` themselves stay plain,
       # transaction-free methods (see the class comment above) — the
       # transaction lives here, the one caller that runs both together.
+      #
+      # @param instance [Runtime::Instance] the instance to store
+      # @return [Runtime::Instance] a new instance over the saved state, `version` set to the
+      #   row's new `hecks_version`
+      # @raise [PG::Error] if either statement fails; the transaction is rolled back
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
         transaction do
@@ -239,6 +330,14 @@ module Hecks
         end
       end
 
+      # Stores an entry under a per-identity advisory lock and reports whether it inserted,
+      # replaced or conflicted, so two concurrent creators of one id cannot both insert.
+      #
+      # @param entry [Ports::Persistence::Entry] the save to store
+      # @param insert_only [Boolean] when true, an existing row is left untouched
+      # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met an
+      #   existing row and nothing was written
+      # @raise [PG::Error] if a statement fails; the transaction is rolled back
       def atomic_put(entry, insert_only: false)
         status = nil
         transaction do
@@ -262,6 +361,11 @@ module Hecks
         status
       end
 
+      # Journals a delete and removes the row atomically, whether or not a row exists.
+      #
+      # @param id [String, Object] the aggregate identity, journalled as `id.to_s`
+      # @return [Boolean] always true
+      # @raise [PG::Error] if either statement fails; the transaction is rolled back
       def delete(id)
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
         transaction do
@@ -271,6 +375,11 @@ module Hecks
         true
       end
 
+      # Inserts an emitted event into the shared `events` table.
+      #
+      # @param event [Runtime::Event] the emitted event; `payload` is stored as JSON
+      # @return [PG::Result] the insert's result; callers ignore it
+      # @raise [PG::Error] if the insert fails
       def record_event(event)
         pg_exec_params(
           "INSERT INTO events (name, aggregate, aggregate_id, payload, occurred_at) VALUES ($1, $2, $3, $4, $5)",
@@ -278,6 +387,12 @@ module Hecks
         )
       end
 
+      # Reads back every recorded event in insertion order — the whole `events` table, not
+      # only this aggregate's rows.
+      #
+      # @return [Array<Runtime::Event>] the stored events, `payload` parsed with Symbol keys
+      #   and `occurred_at` as the String Postgres returns; `[]` when none are recorded
+      # @raise [PG::Error] if the statement fails
       def events
         pg_exec("SELECT * FROM events ORDER BY id").map do |row|
           Runtime::Event.new(
@@ -290,9 +405,22 @@ module Hecks
         end
       end
 
+      # Upserts one saga instance's checkpoint, keyed by domain, process manager and
+      # correlation.
+      #
       # ── the optional saga-persistence capability (§2) — same DDL and
       # shape as PostgresEra's own (postgres_era.rb), not lineage-
       # specific, copied verbatim.
+      #
+      # @param process_manager [String, Symbol] the process manager's name
+      # @param correlation [String, Object] the instance's correlation value, stored as
+      #   `correlation.to_s`
+      # @param state [String, Symbol] the saga's current state name
+      # @param memory [Hash] the saga's memory; must be JSON-serializable
+      # @param completed_compensations [Array] the ledger of completed compensable legs; must
+      #   be JSON-serializable
+      # @return [PG::Result] the upsert's result; callers ignore it
+      # @raise [PG::Error] if the statement fails
       def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
         pg_exec_params(
           "INSERT INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, completed_compensations) " \
@@ -305,6 +433,13 @@ module Hecks
         )
       end
 
+      # Removes a finished saga instance's checkpoint; a missing row is not an error.
+      #
+      # @param process_manager [String, Symbol] the process manager's name
+      # @param correlation [String, Object] the instance's correlation value, matched as
+      #   `correlation.to_s`
+      # @return [PG::Result] the delete's result; callers ignore it
+      # @raise [PG::Error] if the statement fails
       def delete_saga(process_manager:, correlation:)
         pg_exec_params(
           "DELETE FROM hecks_saga_instances WHERE domain = $1 AND process_manager = $2 AND correlation = $3",
@@ -312,6 +447,18 @@ module Hecks
         )
       end
 
+      # Yields every checkpointed saga instance of this adapter's domain, for
+      # `Registry#rehydrate_sagas!` to restore at boot.
+      #
+      # @yieldparam process_manager [String] the process manager's name
+      # @yieldparam correlation [String] the instance's correlation value
+      # @yieldparam state [String] the saga's state name
+      # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every depth
+      # @yieldparam completed_compensations [Array] the completed-compensation ledger, `[]`
+      #   when the column is NULL
+      # @return [Enumerator, PG::Result] an enumerator over the same five values when no block
+      #   is given; otherwise the query result
+      # @raise [PG::Error] if the statement fails
       def each_saga
         return enum_for(:each_saga) unless block_given?
 
@@ -344,7 +491,7 @@ module Hecks
         "position(#{placeholder} in #{expression}) > 0"
       end
 
-      # **The list column itself is the JSONB array** — no reaching into a
+      # The list column itself is the JSONB array — no reaching into a
       # shared blob a jsonb path has to walk into first (PostgresEra's
       # own version does, since every attribute there shares one `state`
       # column). Here, `column` names a real column of its own, already

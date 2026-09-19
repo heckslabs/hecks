@@ -26,7 +26,7 @@ RSpec.describe "QueryInterpreter applies offset" do
     end
   end
 
-  # **Four active cards, distinct fees** — `limit 3, offset 1` over four rows
+  # Four active cards, distinct fees — `limit 3, offset 1` over four rows
   # ordered by fee names rows 2-4 ($2, $3, $4), never row 1 ($1) and never
   # nothing. Offset silently vanishing (the bug) would have answered rows
   # 1-3 instead — a page that starts one row too early, indistinguishable

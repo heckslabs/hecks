@@ -64,7 +64,7 @@ RSpec.describe "the declared vocabularies" do
     expect(declared("Comparison")).to eq(Hecks::Bluebook::Expression::Evaluator::COMPARISONS.map(&:to_s))
   end
 
-  # **The language's own duplicate of its own closed set** — gone, not gated.
+  # The language's own duplicate of its own closed set — gone, not gated.
   #
   # A block here used to hold `Command::OpName`'s invariant
   # (`set || append || increment || decrement`) equal to Vocabulary::MutationOp,

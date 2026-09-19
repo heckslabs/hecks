@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **Surfaces sibling-repo bluebook domains as rotation candidates** — report
+# Surfaces sibling-repo bluebook domains as rotation candidates — report
 # only. The `hecks_qa` practice widens its own rotation from domains it
 # already owns (`bin/qa_seed_targets`, `bin/qa_domain_novelty`); this is
 # the one that looks outside this repo, at `~/Projects` (or wherever
@@ -23,7 +23,7 @@
 # and no `QualityControlDials`/`qa/settings.yml` entry turns it on —
 # there is nothing here for a dial to gate.
 #
-# **The shape checked, and why globbing `*.bluebook` is not enough**. Every
+# The shape checked, and why globbing `*.bluebook` is not enough. Every
 # domain this repo already sweeps is `<name>/bluebook/<name>.bluebook`
 # (`examples/pizzas/bluebook/pizzas.bluebook`, `qa/stress_domains/
 # corrections/bluebook/corrections.bluebook` — `bin/qa_domain_novelty`
@@ -69,7 +69,7 @@
 # reads) so a project with no `hecks` dependency at all is skipped
 # without ever touching its filesystem tree.
 #
-# **Depth is bounded, deliberately, and validated against real siblings** —
+# Depth is bounded, deliberately, and validated against real siblings —
 # not arbitrary. `--max-depth` counts path segments below the sibling
 # repo's own root (the repo root itself is depth 0, so it too can be a
 # candidate: a project that is one domain, `<repo>/bluebook/<repo>.
@@ -86,7 +86,7 @@
 # candidates. A person can still widen `--max-depth` by hand if a
 # sibling's real domains live deeper.
 #
-# **What is still not checked, on purpose**: whether a candidate actually
+# What is still not checked, on purpose: whether a candidate actually
 # boots standalone (`Hecks.boot` on it might still fail — a framework
 # chapter one level shallower than `--max-depth` would catch could still
 # slip through). This script's whole point is to be cheap enough to run
@@ -96,7 +96,7 @@
 # `bin/qa_domain_novelty` is a separate, later gate for a domain already
 # chosen — never folded into discovery itself.
 #
-# **A real, discovered limitation worth naming here**: `bin/qa_sweep`
+# A real, discovered limitation worth naming here: `bin/qa_sweep`
 # resolves every `Target.path` as `File.join(ROOT, target_path)` — ROOT
 # being this repo's own root. An external, absolute path survives
 # `identify` (`TargetPath` only forbids whitespace) but `qa_sweep` has
@@ -121,7 +121,7 @@ USAGE = "usage: bin/qa_discover_external_domains [--projects-dir <path>] [--max-
 DEFAULT_PROJECTS_DIR = File.expand_path("~/Projects").freeze
 DEFAULT_MAX_DEPTH = 3
 
-# Never worth descending into, anywhere in a sibling repo: vcs internals,
+# Never worth descending into, anywhere in a sibling repo: VCS internals,
 # vendored/installed dependency trees (a project vendoring `hecks`
 # itself would otherwise re-surface every one of this repo's own
 # `examples/*`/`qa/stress_domains/*` as a "new" external candidate — see

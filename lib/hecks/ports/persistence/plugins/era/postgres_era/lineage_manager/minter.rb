@@ -12,6 +12,29 @@ module Hecks
         # reviewed, check coverage, audit the live chain, and mint — or
         # refuse toward the authoring loop by name.
         module Minter
+          # Mints the next era for a drifted shape in one transaction, after proving the
+          # edge is present, current, approved where it must be, covering, and audited.
+          #
+          # @param registry [Runtime::Registry] the booting registry; supplies the loaded
+          #   translation edges
+          # @param bluebook [Bluebook::Chapter] the domain as currently declared
+          # @param current_text [String] the domain's bluebook source, held verbatim as the
+          #   new era's text
+          # @param lineage [Adapters::PostgresEra::Lineage] the domain's lineage, on an open
+          #   connection
+          # @param latest [Hash{Symbol => Object}] the newest held era, as `Lineage#eras`
+          #   returns it (`:ordinal`, `:hash`, `:label`, `:held_text`, `:watermark`)
+          # @param role [String, nil] a Postgres role to grant the new era's privileges to;
+          #   nil grants nothing
+          # @param directory [String, nil] the domain's bluebook directory, where
+          #   `HECKS_SCAFFOLD=1` writes a missing edge; nil disables scaffolding
+          # @return [Integer] the ordinal of the era just minted
+          # @raise [Runtime::WiringError] if no edge leaves the latest era, more than one
+          #   does, the edge targets another shape, a compute or rekey edge lacks a current
+          #   approval, the edge leaves drift uncovered, the chain is broken, the audit
+          #   reports violations, or the mint transaction itself fails
+          # @raise [Bluebook::DSL::Malformed] if the latest held text parses under neither
+          #   the current nor the legacy grammar
           def mint!(registry, bluebook, current_text, lineage, latest, role: nil, directory: nil)
             ensure_named!(lineage, latest)
             latest = lineage.eras.last
@@ -34,12 +57,28 @@ module Hecks
             ordinal
           end
 
-          # Find the one translation edge that leaves the held era, and
-          # validate it: exactly one edge must leave (eras fork
+          # Finds the one translation edge that leaves the held era, and
+          # validates it: exactly one edge must leave (eras fork
           # mechanically — a second edge from the same source is a wiring
           # mistake, not a merge to resolve automatically), and it must
           # target the current shape's label (otherwise the edge is stale
           # and boot must not silently mint past it).
+          #
+          # @param registry [Runtime::Registry] the registry whose loaded `translations`
+          #   are searched
+          # @param bluebook [Bluebook::Chapter] the domain as currently declared
+          # @param lineage [Adapters::PostgresEra::Lineage] the domain's lineage, used only
+          #   when scaffolding a missing edge
+          # @param latest [Hash{Symbol => Object}] the newest held era, already named;
+          #   `:label` is the edge's required source and `:ordinal` appears in refusals
+          # @param label [String] the current shape's label, the edge's required target
+          # @param ordinal [Integer] the ordinal of the era about to be minted
+          # @param directory [String, nil] where `HECKS_SCAFFOLD=1` writes a missing edge;
+          #   nil disables scaffolding
+          # @return [Bluebook::Translation] the single edge from `latest[:label]` to `label`
+          # @raise [Runtime::WiringError] if no edge leaves the latest era (naming the
+          #   scaffold it wrote, when it wrote one), more than one does, or the one edge
+          #   targets a label other than `label`
           def resolve_edge!(registry, bluebook, lineage, latest, label, ordinal, directory)
             edges = registry.translations.select { |t| t.domain == bluebook.name && t.from == latest[:label] }
             refuse_toward_the_scaffold!(registry, bluebook, lineage, latest, ordinal, directory) if edges.empty?
@@ -58,6 +97,9 @@ module Hecks
             edge
           end
 
+          # Refuses a mint whose edge carries a compute or rekey rule without a recorded
+          # approval that still matches the edge and the journal.
+          #
           # A compute's (and, the same way, a rekey's) only verification
           # is the audit's human-approved sample — mint stays
           # non-interactive by requiring the approval to already exist,
@@ -67,6 +109,17 @@ module Hecks
           # samples were read. A journal that has advanced past the
           # review invalidates it — the approved samples no longer cover
           # the data.
+          #
+          # @param bluebook [Bluebook::Chapter] the domain, named in the refusal
+          # @param lineage [Adapters::PostgresEra::Lineage] the domain's lineage, which holds
+          #   the recorded approvals and the journal's last ordinal
+          # @param edge [Bluebook::Translation] the edge about to be minted through
+          # @param ordinal [Integer] the ordinal of the era about to be minted
+          # @return [nil] when the edge has no compute or rekey rule, or its approval is
+          #   current
+          # @raise [Runtime::WiringError] if no approval is recorded for this shape pair, the
+          #   approval's edge digest differs from this edge's, or the journal has advanced
+          #   past the reviewed ordinal
           def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal)
             return unless edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
 

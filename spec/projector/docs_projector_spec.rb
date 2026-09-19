@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **A bluebook, projected as its own usage documentation**.
+# A bluebook, projected as its own usage documentation.
 #
 # Exercised against banking and pizzas rather than against the chapter this was
 # written beside. Nothing in the projector knows what any particular domain is,
@@ -153,7 +153,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # **A misspelling should cost a sentence, not a puzzle**. This returned "" and
+  # A misspelling should cost a sentence, not a puzzle. This returned "" and
   # exit 0 on the first pass, which is the silent-wrong-answer shape this
   # repository has already been bitten by twice in its query engine — a caller
   # cannot tell an empty document from an empty domain.
@@ -179,7 +179,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # **The half that makes it GET used**.
+  # The half that makes it GET used.
   describe "as a method on a booted domain" do
     it "answers on the chapter, beside vision and aggregates" do
       boot_in_memory

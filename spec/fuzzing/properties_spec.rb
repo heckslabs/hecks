@@ -482,7 +482,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     # The single most important check on BUG#5's own fix (see the PR
     # description this test rides in on): a fix broad enough to stop
     # false-positiving on a correct VO-typed append must not also go
-    # blind to a genuinely wrong one. Same shape as the passing example
+    # blind to a genuinely WRONG one. Same shape as the passing example
     # right above — same `before`, same `args`, the identical `821`
     # BUG#5's own fix now coerces to `{ value: 821 }` — except the real
     # dispatch's own `after` claims `{ value: 999 }` landed instead, a

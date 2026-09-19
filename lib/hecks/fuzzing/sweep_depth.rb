@@ -7,7 +7,7 @@ module Hecks
     # the policy, and this module is where the two meet — a pure function
     # of both, nothing else read.
     #
-    # **Why this is not in `bin/qa_sweep` any more**. It was — `WIDENING_TIERS`
+    # Why this is not in `bin/qa_sweep` any more. It was — `WIDENING_TIERS`
     # and `widen_for_streak` lived at the top of that script, which meant
     # policy data lived in a script (unlike every other dial, which lives
     # in the bluebook a human edits and reviews) and duplicated itself as

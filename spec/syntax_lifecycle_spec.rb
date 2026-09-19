@@ -37,7 +37,7 @@ RSpec.describe "the syntax lifecycle" do
   ARGUMENT_ROWS = SYNTAX_TABLE[:arguments]
   DECLARED_LANGUAGE_VERSION = judged_meta.version
 
-  # **An absent status reads as admitted** — the same convention hecks_eras
+  # An absent status reads as admitted — the same convention hecks_eras
   # uses for a column grown after rows existed (canon_form NULL reads as
   # an implicit 1). Spelling `status: "admitted"` on 197 rows would bury
   # the table in ceremony, and applying the attribute default to member

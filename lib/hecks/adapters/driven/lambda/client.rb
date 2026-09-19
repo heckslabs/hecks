@@ -9,7 +9,7 @@ module Hecks
       # domain-specific: neither caller needs to know an AWS SDK is
       # involved at all.
       #
-      # **Function name is computed unless it is named** — `"hecks-#{domain}"`,
+      # Function name is computed unless it is named — `"hecks-#{domain}"`,
       # lowercased, matches bin/project_deploy's own `stack_name`
       # exactly (bin/project_deploy: `stack_name = "hecks-#{domain_name}"`,
       # `domain_name = File.basename(domain)`). `domain` here is the

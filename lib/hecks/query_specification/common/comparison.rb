@@ -28,6 +28,8 @@ module Hecks
       module Comparison
         module_function
 
+        # Unwraps a value object to the one scalar a comparison can mean.
+        #
         # A value object compared as a scalar, when which scalar is meant
         # is not in doubt. Exactly one numeric member is unambiguous; a
         # single-member value object is unambiguous whatever its type.
@@ -40,6 +42,11 @@ module Hecks
         # so this branch is a backstop rather than the primary guard: which
         # member is meant is knowable at declaration time, and a refusal
         # naming the candidates is worth more than any runtime reading.
+        #
+        # @param value [Runtime::Value, Hash, Object, nil] a held or wanted value; a
+        #   `Runtime::Value` is read through its `to_h`
+        # @return [Object, nil] the sole numeric member, or the sole member, of a Hash-shaped
+        #   value; otherwise `value` unchanged (a `Runtime::Value` comes back as its Hash)
         def comparable(value)
           value = value.to_h if value.is_a?(Runtime::Value)
           return value unless value.is_a?(Hash)
@@ -51,9 +58,15 @@ module Hecks
           value
         end
 
-        # Which members a value object offers a scalar comparison, for a
+        # Lists the members a value object offers a scalar comparison, for a
         # refusal that can name them. Empty when the value object is
         # unambiguous — nothing to report.
+        #
+        # @param value_object [Class<Bluebook::ValueObject>] the declared shape (a subclass
+        #   minted by `Bluebook::ValueObject.declare`, closed sets included) a query field names
+        # @return [Array<Symbol>] every attribute name when no single member can be meant;
+        #   `[]` when there is exactly one attribute, or exactly one typed `Integer`,
+        #   `Float` or `Numeric`
         def ambiguous_members(value_object)
           numerics = value_object.attributes.select { |a| NUMERIC_TYPES.include?(a.type.to_s) }
           return [] if numerics.size == 1 || value_object.attributes.size == 1
@@ -63,12 +76,29 @@ module Hecks
 
         NUMERIC_TYPES = %w[Integer Float Numeric].freeze
 
-        # A `case` over a closed, declared set (Vocabulary::QueryComparator,
+        # Decides whether one where-clause comparison holds between the value
+        # a record holds and the value the query wants.
+        #
+        # A `case` over a closed, declared set (`Vocabulary::QueryComparator`,
         # held equal to this list by spec/vocabulary_table_spec — see the
         # `else` branch's own comment) is the whole point of the one
         # comparator table this file's header describes: one place naming
         # every comparator, not one method per comparator scattered across
         # a module.
+        #
+        # @param operation [Symbol, String] the comparator name: `eq`, `ne`, `lt`, `lte`,
+        #   `gt`, `gte`, `in`, `contains` or `none_in_state`
+        # @param held [Object, nil] the record's own value for the field; `nil` against a
+        #   non-nil `want` satisfies no comparator except `none_in_state` (see
+        #   `NullPolicy.unmatchable?`)
+        # @param want [Object, nil] the value compared against; for `in` an Array or a
+        #   comma-separated String, for `none_in_state` an `"Aggregate:state"` String
+        # @param registry [Runtime::Registry, nil] used only by `none_in_state` to look the
+        #   target aggregate up; `nil` makes that comparator hold
+        # @return [Boolean] whether the comparison holds; an ordered comparator over a
+        #   non-`Numeric` operand is `false`
+        # @raise [Runtime::WiringError] if `operation` names no comparator in this table, or
+        #   `none_in_state`'s target aggregate has no repository that can be wired
         # rubocop:disable-next Metrics/CyclomaticComplexity
         def holds?(operation, held, want, registry: nil)
           # A NULL satisfies no comparison — NullPolicy.unmatchable? owns
@@ -100,28 +130,51 @@ module Hecks
           end
         end
 
+        # Checks that both operands of an ordered comparison are numbers.
+        #
         # gt/gte/lt/lte are numeric-only and silently false otherwise — a
         # where-clause never raises the way a given does, and that contract
         # predates the extraction (lt was already exactly this permissive).
+        #
+        # @param held [Object, nil] the record's own value for the field
+        # @param want [Object, nil] the value compared against
+        # @return [Boolean] `true` only when both are `Numeric`
         def ordered?(held, want) = held.is_a?(Numeric) && want.is_a?(Numeric)
 
+        # Reads a comparator's list operand as the Strings membership is tested against.
+        #
         # `in` reads a comma-separated list — a real Array survives
         # untouched (a bluebook's own in-process value, before any wire
         # serialisation), each element unwrapped the same way a scalar
         # field is. This is `in`'s reading of its argument (a caller may
         # legitimately pass "a,b,c" meaning "any of these") — unrelated to
         # `contains`, which reads the stored field. See `contains?`.
+        #
+        # @param value [Array, String, Object, nil] an Array of elements, or anything whose
+        #   `to_s` is a comma-separated list such as `"a, b,c"`
+        # @return [Array<String>] one String per member: Array elements unwrapped through
+        #   `comparable` then `to_s`; split parts stripped of surrounding whitespace; `[]`
+        #   for `nil` or an empty String
         def members(value)
           return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
 
           value.to_s.split(",").map(&:strip)
         end
 
+        # Answers `in`: whether the held value, or any element of a held Array,
+        # occurs in the wanted list.
+        #
         # A folded reference hop asks whether the locally-held identity is
         # among the matching target identities. A has_many relationship holds
         # several identities, so the same question becomes an intersection:
         # does any held identity occur in the wanted set? Scalar `in` retains
         # its existing one-candidate behavior.
+        #
+        # @param held [Array, Object] the record's own value; an Array contributes each
+        #   element as a candidate, anything else is the single candidate
+        # @param want [Array, String, Object] the wanted set, read through `members`
+        # @return [Boolean] whether any candidate, unwrapped through `comparable` and
+        #   compared as a String, is a wanted member
         def any_member_in?(held, want)
           wanted = members(want)
           candidates = held.is_a?(Array) ? held : [held]
@@ -129,22 +182,33 @@ module Hecks
           candidates.any? { |candidate| wanted.include?(comparable(candidate).to_s) }
         end
 
+        # Answers `contains`: element membership for a held Array, substring
+        # for anything else.
+        #
         # `contains` means two different things depending on what is held —
         # real element membership for a `list_of` field (a genuine Array
         # arrives already, one element one member, nothing to split), and
-        # plain substring for anything else. It used to fall through to
-        # `members`' comma-split for the scalar case too, silently reading
-        # a free-text field's own comma as a separator — which the SQL
-        # side's `instr`/`position` never did, so the two disagreed the
-        # moment a scalar's real content held a comma. Matching SQL's
+        # plain substring for anything else. The scalar case deliberately
+        # stays out of `members`' comma-split: that silently reads a
+        # free-text field's own comma as a separator — which the SQL
+        # side's `instr`/`position` never does, so the two disagree the
+        # moment a scalar's real content holds a comma. Matching SQL's
         # substring reading here keeps every engine answering `contains`
         # identically for the same declared field.
+        #
+        # @param held [Array, Object] the record's own value; anything but an Array is
+        #   read through `to_s`
+        # @param want [Object] the element or substring looked for, compared as its `to_s`
+        # @return [Boolean] whether `held` has `want` as a member (Array) or a substring
         def contains?(held, want)
           return members(held).include?(want.to_s) if held.is_a?(Array)
 
           held.to_s.include?(want.to_s)
         end
 
+        # Answers `none_in_state` by looking the held identity up in another
+        # aggregate's repository and reading that record's state.
+        #
         # **A cross-aggregate anti-join** — `where ref: { none_in_state:
         # "Claim:held" }` holds when no record in the named aggregate,
         # keyed by this record's own field value, is in the named state.
@@ -154,6 +218,17 @@ module Hecks
         # loaded domain; ambiguity (two domains declaring one name) picks
         # the first match rather than refusing, since a where-clause never
         # raises (see `ordered?`).
+        #
+        # @param held [Object, nil] this record's own field value, used as the target
+        #   record's identity
+        # @param want [String, Symbol] `"Aggregate:state"` — the target aggregate's bare
+        #   name and the excluded state, split on the first colon
+        # @param registry [Runtime::Registry, nil] the booted registry to find the target
+        #   aggregate and its repository in
+        # @return [Boolean] `false` only when the target record exists and its lifecycle
+        #   field (or `:state`, absent a lifecycle) equals the named state; `true` when
+        #   there is no registry, no such aggregate or no such record
+        # @raise [Runtime::WiringError] if the target aggregate's repository cannot be wired
         def none_in_state?(held, want, registry)
           return true unless registry
 
@@ -194,6 +269,13 @@ module Hecks
           comparable(record.state[field]) != state
         end
 
+        # Searches every loaded domain for an aggregate by its bare name, taking
+        # the first match in the registry's load order.
+        #
+        # @param registry [Runtime::Registry] the booted registry whose bluebooks are searched
+        # @param name [String, nil] the aggregate's bare `hecks_name`, such as `"Claim"`
+        # @return [Array(String, Bluebook::Aggregate), nil] the owning domain's name and the
+        #   aggregate; `nil` when no loaded domain declares one by that name
         def find_aggregate_by_name(registry, name)
           registry.bluebooks.each do |domain, bluebook|
             aggregate = bluebook.aggregates.find { |a| a.hecks_name == name }

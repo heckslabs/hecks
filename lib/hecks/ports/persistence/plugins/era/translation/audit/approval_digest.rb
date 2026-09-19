@@ -22,6 +22,12 @@ module Hecks
       # non-interactive and its lock stays short; the human decision
       # happens in the audit tool, where the samples are.
       module ApprovalDigest
+        # Fingerprints a parsed translation edge, so an approval lapses when the edge's
+        # meaning changes but not when only a comment does.
+        #
+        # @param edge [Bluebook::Translation] the parsed translation edge
+        # @return [String] 64 lowercase hex characters: the SHA-256 of the edge's exported
+        #   JSON (`Projector::Exporter.translation_hash`)
         def edge_digest(edge)
           Digest::SHA256.hexdigest(JSON.generate(Projector::Exporter.translation_hash(edge)))
         end

@@ -11,7 +11,7 @@
 # vocabulary.bluebook) — the same declared table FieldShape's four Ruby
 # constants are built from, read here instead of re-typed a second time.
 # rust/host/src/web.rs's own `text_field` is the consumer — its own
-# header explains why a web ui written in Rust needs the same hint
+# header explains why a web UI written in Rust needs the same hint
 # vocabulary Ruby's hecks_on_web/FieldShape already declares.
 #
 # Why rust/host/src/, not rust/src/kernel/ (where bin/project_kernel_

@@ -16,7 +16,7 @@ require "spec_helper"
 # identity — the exact inputs `boot` reads — so it is served precisely
 # while those inputs are unchanged and never otherwise. Three facts:
 #
-# **Disk cache off for this whole file**. `SyntaxBoot` also persists its
+# Disk cache off for this whole file. `SyntaxBoot` also persists its
 # result to disk across processes, keyed on chapter names (not object
 # identity — a different process has no way to compare identity) plus a
 # content hash of the grammar files on disk. That is a coarser, correctly

@@ -302,7 +302,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     expect(err).to include("REFUSED target/pizzas")
     expect(out).to include("refused 1 (conflicting data)")
 
-    # **Not overwritten** — the mutation from this very example is still
+    # Not OVERWRITTEN — the mutation from this very example is still
     # there, exactly, which is the whole point of refusing.
     still_mutated = repo.find("pizzas")
     expect(still_mutated.state[:reason].to_h).to eq({ value: "DELIBERATELY MUTATED FOR CONFLICT TEST" })

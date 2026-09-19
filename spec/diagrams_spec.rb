@@ -79,7 +79,7 @@ RSpec.describe "the generated diagrams" do
   let(:banking_registry) { boot_banking }
   let(:banking_chapter)  { banking_registry.bluebook("Banking") }
 
-  # **A separate, real file boot, just for the hecksagon** — `boot_banking`
+  # A separate, real file boot, just for the hecksagon — `boot_banking`
   # above only ever `load_bluebook_files`s (the same reduced fixture
   # `pizzas_chapter`'s own header comment already warns about), so it
   # never loads `banking.hecksagon` at all and `banking_registry.
@@ -290,7 +290,7 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include('Order[(Order)] -.->|asks| qry_Order_Available{"Order.Available"}')
   end
 
-  # **A real, interesting case found while verifying, not invented**: banking's
+  # A real, interesting case found while verifying, not invented: banking's
   # own Account declares both a command and a query named "Open" — two
   # genuinely different things (a verb versus a question) that happen to
   # share a name. The diamond/stadium shape split is what keeps that from
@@ -508,7 +508,7 @@ RSpec.describe "the generated diagrams" do
     expect(Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["frameworks.mmd"]).to be_nil
   end
 
-  # **A structural check, not a mermaid parse** — this repo's own suite takes
+  # A structural check, not a mermaid parse — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
   # currently produce (all 41, across both real domains plus the one
   # in-memory to: fixture) was run through the real mermaid.parse()

@@ -242,7 +242,7 @@ module Hecks
     # assuming it's fresh duplication," not as an automatic signal
     # either way.
     #
-    # **The identical gap, one level down**: chapter-wide entity-scoped
+    # The identical gap, one level down: chapter-wide entity-scoped
     # sharing (`EntityBuilder#given`'s own bare form,
     # `docs/implemented/resolution-rules/chapter-entity-given.md`) hits this same wall for
     # the same structural reason — `SafeDepositBox.Visit` still shows
@@ -278,7 +278,7 @@ module Hecks
     end
     private_class_method :declaration_count
 
-    # **Shared text formatting** — both `bin/query_ir` (a text CLI) and
+    # Shared text formatting — both `bin/query_ir` (a text CLI) and
     # `bin/hecks_query_ir_mcp` (an MCP tool result, itself a text
     # block) want the identical human-readable rendering; only the
     # outer framing differs (plain stdout vs. a JSON-RPC content array).

@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# **A bluebook, projected as its own command-line surface**.
+# A bluebook, projected as its own command-line surface.
 #
 # Against banking and pizzas, not the chapter this was written beside — the
 # same discipline the docs projector spec keeps, and it earned it twice here:
@@ -97,7 +97,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(option(banking, "customer.register", "email.address")[:pattern]).to be_a(String)
     end
 
-    # **Nested two deep, which a single level got wrong**. `Pizza` holds a `Price`,
+    # Nested two deep, which a single level got wrong. `Pizza` holds a `Price`,
     # so stopping at one level produced `pizza.price_cents` and sent the string
     # "1500" where `{ cents: 1500 }` belonged — and the runtime took it, per
     # qa/FINDINGS.md #2. Measured against a real store before it was fixed.
@@ -168,7 +168,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:usage]).to include("freeze")
     end
 
-    # **The short spelling, where it cannot be ambiguous**. `pizzas create_pizza`
+    # The short spelling, where it cannot be ambiguous. `pizzas create_pizza`
     # rather than `pizzas order.create_pizza`; the aggregate is worth typing
     # only when two of them declare the same word.
     it "shortens a verb no other aggregate declares, and keeps both spellings" do
@@ -200,7 +200,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(help).to include("status is not open")
     end
 
-    # **Without `ask:` a question's help prints the command that shares its name**.
+    # Without `ask:` a question's help prints the command that shares its name.
     it "picks the namespace the caller asked about" do
       question = described_class.call(bluebook: registry.bluebook("Banking"),
                                       options:  { verb: "account.open", ask: true })[:usage]

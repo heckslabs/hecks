@@ -337,7 +337,7 @@ module Hecks
               "#{translation.domain}'s translation is not well formed; #{refusals.join('; ')}"
       end
 
-      # **The language hands the graph back**.
+      # The language hands the graph back.
       #
       # This used to return the bluebook it was given — dispatch every declaration
       # in, collect refusals, throw the records away — which is all judging needs
@@ -474,7 +474,7 @@ module Hecks
         @grammar_registry && @grammar_ready_for == @grammar_registry.object_id
       end
 
-      # **Attached chapters load after the fixpoint, not during bootstrap** —
+      # Attached chapters load after the fixpoint, not during bootstrap —
       # they are declared in the language the language just finished
       # judging itself through, so they are ordinary bluebooks, judged the
       # ordinary way (`Hecks.bluebook` → `BluebookBuilder#build` →
@@ -487,7 +487,7 @@ module Hecks
         end
       end
 
-      # **The one place the grammar's own boot sequence is spelled** — ports, the
+      # The one place the grammar's own boot sequence is spelled — ports, the
       # memory/prism adapters, the (now nine-file) chapter itself, then the
       # sibling world grammar. `grammar_registry` uses this for its memoised
       # singleton ; anything that needs an isolated registry (a spec wanting a

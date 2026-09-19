@@ -117,7 +117,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     end
   end
 
-  # **The dial, read without touching the live ledger** — `QualityControlDials`
+  # The dial, read without touching the live ledger — `QualityControlDials`
   # is a constant the bluebook file defines while loading, and a bluebook
   # only loads inside a boot. `IsolatedBoot` (via `Replay.call` with no
   # steps) boots a throwaway copy of qa/bluebook rebound to Memory, the

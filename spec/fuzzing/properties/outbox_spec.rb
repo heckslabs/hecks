@@ -44,7 +44,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
     { verb: "Fake::Thing.Do", rows: rows.is_a?(Array) ? rows : [rows], reactions: reactions, sagas: sagas }
   end
 
-  # **The real scenario this property's own first version got wrong**.
+  # The real scenario this property's own first version got wrong.
   # `Onboarding`'s `ends_on Account::AccountOpened` (new_customer_
   # onboarding.bluebook) means `Outbox::Fanout.sagas`' own `listens?`
   # enqueues a `saga:Banking::Onboarding` row on every `AccountOpened`,

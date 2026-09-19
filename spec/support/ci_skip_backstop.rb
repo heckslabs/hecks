@@ -1,4 +1,4 @@
-# **In CI, a skip is a failure unless it says where the check went**.
+# In CI, a skip is a failure unless it says where the check went.
 #
 # A skipped example is a check that silently left the suite. Locally that
 # is the everyday deal (no Postgres, no cargo, no feature built). In CI

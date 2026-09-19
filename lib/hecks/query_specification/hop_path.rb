@@ -48,15 +48,23 @@ module Hecks
       # to refuse a chain nobody meant to write this long.
       MAX_HOPS = 8
 
+      # Names the path segment a reference attribute answers to.
+      #
       # The segment name a Reference answers to in a hop path — its own
       # declared attribute name, unchanged (ADR 0025, "References":
-      # `reference_to` mints that bare name now, no `_id`, so there is
+      # `reference_to` mints that bare name, no `_id`, so there is
       # no derivation left to apply). `proposal/client` (a query hop)
       # and `proposal.client` (the Ruby accessor,
       # `Facade::Handle#define_reference_accessors`) name the same
       # concept the same way.
+      #
+      # @param attribute [Bluebook::Attribute] a reference-typed attribute
+      # @return [String] the attribute's declared name
       def hop_name(attribute) = attribute.name.to_s
 
+      # Decides whether a field path starts by hopping through one of the given
+      # references, without resolving the reference's target.
+      #
       # Does this path's head cross into another record via `/`? The
       # operator is the answer now, not a name collision to arbitrate —
       # `.` walks fields inside this record, `/` crosses into another
@@ -68,6 +76,12 @@ module Hecks
       # knows its own `target_name` at declaration, before it can
       # `resolve` it — which is what lets the aggregate seal recognise
       # a hop it cannot yet check.
+      #
+      # @param field [String, Symbol] the query field path, such as `:"client/status"`
+      # @param attributes [Array<Bluebook::Attribute>] the attributes of the shape the path
+      #   starts from
+      # @return [Boolean] `true` when the path has a `/` and the segment before the first
+      #   one names a reference attribute
       def hop_head?(field, attributes)
         head, rest = field.to_s.split("/", 2)
         return false unless rest
@@ -75,6 +89,8 @@ module Hecks
         attributes.any? { |candidate| candidate.reference? && hop_name(candidate) == head }
       end
 
+      # Resolves the first hop of a field path and hands back what is left to walk.
+      #
       # **One step**: does `field`'s head hop through one of `attributes`'
       # own references? Answers the resolved `Hop` plus the string
       # still left to walk (itself possibly another `/`-hop, against
@@ -85,6 +101,15 @@ module Hecks
       # own `apply`, one ordinary same-aggregate query at a time, and
       # never needs the whole chain resolved up front the way a seal
       # does.
+      #
+      # @param field [String, Symbol] the query field path, such as `"client/region/name"`
+      # @param attributes [Array<Bluebook::Attribute>] the attributes of the shape the path
+      #   starts from
+      # @return [Array(Hop, String), nil] the hop and the rest of the path after the first
+      #   `/`; the hop's `target` is `nil` when the referenced aggregate is not in the
+      #   declaring chapter. `nil` when the path has no `/` or its head names no reference
+      # @raise [Bluebook::DSL::Malformed] if the reference has no `declared_in` aggregate
+      #   to resolve its target through
       def next_hop(field, attributes)
         head, rest = field.to_s.split("/", 2)
         return nil unless rest
@@ -96,10 +121,22 @@ module Hecks
         [hop, rest]
       end
 
+      # Resolves every hop of a field path in order, stopping with a reason at
+      # the first one it cannot follow.
+      #
       # The whole chain, resolved — every hop's target found, in
       # order — for the one caller that needs it all at once:
-      # BluebookBuilder#validate_query_hops!, checking a hop chain
+      # `BluebookBuilder#validate_query_hops!`, checking a hop chain
       # before anything ever dispatches it.
+      #
+      # @param field [String, Symbol] the query field path, such as `"client/region/name"`
+      # @param attributes [Array<Bluebook::Attribute>] the attributes of the shape the path
+      #   starts from
+      # @return [Plan] `hops` walked so far; `tail` the remaining `.`-dotted field (`nil`
+      #   on refusal); `refusal` `nil` when clean, `:unresolvable` when the last hop's
+      #   target is not found, `:too_deep` when the chain exceeds `MAX_HOPS`
+      # @raise [Bluebook::DSL::Malformed] if a reference on the path has no `declared_in`
+      #   aggregate to resolve its target through
       def plan(field, attributes)
         hops = []
         remaining = field.to_s

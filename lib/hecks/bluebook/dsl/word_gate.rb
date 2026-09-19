@@ -17,29 +17,32 @@ module Hecks
       # own generic `NoMethodError`, naming nothing about what the
       # language actually admits. This module closes that gap.
       #
+      # ## What reaches this module
+      #
       # `method_missing`/`respond_to_missing?` only — a word this
       # builder class already answers with an ordinary `def` (or a
-      # shared mixin method like `AttributeCollector#attribute`) never
+      # method a shared mixin such as `AttributeCollector` defines) never
       # reaches this module at all; Ruby's own method lookup finds it
-      # first, and item #13's later slices haven't removed every one of
-      # those yet. This was "zero behavior change for every currently-
-      # valid line in the entire corpus" in its own first slice — since
-      # item #13's full metaprogrammed dispatch (slice 1, whole-project
-      # table-unification survey) started removing the hand-written
-      # methods this module's own admissibility check used to defer to,
-      # some words now execute for real here too, via `GenericDispatch`
-      # — see that module's own header for exactly which ones, and the
-      # full account of what was verified before each was migrated. A
-      # mistyped or wrongly-contexted word still gets the same real,
-      # helpful, table-driven refusal Rust's own `word_gate` already
-      # gives, instead of Ruby's own generic `NoMethodError` — that half
-      # is genuinely unchanged.
+      # first, and not every word has had its hand-written method
+      # removed. A word the grammar admits whose builder has no
+      # hand-written method executes for real here, via `GenericDispatch`
+      # (item #13's full metaprogrammed dispatch, whole-project
+      # table-unification survey) — see that module's own header for
+      # exactly which ones, and the full account of what was verified
+      # before each was migrated. A mistyped or wrongly-contexted word
+      # gets the same real, helpful, table-driven refusal Rust's own
+      # `word_gate` already gives, instead of Ruby's own generic
+      # `NoMethodError`.
+      #
+      # ## `GRAMMAR_CONTEXT`
       #
       # `self.class::GRAMMAR_CONTEXT` — each including class names which
       # row of the self-hosted `Context` closed set it corresponds to
       # (`AggregateBuilder::GRAMMAR_CONTEXT = "Aggregate"`, etc.) — the
       # same string `word_gate`'s own `context` parameter already is on
       # the Rust side, read off the identical table.
+      #
+      # ## Bootstrapping
       #
       # Bootstrapping gated, the same reason `RuleReference#lookup`
       # already is (`rule_reference.rb`'s own comment has the full
@@ -52,18 +55,21 @@ module Hecks
       # is deliberately no fallback covering the whole ~200-row table —
       # that would defeat the entire point.
       #
-      # One narrow exception, added in item #13's full metaprogrammed
-      # dispatch (slice 3, whole-project table-unification survey):
-      # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`, a small, explicit
-      # table naming the same (context, word) -> method pairs the real
-      # `calls:` column would say once it exists — used only for words
-      # both migrated to the `calls:` shape and bootstrap-reachable
-      # (`attribute`, today). This is the one place in this whole arc a
+      # One narrow exception (item #13's full metaprogrammed dispatch,
+      # slice 3, whole-project table-unification survey):
+      # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`, an explicit table
+      # naming the same (context, word) -> method pairs the real
+      # `calls:` column carries, projected ahead of time into the
+      # committed `bootstrap_table.rb` — it matters only for words both
+      # migrated to the `calls:` shape and bootstrap-reachable
+      # (`attribute`, for one). This is the one place in this whole arc a
       # bootstrap fallback was worth building despite `RuleReference`'s
       # own precedent against it: it duplicates no logic, only a method
       # name — `attribute_impl`'s own real, hand-written body is called
       # either way, bootstrap or not, so there is nothing here that can
       # drift the way a full behavioral duplicate could.
+      #
+      # ## `word_gate_dispatch` and the type-position fallback
       #
       # Two further pieces, both slice 5:
       #   - `word_gate_dispatch` is the same admission+dispatch logic

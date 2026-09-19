@@ -6,12 +6,12 @@ module Hecks
     # data, not Ruby code, so it must not lean on what any one engine happens
     # to accept. Regex engines disagree in two different ways :
     #
-    #   **only a backtracking engine can match it** — lookahead, lookbehind,
+    #   only a backtracking engine can match it — lookahead, lookbehind,
     #   backreferences, atomic groups, possessive quantifiers. None of these
     #   can be matched in linear time, and linear-time engines refuse them
     #   outright. Refused here for the same reason.
     #
-    #   **every engine parses it and they mean different things** — the dangerous
+    #   every engine parses it and they mean different things — the dangerous
     #   half, because nothing errors. `\d` `\w` `\s` are ASCII in some engines
     #   and Unicode in others ; `[:digit:]` and friends flip the same way in
     #   the other direction. Both families are refused, and a domain spells

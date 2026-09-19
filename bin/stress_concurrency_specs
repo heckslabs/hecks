@@ -1,17 +1,17 @@
 #!/usr/bin/env ruby
 
-# **Why a single `rspec` run is not enough for this class of bug**: every spec
+# Why a single `rspec` run is not enough for this class of bug: every spec
 # below proves a thread-safety property by forcing one specific
 # interleaving (a `Queue`-based rendezvous, a `Mutex`-guarded "first
 # arrival wins" gate) — real, but only as good as the one schedule the
-# Ruby vm/OS actually hands it on a given run. A race that needs, say,
+# Ruby VM/OS actually hands it on a given run. A race that needs, say,
 # thread A's `Thread.current[...]` write to land between thread B's read
 # and its own write can pass every single time on a quiet CI box with two
 # threads and no contention, and still be exactly the M20 bug
 # (dispatcher.rb's `#reenter`, fixed by moving `@reaction_depth` off a
 # plain ivar onto `Thread.current`) if a third thread happens to be
 # running at the same time, or the scheduler happens to preempt at a
-# different instruction. Gvl-level thread scheduling in CircleCI/GitHub
+# different instruction. GVL-level thread scheduling in CircleCI/GitHub
 # Actions containers is also famously more deterministic (often
 # effectively serialized under light load) than a real multi-core Puma
 # worker pool under production traffic — the exact gap that let M20 ship
@@ -153,9 +153,9 @@ def run_once(spec_files, seed, label:)
 end
 
 def run_batch(spec_files, seeds, label:)
-  # One thread per rspec process in this batch, not `Process.spawn`
+  # One thread per RSpec process in this batch, not `Process.spawn`
   # directly — `Open3.capture2e` already spawns a real child process per
-  # call (a genuinely separate OS process, its own Ruby vm, its own gvl),
+  # call (a genuinely separate OS process, its own Ruby VM, its own GVL),
   # so running several of those calls concurrently from Ruby `Thread`s is
   # enough to have `parallel` real processes running at once; the
   # coordinating threads here are just waiting on `Process.wait`

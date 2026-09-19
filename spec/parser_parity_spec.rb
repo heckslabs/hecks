@@ -107,7 +107,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   end
 
   # A framework member's own stem, disambiguated against a same-named
-  # example root — `lib/hecks/framework/bluebook/compliance.bluebook`
+  # example ROOT — `lib/hecks/framework/bluebook/compliance.bluebook`
   # and `examples/compliance/` both bare-stem to "compliance" (the
   # framework file is, byte for byte, what the example app's own
   # `compliance.bluebook` loads — a real app demonstrating a framework

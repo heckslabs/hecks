@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **An MCP door onto the storehouse bus** — one MCP server for every booted
+# An MCP door onto the storehouse bus — one MCP server for every booted
 # domain, not one per command. `docs/hecks-survey-what-we-wish-we-had.md`
 # and `docs/future-features.md`'s own "if we build three" #1 pick,
 # extended past the original six tools with the rest of that same
@@ -42,7 +42,7 @@
 # against two different domains back to back with no shared, staling
 # state between them.
 #
-# **Stdio only** — this door has no authentication and must not be exposed
+# STDIO only — this door has no authentication and must not be exposed
 # over a network. `role:`/`actor_id:` are a caller-asserted identity, not
 # a credential this process verifies; the only thing standing between a
 # caller and this bus today is that reaching stdin/stdout means already

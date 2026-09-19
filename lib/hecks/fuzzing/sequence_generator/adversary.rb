@@ -344,7 +344,7 @@ module Hecks
           precedence_shapes_for(args, entry).any?
         end
 
-        # **Every shape whose every part this step can carry**. `nonexistent`
+        # Every shape whose every part this step can carry. `nonexistent`
         # and `lifecycle` need a command that acts on a record (a creating
         # step has no addressed id to point elsewhere, and no state to be
         # in) and flat addressing (`deep_entity_addressing!`'s routed `to:`
@@ -491,7 +491,7 @@ module Hecks
           end
         end
 
-        # **A grant aimed at a role some command actually declares**. Left to
+        # A grant aimed at a role some command actually declares. Left to
         # `ValueGenerator`, `Assign`'s `role_name` is random text
         # ("hotel"), which no command is gated on — so a granted actor
         # could never satisfy `holds_role?` for anything, and the

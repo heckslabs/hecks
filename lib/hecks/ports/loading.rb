@@ -10,7 +10,10 @@ module Hecks
 
       module_function
 
-      # @return [Adapters::Folder] a fresh, unregistered Folder adapter
+      # Builds the loader a boot starts from, before any registry exists to resolve one.
+      #
+      # @return [Adapters::Folder] a new `Folder` adapter with no settings and no root,
+      #   constructed directly rather than resolved through a registry
       def bootstrap = Adapters::Folder.new
     end
   end

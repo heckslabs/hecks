@@ -27,7 +27,7 @@ require "spec_helper"
 # this session verified it against the live grammar and found the same
 # zero the ADR predicted.
 #
-# **Scoped to the core, not every attached sub-language** — the ADR leaves
+# Scoped to the core, not every attached sub-language — the ADR leaves
 # this open ("Whether the self-use gate applies to each sub-language
 # against its own corpus, or only to the core") and this spec answers
 # it: only the core (`LANGUAGE_CHAPTERS` — Bluebook/World/Hecksagon).

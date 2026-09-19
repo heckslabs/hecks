@@ -2,7 +2,7 @@ require "spec_helper"
 require "json"
 require "hecks/fuzzing/form_census"
 
-# **A form exercised alone is not a form exercised**.
+# A form exercised alone is not a form exercised.
 #
 # The third coverage gate, and the one the other two set up. `plurality` asks
 # whether a declared list is ever filled twice. `optionality` asks whether a
@@ -60,7 +60,7 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
     "two_hop_given"      => "qa/stress_domains/referral_chain (Referral.Issue)",
     "multi_hop_where"    => "qa/stress_domains/referral_chain (Referral.FromGoodSponsors)",
     "revalued_reference" => "qa/stress_domains/referral_chain (Referral.Reassign)",
-    # **Joined the census late, though the corpus had it all along** —
+    # Joined the census late, though the corpus had it all along —
     # `examples/banking` declares `corrects` mutations, and the census
     # simply had no form naming them, so `bin/qa_domain_novelty` told
     # three stress domains built around retroactive correction that they

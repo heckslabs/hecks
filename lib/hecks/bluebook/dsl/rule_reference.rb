@@ -132,7 +132,7 @@ module Hecks
         # after `grammar_registry` is fully built and memoized, so reads
         # the real table, every time, no exception.
         #
-        # **No longer kept in sync by hand** — the same `resolves_via`/
+        # No longer kept in sync by hand — the same `resolves_via`/
         # `disambiguator` columns, projected ahead of time into the
         # committed lib/hecks/bluebook/dsl/bootstrap_table.rb
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).

@@ -133,7 +133,7 @@ module Hecks
         construct.identity_paths.join(", ")
       end
 
-      # **Best-effort, for a lock key only** — `Runtime::AggregateLock`'s own
+      # Best-effort, for a lock key only — `Runtime::AggregateLock`'s own
       # per-record striping needs some id to key on before dispatch has run
       # far enough to hydrate for real, so this walks the identical chain
       # `CommandInterpreter#hydrate_existing`/`#hydrate_prior_or_initial`

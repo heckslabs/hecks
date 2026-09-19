@@ -26,7 +26,7 @@ require "hecks/query_ir"
 # file:line, or named as an honest KNOWN_GAP — the same
 # claim-or-name-the-gap discipline that file already established.
 #
-# **This is not a clean gate today**. As of this writing: 62 declared rules, 14
+# This is not a clean gate today. As of this writing: 62 declared rules, 14
 # proven, 48 open gaps. That number is not a target to defend down to zero
 # in one sitting — it is the actual current size of the claim "a bluebook
 # that violates an invariant refuses to boot," made visible and trackable

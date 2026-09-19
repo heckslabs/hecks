@@ -9,6 +9,16 @@ module Hecks
       # singleton, one aggregate door per declared head, and the
       # declaration hook for names the door does not carry.
       module Chapter
+        # Builds the anonymous module that stands for one booted chapter: `vision`,
+        # `aggregates`, `docs`, `narrate` and `project` as singleton methods, plus one
+        # nested constant per aggregate holding that aggregate's door.
+        #
+        # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+        #   dispatcher each aggregate door closes over
+        # @param bluebook [Bluebook::Chapter] the chapter to project into a module
+        # @return [Module] a fresh, unnamed module; `Surface.install` gives it its
+        #   top-level name
+        # @raise [NameError] if an aggregate's name is not a valid constant name
         def chapter_module(dispatcher, bluebook)
           chapter = Module.new
           chapter.define_singleton_method(:vision)     { bluebook.vision }
@@ -69,13 +79,13 @@ module Hecks
             chapter.const_set(aggregate.hecks_name, aggregate_module(dispatcher, bluebook.name, aggregate))
           end
 
-          # **Inside a hecksagon, a name is a declaration, not a lookup**. A
+          # Inside a hecksagon, a name is a declaration, not a lookup. A
           # `.hecksagon` may name an aggregate this door does not carry — a stale
-          # door from an earlier boot resolving another registry's chapter, the
-          # exact hazard the constant tree used to hide by reinstalling on every
-          # load. With a collector open, the name becomes a `BindingProxy`
+          # door from an earlier boot resolving another registry's chapter, which
+          # can happen because the facade is installed once a boot finishes, not
+          # on every load. With a collector open, the name becomes a `BindingProxy`
           # recording the same bind the aggregate module would ; without one, it
-          # is a genuine NameError, exactly as before.
+          # is a genuine NameError.
           #
           # The other reader of a miss is S0b's own bridge (docs/dsl-work-
           # slices.md, const_shim.rb's `ScopedConstant`): a bluebook still being
@@ -86,9 +96,8 @@ module Hecks
           # re-entering its own name). `ConstShim.active?` is exactly as true
           # here as it is at the top level, mid-declaration, and consulting the
           # same resolver is what makes a scoped reference resolve identically
-          # whether or not a facade happens to be built yet — the earlier
-          # attempt's own failure mode (this file's own history) was a bridge
-          # that worked only before any facade existed.
+          # whether or not a facade happens to be built yet — a bridge consulted
+          # only at the top level works only before any facade exists.
           chapter.define_singleton_method(:const_missing) do |name|
             collector = Bluebook::DSL::HecksagonBuilder.collector
             return Bluebook::DSL::BindingProxy.new("#{bluebook.name}::#{name}", collector) if collector

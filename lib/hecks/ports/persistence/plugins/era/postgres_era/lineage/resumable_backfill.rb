@@ -2,18 +2,20 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # **The one chunked, lock-free, resumable backfill loop** — shared by
-        # `backfill_head_snapshot!` (era 1's existing one-shot blocking
-        # backfill, retrofit) and every field-cache table's own initial
-        # backfill (new). Governing principle 1 (docs/implemented/postgres-era-adapter-
-        # split-plan.md): no operation this plan touches may hold a lock
-        # across a scan whose duration scales with table size — a single
-        # `INSERT ... SELECT` over the whole journal (what
-        # `backfill_head_snapshot!` used to be) is exactly that, and so is
-        # a naive "populate every cache row in one statement" field-cache
-        # backfill.
+        # The one chunked, lock-free, resumable backfill loop — shared by
+        # `backfill_head_snapshot!` (era 1's head-snapshot backfill) and
+        # every field-cache table's own initial backfill. Governing
+        # principle 1
+        # (docs/implemented/postgres-era-adapter-split-plan.md): no
+        # operation this plan touches may hold a lock across a scan whose
+        # duration scales with table size — a single `INSERT ... SELECT`
+        # over the whole journal (the one-shot form of
+        # `backfill_head_snapshot!`) is exactly that, and so is a naive
+        # "populate every cache row in one statement" field-cache backfill.
         #
-        # **The shape**: read one bounded chunk (real rows, real ordinals) with
+        # ## The shape
+        #
+        # Read one bounded chunk (real rows, real ordinals) with
         # a plain SELECT — no lock held across it, so an ordinary reader or
         # writer is never blocked by a backfill in progress — then upsert
         # that chunk under the same transactionally-scoped advisory lock +
@@ -22,7 +24,9 @@ module Hecks
         # before moving to the next chunk. Repeat until a chunk reads back
         # short of a full page — that page was the last one.
         #
-        # Resumable, not merely restartable. A crash (or a second
+        # ## Resumable, not merely restartable
+        #
+        # A crash (or a second
         # concurrent boot) mid-backfill leaves the cursor exactly where the
         # last committed chunk left it — `hecks_backfill_progress` is
         # updated in the same transaction as the chunk's own upsert, so
@@ -34,6 +38,8 @@ module Hecks
         # from id 1 changes nothing) but wastes real work on a large
         # table; resumability is what keeps a crash near the end of a
         # large backfill cheap to recover from instead of starting over.
+        #
+        # ## The lock key
         #
         # The lock key prefix is `hecks_field_cache:` — deliberately
         # disjoint from the three families already in use elsewhere in
@@ -49,9 +55,14 @@ module Hecks
         module ResumableBackfill
           CHUNK_SIZE = 5_000
 
+          # Creates `hecks_backfill_progress`, the table of per-target backfill cursors, if absent.
+          #
           # Idempotent, unguarded — same idiom as every other DDL helper
           # in this file tree (`ensure_head_snapshot!` et al.): cheap,
           # runs on every boot, only ever does real work once.
+          #
+          # @return [void]
+          # @raise [PG::Error] if Postgres refuses the DDL
           def ensure_backfill_progress_table!
             @db.exec(<<~SQL)
               CREATE TABLE IF NOT EXISTS hecks_backfill_progress (
@@ -63,6 +74,8 @@ module Hecks
             SQL
           end
 
+          # Fills `target` one committed chunk at a time, resuming from its stored cursor.
+          #
           # Drives `target` (an already-created, currently-empty-or-
           # partially-filled table) through chunks until a source read
           # comes back short of `CHUNK_SIZE` rows. Two distinct callables,
@@ -87,6 +100,16 @@ module Hecks
           #     so a crash between "wrote the chunk" and "advanced the
           #     cursor" is impossible — they commit together or not at
           #     all.
+          #
+          # @param target [String] unquoted name of the table to fill; also the progress row's key
+          #   and the advisory-lock key
+          # @param source_sql [#call] callable given the cursor (`String` id of the last row
+          #   processed, nil before the first chunk) that returns the chunk's SELECT as a `String`
+          # @param upsert [#call] callable given one chunk's `PG::Result` that writes it into
+          #   `target`; its return value is ignored
+          # @return [void]
+          # @raise [PG::Error] if Postgres refuses the progress-table DDL, a source read, or a
+          #   cursor update; whatever `upsert` raises propagates too, rolling back that chunk
           def chunked_backfill!(target, source_sql:, upsert:)
             ensure_backfill_progress_table!
             loop do
@@ -97,7 +120,7 @@ module Hecks
 
           private
 
-          # **One chunk, one transaction, one short-held lock**. Re-reads
+          # One chunk, one transaction, one short-held lock. Re-reads
           # progress after acquiring the lock (not just before) — a second
           # concurrent booter may have already finished this exact chunk
           # (or the whole backfill) while this process was waiting for the

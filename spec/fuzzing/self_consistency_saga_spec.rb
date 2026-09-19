@@ -13,7 +13,7 @@ require "hecks/fuzzing/self_consistency"
 # its `Packing` process manager), so this spec stays there rather than
 # reaching for a fixture.
 #
-# **The one crafted step, and why it stops where it does** — `Packing`'s own
+# The one crafted step, and why it stops where it does — `Packing`'s own
 # four legs (Open -> AddSlot -> Fill -> Ship, `waybill.bluebook`'s own
 # header) all cascade synchronously inside one `Consignment.Request`
 # dispatch (`SagaInterpreter#deliver_saga_dispatch`'s own `@door.reenter`

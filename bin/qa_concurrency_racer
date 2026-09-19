@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **One racer, a real separate OS process** — `Hecks::Fuzzing::
+# One racer, a real separate OS process — `Hecks::Fuzzing::
 # ConcurrentDispatch`'s own worker, `Process.spawn`ed, deliberately not
 # `Process.fork`ed from inside `bin/qa_sweep` itself.
 #

@@ -78,7 +78,7 @@ module Hecks
       # compare stored state against live state.
       def guarded_heki(**) = Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(**))
 
-      # **The whole pass** — called once, with the runtime still live (inside
+      # The whole pass — called once, with the runtime still live (inside
       # `Replay.call`'s own `IsolatedBoot.call` block, before the tmp
       # directory and its adapters go out of scope) and the `history`
       # `Replay.call` is about to return. Nothing here boots a second
@@ -283,7 +283,7 @@ module Hecks
       # keyword the outbox relay already uses to run one consumer alone
       # (`Runtime::Outbox::Relay#run_consumer`).
       #
-      # **Which event to redeliver** — `runtime.registry.saga_log`'s own last
+      # Which event to redeliver — `runtime.registry.saga_log`'s own last
       # `advanced: true` row for this (process manager, correlation) names
       # the event by name only; the real `Runtime::Event` object (payload,
       # aggregate, id, `correlation` — everything `saga_correlation`/
@@ -348,7 +348,7 @@ module Hecks
 
       # ── Rust-side self-consistency ───────────────────────────────────
       #
-      # **The compiled binary's own rehydration door, already shipping** —
+      # The compiled binary's own rehydration door, already shipping —
       # `kernel/cli.rs`'s `run` accepts an optional top-level `"seed"` key
       # ("the exact 'Domain::Aggregate#id' -> state shape this run's own
       # 'instances' output already produces... lets a host seed prior
@@ -399,7 +399,7 @@ module Hecks
         parsed["instances"]
       end
 
-      # **Check 1, Rust side** — seeding a fresh invocation with a prior
+      # Check 1, Rust side — seeding a fresh invocation with a prior
       # invocation's own live `"instances"` must reproduce that same
       # state, unchanged. `live_instances` is `rust_output["instances"]`
       # — the exact same value `bin/qa_sweep`'s own differential compare
@@ -411,7 +411,7 @@ module Hecks
         [{ field: "rust_rehydration", live: live_instances, rehydrated: rehydrated }]
       end
 
-      # **Check 2, Rust side** — seeding with what a first seed round trip
+      # Check 2, Rust side — seeding with what a first seed round trip
       # already produced, a second time, must not drift any further. The
       # same "replay it again, byte for byte" claim `check_idempotency`
       # proves for Ruby, aimed at the one rehydration door this compiled

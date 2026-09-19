@@ -10,7 +10,7 @@ module Hecks
     # Dispatcher, its own adapter instances) rather than one shared
     # process switching connections mid-dispatch.
     #
-    # **That last part is the finding this module encodes**. The project
+    # That last part is the finding this module encodes. The project
     # register (Bluebook::ProjectRegister) already resolves an address's
     # realm to a dispatcher at registration time — Router#resolve looks
     # the FQN up in one flat table keyed by realm::domain::aggregate.verb,

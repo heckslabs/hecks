@@ -96,7 +96,7 @@ module Hecks
     # local, disposable-but-useful-while-it-lasts file.
     LOG_ROOT = File.expand_path("../../tmp/storehouse", __dir__)
 
-    # **The root every `domain:`/`under:` must resolve under** — the project
+    # The root every `domain:`/`under:` must resolve under — the project
     # directory by default, `HECKS_STOREHOUSE_ROOT` to widen or move it.
     # `Hecks.boot` `Kernel.load`s the `.hecksagon`/`.bluebook`/`.world`
     # files a domain path resolves to, and those are Ruby, not a data
@@ -124,7 +124,7 @@ module Hecks
 
     # ── shared resolution helpers ────────────────────────────────────
 
-    # **The one bluebook a domain directory boots**. Every `bin/*` script that
+    # The one bluebook a domain directory boots. Every `bin/*` script that
     # projects a whole-domain CLI or doc set makes this same assumption
     # (`Facade::CliRunner#call`'s own `bluebook = runtime.registry.
     # bluebooks.values.first`) — one `.hecksagon` names one chapter.
@@ -139,7 +139,7 @@ module Hecks
                                  "known: #{bluebook.aggregates.map(&:hecks_name).sort.join(', ')}"
     end
 
-    # **The same alias table `CliRunner` resolves a typed word against** — a
+    # The same alias table `CliRunner` resolves a typed word against — a
     # short name when it's unambiguous, the qualified `Aggregate.Verb`
     # form always. Shared here so `dispatch` and `query` (and their error
     # messages) never drift from what a human typing `bin/run` sees.
@@ -178,7 +178,7 @@ module Hecks
       raise Runtime::TypeMismatch, "actor_id: requires role: too — a caller names WHO through WHICH role they hold"
     end
 
-    # **Bound for the duration of one call, then gone** — `Hecks.as_caller`
+    # Bound for the duration of one call, then gone — `Hecks.as_caller`
     # is itself a `Thread.current`-scoped `ensure`-guarded block, so
     # nothing here needs its own cleanup. `role: nil` yields unbound —
     # for `query`, exactly as before: `CommandRules::Authorization#
@@ -199,7 +199,7 @@ module Hecks
       Hecks.as_caller(role: role, actor_id: actor_id, &block)
     end
 
-    # **The fail-open half `with_caller` itself cannot close** — ADR 0025's
+    # The fail-open half `with_caller` itself cannot close — ADR 0025's
     # Governance RBAC work fixed what a *bound* role is checked against
     # (a live `Governance::RoleAssignment` lookup instead of a bare
     # string match), but changed nothing about a caller who binds no
@@ -547,7 +547,7 @@ module Hecks
         runs:        Array(result.runs).map { |run| { description: run.description, status: run.status, message: run.message } } }
     end
 
-    # **A live tail without a live process** — `bin/hecks_mcp_door` (its
+    # A live tail without a live process — `bin/hecks_mcp_door` (its
     # transport of MCP-over-stdio) answers one request at a time, no push
     # channel to a client that only ever asks. This is the honest version
     # of the survey's `storehouse follow` for that shape: not a

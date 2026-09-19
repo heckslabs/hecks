@@ -106,7 +106,7 @@ RSpec.describe "the operator domain" do
     expect(symbols(admitted("comparison"))).to eq(declared)
   end
 
-  # **The claim made checkable**: "order IS the grammar." `position` is
+  # The claim made checkable: "order IS the grammar." `position` is
   # scoped per `grammar` (outer/inner each start
   # their own count at 1) and must be dense — a gap or a duplicate would
   # mean either a slot the parser skips or two operators claiming the same
@@ -204,8 +204,8 @@ RSpec.describe "the operator domain" do
     end
   end
 
-  # **The gap this file's own header now names**: everything above holds the
-  # ledger equal to the evaluator's tables (comparisons, PROBES) — but
+  # The gap this file's own header now names: everything above holds the
+  # ledger equal to the evaluator's tables (COMPARISONS, PROBES) — but
   # eight real node types (MatchesRegex/Presence/Split/StartsWith/
   # EndsWith/First/Last, admitted above for the first time) used to
   # reach `resolver.rb` as hand-coded Structs with a parse branch and an
@@ -229,7 +229,7 @@ RSpec.describe "the operator domain" do
     # All six comparison symbols (`>=`/`<=`/`</`>`/`==`/`!=`) share one
     # node type — `Evaluator::Compare`, `operator:` naming which of the
     # six — the identical reduction `SignTest` already applies for
-    # `.positive?`/`.negative?`/`.zero?` below. `comparisons` (`==
+    # `.positive?`/`.negative?`/`.zero?` below. `COMPARISONS` (`==
     # OPERATORS.map(&:symbol)`) is the ledger-derived roster itself
     # (evaluator.rb), not a second hand-copied list of the six symbols.
     **Evaluator::COMPARISONS.to_h { |symbol| [symbol, Evaluator::Compare] },

@@ -64,7 +64,7 @@ module Hecks
             creatable: creating.to_set { |entry| entry[:aggregate].hecks_name } }
         end
 
-        # **Every entity, at every depth** — `Card` nested inside `Board`
+        # Every entity, at every depth — `Card` nested inside `Board`
         # inside `Workspace` (qa/stress_domains/nested_pieces) walks in
         # as `chain: [Board, Card]`, the exact hop list
         # `EntityInterpreter::Resolution.of` resolves the dotted verb

@@ -330,7 +330,7 @@ module DeployRecipeLint
   end
 
   # The three representative shapes bin/project_deploy's own recipe
-  # builders branch on — a domain with its own rds instance ("own"), a
+  # builders branch on — a domain with its own RDS instance ("own"), a
   # Shared-mode domain borrowing another's ("shared" — mint-era/
   # scaffold-translation/translation-audit/rename-schema all take their
   # other branch here), and a domain with real Google OAuth wired up

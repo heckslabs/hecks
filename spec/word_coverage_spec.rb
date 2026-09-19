@@ -7,7 +7,7 @@ require "hecks/doc/reference"
 # down and naming the consumer, never assumed." (principle 4)
 #
 # `bin/doc_coverage`/`spec/reference_golden_spec.rb` already close the
-# doctest half — every live word must carry prose and a fenced, running
+# DOCTEST half — every live word must carry prose and a fenced, running
 # example. Neither checks the other half: a doctest can run against a
 # chapter invented for the page alone (`docs/implemented/reference/*.md` do this
 # routinely — a synthetic `QueryReference`/`DomainPortReference`/
@@ -325,7 +325,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     WHY
   end
 
-  # **The exemptions are held to the corpus too** — an entry the corpus has
+  # The exemptions are held to the corpus too — an entry the corpus has
   # since grown to cover is a stale excuse, and a stale excuse is how a
   # gate quietly stops gating (plurality_coverage_spec.rb's own sibling
   # check, same reasoning).
@@ -351,7 +351,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                      "delete the EXEMPT entry, the claim is covered now"
   end
 
-  # **The measurement itself has to be able to fail** — a real, known corpus
+  # The measurement itself has to be able to fail — a real, known corpus
   # use (banking's own `invariant`) has to read as covered, or the check
   # above is vacuously green because corpus_uses? never returns true.
   it "measures a corpus use it is known to have" do

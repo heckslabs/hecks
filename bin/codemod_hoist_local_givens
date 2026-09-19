@@ -177,7 +177,7 @@ def apply_candidate(text, candidate)
   [new_text, true]
 end
 
-# **The real invariant** — not "the whole registry's rule multiset is
+# The real invariant — not "the whole registry's rule multiset is
 # unchanged" (hoisting legitimately grows the owner's own
 # `preconditions`/`invariants`: a local, command-scoped `given` was
 # invisible to it before, the owner's new declaration is not, so that

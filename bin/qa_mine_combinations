@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **An agent mines the adversarial corpus for the next combination** — opt-in.
+# An agent mines the adversarial corpus for the next combination — opt-in.
 #
 #   bin/qa_mine_combinations                       # 3 candidates, Ruby-only checks
 #   bin/qa_mine_combinations --candidates 5 --rust # 5 candidates, also against a compiled Rust
@@ -24,7 +24,7 @@
 # --source`, the same differential / self-consistency / Rust-build checks,
 # step shrinking, report and `--promote` a generated domain gets.
 #
-# **Not part of the tick or the full sweep**. `bin/qa_tick` never runs this and
+# Not part of the tick or the full sweep. `bin/qa_tick` never runs this and
 # no `QualityControlDials` entry enables it: an agent call costs real money
 # and minutes, and answers differently each run, which is the opposite of
 # what a rotation needs. A person (or a session a person asked) runs it.

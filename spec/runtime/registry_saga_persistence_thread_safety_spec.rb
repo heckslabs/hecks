@@ -44,7 +44,7 @@ require "spec_helper"
 # second entry into `resolve_saga_persistence` for the same domain if the bug
 # is present. Under the fix that second entry can never come (Thread B is
 # parked on the mutex the whole time), so the wait always elapses in full;
-# under the bug, Thread A is blocked with the gvl free the moment Thread B is
+# under the bug, Thread A is blocked with the GVL free the moment Thread B is
 # created, so Thread B races in almost immediately — the timeout is a ceiling
 # to catch that race reliably, not a sleep this test's correctness depends on.
 RSpec.describe Hecks::Runtime::Registry do

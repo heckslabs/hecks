@@ -7,7 +7,7 @@ module Hecks
     # aggregate — the tables come from the declaration, the prose is
     # preserved from whatever is already committed.
     #
-    # **The first projection that emits a tree**. `emits: :files` says so,
+    # The first projection that emits a tree. `emits: :files` says so,
     # and the framework writes the map rather than inferring one: a Hash
     # of path => contents and a Hash that merely holds strings are the
     # same object to Ruby, so only the projection can know which it

@@ -48,7 +48,7 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
     admin.exec("DROP DATABASE IF EXISTS #{RESET_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{RESET_DB}")
     admin.exec("DROP ROLE IF EXISTS #{RESET_OWNER}")
-    # Plain CREATE ROLE ... Login — no superuser, no BYPASSRLS, same as
+    # Plain CREATE ROLE ... LOGIN — no superuser, no BYPASSRLS, same as
     # lineage_spec.rb's LINEAGE_OWNER. Either attribute would make
     # force ROW LEVEL SECURITY a no-op for this role, same as it
     # already is for the ambient dev connection.

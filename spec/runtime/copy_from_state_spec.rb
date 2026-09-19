@@ -7,7 +7,7 @@ require "spec_helper"
 # piece lists copied off the record every ply, and nothing a caller
 # hands in can be trusted to be that.
 RSpec.describe "a mutation sourced from the record's own state" do
-  # **One inline bluebook, declared whole** — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.

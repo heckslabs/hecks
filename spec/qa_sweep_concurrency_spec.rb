@@ -137,7 +137,7 @@ RSpec.describe "bin/qa_sweep concurrency", :io do
       end
     RUBY
 
-    # **Prefixed `qa-sweep-cc-target-`, not the mode's own name** — see
+    # Prefixed `qa-sweep-cc-target-`, not the mode's own name — see
     # `qa_sweep_era_boundary_spec.rb`'s identical comment for why.
     @target_domain_dir = Dir.mktmpdir("qa-sweep-cc-target-", InMemoryDomain::ROOT)
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), CONCURRENCY_TARGET_BLUEBOOK)

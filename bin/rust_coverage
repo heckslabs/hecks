@@ -27,7 +27,7 @@
 # coverage question, answerable even when there is no runnable comparison
 # to make. It reports three buckets:
 #
-#   implemented  generated, and reachable via kernel/cli.rs's JSON router
+#   IMPLEMENTED  generated, and reachable via kernel/cli.rs's JSON router
 #   deferred     missing, but on the allowlist below with a cited reason
 #                (a known, deliberate gap — see ALLOWLIST's own header)
 #   gap          missing, and not on the allowlist — a real, actionable
@@ -204,7 +204,7 @@ def expected_from_ir(payload)
   expected
 end
 
-# **One aggregate's own manifest rows** — pulled out of derive_manifest_from_source
+# One aggregate's own manifest rows — pulled out of derive_manifest_from_source
 # because everything it computes (aggregate_id/aggregate_file/
 # aggregate_generated) is scoped to this one aggregate and used nowhere
 # else in the method; the four `each` walks below it (commands, entities,
@@ -301,7 +301,7 @@ def query_row(aggregate_id, query)
   }
 end
 
-# **Read models/policies/process managers/lineage** — the domain-wide (not
+# Read models/policies/process managers/lineage — the domain-wide (not
 # per-aggregate) manifest rows, pulled out for the same reason as
 # aggregate_manifest_rows just above. See the inline comments on the
 # policy/process-manager and lineage rows for why each is shaped the way
@@ -323,7 +323,7 @@ def domain_wide_manifest_rows(domain_name, payload)
   # carry `event_name`/`event_qualifier`/`target_verb`, never the
   # policy's own declared name — there is no string in registry.rs this
   # fallback could match a policy's `id` against with any confidence, so
-  # rather than produce a false implemented or a false gap, `generated`
+  # rather than produce a false IMPLEMENTED or a false gap, `generated`
   # is left `nil` — this tool's own report renders that as its own
   # unknown bucket, excluded from the exit-code gate. Same reasoning for
   # process managers (the table for those carries `name` — so it could
@@ -362,7 +362,7 @@ def domain_wide_manifest_rows(domain_name, payload)
   rows
 end
 
-# ── **Fallback manifest derivation** — see this file's own header,
+# ── Fallback manifest derivation — see this file's own header,
 # "Fallback mode." Used only when `manifest.json` doesn't exist for this
 # domain. Reads the same quoted verb strings `emit_registry` (rust/
 # project/registry.rb) writes into `registry.rs`'s own match arms —
@@ -386,7 +386,7 @@ def derive_manifest_from_source(payload, mod_dir)
   manifest
 end
 
-# **One generated module's findings** — `[ir, findings, mode]`. Every construct
+# One generated module's findings — `[ir, findings, mode]`. Every construct
 # the IR declares lands in `findings` exactly once: from the manifest (or
 # the fallback deriver), or as a synthetic `unaccounted` gap when neither
 # recorded it (see the cross-check note below).
@@ -446,7 +446,7 @@ ALLOWLIST = [
                "generated code path. Delete this rule the day that domain is regenerated with a real manifest."
   }
 ].freeze
-# **Removed, not widened** — the cross-domain-policy `kind: "policy"` entry
+# Removed, not widened — the cross-domain-policy `kind: "policy"` entry
 # that used to live here (matching `reason_match: /cross-domain policy/`,
 # 0013's own Consequences: "omitted from the generated table entirely").
 # `rust/project/reactions.rb`'s `emit_cross_domain_policy_table` now
@@ -458,7 +458,7 @@ ALLOWLIST = [
 # testing anything the day it's removed for real, which is worse than
 # just removing it now with this note explaining why.
 #
-# **What this tool can and cannot attest to, precisely**: "generated and
+# What this tool can and cannot attest to, precisely: "generated and
 # reachable through kernel/cli.rs's JSON router" (this file's own header)
 # is now true for a cross-domain policy — `kernel::orchestrate` matches
 # it exactly like a same-domain one and `kernel::cli::run` carries the
@@ -475,7 +475,7 @@ ALLOWLIST = [
 # `LambdaInvoker`) versus what remains structurally-argued-but-
 # unverified-without-live-AWS (`AwsLambdaInvoker` itself). That caveat
 # belongs there, not as a permanent allowlist entry here — this tool's
-# own implemented bucket was never a claim of live-infrastructure proof
+# own IMPLEMENTED bucket was never a claim of live-infrastructure proof
 # for any finding in it (a generated Postgres write path isn't re-proven
 # against a live database by this tool either).
 # No longer "structurally can't surface" — this comment used to explain
@@ -486,14 +486,14 @@ ALLOWLIST = [
 # exporter.rb) closed exactly that gap — `ir[:lineage][:capable_aggregates]`
 # is now a real, exported list, `expected_from_ir`/both manifest builders
 # above both walk it under `kind: "lineage_aggregate"`, and every such
-# aggregate reports implemented: rust/host's `journal::
+# aggregate reports IMPLEMENTED: rust/host's `journal::
 # read_lineage_head_all/_by_id` (read) and `journal::
 # append_lineage_mutation` (write, already generic before this) cover
 # any aggregate this list ever names, unconditionally — proven for a
 # non-Member aggregate by `journal::lineage_tests::
 # read_lineage_head_reads_any_aggregates_view_generically`.
 #
-# **Still a real, named boundary, though** — not everything era/lineage-
+# Still a real, named boundary, though — not everything era/lineage-
 # shaped moved. Era minting, shape-diff detection, and translation-rule
 # SQL compilation (`Runtime::EraGuard`/`EraTamper`, the Postgres
 # adapter's own `lineage_manager/*`) stay Ruby-only, permanently, by
@@ -514,7 +514,7 @@ end
 
 def allowlisted(finding) = ALLOWLIST.find { |rule| allowlist_rule_matches?(rule, finding) }
 
-# ── **Cross-check** — every expected [kind, id] pair (derived straight from
+# ── Cross-check — every expected [kind, id] pair (derived straight from
 # IR, above) that has no manifest entry at all, in either mode, becomes
 # its own synthetic finding: a gap in the manifest-writer itself, worth
 # telling apart from an honestly-recorded `generated: false`. See this
@@ -582,7 +582,7 @@ end
 
 ir, findings, mode = coverage_findings(mod_dir)
 
-# ── Classify — a construct only counts as implemented when it is both
+# ── CLASSIFY — a construct only counts as IMPLEMENTED when it is both
 # generated and (where the construct has a routing concept at all)
 # actually reachable through kernel/cli.rs's JSON router. A `dispatch_*`
 # function that compiles but that nothing can ever call is not "working"

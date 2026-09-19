@@ -97,7 +97,7 @@ module Hecks
         live && live[:role_name][:value]
       end
 
-      # **The verb, read from the provider's own declaration** — `provides
+      # The verb, read from the provider's own declaration — `provides
       # "authorization", assignments: ..., transitions: ...` on whichever
       # loaded chapter declares it (Governance's, in every boot today).
       # Exactly one provider, the same "the runtime will not choose for

@@ -39,7 +39,7 @@ module Hecks
 
         def creates? = @references.nil?
 
-        # **Every reason this verb can refuse on a rule** — the descriptions of
+        # Every reason this verb can refuse on a rule — the descriptions of
         # its givens and its ensures, the exact text the runtime quotes
         # after "refused — " when a guard is not met (see
         # command_rules/admissibility.rb's GivenNotMet/EnsuresNotMet). A
@@ -63,7 +63,7 @@ module Hecks
         # on `cross_reference` — "`as:` means a named attribute... a
         # command can point at another instance of its own kind"):
         #
-        #   **self-addressing** — `references == aggregate_name` (this verb
+        #   self-addressing — `references == aggregate_name` (this verb
         #   is declared on the very aggregate it acts on, `reference_to
         #   Account` on a command Account itself owns). No attribute was
         #   minted for it at all; the same bare key
@@ -71,7 +71,7 @@ module Hecks
         #   accepts as "addressing, not describing" is reused here
         #   rather than re-derived — one door, not two.
         #
-        #   **cross-referencing** — a real, declared reference-typed
+        #   cross-referencing — a real, declared reference-typed
         #   attribute whose own target is `aggregate_name` (`customer_id`
         #   on `Account.Open`, or whatever `as:` named it). Its name is
         #   the key, exactly as declared — never re-derived from the

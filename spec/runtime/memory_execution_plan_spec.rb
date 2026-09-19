@@ -58,7 +58,7 @@ RSpec.describe "Memory execution-plan capabilities" do
     expect(inserted.execution_plan).to be_state_independent
     expect(inserted.persistence_outcome.status).to eq(:inserted)
 
-    # **A second creation is not a fresh one**. `Register` is a creating command
+    # A second creation is not a fresh one. `Register` is a creating command
     # (no reference_to — nothing to act on yet), so a second dispatch at the
     # same identity refuses instead of silently replacing what the first one
     # wrote — the adapter's own `insert_only:` conflict check decides this

@@ -27,18 +27,36 @@ module Hecks
         @plugins = {}
 
         class << self
+          # Adds a plugin under a name, replacing any plugin already registered under it.
+          #
+          # @param name [Symbol, String] the plugin's name, such as `:era`; stored as a Symbol
+          # @param plugin [Object] anything responding to
+          #   `contribute_boot_gates(registry, gates)`
+          # @return [Object] the plugin just registered
           def register(name, plugin)
             @plugins[name.to_sym] = plugin
           end
 
+          # Reports whether a plugin of that name has been required into this process.
+          #
+          # @param name [Symbol, String] the plugin's name
+          # @return [Boolean] true when a plugin is registered under `name`
           def registered?(name)
             @plugins.key?(name.to_sym)
           end
 
+          # Yields every registered plugin, in registration order.
+          #
+          # @yieldparam plugin [Object] a registered plugin
+          # @return [Hash{Symbol => Object}, Enumerator] the plugin table when a block is
+          #   given, otherwise an Enumerator over the plugins
           def each(&)
             @plugins.each_value(&)
           end
 
+          # Reports whether any persistence plugin is loaded at all.
+          #
+          # @return [Boolean] true when at least one plugin is registered
           def any? = !@plugins.empty?
         end
       end
@@ -48,9 +66,29 @@ module Hecks
       # directly for a plugin's own file to call at require-time.
       module_function
 
+      # Registers a persistence plugin; a plugin's own file calls this when it is required.
+      #
+      # @param name [Symbol, String] the plugin's name, such as `:era`
+      # @param plugin [Object] anything responding to `contribute_boot_gates(registry, gates)`
+      # @return [Object] the plugin just registered
       def register_plugin(name, plugin) = Plugin.register(name, plugin)
+
+      # Reports whether the named persistence plugin is loaded in this process.
+      #
+      # @param name [Symbol, String] the plugin's name
+      # @return [Boolean] true when a plugin is registered under `name`
       def plugin?(name) = Plugin.registered?(name)
+
+      # Yields every loaded persistence plugin, in registration order.
+      #
+      # @yieldparam plugin [Object] a registered plugin
+      # @return [Hash{Symbol => Object}, Enumerator] the plugin table when a block is given,
+      #   otherwise an Enumerator over the plugins
       def each_plugin(&) = Plugin.each(&)
+
+      # Reports whether any persistence plugin is loaded in this process.
+      #
+      # @return [Boolean] true when at least one plugin is registered
       def plugins_loaded? = Plugin.any?
     end
   end

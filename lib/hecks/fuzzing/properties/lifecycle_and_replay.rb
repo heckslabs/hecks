@@ -74,7 +74,7 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # **The foundational one**. `Hecks::Runtime` mints nothing — every
+        # The foundational one. `Hecks::Runtime` mints nothing — every
         # identity is declared and derived, never invented (see
         # command_interpreter.rb's own "nothing is minted" — a random hex,
         # a counter, anything not reproducible from the payload, was

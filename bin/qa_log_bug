@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# **Log a bug the only way the ledger allows** — proven, numbered, triaged.
+# Log a bug the only way the ledger allows — proven, numbered, triaged.
 #
 # `QualityControl::Bug.Log` (qa/bluebook/quality_control.bluebook) takes
 # a `demonstration` as a required argument — this chapter's one absolute
@@ -137,7 +137,7 @@ end
 
 # ── run the demonstration, and refuse a passing one ────────────────────
 #
-# **The one thing the ledger cannot check, checked here** — unless
+# The one thing the ledger cannot check, checked here — unless
 # `--reproduced no` says there is no reliable signal to check. Run
 # through `sh -c` exactly the way a human would paste it, from the
 # repository root, with its output captured and its tail printed either
@@ -185,7 +185,7 @@ abort "no such sweep: #{options[:sweep].inspect} — the sweep id is on bin/qa_s
 
 # ── mint the reference ────────────────────────────────────────────────
 #
-# **The highest sequence on file, plus one** — then forward past any
+# The highest sequence on file, plus one — then forward past any
 # reference that somehow already exists (a hand-typed `BUG#99` from a
 # session that skipped ahead), so the minted pair is free on both the
 # sequence and the reference. Re-read on every attempt: two concurrent

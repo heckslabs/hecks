@@ -20,7 +20,7 @@ RSpec.describe "the language's own rules" do
 
   def v(text) = { value: text.to_s }
 
-  # **The ID of what was just declared**. Nothing here is minted any more — every
+  # The ID of what was just declared. Nothing here is minted any more — every
   # meta-record's id is derived from the facts it was declared with, so a test
   # cannot simply invent one. Reading it back off the dispatch result is the
   # only honest way to name a record in a later dispatch : the same derivation
@@ -118,7 +118,7 @@ RSpec.describe "the language's own rules" do
         .to raise_error(Hecks::Runtime::GivenNotMet, /a mutation names a target/)
     end
 
-    # **The same refusal, from a named set rather than a restated one**.
+    # The same refusal, from a named set rather than a restated one.
     #
     # `Command::OpName` used to carry `set || append || increment || decrement`
     # in an invariant — Vocabulary::MutationOp written out a second time, one
@@ -177,7 +177,7 @@ RSpec.describe "the language's own rules" do
       .not_to raise_error
   end
 
-  # **A piece must say what it is known by**. Not invented for the rule's own sake:
+  # A piece must say what it is known by. Not invented for the rule's own sake:
   # perturbing banking's Withdrawal by dropping this very line once exposed
   # that the refusal's wording depended on a fallback default ("pass :" versus
   # "pass id:") — the declaration was the only thing pinning the answer.
