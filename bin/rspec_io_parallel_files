@@ -52,8 +52,21 @@
 # the Rust-building / shared-hecks_pizzas files this job already routes
 # elsewhere.
 
+#
+# THE LIST IS COMMITTED (.github/postgres_io_spec_files.txt) and the shards
+# read that file: the dry run costs 26-48s on a CI runner, and every shard
+# used to pay it before running a single example. `--write FILE` refreshes
+# the committed list; `--check FILE` is what CI's postgres_io_file_list job
+# runs, once, off the shards' critical path — a stale list fails there
+# instead of an io spec silently never running.
+#
+#   bin/rspec_io_parallel_files --write .github/postgres_io_spec_files.txt '<pattern>' -- --tag io --tag ~fuzzing
+
 require "json"
 require "open3"
+
+mode, list_path = ARGV.shift(2) if %w[--check --write].include?(ARGV.first)
+abort "#{$PROGRAM_NAME}: #{mode} needs a file path" if mode && list_path.nil?
 
 exclude_pattern_arg, *rest = ARGV
 separator_index = rest.index("--")
@@ -93,4 +106,19 @@ end
 warn "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a matching example " \
      "(#{data['examples'].size} examples total) under `#{tag_args.join(' ')}`"
 
-puts files
+case mode
+when "--write"
+  File.write(list_path, files.join("\n") + "\n")
+when "--check"
+  committed = File.exist?(list_path) ? File.readlines(list_path, chomp: true).reject(&:empty?) : []
+  missing = files - committed
+  stale = committed - files
+  unless missing.empty? && stale.empty?
+    warn "#{list_path} is out of date."
+    warn "  carries a matching example but is not listed (would never run in the shards):\n    #{missing.join("\n    ")}" unless missing.empty?
+    warn "  listed but carries no matching example any more:\n    #{stale.join("\n    ")}" unless stale.empty?
+    abort "Refresh it and commit the result:\n  bin/rspec_io_parallel_files --write #{list_path} '#{exclude_pattern_arg}' -- #{tag_args.join(' ')}"
+  end
+else
+  puts files
+end

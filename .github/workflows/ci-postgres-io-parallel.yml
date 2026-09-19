@@ -10,6 +10,12 @@ name: CI postgres io parallel (reusable)
 on:
   workflow_call:
 
+# The spec files this workflow never runs — the Rust-building and shared-
+# hecks_pizzas files other jobs own. One copy, read by the shards' committed
+# file list check and by bin/rspec_io_parallel_files --write.
+env:
+  IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|codegen_manifest_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
+
 jobs:
   # THE SKIP GATE FOR THE JOB BELOW — mirrors `runtime_changed`/
   # `stress_concurrency`'s own shape in ci.yml (a separate detector job,
@@ -210,6 +216,26 @@ jobs:
             echo "touched=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # PROVES THE SHARDS' COMMITTED FILE LIST IS CURRENT — one real dry run per
+  # CI run, beside the shards instead of in front of each of them. A spec
+  # file that gains its first `:io` example without the list being
+  # refreshed fails here, by name, rather than never running anywhere. It
+  # fails this reusable workflow, so it fails the required
+  # `rspec_postgres_io_parallel` check with it.
+  postgres_io_file_list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    needs: postgres_io_relevant_changed
+    if: github.event_name != 'push' && needs.postgres_io_relevant_changed.outputs.touched == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      - name: .github/postgres_io_spec_files.txt matches a real --tag io dry run
+        run: bin/rspec_io_parallel_files --check .github/postgres_io_spec_files.txt "$IO_PARALLEL_EXCLUDE_PATTERN" -- --tag io --tag ~fuzzing
+
   # SPLIT INTO A MATRIX (this job) PLUS ci.yml's OWN ONE-STEP AGGREGATOR
   # (`rspec_postgres_io_parallel` itself) — real GitHub Actions hardware
   # parallelism (N separate runners, N separate Postgres service
@@ -299,12 +325,6 @@ jobs:
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
-      # Single source of truth for both the file-discovery step and the
-      # actual `parallel_rspec` run below — see bin/rspec_io_parallel_files
-      # for why splitting this out from the whole `spec` directory is what
-      # actually makes runtime-based grouping work for this job (it didn't,
-      # under three different nominal grouping strategies, until this).
-      IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|codegen_manifest_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
 
     steps:
       - uses: actions/checkout@v4
@@ -356,15 +376,16 @@ jobs:
       # four `postgres-io-runtime-group-N` artifacts one successful run
       # uploads (see the upload step at the end). Every leg checks out the
       # same bytes, so the split is a pure function of the tree.
-      - name: Determine which spec files can ever match --tag io (real dry run, see bin/rspec_io_parallel_files)
-        run: |
-          mkdir -p tmp
-          bin/rspec_io_parallel_files "$IO_PARALLEL_EXCLUDE_PATTERN" -- --tag io --tag ~fuzzing > tmp/io_parallel_files.txt
-
+      #
+      # THE FILE LIST IS COMMITTED TOO (.github/postgres_io_spec_files.txt).
+      # Every shard used to rebuild it with a real `--dry-run` first — 26-48s
+      # on the critical path, eight times a run. `postgres_io_file_list`
+      # above proves the committed list still matches that dry run.
       - name: "rspec: postgres + deploy/tenant I/O (this shard's own group only — see job header comment on --only-group)"
         run: |
+          mkdir -p tmp
           IO_FILES=()
-          while IFS= read -r line; do IO_FILES+=("$line"); done < tmp/io_parallel_files.txt
+          while IFS= read -r line; do IO_FILES+=("$line"); done < .github/postgres_io_spec_files.txt
           bundle exec parallel_rspec "${IO_FILES[@]}" \
             -n 8 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
             --runtime-log .github/postgres_io_runtime_baseline.log \
