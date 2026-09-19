@@ -35,25 +35,26 @@ name: Cache warm (main)
 # there is the only thing that would still force a cold build; that's
 # a real, tolerable gap the restore-keys prefix cannot close, only the
 # exact key can, once THIS workflow runs again after that bump lands).
-# TRIGGER CHANGED FROM `push: branches: [main]` TO `workflow_run` —
-# Phase 1 of the CI speed effort. The old trigger fired at the exact
-# moment `push` also fired on ci.yml's own cache-warming job (see that
-# file's top-of-file comment), meaning this workflow's 5 cargo builds and
-# the NEXT merge_group run (queued right behind the push that triggered
-# both) started competing for the org's 20-concurrent-runner ceiling at
-# the same instant. `workflow_run` instead waits for the named upstream
-# workflow to actually FINISH on `main`, so these 5 jobs start into
-# whatever runner capacity is free once CI's own push-triggered job is
-# already done, not fighting it for the same slots. `types: [completed]`
-# plus the `if:` below (checked per-job, since `workflow_run` itself has
-# no job-level trigger filter) makes sure a failed CI run on main — which
-# should not happen given the merge queue, but "should not happen" is not
-# the same guarantee as "cannot" — doesn't still warm caches for it.
+# TRIGGERED BY THE PUSH ITSELF AGAIN, NOT BY CI FINISHING ON MAIN. It
+# waited on `workflow_run` so these builds wouldn't fight ci.yml's own
+# push-triggered Postgres legs for runners, and ran only if that CI run
+# SUCCEEDED. Neither half holds any more: those legs no longer run on push
+# (nothing read what they produced), and while main was red on 2026-09-18
+# the `success` guard skipped this workflow four merges running (23:31 to
+# 00:59 UTC), so the caches PRs restore from fell behind main exactly when
+# CI was busiest. Warming a cache proves nothing about main, so it has no
+# reason to wait for a verdict on it.
+#
+# One warm at a time: only the newest main is worth warming, so a push
+# that lands mid-warm cancels the older one instead of queueing six more
+# jobs behind it.
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
     branches: [main]
+
+concurrency:
+  group: cache-warm
+  cancel-in-progress: true
 
 jobs:
   # Mirrors rspec_rust_io's own "Cache Rust build artifacts (main
@@ -71,23 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    # `workflow_run` fires on ANY conclusion (success, failure, or
-    # cancellation) of the named upstream workflow — this guard is what
-    # actually limits warming to a main that stayed green. Checked
-    # per-job (`workflow_run` has no job-level trigger filter of its own)
-    # and repeated identically on every job below.
-    if: github.event.workflow_run.conclusion == 'success'
-
     steps:
-      # `ref:` PINNED TO THE RUN THAT TRIGGERED THIS, NOT WHATEVER
-      # `main` HAPPENS TO POINT AT BY THE TIME THIS JOB STARTS —
-      # `actions/checkout@v4` under a `workflow_run` event defaults to
-      # the workflow FILE's own ref (the default branch's current tip),
-      # which a second push landing between CI finishing and this job
-      # starting would silently swap out from under it.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: ./.github/actions/setup-ruby
 
@@ -117,18 +103,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    if: github.event.workflow_run.conclusion == 'success'
-
     steps:
-      # `ref:` PINNED TO THE RUN THAT TRIGGERED THIS, NOT WHATEVER
-      # `main` HAPPENS TO POINT AT BY THE TIME THIS JOB STARTS —
-      # `actions/checkout@v4` under a `workflow_run` event defaults to
-      # the workflow FILE's own ref (the default branch's current tip),
-      # which a second push landing between CI finishing and this job
-      # starting would silently swap out from under it.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -146,18 +122,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    if: github.event.workflow_run.conclusion == 'success'
-
     steps:
-      # `ref:` PINNED TO THE RUN THAT TRIGGERED THIS, NOT WHATEVER
-      # `main` HAPPENS TO POINT AT BY THE TIME THIS JOB STARTS —
-      # `actions/checkout@v4` under a `workflow_run` event defaults to
-      # the workflow FILE's own ref (the default branch's current tip),
-      # which a second push landing between CI finishing and this job
-      # starting would silently swap out from under it.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -173,18 +139,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    if: github.event.workflow_run.conclusion == 'success'
-
     steps:
-      # `ref:` PINNED TO THE RUN THAT TRIGGERED THIS, NOT WHATEVER
-      # `main` HAPPENS TO POINT AT BY THE TIME THIS JOB STARTS —
-      # `actions/checkout@v4` under a `workflow_run` event defaults to
-      # the workflow FILE's own ref (the default branch's current tip),
-      # which a second push landing between CI finishing and this job
-      # starting would silently swap out from under it.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -200,13 +156,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    if: github.event.workflow_run.conclusion == 'success'
-
     steps:
       # `ref:` pinned to the triggering run — see warm_main_crate's comment.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -229,18 +181,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    if: github.event.workflow_run.conclusion == 'success'
-
     steps:
-      # `ref:` PINNED TO THE RUN THAT TRIGGERED THIS, NOT WHATEVER
-      # `main` HAPPENS TO POINT AT BY THE TIME THIS JOB STARTS —
-      # `actions/checkout@v4` under a `workflow_run` event defaults to
-      # the workflow FILE's own ref (the default branch's current tip),
-      # which a second push landing between CI finishing and this job
-      # starting would silently swap out from under it.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: ./.github/actions/cargo-cache
         with:

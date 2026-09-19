@@ -33,6 +33,8 @@ require "hecks"
 require "hecks/fuzzing"
 require "json"
 require "tmpdir"
+require "tempfile"
+require "etc"
 require "fileutils"
 
 ROOT = File.expand_path("..", __dir__)
@@ -295,10 +297,12 @@ domain_arg = nil
 # smaller `--seeds`/`--steps` than the Memory/Sqlite default, this flag
 # does not scale them down for you.
 adapter = :memory
+workers = nil
 until ARGV.empty?
   case (arg = ARGV.shift)
   when "--seeds" then seeds = Integer(ARGV.shift)
   when "--steps" then steps = Integer(ARGV.shift)
+  when "--workers" then workers = Integer(ARGV.shift)
   when "--adapter"
     adapter = ARGV.shift.to_s.downcase.to_sym
     unless [:memory, :sqlite, :postgres].include?(adapter)
@@ -343,7 +347,57 @@ end
 # and spec/corpus_accounting_spec.rb holds every route to it.
 domains = domain_arg ? [domain_arg] : Hecks::Corpus.sweepable_domains(ROOT)
 
-ok = domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps, adapter) && all_ok }
+# One child per core by default. A real Postgres stays one at a time unless
+# asked otherwise — nobody has measured these domains sharing one server.
+workers ||= adapter == :postgres ? 1 : Etc.nprocessors
+
+# ONE DOMAIN PER CHILD, AS MANY AT ONCE AS THERE ARE CORES. A domain's
+# seeds are its own (1..N, nothing shared between domains), so the sweep
+# is the same sweep in any order — it was one CPU-bound loop on a 4-core
+# runner. Each child's output is held and printed whole, in the domains'
+# own order, so one domain's lines never interleave with another's. A
+# child that crashes exits non-zero and counts as a finding, never as
+# clean.
+def fuzz_in_pool(domains, workers)
+  pending = domains.each_with_index.to_a
+  running = {}
+  results = {}
+  until pending.empty? && running.empty?
+    while running.size < workers && (domain, index = pending.shift)
+      out = Tempfile.new("fuzz")
+      pid = fork do
+        $stdout.reopen(out)
+        $stderr.reopen(out)
+        exit(yield(domain) ? 0 : 1)
+      end
+      running[pid] = [index, out, Process.clock_gettime(Process::CLOCK_MONOTONIC)]
+    end
+    pid, status = Process.wait2
+    index, out, started = running.delete(pid)
+    results[index] = [status.success?, out, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started]
+  end
+  slowest = results.max_by(5) { |_, (_, _, seconds)| seconds }
+                   .map { |index, (_, _, seconds)| "#{File.basename(domains[index])} #{seconds.round}s" }
+  warn "slowest domains: #{slowest.join(', ')}"
+  results.sort.map do |_, (clean, out, _)|
+    out.rewind
+    print out.read
+    out.close!
+    clean
+  end.all?
+end
+
+ok = if workers > 1 && domains.size > 1
+       # Booted here so every child inherits it. The serial loop booted the
+       # grammar once for all domains; a child that starts cold pays for it
+       # again, and 53 of them spent five times the serial run's CPU on it.
+       require "hecks/bluebook/meta_validator"
+       Hecks::Bluebook::MetaValidator.grammar_registry
+       $stdout.flush
+       fuzz_in_pool(domains, workers) { |domain| fuzz_domain(domain, seeds, steps, adapter) }
+     else
+       domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps, adapter) && all_ok }
+     end
 
 if ok
   puts "CLEAN — no generated sequence broke a property or the interpreter."

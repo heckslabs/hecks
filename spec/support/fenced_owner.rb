@@ -26,7 +26,9 @@ require "pg"
 #
 # ONE ROLE NAME FOR EVERY CALLER, NEVER DROPPED. `parallel_rspec` runs
 # these files concurrently: creation is race-safe (the DO block swallows
-# the loser's duplicate_object), and a DROP ROLE while another spec's
+# the loser's error — duplicate_object once the winner has committed,
+# unique_violation on pg_authid_rolname_index when both are still in
+# flight; see bin/qa_postgres_role), and a DROP ROLE while another spec's
 # database still hangs off it would fail anyway. There is nothing to
 # clean — the role owns nothing once each disposable database is dropped.
 module FencedOwner
@@ -40,7 +42,7 @@ module FencedOwner
     admin.exec(<<~SQL)
       DO $$ BEGIN
         CREATE ROLE #{ROLE} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
-      EXCEPTION WHEN duplicate_object THEN NULL;
+      EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL;
       END $$
     SQL
     admin.exec("ALTER DATABASE #{admin.quote_ident(database)} OWNER TO #{ROLE}")

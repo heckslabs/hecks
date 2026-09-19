@@ -25,27 +25,10 @@ jobs:
   # step-level `if:` doesn't avoid that cost.
   #
   # UNLIKE `runtime_changed`, THIS DETECTOR RUNS ON EVERY TRIGGER, `push`
-  # INCLUDED — no `if: github.event_name != 'push'` here. A job whose
-  # `needs:` job was itself SKIPPED is, by default, also skipped — and
-  # reliably overriding that (so `rspec_postgres_io_parallel_shard` still
-  # runs unconditionally on `push` per PR #572, see ci.yml's own
-  # top-of-file comment) needs either `always()` on the gated job's own
-  # `if:` (which then also has to avoid treating a genuinely FAILED
-  # detector run as "skip", the wrong default per this job's own
-  # loud-not-silent philosophy below) or just letting this detector run
-  # under every trigger so it's never the thing being skipped in the
-  # first place. The latter costs one more cheap job on `push` (a
-  # checkout plus a `git diff`, no services, no Ruby/Bundler setup) in
-  # exchange for `rspec_postgres_io_parallel_shard`'s own `if:` staying a
-  # plain, unambiguous expression. What this job computes for a `push`
-  # run is never actually consulted either way —
-  # `rspec_postgres_io_parallel_shard`'s own `if:` below short-circuits on
-  # `github.event_name == 'push'` before it looks at this job's output —
-  # it still runs so the `needs:`/`if:` relationship stays unconditional
-  # rather than correct only for the two triggers that happen to matter
-  # today. (`rspec_postgres_io_parallel`, ci.yml's own aggregator, doesn't
-  # consult this job's output at all — it just mirrors this whole
-  # reusable workflow's own result, see ci.yml's own header comment.)
+  # INCLUDED — it is all that is left of a `push` run. The legs below used
+  # to run unconditionally there (PR #572) and no longer do; see their own
+  # `if:`. With every leg skipped this reusable workflow still concludes
+  # `success`, which is what ci.yml aggregator reads.
   #
   # THE SAFE-TO-SKIP LIST BELOW IS EXCLUDE-SHAPED, NOT INCLUDE-SHAPED —
   # deliberately the opposite of `runtime_changed`'s own single
@@ -294,11 +277,18 @@ jobs:
 
     needs: postgres_io_relevant_changed
 
-    # Same skip gate as before, unchanged in shape — see
-    # `postgres_io_relevant_changed`'s own header comment above and
-    # ci.yml's own aggregator job for how this composes with THAT job
-    # staying the actual required check.
-    if: github.event_name == 'push' || needs.postgres_io_relevant_changed.outputs.touched == 'true'
+    # Same skip gate as before — see `postgres_io_relevant_changed`'s own
+    # header comment above and ci.yml's own aggregator job for how this
+    # composes with THAT job staying the actual required check.
+    #
+    # NOT ON `push` ANY MORE. These legs used to run unconditionally on
+    # every push to main, to give their restored runtime-log cache
+    # default-branch scope. That cache was replaced by the committed
+    # baseline on 2026-09-14, so the push run produced nothing anyone read:
+    # eight runners for ~5 minutes per merge, competing with the next
+    # merge-queue run for the account's 20 slots. cache-warm.yml warms the
+    # caches that do need main's scope, on its own push trigger.
+    if: github.event_name != 'push' && needs.postgres_io_relevant_changed.outputs.touched == 'true'
 
     strategy:
       # `fail-fast: false` — a real regression in one shard shouldn't

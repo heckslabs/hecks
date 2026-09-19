@@ -98,6 +98,24 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
+  # A push to main tests nothing — the merge queue already did — so all a
+  # push run may spend a runner on is the Postgres detector's checkout and
+  # diff. Eight Postgres legs ran there for a cache nobody had read since
+  # 2026-09-14. A job skips on push by saying so, or by needing one that does.
+  it "spends no runner on a push to main beyond the Postgres detector" do
+    Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/ci*.yml")].each do |path|
+      jobs = YAML.load_file(path).fetch("jobs")
+      skips_on_push = ->(job) { job["if"].to_s.include?("github.event_name != 'push'") }
+      jobs.each do |name, job|
+        next if job.key?("uses") || name == "postgres_io_relevant_changed" || self.class.wrappers.key?(name)
+
+        upstream = Array(job["needs"]).map { |needed| jobs.fetch(needed) }
+        skipped = skips_on_push.call(job) || upstream.any?(&skips_on_push)
+        expect(skipped).to be(true), "#{File.basename(path)}'s #{name} would take a runner on a push to main"
+      end
+    end
+  end
+
   # A job with no timeout falls back to GitHub's 360 minutes, and a hung
   # job holds one of the account's 20 concurrent runner slots that whole time.
   it "gives every job that takes a runner a timeout" do
