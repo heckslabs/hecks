@@ -83,9 +83,12 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
     }
 
-    let uses_framework_names = match &hecksagon_path {
-        Some(p) => resolve::resolve_uses_framework(&parser_bin, &target_chapter_name, p)?,
-        None => Vec::new(),
+    let (uses_framework_names, uses_embryonaut_bluebook_names) = match &hecksagon_path {
+        Some(p) => (
+            resolve::resolve_uses_framework(&parser_bin, &target_chapter_name, p)?,
+            resolve::resolve_uses_embryonaut_bluebook(&parser_bin, &target_chapter_name, p)?,
+        ),
+        None => (Vec::new(), Vec::new()),
     };
 
     if let Some(p) = &hecksagon_path {
@@ -131,6 +134,64 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             source_label: format!("{domain} (uses_framework {fw_name:?})"),
             ir_text: fw_ir_text,
         });
+    }
+
+    // Every vendored package `uses_embryonaut_bluebook` names — same real
+    // packages the Ruby default path's own `EmbryonautBluebook.load!`
+    // pulls in, resolved the same way that module resolves them
+    // (`resolve::vendored_bluebook_files`). Without this loop,
+    // `resolve::resolve_uses_framework` would be the only resolution
+    // called, so `hecks-build` would silently drop a vendored chapter from
+    // its own output — this loop mirrors the `uses_framework` one above
+    // step for step.
+    for pkg_name in &uses_embryonaut_bluebook_names {
+        let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
+        let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
+        let expected_chapter_name = resolve::pascal(pkg_name);
+        if pkg_chapter_name != expected_chapter_name {
+            return Err(format!(
+                "hecks-build: {} declares chapter {pkg_chapter_name:?}, but uses_embryonaut_bluebook {pkg_name:?} \
+                 expects {expected_chapter_name:?}",
+                pkg_files[0].display()
+            ));
+        }
+        let mut pkg_bluebooks = Vec::new();
+        for path in &pkg_files {
+            if resolve::header_chapter_name(path)? == pkg_chapter_name {
+                pkg_bluebooks.push(path.clone());
+            }
+        }
+        let pkg_ir_text = parse_chapter_with_optionals(&parser_bin, &pkg_chapter_name, &pkg_bluebooks)?;
+        chapters.push(Chapter {
+            // Same derivation as the framework loop's own `fw_name.
+            // to_lowercase()` (off the declared chapter name, asserted
+            // equal to `expected_chapter_name` just above) — not
+            // `pkg_name.to_lowercase()` off the raw argument, which
+            // diverges the moment a package name contains an
+            // underscore.
+            mod_name: expected_chapter_name.to_lowercase(),
+            source_label: format!("{domain} (uses_embryonaut_bluebook {pkg_name:?})"),
+            ir_text: pkg_ir_text,
+        });
+    }
+
+    // No silent collision between a `uses_framework`- and a
+    // `uses_embryonaut_bluebook`-derived entry — mirrors the same guard
+    // `rust/project_rust_pipeline.rb`'s own opt-in Ruby pipeline carries
+    // for the identical reason (a duplicate `mod_name` would silently
+    // overwrite one chapter's sidecars with another's).
+    {
+        let mut seen: Vec<&str> = Vec::new();
+        for c in &chapters {
+            if seen.contains(&c.mod_name.as_str()) {
+                return Err(format!(
+                    "hecks-build: two chapters both resolve to the same generated module {:?} — attach {} to at \
+                     most one of them",
+                    c.mod_name, target_chapter_name
+                ));
+            }
+            seen.push(&c.mod_name);
+        }
     }
 
     // **The self-hosted language, compiled in too** — one discovered concept

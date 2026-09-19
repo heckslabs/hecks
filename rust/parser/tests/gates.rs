@@ -224,6 +224,55 @@ fn query_arguments_are_inferred_from_local_and_resolved_hop_fields() {
 }
 
 #[test]
+fn translates_builds_the_same_policy_ir_a_bluebook_policy_block_would() {
+    // `translates` (Hecksagon context) builds the exact same `ir::Policy`
+    // a `.bluebook`'s own `policy` block would (this crate's
+    // `parse::hecksagon`'s own `"translates"` arm calls `parse::policy::
+    // parse_body` directly, then pushes straight onto `bluebook.policies`
+    // — see that arm's own comment). This test pins the wire shape: a
+    // cross-domain `on`/bare-constant `trigger`/`with:` triple, attached
+    // to the chapter named by `Hecks.hecksagon`, not one it declares
+    // itself in the sibling `.bluebook`.
+    let bluebook = fixture("translates.bluebook");
+    let hecksagon = fixture("translates.hecksagon");
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureTranslates",
+        bluebook.to_str().unwrap(),
+        hecksagon.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        output.status.success(),
+        "translates should parse into a real Policy, not a stub: {stderr}"
+    );
+    assert!(
+        stdout.contains("\"name\": \"RegisterProvisionedTenant\""),
+        "expected the translates block's own name on the built policy, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("\"on_event\": \"Provisioning.TenantProvisioned\""),
+        "expected `on Provisioning::TenantProvisioned` to qualify with a dot, same as a bluebook policy's own `on`, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("\"trigger_command\": \"Tenant.Register\""),
+        "expected `trigger Tenant::Register` to qualify with a dot, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("[\n          \"slug\",\n          \":slug\"\n        ]")
+            && stdout.contains("[\n          \"domain\",\n          \":domain\"\n        ]"),
+        "expected `with: {{ slug: :slug, domain: :domain }}` to round-trip as with_spec pairs, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("\"Register\""),
+        "expected Tenant's own Register command to still be built as a real command, got: {stdout}"
+    );
+}
+
+#[test]
 fn aggregate_port_operation_does_not_declare_its_receiver_as_a_fact() {
     let bluebook = fixture("port_routing.bluebook");
     let hecksagon = fixture("port_routing.hecksagon");
@@ -251,7 +300,7 @@ fn aggregate_port_operation_does_not_declare_its_receiver_as_a_fact() {
 }
 
 // Stage 8: `hecks-parse resolve --chapter <Name> <file.hecksagon>` is
-// now real (`parse::chapter::resolve_uses_framework`, built for
+// now real (`parse::chapter::resolve_hecksagon_dependencies`, built for
 // `bin/project_rust`'s own opt-in Rust orchestration path) — these two
 // fixtures are genuine success cases rather than `not yet implemented`
 // ones, since resolve is no longer a stub that always fails regardless

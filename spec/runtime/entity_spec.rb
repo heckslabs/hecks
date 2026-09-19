@@ -1,7 +1,7 @@
 require "spec_helper"
 
 RSpec.describe "an entity" do
-  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
   def boot_banking
     registry = Hecks::Runtime::Registry.new

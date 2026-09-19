@@ -51,6 +51,12 @@ module RustCommentStyle
 
   MARKER = %r{\A/{2,3}!?\s*}
   DOC_LINE = %r{\A\s*(?:///(?!/)|//!)}
+
+  # `// TMPL:name BEGIN`/`END` (and a nested `TMPL:outer:INNER BEGIN`/`END`)
+  # are exact-string sentinels `rust/project/exemplar.rb` parses back out of
+  # this source verbatim, casing included — never prose, never a shout to
+  # fix. Every prose rule skips a comment matching this outright.
+  TMPL_MARKER = /\bTMPL:\S+\s+(?:BEGIN|END)\b/i.freeze
   MOD_DOC_LINE = %r{\A\s*//!}
   ATTR_LINE = /\A\s*#\[/
   BOLD_HEADING = %r{\A(/{2,3}!?\s*(?:[-*]\s+)?)\*\*([^*]+)\*\*}
@@ -266,6 +272,8 @@ module RustCommentStyle
 
     def text_violations
       @comments.flat_map do |comment|
+        next [] if comment.text.match?(TMPL_MARKER)
+
         caps_violations(comment) + constant_violations(comment) + unknown_violations(comment) +
           bold_violations(comment) + history_violations(comment) + length_violations(comment)
       end
@@ -423,7 +431,7 @@ module RustCommentStyle
 
     def fix_line(line, number, wanted)
       comment = @by_line[number]
-      return line if comment.nil?
+      return line if comment.nil? || comment.text.match?(TMPL_MARKER)
 
       text = wanted.include?("all_caps") ? fix_caps(comment) : comment.text
       text = unbold(text) if wanted.include?("long_bold")

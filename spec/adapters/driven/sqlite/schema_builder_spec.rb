@@ -121,7 +121,7 @@ status: "available"))
   end
 
   describe "a list-typed field (Banking::CardPayment's `tags`, the corpus's one `contains`-on-a-list query)" do
-    BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
+    BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
     def boot_banking
       registry = Hecks::Runtime::Registry.new

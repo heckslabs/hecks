@@ -1,0 +1,42 @@
+{
+  "name": "embryonaut-vendoring-demo-parity",
+  "note": "The smallest uses_embryonaut_bluebook consumer: register and activate the domain's own Gadget, then create and retire the vendored widgets package's own Widget through the same booted registry — docs/decisions/0058.",
+  "domain": "examples/embryonaut_vendoring_demo",
+  "expectations": {
+    "events": 4
+  },
+  "steps": [
+    {
+      "verb": "EmbryonautVendoringDemo::Gadget.Register",
+      "args": {
+        "name": {
+          "value": "g1"
+        }
+      }
+    },
+    {
+      "verb": "EmbryonautVendoringDemo::Gadget.Activate",
+      "args": {
+        "name": {
+          "value": "g1"
+        }
+      }
+    },
+    {
+      "verb": "Widgets::Widget.Create",
+      "args": {
+        "name": {
+          "value": "w1"
+        }
+      }
+    },
+    {
+      "verb": "Widgets::Widget.Retire",
+      "args": {
+        "name": {
+          "value": "w1"
+        }
+      }
+    }
+  ]
+}

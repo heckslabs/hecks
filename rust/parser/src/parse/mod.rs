@@ -847,7 +847,7 @@ pub(crate) fn not_built_yet(
 /// crate now actually builds IR for. Stage 8: `handle_call`/`walk_body`
 /// are no longer called by anything — `main.rs::run_resolve` (their
 /// last real caller) now builds real IR too
-/// (`parse::chapter::resolve_uses_framework`), and every fixture
+/// (`parse::chapter::resolve_hecksagon_dependencies`), and every fixture
 /// `tests/gates.rs` still exercises through the generic gate goes
 /// through `not_built_yet`/`next_line` above instead. Left in place
 /// (genuinely dead, `#[warn(dead_code)]`-flagged) rather than deleted —

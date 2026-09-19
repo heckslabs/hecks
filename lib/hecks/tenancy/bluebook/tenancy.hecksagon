@@ -1,0 +1,32 @@
+Hecks.hecksagon "Tenancy" do
+  Tenancy::Tenant.persisted_by("LocalStorage")
+
+  # THE TRANSLATION SEAM — the one explicit place Deploy's "Tenant"
+  # (a validated request) becomes Tenancy's "Tenant" (a durable fact).
+  # `on` deliberately omits the "Deploy::" prefix: PolicyInterpreter
+  # matches by event name plus the emitting aggregate's own demodulised
+  # name only, never the domain (confirmed live — a domain-qualified
+  # `on` silently never matches).
+  #
+  # `with:` IS REQUIRED, confirmed live — `TenantProvisioned`'s own
+  # payload is the ANSWER (slug/domain/realm/schema) merged with the
+  # port operation's OWN dispatch-time args (database/adapter,
+  # PortOperationInterpreter#ask's `ctx.args.merge(spread(answer))`),
+  # so the whole payload forwarded verbatim carries two fields
+  # `Register` never declares and gets refused outright.
+  # CHECKED TOGETHER, NOT IN ISOLATION — `bin/model_check`'s own
+  # `deaf_policy` check only sees ONE domain's own emitted events by
+  # default, which would flag this reaction as deaf (it reacts to a
+  # FOREIGN event, not one Tenancy itself emits). Fixed by
+  # `global_emitted_events:`, a cross-domain set `bin/model_check`
+  # builds across every target it boots in one run — run `bin/model_check
+  # lib/hecks/deploy lib/hecks/tenancy` (both targets, one invocation),
+  # not each directory separately, or this reads as a false positive
+  # again. Neither `deploy` nor `tenancy` is in
+  # `Hecks::Corpus::MODEL_CHECK_KINDS`, so the automatic sweep never
+  # reaches this at all, checked or not.
+  translates "RegisterProvisionedTenant" do
+    on Tenant::TenantProvisioned
+    trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }
+  end
+end

@@ -431,7 +431,13 @@ module Hecks
         #   manager's own structural check fails
         def self.build(name, version: nil, &block)
           registry = Hecks.current_registry
-          builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
+          # WHICH FILE CALLED `Hecks.bluebook`, recorded for
+          # `Registry#record_bluebook_source` — two frames up: this
+          # method's own caller is `Hecks.bluebook` (hecks.rb), and ITS
+          # caller is the real `.bluebook` file's own top-level call site.
+          caller_location = caller_locations(2, 1)&.first
+          registry&.record_bluebook_source(name, caller_location&.path)
+          builder = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
           builder.__send__(:adopt_version, version)
           # A bare constant in a bluebook — `attribute :name, PizzaName` — is a name,
           # not a reference to something Ruby has heard of. `const_missing` hands

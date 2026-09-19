@@ -110,12 +110,46 @@ pub fn grammar_files(root: &Path) -> Result<Vec<PathBuf>, String> {
 /// run_capture!(PARSER_BIN, "resolve", ...); JSON.parse(resolved).fetch
 /// ("uses_framework")`.
 pub fn resolve_uses_framework(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path) -> Result<Vec<String>, String> {
+    resolve_json(parser_bin, chapter_name, hecksagon_path, "uses_framework")
+}
+
+/// The `uses_embryonaut_bluebook` twin of `resolve_uses_framework` —
+/// same subprocess call, same output, a different key. `hecks-parse
+/// resolve` already emits both keys in one call (`rust/parser/src/parse/
+/// hecksagon.rs`); without this function reading the second one, a
+/// vendored chapter would silently never reach `pipeline.rs`'s own
+/// `chapters` — the exact gap `rust/project_rust_pipeline.rb`'s own
+/// `uses_embryonaut_bluebook_names` fetch closed on the Ruby opt-in
+/// pipeline (docs/decisions/0058).
+pub fn resolve_uses_embryonaut_bluebook(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path) -> Result<Vec<String>, String> {
+    resolve_json(parser_bin, chapter_name, hecksagon_path, "uses_embryonaut_bluebook")
+}
+
+fn resolve_json(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path, key: &str) -> Result<Vec<String>, String> {
     let parser_bin_str = parser_bin.to_string_lossy().to_string();
     let hecksagon_str = hecksagon_path.to_string_lossy().to_string();
     let out = subprocess::run_capture(&parser_bin_str, &["resolve", "--chapter", chapter_name, &hecksagon_str])?;
     let json = Json::parse(&out).map_err(|e| format!("parsing 'hecks-parse resolve' output: {e}\n{out}"))?;
-    let names = json.get("uses_framework").map(Json::each).unwrap_or(&[]);
+    let names = json.get(key).map(Json::each).unwrap_or(&[]);
     Ok(names.iter().filter_map(Json::as_str).map(str::to_string).collect())
+}
+
+/// Every `.bluebook` directly under a vendored package's own
+/// `<domain>/vendor/embryonaut_bluebooks/<name>/bluebook/`, sorted — the
+/// same resolution `lib/hecks/embryonaut_bluebook.rb`'s own
+/// `EmbryonautBluebook.load!` uses and `rust/project_rust_pipeline.rb`'s
+/// own opt-in Ruby pipeline mirrors; a vendored package has no
+/// `.hecksagon` of its own (same restriction `framework_members` draws),
+/// just its `.bluebook` file(s).
+pub fn vendored_bluebook_files(domain: &Path, pkg_name: &str) -> Result<Vec<PathBuf>, String> {
+    let dir = domain.join("vendor").join("embryonaut_bluebooks").join(pkg_name).join("bluebook");
+    if !dir.is_dir() {
+        return Err(format!(
+            "uses_embryonaut_bluebook {pkg_name:?} names no vendored bluebook at {} — run bin/vendor_embryonaut_bluebooks {pkg_name}",
+            dir.display()
+        ));
+    }
+    bluebook_files(&dir)
 }
 
 #[cfg(test)]

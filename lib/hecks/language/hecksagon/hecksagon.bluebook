@@ -100,6 +100,16 @@ Hecks.bluebook "Hecksagon" do
       member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
       member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
+      # A CROSS-DOMAIN REACTION, WIRED HERE INSTEAD OF THE BLUEBOOK — same
+      # underlying `Policy` shape a `policy` block already builds
+      # (`inner`/`opens: "Policy"` reuses that context's own `on`/`trigger`
+      # wholesale, zero new inner vocabulary), but declared as a wiring
+      # decision (which FOREIGN domain's event this chapter conforms to),
+      # the same kind of decision `port`/`uses_framework` already are.
+      # No `calls:` — `HecksagonBuilder#translates` is an ordinary method,
+      # the same shape `subscribe`/`uses_framework` already are, reached
+      # by Ruby's own method lookup before `word_gate` ever runs.
+      member word: "translates",      context: "Hecksagon",     body: "keywords", inner: "Policy",        opens: "Policy",        fills: ""
 
     end
 
@@ -125,6 +135,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
       member keyword: "uses_embryonaut_bluebook", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "vendored_bluebooks"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
 
     end
   end

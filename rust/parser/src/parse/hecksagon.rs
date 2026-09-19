@@ -14,6 +14,7 @@
 //! gap) — named here as tracked Stage 2+ work rather than guessed at.
 
 use super::domain_port;
+use super::policy;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, LineShape, Opener, SourceLine};
@@ -37,7 +38,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 ///
 /// `uses_framework_names` — stage 8 addition: every `uses_framework
 /// "X"` argument encountered, pushed in file order, so `hecks-parse
-/// resolve` (parse::chapter::resolve_uses_framework, the only other
+/// resolve` (parse::chapter::resolve_hecksagon_dependencies, the only other
 /// caller that cares) can report them back to `bin/project_rust`'s
 /// opt-in Rust orchestration path without a second pass over the file.
 /// `parse_chapter`'s own call sites (both the matching and the
@@ -52,7 +53,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// every aggregate the sibling `.bluebook` file just registered) or a
 /// same-shape discarded one for a sibling chapter's own block, so an
 /// aggregate-scoped `port` line naming an aggregate that doesn't exist
-/// is a genuine error either way. `resolve_uses_framework` passes
+/// is a genuine error either way. `resolve_hecksagon_dependencies` passes
 /// `false`: it never sees a `.bluebook` file at all (by design — see
 /// `main.rs::run_resolve`'s own header on why `hecks-parse resolve`
 /// takes only the `.hecksagon` path), so its `ir::Bluebook::default()`
@@ -62,12 +63,24 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// construct resolve doesn't even report. The body still gates fully
 /// either way (fail-closed holds); only the "attach onto a real
 /// aggregate" step is skipped when `false`.
+///
+/// `vendored_bluebook_names` — same stage 8 shape as
+/// `uses_framework_names`, one line below: every `uses_embryonaut_
+/// bluebook "X"` argument encountered, pushed in file order. Same
+/// caller (`hecks-parse resolve`), same reason: a vendored package is
+/// attached the same `Kernel.load`-into-registry way a framework member
+/// is (`lib/hecks/embryonaut_bluebook.rb`'s own header — "same shape as
+/// Framework"), so the opt-in Rust-native pipeline needs to discover it
+/// the same way, from the same `.hecksagon` scan, or it silently drops
+/// the vendored chapter entirely while the default Ruby path still
+/// generates it — a real divergence, not a hypothetical one.
 pub fn apply(
     file: &str,
     lines: &[SourceLine],
     pos: &mut usize,
     bluebook: &mut ir::Bluebook,
     uses_framework_names: &mut Vec<String>,
+    vendored_bluebook_names: &mut Vec<String>,
     require_matching_aggregate: bool,
 ) -> ParseResult<()> {
     loop {
@@ -112,7 +125,7 @@ pub fn apply(
         if let LineShape::Call(call) = lex::classify(file, &line)? {
             if !matches!(
                 call.word.as_str(),
-                "port" | "subscribe" | "uses_framework" | "end"
+                "port" | "subscribe" | "uses_framework" | "uses_embryonaut_bluebook" | "translates" | "end"
             ) {
                 *pos += 1;
                 if matches!(call.opener, Opener::DoBlock { .. }) {
@@ -139,6 +152,30 @@ pub fn apply(
                         super::positional_text(file, gated.line.number, "port", &gated.args, 1)?;
                     let _ = domain_port::parse_body(file, lines, pos, &name, None)?;
                 }
+                // `translates "Name" do on Foreign::Event; trigger Local.Command; end` —
+                // a cross-domain reaction wired here (Hecksagon context) instead of the
+                // sibling `.bluebook`'s own `policy` block, but building the exact same
+                // `ir::Policy` shape (`HecksagonBuilder#translates` -> `PolicyBuilder.build`
+                // -> `Chapter#add_policy`, Ruby side) — reuses `policy::parse_body`
+                // wholesale, zero new IR fields. Pushed straight onto the already-built
+                // `bluebook.policies` (mirrors `Chapter#add_policy`'s own `@policies <<`,
+                // which runs on the same already-registered, already-built chapter this
+                // Hecksagon file mutates — see this module's own header), so a
+                // `translates` block lands after every aggregate- and chapter-level
+                // policy the sibling `.bluebook` file already contributed, in file
+                // order, the same "declared after the model, in Hecksagon" position
+                // `add_port`'s own `port` arm just above gives a bare root port.
+                "translates" => {
+                    let name = super::positional_text(
+                        file,
+                        gated.line.number,
+                        "translates",
+                        &gated.args,
+                        1,
+                    )?;
+                    let built = policy::parse_body(file, lines, pos, &name)?;
+                    bluebook.policies.push(built);
+                }
                 // `uses_framework "Governance"`/`subscribe "..."` —
                 // accepted and ignored, per the plan's own finding #5:
                 // `.hecksagon` contributes exactly two things to `ir.json`
@@ -158,6 +195,22 @@ pub fn apply(
                         file,
                         gated.line.number,
                         "uses_framework",
+                        &gated.args,
+                        1,
+                    )?);
+                }
+                // `uses_embryonaut_bluebook "widgets"` — same treatment
+                // as `uses_framework` just above: gated for real, its
+                // one required text argument collected into its own
+                // accumulator, `ir::Bluebook#to_h` still never mentions
+                // it (no `vendored_bluebooks` key either — a binding
+                // fact, not a shape fact, same reasoning as
+                // `uses_framework`'s own).
+                "uses_embryonaut_bluebook" => {
+                    vendored_bluebook_names.push(super::positional_text(
+                        file,
+                        gated.line.number,
+                        "uses_embryonaut_bluebook",
                         &gated.args,
                         1,
                     )?);
@@ -237,7 +290,7 @@ fn apply_aggregate_qualified(
                 format!("{receiver} declares no such aggregate — a port needs one to belong to"),
             ));
         }
-        // `resolve_uses_framework`'s own accumulator never carries real
+        // `resolve_hecksagon_dependencies`'s own accumulator never carries real
         // aggregates (this function's own header) — the body above
         // still gated fully for real; there is simply nothing to attach
         // the result to, which is fine, since resolve never reports
