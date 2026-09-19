@@ -2011,7 +2011,7 @@ pub fn dispatch_keyword(
         ],
         None,
         |record| {
-        if record.keywords.iter().any(|e| e.position == args.position.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Keyword"), ("aggregate", "Syntax"), ("identity", "position.value"), ("offered", &format!("{:?}", args.position.clone()))]))); }
+        if record.keywords.iter().any(|e| e.position == args.position.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Keyword"), ("aggregate", "Syntax"), ("identity", "position.value"), ("offered", &format!("{:?}", args.position.clone().value))]))); }
         record.keywords.push(Keyword { position: args.position.clone(), word: args.word.clone(), context: args.context.clone(), body: args.body.clone(), inner: args.inner.clone(), opens: args.opens.clone(), fills: args.fills.clone(), was: args.was.clone(), resolves_via: args.resolves_via.clone(), disambiguator: args.disambiguator.clone(), calls: args.calls.clone(), status: "admitted".to_string() });
             Ok(())
         },
@@ -2207,7 +2207,7 @@ pub fn dispatch_argument(
         ],
         None,
         |record| {
-        if record.arguments.iter().any(|e| e.position == args.position.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Argument"), ("aggregate", "Syntax"), ("identity", "position.value"), ("offered", &format!("{:?}", args.position.clone()))]))); }
+        if record.arguments.iter().any(|e| e.position == args.position.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Argument"), ("aggregate", "Syntax"), ("identity", "position.value"), ("offered", &format!("{:?}", args.position.clone().value))]))); }
         record.arguments.push(Argument { position: args.position.clone(), keyword: args.keyword.clone(), context: args.context.clone(), at: args.at.clone(), named: args.named.clone(), kind: args.kind.clone(), required: args.required.clone(), fills: args.fills.clone(), selects: args.selects.clone(), pair_key_fills: args.pair_key_fills.clone(), pair_value_fills: args.pair_value_fills.clone(), pairs_shape: args.pairs_shape.clone(), variadic: args.variadic.clone(), minimum: args.minimum.clone(), coerce: args.coerce.clone(), blank_message: args.blank_message.clone(), status: "admitted".to_string() });
             Ok(())
         },

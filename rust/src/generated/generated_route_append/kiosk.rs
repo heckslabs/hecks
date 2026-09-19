@@ -1258,7 +1258,7 @@ pub fn dispatch_add_line(
         ],
         None,
         |record| {
-        if record.lines.iter().any(|e| e.sequence == args.sequence.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Line"), ("aggregate", "Kiosk"), ("identity", "sequence.value"), ("offered", &format!("{:?}", args.sequence.clone()))]))); }
+        if record.lines.iter().any(|e| e.sequence == args.sequence.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Line"), ("aggregate", "Kiosk"), ("identity", "sequence.value"), ("offered", &format!("{:?}", args.sequence.clone().value))]))); }
         record.lines.push(Line { sequence: args.sequence.clone(), label: None });
             Ok(())
         },

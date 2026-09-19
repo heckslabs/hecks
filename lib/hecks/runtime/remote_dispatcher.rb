@@ -37,7 +37,7 @@ module Hecks
 
       attr_reader :registry
 
-      def initialize(registry, region: "us-east-1")
+      def initialize(registry, region: "us-east-1", function: nil)
         @registry = registry
         # `File.basename(registry.root)`, not `bluebooks.keys.first` —
         # matches `Adapters::Lambda`'s own function-name resolution
@@ -49,7 +49,12 @@ module Hecks
         # inside a deployed Lambda, giving "task" instead of the real
         # domain name (a real, live AccessDeniedException on
         # "hecks-task" caught this).
-        @client = Adapters::Lambda::Client.new(domain: ENV["DOMAIN_NAME"] || File.basename(registry.root), region: region)
+        # `function:` — the `.world`'s own `dispatched_by("Lambda")`
+        # naming of which function this is, for a deployment whose stack
+        # name isn't `hecks-<domain>` (Client's own comment has the real
+        # case). Absent, the resolution above is unchanged.
+        @client = Adapters::Lambda::Client.new(domain: ENV["DOMAIN_NAME"] || File.basename(registry.root),
+                                               region: region, function: function)
         # Read-side delegate only (see class comment) — never dispatched
         # through; a real Dispatcher's own `query`/`reference_query`
         # already resolve generically via `registry.repository(...)`,
