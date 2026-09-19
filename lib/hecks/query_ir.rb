@@ -37,6 +37,11 @@ module Hecks
 
     module_function
 
+    # Reads the fields the language declares for one construct kind, from the grammar itself.
+    #
+    # @param name [String] a `CONSTRUCTS` key, such as `"Aggregate"`
+    # @return [Array<Symbol>] the attribute names the self-hosted meta-domain
+    #   grammar declares for `name`
     def meta_declared(name)
       Hecks::Bluebook::MetaValidator.grammar_registry
                                     .bluebook("Bluebook").aggregate(name).attributes.map(&:name)
@@ -47,6 +52,11 @@ module Hecks
     # for it — the same comparison spec/model_shape_conformance_spec.rb
     # makes, reusing its own Deviations data so this can never silently
     # drift from what that gate actually checks.
+    #
+    # @param name [String] a `CONSTRUCTS` key, such as `"Aggregate"`
+    # @return [Hash{Symbol => Object}] `:name`, `:declared`, `:emitted`, plus
+    #   `:missing_from_ruby` and `:unaccounted_in_ruby` — each an `Array<Symbol>`
+    # @raise [ArgumentError] if `name` is not a `CONSTRUCTS` key
     def construct_diff(name)
       klass = CONSTRUCTS.fetch(name) do
         raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}"
@@ -72,6 +82,10 @@ module Hecks
         missing_from_ruby: accounted - emitted, unaccounted_in_ruby: unaccounted }
     end
 
+    # Diffs one or every construct kind at once.
+    #
+    # @param names [Array<String>] `CONSTRUCTS` keys to diff, every construct when empty
+    # @return [Array<Hash>] one `construct_diff` result per name
     def constructs(names = [])
       targets = names.empty? ? CONSTRUCTS.keys : names
       targets.map { |name| construct_diff(name) }
@@ -96,6 +110,10 @@ module Hecks
     # already a distinct object, whether it was block-declared or
     # bare-referenced — object identity carries no signal past that
     # point, for any construct, not just this one).
+    #
+    # @param registry [Runtime::Registry] the booted registry to walk
+    # @param chapter_name [String, nil] one chapter to walk, every booted chapter when nil
+    # @return [Array<Rule>]
     def collect_rules(registry, chapter_name = nil)
       rules = []
       chapters = chapter_name ? [registry.bluebook(chapter_name)] : registry.bluebooks.values
@@ -158,6 +176,10 @@ module Hecks
     # local_givens` reads it directly to group `collect_rules`' own
     # output by owner itself, the same reading `duplicates`' own
     # `declaration_count` makes.
+    #
+    # @param location [String] a `Rule#location`
+    # @return [String] the owning construct's path, with `" (declared)"` or a trailing
+    #   `.CommandName` segment stripped
     def owner_of(location)
       return location.sub(/ \(declared\)\z/, "") if location.end_with?(" (declared)")
 
@@ -188,6 +210,12 @@ module Hecks
     # `domains: []` means "the self-hosted meta-domain only" — pass real
     # domain directories explicitly to include them, or `nil` (the
     # default) for meta-domain plus every real example.
+    #
+    # @param domains [Array<String>, nil] domain root directories to scan; every real
+    #   example (`Codemod::EXAMPLE_ROOTS`) when nil, none beyond the meta-domain when `[]`
+    # @param include_meta [Boolean] whether to also scan the self-hosted meta-domain
+    # @return [Array<Hash>] one entry per duplicate group: `:kind`, `:description`,
+    #   `:canonical`, and `:locations` (`Array<String>`)
     def duplicates(domains: nil, include_meta: true)
       domains ||= Codemod::EXAMPLE_ROOTS
       all_rules = []
@@ -282,6 +310,8 @@ module Hecks
     # `bin/hecks_query_ir_mcp` (an MCP tool result, itself a text
     # block) want the identical human-readable rendering; only the
     # outer framing differs (plain stdout vs. a JSON-RPC content array).
+    # @param diffs [Array<Hash>] `constructs`' own output
+    # @return [String] the human-readable rendering
     def format_constructs(diffs)
       diffs.map do |diff|
         lines = ["== #{diff[:name]} =="]
@@ -328,6 +358,12 @@ module Hecks
     # existing gate (`model_shape_conformance_spec.rb`,
     # `assembly_spec.rb`, `meta_domain_coverage_spec.rb`) before trusting
     # a `false` here as a real gap.
+    # @param name [String] a `CONSTRUCTS` key, such as `"Aggregate"`
+    # @param field [String, Symbol] the declared field to check propagation for
+    # @return [Hash{Symbol => Object}] `:name`, `:field`, and `:touchpoints` — an
+    #   `Array<Hash>` of `:touchpoint` (String) and `:present` (Boolean, or nil when the
+    #   touchpoint does not apply to `name`)
+    # @raise [ArgumentError] if `name` is not a `CONSTRUCTS` key
     def impact_preview(name, field)
       CONSTRUCTS.fetch(name) { raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}" }
       field = field.to_s
@@ -402,6 +438,10 @@ module Hecks
     end
     private_class_method :rust_mentions?
 
+    # Renders one field's touchpoint checklist as text.
+    #
+    # @param preview [Hash] `impact_preview`'s own output
+    # @return [String] the human-readable rendering
     def format_impact_preview(preview)
       lines = ["== #{preview[:name]}##{preview[:field]} =="]
       preview[:touchpoints].each do |t|
@@ -421,6 +461,10 @@ module Hecks
       lines.join("\n")
     end
 
+    # Renders the duplicate-rule groups as text.
+    #
+    # @param groups [Array<Hash>] `duplicates`' own output
+    # @return [String] the human-readable rendering
     def format_duplicates(groups)
       return "no duplicate given/invariant/ensures rule found" if groups.empty?
 

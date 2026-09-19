@@ -10,21 +10,22 @@ module Hecks
       include Hecks::IR
       include Behaviour::Mutation
 
-      # `sign:` — item #5 of the whole-project table-unification survey.
-      # `increment`/`decrement`'s own +1/-1 used to be re-derived from the
-      # op name by two independent Rust codegen scripts (rust/project/
-      # mutations.rb, rust/codegen/src/mutations.rs — a ternary on
-      # `op == "increment"` in each), even though the fact was already
-      # table-driven on the Ruby runtime side
-      # (Runtime::CommandRules::Arithmetic::MUTATION_OPS, itself read off
-      # the same generated Vocabulary::MutationOp table).
-      # Reads `Vocabulary::MutationOp` directly (plain data, no framework
-      # dependency — safe during parsing, same reason `RuleReference`'s
-      # own bootstrap concerns don't apply here) rather than requiring
-      # Runtime::CommandRules from the bluebook/IR layer, which would be a
-      # real layering inversion (runtime depends on bluebook, not the
-      # reverse). "" (not nil) for ops with no sign, matching every other
-      # optional IR text field's own absent-is-empty-string convention.
+      # `sign:` — item #5 of the whole-project table-unification survey. Reads
+      # `Vocabulary::MutationOp` directly (plain data, no framework dependency
+      # — safe during parsing, same reason `RuleReference`'s own bootstrap
+      # concerns don't apply here) rather than requiring `Runtime::CommandRules`
+      # from the bluebook/IR layer, which would be a real layering inversion
+      # (runtime depends on bluebook, not the reverse), and rather than
+      # independently re-deriving `increment`/`decrement`'s own +1/-1 from the
+      # op name in two Rust codegen scripts (rust/project/mutations.rb,
+      # rust/codegen/src/mutations.rs), duplicating what
+      # `Runtime::CommandRules::Arithmetic::MUTATION_OPS` already tables off
+      # this same generated `Vocabulary::MutationOp` data. `""` (not nil) for
+      # ops with no sign, matching every other optional IR text field's own
+      # absent-is-empty-string convention.
+      #
+      # @param oper [String, Symbol] the mutation operation's name, such as `"increment"`
+      # @return [String] the op's sign (`"+"`/`"-"`), or `""` if the op has none
       def self.sign_for(oper)
         Hecks::Vocabulary.rows("MutationOp").find { |row| row["name"] == oper.to_s }&.fetch("sign", "") || ""
       end
@@ -39,6 +40,10 @@ module Hecks
       # emission covers the fixed head; `super` supplies it and this adds
       # the tail, which is why a construct with a variable shape needs no
       # new mixin API.
+      #
+      # @return [Hash] the declared emission, plus `fields:` (each target field's rendered
+      #   source) for `append`/`delegate`/`corrects`, or `source:` (the classified source)
+      #   for every other op
       def to_h
         return super.merge(fields: appended_fields) if [:append, :delegate, :corrects].include?(op)
 
@@ -95,6 +100,27 @@ module Hecks
         attr_reader :role, :goal, :attributes, :givens, :ensures, :mutations, :emits, :references,
                     :from, :provenance
 
+        # Mints a new verb class for one declared command and absorbs its fields into it.
+        #
+        # @param name [String, Symbol] the command's declared name
+        # @param role [String, Symbol, nil] the command's declared responsibility, or `nil`
+        #   if it declares none
+        # @param goal [String, nil] the command's declared human-readable description
+        # @param attributes [Array<Bluebook::Attribute>] the command's declared arguments
+        # @param givens [Array<Bluebook::Given>] the admissibility rules that must hold
+        #   before this command runs
+        # @param ensures [Array<Bluebook::Given>] the rules that must hold after this
+        #   command runs
+        # @param mutations [Array<Bluebook::Mutation>] the field mutations this command
+        #   applies
+        # @param emits [Array<String>] the events this command declares it emits
+        # @param references [String, Symbol, nil] the aggregate this command
+        #   self-addresses or cross-references, or `nil` for a creating command
+        # @param from [String, Array<String>, nil] the lifecycle state(s), or state, this
+        #   command is admissible from, or `nil` for no such guard
+        # @param provenance [Object, nil] the command's declared canonical source, captured
+        #   exactly as written, or `nil` if it declares none
+        # @return [Class] the minted verb class (a `Bluebook::Command` subclass)
         def declare(name:, role: nil, goal: nil, attributes: [], givens: [], ensures: [],
                     mutations: [], emits: [], references: nil, from: nil, provenance: nil)
           verb = Class.new(self)
@@ -105,6 +131,20 @@ module Hecks
           verb
         end
 
+        # Assigns what the language declares onto this verb class, then hands off to
+        # `Behaviour::Command#settle`.
+        #
+        # @param role [String, Symbol, nil] see `declare`
+        # @param goal [String, nil] see `declare`
+        # @param attributes [Array<Bluebook::Attribute>] see `declare`
+        # @param givens [Array<Bluebook::Given>] see `declare`
+        # @param ensures [Array<Bluebook::Given>] see `declare`
+        # @param mutations [Array<Bluebook::Mutation>] see `declare`
+        # @param emits [Array<String>] see `declare`
+        # @param references [String, nil] see `declare`
+        # @param from [String, Array<String>, nil] see `declare`
+        # @param provenance [Object, nil] see `declare`
+        # @return [Class] this verb's own class, self, once its attributes are indexed
         def absorb(role:, goal:, attributes:, givens:, ensures:, mutations:, emits:, references:,
                    from: nil, provenance: nil)
           @role       = role

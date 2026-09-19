@@ -8,6 +8,8 @@ require_relative "postgres_probe"
 # declaration nothing reads cannot disagree with anything, and prose is
 # a declaration.
 #
+# ## Fence kinds
+#
 # A guide is a Markdown file whose fences mean:
 #
 #   ```ruby bluebook   a domain declaration — booted, via its own
@@ -31,6 +33,8 @@ require_relative "postgres_probe"
 #   Kernel.load(...)
 #   -->
 #
+# ## Claim markers
+#
 # Two claim markers, both required to sit on a single-line expression
 # (the transform must preserve the file's line count so a failure names
 # the guide's real line):
@@ -40,6 +44,8 @@ require_relative "postgres_probe"
 #   expr   # ~> Klass: text   the expression must refuse — class name
 #                             (demodulized) and message substring both
 #                             checked; not raising is the failure
+#
+# ## Postgres-gated guides
 #
 # A guide whose first line is `<!-- doctest: postgres -->` runs only
 # when a local Postgres answers, and skips cleanly otherwise.
@@ -63,6 +69,8 @@ module Doctest
   # excluded or not. Both callers below already only reach this from
   # inside an example body (already deferred by RSpec), so a method call
   # there triggers real I/O only when the example actually runs.
+  #
+  # @return [Boolean] whether a local Postgres answers
   def self.postgres_available? = PostgresProbe.available?
 
   # schema-evolution.md's opening section is not a fixture — it reads
@@ -76,6 +84,9 @@ module Doctest
   # history, so this checks for the second era's own row rather than
   # assume reachable Postgres means this specific guide can run. Also a
   # method, memoized, for the same reason `postgres_available?` is.
+  #
+  # @return [Boolean] whether the reachable `hecks_pizzas` Postgres database already carries at
+  #   least two `hecks_eras` rows, `false` if Postgres is unreachable or the row count is lower
   def self.pizzas_history_available?
     return @pizzas_history_available if defined?(@pizzas_history_available)
 
@@ -93,12 +104,18 @@ module Doctest
 
   module_function
 
+  # Reads a guide's Markdown file into its fenced blocks.
+  #
   # A single-pass state machine over the guide's lines — `fence` is the
   # in-progress marker (or nil), `buffer`/`start` accumulate the current
   # block. Dispatches on the closed set of fence markers this file's own
   # header documents. Splitting the line-loop from the `case` would mean
   # threading `fence`/`buffer`/`start` between methods as parameters and
   # return values instead of as plain locals closed over by one loop.
+  #
+  # @param path [String] path to the guide's Markdown file
+  # @return [Doctest::Guide] the guide's blocks, its skipped-fence count, and whether it opts
+  #   into the Postgres gate
   # rubocop:disable-next Metrics/CyclomaticComplexity
   def parse(path)
     blocks = []
@@ -139,6 +156,8 @@ module Doctest
               postgres: File.foreach(path).first(3).any? { |l| l.include?("<!-- doctest: postgres -->") })
   end
 
+  # Finds the chapter names a guide declares for itself.
+  #
   # The chapter names a guide declares — the collision gate reads these,
   # because facade constants install onto Object and are never
   # uninstalled: two guides inventing the same domain would silently
@@ -153,6 +172,10 @@ module Doctest
   # deliberately not flagged: both boot the identical file into their
   # own isolated Registry, and there is nothing for them to disagree
   # about.
+  #
+  # @param guide [Doctest::Guide] the parsed guide to scan
+  # @return [Array<String>] the chapter names declared in the guide's own non-usage blocks,
+  #   deduplicated; `[]` if it declares none itself
   def declared_domains(guide)
     guide.blocks
          .reject { |block| block.kind == :usage }
@@ -160,6 +183,17 @@ module Doctest
          .flatten.uniq
   end
 
+  # Parses a guide and runs it end to end: every declaration wave booted, every usage block
+  # evaluated, every claim checked.
+  #
+  # @param path [String] path to the guide's Markdown file
+  # @return [Boolean] `true` once every wave has run with no claim failing
+  # @raise [Doctest::Mismatch] if a `# =>` claim's actual value does not equal the expected one,
+  #   or a `# ~>` claim's expression does not refuse as it says
+  # @raise [Doctest::Malformed] if a claim marker sits on a line that does not parse as a
+  #   single-line expression
+  # @raise [Runtime::WiringError] if the guide's own boot blocks wire the domain badly (an
+  #   unknown adapter, a bind to an undeclared aggregate, a missing port method)
   def run(path)
     guide = parse(path)
     session = Session.new(guide)
@@ -174,11 +208,22 @@ module Doctest
   # runtime, so a guide reaches back to an earlier wave's domain at its
   # own peril.
   class Session
+    # @param guide [Doctest::Guide] the parsed guide this session runs
     def initialize(guide)
       @guide = guide
       @tempfiles = []
     end
 
+    # Runs every wave of the guide: boots each wave's declaration blocks, then evaluates its
+    # usage blocks against that boot, in a single binding shared across the whole guide.
+    #
+    # @return [Boolean] `true` once every wave has run with no claim failing
+    # @raise [Doctest::Mismatch] if a `# =>` claim's actual value does not equal the expected
+    #   one, or a `# ~>` claim's expression does not refuse as it says
+    # @raise [Doctest::Malformed] if a claim marker sits on a line that does not parse as a
+    #   single-line expression
+    # @raise [Runtime::WiringError] if a wave's boot blocks wire the domain badly (an unknown
+    #   adapter, a bind to an undeclared aggregate, a missing port method)
     def call
       host = Object.new
       checker = Checker.new(@guide.path)
@@ -264,11 +309,24 @@ module Doctest
     end
   end
 
+  # The claim evaluator bound into a guide's shared binding as `__dt__`. `Session#transform`
+  # rewrites each `# =>`/`# ~>` line into a call here, so a claim's failure raises `Mismatch`
+  # with the guide's own file and line rather than an assertion buried in this file's own.
   class Checker
+    # @param path [String] path to the guide file, named in every failure this checker raises
     def initialize(path)
       @path = path
     end
 
+    # Checks a `# => expected` claim: the expression's actual value must equal `expected_source`
+    # evaluated in this checker's own binding.
+    #
+    # @param line [Integer] the guide's line number the claim sits on
+    # @param expected_source [String] the `# => expected` text's source, evaluated separately
+    # @param expression [String] the claim's own code, as written, shown verbatim on failure
+    # @yieldreturn [Object] the actual value the claim's expression evaluates to
+    # @return [Object] the actual value, once it is confirmed to equal the expected one
+    # @raise [Doctest::Mismatch] if the actual value does not equal the expected one
     def eq(line, expected_source, expression)
       actual = yield
       expected = eval(expected_source, binding, "#{@path} (expected at :#{line})")
@@ -282,6 +340,19 @@ module Doctest
       WHY
     end
 
+    # Checks a `# ~> Klass: text` claim: the expression must raise, with a demodulized class
+    # name equal to `klass` and a message that includes `message`.
+    #
+    # @param line [Integer] the guide's line number the claim sits on
+    # @param klass [String] the demodulized exception class name the claim expects, such as
+    #   `"WiringError"`
+    # @param message [String] substring the raised exception's message must include; `""` if
+    #   the claim named none
+    # @param expression [String] the claim's own code, as written, shown verbatim on failure
+    # @yieldreturn [Object] discarded; the block is only run for its side effect of raising
+    # @return [StandardError] the raised exception, once it is confirmed to match
+    # @raise [Doctest::Mismatch] if the expression does not raise, or raises a class other than
+    #   `klass` or a message that omits `message`
     def refuses(line, klass, message, expression)
       yield
       raise Mismatch, <<~WHY

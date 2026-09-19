@@ -33,12 +33,14 @@ RSpec.describe "the expression sublanguage" do
       expect { evaluate('amount.modulo("x")', amount: 7) }.to raise_error(/modulo expects a number/)
     end
 
-    # M8 (docs/audits/2026-08-10-main-bug-audit.md) — modulo used to
-    # truncate both operands with `.to_i` before dividing, and zero-check
-    # a coerced-but-still-untruncated divisor. A divisor that only
-    # truncates to zero (`0.3.to_i == 0`) sailed past that guard and then
-    # blew up the real `%` with a raw `ZeroDivisionError` — never reaching
-    # this sublanguage's own `EvaluationError` refusal.
+    # M8 (docs/audits/2026-08-10-main-bug-audit.md) — modulo zero-checks
+    # the real, untruncated divisor and evaluates a plain `%` on the
+    # coerced values. Truncating both operands with `.to_i` before
+    # dividing, and zero-checking a coerced-but-still-untruncated divisor,
+    # would let a divisor that only truncates to zero (`0.3.to_i == 0`)
+    # sail past that guard and then blow up the real `%` with a raw
+    # `ZeroDivisionError` — never reaching this sublanguage's own
+    # `EvaluationError` refusal.
     #
     # `resolve`, not `evaluate` — modulo is the Resolver's own arithmetic
     # leaf, and `Evaluator.call` would fold its numeric result through
@@ -54,7 +56,8 @@ RSpec.describe "the expression sublanguage" do
 
     it "does not truncate float operands, matching Ruby's own modulo" do
       expect(resolve("amount.modulo(2.5)", amount: 7.5)).to eq(7.5 % 2.5)
-      expect(resolve("amount.modulo(2.5)", amount: 7.5)).not_to eq(1) # the old truncated-to-Integer answer
+      # the old truncated-to-Integer answer
+      expect(resolve("amount.modulo(2.5)", amount: 7.5)).not_to eq(1)
     end
 
     it "supports empty maps and scalar string conversion" do
@@ -76,7 +79,8 @@ RSpec.describe "the expression sublanguage" do
     # `.modulo` a nested `.modulo` call.
     it "parses a NESTED modulo divisor correctly, not by finding the rightmost .modulo(" do
       expect(resolve("0.modulo(amount.modulo(3))", amount: 7)).to eq(0.modulo(7.modulo(3)))
-      expect(evaluate("1 == 7.modulo(amount.modulo(3))", amount: 5)).to be(true) # 5 % 3 = 2; 7 % 2 = 1
+      # 5 % 3 = 2; 7 % 2 = 1
+      expect(evaluate("1 == 7.modulo(amount.modulo(3))", amount: 5)).to be(true)
     end
 
     # The same mis-split, a different shape: chained calls
@@ -186,13 +190,13 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("!(a && b)",      { a: true, b: false })).to be true
     end
 
-    # M6 (docs/audits/2026-08-10-main-bug-audit.md) — every spelling of
-    # negated membership used to raise. `match_include`'s naive
-    # `rindex(".include?(")` isn't aware of a leading `!`, so it swallowed
-    # the marker straight into the haystack text ("!names"), which
-    # `Resolver.parse` cannot resolve. `!` now negates the whole boolean
-    # expression that follows it, exactly as real Ruby's `!` binds to a
-    # full method-call chain.
+    # M6 (docs/audits/2026-08-10-main-bug-audit.md) — `!` negates the
+    # whole boolean expression that follows it, exactly as real Ruby's
+    # `!` binds to a full method-call chain. A naive `rindex(".include?(")`
+    # in `match_include`, unaware of a leading `!`, would swallow the
+    # marker straight into the haystack text ("!names"), which
+    # `Resolver.parse` cannot resolve — every spelling of negated
+    # membership would raise.
     it "expresses negated membership" do
       state = { names: %w[Basil Olive] }
 
@@ -636,18 +640,19 @@ RSpec.describe "the expression sublanguage" do
     end
 
     # M9 (docs/audits/2026-08-10-main-bug-audit.md) — a dotted lookup that
-    # walks onto an Array used to hit `Array#[]` with a non-Integer
-    # segment and raise a raw `TypeError` straight past this
-    # sublanguage's own refusal boundary, instead of the `EvaluationError`
-    # every other "this predicate can't read that" case already raises.
+    # walks onto an Array with a non-Integer segment refuses with
+    # `EvaluationError`, the same as every other "this predicate can't
+    # read that" case, rather than hitting `Array#[]` and raising a raw
+    # `TypeError` straight past this sublanguage's own refusal boundary.
     it "refuses, rather than raising a raw TypeError, a dotted lookup onto a list" do
       expect { evaluate("list.foo", { list: [1, 2, 3] }) }
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /cannot read "foo"/)
     end
 
-    # M9 — a malformed pattern between the slashes used to reach
-    # `Regexp.new` and raise a raw `RegexpError`, the same shape of
-    # boundary crossing as the TypeError/ZeroDivisionError cases above.
+    # M9 — a malformed pattern between the slashes refuses with
+    # `EvaluationError` rather than reaching `Regexp.new` and raising a
+    # raw `RegexpError`, the same shape of boundary crossing as the
+    # TypeError/ZeroDivisionError cases above.
     it "refuses, rather than raising a raw RegexpError, an invalid match? pattern" do
       expect { evaluate("value.match?(/[/)", value: "x") }
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /invalid pattern/)
@@ -737,12 +742,13 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # `interpret`'s own `case` in both Evaluator and Resolver used to have no
-  # `else` at all — a node type `parse` never produces reaching it (today,
-  # only possible from a hand-built AST, not real corpus text) would return
-  # bare `nil` silently rather than refuse. Neither method's real `parse` can
-  # produce a node outside its own known set, so this exercises the backstop
-  # directly, past `parse`, the only way to reach it at all.
+  # `interpret`'s own `case` in both Evaluator and Resolver has an `else`
+  # backstop — a node type `parse` never produces reaching it (today,
+  # only possible from a hand-built AST, not real corpus text) would
+  # otherwise return bare `nil` silently rather than refuse. Neither
+  # method's real `parse` can produce a node outside its own known set,
+  # so this exercises the backstop directly, past `parse`, the only way
+  # to reach it at all.
   describe "interpret's own exhaustiveness backstop" do
     UnknownNode = Struct.new(:whatever)
 
@@ -792,11 +798,12 @@ RSpec.describe "the expression sublanguage" do
   end
 
   # S2 (docs/audits/2026-08-10-main-bug-audit.md) — `Resolver#walk_path`
-  # used to read a dotted step with `current[segment.to_sym] ||
-  # current[segment]`, which drops a genuinely-stored `false` to `nil`
-  # (`false || …` falls through to the other key spelling). A dotted
-  # lookup that lands on a `false` member used to answer as though the
-  # member were entirely absent.
+  # checks `current.key?(sym)` before falling back to the other key
+  # spelling, rather than reading a dotted step with
+  # `current[segment.to_sym] || current[segment]`, which would drop a
+  # genuinely-stored `false` to `nil` (`false || …` falls through to the
+  # other key spelling) — a dotted lookup that lands on a `false` member
+  # would otherwise answer as though the member were entirely absent.
   describe "dotted lookup onto a stored false" do
     it "reads a false-valued nested member as itself, not as absent" do
       expect(evaluate("flags.active == false", { flags: { active: false } })).to be(true)

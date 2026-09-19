@@ -8,23 +8,27 @@ module Hecks
     # target's own real, already-configured `PostgresEra` ledger:
     # does any ancestor era still hold writes nobody has merged forward?
     #
-    # **The bug this targets, named exactly**. Minting a new era (an attribute
-    # or aggregate addition — `StorageShape.project`, lib/hecks/ports/
-    # persistence/plugins/era/storage_shape.rb) advances the readable head
-    # to a new partition; an old checkout, or a process that boots slower
-    # than the mint, can keep writing into the era it still believes is
-    # current. Those writes are not lost — `Lineage#diverged_count`
-    # (postgres_era/lineage/tail_merge.rb) can always find them — but
-    # nothing ever asked it automatically. The practice's own ledger found
-    # exactly this live, twice: once as an operational gap this session's
-    # Step 0 recovered by hand (`bin/merge_tail`, three conflicting
-    # records, three eras deep), and once as BUG#24 (a superuser
-    # connection walking straight through the era write-fence — fixed by
-    # refusing that connection outright, `Lineage#check_fence_applies!`).
-    # Both are "a fork happened and nothing said so" — this module is the
-    # automatic version of the question `bin/merge_tail`'s own diagnostic
-    # line already answers by hand, run as an ordinary sweep Check instead
-    # of only when a human remembers to ask.
+    # ## The bug this targets, named exactly
+    #
+    # Minting a new era (an attribute or aggregate addition —
+    # `StorageShape.project`, lib/hecks/ports/persistence/plugins/era/
+    # storage_shape.rb) advances the readable head to a new partition; an
+    # old checkout, or a process that boots slower than the mint, can keep
+    # writing into the era it still believes is current. Those writes are
+    # not lost — `Lineage#diverged_count` (postgres_era/lineage/tail_merge.rb)
+    # can always find them — but nothing ever asked it automatically. The
+    # practice's own ledger found exactly this live, twice: once as an
+    # operational gap this session's Step 0 recovered by hand
+    # (`bin/merge_tail`, three conflicting records, three eras deep), and
+    # once as BUG#24 (a superuser connection walking straight through the
+    # era write-fence — fixed by refusing that connection outright,
+    # `Lineage#check_fence_applies!`). Both are "a fork happened and
+    # nothing said so" — this module is the automatic version of the
+    # question `bin/merge_tail`'s own diagnostic line already answers by
+    # hand, run as an ordinary sweep Check instead of only when a human
+    # remembers to ask.
+    #
+    # ## Read-only, against the real target
     #
     # The target's real database, read-only, never a disposable one — every
     # other Postgres-touching mode here (`persistence_parity`,
@@ -49,14 +53,19 @@ module Hecks
       # `diverged_total.positive?` is the finding this module exists to
       # surface: real post-cut writes an ancestor era is still holding.
       #
-      # `kind:` splits the two things `checked: false` used to mean. Both
-      # answered the same shape, and `bin/qa_sweep` logged that shape as a
-      # held Check either way — so a refused connection or a `Lineage`
-      # defect read, in the ledger, exactly like an audit that ran and
-      # found nothing: counted toward `sweep.made` and the target's clean
-      # streak. `:not_applicable` is a target with no lineage to audit at
-      # all; `:error` is the audit failing to run, which the caller
-      # surfaces as a finding rather than holding.
+      # `kind:` splits the two things `checked: false` could otherwise
+      # collapse into one shape — without it, a refused connection and a
+      # `Lineage` defect would both read, in the ledger, exactly like an
+      # audit that ran and found nothing: counted toward `sweep.made` and
+      # the target's clean streak. `:not_applicable` is a target with no
+      # lineage to audit at all; `:error` is the audit failing to run,
+      # which the caller surfaces as a finding rather than holding.
+      #
+      # @param domain_path [String] path to the domain directory to audit
+      # @return [Hash] `{checked: true, era_count:, breakdown:, diverged_total:}`
+      #   when the audit ran (`breakdown` is `[{ordinal:, diverged:}]` per
+      #   ancestor era, `diverged_total` the sum across them); `{checked: false,
+      #   kind:, reason:}` when it did not (see `#not_applicable`/`#failed`)
       def diverged_ancestor_writes(domain_path)
         registry, directory = load_registry(domain_path)
         bluebook = registry.bluebooks.values.first
@@ -93,21 +102,31 @@ module Hecks
       rescue StandardError => e
         # Could not audit is not the same as nothing to audit — a refused
         # connection, a `Lineage` defect, malformed `.world` settings. Every
-        # one of these used to answer the benign shape and be held.
+        # one of these would otherwise answer the benign shape and be held.
         failed("#{e.class}: #{e.message}")
       end
 
       # Nothing to audit — this target holds no PostgresEra lineage, so no
       # ancestor era can carry post-cut writes. Not a finding, and not
       # evidence of anything either: the caller logs no Check at all.
+      #
+      # @param reason [String] why the target has no lineage to audit
+      # @return [Hash] `{checked: false, kind: :not_applicable, reason:}`
       def not_applicable(reason) = { checked: false, kind: :not_applicable, reason: reason }
 
       # The audit itself could not run — reported as a finding, never held.
+      #
+      # @param reason [String] the error class and message the audit raised
+      # @return [Hash] `{checked: false, kind: :error, reason:}`
       def failed(reason) = { checked: false, kind: :error, reason: reason }
 
       # The same load `bin/merge_tail` itself performs (that script's own
       # top half) — a fresh `Registry`, never the ledger's own (this asks
       # about the swept target's lineage, not QualityControl's own).
+      #
+      # @param domain_path [String] path to the domain directory to load
+      # @return [Array(Hecks::Runtime::Registry, String)] the freshly booted
+      #   registry and the resolved bluebook directory
       def load_registry(domain_path)
         loading = Hecks::Ports::Loading.bootstrap
         directory = loading.bluebook_directory(domain_path)

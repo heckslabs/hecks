@@ -66,12 +66,13 @@ narrative: { text: "Opening" })
 
     # An absent argument is NIL, not its own name.
     #
-    # `resolve_source` used to fall through to the Symbol when the argument was
-    # missing, so an absent `amount` arrived at coercion as `:amount` and was
-    # refused with "amount is a Money — pass its fields as an object, not
+    # `resolve_source` returns `args[source]` for a Symbol source — nil when the
+    # argument is missing, never the Symbol itself. Falling through to the Symbol
+    # instead would make an absent `amount` arrive at coercion as `:amount` and
+    # refuse with "amount is a Money — pass its fields as an object, not
     # :amount" — which describes passing the wrong shape, a mistake the caller
-    # had not made. That sentence became load-bearing downstream before anyone
-    # noticed it was wrong. It is gone : the message now names what is
+    # had not made. That sentence would become load-bearing downstream before
+    # anyone noticed it was wrong. The message instead names what is
     # actually wrong, worded through Rendering.describe, which spells nil "nil".
     it "says an absent OPTIONAL argument is nil, not the name of the argument" do
       runtime = boot_till
@@ -79,8 +80,8 @@ narrative: { text: "Opening" })
 
       # `note` is optional, so the payload gate lets this through and the
       # mutation actually resolves an argument that is not there — the only
-      # remaining path to the leak. It used to resolve to the symbol `:note`
-      # and refuse with "note is a Note — pass its fields as an object, not
+      # remaining path to the leak. Resolving to the symbol `:note` instead
+      # would refuse with "note is a Note — pass its fields as an object, not
       # :note", describing a mistake the caller had not made.
       state = runtime.dispatch("TillRoom::Till.TakeIn",
                                number: { value: "till-1" }, amount: { cents: 300 }).state
@@ -175,9 +176,9 @@ narrative: { text: "Opening" })
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
 
-      # Freeze used to carry its own explicit `given("account is open")`
-      # for this; S10 (ADR 0025) replaced it with a real lifecycle guard
-      # (`command "FreezeAccount", from: "open"`), checked in the same
+      # Freeze's admissibility runs through a real lifecycle guard
+      # (`command "FreezeAccount", from: "open"`, S10/ADR 0025) rather than
+      # its own explicit `given("account is open")`, checked in the same
       # dispatch step `enforce_givens` already runs (`Admissibility#
       # enforce_lifecycle_guard`, folded in right after a command's own
       # givens) — an already-frozen account is refused there, by name,
@@ -397,14 +398,14 @@ narrative: { text: "Opening" })
     end
 
     # Wave 8's own dependency-planning audit surfaced this as a real, live
-    # bug, not a hypothetical one: `Withdrawal.Dispute`'s own "card is not
-    # retired" given used to read a bare `status` — a field Withdrawal
+    # bug, not a hypothetical one: reading a bare `status` in `Withdrawal
+    # .Dispute`'s own "card is not retired" given — a field Withdrawal
     # itself has no `:status` attribute for (its own lifecycle field is
-    # `:state`) — so it always compared `nil != "retired"`, always true,
-    # and never actually refused anything regardless of the card's real
-    # state. Fixed to `parent.status`, the ATMCard's own lifecycle field —
-    # this proves the fix live, not just that the static analyzer's own
-    # unresolved_dependencies cleared.
+    # `:state`) — would always compare `nil != "retired"`, always true,
+    # never actually refusing anything regardless of the card's real
+    # state. The given reads `parent.status`, the ATMCard's own lifecycle
+    # field, instead — this proves the fix live, not just that the static
+    # analyzer's own unresolved_dependencies cleared.
     it "resolves an entity command's parent.status — Withdrawal.Dispute on a card that has since been retired" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
@@ -430,7 +431,7 @@ narrative: { text: "Opening" })
   # status/state guard that has nothing to do with customer/account at
   # all. Section 223's "dereferencing a related record's field" tests,
   # above, already prove several more of these guards fire as a side
-  # effect of proving the DEREFERENCING mechanism itself — this section
+  # effect of proving the dereferencing mechanism itself — this section
   # is about the guards, not the mechanism.
   describe "the ported customer/account status guards" do
     it "refuses on a bare CUSTOMER status guard — ATMCard.Issue for a suspended customer" do

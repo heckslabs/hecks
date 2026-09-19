@@ -8,15 +8,23 @@ require "open3"
 # `bin/qa_generated_domains` and its child), ~5-25s each on a CI runner.
 # In one file they were ~70s that parallel_rspec cannot split across
 # workers, so that one file was the slowest worker and set the whole
-# `rspec_shard` leg's wall-clock (PR #685's run: 75.7s on one worker, the
-# other three ~45s). Separate files let runtime grouping spread them.
+# `rspec_shard` leg's wall-clock (one measured run: 75.7s on one worker,
+# the other three ~45s). Separate files let runtime grouping spread them.
 module QaMineCombinationsHelpers
   FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_mine_combinations").freeze
-  # One CORPUS domain, not all of them — the full census (every stress
+  # One `CORPUS` domain, not all of them — the full census (every stress
   # domain and example) costs ~8s per run and every example here runs the
   # script; the brief's shape is the same over one domain as over nineteen.
   CORPUS = File.join(InMemoryDomain::ROOT, "qa/stress_domains/case_escalation").freeze
 
+  # Runs `bin/qa_mine_combinations` against the fixture corpus as a real subprocess, with the
+  # fake agent script standing in for a real model.
+  #
+  # @param mode [String] the fake agent's response mode, such as `"valid"`; passed through as
+  #   `FAKE_AGENT_MODE`. Any further positional arguments are forwarded to the script as its
+  #   own command-line arguments
+  # @return [Array(String, Process::Status)] the subprocess's combined stdout/stderr output
+  #   and its exit status, per `Open3.capture2e`
   def run_miner(*, mode: "valid")
     env = { "FAKE_AGENT_MODE" => mode, "QA_MINER_AGENT" => "ruby #{File.join(FIXTURES, 'fake_agent')}" }
     Open3.capture2e(env, "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_mine_combinations"),

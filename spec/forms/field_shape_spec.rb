@@ -73,7 +73,8 @@ RSpec.describe Hecks::Forms::FieldShape do
   it "leaves a plain admits: scalar's own set resolvable across aggregates" do
     entry = account.entities.find { |e| e.hecks_name == "LedgerEntry" }
     field = described_class.resolve(entry.attribute(:direction), aggregate: account)
-    expect(field.path).to eq("direction.value") # MovementDirection { value }, admits Account::LedgerDirection
+    # MovementDirection { value }, admits Account::LedgerDirection
+    expect(field.path).to eq("direction.value")
     expect(field.options.map(&:first)).to contain_exactly("credit", "debit")
   end
 

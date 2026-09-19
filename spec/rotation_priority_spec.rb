@@ -117,10 +117,9 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
     # picks, real elapsed time between them, two targets that always
     # out-yield a third one that never finds anything at all.
     #
-    # **The bound, not the mechanism**. It would be tempting to assert
+    # **The bound, not the mechanism**. It is tempting to assert
     # "exhausted is only ever picked once the floor forces it" — but
-    # that is not quite what the arithmetic guarantees, and asserting it
-    # is what an earlier draft of this example got wrong: because
+    # that is not quite what the arithmetic guarantees: because
     # staleness itself is unbounded while "hot"/"warm" keep resetting
     # their own staleness to ~0 every time they win, "exhausted"'s plain
     # staleness can occasionally out-race a competitor's own bounded

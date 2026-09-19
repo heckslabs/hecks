@@ -31,18 +31,33 @@ module Hecks
 
       module_function
 
+      # Renders a word's generated-region opening marker.
+      #
+      # @param word [String] the word this generated region belongs to
+      # @return [String] the region's opening marker comment
       def generated_begin(word) = "<!-- generated:begin word=#{word} -->"
 
       # Keyed by region rather than by word — the same marker convention,
       # used for the parts of a page that are not about one word: a
       # page's generated lede here, README's generated indexes below.
+      #
+      # @param id [String] the region's identifier
+      # @return [String] the region's opening marker comment
       def region_begin(id) = "<!-- generated:begin id=#{id} -->"
 
+      # Finds the self-hosted language's own `Syntax` aggregate.
+      #
+      # @return [Bluebook::Aggregate, nil] the `Syntax` aggregate, or nil if the
+      #   meta-domain's `Bluebook` chapter declares none
       def syntax
         meta = Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
         meta.aggregates.find { |aggregate| aggregate.hecks_name == "Syntax" }
       end
 
+      # Reads one Syntax value object's declared member rows as plain Hashes.
+      #
+      # @param name [String] the value object's declared name, such as `"KeywordSeed"`
+      # @return [Array<Hash{Symbol => String}>] each member row, every value stringified
       def rows(name)
         syntax.value_objects.find { |vo| vo.hecks_name == name }
               .members.map { |row| row.to_h.transform_values(&:to_s) }
@@ -53,31 +68,57 @@ module Hecks
       # really is a lifecycle. `SyntaxBoot.call` discovers the static
       # aggregate-local seed rows (`KeywordSeed`/`ArgumentSeed`), dispatches each
       # one through the real admission/lifecycle door, and hands back the
-      # same shape `rows` used to produce — nothing below this needed to
+      # same shape `rows` already produces — nothing below this needed to
       # change.
       #
-      # No separate `@keywords ||=` here anymore. This module used to
-      # memoize its own copy on top of `SyntaxBoot.call`'s own memo — a
-      # double cache with no way to invalidate either half, and a real
-      # bug: whichever call in the whole process happened to land first
-      # got locked in forever, even one caught mid-build missing every
-      # Paging-attached word (limit/offset/cursor/nulls). `SyntaxBoot.call`
-      # now carries the one cache that matters (keyed on the grammar
-      # registry's own chapter set — see its comment) ; this delegates
-      # straight through instead of shadowing it.
+      # No separate `@keywords ||=` here — memoizing a second copy on top of
+      # `SyntaxBoot.call`'s own memo was a double cache with no way to
+      # invalidate either half, and a real bug: whichever call in the whole
+      # process happened to land first got locked in forever, even one
+      # caught mid-build missing every Paging-attached word
+      # (limit/offset/cursor/nulls). `SyntaxBoot.call` carries the one
+      # cache that matters (keyed on the grammar registry's own chapter set
+      # — see its comment); this delegates straight through instead of
+      # shadowing it.
+      #
+      # @return [Array<Hash{Symbol => String}>] every declared `Syntax.Keyword` row
       def keywords  = Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+
+      # Reads every declared Argument row.
+      #
+      # @return [Array<Hash{Symbol => String}>] every declared `Syntax.Argument` row
       def arguments = Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
 
+      # Reads a row's lifecycle status.
+      #
+      # @param row [Hash{Symbol => String}] a Keyword or Argument row
+      # @return [String] the row's status, `"admitted"` when unspelled
       def status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
+
+      # Tells whether a row belongs in the rendered reference.
+      #
+      # @param row [Hash{Symbol => String}] a Keyword or Argument row
+      # @return [Boolean] whether the row's status is `"admitted"` or `"deprecated"`
       def live?(row)     = %w[admitted deprecated].include?(status_of(row))
 
+      # Lists every grammar context with at least one Keyword row.
+      #
+      # @return [Array<String>] every context, in declaration order, deduplicated
       def contexts = keywords.map { |row| row[:context] }.uniq
 
+      # Names the reference page a context renders to.
+      #
+      # @param context [String] a grammar context
+      # @return [String] the reference page's filename for `context`
       def page_name(context) = "#{Naming.snake(context)}.md"
 
       # Every reference page, rendered fresh — prose carried over from
       # the committed pages, new words seeded with the sentinel, orphaned
       # prose refused.
+      #
+      # @param directory [String] directory the committed reference pages live in
+      # @return [Hash{String => String}] each page's filename mapped to its full
+      #   rendered content, plus `"index.md"`
       def pages(directory)
         contexts.each_with_object({}) do |context, pages|
           path = File.join(directory, page_name(context))
@@ -86,13 +127,20 @@ module Hecks
         end.merge("index.md" => render_index)
       end
 
-      # A WORD admitting two forms has two rows — syntax.bluebook's own
+      # A word admitting two forms has two rows — syntax.bluebook's own
       # stated rule, and `identified_by` (a block, or a bare argument and
       # none) is the case that made it real again. One section per word all
       # the same: the prose is the word's rather than the form's, and the
       # argument rows join by (word, context) and so already cover every
       # form. Grouped rather than rendered per row, or a reader would meet
       # the same heading and the same paragraph twice.
+      #
+      # @param context [String] the grammar context this page documents
+      # @param prose [Hash{Symbol, String => String}] hand-written prose harvested
+      #   from the committed page, keyed by word (and `PREAMBLE`)
+      # @param path [String] the committed page's path, used only in the raise message
+      # @return [String] the page's full rendered Markdown
+      # @raise [RuntimeError] if `prose` carries a word `context` no longer declares
       def render_page(context, prose, path)
         words = keywords.select { |row| row[:context] == context }.group_by { |row| row[:word] }
         orphans = prose.keys - words.keys - [PREAMBLE]
@@ -119,6 +167,10 @@ module Hecks
         PAGE
       end
 
+      # The page's opening sentence, naming where its words may be typed.
+      #
+      # @param context [String] the grammar context
+      # @return [String] one sentence describing where `context`'s words are used
       def context_lede(context)
         openers = keywords.select { |row| row[:opens] == context }
         return "Words available at the top of a file." if context == "File"
@@ -131,6 +183,10 @@ module Hecks
       # One spelling per form, everything else off the first row — the
       # columns that differ between two forms of one word are `body` (which
       # is what the spelling shows) and nothing else.
+      #
+      # @param forms [Array<Hash{Symbol => String}>] the word's one or two Keyword rows
+      # @param prose [String, nil] the word's hand-written prose, or nil when it has none
+      # @return [String] the word's full rendered section
       def render_word(forms, prose)
         row = forms.first
         table = argument_table(row)
@@ -152,15 +208,28 @@ module Hecks
         WORD
       end
 
+      # Falls back to the TODO sentinel when a word has no prose yet.
+      #
+      # @param prose [String, nil] the word's hand-written prose, or nil when it has none
+      # @return [String] `prose`, stripped, or the TODO sentinel when empty/absent
       def prose_or_sentinel(prose)
         text = prose.to_s.strip
         text.empty? ? TODO_SENTINEL : text
       end
 
+      # Finds one Keyword row's declared arguments.
+      #
+      # @param row [Hash{Symbol => String}] a Keyword row
+      # @return [Array<Hash{Symbol => String}>] the Argument rows declared for `row`'s
+      #   (word, context)
       def word_arguments(row)
         arguments.select { |arg| arg[:keyword] == row[:word] && arg[:context] == row[:context] }
       end
 
+      # Renders a word's call signature from its declared arguments.
+      #
+      # @param row [Hash{Symbol => String}] a Keyword row
+      # @return [String] the word's call signature, such as `field value do ... end`
       def signature(row)
         positional = word_arguments(row).reject { |arg| arg[:at].to_s.empty? }
                                         .sort_by { |arg| arg[:at].to_i }
@@ -172,6 +241,10 @@ module Hecks
         row[:body].to_s == "none" ? base : "#{base} do ... end"
       end
 
+      # Renders a word's arguments as a Markdown table.
+      #
+      # @param row [Hash{Symbol => String}] a Keyword row
+      # @return [String] a Markdown table of `row`'s arguments, or `""` when it takes none
       def argument_table(row)
         args = word_arguments(row)
         return "" if args.empty?
@@ -184,6 +257,9 @@ module Hecks
         "#{lines.join("\n")}\n"
       end
 
+      # Renders the reference index page, one line per context.
+      #
+      # @return [String] the reference index page's full rendered Markdown
       def render_index
         listed = contexts.map do |context|
           count = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.size
@@ -204,16 +280,21 @@ module Hecks
       # Prose keyed by word: everything between a section's generated
       # region and the next `## ` heading (or end of file).
       #
-      # Starts on PREAMBLE rather than nil so the text between the PAGE's
-      # own generated lede and its first word heading is carried over too
-      # instead of being silently dropped. A page written before that
-      # region existed has no generated marker ahead of its first `## `,
-      # so nothing is collecting when that heading arrives and no empty
-      # preamble is invented — the older shape reads back unchanged.
+      # Starts on `PREAMBLE` rather than nil so the text between the
+      # `PAGE`'s own generated lede and its first word heading is carried
+      # over too instead of being silently dropped. A page written before
+      # that region existed has no generated marker ahead of its first
+      # `## `, so nothing is collecting when that heading arrives and no
+      # empty preamble is invented — the older shape reads back unchanged.
       # A single-pass line-scanning state machine (current/collecting/
       # buffer/in_fence) — each branch mutates shared local state that
       # carries into the next iteration, so splitting per branch would
       # mean passing all four back and forth by reference every line.
+      #
+      # @param text [String] a committed reference page's full source text
+      # @return [Hash{Symbol, String => String}] hand-written prose, keyed by word
+      #   (and `PREAMBLE` for the page's own opening prose), empty and TODO-sentinel
+      #   entries dropped
       # rubocop:disable-next Metrics/PerceivedComplexity
       def harvest(text)
         prose = {}
@@ -246,6 +327,10 @@ module Hecks
         prose.reject { |_word, text_| text_.empty? || text_ == TODO_SENTINEL }
       end
 
+      # Renders and writes every reference page to `directory`.
+      #
+      # @param directory [String] directory to write the reference pages into
+      # @return [void]
       def write!(directory)
         FileUtils.mkdir_p(directory)
         pages(directory).each do |name, content|
@@ -257,6 +342,9 @@ module Hecks
       # reference page, keyed by region id instead of a word, so the
       # index a reader lands on first can't drift from what actually
       # exists on disk either.
+      #
+      # @param root [String] repository root
+      # @return [Hash{String => String}] each region id mapped to its rendered content
       def readme_regions(root)
         {
           "guides"    => guide_index(root),
@@ -267,6 +355,11 @@ module Hecks
         }
       end
 
+      # Lists every implemented guide, linked by its own `# ` heading.
+      #
+      # @param root [String] repository root
+      # @return [String] one Markdown list item per guide under
+      #   `docs/implemented/guides/`
       def guide_index(root)
         paths = Dir.glob(File.join(root, "docs/implemented/guides/*.md"))
                    .reject { |p| %w[AUTHORING.md].include?(File.basename(p)) }
@@ -278,6 +371,11 @@ module Hecks
         lines.join("\n")
       end
 
+      # Renders the README's one-line link to the DSL reference index.
+      #
+      # @param _root [String] repository root; unused
+      # @return [String] one Markdown line naming the reference index and its
+      #   context count
       def reference_index(_root)
         count = contexts.size
         "[The DSL reference](docs/implemented/reference/index.md) — #{count} contexts, generated from " \
@@ -285,6 +383,10 @@ module Hecks
           "`spec/reference_golden_spec.rb`."
       end
 
+      # Renders the README's `bin/*` tool table.
+      #
+      # @param root [String] repository root
+      # @return [String] a Markdown table, one row per `bin/` script with a summary
       def tool_table(root)
         scripts = Dir.glob(File.join(root, "bin/*")).select { |p| File.file?(p) }.sort
         rows = scripts.filter_map { |path| [path, tool_summary(path)] }.select { |_, desc| desc }
@@ -298,6 +400,10 @@ module Hecks
       # little long and says "...". A code-bearing comment (`field.name`,
       # `pattern:`) makes naive sentence-splitting on "." or ":" cut in
       # the wrong place, so this truncates on length alone.
+      #
+      # @param path [String] a `bin/` script's path
+      # @return [String, nil] its opening comment paragraph, truncated to 140
+      #   characters, or nil when the file opens with no comment
       def tool_summary(path)
         comment_lines = []
         started = false
@@ -324,6 +430,10 @@ module Hecks
       # own drift check; this just quotes its own output, so the two
       # can't independently drift from each other either — a stale
       # Order_lifecycle.mmd fails that spec long before this one runs.
+      #
+      # @param root [String] repository root
+      # @return [String] the README's diagrams section, quoting Pizzas' own
+      #   Order lifecycle diagram as an example
       def diagram_showcase(root)
         lifecycle = File.read(File.join(root, "docs/generated/diagrams/pizzas/Order_lifecycle.mmd")).strip
         <<~MARKDOWN.strip
@@ -337,6 +447,11 @@ module Hecks
         MARKDOWN
       end
 
+      # Lists every example domain under `examples/`, with its declared vision.
+      #
+      # @param root [String] repository root
+      # @return [String] one Markdown list item per example domain that declares
+      #   a `.bluebook`
       def corpus_roster(root)
         dirs = Dir.glob(File.join(root, "examples/*/"))
         lines = dirs.filter_map do |dir|
@@ -351,6 +466,11 @@ module Hecks
         lines.join("\n")
       end
 
+      # Rewrites every README generated region in place.
+      #
+      # @param root [String] repository root
+      # @param text [String] the README's current full text
+      # @return [String] the README's text, each generated region replaced
       def render_readme(root, text)
         readme_regions(root).reduce(text) do |current, (id, content)|
           pattern = /#{Regexp.escape(region_begin(id))}.*?#{Regexp.escape(GENERATED_END)}/m
@@ -358,6 +478,10 @@ module Hecks
         end
       end
 
+      # Rewrites `README.md`'s generated regions on disk.
+      #
+      # @param root [String] repository root
+      # @return [void]
       def write_readme!(root)
         path = File.join(root, "README.md")
         File.write(path, render_readme(root, File.read(path)))
@@ -371,9 +495,13 @@ module Hecks
       # gate exists to refuse.
       EXAMPLE_FENCE = /^```ruby(?: bluebook| boot)?[ \t]*$/
 
+      # Tells whether a word's prose carries a visible, runnable example.
+      #
+      # @param prose [String, nil] the word's hand-written prose, or nil when it has none
+      # @return [Boolean]
       def exemplified?(prose) = prose.to_s.match?(EXAMPLE_FENCE)
 
-      # Every live WORD, paired with its prose. Both coverage gates ask a
+      # Every live word, paired with its prose. Both coverage gates ask a
       # question about this same walk and differ only in what they ask of
       # the prose, so they share it rather than each re-deriving the page
       # set — the two are meant to move together, and one drifting past
@@ -382,6 +510,10 @@ module Hecks
       #
       # `harvest` already rejects empty prose and the TODO sentinel, so a
       # word with nothing written for it arrives here with a nil.
+      #
+      # @param directory [String] directory the committed reference pages live in
+      # @return [Array<Array(String, String, String, nil)>] `[word, context, prose]`
+      #   triples, one per live word, deduplicated by (word, context)
       def live_words(directory)
         rows = contexts.flat_map do |context|
           path = File.join(directory, page_name(context))
@@ -392,9 +524,17 @@ module Hecks
         rows.uniq { |word, context, _| [word, context] }
       end
 
+      # Renders one word's display name for a coverage report.
+      #
+      # @param word [String] the word
+      # @param context [String] the word's grammar context
+      # @return [String] `"word (context)"`
       def name_of(word, context) = "#{word} (#{context})"
 
       # The coverage gate's question: every live word with no prose yet.
+      #
+      # @param directory [String] directory the committed reference pages live in
+      # @return [Array<String>] `name_of` for every live word with no prose
       def undocumented(directory)
         live_words(directory).reject { |_word, _context, prose| prose }
                              .map { |word, context, _| name_of(word, context) }
@@ -407,6 +547,9 @@ module Hecks
       # shipped twice (`read_model`'s where/order_by/limit/offset, and
       # `role`/`goal` on a command). An example that runs is the only
       # documentation that can go red.
+      #
+      # @param directory [String] directory the committed reference pages live in
+      # @return [Array<String>] `name_of` for every live word with no runnable example
       def unexemplified(directory)
         live_words(directory).reject { |_word, _context, prose| exemplified?(prose) }
                              .map { |word, context, _| name_of(word, context) }

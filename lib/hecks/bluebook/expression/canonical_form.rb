@@ -26,6 +26,10 @@ module Hecks
 
         module_function
 
+        # Lists the admitted normalisation rules, in application order.
+        #
+        # @return [Array<Hash{Symbol => String}>] `{strategy:, source_token:, replacement:,
+        #   boundary:, position:}`, one row per rule, sorted by `position`
         def table
           RULES.sort_by(&:position).map do |rule|
             {
@@ -38,10 +42,20 @@ module Hecks
           end
         end
 
+        # Rewrites `source` into its canonical spelling, applying every rule in order.
+        #
+        # @param source [String, nil] a predicate's own source text
+        # @return [String] the canonicalised, stripped text
         def apply(source)
           RULES.sort_by(&:position).reduce(source.to_s) { |text, rule| step(text, rule) }.strip
         end
 
+        # Applies one normalisation rule to `text`.
+        #
+        # @param text [String] the text to rewrite
+        # @param rule [Rule] the normalisation rule to apply
+        # @return [String] `text`, with `rule` applied outside quoted string literals
+        # @raise [ArgumentError] if `rule.strategy` names no linked normalisation strategy
         def step(text, rule)
           case rule.strategy
           when "collapse_whitespace" then map_outside_strings(text) { |segment| segment.gsub(/\s+/, " ") }
@@ -51,6 +65,12 @@ module Hecks
           end
         end
 
+        # Applies a `"replace"`-strategy rule to `text`.
+        #
+        # @param text [String] the text to rewrite
+        # @param rule [Rule] the replace rule to apply
+        # @return [String] `text`, with `rule.source_token` replaced by `rule.replacement`
+        #   outside quoted string literals
         def replace(text, rule)
           map_outside_strings(text) do |segment|
             if rule.boundary == "none"
@@ -63,19 +83,26 @@ module Hecks
 
         # Applies a normalisation rule to the text outside quoted string
         # literals only, copying every quoted run through byte-for-byte.
-        # Every rule here (collapse_whitespace, the `.length`→`.size` fold)
-        # used to run quote-blind — `"a  b"` collapsed to `"a b"` and
-        # `"a.length"` folded to `"a.size"` just as readily as the real
-        # source outside the quotes, silently rewriting what a predicate
-        # compares a string attribute against, not merely how the
-        # predicate itself is spelled. A canonical string literal's
-        # contents are data, never syntax to normalise.
+        # Running every rule here (collapse_whitespace, the `.length`→`.size`
+        # fold) quote-blind instead would collapse `"a  b"` to `"a b"` and
+        # fold `"a.length"` to `"a.size"` just as readily as the real source
+        # outside the quotes, silently rewriting what a predicate compares a
+        # string attribute against, not merely how the predicate itself is
+        # spelled. A canonical string literal's contents are data, never
+        # syntax to normalise.
         #
         # Handles both `"` and `'` delimiters (this grammar's own
         # `Resolver.quoted?` admits either), quote-aware exactly the way
         # `Evaluator.top_level_index`/`Resolver.array_elements` already are
         # elsewhere in this sublanguage. An unterminated quote (malformed
         # input) is passed through raw rather than risk mangling it further.
+        #
+        # @param text [String] the text to rewrite
+        # @yield [segment] one run of text outside any quoted literal
+        # @yieldparam segment [String] the unquoted run to normalise
+        # @yieldreturn [String] the normalised replacement for that run
+        # @return [String] `text`, with the block's result substituted for each unquoted
+        #   run and every quoted run copied through unchanged
         def map_outside_strings(text)
           result = +""
           buffer = +""

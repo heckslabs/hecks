@@ -17,12 +17,19 @@ module Hecks
         include Indexed
         include Owns
 
+        # The hook `absorb` calls once every declared field is assigned.
+        #
+        # @return [Class] this entity's own class (a `Bluebook::Entity` subclass), self,
+        #   once identity and indexes are derived
         def settle
           derive_identity
           index_declarations
           self
         end
 
+        # Builds every by-name index this entity answers finders through.
+        #
+        # @return [void]
         def index_declarations
           index_attributes(@attributes)
           @commands_by_name = index_by_hecks_name(@commands)
@@ -43,6 +50,9 @@ module Hecks
         # `.entities` is walked for its direct children. Entity's own
         # header comment already promises it stays "structurally
         # interchangeable with an aggregate" for exactly this reason.
+        #
+        # @return [Array<Class>] this entity's own nested entities (each a `Bluebook::Entity`
+        #   subclass), or `[]` if it declares none
         def entities = @entities || []
 
         # A piece owns the verbs declared on it, so they can state an
@@ -52,6 +62,8 @@ module Hecks
         # subclass that will own them exists. `@entities` too now
         # (S17, ADR 0026) — a nested entity states its own owner chain
         # exactly the way a nested command does.
+        #
+        # @return [void]
         def stamp_children = stamp(@commands, @queries, @entities)
       end
     end

@@ -1,12 +1,12 @@
 require "hecks"
 
-# S2 (docs/audits/2026-08-10-main-bug-audit.md) — `Identity.scalar` and
-# `Identity.from` used to read a nested hash with `h[k.to_sym] || h[k]`,
-# which drops a genuinely-stored `false` to `nil` (`false || h[k]` falls
-# through). A composite/dotted identity part that is itself a boolean
-# used to resolve to `nil` and take down the whole identity with it
-# (`Identity.of` refuses any part that is `nil`), not merely mis-read
-# that one part.
+# S2 (docs/audits/2026-08-10-main-bug-audit.md) — reading a nested hash with
+# `h[k.to_sym] || h[k]` would drop a genuinely-stored `false` to `nil`
+# (`false || h[k]` falls through), so `Identity.scalar` and `Identity.from`
+# do not read that way. A composite/dotted identity part that is itself a
+# boolean would otherwise resolve to `nil` and take down the whole identity
+# with it (`Identity.of` refuses any part that is `nil`), not merely
+# mis-read that one part.
 RSpec.describe Hecks::Runtime::Identity do
   describe ".scalar" do
     it "reads a stored false member rather than nil" do
@@ -43,9 +43,9 @@ RSpec.describe Hecks::Runtime::Identity do
     end
 
     # R4 (docs/audits/2026-08-11-bug-triage.md) — the Rust kernel's own
-    # `to_id_component` (rust/src/kernel/json.rs) used to accept an
-    # empty-string identity component and persist a record under it, a
-    # real, live divergence from this behavior: an empty string names
+    # `to_id_component` (rust/src/kernel/json.rs) refuses an
+    # empty-string identity component rather than persisting a record under
+    # it, matching this behavior: an empty string names
     # nothing here, the same as a genuinely absent part, and the whole
     # identity is refused (`nil`) rather than resolving to a blank-but-
     # real id. `to_id_component_refuses_an_empty_string`
@@ -59,12 +59,12 @@ RSpec.describe Hecks::Runtime::Identity do
   end
 
   # M18 (docs/audits/2026-08-10-main-bug-audit.md,
-  # docs/audits/2026-08-11-bug-triage.md) — `Identity.of` used to check
-  # a derived part with a bare `part.empty?`, which raises `NoMethodError`
+  # docs/audits/2026-08-11-bug-triage.md) — checking a derived part with a
+  # bare `part.empty?` would raise `NoMethodError`
   # on any part that isn't a String (an Integer, an Array, a Hash — the
   # exact shape a reference-typed identity head can resolve to when its
   # own attribute lookup falls through). Re-verified against the current
-  # file: the blank-part guard now checks `part.respond_to?(:empty?)`
+  # file: the blank-part guard checks `part.respond_to?(:empty?)`
   # first, so a non-string part is compared by identity/`nil?` alone and
   # never reaches a bare `.empty?` call — these lock that in as a
   # regression rather than a `NoMethodError` reappearing silently.

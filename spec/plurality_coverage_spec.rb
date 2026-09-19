@@ -198,7 +198,7 @@ RSpec.describe "every list the language declares, filled more than once" do
   end
 
   # The allowlist is held to the corpus in both directions. An entry that the
-  # corpus has since grown to cover is a stale excuse, and a stale excuse is how a
+  # corpus already grows to cover is a stale excuse, and a stale excuse is how a
   # gate quietly stops gating.
   it "carries no excuse the corpus has outgrown" do
     maxima = observed_maxima

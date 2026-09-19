@@ -75,8 +75,8 @@ RSpec.describe "Waybill" do
 
   # BUG#12 — `Manifest.AddSlot`'s own append mapping (`{ number: :number
   # }`) never names `Slot.item` (`optional: true`, only ever set later,
-  # by `Slot.Fill`). Before the fix, the freshly appended `Slot` had no
-  # `:item` key at all — this pins that it now does, `nil`-valued, the
+  # by `Slot.Fill`). Without the fix, the freshly appended `Slot` would have no
+  # `:item` key at all — this pins that it does, `nil`-valued, the
   # same way Rust's generated `to_json` already always would. Dispatched
   # directly (`Manifest.open!`/`add_slot!`), never through the saga —
   # the saga's own `Consignment.request!` runs `AddSlot` and `Fill` in

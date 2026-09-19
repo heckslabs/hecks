@@ -139,7 +139,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
       end
     RUBY
 
-    # Living inside the real repo ROOT, exactly `spec/qa_sweep_all_spec
+    # Living inside the real repo root, exactly `spec/qa_sweep_all_spec
     # .rb`'s own reasoning — `bin/qa_sweep` resolves a `Target`'s own
     # `path` as `File.join(ROOT, target_path)` against the real
     # repository root.

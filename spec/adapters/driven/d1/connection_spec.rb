@@ -1,9 +1,10 @@
 require "spec_helper"
 
-# `Connection#response_results`'s own batched-statement failure path used to
-# read `failed["error"] || failed["message"] || messages` — `||` cannot tell
-# a genuinely stored `false` at "error" apart from a missing key, so a real
-# `false` there silently fell through to "message" instead of being surfaced.
+# `Connection#response_results`'s own batched-statement failure path checks
+# `failed.key?("error")` rather than reading `failed["error"] || failed["message"] ||
+# messages` — `||` cannot tell a genuinely stored `false` at "error" apart from a
+# missing key, so a real `false` there would silently fall through to "message"
+# instead of being surfaced.
 # No network call is exercised here — `Net::HTTP.start` is stubbed to hand
 # back a scripted JSON body, so this proves the ruby-side fallback logic
 # alone.

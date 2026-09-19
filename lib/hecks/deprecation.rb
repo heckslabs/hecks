@@ -40,11 +40,25 @@ module Hecks
       # { key => where it raises instead of warning }.
       attr_reader :raising
 
+      # Arms one or more deprecation keys to raise `Error` instead of warning.
+      #
+      # @param keys [Array<Symbol>] deprecation keys to arm
+      # @yield [site] optional predicate; without a block every site raises
+      # @yieldparam site [String] the "path:line" of the deprecated call
+      # @yieldreturn [Boolean] whether that site should raise rather than warn
+      # @return [Array<Symbol>] `keys`
       def raise_on!(*keys, &where)
         keys.each { |key| @raising[key] = where || EVERYWHERE }
         keys
       end
 
+      # Warns once about a deprecated call, or raises where `raise_on!` has armed it.
+      #
+      # @param key [Symbol] the deprecation being reported
+      # @param message [String] the warning (or exception) text
+      # @return [void]
+      # @raise [Error] if `key` is armed via `raise_on!` and, when armed with a block,
+      #   the call site matches it
       def call(key, message)
         return if allowed?(key)
 
@@ -56,6 +70,12 @@ module Hecks
         Kernel.warn(message, uplevel: uplevel)
       end
 
+      # Suppresses one deprecation key for the duration of the block, on this
+      # thread only.
+      #
+      # @param key [Symbol] the deprecation key to suppress
+      # @yield the code that may trigger `key`'s deprecation warning
+      # @return [Object] the block's result
       def allowing(key)
         allowed = Thread.current[:hecks_allowed_deprecations] ||= []
         allowed.push(key)
@@ -64,11 +84,16 @@ module Hecks
         allowed.pop
       end
 
-      # Forget every site already warned about — for specs only.
+      # Forgets every site already warned about — for specs only.
+      #
+      # @return [void]
       def reset! = @mutex.synchronize { @seen.clear }
 
-      # The first caller frame outside this gem — where a deprecated call
-      # was written.
+      # Tells whether `frame` lies outside this gem's own `lib/hecks` and
+      # `hecks.rb` entrypoint — the frame a deprecation warning should blame.
+      #
+      # @param frame [Thread::Backtrace::Location] a caller frame
+      # @return [Boolean]
       def external?(frame)
         path = frame.absolute_path || frame.path
         !(path.start_with?("<internal:") || path == LIB_ENTRY || path.start_with?("#{LIB_ROOT}/"))

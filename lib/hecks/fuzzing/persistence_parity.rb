@@ -17,6 +17,8 @@ module Hecks
     # `PostgresEra` database (the actual SQL compute/rekey/query-pushdown
     # path a Postgres-bound domain's users really hit).
     #
+    # ## Why this exists
+    #
     # `examples/directory` is why this exists at all: the one domain in
     # this corpus with a real `compute`/`rekey` translation edge
     # (docs/prds/02-fuzzer-real-adapters.md's own "What shipped" section
@@ -27,12 +29,16 @@ module Hecks
     # Memory, unconditionally, no matter what `directory.world` itself
     # declares.
     #
+    # ## Scope
+    #
     # Not a replacement for `bin/qa_sweep`'s own Ruby-vs-Rust differential
     # mode — a genuinely separate axis, opt-in (`--persistence-parity`),
     # because this one pays for a real `PG.connect` and real SQL per
     # dispatch where Memory-vs-Rust pays for neither. See `bin/qa_sweep`'s
     # own `--persistence-parity` handling for the seed-count dial that
     # keeps that cost bounded.
+    #
+    # ## `left:`/`right:`
     #
     # Generalized to `left:`/`right:` — originally hardcoded to Memory vs
     # PostgresEra (the only pairing that existed), now any two of
@@ -49,7 +55,9 @@ module Hecks
     # loop instead of needing a deferred wave of its own the way
     # PostgresEra does.
     #
-    # `database:`/`schema:` — required only when `:postgres_era` is one of
+    # ## `database:`/`schema:`
+    #
+    # Required only when `:postgres_era` is one of
     # the two adapters (the caller — today, only `bin/qa_sweep` — owns the
     # disposable database's whole lifecycle: created before the sweep,
     # dropped after — see that script's own comment, and the discipline
@@ -81,6 +89,18 @@ module Hecks
       # sides identically (a `Runtime::Value`, a `Symbol` key, a `Time`
       # nobody asked for — none of that survives an accidental leak into
       # this comparison unnoticed).
+      # @param domain_path [String] path to the domain directory to replay
+      # @param steps [Array<Hash>] the step sequence to replay against both adapters
+      # @param left [Symbol] the reference adapter (`IsolatedBoot`'s own adapter
+      #   symbols: `:memory`, `:sqlite`, `:postgres`, `:postgres_era`)
+      # @param right [Symbol] the compared adapter
+      # @param database [String, nil] the throwaway database name; required when
+      #   either `left` or `right` is `:postgres_era`
+      # @param schema [String, nil] the throwaway schema name; required when either
+      #   `left` or `right` is `:postgres_era`
+      # @return [Array<Hash>] one `{field:, left => ..., right => ...}` entry per
+      #   field (`instances`/`events`/`refusals`/`queries`/`sagas`/`reactions`)
+      #   the two adapters disagree on
       def diff(domain_path, steps, left: :memory, right: :postgres_era, database: nil, schema: nil)
         left_result  = Replay.call(domain_path, steps, adapter: left, database: database, schema: schema)
         right_result = Replay.call(domain_path, steps, adapter: right, database: database, schema: schema)
@@ -95,8 +115,24 @@ module Hecks
         divergences
       end
 
+      # Round-trips `value` through `JSON.generate`/`JSON.parse`, so both sides of
+      # a comparison are plain, JSON-shaped data (see this file's own header).
+      #
+      # @param value [Object] the value to reduce to JSON-shaped data
+      # @return [Object] `value` after a JSON round trip
       def as_json(value) = JSON.parse(JSON.generate(value))
 
+      # Compares the two sides' own stored instances.
+      #
+      # @param left_result [Hash] `left`'s own replayed history, as returned by
+      #   `Replay.call`
+      # @param right_result [Hash] `right`'s own replayed history
+      # @param left [Symbol] the reference adapter symbol, used as the divergence's
+      #   own key
+      # @param right [Symbol] the compared adapter symbol, used as the divergence's
+      #   own key
+      # @return [Array<Hash>] `[{field: "instances", left => ..., right => ...}]`
+      #   if the two sides' instances disagree; `[]` otherwise
       def diff_instances(left_result, right_result, left, right)
         l = as_json(left_result[:instances])
         r = as_json(right_result[:instances])
@@ -105,6 +141,16 @@ module Hecks
         [{ field: "instances", left => l, right => r }]
       end
 
+      # Compares the two sides' own announced events.
+      #
+      # @param left_result [Hash] `left`'s own replayed history
+      # @param right_result [Hash] `right`'s own replayed history
+      # @param left [Symbol] the reference adapter symbol, used as the divergence's
+      #   own key
+      # @param right [Symbol] the compared adapter symbol, used as the divergence's
+      #   own key
+      # @return [Array<Hash>] `[{field: "events", left => ..., right => ...}]` if
+      #   the two sides' events disagree; `[]` otherwise
       def diff_events(left_result, right_result, left, right)
         l = as_json(left_result[:events])
         r = as_json(right_result[:events])
@@ -118,6 +164,14 @@ module Hecks
       # sides here already answer strings (`Replay#refusal_kind` always
       # returns one), so this is belt-and-suspenders consistency with the
       # sibling mode's own shape, not a real coercion.
+      # @param left_result [Hash] `left`'s own replayed history
+      # @param right_result [Hash] `right`'s own replayed history
+      # @param left [Symbol] the reference adapter symbol, used as the divergence's
+      #   own key
+      # @param right [Symbol] the compared adapter symbol, used as the divergence's
+      #   own key
+      # @return [Array<Hash>] `[{field: "refusals", left => ..., right => ...}]` if
+      #   the two sides' refusals disagree; `[]` otherwise
       def diff_refusals(left_result, right_result, left, right)
         normalize = lambda do |refusals|
           refusals.map { |r| { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s, "error" => r[:error] } }
@@ -132,6 +186,14 @@ module Hecks
       # `Nondeterministic`'s `query_row` group dropped from every entry —
       # the same group `Differential.diff` drops, for the reason declared
       # there (already covered by `diff_instances` above).
+      # @param left_result [Hash] `left`'s own replayed history
+      # @param right_result [Hash] `right`'s own replayed history
+      # @param left [Symbol] the reference adapter symbol, used as the divergence's
+      #   own key
+      # @param right [Symbol] the compared adapter symbol, used as the divergence's
+      #   own key
+      # @return [Array<Hash>] `[{field: "queries", left => ..., right => ...}]` if
+      #   the two sides' queries disagree; `[]` otherwise
       def diff_queries(left_result, right_result, left, right)
         strip = ->(rows) { rows.map { |row| Nondeterministic.strip(row, :query_row) } }
         l = as_json(strip.call(left_result[:queries]))
@@ -141,6 +203,16 @@ module Hecks
         [{ field: "queries", left => l, right => r }]
       end
 
+      # Compares the two sides' own saga logs.
+      #
+      # @param left_result [Hash] `left`'s own replayed history
+      # @param right_result [Hash] `right`'s own replayed history
+      # @param left [Symbol] the reference adapter symbol, used as the divergence's
+      #   own key
+      # @param right [Symbol] the compared adapter symbol, used as the divergence's
+      #   own key
+      # @return [Array<Hash>] `[{field: "sagas", left => ..., right => ...}]` if
+      #   the two sides' sagas disagree; `[]` otherwise
       def diff_sagas(left_result, right_result, left, right)
         l = as_json(left_result[:sagas])
         r = as_json(right_result[:sagas])
@@ -149,6 +221,16 @@ module Hecks
         [{ field: "sagas", left => l, right => r }]
       end
 
+      # Compares the two sides' own recorded reactions.
+      #
+      # @param left_result [Hash] `left`'s own replayed history
+      # @param right_result [Hash] `right`'s own replayed history
+      # @param left [Symbol] the reference adapter symbol, used as the divergence's
+      #   own key
+      # @param right [Symbol] the compared adapter symbol, used as the divergence's
+      #   own key
+      # @return [Array<Hash>] `[{field: "reactions", left => ..., right => ...}]`
+      #   if the two sides' reactions disagree; `[]` otherwise
       def diff_reactions(left_result, right_result, left, right)
         l = as_json(left_result[:reactions])
         r = as_json(right_result[:reactions])

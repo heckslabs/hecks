@@ -43,18 +43,46 @@ GATES = %w[
   spec/ir_golden_spec.rb
 ].freeze
 
+# Reads a `--name value` flag off the process's own `ARGV`.
+#
+# @param name [String] the flag's name, without its leading `--`
+# @param default [String, nil] the value when `--name` is absent, or its
+#   value looks like another flag rather than an argument
+# @return [String, nil] the flag's value, or `default`
 def option(name, default = nil) = Evolve.option(ARGV, name, default)
 
+# Rewrites the golden IR fixture (`spec/golden/ir/Bluebook.json`) from the
+# grammar as it stands right now, by running that spec with `GOLDEN=rewrite`.
+#
+# @return [Boolean, nil] whether the subprocess exited successfully, or nil if
+#   it could not be spawned at all
 def regenerate!
   system({ "GOLDEN" => "rewrite" },
          "bundle", "exec", "rspec", "spec/ir_golden_spec.rb",
          chdir: ROOT, out: File::NULL, err: File::NULL)
 end
 
+# Runs the three lifecycle gates (syntax conformance, syntax lifecycle, golden
+# IR) against the tree as it stands right now.
+#
+# @return [Boolean, nil] whether every gate passed, or nil if the subprocess
+#   could not be spawned at all
 def gates_pass?
   system("bundle", "exec", "rspec", *GATES, chdir: ROOT)
 end
 
+# Runs one mutating grammar edit inside the snapshot/regenerate/gate dance
+# every `bin/evolve` mutating command shares: snapshot the touched files, run
+# `block`, regenerate the golden IR, then run the gates — restoring every
+# snapshot byte-for-byte if the block raises or the gates fail.
+#
+# @param word [String] the word or `"<keyword> argument"` label being changed,
+#   for the printed report
+# @param context [String] the construct context the word belongs to, such as
+#   `"Aggregate"`
+# @yield runs the grammar mutation itself (`Evolve.propose`, `.set_status`, etc.)
+# @return [Boolean] true if the block ran and the gates held; false if the
+#   block raised or a gate failed (either way, every snapshot is restored)
 def guarded(word, context, &)
   snapshots = SNAPSHOT_PATHS.to_h { |path| [path, File.read(path)] }
   Evolve.restore_on_raise(SNAPSHOT_PATHS, &)

@@ -12,6 +12,13 @@ module Hecks
       # to the router, pinned to this specific FQN version rather than
       # the router's default resolution.
       class OptionsProxy
+        # @param router [Router] router to dispatch resolved calls through
+        # @param realm [String, nil] realm segment of the FQN this proxy pins
+        # @param domain [String] domain segment of the FQN this proxy pins
+        # @param aggregate [String, nil] aggregate segment, or nil for a domain-level query
+        # @param options [Hash{Symbol => Object}] the `.options(...)` call's keywords; only
+        #   `:version` is accepted
+        # @raise [ArgumentError] if `options` has a key other than `:version`
         def initialize(router:, realm:, domain:, aggregate:, options:)
           unknown = options.keys - [:version]
           raise ArgumentError, "unknown router options: #{unknown.join(', ')}" unless unknown.empty?
@@ -45,10 +52,16 @@ module Hecks
         end
       end
 
+      # @param router [Router] router whose current routes get Ruby constants and methods
       def initialize(router)
         @router = router
       end
 
+      # Installs every current-version route as a namespace constant/method,
+      # plus the aggregate `find`/`all`/`count`/`events`/`repository` door and
+      # short `Aggregate.verb` shortcuts.
+      #
+      # @return [self]
       def install!
         current_entries.each { |entry| install_namespace_entry(entry) }
         install_shortcuts!

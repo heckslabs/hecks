@@ -21,6 +21,12 @@ require "json"
 # `registry.rs` gets this via `domain_generator.rb`'s own emission loop,
 # but `merged.rs` is a wholly separate `File.open` block this script
 # builds itself, so it needs the identical emission repeated here.
+#
+# @param file [File] the open `merged.rs` file to append each function body to
+# @param read_models [Array<Hash>] one entry per read model, as
+#   `RustProjection::DomainGenerator.call` returns them; only entries whose
+#   `:group_by_fn_body` (String, nil) is present write anything
+# @return [void]
 def emit_group_by_bodies(file, read_models)
   read_models.each do |rmd|
     next unless rmd[:group_by_fn_body]
@@ -49,12 +55,12 @@ domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 
 # Domain-name landmine guard (R5) — validated first, before any side
 # effect this script has (including the `meta`/`active` directory wipes
-# below, in both the opt-in and default paths) — an earlier version of
-# this guard sat right before the `meta`/`active` `FileUtils.rm_rf`
-# calls further down, which meant an invalid domain name still wiped
-# `rust/src/generated/meta/` before the abort fired, leaving it deleted
-# and never regenerated (found live, from a real negative-path test run
-# against a domain named "version" during this fix's own verification).
+# below, in both the opt-in and default paths). Validating any later,
+# right before the `meta`/`active` `FileUtils.rm_rf` calls further down,
+# means an invalid domain name still wipes `rust/src/generated/meta/`
+# before the abort fires, leaving it deleted and never regenerated
+# (found live, from a real negative-path test run against a domain
+# named "version" during this guard's own verification).
 # `target_mod_name` becomes, unescaped, a directory name, a literal Rust
 # module identifier (`pub mod #{name};`), and a Cargo feature name
 # (rust/Cargo.toml) — two distinct ways that can go wrong:
@@ -71,7 +77,7 @@ domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 #        `rust/project_rust_pipeline.rb`) would false-positive against
 #        if it weren't scoped to `[features]` — `version`/`edition`/
 #        `name`/`path` are exactly the `[package]`/`[lib]`/`[[bin]]`
-#        keys that used to risk matching.
+#        keys that would otherwise risk matching.
 #      - `default` itself — Cargo reserves that name for the
 #        auto-enabled feature set; a domain can't also own it.
 #
@@ -93,10 +99,10 @@ end
 # instead, with zero `Kernel.load` of any domain bluebook — see
 # `rust/project_rust_pipeline.rb`'s own header for the full contract
 # (`manifest.json` is now written by `hecks-codegen` itself). The
-# `lineage` sidecar key this comment used to name
-# as that gap is closed — `derive_lineage` computes it there for real,
-# proven byte-exact against this default path's own `Exporter.lineage`
-# by `spec/project_rust_pipeline_spec.rb` for both pizzas (a real
+# `lineage` sidecar key — a gap this comment named — is closed:
+# `derive_lineage` computes it there for real, proven byte-exact
+# against this default path's own `Exporter.lineage` by
+# `spec/project_rust_pipeline_spec.rb` for both pizzas (a real
 # capable aggregate) and banking (real binds, zero capable).
 #
 # Paired, not independently toggleable: `HECKS_PARSER=rust` alone would
@@ -121,6 +127,9 @@ if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
   RustProjectPipeline.call(domain)
 else
 
+  # Round-trips a payload through real JSON, so the generator is only ever
+  # exercised against the shape its future input actually has.
+  #
   # Every IR handed to the generator goes through real JSON first — never
   # the live Hash `Exporter.call` returns. That Hash carries real Ruby
   # Symbols (`Attribute#to_h`'s `name:`, `Mutation#to_h`'s
@@ -131,6 +140,13 @@ else
   # depend on the Symbol spelling, and that dependency would only surface
   # the day the producer changed. This is the seam: the generator is only
   # ever exercised against the shape its future input actually has.
+  #
+  # @param payload [Hash, Array] a JSON-shaped Ruby structure — the same value
+  #   an `Hecks::Projector::Exporter` method returns
+  # @return [Hash, Array] `payload` re-parsed from JSON: every Hash key restored
+  #   as a Symbol (`symbolize_names: true`), but every value that was a Ruby
+  #   Symbol now a String, matching exactly what the real `ir.json` sidecar
+  #   can carry
   def json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
   # `root:` — without it, a domain declaring `uses_embryonaut_bluebook`
@@ -174,7 +190,7 @@ else
     # load_bluebooks`'s own default `["*.bluebook"]` pattern, `Dir[]`-
     # sorted, loads all of them together, banking.bluebook itself first
     # (alphabetically ahead of every split sibling) — the same load
-    # order the single explicit `Kernel.load` used to give it alone.
+    # order a single explicit `Kernel.load` alone would give it.
     bluebook_directory = File.join(domain, "bluebook")
     domain_bluebook_path = File.join(bluebook_directory, "#{File.basename(domain)}.bluebook")
     Hecks::Adapters::Folder.new.load_bluebooks(bluebook_directory)
@@ -288,18 +304,18 @@ else
 
   # Scoped clearing, not a whole-tree wipe — multiple domains coexist on
   # disk now (Cargo features select which one actually compiles in, see
-  # below), so regenerating Banking must not erase a previously-generated
+  # below), so regenerating Banking must not erase an already-generated
   # Embryonaut and vice versa. Still cleared per-directory, not merely
   # written into: a previous run for this same domain/chapter leaves stale
   # .rs files behind otherwise (an aggregate that no longer exists).
-  # No longer a whole-directory wipe — WriteIfChanged.push_directory
-  # opens tracking instead (its own header has the full argument: a
+  # Not a whole-directory wipe — `WriteIfChanged.push_directory` opens
+  # tracking instead (its own header has the full argument: a
   # `File.write` skipped for identical content still needs a stale file
-  # from a removed construct gone, which an unconditional rm_rf used to
-  # guarantee for free). `pop_and_prune`, once every write below for
-  # this directory is done, deletes exactly what this run never touched
-  # — the same stale-file guarantee, without bumping every untouched
-  # file's mtime along the way.
+  # from a removed construct gone, which only an unconditional rm_rf
+  # would otherwise guarantee for free). `pop_and_prune`, once every
+  # write below for this directory is done, deletes exactly what this
+  # run never touched — the same stale-file guarantee, without bumping
+  # every untouched file's mtime along the way.
   RustProjection::WriteIfChanged.push_directory(File.join(out_root, "meta"))
   # One-time migration: the old shared `active/` directory this file used
   # to write is retired — `active` is now a set of `#[cfg(feature = ...)]`
@@ -433,10 +449,10 @@ else
   # "call them once more over the union" (domain_generator.rb's own
   # header on why this is safe: nothing about a single-chapter call was
   # privileged in the first place). Policies/process managers do merge
-  # across chapters now — recovered, not new: this used to only compile
-  # in the target domain's own (the comment here used to read
+  # across chapters now — recovered, not new: compiling only the target
+  # domain's own left this gap invisible (this comment once read
   # "Governance/Identity declare none today... not attempted by this
-  # pass"), invisible for exactly that reason until lifeadelics vendored
+  # pass") until lifeadelics vendored
   # a chapter (embryonaut_bluebooks/payments) that does declare real
   # ones — found live, its own PaymentGateway.Succeeded port operation
   # dispatching cleanly but never triggering the Payment.Succeed its own
@@ -625,7 +641,7 @@ else
     TOML
   end
   # Scoped to the `[features]` table only (R5) — checking `name = ` against
-  # the whole file (as a bare `cargo_toml =~ /^name\s*=/` used to) false-
+  # the whole file (as a bare `cargo_toml =~ /^name\s*=/` would) false-
   # positives against `[package]`'s `name`/`version`/`edition`, `[lib]`'s
   # `name`/`path`, `[[bin]]`'s `name`/`path` — real TOML keys that share a
   # word with a domain name (see the guard above, which now rejects a

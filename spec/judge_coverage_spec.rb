@@ -18,8 +18,8 @@ require "spec_helper"
 # the judge to offer it is exactly the failure this catches, and now it catches
 # it at the grain of the verb rather than the grain of the category.
 #
-# `experiment/replay.rb` used to catch this indirectly: it rebuilt the IR from
-# the meta-domain and diffed, so a dropped category stopped matching. That is a
+# `experiment/replay.rb` took an indirect route: it rebuilt the IR from
+# the meta-domain and diffed, so a dropped category stopped matching. That was a
 # lot of machinery to answer a question this asks directly, and the reconstruction
 # half was never needed for validation. This replaces it.
 RSpec.describe "the judge's coverage of the language" do
@@ -117,11 +117,11 @@ RSpec.describe "the judge's coverage of the language" do
     spy.verbs
   end
 
-  # Banking alone, now — it used to declare no query options, so
+  # Banking alone, now — it once declared no query options, so
   # `Query.Option` and `ReadModel.Option` were never offered and this gate
   # called them decoration (correctly: a verb nothing dispatches carries
   # rules that cannot fire). The fix was to exercise them somewhere rather
-  # than excuse them; that used to mean unioning in `reflex.bluebook`
+  # than excuse them; that once meant unioning in `reflex.bluebook`
   # (the one chapter that declared every option a query or read_model can
   # carry), but banking now carries both itself — `Account.Overdrawn`'s
   # `freshness`/`use_index`, `SafeDepositBox.Rented`'s

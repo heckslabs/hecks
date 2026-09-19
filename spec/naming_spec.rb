@@ -14,7 +14,7 @@ RSpec.describe Hecks::Naming do
     )
   end
 
-  # Not in the JSON CONTRACT — that file's keys are pinned above for
+  # Not in the JSON `CONTRACT` — that file's keys are pinned above for
   # Rust parity, and `words` is a Ruby-side reading aid (the glossary's
   # headwords), not a rule the runtime derives identities from.
   describe ".words" do
@@ -95,7 +95,7 @@ RSpec.describe Hecks::Naming do
   end
 
   # Not in the shared contract above, the same way `.plural` beside it in the
-  # source is not : both are used to derive one aggregate's name from
+  # source is not : both derive one aggregate's name from
   # another's, which the same naming rule (`snake`, `reference_key`, …)
   # is checked against everywhere else, so a divergence here would already
   # surface downstream rather than silently. Kept as its own direct

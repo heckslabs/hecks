@@ -13,8 +13,8 @@ require "tempfile"
 # attribute — so a creating command can legitimately receive `row`/
 # `column` in its payload (enough for `Identity.of` to derive the
 # record's id) without ever declaring them as command attributes or
-# `sets`-ing them into state. Before this fix, that left both heads
-# persisted as `nil`: the record was correctly addressed but did not
+# `sets`-ing them into state, which without this fix would leave both heads
+# persisted as `nil`: the record would be correctly addressed but not
 # know its own name.
 RSpec.describe Hecks::Runtime::Instance do
   def boot(source, hecksagon_name, &binds)

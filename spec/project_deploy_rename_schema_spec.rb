@@ -2,13 +2,14 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# L20 (docs/audits/2026-08-10-main-bug-audit.md): `rename-schema` used to
-# interpolate `$(OLD)`/`$(NEW)` unsanitized into SQL (a `nspname = '...'`
+# L20 (docs/audits/2026-08-10-main-bug-audit.md): interpolating
+# `$(OLD)`/`$(NEW)` unsanitized into SQL (a `nspname = '...'`
 # lookup and an `ALTER SCHEMA "..." RENAME TO "..."`) with nothing checking
 # their shape first -- operator-only (this is a `make rename-schema
 # OLD=<old> NEW=<new>` command line, not user-facing web input), but
 # against production RDS, so a typo'd or copy-pasted value containing SQL
-# metacharacters could execute unintended SQL. Fixed by allowlisting old
+# metacharacters could execute unintended SQL. `rename-schema` guards against
+# this by allowlisting old
 # and new as bare identifiers (schema names can't be bound as a SQL
 # parameter the way a value can, so escaping isn't the available option --
 # refusing anything that isn't `^[A-Za-z_][A-Za-z0-9_]*$` is).

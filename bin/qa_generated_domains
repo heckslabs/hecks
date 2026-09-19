@@ -125,6 +125,9 @@ if options[:check]
 
       attr_reader :structural_skips
 
+      # Starts with no structural skips recorded — `structural_skips` fills in
+      # as `diff_ruby_vs_rust` runs, the same accumulation `bin/qa_sweep`'s own
+      # `Differ` does.
       def initialize
         @structural_skips = Set.new
       end
@@ -140,6 +143,12 @@ end
 
 # ── promotion: a finding becomes an ordinary stress domain ───────────
 
+# The promoted domain's own module name — `Generator::DOMAIN_NAME`
+# ("QaGenerated") is renamed to this everywhere it appears in the source.
+#
+# @param name [String] the `--name` stress-domain identifier, a lowercase
+#   `snake_case` string
+# @return [String] `name`, `CamelCase`d
 def camelize(name) = name.split("_").map(&:capitalize).join
 
 if options[:promote]
@@ -184,13 +193,13 @@ if options[:promote]
   puts "next:"
   puts "  bin/qa_domain_novelty qa/stress_domains/#{name}"
   puts "  bin/project_rust qa/stress_domains/#{name}        # when the finding needs the Rust comparison"
-  # One command, and it reads the corpus. This used to print a hand-typed
-  # `target.identify` for the promoted name, which is exactly how ten
-  # promoted or authored stress domains ended up never swept: the line
-  # was printed, nobody ran it, and nothing anywhere noticed the domain
-  # was not in the rotation. `bin/qa_seed_targets` now derives every
-  # target from `Hecks::Corpus.rotation_targets`, so this domain is in
-  # that list already, by virtue of being on disk.
+  # One command, and it reads the corpus, rather than a hand-typed
+  # `target.identify` for the promoted name — a printed-but-unrun line is
+  # exactly how ten promoted or authored stress domains ended up never
+  # swept, with nothing anywhere noticing the domain was not in the
+  # rotation. `bin/qa_seed_targets` derives every target from
+  # `Hecks::Corpus.rotation_targets`, so this domain is in that list
+  # already, by virtue of being on disk.
   puts "  bin/qa_seed_targets                               # idempotent; picks this domain up from the corpus"
   exit EXIT_OK
 end
@@ -203,6 +212,13 @@ end
 # the ledger or needs its Postgres. `QA_GENERATED_DOMAINS_PER_TICK`
 # overrides the count for one run (a spec's throwaway tick sets it to 0).
 
+# Reads one `QualityControlDials` constant, evaluated in from `--from-dials`
+# just above, falling back when the dials block isn't loaded or the name
+# isn't declared.
+#
+# @param name [Symbol] the `QualityControlDials` constant name to read
+# @param fallback [Object] value to use when the constant isn't declared
+# @return [Object] the constant's value, or `fallback`
 def dial(name, fallback)
   defined?(QualityControlDials) && QualityControlDials.const_defined?(name) ? QualityControlDials.const_get(name) : fallback
 end
@@ -228,6 +244,21 @@ start   = options[:start] || (Time.now.to_i % 1_000_000)
 run_dir = File.join(ROOT, "tmp/qa-generated/run-#{start}-#{Process.pid}")
 scratch = File.join(ROOT, "tmp/qa-generated/rust")
 
+# Re-invokes this script as `--check dir` in a fresh child process — one
+# domain, one process, per this file's own header — and reads back the
+# `QA_GENERATED_RESULT <json>` line it prints.
+#
+# @param dir [String] the generated domain's own directory to check
+# @param options [Hash] this run's own parsed options (`:seeds`, `:steps`,
+#   `:adversarial` are read)
+# @param binary [String, nil] path to a compiled Rust binary to diff against,
+#   or `nil` to skip the Rust comparison
+# @param match [Hash, nil] a mode/signature to narrow the child's own report to,
+#   or `nil` for its first finding
+# @param shrink_budget [Integer] candidate-check budget forwarded to the child's
+#   own step shrink
+# @return [Hash] the parsed `QA_GENERATED_RESULT` JSON; `{"status" => "error",
+#   "error" => message}` if the child produced no result line
 def child_check(dir, options, binary: nil, match: nil, shrink_budget: 0)
   command = ["bundle", "exec", "ruby", __FILE__, "--check", dir, "--seeds", options[:seeds].to_s,
              "--steps", options[:steps].to_s, "--adversarial", options[:adversarial].to_s,
@@ -243,6 +274,13 @@ end
 
 # Projects `dir` into the scratch crate and builds it. Answers
 # `[binary, nil]` or `[nil, { "mode" => …, "detail" => … }]`.
+#
+# @param dir [String] the generated domain's own directory to project
+# @param scratch [String] the scratch crate's root (rsynced from `rust/` by
+#   `sync_scratch!`)
+# @return [Array(String, nil), Array(nil, Hash)] `[binary_path, nil]` on a
+#   successful build; `[nil, {"mode" => "rust_projection" or "rust_build",
+#   "detail" => output}]` when projecting or building failed
 def build_rust(dir, scratch)
   project, status = Open3.capture2e({ "HECKS_RUST_DIR" => scratch }, "bundle", "exec", "ruby",
                                     File.join(ROOT, "bin/project_rust"), dir, chdir: ROOT)
@@ -257,6 +295,11 @@ def build_rust(dir, scratch)
   [binary, nil]
 end
 
+# Mirrors the checked-in Rust crate's source into the scratch copy that
+# `build_rust` compiles against, so a build never touches `rust/` itself.
+#
+# @param scratch [String] the scratch crate's root to rsync into
+# @return [void]
 def sync_scratch!(scratch)
   FileUtils.mkdir_p(scratch)
   sources = %w[Cargo.toml Cargo.lock src].map { |entry| File.join(ROOT, "rust", entry) }
@@ -266,6 +309,20 @@ end
 # One candidate check against a written blueprint: build (when --rust),
 # then a child run. A build failure is its own result shape, so a
 # rust_build finding shrinks by "does it still fail to build".
+#
+# @param blueprint [Hash] a `DomainGenerator`-shaped blueprint (or a `--source`
+#   adoption's own Hash) to write and check
+# @param dir_root [String] directory to write the generated domain under
+# @param options [Hash] this run's own parsed options (`:rust`, `:seeds`,
+#   `:steps`, `:adversarial` are read)
+# @param scratch [String] the scratch crate's root, used only when `options[:rust]`
+# @param match [Hash, nil] a mode/signature narrowing which finding counts,
+#   or `nil` for the first one
+# @param shrink_budget [Integer] candidate-check budget forwarded to the child's
+#   own step shrink
+# @return [Hash] the check result — `{"status" => "clean"}`, an "invalid"/"error"
+#   Hash, or a "found" Hash carrying `"mode"`, `"signature"`, `"dir"`,
+#   `"divergences"`, `"steps"`, plus `"binary"` and `"dir"` merged in
 def evaluate(blueprint, dir_root, options, scratch, match: nil, shrink_budget: 0)
   dir = Generator.write(blueprint, dir_root)
   binary = nil
@@ -282,6 +339,19 @@ def evaluate(blueprint, dir_root, options, scratch, match: nil, shrink_budget: 0
   child_check(dir, options, binary: binary, match: match, shrink_budget: shrink_budget).merge("binary" => binary, "dir" => dir)
 end
 
+# Removes one element at a time from `blueprint` (a query, a command, an
+# entity, an aggregate, a given…), keeping a removal only while a child
+# check still reports the same mode and a signature containing the
+# original's — see this file's own header, "a finding is shrunk twice."
+#
+# @param blueprint [Hash] the blueprint to shrink
+# @param found [Hash] the original finding, carrying `"mode"` and `"signature"`
+#   the shrunk candidate must keep reproducing
+# @param root [String] directory under which each shrink candidate is written
+# @param options [Hash] this run's own parsed options, forwarded to `evaluate`
+# @param scratch [String] the scratch crate's root, forwarded to `evaluate`
+# @return [Array(Hash, Integer)] the smallest blueprint still reproducing the
+#   finding, and how many candidate checks it took
 def shrink_domain(blueprint, found, root, options, scratch)
   match = { "mode" => found["mode"], "signature" => found["signature"] }
   current = blueprint
@@ -303,6 +373,11 @@ def shrink_domain(blueprint, found, root, options, scratch)
   [current, attempts]
 end
 
+# Prints the finding's own banner: domain seed, forms, how much the
+# domain itself shrank, and where the blueprint landed.
+#
+# @param report [Hash] a `record_finding` report, merged with `:seed`
+# @return [void]
 def print_finding_header(report)
   puts
   puts "=" * 72
@@ -314,6 +389,12 @@ def print_finding_header(report)
   puts "blueprint:   #{File.join(report[:root], 'blueprint.json').delete_prefix("#{ROOT}/")}"
 end
 
+# Prints one finding in full: the header, the mode and signature, the
+# generating sequence (when there was one), the shrunk steps, the
+# `--promote` command, and every divergence's own detail.
+#
+# @param report [Hash] a `record_finding` report, merged with `:seed`
+# @return [void]
 def print_finding(report)
   found = report[:final]
   options = report[:options]
@@ -334,6 +415,14 @@ def print_finding(report)
   end
 end
 
+# Prints the step-shrink result and a replay command, when the finding
+# was shrunk to a step list at all.
+#
+# @param report [Hash] a `record_finding` report, merged with `:seed`
+# @param steps [Array<Hash>, nil] the original, unshrunk step list, or `nil`
+# @param shrunk [Array<Hash>, nil] the shrunk step list, or `nil` when the
+#   finding was never shrunk to steps at all (nothing is printed then)
+# @return [void]
 def print_shrunk(report, steps, shrunk)
   return unless shrunk
 
@@ -350,6 +439,21 @@ def print_shrunk(report, steps, shrunk)
   end
 end
 
+# Shrinks the domain, re-checks the minimal one to get a fresh replay
+# (falling back to the original blueprint if the minimal one somehow no
+# longer reproduces), and writes `finding.json`/`shrunk_steps.json` under
+# `root/minimal`.
+#
+# @param blueprint [Hash] the original blueprint that found something
+# @param result [Hash] the original `evaluate` result, carrying `"mode"` and
+#   `"signature"`
+# @param root [String] this domain's own run directory
+# @param options [Hash] this run's own parsed options, forwarded to `shrink_domain`
+#   and `evaluate`
+# @param scratch [String] the scratch crate's root, forwarded to `shrink_domain`
+#   and `evaluate`
+# @return [Hash] a report keyed by `:forms`, `:root`, `:dir`, `:binary`, `:final`,
+#   `:options`, `:steps_file`, `:domain_attempts`, `:size_before`, `:size_after`
 def record_finding(blueprint, result, root, options, scratch)
   minimal, attempts = shrink_domain(blueprint, result, root, options, scratch)
   final_root = File.join(root, "minimal")

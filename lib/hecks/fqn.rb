@@ -8,20 +8,44 @@ module Hecks
 
     attr_reader :realm, :domain, :version, :aggregate, :verb, :kind
 
+    # Builds an FQN addressing a command on one aggregate.
+    #
+    # @param realm [String, nil] deployment identity, or nil for an unrealmed address
+    # @param domain [String] domain the aggregate belongs to
+    # @param aggregate [String] the aggregate's name
+    # @param command [String] the command's PascalCase name
+    # @param version [String, nil] pinned domain version, or nil for the world's latest
+    # @return [Fqn] the command address
     def self.command(realm:, domain:, aggregate:, command:, version: nil)
       new(realm: realm, domain: domain, version: version, aggregate: aggregate, verb: command, kind: :command)
     end
 
+    # Builds an FQN addressing a query, either on one aggregate or domain-level.
+    #
+    # @param realm [String, nil] deployment identity, or nil for an unrealmed address
+    # @param domain [String] domain the query belongs to
+    # @param query [String] the query's snake_case name
+    # @param aggregate [String, nil] aggregate the query reads, or nil for a
+    #   domain-level read model
+    # @param version [String, nil] pinned domain version, or nil for the world's latest
+    # @return [Fqn] the query address
     def self.query(realm:, domain:, query:, aggregate: nil, version: nil)
       new(realm: realm, domain: domain, version: version, aggregate: aggregate, verb: query, kind: :query)
     end
 
+    # Parses a fully-qualified command or query address into a Fqn.
+    #
     # One order-dependent parse pipeline: split -> shape-validate -> dispatch
     # on segment count -> split domain/version -> classify kind -> cross-
     # field validate -> construct. Each step consumes locals (segments, verb,
     # kind) the step before it derived; splitting would mean threading all of
     # them back out as parameters/returns between new methods, for no
     # readability gain over reading the pipeline top to bottom once.
+    #
+    # @param text [String, #to_s] address text, such as `"Realm::Domain::Order.Ship"`
+    # @return [Fqn] the parsed address
+    # @raise [Invalid] if the address is malformed, the verb's casing does not match
+    #   its kind, or a domain-level address names a command
     # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     def self.parse(text)
       head, separator, verb = text.to_s.rpartition(".")
@@ -53,9 +77,26 @@ module Hecks
       new(realm: realm, domain: domain, version: version, aggregate: aggregate, verb: verb, kind: kind)
     end
 
+    # Tells whether `name` is written in the PascalCase shape a command verb takes.
+    #
+    # @param name [String, Symbol, #to_s] a verb to classify
+    # @return [Boolean]
     def self.command_name?(name) = /\A[A-Z][A-Za-z0-9]*\z/.match?(name.to_s)
+
+    # Tells whether `name` is written in the snake_case shape a query verb takes.
+    #
+    # @param name [String, Symbol, #to_s] a verb to classify
+    # @return [Boolean]
     def self.query_name?(name)   = /\A[a-z][a-z0-9_]*\z/.match?(name.to_s)
 
+    # @param realm [String, nil] deployment identity, or nil for an unrealmed address
+    # @param domain [String] domain name; empty, or containing `::`, `.`, or `@`, raises
+    # @param aggregate [String, nil] aggregate name, or nil for a domain-level query
+    # @param verb [String] command or query name, matching `kind`'s casing
+    # @param kind [Symbol] `:command` or `:query`
+    # @param version [String, nil] pinned domain version, or nil for the world's latest
+    # @raise [Invalid] if any segment is empty or contains a separator (`::`, `.`, `@`),
+    #   or if `verb`'s casing does not match `kind`
     def initialize(realm:, domain:, aggregate:, verb:, kind:, version: nil)
       @realm     = realm && segment(realm, "realm")
       @domain    = segment(domain, "domain")
@@ -68,7 +109,14 @@ module Hecks
       raise Invalid, "#{@kind} FQN has an invalid verb #{@verb.inspect}" unless valid
     end
 
+    # Tells whether this address dispatches a command.
+    #
+    # @return [Boolean]
     def command? = @kind == :command
+
+    # Tells whether this address dispatches a query.
+    #
+    # @return [Boolean]
     def query?   = @kind == :query
 
     def to_s

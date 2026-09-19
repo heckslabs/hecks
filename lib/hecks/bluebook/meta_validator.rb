@@ -16,6 +16,8 @@ module Hecks
     # `given`/`invariant` here, where they are declarations any reader of the
     # meta-domain can consume instead of behavior buried in a builder.
     #
+    # ## Migration status
+    #
     # **This migration is partial, not done**. As of this writing the meta-domain
     # declares 62 given/invariant/ensures rules (`Hecks::QueryIR.collect_rules`
     # against `grammar_registry.bluebook("Bluebook")` enumerates them) —
@@ -32,15 +34,18 @@ module Hecks
     # is which, or tracks migrating the latter — that inventory is the actual
     # next step, not a "delete the folder" thought experiment.
     #
+    # ## What's actually enforced
+    #
     # So: "delete language/bluebook/ and validation stops" is true for the 62
     # rules actually declared here, and false for whatever a builder's own
     # `raise Malformed` still checks — the language does not yet own its own
-    # enforcement end to end, and this comment used to claim it already did.
-    # The self-hosting mechanism itself is real and is the point worth
-    # keeping : a self-description that only describes is indistinguishable
-    # from enforcement, and the first version of this file was deleted for
-    # exactly that reason. What is not yet real is that self-hosting being
-    # the whole of validation.
+    # enforcement end to end. The self-hosting mechanism itself is real and
+    # is the point worth keeping : a self-description that only describes is
+    # indistinguishable from enforcement, and the first version of this file
+    # was deleted for exactly that reason. What is not yet real is that
+    # self-hosting being the whole of validation.
+    #
+    # ## Isolation
     #
     # The meta-domain is loaded once and its registry reused ; each bluebook is
     # judged in a fresh in-memory store so no domain can see another's records.
@@ -97,6 +102,8 @@ module Hecks
       # is only the first pass. Once every grammar file is loaded and merged,
       # grammar_registry judges the language through itself and keeps the
       # assembled result (the fixpoint, made load-bearing).
+      #
+      # @return [Boolean] true while the language's own grammar is loading
       def self.bootstrapping? = @bootstrapping
 
       # A chapter may be split across files, so it cannot be judged until
@@ -125,6 +132,12 @@ module Hecks
       # out a second set of classes for a graph something already holds.
       def self.deferring? = @deferring
 
+      # Runs the block with `deferring?` true for its duration, so a loader
+      # reading a chapter's many files can queue them for `judge_deferred!`
+      # instead of having each file judged, incomplete, on its own.
+      #
+      # @yield the caller's load of one chapter's files
+      # @return [Object] whatever the block returns
       def self.defer
         previous   = @deferring
         @deferring = true
@@ -133,8 +146,18 @@ module Hecks
         @deferring = previous
       end
 
+      # Chapter names `call` queued while `deferring?` was true.
+      #
+      # @return [Array<String>] chapter names queued by `call` while `deferring?` was true
       def self.deferred_chapters = @deferred_chapters ||= []
 
+      # Judges every chapter `call` queued while `deferring?` was true, now that every
+      # file of each has loaded.
+      #
+      # @param registry [Runtime::Registry, nil] the registry the deferred chapters were
+      #   loaded into; a falsy registry judges nothing
+      # @return [Array<String>, nil] the chapter names judged, or nil when `registry` is falsy
+      # @raise [DSL::Malformed] if a deferred chapter is not well formed (see `call`)
       def self.judge_deferred!(registry)
         pending = deferred_chapters.uniq
         @deferred_chapters = []
@@ -180,10 +203,10 @@ module Hecks
       # window must win even while a growth spec's `while_disabled` is open,
       # for the reason recorded there. Otherwise the same stack-restore shape
       # `while_shadow_parsing`/`while_forcing_fixpoint` use, not a bare env
-      # toggle any more — it used to be exactly that (`ENV["HECKS_META_
-      # VALIDATION"] == "off"`, read directly, with no `previous`/`ensure` of
-      # its own), and the gap between "bare toggle" and "stack-restore" was
-      # not cosmetic: a test's temporary window could reach code it was never
+      # toggle — a bare toggle (`ENV["HECKS_META_VALIDATION"] == "off"`, read
+      # directly, with no `previous`/`ensure` of its own) is not equivalent,
+      # because the gap between "bare toggle" and "stack-restore" is not
+      # cosmetic: a test's temporary window could reach code it was never
       # meant to touch. If `grammar_registry`'s one-time lazy build (below)
       # happened to land inside that window, every language chapter got
       # cached in its raw, never-judged form for the rest of the process —
@@ -199,9 +222,11 @@ module Hecks
       # the gap for every other caller of `while_disabled`, not just the one
       # race that was actually observed — nothing outside this file reads
       # `ENV["HECKS_META_VALIDATION"]` any more (confirmed: every one of the
-      # dozen growth specs that used to hand-roll `previous = ENV[...] ;
+      # dozen growth specs that once hand-rolled `previous = ENV[...] ;
       # ENV[...] = "off" ; ... ; ensure ENV[...] = previous` now calls
       # `while_disabled` instead), so there is no bare global left to race.
+      #
+      # @return [Boolean] true while validation is off and the fixpoint judge is not forcing it on
       def self.disabled? = @disabled && !@forcing_fixpoint
 
       # The same stack-restore shape `while_shadow_parsing`/`while_forcing_
@@ -211,6 +236,9 @@ module Hecks
       # bounded window around one boot, never a flag meant to survive past
       # it, so the flag itself is scoped in the same `previous`/`ensure`
       # shape rather than a plain assignment a caller could forget to undo.
+      #
+      # @yield the caller's scratch boot, with `disabled?` true for its duration
+      # @return [Object] whatever the block returns
       def self.while_disabled
         previous  = @disabled
         @disabled = true
@@ -235,8 +263,15 @@ module Hecks
       # that set it, the same reason `ConstShim.with`/`.active?`
       # (bluebook/dsl/const_shim.rb) restores in an `ensure` rather than
       # being flipped and left.
+      #
+      # @return [Boolean] true while a shadow-parse of frozen era text is in progress
       def self.shadow_parsing? = @shadow_parsing
 
+      # Runs the block with `shadow_parsing?` true for its duration, so a
+      # frozen era's stored source is not re-judged against the live grammar.
+      #
+      # @yield the one `Kernel.eval` of stored source (`EraGuard.shadow_parse`)
+      # @return [Object] whatever the block returns
       def self.while_shadow_parsing
         previous        = @shadow_parsing
         @shadow_parsing = true
@@ -252,6 +287,9 @@ module Hecks
       # wraps itself in this — nothing else needs it, and nothing else
       # should reach for it just to dodge `disabled?` for a domain
       # bluebook, which is precisely the toggle's real, intended use.
+      #
+      # @yield the language's own fixpoint judge
+      # @return [Object] whatever the block returns
       def self.while_forcing_fixpoint
         previous          = @forcing_fixpoint
         @forcing_fixpoint = true
@@ -263,10 +301,18 @@ module Hecks
       # The same bluebook judged twice gets the same verdict, and a suite reloads
       # its fixtures constantly — banking alone is ~200 dispatches per build.
       # Keyed on the IR itself, so a changed bluebook is always re-judged.
+      #
+      # @return [Hash{String => Object}] verdicts keyed by a SHA-256 digest of the judged
+      #   input; each value is an `Array<String>` of refusals (world/port/adapter/translation)
+      #   or a `{refusals:, declaration:}` Hash (a full bluebook chapter, see `hold`)
       def self.verdicts = @verdicts ||= {}
 
       # A world is not a bluebook, so it gets its own door. Same judge, same
       # meta-domain registry — a different artifact and a different language file.
+      #
+      # @param world [Bluebook::World] the built world to judge
+      # @return [Bluebook::World] `world` unchanged, once judged well formed
+      # @raise [DSL::Malformed] if `world`'s settings refuse the language's rules
       def self.call_world(world)
         return world if disabled? || bootstrapping? || shadow_parsing?
 
@@ -281,6 +327,10 @@ module Hecks
       # A port is not a bluebook either — same door shape as call_world,
       # one artifact over. Whole-project table-unification survey, item
       # #13's remaining builders.
+      #
+      # @param port [Bluebook::Port] the built port to judge
+      # @return [Bluebook::Port] `port` unchanged, once judged well formed
+      # @raise [DSL::Malformed] if `port` refuses the language's rules
       def self.call_port(port)
         return port if disabled? || bootstrapping? || shadow_parsing?
 
@@ -295,6 +345,10 @@ module Hecks
       # An adapter is not a bluebook either — same door shape, one more
       # artifact over. Whole-project table-unification survey, item
       # #13's remaining builders.
+      #
+      # @param adapter [Bluebook::Adapter] the built adapter to judge
+      # @return [Bluebook::Adapter] `adapter` unchanged, once judged well formed
+      # @raise [DSL::Malformed] if `adapter` refuses the language's rules
       def self.call_adapter(adapter)
         return adapter if disabled? || bootstrapping? || shadow_parsing?
 
@@ -317,6 +371,10 @@ module Hecks
       # in one pass over `World::World.Declare`'s own caller, not from a
       # separate door per binding. Whole-project table-unification survey,
       # item #13's remaining builders.
+      #
+      # @param translation [Bluebook::Translation] the built translation to judge
+      # @return [Bluebook::Translation] `translation` unchanged, once judged well formed
+      # @raise [DSL::Malformed] if `translation` refuses the language's rules
       def self.call_translation(translation)
         return translation if disabled? || bootstrapping? || shadow_parsing?
 
@@ -339,12 +397,12 @@ module Hecks
 
       # The language hands the graph back.
       #
-      # This used to return the bluebook it was given — dispatch every declaration
-      # in, collect refusals, throw the records away — which is all judging needs
-      # and exactly why the language could only validate. It returns what the
-      # meta-domain holds instead, assembled into the graph the runtime runs. The
-      # builder's own object graph now exists only to be dispatched; nothing keeps
-      # it.
+      # Simply returning the bluebook it was given — dispatch every declaration
+      # in, collect refusals, throw the records away — is all judging needs, and
+      # exactly why the language could only validate that way. This returns what
+      # the meta-domain holds instead, assembled into the graph the runtime runs.
+      # The builder's own object graph exists only to be dispatched; nothing
+      # keeps it.
       #
       # `Hecks.bluebook` registers whatever comes back from here, so this one line
       # is the difference between a language that checks a domain and a language
@@ -386,6 +444,12 @@ module Hecks
       # classes, so a second load of the same chapter assembles fresh ones — which is
       # what `Namespace.install` and `spec/construct_spec` both expect. Caching the
       # graph would hand two boots the same classes.
+      #
+      # @param bluebook [Bluebook::Chapter] the built chapter to judge
+      # @return [Bluebook::Chapter] the chapter assembled from the meta-domain's own
+      #   records, or `bluebook` unchanged while disabled, bootstrapping, shadow-parsing,
+      #   or deferring
+      # @raise [DSL::Malformed] if `bluebook` is not well formed
       def self.call(bluebook)
         return bluebook if disabled? || bootstrapping? || shadow_parsing?
 
@@ -408,6 +472,12 @@ module Hecks
       # Dispatch it in and read it back. A refused chapter has no declarations to
       # read — the records are half-written by definition — so it carries refusals
       # and nothing else.
+      #
+      # @param bluebook [Bluebook::Chapter] the built chapter to judge
+      # @return [Hash{Symbol => Object}] `{refusals:}` when `bluebook` is refused, or
+      #   `{refusals: [], declaration:}` (a `Reconstruction.of` Hash) once it is held
+      # @raise [NameError] if `Reconstruction.of` cannot find the chapter it was just
+      #   judged into — see `Reconstruction`'s own comment; looks like a bug
       def self.hold(bluebook)
         judge = Judge.new(bluebook)
         return { refusals: judge.refusals } unless judge.refusals.empty?
@@ -415,6 +485,9 @@ module Hecks
         { refusals: [], declaration: Reconstruction.of(judge.runtime, bluebook.hecks_name) }
       end
 
+      # The language's own grammar, loaded once and judged through itself.
+      #
+      # @return [Runtime::Registry] the memoised registry holding every language chapter
       def self.grammar_registry
         @grammar_registry ||= begin
           registry = load_grammar_into(Runtime::Registry.new)
@@ -470,6 +543,8 @@ module Hecks
       # the snapshot is a function of. Kept here for any other derived
       # cache that genuinely needs "is the build finished" rather than
       # "have my inputs changed".
+      #
+      # @return [Boolean] true once `grammar_registry`'s fixpoint judge and attach have run
       def self.grammar_registry_ready?
         @grammar_registry && @grammar_ready_for == @grammar_registry.object_id
       end
@@ -481,6 +556,9 @@ module Hecks
       # `MetaValidator.call`, `bootstrapping?` already false). A directory
       # with nothing in it loads nothing ; this is a no-op until a chapter
       # is added there.
+      #
+      # @param registry [Runtime::Registry] the registry to load attached chapters into
+      # @return [Array<String>] the attached `.bluebook` file paths loaded, in glob order
       def self.load_attached_grammar_into(registry)
         Hecks.with_registry(registry) do
           Dir.glob(File.join(ATTACHED_GRAMMAR_DIR, "*.bluebook")).each { |file| Kernel.load(file) }
@@ -504,6 +582,9 @@ module Hecks
       # refuses immediately, since `Aggregate.Attribute` references `ValueObject`
       # and `Aggregate.Holds` references `Entity`, both declared in later files.
       # Every caller of the grammar must go through here for exactly that reason.
+      #
+      # @param registry [Runtime::Registry] the registry to load the language's grammar into
+      # @return [Runtime::Registry] `registry`, once every grammar file has loaded
       def self.load_grammar_into(registry)
         @bootstrapping = true
         Hecks.with_registry(registry) do
@@ -532,6 +613,9 @@ module Hecks
       # No `bind_runtime` here : judging dispatches by FQN and never opens the
       # door, and binding would re-install the language's own facade constants
       # once per judged chapter.
+      #
+      # @return [Runtime::Dispatcher] a dispatcher over the grammar registry, with its
+      #   own record store cleared
       def self.fresh_runtime
         registry = grammar_registry
         registry.instance_variable_set(:@repositories, {})

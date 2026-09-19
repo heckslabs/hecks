@@ -18,7 +18,7 @@
 # is — the decision to fuzz it belongs to a person, not this script. It
 # prints the exact `bin/run qa/bluebook identify reference=… path=…`
 # command; running that command is a separate, deliberate act. Matches
-# the `bin/qa_mine_combinations` precedent (PR #658): an explicit script
+# the `bin/qa_mine_combinations` precedent: an explicit script
 # a person runs, never wired into `bin/qa_tick`'s own default rotation,
 # and no `QualityControlDials`/`qa/settings.yml` entry turns it on —
 # there is nothing here for a dial to gate.
@@ -35,7 +35,7 @@
 # as the file inside its `bluebook/` subdirectory, exactly the one file
 # `Hecks.boot` and `bin/project_rust` both treat as the domain's root.
 #
-# **Two shapes, one check** — nested and repo-ROOT. The name-repetition rule
+# **Two shapes, one check** — nested and repo-root. The name-repetition rule
 # above is applied uniformly at every depth the walk visits, including
 # depth 0 (the sibling repo's own root): a repo whose own name is
 # `foo` and that carries `foo/bluebook/foo.bluebook` at its own top
@@ -97,11 +97,11 @@
 # chosen — never folded into discovery itself.
 #
 # A real, discovered limitation worth naming here: `bin/qa_sweep`
-# resolves every `Target.path` as `File.join(ROOT, target_path)` — ROOT
+# resolves every `Target.path` as `File.join(ROOT, target_path)` — `ROOT`
 # being this repo's own root. An external, absolute path survives
 # `identify` (`TargetPath` only forbids whitespace) but `qa_sweep` has
 # no code path today that sweeps a target whose real location is outside
-# ROOT. Printing the `identify` command anyway is still correct — the
+# `ROOT`. Printing the `identify` command anyway is still correct — the
 # task this script exists for is discovery, and enrollment is a person's
 # call — but a sweep of an enrolled external target needs that gap
 # closed first; this script does not attempt to close it.
@@ -131,6 +131,10 @@ DEFAULT_MAX_DEPTH = 3
 SKIP_DIR_BASENAMES = %w[.git .hg .svn vendor node_modules .bundle tmp log coverage .yardoc .ruby-lsp .parked
                         bower_components .claude dist build].freeze
 
+# Prints `message` and the usage string to stderr, then exits the process.
+#
+# @param message [String] what went wrong, printed before the usage string
+# @return [void]
 def usage!(message)
   warn message
   warn USAGE
@@ -151,6 +155,11 @@ end
 GEMFILE_PATTERN      = /gem\s*\(?\s*["']hecks["']/
 GEMFILE_LOCK_PATTERN = /^\s+hecks\s+\(/
 
+# Whether the sibling project at `repo_root` actually depends on the real
+# `hecks` gem, not just something that happens to carry a `.bluebook` file.
+#
+# @param repo_root [String] the sibling project's own root directory
+# @return [Boolean] whether its `Gemfile` or `Gemfile.lock` names `hecks`
 def depends_on_hecks?(repo_root)
   gemfile = File.join(repo_root, "Gemfile")
   lockfile = File.join(repo_root, "Gemfile.lock")
@@ -162,6 +171,12 @@ end
 # Every `<entity>/bluebook/<entity>.bluebook` under `repo_root`, entity
 # dir at most `max_depth` path segments below it (`repo_root` itself is
 # depth 0). Returns `[entity_dir, entity_name]` pairs.
+#
+# @param repo_root [String] the sibling project's own root directory to walk
+# @param max_depth [Integer] how many path segments below `repo_root` the walk
+#   descends
+# @return [Array<Array(String, String)>] `[entity_dir, entity_name]` pairs, one
+#   per matching directory found
 def bluebook_shaped_dirs(repo_root, max_depth)
   found = []
   walk = lambda do |dir, depth|
@@ -194,10 +209,12 @@ end
 # — a subprocess `ask`, never a boot of the ledger in this process, so
 # running discovery alongside a live `bin/qa_tick`/`bin/qa_sweep` is
 # always safe. Existing paths are normalized to absolute: a target this
-# repo seeded (`examples/pizzas`) is stored ROOT-relative, one this
+# repo seeded (`examples/pizzas`) is stored `ROOT`-relative, one this
 # script's own `identify` suggestion produced would be absolute already
 # — both have to compare equal to the candidate paths this script finds,
 # which are always absolute.
+#
+# @return [Array<String>] every known target path, `File.expand_path`ed
 def ledger_target_paths
   out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(ROOT, "bin/run"),
                                     "qa/bluebook", "ask", "target.all", chdir: ROOT)

@@ -11,14 +11,16 @@ module Hecks
     # Rust subprocess (or a real Postgres round trip), where `bin/fuzz`'s
     # only ever cost an in-process replay.
     #
-    # The caller owns "same finding". `call` is handed a block that
-    # answers true when a candidate step list still reproduces what the
-    # original did — `bin/fuzz` compares its own verdict signature,
-    # `bin/qa_sweep` compares `Shrinker.signature` of one mode's
-    # divergences. This module never replays anything itself, so it has
-    # no idea which engine, adapter or comparison it is minimizing for.
+    # ## The caller owns "same finding"
     #
-    # **Two passes, in order**:
+    # `call` is handed a block that answers true when a candidate step
+    # list still reproduces what the original did — `bin/fuzz` compares
+    # its own verdict signature, `bin/qa_sweep` compares
+    # `Shrinker.signature` of one mode's divergences. This module never
+    # replays anything itself, so it has no idea which engine, adapter or
+    # comparison it is minimizing for.
+    #
+    # ## Two passes, in order
     #
     #   1. Steps, chunks first. Removing one step at a time (what
     #      `bin/fuzz` did) costs O(n²) candidate checks on a sequence
@@ -32,6 +34,8 @@ module Hecks
     #      one key at a time from the step's current args, keep it dropped
     #      only while the finding still reproduces.
     #
+    # ## Budget
+    #
     # A budget, because a sweep has other targets waiting. `budget:` caps
     # how many candidate checks one call may spend (nil = unbounded, the
     # `bin/fuzz` behaviour). When it runs out the best candidate found so
@@ -42,6 +46,19 @@ module Hecks
 
       module_function
 
+      # Shrinks `steps` to a smaller step list that still reproduces the same
+      # finding, spending at most `budget` candidate checks.
+      #
+      # @param steps [Array<Hash>] the full step list to shrink
+      # @param budget [Integer, nil] maximum candidate checks to spend; `nil` for
+      #   unbounded
+      # @yield [candidate] called once per candidate step list tried
+      # @yieldparam candidate [Array<Hash>] a candidate no larger than `steps`
+      # @yieldreturn [Boolean] whether `candidate` still reproduces the same finding
+      # @return [Hecks::Fuzzing::Shrinker::Result] the smallest reproducing
+      #   candidate found, the number of checks spent, and whether the budget
+      #   ran out before shrinking finished
+      # @raise [ArgumentError] if no block is given
       def call(steps, budget: nil, &reproduces)
         raise ArgumentError, "Shrinker.call needs a block answering whether a candidate reproduces" unless reproduces
 
@@ -51,6 +68,16 @@ module Hecks
         Result.new(steps: current, attempts: meter.used, exhausted: meter.exhausted?)
       end
 
+      # Pass 1 — see the module header. Removes whole steps in shrinking chunks
+      # (halves, then quarters, … then single steps) until 1-minimal or the
+      # budget runs out.
+      #
+      # @param steps [Array<Hash>] the step list to shrink
+      # @param meter [Hecks::Fuzzing::Shrinker::Meter] the shared budget meter
+      # @yield [candidate] same contract as `#call`
+      # @yieldparam candidate [Array<Hash>] a candidate with some steps removed
+      # @yieldreturn [Boolean] whether `candidate` still reproduces the same finding
+      # @return [Array<Hash>] the smallest step list found within budget
       def drop_steps(steps, meter, &reproduces)
         current = steps
         chunk = [current.length / 2, 1].max
@@ -86,6 +113,16 @@ module Hecks
       # See the module header's pass 2 — `args` is read by whichever
       # spelling the step actually carries (`key?` first, never `||`,
       # which cannot tell a stored `false` from an absent key).
+      #
+      # @param steps [Array<Hash>] the step list (already step-shrunk) to shrink
+      #   arguments within
+      # @param meter [Hecks::Fuzzing::Shrinker::Meter] the shared budget meter
+      # @yield [candidate] same contract as `#call`
+      # @yieldparam candidate [Array<Hash>] `steps` with one step's own argument
+      #   dropped
+      # @yieldreturn [Boolean] whether `candidate` still reproduces the same finding
+      # @return [Array<Hash>] `steps` with as many arguments dropped as the budget
+      #   and reproduction allow
       def drop_arguments(steps, meter, &reproduces)
         steps.each_index do |position|
           original = args_of(steps[position])
@@ -104,6 +141,10 @@ module Hecks
         steps
       end
 
+      # Reads a step's own arguments, by whichever key spelling it carries.
+      #
+      # @param step [Hash] a step, string- or symbol-keyed
+      # @return [Hash, nil] the step's own `"args"`/`:args`, whichever it carries
       def args_of(step)
         step.key?("args") ? step["args"] : step[:args]
       end
@@ -131,6 +172,12 @@ module Hecks
 
       CRASH_FIELDS = %w[crash process generator_crash].freeze
 
+      # Builds the stable identity of a finding — see the comment above
+      # `LIST_FIELDS` for the per-field rule.
+      #
+      # @param divergences [Array<Hash>] one mode's divergence entries, each with
+      #   at least `:field`
+      # @return [Set<String>] the stable strings identifying this finding
       def signature(divergences)
         divergences.each_with_object(Set.new) do |divergence, keys|
           field = divergence[:field].to_s
@@ -139,6 +186,14 @@ module Hecks
         end
       end
 
+      # The extra stable strings one divergence contributes, beyond its bare
+      # `field`, per the per-field rule above `LIST_FIELDS`.
+      #
+      # @param field [String] the divergence's own `:field`
+      # @param divergence [Hash] the divergence entry, with `:field`, `:detail`,
+      #   and the engine-specific values to compare (typically `:ruby`/`:rust`)
+      # @return [Array<String>] extra stable strings for `field`; empty for a field
+      #   this method has no special rule for
       def detail_keys(field, divergence)
         left, right = divergence.except(:field, :detail).values.select { |v| v.is_a?(Array) || v.is_a?(Hash) }
         if LIST_FIELDS.include?(field) then list_keys(field, left, right)
@@ -149,6 +204,15 @@ module Hecks
         end
       end
 
+      # The stable strings for a divergence whose two sides are lists of rows.
+      #
+      # @param field [String] the divergence's own `:field`
+      # @param left [Object] the divergence's own first list-or-Hash value
+      #   (expected to be an `Array`; anything else answers empty)
+      # @param right [Object] the divergence's own second list-or-Hash value
+      #   (expected to be an `Array`; anything else answers empty)
+      # @return [Array<String>] `"field:name"` for every row in the symmetric
+      #   difference of `left` and `right`; empty unless both are Arrays
       def list_keys(field, left, right)
         return [] unless left.is_a?(Array) && right.is_a?(Array)
 
@@ -158,6 +222,12 @@ module Hecks
       # Instance keys are `Aggregate#id` on the wire — the id is whatever
       # the generator minted, so it names the record, not the finding;
       # keeping it would pin every creating step.
+      # @param left [Object] the divergence's own first list-or-Hash value
+      #   (expected to be a `Hash`; anything else answers empty)
+      # @param right [Object] the divergence's own second list-or-Hash value
+      #   (expected to be a `Hash`; anything else answers empty)
+      # @return [Array<String>] `"instances:Aggregate"` for every key the two sides
+      #   disagree on, id suffix dropped; empty unless both are Hashes
       def instance_keys(left, right)
         return [] unless left.is_a?(Hash) && right.is_a?(Hash)
 
@@ -165,10 +235,24 @@ module Hecks
                                 .map { |key| "instances:#{key.to_s.split('#').first}" }
       end
 
+      # Answers whether `divergences` still demonstrates the finding
+      # `original_signature` identifies.
+      #
+      # @param original_signature [Set<String>] the finding's own signature, as
+      #   returned by `#signature`
+      # @param divergences [Array<Hash>] a shrink candidate's own divergence entries
+      # @return [Boolean] true if `divergences` is non-empty and its own signature
+      #   contains every string in `original_signature`
       def reproduces?(original_signature, divergences)
         !divergences.empty? && original_signature.subset?(signature(divergences))
       end
 
+      # A human-readable name for one row in a list-field divergence.
+      #
+      # @param row [Object] one element of a `refusals`/`queries`/`dry_runs`/
+      #   `reactions` divergence list
+      # @return [String] `row`'s own `verb`/`query`/`policy` value (whichever key
+      #   it carries, String- or Symbol-keyed), or `row.to_s` for anything else
       def named(row)
         return row.to_s unless row.is_a?(Hash)
 
@@ -180,13 +264,23 @@ module Hecks
       class Meter
         attr_reader :used
 
+        # @param budget [Integer, nil] maximum checks to allow; `nil` for unbounded
         def initialize(budget)
           @budget = budget
           @used   = 0
         end
 
+        # Answers whether the budget has been spent.
+        #
+        # @return [Boolean] true if `used` has reached `budget` (always false when
+        #   `budget` is `nil`)
         def exhausted? = !@budget.nil? && @used >= @budget
 
+        # Runs one candidate check, counting it against the budget.
+        #
+        # @yield the candidate check to run
+        # @yieldreturn [Boolean] whether the candidate reproduces the finding
+        # @return [Boolean] the block's own return value
         def try
           @used += 1
           yield

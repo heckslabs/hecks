@@ -165,9 +165,9 @@ module Hecks
                                      fields)
                     end
 
-          # Frozen, like every other value the domain hands back. An
-          # appended list used to come back mutable, so a caller could
-          # push straight into an aggregate's own state after the
+          # Frozen, like every other value the domain hands back. Without
+          # this, an appended list would come back mutable, letting a
+          # caller push straight into an aggregate's own state after the
           # dispatch had finished.
           Freezer.deep(Array(instance[mutation.target]) + [element])
         end
@@ -197,23 +197,22 @@ module Hecks
 
         # Vendored fix, not (yet) upstream hecks (migration plan
         # task 9): #apply's `:increment`/`:decrement`/`:multiply`
-        # branches used to wrap `amount` into a `Value` unconditionally
-        # whenever the target attribute existed, never checking whether
+        # branches must not wrap `amount` into a `Value` unconditionally
+        # whenever the target attribute exists, without also checking whether
         # `current` (the field's own existing value, read straight off
-        # `instance[mutation.target]`) was also wrapped -- the two sides
-        # of the same arithmetic call could disagree on Value-ness. On a
-        # phantom-created field this is the common case, not an edge
-        # one: `Instance.defaults`/`#default_for` leaves a VO-typed
+        # `instance[mutation.target]`) is also wrapped -- unconditional wrapping
+        # would let the two sides of the same arithmetic call disagree on
+        # Value-ness. On a phantom-created field this is the common case, not
+        # an edge one: `Instance.defaults`/`#default_for` leaves a VO-typed
         # attribute with no declared `default:` genuinely absent (nil),
         # and `CommandRules::Arithmetic#arithmetic`/`#multiply`'s own
         # `current ||= 0` then turns that nil into a raw, unwrapped
         # Integer `0` -- so `current.is_a?(Value) && amount.is_a?(Value)`
-        # read false even though `amount` (correctly wrapped by the old
-        # unconditional line) genuinely held a valid, correctly-typed
-        # number, and the primitive path's `unless amount.is_a?(Numeric)`
-        # guard refused it as a type mismatch the caller never made --
-        # an artifact of this method's own asymmetric wrapping, not bad
-        # input.
+        # would read false even though an unconditionally-wrapped `amount`
+        # genuinely held a valid, correctly-typed number, and the primitive
+        # path's `unless amount.is_a?(Numeric)` guard would refuse it as a
+        # type mismatch the caller never made -- an artifact of asymmetric
+        # wrapping, not bad input.
         #
         # Fixed at the call site (above) by wrapping `amount` only when
         # `current` is already a `Value` -- so an established VO-typed
@@ -276,16 +275,15 @@ module Hecks
           held.max.to_i + 1
         end
 
-        # Moved to `EntityElement.check_entity_collision` (entity_element.rb)
-        # — BUG#145. Used to live here, called only from `#entity_element`
-        # above (an aggregate's own entity list, e.g. `Workspace.boards`).
-        # `EntityElement#appended_to_element`'s own nested-entity branch (an
-        # entity's own entity list one hop further in, e.g. `Board.cards`)
-        # needs the exact same guard — see that method's own call site and
-        # comment for why a caller-supplied nested identity was silently
-        # duplicating before this moved. Pure relocation, not a behavior
-        # change here: the check's own doc comment (heads/composite/
-        # auto-mint reasoning) now lives with the code, in entity_element.rb.
+        # The duplicate-identity check that once lived here — BUG#145 — now
+        # lives in `EntityElement.check_entity_collision` (entity_element.rb),
+        # shared by both `#entity_element` above (an aggregate's own entity
+        # list, e.g. `Workspace.boards`) and `EntityElement#appended_to_element`'s
+        # own nested-entity branch (an entity's own entity list one hop
+        # further in, e.g. `Board.cards`), which needs the exact same
+        # guard against a caller-supplied nested identity silently
+        # duplicating. See that method's own comment (heads/composite/
+        # auto-mint reasoning) for the full check.
       end
     end
   end

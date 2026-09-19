@@ -11,6 +11,7 @@ module Hecks
       class PortJudge
         attr_reader :refusals
 
+        # @param port [Bluebook::Port] the built port to judge
         def initialize(port)
           @port     = port
           @refusals = []

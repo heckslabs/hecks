@@ -29,7 +29,9 @@ module Hecks
     #   3. `check_value_object_round_trip` — does every value object the
     #      sequence actually built survive `to_json` then rebuilt back?
     #
-    # **The rehydration path, found, not guessed**. hecks is not event-sourced
+    # ## The rehydration path, found, not guessed
+    #
+    # hecks is not event-sourced
     # at the aggregate level — there is no `AccountOpened`-shaped log a
     # `CommandInterpreter` folds to rebuild state. What there is, real and
     # already shipping, is `Ports::Persistence::AppendOnly` (lib/hecks/
@@ -51,7 +53,9 @@ module Hecks
     # branch passes an already-typed value straight through, no
     # rebuilding at all).
     #
-    # So `cold_read`, below, feeds the same entries through `Adapters::
+    # ## The cold-read mechanism
+    #
+    # `cold_read`, below, feeds the same entries through `Adapters::
     # Heki` instead — a real, already-shipped, disk-backed adapter
     # (examples/banking's own `persisted_by("Heki")`), in a throwaway
     # directory. Writing forces every value through `JSON.generate`
@@ -76,6 +80,8 @@ module Hecks
       # could hand `Runtime::Instance` undecoded state and the codec's
       # guarantee would have a bypass in exactly the check that exists to
       # compare stored state against live state.
+      # @return [Adapters::Heki] the guarded instance, built from the keyword
+      #   arguments forwarded to `Adapters::Heki.new`
       def guarded_heki(**) = Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(**))
 
       # The whole pass — called once, with the runtime still live (inside
@@ -87,6 +93,12 @@ module Hecks
       # below, run and collected — kept as three independently callable
       # methods (not fused into one shared fold) so a spec proving one
       # check can fire never has to reason about the other two.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against
+      # @param history [Hash] the history `Replay.call` is about to return
+      # @return [Hash{Symbol => Array<Hash>}] `:rehydration`, `:idempotency`,
+      #   `:value_object_round_trip`, `:saga_rehydration`, and
+      #   `:saga_redelivery_idempotency`, each an Array of divergence entries
       def check(runtime, history)
         { rehydration: check_rehydration(runtime), idempotency: check_idempotency(runtime),
           value_object_round_trip: check_value_object_round_trip(history),
@@ -95,6 +107,11 @@ module Hecks
       end
 
       # Check 1 — rehydrate-from-journal == live state.
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against
+      # @return [Array<Hash>] one `{field: "rehydration", ...}` entry per aggregate
+      #   whose cold-read state disagrees with its live state
       def check_rehydration(runtime)
         each_touched_repository(runtime).filter_map do |domain_name, aggregate, repository, entries|
           live = snapshot(repository)
@@ -115,6 +132,10 @@ module Hecks
       # replay-specific bug (leaked state between applications, a
       # double-applied effect) that a single, one-shot cold read could
       # never see, even one that already agrees with live state.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against
+      # @return [Array<Hash>] one `{field: "idempotency", ...}` entry per aggregate
+      #   whose second cold read disagrees with its first
       def check_idempotency(runtime)
         each_touched_repository(runtime).filter_map do |domain_name, aggregate, repository, entries|
           Dir.mktmpdir("hecks-self-consistency") do |tmp|
@@ -162,6 +183,10 @@ module Hecks
       # positive `nil` already produced once — `instances` and `events`
       # alone already reach every value object a generated sequence
       # actually persisted or announced.
+      # @param history [Hash] a replayed history as returned by `Replay.call`
+      # @return [Array<Hash>] one `{field: "value_object_round_trip", ...}` entry
+      #   per value object that fails to round-trip through `to_json`/`Value.build`,
+      #   or raises while doing so
       def check_value_object_round_trip(history)
         bluebooks = history[:bluebooks] || {}
         seen = {}.compare_by_identity
@@ -235,6 +260,11 @@ module Hecks
       # not the settled snapshot this history exists to describe), so
       # there is no ground truth to compare it against here. Written as an
       # empty array on the way in and never read back on the way out.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against
+      # @param history [Hash] the history `Replay.call` is about to return
+      # @return [Array<Hash>] one `{field: "saga_rehydration", ...}` entry per
+      #   process manager whose cold-read saga instances disagree with the live ones
       def check_saga_rehydration(runtime, history)
         saga_instances = history[:saga_instances] || {}
         each_domain_process_manager(runtime).filter_map do |domain_name, process_manager|
@@ -325,6 +355,13 @@ module Hecks
       # the redelivered event name (the ordinary, expected case once a
       # saga has moved past the leg that produced its own current
       # checkpoint) is exactly what this proves stays put.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against; its `registry.saga_instances`
+      #   is mutated and restored per correlation, see `#check_one_saga_redelivery`
+      # @param history [Hash] the history `Replay.call` is about to return
+      # @return [Array<Hash>] one `{field: "saga_redelivery_idempotency", ...}`
+      #   entry per (process manager, correlation) whose redelivered event visibly
+      #   changed state or memory
       def check_saga_idempotency(runtime, history)
         saga_instances = history[:saga_instances] || {}
         interpreter    = Runtime::SagaInterpreter.new(runtime.registry, door: runtime)
@@ -375,19 +412,26 @@ module Hecks
       # comment). This check has no Ruby side to spare — it is asking the
       # Rust binary whether it agrees with itself, so `emitted_*` fields
       # are exactly as real a fact to compare as any other. Stripping them
-      # here (an earlier version of this method did) silently deleted
-      # them from the returned seed-round-trip result while leaving them
-      # present on the original `seed_instances` a caller passes in — an
-      # asymmetric comparison that reported every record carrying one as
-      # a rehydration divergence, unconditionally, on every domain that
-      # has one at all. Found live against `examples/banking`
-      # (`Banking::Account`'s own `corrects` reaction) while this
-      # integration was being written, by comparing this method's own
-      # answer against the compiled binary's raw stdout for the identical
-      # seed call: the raw round trip preserved `emitted_fee_applied`
-      # correctly; only this method's own stripping dropped it. `spec/
+      # here would silently delete them from the returned seed-round-trip
+      # result while leaving them present on the original `seed_instances`
+      # a caller passes in — an asymmetric comparison that would report
+      # every record carrying one as a rehydration divergence,
+      # unconditionally, on every domain that has one at all.
+      # `examples/banking` (`Banking::Account`'s own `corrects` reaction)
+      # demonstrates this concretely, comparing this method's own answer
+      # against the compiled binary's raw stdout for the identical seed
+      # call: the raw round trip preserves `emitted_fee_applied`
+      # correctly; stripping would drop it. `spec/
       # self_consistency_rust_spec.rb`'s own "banking" example pins the
       # regression against a real domain going forward.
+      # @param binary [String] path to the compiled Rust conformance binary
+      # @param _differ [Object] duck-typed comparison helper answering
+      #   `RustConformanceHelpers`' interface (adapter-defined); unused here, kept
+      #   for a uniform signature with `#check_rust_rehydration`/`#check_rust_idempotency`
+      # @param seed_instances [Hash] the `"instances"` shape a prior invocation
+      #   already produced, seeded back in as this invocation's own starting state
+      # @return [Hash] the seeded invocation's own `"instances"`; `{"__self_consistency_error__"
+      #   => String}` if the binary exits non-zero or the parsed output carries an error
       def rust_seed_round_trip(binary, _differ, seed_instances)
         stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [], "seed" => seed_instances }))
         return { "__self_consistency_error__" => "rust binary exited #{status.exitstatus}: #{stdout}" } \
@@ -404,6 +448,13 @@ module Hecks
       # state, unchanged. `live_instances` is `rust_output["instances"]`
       # — the exact same value `bin/qa_sweep`'s own differential compare
       # already diffed against Ruby, reused here rather than re-derived.
+      # @param binary [String] path to the compiled Rust conformance binary
+      # @param differ [Object] duck-typed comparison helper answering
+      #   `RustConformanceHelpers`' interface (adapter-defined)
+      # @param live_instances [Hash] a prior invocation's own `"instances"`
+      # @return [Array<Hash>] `[{field: "rust_rehydration", live:, rehydrated:}]` if
+      #   seeding a fresh invocation with `live_instances` does not reproduce it
+      #   unchanged; `[]` otherwise
       def check_rust_rehydration(binary, differ, live_instances)
         rehydrated = rust_seed_round_trip(binary, differ, live_instances)
         return [] if rehydrated == live_instances
@@ -416,6 +467,12 @@ module Hecks
       # same "replay it again, byte for byte" claim `check_idempotency`
       # proves for Ruby, aimed at the one rehydration door this compiled
       # binary actually has.
+      # @param binary [String] path to the compiled Rust conformance binary
+      # @param differ [Object] duck-typed comparison helper answering
+      #   `RustConformanceHelpers`' interface (adapter-defined)
+      # @param live_instances [Hash] a prior invocation's own `"instances"`
+      # @return [Array<Hash>] `[{field: "rust_idempotency", once:, twice:}]` if a
+      #   second seed round trip drifts from the first; `[]` otherwise
       def check_rust_idempotency(binary, differ, live_instances)
         once  = rust_seed_round_trip(binary, differ, live_instances)
         twice = rust_seed_round_trip(binary, differ, once)
@@ -432,6 +489,11 @@ module Hecks
       # finding a "clean, nothing touched" report would mean anything
       # for. Mirrors `Replay#snapshot_instances`' own
       # `bluebooks.each { aggregates.each { repository(...) } }` walk.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against
+      # @return [Array<Array(String, Bluebook::Aggregate, Ports::Persistence::AppendOnly, Array)>]
+      #   one `[domain_name, aggregate, repository, entries]` tuple per aggregate
+      #   whose repository has at least one journal entry
       def each_touched_repository(runtime)
         found = []
         runtime.registry.bluebooks.each do |domain_name, bluebook|
@@ -446,6 +508,11 @@ module Hecks
         found
       end
 
+      # Reads every stored record's own materialized state off a live repository.
+      #
+      # @param repository [Ports::Persistence::AppendOnly] the repository to snapshot
+      # @return [Hash{String => Hash}] every stored record's own materialized
+      #   state, keyed by id
       def snapshot(repository)
         repository.all.to_h { |record| [record.id.to_s, Runtime::Value.materialize(record.state)] }
       end
@@ -461,6 +528,11 @@ module Hecks
       # identical to "ran and found nothing," which is deliberate: neither
       # check has a positive "passed" artifact to report either way (see
       # this file's own header on why silence is never a claimed pass).
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against
+      # @return [Array<Array(String, Bluebook::ProcessManager)>] one
+      #   `[domain_name, process_manager]` tuple per process manager any loaded
+      #   bluebook declares
       def each_domain_process_manager(runtime)
         found = []
         runtime.registry.bluebooks.each do |domain_name, bluebook|
@@ -484,6 +556,14 @@ module Hecks
       # whatever the writer that just wrote them still holds in its own
       # process memory (the same reason `fold!`, above, opens a second
       # `Adapters::Heki` instance rather than reading its own writer back).
+      # @param anchor [Bluebook::Aggregate] any aggregate of `domain_name`, used
+      #   only to build the `Adapters::Heki` reader (a saga store binds per
+      #   `aggregate:`/`domain:`, not per process manager)
+      # @param tmp [String] path to the throwaway directory the saga store was
+      #   written under
+      # @param domain_name [String] the domain the saga store belongs to
+      # @return [Hash{String => Hash}] every saga row cold-read back, keyed by
+      #   correlation, each `{state:, memory:}` with `memory`'s own keys stringified
       def cold_read_saga_rows(anchor, tmp, domain_name)
         reader = guarded_heki(aggregate: anchor, root: tmp, settings: { domain: domain_name })
         reader.each_saga.with_object({}) do |(_pm, correlation, state, memory, _completed), rows|
@@ -513,6 +593,10 @@ module Hecks
       # key, a changed value, a missing field) — exactly the kind (b)'s
       # own seeded fixture in `spec/fuzzing/self_consistency_saga_spec.rb`
       # proves this still catches.
+      # @param value [Object] a value to normalize — typically a Hash, Array, or
+      #   scalar from a saga's own memory
+      # @return [Object] `value` with every Hash key (recursively, through nested
+      #   Hashes and Arrays) converted to a String
       def deep_stringify_keys(value)
         case value
         when Hash  then value.each_with_object({}) { |(k, v), h| h[k.to_s] = deep_stringify_keys(v) }
@@ -540,6 +624,16 @@ module Hecks
       # "hand-rolled approximation" this check exists to avoid; `send` on
       # an interpreter sharing this same `runtime`'s own registry is the
       # real thing, not a copy of it.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime a replay just dispatched against
+      # @param interpreter [Runtime::SagaInterpreter] the interpreter to resolve
+      #   the correlation through (`saga_correlation`, via `send`)
+      # @param process_manager [Bluebook::ProcessManager] the process manager to
+      #   search `saga_log` for
+      # @param correlation [Object] the correlation to find the last advancing
+      #   event for
+      # @return [Runtime::Event, nil] the real event this correlation's current
+      #   checkpoint came from, or `nil` if it was never advanced by a real event
       def last_advancing_event(runtime, interpreter, process_manager, correlation)
         entry = runtime.registry.saga_log.reverse_each.find do |row|
           row[:process_manager] == process_manager.name && row[:instance] == correlation &&
@@ -560,6 +654,23 @@ module Hecks
       # fix) belongs right where it guards `interpreter.advance`, not in
       # a helper a reader would have to jump to just to see what is and
       # isn't being restored around that one call.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the still-live
+      #   runtime; its `registry.saga_instances`/`registry.saga_log` are mutated
+      #   in place and restored in `ensure`
+      # @param interpreter [Runtime::SagaInterpreter] the interpreter to redeliver
+      #   `redelivery` through
+      # @param domain_name [String] the domain `process_manager` belongs to
+      # @param process_manager [Bluebook::ProcessManager] the process manager under
+      #   test
+      # @param anchor [Bluebook::Aggregate] any aggregate of `domain_name`, for
+      #   building the throwaway `Adapters::Heki` saga store
+      # @param correlation [Object] the correlation being redelivered to
+      # @param saga [Hash] the correlation's own live `{state:, memory:}` before
+      #   this redelivery
+      # @param redelivery [Runtime::Event] the event to redeliver
+      # @return [Hash, nil] `{field: "saga_redelivery_idempotency", ...}` if the
+      #   redelivery visibly changed state or memory; `nil` if it did not, or if
+      #   the cold-read checkpoint could not be found
       def check_one_saga_redelivery(runtime, interpreter, domain_name, process_manager, anchor,
                                     correlation, saga, redelivery)
         # rubocop:disable-next Metrics/BlockLength
@@ -655,6 +766,15 @@ module Hecks
       # answer — identity, not `Value#==`, is the right notion of
       # "already found" here (two different value objects that happen to
       # hold equal fields are still two separate round trips to prove).
+      # @param node [Object] the node to walk — a `Runtime::Value`, Hash, Array, or
+      #   scalar
+      # @param found [Array<Array(Runtime::Value, Bluebook::Aggregate)>] collects
+      #   `[value, aggregate]` pairs, mutated in place
+      # @param seen [Hash] a `compare_by_identity` Hash tracking already-found
+      #   `Runtime::Value` instances, mutated in place
+      # @param aggregate [Bluebook::Aggregate, nil] the aggregate `node` belongs to,
+      #   threaded through to every value found beneath it
+      # @return [void]
       def walk_value_objects(node, found, seen, aggregate)
         case node
         when Runtime::Value

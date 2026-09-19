@@ -16,13 +16,14 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
     expect(other).not_to eq(first)
   end
 
-  # The two tables may differ, but only in one direction. `FORMS` used to
-  # be `FormCensus::FORMS.keys` outright, so the day the census learned a
-  # form this generator has no recipe for (`corrects`, `role_gated`),
-  # `generate` raised KeyError for any seed that drew it. A census form
-  # with no builder is fine — it is simply never generated. A builder for
-  # something the census cannot measure is not: nothing would ever see
-  # the form it claims to be exercising.
+  # The two tables may differ, but only in one direction: `FORMS` is
+  # `Builder::FORM_STEPS.keys`, this generator's own recipe list, never
+  # `FormCensus::FORMS.keys` outright — if the census names a form this
+  # generator has no recipe for (`corrects`, `role_gated`), taking `FORMS`
+  # straight from the census would raise KeyError for any seed that drew
+  # it. A census form with no builder is fine — it is simply never
+  # generated. A builder for something the census cannot measure is not:
+  # nothing would ever see the form it claims to be exercising.
   it "can only build forms the census can measure" do
     expect(described_class::FORMS - Hecks::Fuzzing::FormCensus::FORMS.keys).to be_empty
   end

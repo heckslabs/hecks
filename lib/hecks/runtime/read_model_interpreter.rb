@@ -16,16 +16,33 @@ module Hecks
     # model is simple enough for one; otherwise runs the whole join
     # in-process against loaded records.
     class ReadModelInterpreter
+      # @param registry [Runtime::Registry] the booted registry to read repositories from
       def initialize(registry) = @registry = registry
 
+      # Answers a declared read model.
+      #
+      # @param domain [String] the domain the read model belongs to
+      # @param model [Bluebook::ReadModel] the read model to interpret
+      # @param args [Hash] the read model's arguments (where/options values, and the
+      #   reference argument for a non-rootless model)
+      # @return [Array<Hash>] one row per resolved record (or one grouped/reduced value when
+      #   the model declares `group_by`/`count`/`median`), keyed by each `include`d head's
+      #   own `as:` name
+      # @raise [Runtime::TypeMismatch] if a non-rootless model's reference argument is an
+      #   object rather than a plain id
+      # @raise [Runtime::NotFound] if the root reference names a record that cannot be found
+      # @raise [Runtime::Unauthorized] if the model declares `authorize policy, tenant:
+      #   :field` and `args` omits that field
+      # @raise [ArgumentError] if `group_by`/`median` names a field its target aggregate does
+      #   not declare, or `median` names a non-numeric field
       def call(domain, model, args)
         project(domain, model, args)
       end
 
       private
 
-      # **Root-first, then the SQLite escape hatch, then the join loop** —
-      # each step's own comment names a real, previously-shipped bug the
+      # **Root first, then the escape hatch**, then the join loop —
+      # each step's own comment names a real, already-shipped bug the
       # current order fixes (the reference/TenantScope refusal ordering
       # above, the root-first head processing below). Splitting this
       # into smaller methods would scatter that ordering across method
@@ -76,10 +93,10 @@ module Hecks
         # **Root first, always** — regardless of `include` order in the
         # bluebook. `read_model_builder.rb`'s own `include` is
         # documented "Order-independent" (the `:many` flag is resolved
-        # at build time, once `@reference_target` is known), but that
-        # promise was never kept here: this loop used to run heads in
-        # their literal declared order and match each "many" head
-        # against whatever was already in `projected` — empty, the
+        # at build time, once `@reference_target` is known), and honoring
+        # that promise takes this root-first split: without it, heads
+        # would run in their literal declared order and match each "many"
+        # head against whatever was already in `projected` — empty, the
         # very first time through, if a many-side head happened to be
         # declared before the root. A real, live bug (not a guess):
         # `include Promotion` before `include Item` on a read model

@@ -90,10 +90,22 @@ TOOLS = [
   }
 ].freeze
 
+# Wraps text in the MCP `tools/call` result shape.
+#
+# @param text [String] the tool's rendered output, or an error message
+# @param error [Boolean] whether this result reports a tool error
+# @return [Hash{Symbol => Object}] `{content: [{type: "text", text: text}], isError: error}`
 def tool_result(text, error: false)
   { content: [{ type: "text", text: text }], isError: error }
 end
 
+# Runs one of the three registered tools and formats its result.
+#
+# @param name [String] the tool name, one of `TOOLS`'s own `:name` values
+# @param arguments [Hash{String => Object}] the tool's JSON arguments, shaped
+#   per that tool's `inputSchema`
+# @return [Hash{Symbol => Object}] a `tool_result`; `isError: true` for an
+#   unknown tool name or an `ArgumentError` from the underlying query
 def call_tool(name, arguments)
   case name
   when "query_ir_constructs"
@@ -112,14 +124,31 @@ rescue ArgumentError => e
   tool_result(e.message, error: true)
 end
 
+# Writes one JSON-RPC success response line to stdout.
+#
+# @param id [String, Integer, nil] the request's own `id`, echoed back
+# @param result [Object] the JSON-serializable result payload
+# @return [void]
 def send_response(id, result)
   puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
 end
 
+# Writes one JSON-RPC error response line to stdout.
+#
+# @param id [String, Integer, nil] the request's own `id`, echoed back (may be
+#   nil when the request itself could not be parsed)
+# @param code [Integer] the JSON-RPC error code, such as `-32_601`
+# @param message [String] the error message
+# @return [void]
 def send_error(id, code, message)
   puts JSON.generate({ jsonrpc: "2.0", id: id, error: { code: code, message: message } })
 end
 
+# Dispatches one parsed JSON-RPC request to its method and writes the response.
+#
+# @param request [Hash{String => Object}] one parsed JSON-RPC request, with
+#   `"id"`, `"method"`, and optional `"params"`
+# @return [void]
 def handle(request)
   id     = request["id"]
   method = request["method"]

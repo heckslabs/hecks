@@ -20,11 +20,11 @@
 # which feature was requested, and only this method's own next two lines
 # (`FileUtils.cp` to the per-feature pinned path) rescue that shared
 # artifact before it can be overwritten again. Between one process's
-# `system` call returning and its own `FileUtils.cp` running, nothing
-# used to stop a second process's `cargo build` for a different feature
-# from finishing first and overwriting `target/debug/rust` out from under
-# it — the first process would then pin the second process's binary under
-# its own feature's name, and a differential fuzz run would silently diff
+# `system` call returning and its own `FileUtils.cp` running is exactly
+# the window a second process's `cargo build` for a different feature
+# could finish in and overwrite `target/debug/rust` out from under
+# it — pinning the second process's binary under the first process's own
+# feature's name, and letting a differential fuzz run silently diff
 # Ruby against the wrong domain's Rust, either crashing on shape mismatch
 # or — worse — looking clean by accident. `File.flock`, taken over the
 # whole build-then-pin section below and released before this method
@@ -39,11 +39,14 @@ require "fileutils"
 require "open3"
 require_relative "../../lib/hecks/fuzzing/nondeterministic"
 
+# Shared differential-testing helpers for the Ruby/Rust conformance specs: builds (and
+# process-wide caches) each domain's Rust binary, and normalizes both engines' output before
+# comparing it.
 module RustConformanceHelpers
   # A declared feature that did not build — raised, never answered as nil.
   # `build_rust_for` answers nil for exactly one reason (the crate declares
   # no such feature, so the caller's own named skip applies); a failed
-  # `cargo build` used to read as that same nil and silently become a skip.
+  # `cargo build` would otherwise read as that same nil and silently become a skip.
   # The message carries cargo's own stderr.
   class BuildFailed < StandardError; end
 
@@ -81,6 +84,13 @@ module RustConformanceHelpers
   # feature that fails to build raises `BuildFailed` (cargo's stderr in the
   # message) — memoized like a success, so every later request for the same
   # pair re-raises the same failure instead of re-paying a doomed build.
+  #
+  # @param domain_feature [String] the cargo feature to build, such as `"banking"`
+  # @param rust_dir [String] absolute path to the Rust crate directory to build in
+  # @return [String, nil] absolute path to the pinned per-feature binary, or `nil` if
+  #   Cargo.toml declares no such feature
+  # @raise [RustConformanceHelpers::BuildFailed] if the build failed (fresh, or replayed from
+  #   the memoized failure of an earlier call for the same pair)
   def build_rust_for(domain_feature, rust_dir)
     cache = RustConformanceHelpers.build_cache
     cache_key = [rust_dir, domain_feature]
@@ -114,6 +124,12 @@ module RustConformanceHelpers
   # comment). One lock file per `rust_dir`, created if it does not exist
   # yet — never removed, the same "leave the lock file on disk forever"
   # convention `flock(2)` itself expects.
+  #
+  # @param domain_feature [String] the cargo feature to build, passed to `--features`
+  # @param rust_dir [String] absolute path to the Rust crate directory to build in
+  # @return [String] absolute path to the freshly built, per-feature-pinned executable
+  # @raise [RustConformanceHelpers::BuildFailed] if the `cargo build` subprocess cannot run,
+  #   exits non-zero, or leaves no executable behind
   def build_and_pin(domain_feature, rust_dir)
     lock_path = File.join(rust_dir, "target", ".build_rust_for.lock")
     FileUtils.mkdir_p(File.dirname(lock_path))
@@ -163,6 +179,10 @@ module RustConformanceHelpers
   # comment cites `spec/codegen_parity_spec.rb`'s precedent of excluding
   # generator/implementation artifacts from a check that exists to
   # verify behavior, not internal representation.
+  #
+  # @param value [Object] a Rust JSON-decoded value (Hash, Array, or scalar) to strip
+  # @return [Object] `value`, with every `"emitted_"`-prefixed Hash key removed from it and
+  #   its nested values
   def strip_emitted_flags!(value)
     case value
     when Hash
@@ -181,6 +201,11 @@ module RustConformanceHelpers
   # is built from, so it is stripped from Rust's own side only, recursively.
   NONDETERMINISTIC_EVENT_KEYS = Hecks::Fuzzing::Nondeterministic.names(:event).map(&:to_s).freeze
 
+  # Strips every nondeterministic wall-clock field from Rust's own JSON output, recursively.
+  #
+  # @param value [Object] a Rust JSON-decoded value (Hash, Array, or scalar) to strip
+  # @return [Object] `value`, with every key in `NONDETERMINISTIC_EVENT_KEYS` removed from it
+  #   and its nested values
   def strip_occurred_at!(value)
     case value
     when Hash
@@ -197,6 +222,10 @@ module RustConformanceHelpers
   # delivers in-process but Rust's kernel genuinely cannot know the
   # outcome of yet) — reproduced verbatim, not re-derived, so both specs
   # agree on what a cross-domain reaction even means.
+  #
+  # @param rust_output [Hash] the Rust binary's own decoded JSON output for one fuzz run
+  # @return [Set<String>] the policy names in `rust_output["cross_domain_reactions"]`,
+  #   deduplicated
   def cross_domain_policy_names(rust_output)
     rust_output.fetch("cross_domain_reactions").flatten.to_set { |r| r["policy"] }
   end
@@ -223,6 +252,11 @@ module RustConformanceHelpers
   # this bridge treats as a refusal wording (those compare by kind,
   # C8.2) — only to a query's own echoed `args`/`reference_rows`, which
   # this bridge compares by value.
+  #
+  # @param value [Object] a value from either engine's comparison output — an Integer, Hash,
+  #   Array, or other scalar
+  # @return [Object] `value`, with every Integer outside `f64`'s 53-bit exact range converted
+  #   to a Float, recursively through Hashes and Arrays
   def reduce_to_wire_precision(value)
     case value
     when Integer then value.abs < (1 << 53) ? value : value.to_f

@@ -34,7 +34,11 @@ module Hecks
 
       module_function
 
-      # { [path, line] => Plan or Skip }
+      # Reads a recorder's JSONL output and computes each call site's rewrite plan.
+      #
+      # @param recording [String] path to the recorder's JSONL file
+      # @return [Hash{Array(String, Integer) => Plan, Skip}] each `[path, line]` site
+      #   mapped to its rewrite `Plan`, or a `Skip` naming why it cannot be rewritten
       def plans(recording)
         File.foreach(recording).map { |line| JSON.parse(line) }
             .select { |entry| entry["site"] }
@@ -42,6 +46,11 @@ module Hecks
             .transform_values { |entries| plan_for(entries) }
       end
 
+      # Decides one call site's rewrite plan from its recorded dispatch entries.
+      #
+      # @param entries [Array<Hash>] the site's recorded JSON entries, one per dispatch
+      # @return [Plan, Skip] the plan every recorded dispatch agrees on, or a `Skip`
+      #   naming why they disagree or the call cannot be rewritten
       def plan_for(entries)
         refused = entries.find { |entry| entry["unrewritable"] }
         return Skip.new(refused["unrewritable"]) if refused
@@ -65,6 +74,12 @@ module Hecks
       end
 
       # [new_text, outcomes] for one file; `site_plans` is { line => Plan or Skip }.
+      #
+      # @param path [String] the file being rewritten
+      # @param site_plans [Hash{Integer => Plan, Skip}] each call site's line number
+      #   mapped to its plan
+      # @return [Array(String, Array<Outcome>)] the file's rewritten text, and one
+      #   `Outcome` per site describing what happened to it
       def rewrite(path, site_plans)
         text = File.binread(path).force_encoding(Encoding::UTF_8)
         outcomes = []
@@ -87,6 +102,14 @@ module Hecks
       end
 
       # [start byte, end byte, replacement] in file coordinates, or a Skip.
+      #
+      # @param text [String] the file's (or runnable block's containing file's) full
+      #   source text
+      # @param path [String] the file being rewritten
+      # @param line [Integer] the call site's line number
+      # @param plan [Plan] the site's rewrite plan
+      # @return [Array(Integer, Integer, String), Skip] the byte range to replace and
+      #   its replacement text, or a `Skip` naming why no call matched
       def edit_for(text, path, line, plan)
         offset, code, first_line = region(text, path, line)
         return Skip.new("line #{line} is not inside a runnable Ruby block") unless code
@@ -112,6 +135,13 @@ module Hecks
 
       # The whole file for Ruby; for Markdown, the runnable block containing
       # `line`. [byte offset of the block, its code, its first line number].
+      #
+      # @param text [String] the file's full source text
+      # @param path [String] the file, to tell Markdown from Ruby by extension
+      # @param line [Integer] the line a call site sits on
+      # @return [Array(Integer, String, Integer), nil] the block's byte offset, its
+      #   code, and its first line number — or nil when `line` is not inside a
+      #   runnable block
       def region(text, path, line)
         return [0, text, 1] unless path.end_with?(".md")
 
@@ -137,6 +167,12 @@ module Hecks
         nil
       end
 
+      # Collects every call at `line` whose last argument is a keyword Hash.
+      #
+      # @param node [Prism::Node, nil] the AST node to search
+      # @param line [Integer] the line a call site must span
+      # @param found [Array<Prism::CallNode>] accumulator, appended to in place
+      # @return [void]
       def collect_calls(node, line, found)
         return unless node
 
@@ -147,11 +183,21 @@ module Hecks
         node.compact_child_nodes.each { |child| collect_calls(child, line, found) }
       end
 
+      # Reads a keyword hash element's literal key.
+      #
+      # @param element [Prism::Node] a keyword hash element
+      # @return [String, nil] the element's literal Symbol key, unescaped, or nil when
+      #   it is not a plain `key: value` pair
       def key_of(element)
         element.is_a?(Prism::AssocNode) && element.key.is_a?(Prism::SymbolNode) ? element.key.unescaped : nil
       end
 
       # The rewritten keyword arguments, or why this call does not match the plan.
+      #
+      # @param keywords [Prism::KeywordHashNode] the call's trailing keyword hash
+      # @param plan [Plan] the site's rewrite plan
+      # @return [String, Skip] the rewritten keyword-argument source text, or a
+      #   `Skip` naming why this call does not match the plan
       # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       def replacement_for(keywords, plan)
         elements = keywords.elements
@@ -186,6 +232,12 @@ module Hecks
         assemble(keywords, kept, facts, route)
       end
 
+      # Builds the `to:` clause text for a call, from its identity-carrying keywords.
+      #
+      # @param loose [Array<Prism::Node>] the call's non-routing keyword elements
+      # @param plan [Plan] the site's rewrite plan
+      # @return [String, nil, Skip] the `"to: ..."` text, nil when the plan carries no
+      #   identity slots, or a `Skip` naming why an identity expression is not usable
       def route_text(loose, plan)
         parts = []
         plan.slots.each do |slot|
@@ -207,12 +259,19 @@ module Hecks
         end
       end
 
-      # Every fact keeps its own line, re-aligned. A fact that used to
-      # start a line was aligned under whatever the call opened with; once
+      # Every fact keeps its own line, re-aligned. A fact starting a line was
+      # aligned under whatever the call opened with, before the rewrite; once
       # the facts sit inside `with: { `, that column means nothing, so each
       # following fact is re-indented under the first fact's new column
       # (ordinary Ruby hash alignment) and any line inside a single fact's
       # own value is shifted by the same amount, keeping its shape.
+      #
+      # @param keywords [Prism::KeywordHashNode] the call's original trailing keyword hash
+      # @param kept [Array<Prism::Node>] `keywords`' elements that survive the rewrite,
+      #   in original order
+      # @param facts [Array<Prism::Node>] the loose fact elements folded into `with:`
+      # @param route [String, nil] the `"to: ..."` text to prepend, or nil for none
+      # @return [String] the rewritten keyword-argument source text
       def assemble(keywords, kept, facts, route)
         elements = keywords.elements
         source = keywords.location.slice
@@ -240,6 +299,14 @@ module Hecks
         pieces.join(", ")
       end
 
+      # Renders the `with: { ... }` clause, re-indenting each fact under its
+      # own new column.
+      #
+      # @param facts [Array<Prism::Node>] the loose fact elements to fold in
+      # @param column [Integer] the source column the `with:` clause starts at
+      # @param gap_after [Proc] `->(element) { "..." }` — the raw text between one
+      #   element and the next in the original source
+      # @return [String] the `"with: { ... }"` clause text
       def with_clause(facts, column, gap_after)
         opener = "with: { "
         fact_column = column + opener.length
@@ -252,12 +319,20 @@ module Hecks
       end
 
       # The column `text` ends at, having started at `column`.
+      #
+      # @param column [Integer] the starting column
+      # @param text [String] text written from that column, possibly containing newlines
+      # @return [Integer] the column the cursor sits at after `text`
       def advance(column, text)
         before, newline, after = text.rpartition("\n")
         newline.empty? ? column + before.length + after.length : after.length
       end
 
       # Every line but the first moved right (or left) by `delta`.
+      #
+      # @param text [String] source text, possibly spanning multiple lines
+      # @param delta [Integer] columns to shift every line but the first by
+      # @return [String] the reindented text
       def reindent(text, delta)
         return text if delta.zero? || !text.include?("\n")
 
@@ -267,6 +342,13 @@ module Hecks
         end
       end
 
+      # Extracts the AST node an identity slot's expression sits at.
+      #
+      # @param value [Prism::Node] the routing keyword's value node
+      # @param slot [Hash] the plan's slot description, with `"form"` (`"scalar"` or
+      #   nested) and, for a nested form, `"inner"` (the inner key name)
+      # @return [Prism::Node, nil] the identity's own expression node, or nil when
+      #   `value` is not shaped the way `slot` expects
       def identity_expression(value, slot)
         return value if slot["form"] == "scalar"
         return nil unless value.is_a?(Prism::HashNode) && value.elements.one?
@@ -277,6 +359,9 @@ module Hecks
 
       # Safe to evaluate twice: literals, variable/constant reads, and
       # argument-free method chains over them (`order.id`, `created.instance.id`).
+      #
+      # @param node [Prism::Node] the expression node to check
+      # @return [Boolean]
       def pure?(node)
         case node
         when Prism::StringNode, Prism::SymbolNode, Prism::IntegerNode, Prism::FloatNode, Prism::NilNode,

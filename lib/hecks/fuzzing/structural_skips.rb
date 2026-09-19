@@ -12,9 +12,9 @@ module Hecks
     # `QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY`.
     #
     # The construct comes straight from the manifest entry, written by the
-    # generator branch that made the skip (`Projector::SkipReason`). This
-    # module used to guess it from the Ruby declaration's `to_h` keys, which
-    # was coarser than codegen's own decision and could drift from it.
+    # generator branch that made the skip (`Projector::SkipReason`) — never
+    # guessed from the Ruby declaration's `to_h` keys, which would be
+    # coarser than codegen's own decision and could drift from it.
     module StructuralSkips
       module_function
 
@@ -22,6 +22,13 @@ module Hecks
       # verb so the printed observation is stable across seeds and runs. A
       # verb the manifest doesn't declare answers `unknown`, which no
       # boundary admits.
+      #
+      # @param gaps [Hecks::Fuzzing::RustGapManifest] the compiled binary's manifest
+      # @param verbs [Array<String>] the query/read-model verbs the differential
+      #   comparison skipped
+      # @return [Array<Hash{Symbol => String, Array<String>}>] one `{verb:,
+      #   constructs:}` entry per verb, sorted by verb; `constructs` is
+      #   `["unknown"]` when the manifest declares nothing for that verb
       def attribute(gaps, verbs)
         verbs.sort.map do |verb|
           entry = gaps.not_generated(verb)
@@ -30,6 +37,12 @@ module Hecks
       end
 
       # Every skipped verb whose constructs are not all inside `boundary`.
+      #
+      # @param attributed [Array<Hash>] entries as returned by `.attribute`
+      # @param boundary [Array<String, Symbol>] the admitted construct names
+      #   (`QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY`)
+      # @return [Array<Hash>] the entries with no constructs at all, or with at
+      #   least one construct `boundary` does not admit
       def outside_boundary(attributed, boundary)
         admitted = boundary.map(&:to_s)
         attributed.select { |entry| entry[:constructs].empty? || (entry[:constructs] - admitted).any? }

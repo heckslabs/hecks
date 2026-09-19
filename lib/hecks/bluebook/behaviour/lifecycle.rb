@@ -7,14 +7,32 @@ module Hecks
       # declared transition expands into the several rows the emission
       # carries when `from` names more than one source state.
       module Lifecycle
+        # Lists every state this machine can be in.
+        #
+        # @return [Array<String>] the default state, plus every declared transition's
+        #   target, deduplicated
         def states
           ([default] + transitions.map { |_command, t| t.target }).uniq
         end
 
+        # Finds every declared transition for one command.
+        #
+        # @param command [String, Symbol] the command name
+        # @return [Array<Bluebook::StateTransition>] every transition declared for `command`,
+        #   in declaration order; `[]` if none is declared
         def transitions_for(command)
           transitions.select { |name, _| name == command.to_s }.map { |_, t| t }
         end
 
+        # Resolves the state a command moves the record to from its current state.
+        #
+        # @param command [String, Symbol] the command name
+        # @param current_state [String, Symbol, nil] the record's current state; `nil` picks
+        #   the first declared transition for `command` without checking admissibility
+        # @return [String, nil] the transition's target state, or `nil` if `command` declares
+        #   no transition
+        # @raise [Runtime::WiringError] if `current_state` is given and no declared transition
+        #   for `command` admits it
         def target_for(command, current_state = nil)
           match_transition(command, current_state)&.target
         end
@@ -37,7 +55,7 @@ module Hecks
           return nil if matches.empty?
           return matches.first unless current_state
 
-          # Not `|| matches.first` — that used to silently hand back an
+          # Not `|| matches.first` — that would silently hand back an
           # arbitrary declared transition for `command` whenever none of
           # them actually admitted `current_state`, picking a `target`
           # that command dispatch would in fact have refused (that

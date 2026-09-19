@@ -24,17 +24,16 @@ module Hecks
     class EntityInterpreter
       include Interpreting
       # The same payload gate aggregate commands and port operations already
-      # run — bug audit H1 (docs/audits/2026-08-10-main-bug-audit.md): this
-      # class used to run neither refuse_unknown_arguments nor
-      # refuse_absent_arguments, on a comment claiming "an entity inherits
-      # its aggregate's own gate." Nothing on the entity dispatch path ever
-      # ran one — confirmed live, `LedgerEntry.Reverse` accepted an
-      # unrecognized `bogus_arg:` outright, and dispatching it with no
-      # `narrative:` silently overwrote the stored narrative with `nil`
-      # (`sets :narrative`'s bare self-referential form reads `args[:narrative]`
-      # unconditionally). See `step_refuse_unknown_arguments`/
-      # `step_refuse_absent_arguments`, below, for how the shared gate is
-      # reused rather than reimplemented.
+      # run — bug audit H1 (docs/audits/2026-08-10-main-bug-audit.md): a
+      # comment here once claimed "an entity inherits its aggregate's own
+      # gate", but nothing on the entity dispatch path actually ran
+      # `refuse_unknown_arguments` or `refuse_absent_arguments` — confirmed
+      # live, `LedgerEntry.Reverse` accepted an unrecognized `bogus_arg:`
+      # outright, and dispatching it with no `narrative:` silently
+      # overwrote the stored narrative with `nil` (`sets :narrative`'s bare
+      # self-referential form reads `args[:narrative]` unconditionally).
+      # See `step_refuse_unknown_arguments`/`step_refuse_absent_arguments`,
+      # below, for how the shared gate is reused rather than reimplemented.
       include CommandInterpreter::ArgumentGate
 
       attr_reader :registry
@@ -84,6 +83,14 @@ module Hecks
       # facts are.
       Resolution = Data.define(:entity_names, :chain, :command_name, :command) do
         # Refuses UnknownVerb for an unknown entity or command.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate the dotted verb is addressed to
+        # @param dotted [String, Symbol] the verb's entity-and-command tail, such as
+        #   `"Handler.Dispatch.Bind"`
+        # @return [Hecks::Runtime::EntityInterpreter::Resolution] the resolved entity chain
+        #   and command
+        # @raise [Runtime::UnknownVerb] if `dotted` names no entity, or an entity in the
+        #   chain declares no matching sub-entity or command
         def self.of(aggregate, dotted)
           *entity_names, command_name = dotted.to_s.split(".")
           if entity_names.empty?
@@ -119,6 +126,10 @@ module Hecks
         private_class_method :walk
       end
 
+      # @param registry [Runtime::Registry] the booted registry this interpreter dispatches
+      #   against
+      # @param rules [Runtime::CommandRules] the shared command-rule checks (givens, ensures,
+      #   invariants, references, emission) this interpreter's steps call
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
@@ -136,6 +147,22 @@ module Hecks
       # `resolution` is #resolve's answer; `invocation` the
       # `Runtime::Invocation` `Dispatcher` built — `ctx.args` is its
       # `to_args`, `ctx.route` its `target`.
+      #
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the root aggregate owning the entity chain
+      # @param resolution [Hecks::Runtime::EntityInterpreter::Resolution] the resolved entity
+      #   chain and command, from `Resolution.of`
+      # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built for this call
+      # @param dry_run [Boolean] true to run every step through `enforce_invariants` without
+      #   saving or emitting
+      # @return [Array(Runtime::Instance, Array<Runtime::Event>, Hecks::Runtime::
+      #   DependencyPlanning::Plan, Ports::Persistence::Outcome, Array<Outbox::Row>, nil)]
+      #   the parent record, the events emitted (`[]` on a dry run), the dependency plan, the
+      #   persistence outcome, and the enqueued outbox rows (nil without an outbox)
+      # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when the domain refuses
+      #   the call
+      # @raise [Runtime::StaleWrite] if concurrent writers beat this one through every retry
+      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, aggregate, resolution, invocation, dry_run: false)
         chain        = resolution.chain
         entity       = chain.last
@@ -239,7 +266,7 @@ module Hecks
       # command's `corrects` names even exist" is checked here too, once,
       # before the entity's own `given`s.
       #
-      # **Admissibility is checked against the parent/root, not the entity** —
+      # **Checked against the parent/root**, not the entity —
       # deliberately `ctx.instance`/`ctx.aggregate` (the parent aggregate
       # record and the root aggregate construct), never `ctx.view`/
       # `ctx.entity` (the entity's own pre-mutation view/construct). This
@@ -399,12 +426,11 @@ module Hecks
       end
 
       # `locate_chain`/`element_of`/`element_identity`/`apply_to_element` and
-      # their own helpers used to live here — moved to `Runtime::EntityElement`
-      # (see that file's own header) so `CommandInterpreter`'s own
+      # their own helpers live in `Runtime::EntityElement` (see that file's
+      # own header), not here, so `CommandInterpreter`'s own
       # `delegate_to_entity` step can locate and mutate the same element the
       # same way, against an aggregate record already held in memory. `call`,
-      # above, and every `step_*` method reach them through that module now;
-      # nothing about the steps themselves changed.
+      # above, and every `step_*` method reach them through that module.
     end
   end
 end

@@ -2,8 +2,9 @@ require "prism"
 require "hecks/codemod/legacy_dispatch_args"
 
 # Every call site still passing command facts as loose keyword arguments,
-# counted per file — the deprecation's own worklist (roadmap I3), and the
-# table two guards read:
+# counted per file — the deprecation's own worklist (roadmap I3).
+#
+# ## The two guards that read this table
 #
 #   - spec_helper.rb makes the deprecation raise at any site not counted
 #     here, so a new spec, a new example or a new guide cannot reintroduce
@@ -15,6 +16,8 @@ require "hecks/codemod/legacy_dispatch_args"
 #     call as `to:`/`with:`), under it fails too (lower the count, so the
 #     site you just converted cannot quietly come back), and a file with
 #     no entry counts zero.
+#
+# ## Why some sites remain
 #
 # `bin/codemod_legacy_dispatch_args` is what drains it; the entries left
 # are the ones no mechanical rewrite is sound for, for two reasons the
@@ -31,6 +34,8 @@ require "hecks/codemod/legacy_dispatch_args"
 #     it, not just on the release.
 #   - The identity is not a string. `to:` takes a String aggregate
 #     identity; an Integer entity sequence has nowhere to go yet.
+#
+# ## What is already migrated
 #
 # Everything under lib/ is migrated already: the framework's own
 # forwarding doors (Router, the forms app, the CLI and JSON doors,
@@ -184,25 +189,38 @@ module LegacyDispatchSites
 
   module_function
 
-  # The suite's own setting, in one place — spec_helper.rb arms it at boot,
+  # Arms the suite's own deprecation guard, in one place — spec_helper.rb arms it at boot,
   # and the spec that exercises the deprecation on purpose re-arms it here
   # rather than restating the predicate and drifting from it.
+  #
+  # @return [void]
   def install_suite_guard!
     return if ENV["HECKS_DEPRECATIONS"] == "warn"
 
     Hecks::Deprecation.raise_on!(:legacy_dispatch_args) { |site| !known?(site) }
   end
 
-  # Is this deprecation site ("path:line", absolute or relative) one of the
-  # counted ones?
+  # Checks whether a deprecation site is one of the counted ones.
+  #
+  # @param site [String] a deprecation site as `"path:line"`, absolute or relative
+  # @return [Boolean] whether `site`'s path is a key in `CAPS`
   def known?(site)
     path, _, _line = site.to_s.rpartition(":")
     CAPS.key?(relative(path))
   end
 
+  # Shortens an absolute path to one relative to `ROOT`.
+  #
+  # @param path [String] an absolute or already-relative path
+  # @return [String] `path` relative to `ROOT`, unchanged if it does not start with `ROOT`
   def relative(path) = path.start_with?("#{ROOT}/") ? path.delete_prefix("#{ROOT}/") : path
 
+  # Counts loose-keyword call sites across every file `GLOBS` reaches.
+  #
   # { "path" => how many loose-keyword call sites it holds }
+  #
+  # @return [Hash{String => Integer}] each file (relative to `ROOT`) that holds at least one
+  #   loose-keyword call, mapped to its count; a file with none is left out entirely
   def scan
     files.each_with_object({}) do |path, found|
       count = count_in(path)
@@ -210,6 +228,10 @@ module LegacyDispatchSites
     end
   end
 
+  # Lists every file the scan could find a loose call in.
+  #
+  # @return [Array<String>] absolute paths under `GLOBS` that are real files outside any
+  #   `/tmp/` directory, sorted
   def files
     GLOBS.flat_map { |glob| Dir.glob(File.join(ROOT, glob)) }
          .select { |path| File.file?(path) }
@@ -217,6 +239,11 @@ module LegacyDispatchSites
          .sort
   end
 
+  # Counts loose-keyword call sites in one file.
+  #
+  # @param path [String] absolute path to the file to scan
+  # @return [Integer] number of loose-keyword call sites found; `0` if the file has no
+  #   `"dispatch"` text at all, or is a `bin/` file with no Ruby shebang
   def count_in(path)
     return count_markdown(path) if path.end_with?(".md")
 
@@ -227,8 +254,13 @@ module LegacyDispatchSites
     count_source(source)
   end
 
+  # Counts loose-keyword call sites inside a Markdown file's runnable fenced code blocks.
+  #
   # Only the fences doctest runs — a ```ruby skip fence is shown, never
   # executed, so nothing in it can warn.
+  #
+  # @param path [String] absolute path to the Markdown file to scan
+  # @return [Integer] number of loose-keyword call sites found across its runnable fences
   def count_markdown(path)
     total = 0
     block = nil
@@ -249,6 +281,10 @@ module LegacyDispatchSites
     total
   end
 
+  # Counts loose-keyword call sites in a string of Ruby source.
+  #
+  # @param source [String] Ruby source text to scan
+  # @return [Integer] number of loose-keyword call sites found; `0` if `source` fails to parse
   def count_source(source)
     tree = Prism.parse(source)
     return 0 unless tree.errors.empty?
@@ -258,6 +294,12 @@ module LegacyDispatchSites
     found.size
   end
 
+  # Walks a Prism AST depth-first, collecting every loose `dispatch`/`dispatch_port` call.
+  #
+  # @param node [Prism::Node, nil] the node to visit; `nil` ends this branch of the recursion
+  # @param found [Array<Prism::CallNode>] accumulator, mutated in place with each loose call
+  #   node found
+  # @return [void]
   def collect(node, found)
     return unless node
 
@@ -268,6 +310,11 @@ module LegacyDispatchSites
   # A keyword argument that is not `to:`/`with:`/`saga_correlation:` — a
   # double-splat counts too: whatever it carries, the door reads it as
   # loose facts.
+  #
+  # @param call [Prism::CallNode] a `dispatch`/`dispatch_port` call node
+  # @return [Boolean] whether `call` has a trailing keyword-hash argument carrying a key
+  #   outside `ROUTING`, or an element that is not a plain key/value pair at all (such as a
+  #   double-splat); `false` if the call has no keyword-hash argument
   def loose?(call)
     keywords = call.arguments&.arguments&.last
     return false unless keywords.is_a?(Prism::KeywordHashNode)

@@ -108,7 +108,8 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Heki query" do
     runtime = boot_aggregate_anti_join
     runtime.dispatch("AggregateAntiJoinHekiGrowth::Claim.File", id: { value: "c1" }) # stays "held"
     runtime.dispatch("AggregateAntiJoinHekiGrowth::Claim.File", id: { value: "c2" })
-    runtime.dispatch("AggregateAntiJoinHekiGrowth::Claim.Release", id: "c2")         # no longer "held"
+    # no longer "held"
+    runtime.dispatch("AggregateAntiJoinHekiGrowth::Claim.Release", id: "c2")
 
     runtime.dispatch("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b1" }, claim_id: "c1")
     runtime.dispatch("AggregateAntiJoinHekiGrowth::Board.Open", id: { value: "b2" }, claim_id: "c2")

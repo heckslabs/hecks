@@ -39,6 +39,13 @@ require "tempfile"
 ROOT   = File.expand_path("..", __dir__)
 TARGET = File.join(ROOT, "rust/host/src/field_hints.rs")
 
+# Writes `content` to `target` through a temp file and atomic rename, so a
+# reader never observes a partially written file even if the process is
+# killed mid-write.
+#
+# @param target [String] absolute path of the file to write
+# @param content [String] full file content to write
+# @return [void]
 def write_atomically(target, content)
   FileUtils.mkdir_p(File.dirname(target))
   Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|
@@ -52,6 +59,9 @@ end
 # "email" -> "EMAIL_HINT" — matching FieldShape's own Ruby constant
 # spelling exactly, so a reader can find either side from the other's
 # name alone.
+#
+# @param name [String] the field hint's declared name, such as `"email"`
+# @return [String] the matching Rust constant name, such as `"EMAIL_HINT"`
 def const_name(name) = "#{name.upcase}_HINT"
 
 meta       = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")

@@ -22,8 +22,8 @@
 # have to mint, so every session is the owner.
 #
 # What it does, in order, each step skipped when already true:
-#   1. CREATE ROLE <role> LOGIN — NOSUPERUSER NOBYPASSRLS NOCREATEDB
-#      NOCREATEROLE, the plainest role Postgres has (the same shape
+#   1. CREATE ROLE <role> LOGIN — `NOSUPERUSER` `NOBYPASSRLS` `NOCREATEDB`
+#      `NOCREATEROLE`, the plainest role Postgres has (the same shape
 #      spec/adapters/driven/postgres_era/lineage_spec.rb's own
 #      `hecks_lineage_owner` takes). Race-safe: two specs running under
 #      `parallel_rspec` may both reach this line for the same role.
@@ -72,6 +72,11 @@
 
 require "pg"
 
+# Prints usage, with an optional leading error line, then exits nonzero.
+#
+# @param message [String, nil] a one-line problem description printed before the
+#   usage line, or `nil` to print only usage
+# @return [void]
 def usage_and_exit(message = nil)
   warn "bin/qa_postgres_role: #{message}" if message
   warn "usage: bin/qa_postgres_role <database> [--role <role>]"
@@ -101,7 +106,7 @@ if attrs.ntuples.zero?
   # finds when the role is already committed. Two creates in flight at the
   # same instant both pass that check, and the loser dies on the catalog's
   # own index instead — unique_violation on pg_authid_rolname_index. Seen
-  # live (PR #748's first run, two qa_sweep_all specs on one Postgres) and
+  # live (two qa_sweep_all specs contending for one Postgres) and
   # reproduced: 16 concurrent creates x 40 rounds raised it 141 times with
   # duplicate_object alone, and never with both.
   admin.exec(<<~SQL)

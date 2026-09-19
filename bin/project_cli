@@ -31,6 +31,9 @@ require "fileutils"
 ROOT   = File.expand_path("..", __dir__)
 FOLDER = Hecks::Adapters::Folder.new
 
+# Finds every domain in this checkout by locating its `.hecksagon` file.
+#
+# @return [Array<String>] every domain's path relative to the repo root, sorted
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
      .map { |path| FOLDER.domain_root(File.dirname(path)) }
@@ -43,6 +46,10 @@ end
 # The name comes from `Hecks.bluebook "…"`, not from the directory — a domain
 # renamed with `formerly_known_as` gets a binary under its new name, and the
 # directory it happens to sit in is nobody's business.
+#
+# @param path [String] the domain's path relative to the repo root
+# @return [String, nil] the domain's bluebook name, or `nil` if the domain
+#   cannot boot (a warning is printed in that case)
 def bluebook_name(path)
   Hecks.boot(File.join(ROOT, path), install_facade: false).registry.bluebooks.keys.first
 rescue StandardError => e
@@ -50,19 +57,22 @@ rescue StandardError => e
   nil
 end
 
-# A domain's command line lives with the domain.
-#
-# These used to be minted into `bin/`, which put a chapter's front door a
-# directory away from the chapter, its adapters, its translations and its
-# docs — so `qa/` held everything about the practice except the way anybody
-# actually runs it. Beside the domain, a folder is the whole unit: hand
-# somebody `qa/` and they have the tool, not a pointer to one.
+# A domain's command line lives with the domain, not in `bin/` — minting it
+# in `bin/` would put a chapter's front door a directory away from the
+# chapter, its adapters, its translations and its docs, so `qa/` would hold
+# everything about the practice except the way anybody actually runs it.
+# Beside the domain, a folder is the whole unit: hand somebody `qa/` and they
+# have the tool, not a pointer to one.
 #
 # And then everything is relative. The launcher sits in the domain root, so
 # the domain it boots is simply `__dir__` — no path to spell, nothing to
 # re-point when a directory moves. Only `lib` is left to reach, and that is
 # counted from how deep the domain sits: `qa/` is one up, `examples/pizzas/`
 # is two. A checkout can be cloned anywhere and no line here knows where.
+#
+# @param path [String] the domain's path relative to the repo root
+# @param name [String] the domain's bluebook name
+# @return [String] the generated launcher script's full Ruby source
 def launcher(path, name)
   snake = Hecks::Naming.snake(name)
   up    = "../" * path.count("/").succ

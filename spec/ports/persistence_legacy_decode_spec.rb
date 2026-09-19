@@ -10,7 +10,7 @@ require_relative "../support/postgres_probe"
 # the state codec existed, see bin/regenerate_persistence_legacy_fixtures
 # (PR A1) — through today's adapter, and pins exactly what comes out.
 #
-# A1 pinned the per-adapter inconsistencies those bytes used to decode
+# A1 pinned the per-adapter inconsistencies those bytes once decoded
 # into: Heki and every journal reader symbolized the top level only,
 # the SQL heads symbolized deep, Memory kept a shallow `state.dup`, and a
 # never-seeded projected field read back as a present nil on the SQL

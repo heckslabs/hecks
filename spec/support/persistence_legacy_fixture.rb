@@ -60,9 +60,13 @@ module PersistenceLegacyFixture
 
   module_function
 
+  # Loads and memoizes Banking's own bluebook.
+  #
   # Banking's IR only — no hecksagon, no boot: every adapter here is
   # built directly from `aggregate:`, the same way the sibling adapter
   # specs build theirs.
+  #
+  # @return [Bluebook::Chapter] Banking's declared chapter
   def bluebook
     @bluebook ||= begin
       registry = Hecks::Runtime::Registry.new
@@ -77,8 +81,17 @@ module PersistenceLegacyFixture
     end
   end
 
+  # Finds one of Banking's declared aggregates by name.
+  #
+  # @param name [String] the aggregate's declared name, such as `"Account"`
+  # @return [Bluebook::Aggregate, nil] the aggregate from Banking's bluebook, or `nil` if none
+  #   is declared by that name
   def aggregate(name) = bluebook.aggregate(name)
 
+  # Builds one live `Runtime::Instance` per row in `SEEDS`.
+  #
+  # @return [Array<Runtime::Instance>] one instance per seed, with every field set from the
+  #   seed's raw fixture value via `Runtime::Value.for`
   def instances
     SEEDS.map do |name, id, fields|
       aggregate = aggregate(name)
@@ -88,10 +101,20 @@ module PersistenceLegacyFixture
     end
   end
 
+  # Reads and parses a committed fixture file.
+  #
+  # @param relative [String] path to a fixture file, relative to `DIR`
+  # @return [Object] the parsed JSON value (a Hash or an Array, per `JSON.parse`) read from
+  #   that path
   def read_json(relative) = JSON.parse(File.read(File.join(DIR, relative)))
 
   # ── restoring each committed fixture into a live adapter ─────────────
 
+  # Copies a committed Heki fixture into `dir` and builds a live adapter over the copy.
+  #
+  # @param aggregate [Bluebook::Aggregate] the aggregate whose committed fixture to restore
+  # @param dir [String] directory to copy the fixture's `.heki`/`.heki.journal` files into
+  # @return [Adapters::Heki] a Heki adapter rooted at `dir`, backed by the copied files
   def heki_adapter(aggregate, dir)
     %w[heki heki.journal].each do |extension|
       FileUtils.cp(File.join(DIR, "heki", "#{aggregate.storage_name}.#{extension}"), dir)
@@ -99,6 +122,12 @@ module PersistenceLegacyFixture
     Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: "." }, root: dir)
   end
 
+  # Creates (if missing) a SQLite database from the committed schema and builds an adapter
+  # over it.
+  #
+  # @param aggregate [Bluebook::Aggregate] the aggregate the adapter persists
+  # @param dir [String] directory to create or reuse `banking.sqlite3` in
+  # @return [Adapters::Sqlite] a Sqlite adapter rooted at `dir`
   def sqlite_adapter(aggregate, dir)
     require "sqlite3"
     path = File.join(dir, "banking.sqlite3")
@@ -110,9 +139,14 @@ module PersistenceLegacyFixture
     Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "banking.sqlite3" }, root: dir)
   end
 
+  # Builds a fake `D1::Connection`, backed by a real in-memory SQLite database.
+  #
   # D1 is SQLite behind an HTTP transport — the same stand-in
   # `spec/adapters/driven/d1_spec.rb` uses: a real in-memory SQLite
   # database answering `Connection`'s own four methods.
+  #
+  # @return [Object] an anonymous stand-in for `Adapters::D1::Connection`, answering
+  #   `#execute`, `#get_first_row`, and `#get_first_value` against the in-memory database
   def fake_d1_connection
     require "sqlite3"
     db = SQLite3::Database.new(":memory:")
@@ -125,6 +159,12 @@ module PersistenceLegacyFixture
     end.new(db)
   end
 
+  # Runs the block with `Adapters::D1::Connection.new` stubbed to return `connection`, so any
+  # `D1.new` inside the block picks it up instead of opening a real HTTP connection.
+  #
+  # @param connection [Object] the connection every `D1.new` call in the block should receive
+  # @yieldreturn [Object] the block's own result, returned unchanged
+  # @return [Object] the block's return value
   def with_d1_connection(connection)
     klass = Hecks::Adapters::D1::Connection
     klass.define_singleton_method(:new) { |**| connection }
@@ -133,6 +173,12 @@ module PersistenceLegacyFixture
     klass.singleton_class.send(:remove_method, :new) if klass.singleton_class.method_defined?(:new, false)
   end
 
+  # Builds a D1 adapter over a fake connection, preloaded with the committed fixture rows.
+  #
+  # @param aggregate [Bluebook::Aggregate] the aggregate the adapter persists
+  # @param connection [Object] the connection to use in place of a real D1 HTTP connection;
+  #   defaults to a fresh `#fake_d1_connection`
+  # @return [Adapters::D1] a D1 adapter backed by `connection`
   def d1_adapter(aggregate, connection = fake_d1_connection)
     adapter = with_d1_connection(connection) do
       Hecks::Adapters::D1.new(aggregate: aggregate, settings: { account_id: "acc", database_id: "db", api_token: "tok" })
@@ -144,13 +190,25 @@ module PersistenceLegacyFixture
     adapter
   end
 
+  # Allocates an adapter without calling `initialize`, so `#decode` can run with no connection.
+  #
   # The Codec alone, no connection: `decode(row)` only reads `@aggregate`.
   # Lets a default (non-io) run pin what Postgres/PostgresEra make of the
   # exact rows `pg` handed back when the fixture was written.
+  #
+  # @param klass [Class] the adapter class to allocate, such as `Adapters::Postgres`
+  # @param aggregate [Bluebook::Aggregate] the aggregate to set as the allocated adapter's
+  #   `@aggregate`
+  # @return [Object] an allocated, uninitialized instance of `klass` with `@aggregate` set
   def codec(klass, aggregate)
     klass.allocate.tap { |adapter| adapter.instance_variable_set(:@aggregate, aggregate) }
   end
 
+  # Builds a Postgres adapter over `database`, preloaded with the committed fixture rows.
+  #
+  # @param aggregate [Bluebook::Aggregate] the aggregate the adapter persists
+  # @param database [String] name of the Postgres database to connect to
+  # @return [Adapters::Postgres] a Postgres adapter over `database`
   def postgres_adapter(aggregate, database)
     adapter = Hecks::Adapters::Postgres.new(aggregate: aggregate, settings: { database: database })
     connection = adapter.instance_variable_get(:@db)
@@ -160,6 +218,12 @@ module PersistenceLegacyFixture
     adapter
   end
 
+  # Builds a PostgresEra adapter over `database`, preloaded with the committed fixture's
+  # journal and head-snapshot rows.
+  #
+  # @param aggregate [Bluebook::Aggregate] the aggregate the adapter persists
+  # @param database [String] name of the Postgres database to connect to
+  # @return [Adapters::PostgresEra] a PostgresEra adapter over `database`
   def postgres_era_adapter(aggregate, database)
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: database })
     connection = adapter.instance_variable_get(:@db)
@@ -171,12 +235,27 @@ module PersistenceLegacyFixture
     adapter
   end
 
+  # Inserts one row into a SQLite-shaped connection.
+  #
+  # @param connection [Object] a SQLite connection responding to `#execute`, such as the fake
+  #   D1 connection's own in-memory database
+  # @param table [String] name of the table to insert into
+  # @param row [Hash] column-name-to-value pairs to insert
+  # @return [void]
   def insert_row(connection, table, row)
     columns = row.keys.map { |column| %("#{column}") }.join(", ")
     slots = Array.new(row.size, "?").join(", ")
     connection.execute(%(INSERT INTO "#{table}" (#{columns}) VALUES (#{slots})), row.values)
   end
 
+  # Inserts one row into a Postgres connection.
+  #
+  # @param connection [PG::Connection] the Postgres connection to insert through
+  # @param table [String] name of the table to insert into
+  # @param row [Hash] column-name-to-value pairs to insert
+  # @param quoted [Boolean] whether `table` is already a quoted identifier, skipping
+  #   `PG::Connection.quote_ident`
+  # @return [void]
   def insert_pg_row(connection, table, row, quoted: false)
     target = quoted ? table : PG::Connection.quote_ident(table)
     columns = row.keys.map { |column| PG::Connection.quote_ident(column) }.join(", ")

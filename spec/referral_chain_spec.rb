@@ -173,10 +173,10 @@ RSpec.describe "ReferralChain" do
   # example just above, and where the practice's own differential fuzzer
   # (SW-referral_chain-1789342724, seed 1) actually caught this: Dispatcher
   # #dry_run?'s own comment promises "if this were dispatched right now,
-  # would it succeed" — but `CommandInterpreter#step_save` returns before
-  # ever calling `resolve_state_references` when `ctx.dry_run` is set, so
-  # this was the one check real dispatch performs that a dry run silently
-  # skipped. Before the fix, `dry_run?` answered `true` for a `Reassign`
+  # would it succeed" — so `CommandInterpreter#step_save` calls
+  # `resolve_state_references` unconditionally, before checking `ctx.dry_run`,
+  # rather than skipping it on the dry-run path the way real dispatch never
+  # does. Skipping it there would let `dry_run?` answer `true` for a `Reassign`
   # naming no real Member — disagreeing with the real dispatch one line
   # below it, which has always correctly refused. The compiled Rust
   # conformance binary already refused this shape on both paths (its

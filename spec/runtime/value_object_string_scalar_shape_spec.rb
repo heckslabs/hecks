@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# QualityControl BUG#125 — `Value::Coercion#check_scalar_shapes` used to
+# QualityControl BUG#125 — `Value::Coercion#check_scalar_shapes` would otherwise
 # tolerate any non-composite scalar (Integer, Float, true/false) for a
 # String-typed value-object field, refusing only Array/Hash. Rust's
 # generated `from_json` requires a JSON string node for a String-typed

@@ -4,12 +4,12 @@ require "tempfile"
 # Real dispatch coverage for Value::Coercion#coerce_identifier: when an
 # aggregate's identified_by field is itself numeric (Integer/Float, not the
 # overwhelmingly common String), #from_identifier re-seeding a freshly-
-# hydrated instance from the derived identity string used to round-trip it
-# back in as the wrong Ruby type, and #build's own check_numeric_fields (a
-# rule meant to catch a genuine caller mismatch) then refused the runtime's
-# own internal identity seed instead -- blocking every command on any
-# aggregate with a numeric identity field, unconditionally, valid input or
-# not.
+# hydrated instance from the derived identity string coerces it back to
+# the correct Ruby type via `coerce_identifier`, so #build's own
+# check_numeric_fields (a rule meant to catch a genuine caller mismatch)
+# never refuses the runtime's own internal identity seed instead --
+# dispatch on an aggregate with a numeric identity field works
+# unconditionally, valid input or not.
 RSpec.describe "identity coercion on a numeric identified_by field" do
   def boot(source, hecksagon_name, &binds)
     file = Tempfile.new(["identifier-numeric-coercion-growth-", ".bluebook"])

@@ -30,6 +30,14 @@ module Hecks
       # `#hydrate_complete_state`/`#hydrate_prior_or_initial`, each already
       # holding it when they mint a brand-new record). See
       # `materialize_identity!` for why a composite identity needs it.
+      #
+      # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct this record's
+      #   state is shaped by
+      # @param id [String, nil] the record's identity, or nil when none has resolved yet
+      # @param state [Hash{Symbol => Object}, nil] the record's stored state, hydrated with
+      #   defaults; nil builds a fresh record from `self.class.defaults`
+      # @param args [Hash, nil] the original command payload, for materializing a fresh
+      #   record's own identity attribute(s); nil for a record read back from storage
       def initialize(aggregate:, id:, state: nil, args: nil)
         @aggregate = aggregate
         @id        = id
@@ -41,12 +49,20 @@ module Hecks
         materialize_identity!(args)
       end
 
+      # Fills a stored record's state with any declared default it predates.
+      #
       # Loading existing state runs the same default-fill a fresh instance
       # gets: an attribute the record predates — a newly-required field
       # with a declared default:, a list added since the record was
       # written — arrives filled instead of nil. Only declared defaults
       # fill in; an attribute with no default stays absent, exactly as
       # stored.
+      #
+      # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct declaring the
+      #   attributes and their defaults
+      # @param state [Hash{Symbol => Object}] the stored state to fill in
+      # @return [Hash{Symbol => Object}] `state`, hydrated (`Value.hydrate`) and with any
+      #   missing default filled in
       def self.hydrate_with_defaults(aggregate, state)
         hydrated = Value.hydrate(aggregate, state)
         defaults(aggregate).each do |name, value|
@@ -55,6 +71,13 @@ module Hecks
         hydrated
       end
 
+      # Builds a fresh record's state: every declared attribute at its default, plus the
+      # lifecycle field's own default when the construct declares a lifecycle.
+      #
+      # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct to build
+      #   default state for
+      # @return [Hash{Symbol => Object}] every declared attribute name mapped to its default
+      #   value (a frozen `[]` for a list attribute)
       def self.defaults(aggregate)
         state = aggregate.attributes.to_h do |attr|
           # Frozen, like a list that has had something appended to it.
@@ -67,6 +90,14 @@ module Hecks
         state
       end
 
+      # Resolves one attribute's default value: its declared `default:`, or a value
+      # object's own built-in default when every one of its fields has one.
+      #
+      # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the construct declaring
+      #   `attribute`
+      # @param attribute [Bluebook::Attribute] the attribute to default
+      # @return [Object, nil] the coerced declared default; a value object built from its own
+      #   defaulted fields when the attribute names one and every field defaults; otherwise nil
       def self.default_for(aggregate, attribute)
         return Value.for_attribute(aggregate, attribute, attribute.default) unless attribute.default.nil?
         # An entity's members hydrate through the same path but an entity
@@ -79,10 +110,23 @@ module Hecks
         Value.build(value_object, {}, aggregate)
       end
 
+      # Reads one field of the record's state.
+      #
+      # @param name [String, Symbol] the field name
+      # @return [Object, nil] the field's value, or nil if `name` is not a key of `state`
       def [](name) = @state[name.to_sym]
 
+      # Reports whether the record's state has a field named `name`.
+      #
+      # @param name [String, Symbol] the field name
+      # @return [Boolean] true if `state` has that key
       def key?(name) = @state.key?(name.to_sym)
 
+      # Writes one field of the record's state.
+      #
+      # @param name [String, Symbol] the field name
+      # @param value [Object] the value to store
+      # @return [Object] `value`
       def []=(name, value)
         @state[name.to_sym] = value
       end
@@ -104,6 +148,8 @@ module Hecks
       # attribute's own wrapped value object sitting in `@state[:id]` —
       # merging `@state` on top of `{ id: @id }` let it silently clobber
       # the correct bare identity. `@id` merged last always wins.
+      #
+      # @return [Hash{Symbol => Object}] the record's state with `:id` merged in last
       def to_h = @state.merge(id: @id)
 
       # A copy a mutation may touch. Every adapter but Memory hands `find`
@@ -118,6 +164,9 @@ module Hecks
       # record through this, never through the adapter's own return value
       # directly, so a refused ensures leaves the stored record untouched
       # regardless of which adapter is holding it.
+      #
+      # @return [Hecks::Runtime::Instance] a shallow copy, with its own top-level `state` Hash
+      #   (not aliased to this instance's)
       def dup
         copy = super
         copy.state = @state.dup
@@ -138,9 +187,9 @@ module Hecks
       # #derive_identity`), so the single-head branch below never runs for
       # it at all. A creating command that declares those heads as ordinary
       # attributes but doesn't also `sets` them (redundant with the identity
-      # the command's own args already named) used to persist every head as
-      # nil — the id correctly named the record, but the record's own
-      # attributes forgot what named it.
+      # the command's own args already named) would otherwise persist every
+      # head as nil — the id correctly names the record, but the record's
+      # own attributes would forget what named it.
       #
       # Filled from `args`, never from splitting `@id` back apart — the
       # same reason the single-head branch below won't guess a multi-path

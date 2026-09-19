@@ -1,21 +1,28 @@
 module Hecks
   # **A vendored, external bluebook** — same shape as Framework (framework.rb),
-  # for members that don't ship inside hecks's own lib/ at all: a
-  # separate, independently-versioned package
+  # for members that don't ship inside hecks's own lib/ at all.
+  #
+  # ## What it is
+  #
+  # A separate, independently-versioned package
   # (github.com/chrisyoung/embryonaut_bluebooks) that a consuming project
   # vendors into its own checkout, the same way a project already vendors
   # hecks itself (bin/vendor_hecks, vendor/hecks/).
   #
-  # **Recovered, not rebuilt** — this module and its `uses_embryonaut_bluebook`
-  # DSL word (hecksagon_builder.rb) were built on a prior commit of this
-  # repo (933d1dd), vendored out to a real consumer (lifeadelics/domain,
-  # for embryonaut_bluebooks/payments), and then lost from this repo's own
+  # ## Recovered, not rebuilt
+  #
+  # This module and its `uses_embryonaut_bluebook` DSL word
+  # (hecksagon_builder.rb) were built on a prior commit of this repo
+  # (933d1dd), vendored out to a real consumer (lifeadelics/domain, for
+  # embryonaut_bluebooks/payments), and then lost from this repo's own
   # reachable history — a hard reset or rebase left no branch containing
   # that commit. The lifeadelics vendor snapshot (a `git archive` of that
   # commit, committed into their repo) was the only surviving copy; this
   # file is ported forward from it, checked against current `main`'s own
   # conventions rather than copied wholesale, since the two trees had
   # otherwise diverged for weeks in both directions.
+  #
+  # ## Where it resolves from
   #
   # Resolved from the consuming registry's own root, not this gem's
   # __dir__ — Framework::ROOT can be a fixed, `__dir__`-relative constant
@@ -27,6 +34,8 @@ module Hecks
   # itself only runs at hecksagon-build time, when a real registry is
   # current.
   #
+  # ## Load order
+  #
   # Every `.bluebook` file in the package, sorted — not just one. Unlike a
   # framework member (one file, named by its own stem), a vendored package
   # can span several bluebook files that reopen the same `Hecks.bluebook`
@@ -37,21 +46,35 @@ module Hecks
   # payment < payments < policies, the same reason that package's own
   # files are named to fall in that order in the first place.
   #
-  # **Only the bluebook files** — same restriction Framework draws, same
-  # reason: a `.hecksagon`/`.port`/`.adapter` is a wiring decision
-  # (persistence, which processor adapter is bound) that belongs to
-  # whoever is deploying, never baked into the vendored package itself.
+  # ## Only the bluebook files
+  #
+  # Same restriction Framework draws, same reason: a
+  # `.hecksagon`/`.port`/`.adapter` is a wiring decision (persistence,
+  # which processor adapter is bound) that belongs to whoever is
+  # deploying, never baked into the vendored package itself.
   # embryonaut_bluebooks/payments ships its own mock `.hecksagon` for its
   # own spec suite; a consumer declares its own separate
   # `Hecks.hecksagon "Payments" do ... end` to bind real storage/adapters
   # — see Framework's own comment for the fuller reasoning, identical here.
   #
-  # Idempotent the same way Framework.load! Is — checked against the
+  # ## Idempotency
+  #
+  # Idempotent the same way `Framework.load!` is — checked against the
   # bluebook this package actually declares (`Naming.pascal("payments")`
   # => "Payments"), not a separate ledger. A vendored package's directory
   # name and its declared `Hecks.bluebook` name are the one convention
   # this reuses from Framework rather than reinventing.
   module EmbryonautBluebook
+    # Loads a vendored embryonaut bluebook package's `.bluebook` files into
+    # `registry`, unless it is already registered there.
+    #
+    # @param name [String, Symbol, #to_s] the package's directory name, such as
+    #   `"payments"`
+    # @param registry [Runtime::Registry, nil] the registry to load into, and to
+    #   resolve the vendor directory's root from
+    # @return [void]
+    # @raise [Runtime::WiringError] if `registry` has no root, or no vendored
+    #   package named `name` exists
     def self.load!(name, registry: Hecks.current_registry)
       unless registry&.root
         raise Runtime::WiringError,

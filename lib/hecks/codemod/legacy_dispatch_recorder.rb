@@ -34,6 +34,13 @@ module Hecks
     module LegacyDispatchRecorder
       module_function
 
+      # Installs the recording wrapper once `Runtime::Dispatcher` exists —
+      # immediately if it is already loaded, or on a `TracePoint` the moment
+      # its class body finishes, when `bin/codemod_legacy_dispatch_args` is
+      # loaded via RUBYOPT ahead of the library itself.
+      #
+      # @param path [String] JSONL file each recorded dispatch appends a line to
+      # @return [void]
       def arm!(path)
         return install!(path) if defined?(Hecks::Runtime::Dispatcher)
 
@@ -46,6 +53,10 @@ module Hecks
         trace.enable
       end
 
+      # Prepends the recording `Wrap` module onto `Runtime::Dispatcher`.
+      #
+      # @param path [String] JSONL file each recorded dispatch appends a line to
+      # @return [void]
       def install!(path)
         Hecks::Runtime::Dispatcher.prepend(Wrap)
         Wrap.path = path
@@ -57,6 +68,19 @@ module Hecks
           attr_accessor :path
         end
 
+        # Wraps `Runtime::Dispatcher#dispatch`: unchanged when called without
+        # loose keyword facts, otherwise records one JSON line describing how
+        # this call's facts would split between `to:` and `with:`, before and
+        # after dispatching for real.
+        #
+        # @param verb [String] the fully qualified verb
+        # @param to [String, Hash, nil] the command's identity route
+        # @param with [Hash, nil] the command's facts, keyed by argument name
+        # @param saga_correlation [Hash, nil] correlation head => value
+        # @param legacy_args [Hash{Symbol => Object}] deprecated loose keyword facts
+        # @return [Runtime::Dispatcher::Result] (see `Runtime::Dispatcher#dispatch`)
+        # @raise [Exception] re-raises whatever the real dispatch raised, after
+        #   recording it as this entry's outcome
         def dispatch(verb, to: nil, with: nil, saga_correlation: nil, **legacy_args)
           return super if legacy_args.empty?
 
@@ -84,6 +108,10 @@ module Hecks
       # FreezeAccount -> ReviewOnFreeze -> AccountFreezeReview.Open, in
       # docs/implemented/reference/policy.md, whose own `# => true` on
       # `reaction_log.last[:delivered]` went false) is why this exists.
+      #
+      # @param result [Runtime::Dispatcher::Result, Object] the dispatch's result
+      # @return [Array<String>] every key the result's events' payloads carry, or `[]`
+      #   when `result` has no events or reading them fails
       def payload_keys(result)
         return [] unless result.respond_to?(:events)
 
@@ -92,6 +120,15 @@ module Hecks
         []
       end
 
+      # Records one dispatch's split, from the caller's real values.
+      #
+      # @param dispatcher [Runtime::Dispatcher] the dispatcher the call went through
+      # @param verb [String, Symbol] the dispatched verb
+      # @param to [String, Hash, nil] the `to:` argument as given, if any
+      # @param with [Hash, nil] the `with:` argument as given, if any
+      # @param legacy [Hash{Symbol => Object}] the loose keyword facts given
+      # @return [Hash] the entry to append, merged with `split`'s outcome (or
+      #   `unrewritable:` when computing the split itself raises)
       def observe(dispatcher, verb, to, with, legacy)
         frame = caller_locations(2).find { |location| Hecks::Deprecation.external?(location) }
         entry = { site: frame && "#{frame.absolute_path || frame.path}:#{frame.lineno}", verb: verb.to_s,
@@ -101,6 +138,11 @@ module Hecks
         entry.merge(unrewritable: "#{e.class}: #{e.message}")
       end
 
+      # Appends one JSON line to the recording file.
+      #
+      # @param path [String] JSONL file to append to
+      # @param entry [Hash] the entry to record
+      # @return [void]
       def write(path, entry)
         require "json"
         File.open(path, "a") do |file|
@@ -109,6 +151,16 @@ module Hecks
         end
       end
 
+      # Computes how one call's loose facts would split between `to:` and `with:`.
+      #
+      # @param registry [Runtime::Registry] the dispatcher's registry
+      # @param verb [String, Symbol] the dispatched verb
+      # @param to [String, Hash, nil] the `to:` argument as given, if any
+      # @param with [Hash, nil] the `with:` argument as given, if any
+      # @param legacy [Hash{Symbol => Object}] the loose keyword facts given
+      # @return [Hash] `unrewritable:` naming why no split exists; or `to_keys:`,
+      #   `with_keys:`, `slots:`, and `strict:` (the class strict `with:` would raise,
+      #   or nil)
       def split(registry, verb, to, with, legacy)
         return { unrewritable: "with: and loose keywords in the same call" } if with
         return { unrewritable: "a loose keyword that is not a Symbol" } unless legacy.keys.all?(Symbol)
@@ -134,6 +186,13 @@ module Hecks
 
       # A key carried receiver identity when the route changes (or can no
       # longer be built) without it.
+      #
+      # @param registry [Runtime::Registry] the dispatcher's registry
+      # @param verb [String, Symbol] the dispatched verb
+      # @param legacy [Hash{Symbol => Object}] the loose keyword facts given
+      # @param key [Symbol] the fact key being tested
+      # @param route [String, Hash] the route `legacy` (with every key) resolved to
+      # @return [Boolean] whether dropping `key` changes (or breaks) the resolved route
       def consumed?(registry, verb, legacy, key, route)
         Hecks::Runtime::ReactionInvocation.build(registry: registry, verb: verb,
                                                  projected: legacy.except(key), explicit: true)[:to] != route
@@ -145,6 +204,13 @@ module Hecks
       # rewrite cannot spell as `to: <that key's expression>`: a composite
       # identity, two keys naming the same part, or a non-String identity
       # (`to:` takes only a String).
+      #
+      # @param route [String, Hash, nil] the resolved route, or nil when none
+      # @param to_keys [Array<Symbol>] the keys that carry identity
+      # @param legacy [Hash{Symbol => Object}] the loose keyword facts given
+      # @return [Array<Hash>, Hash] one `{key:, part:, form:, inner:}` Hash per
+      #   identity-carrying key, `[]` when `route` is nil, or a Hash with
+      #   `unrewritable:` naming why the identity cannot be spelled as `to:`
       def slots_for(route, to_keys, legacy)
         return [] if route.nil?
 
@@ -164,6 +230,12 @@ module Hecks
         end
       end
 
+      # Reads a fact's value as an identity expression, if it is shaped like one.
+      #
+      # @param raw [Object] a fact's raw value
+      # @return [Array(String, String, String), nil] `["scalar", nil, raw]` for a
+      #   String value, `["hash", inner_key, value]` for a one-field Hash of a
+      #   String, or nil when neither shape matches
       def candidate(raw)
         return ["scalar", nil, raw] if raw.is_a?(String)
         return nil unless raw.is_a?(Hash) && raw.size == 1
@@ -172,6 +244,12 @@ module Hecks
         ["hash", inner.to_s, value] if value.is_a?(String)
       end
 
+      # Checks whether the strict `with:` door would accept this route and facts.
+      #
+      # @param target [Runtime::ReactionInvocation::Target] the resolved dispatch target
+      # @param route [String, Hash] the route to check
+      # @param facts [Hash{Symbol => Object}] the facts to check, keyed as `with:` expects
+      # @return [String, nil] the raised refusal class's name, or nil when accepted
       def strict(target, route, facts)
         Hecks::Runtime::Invocation.route(route, entity_depth: target.entities.size)
         Hecks::Runtime::Invocation.facts_for(target.command, with: facts, legacy: {})

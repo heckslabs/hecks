@@ -3,11 +3,11 @@ require "fileutils"
 require "open3"
 
 # Phase 8 (equivalence-gap plan) — "make parity a build gate, not a test
-# claim." `bin/project_deploy` used to have zero hook into any Ruby/Rust
-# conformance check at all: parity was proven only against CI's fixed
+# claim." `bin/project_deploy` has a hook into a Ruby/Rust
+# conformance check now, closing a gap where parity was proven only against CI's fixed
 # test corpus, completely decoupled from what a real `sam deploy` was
 # about to ship. `bin/project_deploy`'s own generated `deploy:` target
-# now runs `bin/rust_conformance` against the specific compiled artifact
+# runs `bin/rust_conformance` against the specific compiled artifact
 # ($(WASM)) `build-<LogicalId>` (the same target) just built — not a
 # corpus-wide `cargo build`'s own separate binary — before `sam deploy`
 # ever runs. See the generator's own "make verify-parity-<LogicalId>"

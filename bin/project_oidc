@@ -30,6 +30,8 @@ FOLDER = Hecks::Adapters::Folder.new
 # The same discovery `bin/project_cli` already uses — every `.hecksagon` in
 # the checkout names a domain root, `rust/`, `deploy/`, `tmp/` and
 # `coverage/` are never domains.
+#
+# @return [Array<String>] every domain's path relative to the repo root, sorted
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
      .map { |path| FOLDER.domain_root(File.dirname(path)) }

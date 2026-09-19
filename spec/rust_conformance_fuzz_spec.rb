@@ -16,10 +16,10 @@ require_relative "support/rust_conformance_helpers"
 # rust_conformance_spec.rb already does (shared helpers, not re-derived —
 # see support/rust_conformance_helpers.rb).
 #
-# `bin/fuzz`'s own header used to say this comparison "no longer exists"
+# `bin/fuzz`'s own header no longer says this comparison "no longer exists"
 # (true the first time Rust was retired — docs/implemented/
 # rust-experiment.md — stale the moment Rust came back, 2026-08-07; fixed
-# alongside this file, see that script's own updated header).
+# alongside this file, see that script's own current header).
 #
 # `io: true` — a real `cargo build` per domain feature, same as
 # rust_conformance_spec.rb; excluded locally by default, always run in
@@ -35,7 +35,7 @@ require_relative "support/rust_conformance_helpers"
 # three more the un-pended run turned up (its status addendum has the
 # full list). Finding 7 — an earlier-declared argument's invariant
 # failure and a later-declared argument's shape failure, on the same
-# command, used to refuse in different orders on the two runtimes — is
+# command, would otherwise refuse in different orders on the two runtimes — is
 # closed too, in both generators (`rust/project/json_codec.rb#emit_
 # from_json_flat`/`rust/codegen/src/json_codec.rs`'s own `interleave_
 # checks`): every command/entity-command/port-operation Args struct now
@@ -46,7 +46,7 @@ require_relative "support/rust_conformance_helpers"
 # own updated status) turned out to already be moot: the bluebook
 # redeclaration its root cause depended on (`SafeDepositBox.Rent`'s own
 # `attribute :customer, CustomerNumber`) was removed by unrelated work
-# (PR #409, 2026-08-28) before this was ever re-verified live — `sets
+# (2026-08-28) before this was ever re-verified live — `sets
 # :customer` now bridges straight to the aggregate's own `Reference
 # <Customer>` type, so the already-ported command-level `resolve_
 # references` check (`rust/project/domain_generator.rb#reference_
@@ -59,14 +59,15 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   # Every in-repo domain with a cargo feature of its own, derived —
   # `Hecks::Corpus.rust_domains`, the same list the codegen drift check
-  # regenerates. This used to be a hand list of 8 while rust/Cargo.toml
-  # had 20 features. The two features with no in-repo domain directory
+  # regenerates, rather than a hand-kept list that would drift the moment
+  # rust/Cargo.toml grows past whatever count it was last kept in sync
+  # with. The two features with no in-repo domain directory
   # (`meta`, `embryonaut`) go to the checks `Corpus::RUST_ELSEWHERE`
   # names, and spec/corpus_rust_spec.rb proves every feature lands in one
   # bucket or the other. A domain with no Cargo feature (e.g.
   # `generated_keyword_aggregate`, whose `Crate` aggregate is a Rust
-  # keyword — PR #673's reserved-name check owns it) has no binary to
-  # compare against.
+  # keyword — `rust/codegen/src/reserved_names.rs`'s own check owns it)
+  # has no binary to compare against.
   # `SEEDS_PER_DOMAIN` is deliberately modest (an `io: true` spec already
   # pays a full `cargo build` per domain; each seed here also pays a
   # subprocess spawn) — widen it locally with `SEEDS=40 bundle exec rspec
@@ -79,10 +80,11 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
   # the example fails until the entry is deleted here.
   RUST_FUZZ_PENDING = {}.freeze
 
-  # A total, spread across DOMAINS — not per domain. The hand list ran
-  # 8 domains x 10 seeds = 80; deriving the list must not add gating
-  # wall-clock, so the same 80 is divided over however many domains
-  # Corpus derives. `SEEDS=` still sets a per-domain count locally.
+  # A total, spread across `DOMAINS` — not per domain: deriving the list
+  # must not add gating wall-clock, so a fixed budget (80, the same total
+  # a hand-kept 8-domain x 10-seed list would run) is divided over
+  # however many domains Corpus derives. `SEEDS=` still sets a per-domain
+  # count locally.
   SEED_BUDGET = 80
   SEEDS_PER_DOMAIN = Integer(ENV["SEEDS"] || (SEED_BUDGET.to_f / DOMAINS.size).ceil)
   STEPS_PER_SEQUENCE = 25

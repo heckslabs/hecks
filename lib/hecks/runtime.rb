@@ -68,17 +68,40 @@ module Hecks
 
       # Load a bluebook directory and return the Dispatcher bound to it.
       # `install_facade:`, `environment:` — see Loader.boot.
+      #
+      # @param path [String] path to a domain directory, or a file inside one
+      # @param shared [String, nil] a shared-root override; see `Loader.boot`
+      # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
+      #   Ruby facade constants for this boot
+      # @param environment [String, nil] the environment name passed through to
+      #   `Adapters::Folder#load_domain`
+      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+      #   to the booted domain
       def boot(path, shared: nil, install_facade: true, environment: nil)
         Loader.boot(path, shared: shared, install_facade: install_facade, environment: environment)
       end
 
       # `paths` form — see Loader.boot_files.
+      #
+      # @param paths [String, Array<String>] one or more file paths within the domain
+      #   to load, instead of the whole directory
+      # @param shared [String, nil] a shared-root override; see `Loader.boot_files`
+      # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
+      #   Ruby facade constants for this boot
+      # @param environment [String, nil] the environment name passed through to the
+      #   selected-file loader
+      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+      #   to the booted domain
       def boot_files(paths, shared: nil, install_facade: true, environment: nil)
         Loader.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
       end
 
       # Bind the ambient registry for the duration of the block, restoring
       # whatever was there before. Nesting is safe ; a raise still restores.
+      #
+      # @param registry [Runtime::Registry] the registry to make current for the block
+      # @yield the code that should see `registry` as `current_registry`
+      # @return [Object] the block's result
       def with_registry(registry)
         previous          = @current_registry
         @current_registry = registry

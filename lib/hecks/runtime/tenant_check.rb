@@ -10,8 +10,9 @@ module Hecks
     # Dispatcher, its own adapter instances) rather than one shared
     # process switching connections mid-dispatch.
     #
-    # That last part is the finding this module encodes. The project
-    # register (Bluebook::ProjectRegister) already resolves an address's
+    # ## Why per-boot, not per-dispatch
+    #
+    # The project register (Bluebook::ProjectRegister) already resolves an address's
     # realm to a dispatcher at registration time — Router#resolve looks
     # the FQN up in one flat table keyed by realm::domain::aggregate.verb,
     # and each entry already carries its own dispatcher from its own
@@ -23,21 +24,22 @@ module Hecks
     # already gives for free — each tenant's own PostgresEra instance
     # is its own connection, held for the life of that boot.
     #
-    # So `tenant_capable?` asks a narrower question than it might sound:
-    # not "can this adapter switch tenants," but "does booting this
-    # adapter twice, with different settings, for the same directory,
-    # actually keep the two boots' data apart." Memory answers true
-    # trivially — a `@records` Hash is a plain instance variable, and
-    # two `Runtime.boot` calls build two entirely separate Registry
-    # objects, so two Memory adapter instances never share state by
-    # construction. PostgresEra answers true because its own `schema:`
-    # setting (already built, already the Storehouse mechanism) puts
-    # each boot's tables in their own Postgres schema via `SET
-    # search_path` — proven for real, not assumed, by
-    # tenant_isolation_spec.rb. Plain Postgres (no schema story) and D1
-    # (no schema-equivalent at all — see world.bluebook's own comment on
-    # the lifeadelics D1 tradeoff) answer false, or don't answer at all,
-    # which this module treats identically to false.
+    # ## What `tenant_capable?` actually asks
+    #
+    # A narrower question than it might sound: not "can this adapter
+    # switch tenants," but "does booting this adapter twice, with
+    # different settings, for the same directory, actually keep the two
+    # boots' data apart." Memory answers true trivially — a `@records`
+    # Hash is a plain instance variable, and two `Runtime.boot` calls
+    # build two entirely separate Registry objects, so two Memory
+    # adapter instances never share state by construction. PostgresEra
+    # answers true because its own `schema:` setting (already built,
+    # already the Storehouse mechanism) puts each boot's tables in their
+    # own Postgres schema via `SET search_path` — proven for real, not
+    # assumed, by tenant_isolation_spec.rb. Plain Postgres (no schema
+    # story) and D1 (no schema-equivalent at all — see world.bluebook's
+    # own comment on the lifeadelics D1 tradeoff) answer false, or don't
+    # answer at all, which this module treats identically to false.
     module TenantCheck
       module_function
 
@@ -48,6 +50,12 @@ module Hecks
       # a second tenant boot of the same directory is trusted, the same
       # severity EraCheck/refuse_ungoverned_roles! already hold their
       # own gates to.
+      #
+      # @param registry [Runtime::Registry] the registry a second tenant boot would use
+      # @param domain [String, Symbol] the domain to check every aggregate's bind for
+      # @return [void]
+      # @raise [Runtime::WiringError] if any of `domain`'s aggregates resolves to an adapter
+      #   that does not answer `tenant_capable?` true
       def refuse_unless_tenant_capable!(registry, domain)
         bluebook = registry.bluebook(domain)
         return unless bluebook
@@ -73,6 +81,12 @@ module Hecks
       # setting (PostgresEra's schema:). Same defensive shape
       # EraCheck#lineage_capable? already uses: a class that doesn't
       # respond at all is false, not an error.
+      #
+      # @param registry [Runtime::Registry] the registry to look the adapter up in
+      # @param adapter_name [String] the adapter's own declared name
+      # @return [Boolean] true if `adapter_name` is a registered adapter whose Ruby
+      #   implementation answers `tenant_capable?` true; false otherwise, including when
+      #   resolving the implementation raises
       def tenant_capable?(registry, adapter_name)
         adapter_class = registry.adapters[adapter_name] && registry.adapter_class(adapter_name)
         adapter_class.respond_to?(:tenant_capable?) && adapter_class.tenant_capable?

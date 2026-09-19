@@ -54,6 +54,11 @@ module Hecks
         # handler names would mean the runtime moved state the language
         # never authorized — the same trust ModelCheck's static reachability
         # rests on, checked here against what a run actually did.
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every logged advance matches a declared
+        #   handler edge; otherwise a message naming the process manager and pair
+        #   that does not
         def saga_advances_follow_declared_handlers(history)
           bluebook = history.fetch(:bluebook)
           edges = Hash.new { |h, k| h[k] = [] }
@@ -86,6 +91,15 @@ module Hecks
         # comparison depended on, anything. Two independent replays, not a
         # cached one compared to itself, so a bug that corrupts the first
         # run's own bookkeeping cannot pass by agreeing with itself.
+        #
+        # @param domain_path [String] path to the domain directory to boot, such as
+        #   `"examples/pizzas"`
+        # @param steps [Array<Hash>] the step list to replay twice
+        # @param adapter [Symbol] persistence adapter to boot with (`:memory`,
+        #   `:postgres`, or `:postgres_era`)
+        # @return [true, String] true if both replays produce identical histories
+        #   (after stripping declared nondeterministic fields); otherwise a message
+        #   naming the step count that diverged
         def replay_is_deterministic(domain_path, steps, adapter: :memory)
           first  = Replay.call(domain_path, steps, adapter: adapter)
           second = Replay.call(domain_path, steps, adapter: adapter)

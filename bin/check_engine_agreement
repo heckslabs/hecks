@@ -3,15 +3,15 @@
 # The shape of bug this guards against: `Ports::Query::InMemory` (the
 # path a Memory- or Heki-backed aggregate query actually runs) and
 # `Runtime::QueryInterpreter` (entity/sub-list queries, and the fallback
-# for any adapter implementing no native `:query`) each used to carry
-# their own copy of the comparator table and the null-handling rule. The
-# two copies drifted twice, silently: `none_in_state` was added to one
-# copy only (an ordinary Memory query's `none_in_state` clause fell to
-# the `else` branch and excluded every row), and `comparable` disagreed
-# about a value object with two numeric members (one path took the
-# first, the other only unwrapped an unambiguous single member). Both
-# are now unified behind `QuerySpecification::Common::Comparison` /
-# `NullPolicy` (see comparison.rb's own header). This script is the
+# for any adapter implementing no native `:query`) can each grow its own
+# copy of the comparator table and the null-handling rule instead of
+# sharing one. Two such copies drifted twice, silently: `none_in_state`
+# was added to one copy only (an ordinary Memory query's `none_in_state`
+# clause fell to the `else` branch and excluded every row), and
+# `comparable` disagreed about a value object with two numeric members
+# (one path took the first, the other only unwrapped an unambiguous
+# single member). Both live only in `QuerySpecification::Common::Comparison`
+# / `NullPolicy` (see comparison.rb's own header). This script is the
 # mechanical guard that keeps it unified: it does not re-derive query
 # semantics, it checks that the places semantics are allowed to live
 # still agree with each other.
@@ -74,7 +74,7 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 
-# ROOT is overridable only for this script's own spec
+# `ROOT` is overridable only for this script's own spec
 # (spec/check_engine_agreement_spec.rb), which points it at a scratch
 # copy of the six tracked files below to prove the negative cases —
 # `require "hecks"` above is not affected by this override (it always
@@ -117,6 +117,12 @@ AGREEMENT_SPEC_FILES = %w[
   spec/query_none_in_state_growth_spec.rb
 ].freeze
 
+# Reads one of the tracked engine/comparison/spec files as text, resolved under `ROOT`.
+#
+# @param relative_path [String] a path relative to `ROOT`, such as
+#   `"lib/hecks/ports/query/in_memory.rb"`
+# @return [String] the file's full contents
+# @raise [Errno::ENOENT] if no file exists at the resolved path
 def read(relative_path)
   File.read(File.join(ROOT, relative_path))
 end
@@ -184,14 +190,27 @@ end
 comparison_source = read(SHARED_COMPARISON_FILE)
 agreement_sources = AGREEMENT_SPEC_FILES.map { |path| [path, read(path)] }
 
+# Says whether `comparison.rb`'s own `case` already has a `when` for `comparator`.
+#
+# `comparison.rb`'s own `case operation.to_s ... when "eq" then ...`
+# block — one comparator per line, quoted, by construction (see the
+# file itself). Matches `when "eq"` with anything after (` then ...`)
+# on the same physical line.
+#
+# @param comparison_source [String] the text of `SHARED_COMPARISON_FILE`
+# @param comparator [String] a declared comparator name, such as `"eq"`
+# @return [Integer, nil] the index of the matching `when` line, or nil if none matches
 def shared_case?(comparison_source, comparator)
-  # `comparison.rb`'s own `case operation.to_s ... when "eq" then ...`
-  # block — one comparator per line, quoted, by construction (see the
-  # file itself). Matches `when "eq"` with anything after (` then ...`)
-  # on the same physical line.
   comparison_source =~ /when\s+"#{Regexp.escape(comparator)}"/
 end
 
+# Says whether `text` exercises `comparator`, either as an explicit keyword or,
+# for `"eq"` only, by name in an example description.
+#
+# @param text [String] the contents of one agreement-spec file
+# @param comparator [String] a declared comparator name, such as `"eq"` or `"none_in_state"`
+# @return [Boolean] true if `text` shows `comparator`'s keyword form, or (for `"eq"` only)
+#   names it in an `it`/`describe` description
 def mentions_operator?(text, comparator)
   # The explicit form every real `where(field: { comparator: value })`
   # clause takes: the comparator as a bare hash key, `comparator:`,

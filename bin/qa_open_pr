@@ -1,19 +1,19 @@
 #!/usr/bin/env ruby
 
-# OPEN A PR and write it down, in one breath — the only door into
+# Opens a PR and writes it down, in one breath — the only door into
 # `QualityControl::Patch.Open` / `Improvement.Open`.
 #
-# **The gap this closes**. `.claude/skills/hecks_qa/SKILL.md` used to ask a
-# sweep subagent to open a PR, run `gh pr view --json number,url,
-# headRefName,headRefOid,title`, put those five facts in its report, and
-# then ask the orchestrator to copy them into `patch.open` by hand once
-# the report came back — fifty lines of prose about a fact that is true
-# the instant `gh pr create` returns. Copying it later meant a retried
-# report could record a PR twice and a dropped one never; and the daily
-# cap (`QualityControlDials::PR_CAP_PER_DAY`) was a grep an agent was
-# asked to remember to run. This script is that whole paragraph, run
-# once, mechanically: every refusal below is a rule that used to be a
-# sentence.
+# **The gap this closes**. Left to a sweep subagent, opening a PR means
+# running `gh pr create`, running `gh pr view --json number,url,
+# headRefName,headRefOid,title`, putting those five facts in its report,
+# and asking the orchestrator to copy them into `patch.open` by hand once
+# the report comes back — fifty lines of prose about a fact that is true
+# the instant `gh pr create` returns. Copying it later means a retried
+# report can record a PR twice and a dropped one never; and the daily
+# cap (`QualityControlDials::PR_CAP_PER_DAY`) is a grep an agent has to
+# remember to run. This script replaces that whole paragraph, run once,
+# mechanically: every refusal below is a rule that would otherwise be a
+# sentence in a skill file.
 #
 #   bin/qa_open_pr --bug bug#n --title "…" [--body "…"]
 #   bin/qa_open_pr --improvement [--angle angle-n] --title "…" [--body "…"]
@@ -29,7 +29,7 @@
 #     (`0` = uncapped; a row whose `opened_at` is 0 — recorded before
 #     the field existed — never counts);
 #   - `--bug`: the bug is not `fixed`, or `Bug.commit` is not an ancestor
-#     of HEAD (`git merge-base --is-ancestor`) — the PR must actually
+#     of `HEAD` (`git merge-base --is-ancestor`) — the PR must actually
 #     carry the commit the ledger says fixes it;
 #   - `--improvement --angle`: the angle is not `investigating`.
 #
@@ -92,11 +92,21 @@ abort "#{USAGE}\n--angle only means something with --improvement" if options[:an
 
 # ── git and gh, never guessing at their exit codes ─────────────────────
 
+# Runs a `git` subcommand in `REPO_DIR`, capturing its output rather than
+# streaming it, and never raising on a nonzero exit.
+#
+# @return [Array(String, String, Process::Status)] stdout and stderr with
+#   trailing whitespace stripped, and the subcommand's own exit status
 def git(*)
   out, err, status = Open3.capture3("git", *, chdir: REPO_DIR)
   [out.strip, err.strip, status]
 end
 
+# Runs a `gh` subcommand in `REPO_DIR`, capturing its output rather than
+# streaming it, and never raising on a nonzero exit.
+#
+# @return [Array(String, String, Process::Status)] stdout and stderr with
+#   trailing whitespace stripped, and the subcommand's own exit status
 def gh(*)
   out, err, status = Open3.capture3("gh", *, chdir: REPO_DIR)
   [out.strip, err.strip, status]
@@ -120,11 +130,33 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
+# Answers a `QualityControl` query by its short name, so every call site
+# below doesn't have to spell out the `QualityControl::` prefix.
+#
+# @param runtime [Runtime::Dispatcher] the booted QualityControl runtime
+# @param name [String] the query's verb without its `QualityControl::` prefix,
+#   such as `"Patch.OpenedSince"`
+# @param args [Hash{Symbol => Object}] the query's declared arguments, forwarded as-is
+# @return [Array<Hash>] one deep-frozen Hash per matching record, or a
+#   one-element Array of read-model rows — see `Runtime::Dispatcher#query`
+# @raise [Runtime::UnknownVerb] if `name` names an undeclared domain, aggregate, entity,
+#   query or read model
+# @raise [Runtime::NotFound] if a read model's root reference names no record
+# @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its declared type
+# @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
+# Reads one `QualityControlDials` constant by name, or a fallback when the
+# ledger currently booted has no dials at all.
+#
 # The dials, read once the boot above has loaded the bluebook that
 # defines them — with the same fallbacks a dial-less fixture ledger
 # gets everywhere else: uncapped, non-draft, no auto-merge, `qa/`.
+#
+# @param name [Symbol] the dial's constant name, such as `:PR_CAP_PER_DAY`
+# @param fallback [Object] the value to use when `QualityControlDials` is undefined, or
+#   defined but does not have this constant
+# @return [Object] the dial's own value, or `fallback`
 def dial(name, fallback)
   return fallback unless defined?(QualityControlDials) && QualityControlDials.const_defined?(name)
 
@@ -188,6 +220,11 @@ end
 
 VIEW_FIELDS = "number,url,headRefName,headRefOid,title,state".freeze
 
+# Looks up the open PR for `branch`, if any, via `gh pr view`.
+#
+# @param branch [String] the git branch name to look up
+# @return [Hash{Symbol => Object}, nil] the parsed `gh pr view` JSON, keyed by
+#   `VIEW_FIELDS`, when one exists and its state is `"OPEN"`; `nil` otherwise
 def view_pr(branch)
   out, _err, status = gh("pr", "view", branch, "--json", VIEW_FIELDS)
   return nil unless status.success?

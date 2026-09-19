@@ -8,9 +8,10 @@ require "hecks/adapters/driven/lambda"
 RSpec.describe Hecks::Adapters::Lambda do
   let(:aggregate) { boot_in_memory.registry.bluebook("Pizzas").aggregate("Order") }
 
-  # `settings[:region] || settings["region"] || "us-east-1"` used to coerce
+  # `settings[:region] || settings["region"] || "us-east-1"` would coerce
   # a genuinely stored `false` at :region into the "us-east-1" fallback —
-  # indistinguishable from :region being absent entirely.
+  # indistinguishable from :region being absent entirely — which is why
+  # `setting` reads it `key?`-gated instead.
   it "reads a `false`-valued :region setting back as itself, not the \"us-east-1\" fallback" do
     # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
     # are the assertion (the false/absent :region distinction); `allow`
@@ -35,8 +36,8 @@ RSpec.describe Hecks::Adapters::Lambda do
 
   # A deployment whose function isn't `hecks-<domain>` — a `.world`'s own
   # `stack_prefix`/`stack_name` can name a stack that predates a rename,
-  # and nothing downstream of that could previously be told about it.
-  # Found live: embryonautfoundersapp deploys as `hecksagain-embryonaut`,
+  # and nothing downstream of that could be told about it without this
+  # pass-through. Found live: embryonautfoundersapp deploys as `hecksagain-embryonaut`,
   # so every Ruby-side read and dispatch for it had been invoking a
   # function that does not exist.
   it "passes a :function setting straight through to the client" do

@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# QueryInterpreter#interpret/#reference_interpret never read declared.offset
-# — confirmed by grep returning nothing before this fix. Latent because the
-# adapter-backed path (Ports::Query::InMemory, fixed by PR #324-326) already
-# applied offset correctly; this is the other path, native-vs-reference
+# QueryInterpreter#interpret/#reference_interpret reads declared.offset —
+# a grep across the file otherwise returns nothing for it. Latent because the
+# adapter-backed path (Ports::Query::InMemory) already
+# applies offset correctly; this is the other path, native-vs-reference
 # (runtime.query vs runtime.reference_query, the fuzzer's own oracle
 # comparison in query_answers_match_reference), which took no adapter at all
 # and went straight through this file instead. ATMCard.ByFee (`limit 3;

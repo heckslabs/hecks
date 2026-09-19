@@ -2,7 +2,7 @@ require "spec_helper"
 
 # BUG#7 (found live by `bin/qa_sweep`, `examples/roster` fuzz seed 1,
 # step 9 — `Mark`'s 6th refusal in the sequence) — `Routing.envelope`'s
-# non-Hash branch used to accept any Ruby object as a ready-made
+# non-Hash branch would otherwise accept any Ruby object as a ready-made
 # aggregate identity scalar (`to.is_a?(Hash) ? parse_envelope_hash(to)
 # : [to, []]`, unconditionally), looser than Rust's own hand-written
 # mirror of this exact boundary (`rust/src/kernel/routing.rs#

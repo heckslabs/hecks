@@ -1,13 +1,15 @@
 require "spec_helper"
 require "hecks/forms/field_renderer"
 
-# S2 (docs/audits/2026-08-10-main-bug-audit.md) — `.dig` read a flat
-# key with `values[path.to_s] || values[path.to_sym]` and a nested step
-# with `acc[segment.to_sym] || acc[segment]`, both of which drop a
-# genuinely-stored `false` to `nil` (`false || …` falls through). A
-# sticky re-render of a refused boolean-field command, or a prefill from
-# a record actually holding `false`, used to render as though the field
-# had never been filled in at all.
+# S2 (docs/audits/2026-08-10-main-bug-audit.md) — `.dig` checks `key?`
+# at every step, never `||`, which would treat a genuinely-stored
+# `false` the same as an absent key and fall through to `nil`. Reading a
+# flat key with `values[path.to_s] || values[path.to_sym]` and a nested
+# step with `acc[segment.to_sym] || acc[segment]` would drop a
+# genuinely-stored `false` to `nil` this way — a sticky re-render of a
+# refused boolean-field command, or a prefill from a record actually
+# holding `false`, would render as though the field had never been
+# filled in at all.
 RSpec.describe Hecks::Forms::FieldRenderer do
   describe ".dig" do
     it "reads a flat, string-keyed stored false rather than nil" do

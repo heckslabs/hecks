@@ -1,13 +1,13 @@
 require "spec_helper"
 
-# H1 (docs/audits/2026-08-10-main-bug-audit.md) — an entity command used to
-# run neither `refuse_unknown_arguments` nor `refuse_absent_arguments` at
-# all, on a comment claiming it "inherits its aggregate's own gate."
-# Nothing on the entity dispatch path ever ran one: a bogus argument was
+# H1 (docs/audits/2026-08-10-main-bug-audit.md) — a comment on the entity
+# dispatch path once claimed it "inherits its aggregate's own gate," but
+# ran neither `refuse_unknown_arguments` nor `refuse_absent_arguments` at
+# all. Nothing on that path ran one: a bogus argument was
 # accepted outright, and a command that both declares an argument and
 # `sets` a field from it (`Advance`'s own `note`, below) silently wrote
 # `nil` over the stored value when that argument was simply omitted —
-# persisted data loss, no refusal. `EntityInterpreter` now `include`s the
+# persisted data loss, no refusal. `EntityInterpreter` `include`s the
 # same `CommandInterpreter::ArgumentGate` an aggregate command's own dispatch
 # already runs (entity_interpreter.rb's own H1 comment), extended with the
 # entity chain's own identity heads as addressing (`step_refuse_unknown_

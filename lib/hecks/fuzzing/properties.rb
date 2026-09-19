@@ -22,10 +22,14 @@ module Hecks
     # any history a valid domain produces, independent of which seed
     # produced it.
     #
+    # ## Shape of a property
+    #
     # Each property is `name => ->(history) { true/false, or a message
     # string naming what broke }` — a truthy return (including `true`)
     # is a pass; a String return is a failure, and the string is the
     # finding. `history` is Replay's return shape.
+    #
+    # ## Coverage
     #
     # Every property declares the language feature it covers, in
     # `FEATURE_COVERAGE` below — a "Construct#attribute" pair spelled
@@ -171,8 +175,8 @@ module Hecks
       # (caller-supplied, or composite — the two the auto-mint branch
       # doesn't cover), the same way command_interpreter#hydrate's own
       # check is unconditional for every creating aggregate command. Real,
-      # confirmed live before the fix (SafeDepositBox's Visit/KeyIssuance —
-      # see spec/runtime/safe_deposit_box_spec.rb).
+      # confirmed live (SafeDepositBox's Visit/KeyIssuance — see
+      # spec/runtime/safe_deposit_box_spec.rb).
       GUARANTEED_BY_CONSTRUCTION = {
         "Aggregate#attributes"    => "every field's pattern/closed-set/type passes through Value.build's one coercion " \
                                      "door (value/coercion.rb#check_patterns, value/admission.rb) before it can exist " \
@@ -233,6 +237,10 @@ module Hecks
       # The standard battery, run over one replayed history — everything
       # except determinism, which needs to replay twice itself and so
       # takes the steps directly rather than a single history.
+      #
+      # @param history [Hash] a replayed history as returned by `Replay.call`
+      # @return [Hash{Symbol => true, String}] each property name mapped to `true`
+      #   if it holds or a String naming what broke
       def check(history)
         { lifecycle_values_are_declared:                    lifecycle_values_are_declared(history),
           saga_advances_follow_declared_handlers:           saga_advances_follow_declared_handlers(history),

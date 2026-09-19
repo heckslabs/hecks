@@ -122,7 +122,7 @@ module Hecks
               # shape, and this step still skips it exactly as it always
               # has. A list-of-value-object attribute (`ConsoleSettings::
               # Collection.ReplaceColumns`' own `columns`, `list_of(Column)`)
-              # is the real, previously-unfuzzable case this now covers —
+              # is the real case this covers —
               # `sets :columns` imports the owner aggregate's own declared
               # `list_of` attribute onto the command verbatim (Command
               # Builder#resolve_bare_set!), so it is a required, ordinary

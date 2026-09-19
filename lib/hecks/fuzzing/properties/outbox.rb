@@ -10,6 +10,8 @@ module Hecks
       # capture, one entry per step whose dispatch enqueued at least one
       # row):
       #
+      # ## Check 1: delivery is inline by default
+      #
       #   1. "delivery is inline by default" — a row this replay's own
       #      dispatch enqueued must not still be `pending`/`claimed` once
       #      that same call returns (nothing here ever simulates a
@@ -23,6 +25,8 @@ module Hecks
       #      false` on the reaction/saga log and letting `run_consumer`
       #      return normally). Both checked for every row, `saga:` and
       #      `policy:` alike.
+      #
+      # ## Check 2: a policy row's own where clause
       #
       #   2. A `policy:` row specifically — `PolicyInterpreter#deliver`
       #      returns `nil` (no `reaction_log` entry appended at all)
@@ -38,12 +42,12 @@ module Hecks
       #      it should have dispatched to) is `fanout_dispatches_once_
       #      per_matching_row`'s job, not this one's.
       #
-      # A `saga:` row has no equivalent second check, deliberately — this
-      # was the first shape this property shipped with, and it was wrong,
-      # caught live against `examples/banking` before this comment
-      # existed: `Fanout.sagas`' own `listens?` (starts_on/ends_on/
-      # handler_for matching the event name alone) says nothing about
-      # whether a correlation resolves or a live instance exists, and
+      # ## Why a saga row is exempt from check 2
+      #
+      # A `saga:` row has no equivalent second check, deliberately —
+      # `Fanout.sagas`' own `listens?` (starts_on/ends_on/handler_for
+      # matching the event name alone) says nothing about whether a
+      # correlation resolves or a live instance exists, and
       # `begin_saga`/`end_saga` (saga_interpreter.rb) both have silent,
       # perfectly ordinary no-op paths that append nothing to `saga_log`
       # — `begin_saga` when an instance under that correlation already
@@ -57,11 +61,18 @@ module Hecks
       # `saga_log` entries is therefore not a finding — only check 1
       # applies to it.
       #
-      # **Not a grammar construct** — `FEATURE_COVERAGE`'s own `dry_runs_
-      # leave_no_trace` precedent: the outbox is a runtime door
-      # (`Runtime::Outbox`), not a word a bluebook declares, so there is
-      # no feature string here to claim.
+      # ## Not a grammar construct
+      #
+      # `FEATURE_COVERAGE`'s own `dry_runs_leave_no_trace` precedent: the
+      # outbox is a runtime door (`Runtime::Outbox`), not a word a
+      # bluebook declares, so there is no feature string here to claim.
       module Outbox
+        # Checks every captured outbox row against `Runtime::Outbox`'s own contract
+        # (see this module's own header for the two checks applied).
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every row in `history[:outbox_traces]`
+        #   satisfies its contract; otherwise a message naming every offending row
         def outbox_rows_match_reactions(history)
           bluebooks = history.fetch(:bluebooks, {})
 
@@ -72,6 +83,16 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
+        # Checks one outbox row against check 1 (and, when `delivered`, check 2).
+        #
+        # @param row [Hash] one outbox row, with at least `:delivery_id`, `:status`,
+        #   `:event`, `:consumer`, `:error`
+        # @param trace [Hash] the row's own `history[:outbox_traces]` entry, with
+        #   `:verb`, `:rows`, `:reactions`, `:sagas`
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
+        #   keyed by name (`history[:bluebooks]`)
+        # @return [Array<String>] one message per contract violation found for
+        #   `row`; empty when it satisfies its contract
         def outbox_row_offenders(row, trace, bluebooks)
           on = row.dig(:event, :name)
 
@@ -93,6 +114,15 @@ module Hecks
         # See this file's own header for why a `saga:` row is exempt: its
         # own `listens?` gives no such guarantee, unlike a policy's single,
         # deterministic `where` gate.
+        #
+        # @param row [Hash] the delivered outbox row to check
+        # @param on [String, nil] the event name the row's own `:event` carries
+        # @param trace [Hash] the row's own `history[:outbox_traces]` entry
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
+        #   keyed by name (`history[:bluebooks]`)
+        # @return [Array<String>] one message if the row drained delivered with no
+        #   matching reaction and its policy's own where clause re-evaluates true;
+        #   empty otherwise, including when the check is inconclusive
         def outbox_delivered_policy_offenders(row, on, trace, bluebooks)
           kind, fqn = row[:consumer].to_s.split(":", 2)
           return [] unless kind == "policy"
@@ -101,11 +131,14 @@ module Hecks
           return [] if trace[:reactions].any? { |entry| entry[:policy] == name && entry[:on] == on }
 
           policy = bluebooks[home]&.policies&.find { |candidate| candidate.name == name }
-          return [] unless policy # nothing declared under this name — inconclusive, not a claimed mismatch
-          return [] if policy.fans_out? # fan-out row count is fanout_dispatches_once_per_matching_row's job
+          # Nothing declared under this name — inconclusive, not a claimed mismatch.
+          return [] unless policy
+          # Fan-out row count is fanout_dispatches_once_per_matching_row's job.
+          return [] if policy.fans_out?
 
           held = independently_re_evaluate_policy_where(policy, row[:event])
-          return [] if held != true # false, or inconclusive (the where itself raised) — never a claimed mismatch
+          # false, or inconclusive (the where itself raised) — never a claimed mismatch.
+          return [] if held != true
 
           ["outbox row #{row[:delivery_id]} (#{row[:consumer]} on #{on}) drained as delivered, but no matching " \
            "reaction_log entry exists and the policy's own where clause independently re-evaluates true — " \
@@ -128,6 +161,11 @@ module Hecks
         # claimed pass or a claimed mismatch from a resolution this replay
         # cannot actually reproduce" discipline `build_guard_check`'s own
         # rescue clause already follows.
+        # @param policy [Bluebook::Policy] the policy whose `where` to re-evaluate
+        # @param event [Hash] the recorded event the row fired from, with `:payload`
+        # @return [Boolean, nil] true when `policy.where` is blank or evaluates
+        #   true; false when it evaluates false; `nil` when it cannot be
+        #   re-evaluated from `event`'s own recorded payload alone
         def independently_re_evaluate_policy_where(policy, event)
           return true if policy.where.to_s.empty?
 

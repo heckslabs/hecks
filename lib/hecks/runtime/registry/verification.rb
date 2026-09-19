@@ -10,6 +10,15 @@ module Hecks
       # loading, and the smaller checks are also called piecemeal by the
       # repository factory.
       module Verification
+        # Runs the whole wiring gate: every bind, adapter, and world setting this registry
+        # loaded is checked, and the durability warnings are printed.
+        #
+        # @return [Hecks::Runtime::Registry] self
+        # @raise [Runtime::WiringError] if the default adapter is not usable, a singleton
+        #   port's sole adapter is missing a method its port declares, a bind names an
+        #   undeclared aggregate, a bind's adapter cannot satisfy its declared verb or is
+        #   missing a method its port declares, or a command declares a `role` with no
+        #   authorization provider attached to its domain
         def verify!
           verify_default_adapter!
           verify_singleton_port_answers!
@@ -50,6 +59,12 @@ module Hecks
           self
         end
 
+        # Confirms the framework-wide default persistence adapter is itself usable.
+        #
+        # @return [Hecks::Runtime::Registry] self
+        # @raise [Runtime::WiringError] if `Ports::Persistence::DEFAULT_ADAPTER` cannot
+        #   satisfy the persistence port's verb, is missing a method its port declares, or
+        #   has no Ruby adapter implementation
         def verify_default_adapter!
           name = Ports::Persistence::DEFAULT_ADAPTER
 
@@ -68,6 +83,13 @@ module Hecks
                 "aggregate with no bind could not be given one: #{e.message}"
         end
 
+        # Confirms `bind`'s adapter implements its own declared port with the right verb.
+        #
+        # @param bind [Bluebook::Bind] the bind to check
+        # @return [void]
+        # @raise [Runtime::WiringError] if `bind`'s adapter does not exist, declares an
+        #   unknown port, is missing a method its port declares, or cannot satisfy `bind`'s
+        #   declared verb
         def check_verb(bind)
           port = port_for(bind)
           check_answers(port, bind.adapter)
@@ -85,6 +107,13 @@ module Hecks
         # actually call. `answers` is optional per port (an empty list is
         # today's pre-existing behavior, unchecked), so this only ever
         # tightens a port that opted in.
+        #
+        # @param port [Bluebook::Port, Bluebook::DomainPort] the port whose declared
+        #   `answers` methods to check for
+        # @param adapter_name [String] the adapter's own declared name
+        # @return [void]
+        # @raise [Runtime::WiringError] if the named adapter has no Ruby implementation, or
+        #   that implementation is missing one of `port.answers`' methods
         def check_answers(port, adapter_name)
           answers = Array(port.answers)
           return if answers.empty?
@@ -114,6 +143,13 @@ module Hecks
         # exactly one adapter, wired, missing a method `answers` names.
         PER_AGGREGATE_PORTS = %w[persistence projection loading].freeze
 
+        # Checks every singleton port with exactly one wired adapter against its own
+        # declared `answers`, the one method-contract gap a per-aggregate bind check never
+        # reaches.
+        #
+        # @return [Hecks::Runtime::Registry] self
+        # @raise [Runtime::WiringError] if a singleton port's sole adapter is missing one of
+        #   its declared `answers` methods
         def verify_singleton_port_answers!
           @ports.each_value do |port|
             next if PER_AGGREGATE_PORTS.include?(port.name)
@@ -127,6 +163,14 @@ module Hecks
           self
         end
 
+        # Confirms every declared world setting for a bind is a field its adapter admits.
+        #
+        # @param bind [Bluebook::Bind] the bind naming the adapter to check `settings` against
+        # @param settings [Hash{Symbol => Object}] the world's declared settings for this
+        #   bind, including the `:adapter` key
+        # @return [void]
+        # @raise [Runtime::WiringError] if `settings` declares a field `bind`'s adapter does
+        #   not declare
         def check_settings(bind, settings)
           adapter = @adapters[bind.adapter]
           return unless adapter
@@ -141,6 +185,12 @@ module Hecks
                 "Add the field to the adapter, or remove it from the world."
         end
 
+        # Resolves the port a bind's own adapter declares.
+        #
+        # @param bind [Bluebook::Bind] the bind naming the adapter to resolve a port for
+        # @return [Bluebook::Port, Bluebook::DomainPort] the port `bind`'s adapter declares
+        # @raise [Runtime::WiringError] if `bind`'s adapter is not registered, or declares a
+        #   port that is not registered
         def port_for(bind)
           adapter = @adapters[bind.adapter]
           raise WiringError, "unknown adapter #{bind.adapter.inspect}" unless adapter
@@ -149,6 +199,11 @@ module Hecks
             raise(WiringError, "adapter #{bind.adapter} declares unknown port #{adapter.port.inspect}")
         end
 
+        # Resolves the Ruby module or class implementing an adapter of the given name.
+        #
+        # @param name [String] the adapter's own declared name, such as `"Postgres"`
+        # @return [Module] `Hecks::Adapters::<name>`
+        # @raise [Runtime::WiringError] if `Hecks::Adapters` declares no constant named `name`
         def adapter_class(name)
           Adapters.const_get(name)
         rescue NameError
@@ -164,10 +219,10 @@ module Hecks
         # unchecked, exactly the defect ADR 0025 §9 names ("role gates
         # access control by exact string equality ... Governance ...
         # connected to none of it"). Checked here, at `verify!` — recovered
-        # and moved, not new: this used to run per-block, at hecksagon
-        # build time (Bluebook::DSL::HecksagonBuilder#build), which broke
-        # the moment a domain could be split across multiple hecksagon
-        # blocks (base + an `environments/<name>.hecksagon` overlay,
+        # and moved, not new: checking per-block, at hecksagon build time
+        # (Bluebook::DSL::HecksagonBuilder#build), would break the moment
+        # a domain could be split across multiple hecksagon blocks (base
+        # plus an `environments/<name>.hecksagon` overlay,
         # Runtime::Loader.boot's `environment:` — see its own comment for
         # the recovery provenance): every block but the one declaring
         # `uses_framework "Governance"` would be refused there, even
@@ -179,7 +234,7 @@ module Hecks
         # correct (a check against an incomplete, not-yet-merged
         # hecksagon can never see the real final shape).
         #
-        # A provider is RECOGNISED by its declaration, not its name —
+        # A provider is recognized by its declaration, not its name —
         # `authorization_provider_for` answers for the domain's own
         # chapter too, so Governance (which declares `provides
         # "authorization"`) passes here because of what it declares, and

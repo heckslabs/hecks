@@ -50,10 +50,10 @@ RSpec.describe "a process manager" do
 
   # A refused leg unwinds the legs that already happened. Nobody has to notice.
   #
-  # This test used to assert the opposite and call it "the compensation puts the
-  # money back" — but it was the test that put the money back, by hand, on the
+  # Asserting the opposite and calling it "the compensation puts the
+  # money back" would be wrong: it would be the test putting the money back, by hand, on the
   # line after asserting the drawer was short. Between those two dispatches the
-  # thousand was nowhere: taken from the source, refused by the destination, and
+  # thousand would be nowhere: taken from the source, refused by the destination, and
   # no part of the system trying to recover it. A drawer that cannot be paid into
   # is an ordinary Tuesday. Money vanishing because of it is not.
   it "unwinds a refused leg on its own, without anyone noticing" do
@@ -73,13 +73,13 @@ RSpec.describe "a process manager" do
     expect(Wire::Wire.find("wire-2").status).to eq("returned")
   end
 
-  # `begin_saga` used to seed a fresh instance's own memory with the
-  # starting event's own `.payload` directly — the same Hash object, not a
-  # copy. A `remember` written mid-saga (or any other future write into
-  # `instance[:memory]`) would then be, silently, also a write into an
-  # event that had already happened and been logged — retroactively
-  # adding a field nothing announced. `.dup` on the way in breaks the
-  # alias without changing what the saga's own memory actually holds.
+  # `begin_saga` seeds a fresh instance's own memory with a copy of the
+  # starting event's own `.payload` (`.dup` on the way in), not the same Hash
+  # object directly. Without that, a `remember` written mid-saga (or any other
+  # future write into `instance[:memory]`) would then be, silently, also a write
+  # into an event that had already happened and been logged — retroactively
+  # adding a field nothing announced. `.dup` breaks the alias without
+  # changing what the saga's own memory actually holds.
   it "seeds a fresh saga's own memory as a COPY of the starting event's payload, never the same object" do
     runtime = funded
     # A refused leg unwinds rather than ending (see the example above),
@@ -253,13 +253,13 @@ RSpec.describe "a process manager" do
     )
   end
 
-  # M22 — a logged advance's own `from:`/`to:` used to be re-derived from
+  # M22 — a logged advance's own `from:`/`to:` would otherwise be re-derived from
   # `handler.from_state`/`handler.to_state` a second time, after the real
   # mutation already happened — the same handler object `Properties.
   # saga_advances_follow_declared_handlers` (fuzzing/properties.rb) walks
   # to build its own "declared edges" list, so the logged pair could never
   # disagree with that list no matter what the runtime actually stored: it
-  # was the identical fact, read twice. This intercepts `handler_for` to
+  # would be the identical fact, read twice. This intercepts `handler_for` to
   # make that second read answer something else ("a_second_read_would_
   # answer_this_instead") from the first read's own real, correct value
   # ("asked", the declared self-loop `"WireAsked" => "asked", from:

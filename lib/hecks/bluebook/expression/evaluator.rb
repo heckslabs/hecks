@@ -59,8 +59,16 @@ module Hecks
         # here, interpreted fresh against each call's own state/attrs. Matches
         # MetaValidator.verdicts' unsynchronized `||= {}` idiom : redundant
         # parse work under real parallelism, never corruption.
+        #
+        # @return [Hash{String => Object}] parsed ASTs, keyed by their own canonical text
         def ast_cache = @ast_cache ||= {}
 
+        # Evaluates a predicate's own canonical text against one call.
+        #
+        # @param expr [String] the predicate's own canonical source text
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Boolean] the predicate's own truth value
         def call(expr, state, attrs = {})
           interpret(ast_cache[expr] ||= parse(expr), state, attrs)
         end
@@ -77,12 +85,23 @@ module Hecks
         #
         # HECKS_EVAL=string reverts to the text path wholesale, kept for
         # one release as the escape hatch while the ast path beds in.
+        #
+        # @param rule [Object] a built rule — anything answering `canonical` and `ast`,
+        #   such as a `Bluebook::Given`
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Boolean] the rule's own truth value
         def call_rule(rule, state, attrs = {})
           return call(rule.canonical, state, attrs) if ENV["HECKS_EVAL"] == "string"
 
           interpret(ast_cache[rule.canonical] ||= nodes_for(rule), state, attrs)
         end
 
+        # Reads a rule's own AST back from its stored `ast`, or parses it fresh.
+        #
+        # @param rule [Object] a built rule — anything answering `canonical` and `ast`
+        # @return [Or, And, Not, Compare, Include, Resolve] `rule`'s own AST, read back
+        #   from `rule.ast` when present, else parsed fresh from `rule.canonical`
         def nodes_for(rule)
           rule.ast ? AstReader.read_predicate(rule.ast) : parse(rule.canonical)
         end
@@ -102,6 +121,12 @@ module Hecks
         # an operand that itself fails to resolve (`EvaluationError`): a
         # missing diagnostic is a worse debugging experience than none, a
         # crash while building one is worse still.
+        #
+        # @param expr [String] the predicate's own canonical source text
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [String, nil] `"left: X, right: Y"`, or nil when `expr`'s own
+        #   top-level node is not a bare comparison, or either operand fails to resolve
         def comparison_detail(expr, state, attrs = {})
           node = ast_cache[expr] ||= parse(expr)
           return nil unless node.is_a?(Compare)
@@ -113,6 +138,10 @@ module Hecks
           nil
         end
 
+        # Parses a predicate's own canonical text into its boolean/comparison AST.
+        #
+        # @param expr [String, nil] the predicate's own canonical source text
+        # @return [Or, And, Not, Compare, Include, Resolve] the parsed AST node
         def parse(expr)
           expr = strip_parens(expr.to_s.strip)
 
@@ -127,16 +156,16 @@ module Hecks
           # means `!(names.include?(x))`, never "call .include? on the negated
           # receiver"), so the leading marker has to be stripped and the
           # remainder re-parsed before anything downstream gets a chance to
-          # mis-scan across it. It used to sit after `match_include`, whose
-          # naive `rindex(".include?(")` has no concept of a leading `!` —
-          # for `!names.include?(x)` it swallowed the `!` straight into the
-          # haystack text ("!names"), which `Resolver.parse` cannot resolve,
-          # so every spelling of negated membership raised instead of
-          # evaluating. Moving the check here fixes both the bare prefix
-          # (`!names.include?(x)`) and the parenthesized form
-          # (`!(names.include?(x))`) — the recursive `parse` call sees the
-          # clean remainder and correctly finds the `.include?` (or `&&`/`||`)
-          # inside it.
+          # mis-scan across it. Checking `.include?`/comparisons first instead,
+          # the way `match_include`'s naive `rindex(".include?(")` does, has no
+          # concept of a leading `!` — for `!names.include?(x)` it would
+          # swallow the `!` straight into the haystack text ("!names"), which
+          # `Resolver.parse` cannot resolve, so every spelling of negated
+          # membership would raise instead of evaluating. Checking here first
+          # fixes both the bare prefix (`!names.include?(x)`) and the
+          # parenthesized form (`!(names.include?(x))`) — the recursive
+          # `parse` call sees the clean remainder and correctly finds the
+          # `.include?` (or `&&`/`||`) inside it.
           return Not.new(node: parse(Regexp.last_match(1))) if expr =~ /\A!(.+)\z/
 
           membership = match_include(expr)
@@ -150,6 +179,13 @@ module Hecks
           Resolve.new(expr: Resolver.parse(expr))
         end
 
+        # Interprets one boolean/comparison AST node against a call's own state/attrs.
+        #
+        # @param node [Or, And, Not, Compare, Include, Resolve] the AST node to interpret
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Boolean] the node's own truth value
+        # @raise [EvaluationError] if `node` is not a known node type
         def interpret(node, state, attrs)
           case node
           when Or      then interpret(node.left, state, attrs) || interpret(node.right, state, attrs)
@@ -161,9 +197,9 @@ module Hecks
           else
             # Every node `parse` can produce has a `when` above — a
             # backstop against the day this grammar grows a new node
-            # type and `interpret` doesn't grow to match it. A missing
-            # arm here used to return bare `nil`, and `Or`/`And` fold
-            # that straight into the boolean algebra as ordinary falsy
+            # type and `interpret` doesn't grow to match it. Returning
+            # bare `nil` for a missing arm instead would fold straight
+            # into the boolean algebra `Or`/`And` use as ordinary falsy
             # — reading exactly like "the rule legitimately does not
             # hold" rather than "the runtime cannot evaluate this rule
             # at all", the one silent no-op this language otherwise
@@ -172,6 +208,14 @@ module Hecks
           end
         end
 
+        # Resolves both operands, then applies the comparison.
+        #
+        # @param comparator [Operator] the comparison operator to apply
+        # @param left [Object] the left operand's own unresolved Resolver AST node
+        # @param right [Object] the right operand's own unresolved Resolver AST node
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Boolean] the comparison's own result
         def compare(comparator, left, right, state, attrs)
           lhs = Resolver.interpret(left, state, attrs)
           rhs = Resolver.interpret(right, state, attrs)
@@ -183,12 +227,24 @@ module Hecks
         # test (SignTest#compares_via names an Operator symbol) can apply the
         # same primitives compare() uses against the literal 0, rather than
         # re-deriving positive?/negative?/zero? by hand a second time.
+        #
+        # @param comparator [Operator] the comparison operator to apply
+        # @param lhs [Object] the resolved left value
+        # @param rhs [Object] the resolved right value
+        # @return [Boolean] the comparison's own result
         def apply(comparator, lhs, rhs)
           result = (comparator.compares_less_than && less_than(lhs, rhs)) ||
                    (comparator.compares_equal && equal?(lhs, rhs))
           comparator.negated ? !result : result
         end
 
+        # Compares two resolved values, numerically or lexically.
+        #
+        # @param lhs [Object] the resolved left value
+        # @param rhs [Object] the resolved right value
+        # @return [Boolean] whether `lhs` is less than `rhs`, comparing numerically when
+        #   both are numeric, lexically when both are String
+        # @raise [EvaluationError] if `lhs`/`rhs` are neither both numeric nor both String
         def less_than(lhs, rhs)
           left  = Resolver.numeric(lhs)
           right = Resolver.numeric(rhs)
@@ -199,6 +255,12 @@ module Hecks
                 "comparison of #{class_of(lhs)} with #{Resolver.describe(rhs)} failed"
         end
 
+        # Compares two resolved values, coercing both to numeric when possible so
+        # `1` and `1.0` compare equal.
+        #
+        # @param lhs [Object] the resolved left value
+        # @param rhs [Object] the resolved right value
+        # @return [Boolean] whether `lhs` and `rhs` are equal
         def equal?(lhs, rhs)
           left  = Resolver.numeric(lhs)
           right = Resolver.numeric(rhs)
@@ -207,10 +269,18 @@ module Hecks
           lhs == rhs
         end
 
+        # Reduces a resolved leaf value to Ruby truthiness.
+        #
+        # @param value [Object, nil] a resolved value
+        # @return [Boolean] false for nil or false, true otherwise
         def truthy?(value)
           !value.nil? && value != false
         end
 
+        # Names a resolved value's own class, for a refusal message.
+        #
+        # @param value [Object, nil] a resolved value
+        # @return [String] `value`'s own class name, or `"nil"` for nil
         def class_of(value)
           value.nil? ? "nil" : value.class.name
         end
@@ -227,6 +297,10 @@ module Hecks
         # string's last character — `Resolver.matching_paren` is reused
         # directly rather than duplicated, the same depth-tracking rule
         # either grammar layer needs here.
+        #
+        # @param expr [String] the text to scan for a top-level `.include?(...)` call
+        # @return [Array(String, String), nil] `[haystack_text, needle_text]`, or nil
+        #   when `expr` carries no top-level `.include?` call
         def match_include(expr)
           start = 0
           marker = ".include?("
@@ -246,6 +320,15 @@ module Hecks
         # does.
         INCLUDE_HAYSTACKS = Hecks::Vocabulary.fetch("IncludeHaystack")
 
+        # Interprets an `Include` node's own haystack/needle and tests membership.
+        #
+        # @param parts [Array(Object, Object)] `[haystack_node, needle_node]`, both
+        #   unresolved Resolver AST nodes
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Boolean] whether the resolved needle is found in the resolved haystack;
+        #   false when the haystack resolves to neither an Array nor a String
+        # @raise [EvaluationError] if the haystack is a String and the needle is not
         def includes?(parts, state, attrs)
           haystack, needle = parts
           wanted = Resolver.interpret(needle, state, attrs)
@@ -260,6 +343,11 @@ module Hecks
           end
         end
 
+        # Strips a matching, enclosing pair of parentheses, recursively.
+        #
+        # @param expr [String] the text to strip
+        # @return [String] `expr` with any enclosing `(...)` pair removed, repeated
+        #   until none remains; `expr` unchanged when it is not fully parenthesized
         def strip_parens(expr)
           return expr unless expr.start_with?("(") && expr.end_with?(")")
 
@@ -272,6 +360,12 @@ module Hecks
           strip_parens(expr[1..-2].strip)
         end
 
+        # Splits `expr` on `operator`'s own first top-level occurrence.
+        #
+        # @param expr [String] the text to split
+        # @param operator [String] the top-level operator to split on, such as `"||"`
+        # @return [Array(String, String), nil] `[left, right]`, both stripped, or nil
+        #   when `operator` does not appear at the top level
         def split_top_level(expr, operator)
           index = top_level_index(expr, operator)
           return nil unless index
@@ -279,6 +373,13 @@ module Hecks
           [expr[0...index].strip, expr[(index + operator.length)..].strip]
         end
 
+        # The same split as `split_top_level`, filtering out a match that is really
+        # part of a longer operator (`==` inside `!=`, say).
+        #
+        # @param expr [String] the text to split
+        # @param operator [String] the comparison operator to split on, such as `"=="`
+        # @return [Array(String, String), nil] `[left, right]`, both stripped, or nil
+        #   when `operator` does not appear at the top level on its own
         def split_comparison(expr, operator)
           index = top_level_index(expr, operator) { |at| !part_of_longer?(expr, at, operator) }
           return nil unless index
@@ -286,6 +387,13 @@ module Hecks
           [expr[0...index].strip, expr[(index + operator.length)..].strip]
         end
 
+        # Tells whether an operator match is really part of a longer operator.
+        #
+        # @param expr [String] the text `operator` was found in
+        # @param index [Integer] the offset `operator` was found at
+        # @param operator [String] the comparison operator matched at `index`
+        # @return [Boolean] true when the match at `index` is really part of a longer
+        #   comparison operator
         def part_of_longer?(expr, index, operator)
           after  = expr[index + operator.length]
           before = index.positive? ? expr[index - 1] : nil
@@ -296,6 +404,16 @@ module Hecks
           false
         end
 
+        # Finds `operator`'s own first top-level occurrence, outside any quoted
+        # literal, parenthesized group, block, or array literal.
+        #
+        # @param expr [String] the text to scan
+        # @param operator [String] the operator text to find
+        # @yield [at] an optional filter, called with each top-level candidate offset
+        # @yieldparam at [Integer] the candidate offset
+        # @yieldreturn [Boolean] whether that offset is a real match
+        # @return [Integer, nil] the offset of the first accepted top-level occurrence,
+        #   or nil when none is found
         def top_level_index(expr, operator)
           depth = 0
           quote = nil
@@ -335,10 +453,11 @@ module Hecks
             # (`[a, b]`) can appear as a general sub-expression, not only
             # as `.include?`'s own haystack, the moment an array-typed
             # attribute or a synthesized literal is embedded anywhere else
-            # -- and an element containing a top-level `+`/comparison of
-            # its own (`[0, 0 + 0]`) used to read as a split point for
-            # this expression's own boolean/comparison grammar, exactly
-            # the way an un-tracked `{`/`}` once did for block predicates.
+            # -- leaving `[`/`]` untracked would let an element containing a
+            # top-level `+`/comparison of its own (`[0, 0 + 0]`) read as a
+            # split point for this expression's own boolean/comparison
+            # grammar, exactly the way an un-tracked `{`/`}` once did for
+            # block predicates.
             elsif ["(", "{", "["].include?(char)
               depth += 1
             elsif [")", "}", "]"].include?(char)

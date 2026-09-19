@@ -25,6 +25,10 @@ module Hecks
         refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references resolve_route emit
       ].freeze
 
+      # @param registry [Runtime::Registry] the booted registry this interpreter dispatches
+      #   against
+      # @param rules [Runtime::CommandRules] the shared command-rule checks (references) this
+      #   interpreter's steps call
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
@@ -32,6 +36,22 @@ module Hecks
 
       # `invocation` — the `Runtime::Invocation` `Dispatcher` built;
       # `ctx.args` is its `to_args`, `ctx.route` its `target`.
+      #
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate the port operation belongs to
+      # @param operation [Bluebook::PortOperation] the port operation to dispatch
+      # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built for this call
+      # @return [Array<Runtime::Event>] the events recorded: the operation's own `emits` for
+      #   an inbound operation, or a single `answers`/`refuses` event for an outbound one
+      #   (an adapter failure is recorded as a `refuses` event, not raised)
+      # @raise [Runtime::UnknownArgument] if `invocation` offers an argument the operation
+      #   does not declare
+      # @raise [Runtime::AbsentArgument] if `invocation` omits a non-optional declared
+      #   argument
+      # @raise [Runtime::TypeMismatch] if an offered argument does not coerce to its declared
+      #   type
+      # @raise [Runtime::NotFound] if an offered reference or the operation's own receiving
+      #   record cannot be found
       def call(domain, aggregate, operation, invocation)
         ctx = Context.new(domain, aggregate, operation, invocation.to_args)
         ctx.invocation = invocation

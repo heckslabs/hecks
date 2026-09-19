@@ -49,6 +49,11 @@ module Hecks
         #
         # Real target: SafeDepositBox's own Visit — `invariant("a written
         # note is not blank") { !note || !note.text.to_s.empty? }`.
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every stored record satisfies its own
+        #   (and its own entities') declared invariants; otherwise a message
+        #   naming the record and the invariant it violates
         def stored_records_satisfy_declared_invariants(history)
           bluebooks = history.fetch(:bluebooks)
 
@@ -76,6 +81,12 @@ module Hecks
         # a.list? && a.type.to_s == entity.hecks_name }`), independently
         # reapplied here against a stored record's own plain Hash state
         # rather than a live `Instance`.
+        # @param owner_construct [Bluebook::Aggregate, Bluebook::Entity] the
+        #   construct whose own `list_of` entities to check
+        # @param owner_state [Hash] `owner_construct`'s own stored state
+        # @param key [String] the top-level record key, for the message
+        # @return [String, nil] a message naming the first violating piece found,
+        #   at any nesting depth; `nil` if every piece satisfies its invariants
         def check_piece_invariants(owner_construct, owner_state, key)
           owner_construct.entities.each do |entity|
             next if entity.invariants.empty?
@@ -122,6 +133,10 @@ module Hecks
         # a live or rehydrated instance sitting in a state the procedure
         # never declares is the saga-durability twin of
         # `lifecycle_values_are_declared` above.
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every saga instance holds a declared
+        #   state and its own memory survives a checkpoint round-trip; otherwise a
+        #   message naming the process manager, correlation, and problem
         def sagas_rehydrate_cleanly(history)
           bluebook = history.fetch(:bluebook)
           process_managers = bluebook.process_managers.to_h { |pm| [pm.name, pm] }
@@ -163,6 +178,10 @@ module Hecks
         # dispatch is the claim then, not "dispatched to zero rows," and a
         # policy that dispatched anyway despite a failing guard is as real
         # a finding as a row it skipped.
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every fan-out finding's actual dispatches
+        #   match its independently computed expected row set; otherwise a message
+        #   naming the policy, event, and disagreement
         def fanout_dispatches_once_per_matching_row(history)
           offenders = history.fetch(:fan_outs).filter_map do |finding|
             expected = finding[:expected_row_ids]
@@ -211,6 +230,10 @@ module Hecks
         # branch reads as its own precondition."
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/PerceivedComplexity
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every eligible count/median report answer
+        #   matches an independent recomputation; otherwise a message naming the
+        #   query and the disagreement
         def aggregation_matches_recompute(history)
           bluebook = history.fetch(:bluebook)
 
@@ -290,6 +313,11 @@ module Hecks
         # per `group_by` field in declared order, leaf is the row with
         # every grouped field stripped (already spent, as the keys that
         # reached it).
+        # @param rows [Array<Hash>] materialized, symbol-keyed rows to nest
+        # @param fields [Array<Symbol>] the `group_by` fields, in declared order
+        # @return [Hash] one level of nesting per field, in order; the leaf under
+        #   each key path is the first row in that group with every grouped field
+        #   stripped
         def nest_rows(rows, fields)
           field, *rest = fields
           rows.group_by { |row| row[field] }.transform_values do |group|
@@ -305,6 +333,16 @@ module Hecks
         # finds the matching attribute, then narrowed by the report's own
         # `where` clauses via the same `InMemory.holds?` the interpreter's
         # `execute` calls.
+        # @param bluebook [Bluebook::Chapter] the bluebook the report belongs to
+        # @param instances [Hash] the snapshot to read rows from (`history[:instances]`
+        #   shape, or the query's own `instances_at`)
+        # @param domain [String] the domain name the reduced aggregate belongs to
+        # @param model [Bluebook::ReadModel] the report being recomputed
+        # @param reduced_head [Hash] the many-side aggregate head being reduced, from
+        #   `model.aggregate_heads`
+        # @param args [Hash] the query's own arguments, for FK matching and `where`
+        #   evaluation
+        # @return [Array<Hash>] every eligible row's own state, `id:` merged in
         def eligible_rows(bluebook, instances, domain, model, reduced_head, args)
           aggregate = bluebook.aggregate(reduced_head[:aggregate])
           prefix = "#{domain}::#{reduced_head[:aggregate]}#"
@@ -337,6 +375,11 @@ module Hecks
         # → the average of the two middle values, as a Float; empty → nil,
         # never zero, so a caller cannot mistake "nothing to average" for
         # "averaged to zero."
+        # @param rows [Array<Hash>] eligible rows, as returned by `#eligible_rows`
+        # @param field [Symbol] the field to average
+        # @return [Object, Float, nil] the true middle value for an odd count, the
+        #   Float average of the two middle values for an even count, or `nil` for
+        #   an empty `rows`
         def recompute_median(rows, field)
           values = rows.map { |state| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(state, field)) }
                        .compact.sort

@@ -41,11 +41,11 @@ RSpec.describe "a policy" do
 
   it "fires once per matching event, not once per declaration site" do
     runtime = boot_reflex
-    # **Two distinct lights** — `name:` is what Light is identified by; `id:` was
-    # never anything but an unread decoy. The second dispatch used to collide
-    # with the first (same `name:`, silently overwritten) and still pass,
-    # because nothing checked whether a creating command's identity already
-    # existed. AlreadyExists (see command_interpreter.rb) caught it.
+    # **Two distinct lights** — `name:` is what Light is identified by; `id:` is
+    # never anything but an unread decoy. Without a check on whether a creating
+    # command's identity already exists, the second dispatch would collide
+    # with the first (same `name:`, silently overwritten) and still pass.
+    # `AlreadyExists` (see command_interpreter.rb) refuses that.
     runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
     runtime.dispatch("Reflex::Light.Flip", name: { value: "light-2" }, id: "light-2")
 

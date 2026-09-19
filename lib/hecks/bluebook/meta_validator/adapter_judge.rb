@@ -11,6 +11,7 @@ module Hecks
       class AdapterJudge
         attr_reader :refusals
 
+        # @param adapter [Bluebook::Adapter] the built adapter to judge
         def initialize(adapter)
           @adapter  = adapter
           @refusals = []

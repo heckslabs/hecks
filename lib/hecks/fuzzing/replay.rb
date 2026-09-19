@@ -61,8 +61,8 @@ module Hecks
       # One tightly ordered loop over steps, with several "oracle" snapshots
       # (reaction_mark, fan_out_snapshot, guard_check, mutation_trace) that
       # must be taken at very specific points relative to dispatch — see
-      # fan_out_snapshot's own comment above for the real, previously-
-      # shipped bug this exact before/after ordering fixes. Splitting this
+      # fan_out_snapshot's own comment above for the real, already-shipped
+      # bug this exact before/after ordering fixes. Splitting this
       # into smaller methods would mean threading five-plus oracle-state
       # locals across method boundaries as parameters/return values, and
       # would let a future editor silently reorder a snapshot relative to
@@ -460,6 +460,11 @@ module Hecks
       # A step with no `role:` dispatches exactly as every corpus step
       # always has — bare, no caller bound at all (`Caller.current` nil,
       # so `refuse_role_mismatch` returns before checking anything).
+      #
+      # @param step [Hash] the step to bind a caller for, keyed by String,
+      #   optionally carrying `"role"`/`"actor_id"`
+      # @yield runs with `Hecks.as_caller` bound when `step` carries a `"role"`
+      # @return [Object] the block's own return value
       def as_step_caller(step, &)
         return yield unless step["role"]
 
@@ -491,23 +496,22 @@ module Hecks
       # reference) become the step's own real dispatch outcome — this
       # is a separate, best-effort read, not part of the step's own
       # control flow.
-      # The same shape `call`'s own end-of-replay block used to build
-      # inline — every persisted record, keyed the way `query_eligible_rows`/
-      # `#eligible_rows` (properties.rb) already expect. Now also called
-      # once per query step (see `call`, above), not only once at the very
-      # end: a query asked at step 1 of a script whose later steps go on
-      # to create more records was being checked, by every property that
+      # Every persisted record, keyed the way `query_eligible_rows`/
+      # `#eligible_rows` (properties.rb) already expect. Called once per
+      # query step (see `call`, above), not only once at the very end: a
+      # query asked at step 1 of a script whose later steps go on to
+      # create more records must not be checked, by a property that
       # independently recomputes "the eligible rows," against the final
-      # snapshot — the records that existed after the whole replay, not
+      # snapshot — the records that exist after the whole replay, not
       # the ones that existed when the query actually ran. Found live:
       # `Banking.accounts_by_kind`, asked as literally the first step of a
       # 3-step script, correctly answered against zero accounts (none
       # existed yet) while `group_by_matches_recompute`'s own independent
       # recompute claimed "1 eligible row" — the one account the script's
-      # later two steps went on to create. Each query step now carries
-      # its own `instances_at:` snapshot, taken at the moment it ran, so
-      # every property that recomputes against "the eligible rows" reads
-      # the state as that query actually saw it, not a shared final one.
+      # later two steps went on to create. Each query step carries its
+      # own `instances_at:` snapshot, taken at the moment it ran, so every
+      # property that recomputes against "the eligible rows" reads the
+      # state as that query actually saw it, not a shared final one.
       def snapshot_instances(runtime)
         instances = {}
         runtime.registry.bluebooks.each do |domain_name, bluebook|
@@ -666,6 +670,11 @@ module Hecks
       # expected for any op this fixture declares — none of them
       # remove the acted-on element itself — but a property comparing
       # against `nil` fails loudly rather than crashing this replay).
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+      #   runtime to read the record from
+      # @param trace [Hash] a mutation trace as built by `#build_mutation_trace`
+      # @return [Hash, nil] the same element, materialized, as it reads after
+      #   dispatch; `nil` if it could not be found
       def read_mutation_after(runtime, trace)
         aggregate = runtime.registry.bluebook(trace[:domain])&.aggregate(trace[:aggregate])
         return nil unless aggregate
@@ -696,6 +705,16 @@ module Hecks
       # apart. Recomputed once per event, not once per policy-and-event,
       # because a `Chapter` de-duplicates on nothing this loop cannot
       # cheaply repeat.
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+      #   runtime the fan-out policies are declared on
+      # @param snapshot [Hash{Array(String, String) => Hash}] pre-dispatch state,
+      #   `[domain, aggregate_name] => {id => state}` — see the capture site above
+      # @param announced [Array<Runtime::Event>] the events this step's own dispatch
+      #   announced
+      # @param reactions_since [Array<Hash>] `runtime.reactions` entries recorded
+      #   since this step's own dispatch began
+      # @return [Array<Hash>] one `{policy:, on:, expected_row_ids:, actual_row_ids:}`
+      #   finding per `(event, for_each policy)` pair
       def fan_out_findings(runtime, snapshot, announced, reactions_since)
         announced.each_with_object([]) do |event, findings|
           # `event.aggregate` is domain-qualified ("Banking::Account" —
@@ -718,6 +737,19 @@ module Hecks
         end
       end
 
+      # Builds one fan-out finding for `policy` against `event`.
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+      #   runtime `policy` is declared on
+      # @param snapshot [Hash{Array(String, String) => Hash}] pre-dispatch state, as
+      #   passed to `#fan_out_findings`
+      # @param policy [Bluebook::Policy] the fan-out policy being checked
+      # @param event [Runtime::Event] the event that may have triggered `policy`
+      # @param domain [String] the domain `event`'s own aggregate belongs to
+      # @param reactions_since [Array<Hash>] `runtime.reactions` entries recorded
+      #   since this step's own dispatch began
+      # @return [Hash] `{policy:, on:, expected_row_ids:, actual_row_ids:}` —
+      #   `expected_row_ids` is `nil` when `policy.where` did not hold
       def fan_out_finding(runtime, snapshot, policy, event, domain, reactions_since)
         payload = event.payload.transform_keys(&:to_sym)
         held = policy.where.to_s.empty? ||
@@ -760,6 +792,20 @@ module Hecks
         matched.keys.map(&:to_s).sort
       end
 
+      # The outcome class a recorded refusal row names (C8.2/C8.3,
+      # docs/semantics/bluebook-semantics.md): a domain refusal is its own
+      # class; an evaluation fault — the language refusing to interpret a
+      # broken rule or input — is `"Fault"`, the same word the Rust kernel
+      # emits (`Refusal::Fault`), never a refusal class and never a raw
+      # Ruby exception name.
+      #
+      # @param error [Exception] the exception a refused dispatch or query raised
+      # @return [String] `"Fault"` for a Bluebook expression evaluation error;
+      #   otherwise `error`'s own class name
+      def refusal_kind(error)
+        error.is_a?(Bluebook::Expression::EvaluationError) ? "Fault" : error.class.name
+      end
+
       # Answers one ad hoc filter step for real — the mirror image of
       # kernel/cli.rs's own `run_filter`, deliberately calling the exact
       # same production module that method's Rust port stands in for
@@ -775,16 +821,15 @@ module Hecks
       # Sorted by id ascending regardless — `Ports::Query::Ordering`'s own
       # header explains why an ask with no declared order still needs
       # this tier ("the identity tier is what makes an ask total").
-      # The outcome class a recorded refusal row names (C8.2/C8.3,
-      # docs/semantics/bluebook-semantics.md): a domain refusal is its own
-      # class; an evaluation fault — the language refusing to interpret a
-      # broken rule or input — is `"Fault"`, the same word the Rust kernel
-      # emits (`Refusal::Fault`), never a refusal class and never a raw
-      # Ruby exception name.
-      def refusal_kind(error)
-        error.is_a?(Bluebook::Expression::EvaluationError) ? "Fault" : error.class.name
-      end
-
+      #
+      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+      #   runtime to query
+      # @param filter [Hash] `{"aggregate" =>, "field" =>, "op" =>, "value" =>}`, a
+      #   "query" step's own ad hoc Hash question
+      # @return [Array<Hash>] matched records, sorted by id ascending, each
+      #   `{id:}` merged with the record's own state
+      # @raise [Bluebook::Expression::EvaluationError] if `op` names no declared
+      #   comparator, or `aggregate` names no loaded aggregate
       def run_filter(runtime, filter)
         aggregate_ref = filter["aggregate"].to_s
         field         = filter["field"].to_s
@@ -816,6 +861,9 @@ module Hecks
       # own `filter_label` builds from the same three raw fields, tolerant
       # of any of them being missing (Ruby's own nil-to-"" interpolation)
       # the same way that Rust port is.
+      # @param filter [Hash] `{"aggregate" =>, "field" =>, "op" =>, "value" =>}`, an
+      #   ad hoc filter step, tolerant of any key being missing
+      # @return [String] the descriptive label used in place of a real verb
       def filter_label(filter) = "filter #{filter['aggregate']}.#{filter['field']} #{filter['op']}"
     end
   end

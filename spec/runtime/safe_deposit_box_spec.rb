@@ -31,15 +31,15 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     rent = box.command("Rent")
 
     expect(box.attribute(:customer).relationship).to eq("belongs_to")
-    # `Rent` used to redeclare `attribute :customer, CustomerNumber` — a
-    # plain value-object type (Customer's own identity VO), which shadowed
+    # `Rent` no longer redeclares `attribute :customer, CustomerNumber` — a
+    # plain value-object type (Customer's own identity VO), which would shadow
     # the aggregate's own `belongs_to Customer` (a real Reference type) and
-    # meant `Rent`'s own `customer` attribute was never dereferenced at
-    # create time. Harmless as long as nothing needed to read through it —
-    # until a `given("customer is active")` guard (issue #278) tried to and
-    # was silently refused for every customer, active or not. Fixed by
+    # leave `Rent`'s own `customer` attribute never dereferenced at
+    # create time. Harmless as long as nothing needs to read through it —
+    # until a `given("customer is active")` guard (issue #278) tries to and
+    # is silently refused for every customer, active or not. Fixed by
     # removing the redundant redeclaration: `sets :customer` alone (same
-    # shape `Account.Open` already used successfully) inherits the
+    # shape `Account.Open` already uses successfully) inherits the
     # aggregate's own Reference-typed attribute instead of shadowing it.
     expect([rent.attribute(:customer).type.to_s, rent.attribute(:customer).reference?])
       .to eq(["Reference<Customer>", true])

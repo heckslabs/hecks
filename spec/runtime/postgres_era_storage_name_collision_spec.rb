@@ -494,8 +494,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     end
 
     # The full end-to-end reproduction — era-1 mint, a real era-2
-    # translation, then the ordinary multi-bluebook boot that used to
-    # clobber it — genuinely needs every step below to mean anything;
+    # translation, then the ordinary multi-bluebook boot that would
+    # clobber it without this fix — genuinely needs every step below to mean anything;
     # splitting it would leave no single example that reproduces the
     # live bug's own actual mechanism.
     # rubocop:disable-next RSpec/ExampleLength

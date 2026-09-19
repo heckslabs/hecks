@@ -10,6 +10,8 @@ module Hecks
       # expression grammar") and emits plain, JSON-serializable Ruby
       # Hashes, tagged by `"op"`.
       #
+      # ## Relation to `rust/project`'s codegen
+      #
       # The same two-method walk `rust/project/expr_emitter.rb`'s own
       # `emit_bool`/`emit_resolver` already do, over the same AST — that
       # file's own methods build Rust source-code strings for `rust/
@@ -26,6 +28,8 @@ module Hecks
       # exact same relationship `rust/project`'s own `Expr` literals
       # already have to the compiled kernel, one layer further out.
       #
+      # ## Why it lives here
+      #
       # Lives in core `lib/hecks`, not `rust/project/` — `rust/project.rb`
       # is a separate, downstream toolchain
       # (`lib/hecks/projector.rb`'s own header: "a whole separate Ruby
@@ -37,14 +41,16 @@ module Hecks
       # run — so it belongs beside `Evaluator`/`Resolver` themselves, not
       # bolted onto a tool that only sometimes runs.
       #
-      # Complete, not corpus-scoped: every node this grammar admits gets
-      # a real arm, the identical "raise, don't silently drop" discipline
-      # `expr_emitter.rb`'s own `emit_bool`/`emit_resolver` already hold
-      # to — even though, as of this writing, no real corpus value object
-      # invariant exercises `Include`/`Modulo`/`BlockPredicate`/`Find`/
-      # `Array`/`MatchesRegex`/`Presence`/`Assignment`/`Split`/`StartsWith`/
-      # `EndsWith`/`First`/`Last` (only `given`/`ensures` clauses do, elsewhere in
-      # the corpus — a different consumer of this same grammar).
+      # ## Complete, not corpus-scoped
+      #
+      # Every node this grammar admits gets a real arm, the identical
+      # "raise, don't silently drop" discipline `expr_emitter.rb`'s own
+      # `emit_bool`/`emit_resolver` already hold to — even though, as of
+      # this writing, no real corpus value object invariant exercises
+      # `Include`/`Modulo`/`BlockPredicate`/`Find`/`Array`/`MatchesRegex`/
+      # `Presence`/`Assignment`/`Split`/`StartsWith`/`EndsWith`/`First`/
+      # `Last` (only `given`/`ensures` clauses do, elsewhere in the corpus
+      # — a different consumer of this same grammar).
       # `rust/host/src/expr_json.rs`'s own header names exactly which of
       # these its interpreter evaluates for real today versus refuses
       # cleanly — a narrower, deliberate, documented boundary on the
@@ -74,10 +80,17 @@ module Hecks
         # function of `canonical`: the IR carries both so a reader that
         # only displays keeps the text, and a reader that evaluates never
         # re-parses it.
+        #
+        # @param rule [Bluebook::Given] the built rule (given/ensures/invariant) to emit
+        # @return [Hash{Symbol => Object}] `{description:, canonical:, ast:}`
         def rule_row(rule)
           { description: rule.description, canonical: rule.canonical, ast: rule.ast || emit_predicate(rule.canonical) }
         end
 
+        # Parses and emits a predicate's own canonical text in one step.
+        #
+        # @param canonical [String] the predicate's own canonical source text
+        # @return [Hash{String => Object}] the `"op"`-tagged JSON AST
         def emit_predicate(canonical)
           emit_bool(Evaluator.parse(canonical))
         end
@@ -89,6 +102,13 @@ module Hecks
         # engine reading it is a defect in the bluebook, refused at build.
         # Walks the emitted AST, so every rule site (givens, ensures,
         # invariants, preconditions, a policy's where) gets the one check.
+        #
+        # @param ast [Hash{String => Object}] the `"op"`-tagged JSON AST to walk
+        # @param owner [String] the construct declaring `ast`, named in a refusal
+        # @param word [String] the rule kind, such as `"given"`, named in a refusal
+        # @return [Hash{String => Object}] `ast`, unchanged
+        # @raise [DSL::Malformed] if any `matches_regex` node's own pattern uses a
+        #   construct `PatternSubset` refuses
         def refuse_unshared_patterns!(ast, owner:, word:)
           return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
 
@@ -107,6 +127,10 @@ module Hecks
 
         # Every name a rule resolves at its root — the first segment of
         # each `lookup` path, unique, in first-seen order.
+        #
+        # @param ast [Hash{String => Object}] the `"op"`-tagged JSON AST to walk
+        # @return [Array<String>] each `lookup` node's own root name, unique, in
+        #   first-seen order
         def lookup_heads(ast)
           heads = []
           each_node(ast) do |node|
@@ -115,6 +139,12 @@ module Hecks
           heads.uniq
         end
 
+        # Walks every node of an `"op"`-tagged JSON AST, depth first.
+        #
+        # @param node [Hash{String => Object}, Array, Object] the AST, or a fragment of it
+        # @yield [node] one `"op"`-tagged Hash node
+        # @yieldparam node [Hash{String => Object}] the node reached
+        # @return [void]
         def each_node(node, &block)
           case node
           when ::Hash
@@ -125,6 +155,12 @@ module Hecks
           end
         end
 
+        # Emits one boolean/comparison AST node as `"op"`-tagged JSON.
+        #
+        # @param node [Object] an `Evaluator` boolean/comparison node — `Or`, `And`,
+        #   `Not`, `Compare`, `Include`, or `Resolve`
+        # @return [Hash{String => Object}] the `"op"`-tagged JSON for `node`
+        # @raise [RuntimeError] if `node` is not one of the handled `Evaluator` classes
         def emit_bool(node)
           case node
           when Evaluator::Or  then { "op" => "or", "left" => emit_bool(node.left), "right" => emit_bool(node.right) }
@@ -143,6 +179,10 @@ module Hecks
           end
         end
 
+        # Emits one comparison operator as its three-flag triple.
+        #
+        # @param comparator [Evaluator::Operator] the comparison operator to emit
+        # @return [Hash{String => Boolean}] `{"less_than"=>, "equal"=>, "negated"=>}`
         def emit_comparison(comparator)
           { "less_than" => comparator.compares_less_than, "equal" => comparator.compares_equal, "negated" => comparator.negated }
         end
@@ -158,6 +198,12 @@ module Hecks
         EQ = Evaluator::OPERATORS.find { |op| op.symbol == "==" }
         private_constant :EQ
 
+        # Emits an include node, rewriting a literal-array haystack into an or-of-equalities.
+        #
+        # @param node [Evaluator::Include] the include node to emit
+        # @return [Hash{String => Object}] `"include"`-tagged JSON for a non-literal
+        #   haystack; an or-of-equalities, or `{"op"=>"bool","value"=>false}` for an
+        #   empty one, when the haystack is a literal array
         def emit_include(node)
           return { "op" => "include", "haystack" => emit_resolver(node.haystack), "needle" => emit_resolver(node.needle) } \
             unless node.haystack.is_a?(Resolver::ArrayLiteral)
@@ -176,6 +222,10 @@ module Hecks
         # ("every node this grammar admits gets a real arm"); splitting it
         # into several methods would hide whether the set is still
         # exhaustive instead of making that visible at a glance.
+        #
+        # @param node [Object] a `Resolver` dotted/arithmetic leaf node
+        # @return [Hash{String => Object}] the `"op"`-tagged JSON for `node`
+        # @raise [RuntimeError] if `node` is not one of the handled `Resolver` classes
         # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
         def emit_resolver(node)
           case node

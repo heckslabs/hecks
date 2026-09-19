@@ -15,21 +15,26 @@ module Hecks
     # missing `Command.ActsOn` — that reloaded clean, checked clean,
     # and only broke once something actually dispatched against them.
     #
-    # Synthesized args, never random (`Synthesizer`) — a String becomes
+    # ## Synthesized args, never random
+    #
+    # `Synthesizer` supplies each call's arguments — a String becomes
     # a fixed marker, a closed set uses its own first admitted member, a
     # reference reuses whatever this same run already minted for that
     # target. One call per declared command, one call per declared
     # report, per created root; every failure is collected and reported
     # together rather than stopping at the first.
     #
-    # **What this cannot catch**: a call that dispatches cleanly but answers
-    # wrong — the read-model join bug this exact tool's own first user
-    # hit is the textbook case, a query that silently returned an empty
-    # array rather than raising. Smoke-testing proves nothing crashes;
-    # it does not prove the answer is the right one.
+    # ## What this cannot catch
     #
-    # A failure here is not necessarily a domain bug, either — it may
-    # just be `Synthesizer`'s own naive values (0, an empty list,
+    # A call that dispatches cleanly but answers wrong — the read-model
+    # join bug this exact tool's own first user hit is the textbook case,
+    # a query that silently returned an empty array rather than raising.
+    # Smoke-testing proves nothing crashes; it does not prove the answer
+    # is the right one.
+    #
+    # ## A failure here is not necessarily a domain bug
+    #
+    # It may just be `Synthesizer`'s own naive values (0, an empty list,
     # "smoke-test") not satisfying a real invariant this simple
     # generator was never built to reason about (a positive amount, a
     # non-empty topping list, an email pattern). Confirmed against
@@ -82,6 +87,11 @@ module Hecks
       # measured, not hypothetical: it once left a stale `Widget` constant
       # that corrupted an unrelated spec's own unrelated use of the same
       # bare name.
+      #
+      # @param dir [String] a real, bootable hecks app directory — a saved domain, or a
+      #   throwaway one a caller rendered for exactly this purpose
+      # @return [Array<Bluebook::SmokeTest::Failure>] every dispatch or query that
+      #   failed; `[]` if the directory declares no domain, or if every call succeeded
       def call(dir)
         Dir.mktmpdir("hecks-smoke-") do |scratch|
           isolate!(dir, scratch)
@@ -105,6 +115,10 @@ module Hecks
       # excluded — those are earlier, superseded versions of the same
       # domain; smoke-testing the current declaration is the point, not
       # its whole history.
+      #
+      # @param dir [String] the real domain directory to copy `.bluebook` files from
+      # @param scratch [String] the throwaway directory to copy them into
+      # @return [void]
       def isolate!(dir, scratch)
         source = Adapters::Folder.new.bluebook_directory(dir)
         target = File.join(scratch, "bluebook")
@@ -123,6 +137,12 @@ module Hecks
       # documents; splitting would turn that ordering into an implicit contract on
       # parameter/return passing instead of one visible sequence.
       # rubocop:disable-next Metrics/AbcSize
+      #
+      # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+      #   dispatcher to smoke-test against
+      # @param domain [String, Symbol] the domain name to smoke-test
+      # @return [Array<Bluebook::SmokeTest::Failure>] every dispatch or query that
+      #   failed; `[]` if the domain is not declared, or if every call succeeded
       def smoke_domain(dispatcher, domain)
         chapter = dispatcher.registry.bluebook(domain)
         return [] unless chapter
@@ -156,7 +176,8 @@ module Hecks
 
         chapter.read_models.each do |model|
           root_id = created[model.reference_target]
-          next unless root_id # nothing was created for this root — nothing to smoke-test yet, not a failure
+          # nothing was created for this root — nothing to smoke-test yet, not a failure
+          next unless root_id
 
           dispatcher.query("#{domain}.#{model.query_name}", model.reference_name => root_id)
         rescue StandardError => e

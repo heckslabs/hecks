@@ -303,12 +303,12 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   end
 
   # Every edit reaches the same generic wording now — shape-changing,
-  # cosmetic, or unparseable alike. `EraTamper.refusal` used to re-parse
-  # the edited text and distinguish a cosmetic edit from a real shape
-  # change in the message ; that was a pure quality-of-message nicety, not
-  # a safety property (the digest mismatch alone is what refuses either
-  # way), and the one thing forcing a boot path to re-parse held era
-  # text, so it was dropped. An operator
+  # cosmetic, or unparseable alike. `EraTamper.refusal` does not re-parse
+  # the edited text to distinguish a cosmetic edit from a real shape
+  # change in the message; that would be a pure quality-of-message nicety,
+  # not a safety property (the digest mismatch alone is what refuses
+  # either way), and it is not worth forcing a boot path to re-parse held
+  # era text for it. An operator
   # judges "did this matter" themselves, reading the still-archived
   # original — an anomalous recovery moment already, not a normal boot
   # path.
@@ -466,15 +466,16 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     db.close
   end
 
-  # H3, docs/audits/2026-08-10-main-bug-audit.md: a delete used to just
-  # `DELETE FROM head_snapshot`, leaving no row at all behind for an id
-  # carried in from an ancestor era. `compile_head!`'s head view unions
-  # the translated ancestor matview with this era's own snapshot and
-  # picks the highest-ordinal row per id (`DISTINCT ON`) — with the
-  # current-era side now silent, the ancestor's own (still-`save`) row
-  # won every time, so a record deleted after being carried across a
-  # mint kept reading back forever. Re-saves were never affected (a new
-  # save row does outrank the ancestor row by ordinal) — only deletes.
+  # H3, docs/audits/2026-08-10-main-bug-audit.md: a plain `DELETE FROM
+  # head_snapshot` would leave no row at all behind for an id carried in
+  # from an ancestor era. `compile_head!`'s head view unions the
+  # translated ancestor matview with this era's own snapshot and picks
+  # the highest-ordinal row per id (`DISTINCT ON`) — with the current-era
+  # side silent, the ancestor's own (still-`save`) row would win every
+  # time, so a record deleted after being carried across a mint would keep
+  # reading back forever. A delete writes a tombstone row instead, which
+  # outranks the ancestor row by ordinal the same way a re-save already
+  # does — only a plain `DELETE` would have been affected.
   it "deleting an era-migrated record does not resurrect the ancestor era's save row" do
     write_v1_record
     from = label_of(V1_SOURCE)
@@ -557,11 +558,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   # `ensure_head_snapshot!` survive being called from inside an
   # already-open transaction the way `mint_era!` actually calls it?
   #
-  # `PG::Connection#transaction` is a bare BEGIN/COMMIT with no savepoint
-  # nesting. Called while already mid-transaction, its COMMIT used to end
-  # that transaction the instant this one call returned — so a later
-  # ROLLBACK in the same logical unit of work (mint_era!'s own rescue, on
-  # whatever raises after this point) had nothing left to roll back.
+  # `PG::Connection#transaction` is a bare `BEGIN`/`COMMIT` with no savepoint
+  # nesting. Called while already mid-transaction, its `COMMIT` would end
+  # that transaction the instant this one call returns — so a later
+  # `ROLLBACK` in the same logical unit of work (mint_era!'s own rescue, on
+  # whatever raises after this point) would have nothing left to roll back.
   it "ensure_head_snapshot! does not end an already-open transaction — a later rollback still undoes it" do
     check!(V1_SOURCE)
     registry = load_registry(V1_SOURCE)
@@ -581,7 +582,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     lineage.ensure_head_snapshot!(acct.storage_name, 99)
     # Simulates mint_era!'s own rescue clause: a later step in the same
     # logical mint fails, so the whole thing rolls back. If the call
-    # above already ended the transaction, this ROLLBACK has nothing to
+    # above already ended the transaction, this `ROLLBACK` has nothing to
     # undo, and everything above survives it.
     db.exec("ROLLBACK")
     db.close
@@ -596,27 +597,28 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   # Adversarial, not incidental: found by deliberately constructing a
   # move destination that collides with an existing scalar (most
   # realistically, a reference_to field — a bare id, never an
-  # object). The SQL side used to silently overwrite that scalar with
-  # an empty object rather than lose the mint over it; now it refuses
-  # by name, matching the Ruby reference transform's own refusal pinned
+  # object). The SQL side refuses the mint by name rather than
+  # silently overwriting that scalar with an empty object, matching
+  # the Ruby reference transform's own refusal pinned
   # in spec/translation_language_spec.rb.
   # The whole scenario — an inline two-aggregate domain, a real save,
   # and the colliding edge — exists to reproduce one specific
-  # historical bug (the shadow-parse regression the comment above
+  # bug (the shadow-parse regression the comment below
   # documents), so trimming or splitting it risks losing the exact
-  # shape that once broke.
+  # shape that broke it.
   # rubocop:disable-next RSpec/ExampleLength
   it "a move whose destination collides with an existing scalar refuses the mint by name, not silently" do
     # Bare `reference_to Team` — no `as:` — deliberately: this exact
-    # shape used to break `ensure_named!`'s own from/to edge lookup
-    # entirely (era_guard.rb's `shadow_parse` used to shadow-parse
-    # every held era's text unconditionally, and `default_reference_
+    # shape is what broke `ensure_named!`'s own from/to edge lookup
+    # entirely when era_guard.rb's `shadow_parse` shadow-parsed
+    # every held era's text unconditionally — `default_reference_
     # name`'s shadow-mode default mints `team_id` instead of `team` for
-    # the identical source text — a pre-ADR-0025 convention meant for
-    # genuinely old frozen text, wrongly applied here too). Now doubles
-    # as this bug's own regression coverage — see shadow_parse's own
-    # comment for the fix (normal parse first, shadow only as a
-    # fallback on a genuine `Malformed` refusal).
+    # the identical source text, a pre-ADR-0025 convention meant for
+    # genuinely old frozen text, wrongly applied here too. `shadow_parse`
+    # now tries a normal parse first and only falls back to
+    # shadow-parsing on a genuine `Malformed` refusal (see its own
+    # comment for the fix); this example doubles as that bug's own
+    # regression coverage.
     collide_v1 = <<~BLUEBOOK
       Hecks.bluebook "Collide" do
         aggregate "Acct" do
@@ -778,9 +780,9 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       # journal's id set for each of those, read live, twice — any
       # writer touching one of those names interferes with that
       # comparison for a reason unrelated to what this spec is about
-      # (see "however a post-cut row lands" above, and the run that
-      # failed before this fix — writing a stable id under "acct" still
-      # tripped Layer 2's per-id value check). A row under an
+      # (see "however a post-cut row lands" above — a run using a stable
+      # id under "acct" still trips Layer 2's per-id value check without
+      # this precaution). A row under an
       # undeclared name is invisible to the audit entirely, and still
       # exercises the same table's locks: ensure_partition!/
       # advance_era!/compile_head! operate on the whole partition, not
@@ -1427,7 +1429,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     from = label_of(V1_SOURCE)
     to = label_of(V2_SOURCE)
-    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to)) # a plain owner mint, no role at all
+    # a plain owner mint, no role at all
+    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to))
 
     # the same role reboots and correctly recognizes itself as
     # superseded (the "matched" branch) — nothing about its own
@@ -1834,14 +1837,14 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     # comment). On a fresh Postgres, a table's default privileges
     # already give public nothing at all — relacl stays NULL, which
     # in Postgres means exactly that: no explicit grants, owner-only.
-    # This example used to assert relacl was non-nil, assuming the
-    # REVOKE always ran — true only in an environment where some
+    # Asserting relacl is non-nil would wrongly assume the REVOKE always
+    # ran — true only in an environment where some
     # earlier state (a template database, a prior GRANT) had already
     # given public the privilege first. Confirmed live: relacl is nil
     # here and has_table_privilege still correctly answers false for
-    # both — the guard's whole point (skip a REVOKE nothing needs) was
-    # working exactly as designed; the test's own assumption was the
-    # bug. Ask Postgres's own privilege-check function directly,
+    # both — the guard's whole point (skip a REVOKE nothing needs) is
+    # working exactly as designed; asserting on relacl directly would
+    # be testing the wrong thing. Ask Postgres's own privilege-check function directly,
     # which is true regardless of whether relacl happens to be an
     # explicit row or the (equally real) unwritten default.
     update_allowed = db.exec("SELECT has_table_privilege('public', 'hecks_journal_ledger', 'UPDATE')")[0]["has_table_privilege"]

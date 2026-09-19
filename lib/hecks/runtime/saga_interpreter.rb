@@ -28,6 +28,9 @@ module Hecks
 
       attr_reader :registry
 
+      # @param registry [Runtime::Registry] the booted registry to log sagas and checkpoint
+      #   against
+      # @param door [Runtime::Dispatcher] the dispatcher a saga leg re-enters through
       def initialize(registry, door:)
         @registry = registry
         @door     = door
@@ -36,6 +39,12 @@ module Hecks
       # `only:` — one process manager, the outbox relay's way of running
       # exactly the consumer a row names (`Runtime::Outbox::Relay#
       # run_consumer`); nil advances every manager the domain declares.
+      #
+      # @param event [Runtime::Event] the just-emitted event to advance sagas with
+      # @param domain [String] the domain to advance process managers for
+      # @param only [Bluebook::ProcessManager, nil] a single process manager to advance
+      #   instead of every one the domain declares
+      # @return [void]
       def advance(event, domain, only: nil)
         bluebook = @registry.bluebook(domain)
         return unless bluebook
@@ -56,8 +65,8 @@ module Hecks
       # could otherwise interleave their writes out of order, silently
       # reordering a saga's own transition history — worse for the
       # adapters with no locking of their own (Heki) than for Postgres.
-      # `deep_copy` guards against the exact shape of bug PR #175 itself
-      # already found once (over-freezing a live, still-mutated Hash) —
+      # `deep_copy` guards against the exact shape BUG#175 found
+      # (over-freezing a live, still-mutated Hash) —
       # never hand a persistence adapter the same object `advance_saga`/
       # `unwind` go on to mutate in place; round-tripping through JSON
       # is also what guarantees the value is safe for every adapter that
@@ -423,7 +432,7 @@ module Hecks
         # Same non-reentrancy reasoning as `advance_saga`'s own comment —
         # the mutex covers only the check-and-mutate-and-checkpoint step.
         advanced = @registry.saga_mutex.synchronize do
-          # The compensating leg is selected by (REFUSED, current state)
+          # The compensating leg is selected by (`REFUSED`, current state)
           # too — C10.3, one rule for every leg.
           handler = process_manager.handler_for(REFUSED, instance[:state])
           unless handler
@@ -507,9 +516,9 @@ module Hecks
       end
 
       # BUG#6 — unconditionally the saga's own home domain, never inferred
-      # from `command_name`'s own shape. This used to guess: a leftover
-      # `::` after `Naming.command_ref`'s own rewrite was read as "already
-      # domain-qualified" and left alone. That heuristic cannot actually
+      # from `command_name`'s own shape. Guessing from a leftover `::`
+      # after `Naming.command_ref`'s own rewrite — reading it as "already
+      # domain-qualified" and leaving it alone — cannot actually
       # tell a genuinely cross-domain reference (`Banking::Account::
       # Debit` -> one `::` survives) apart from a same-domain entity
       # command reference (`Manifest::Slot::Fill` -> one `::` survives

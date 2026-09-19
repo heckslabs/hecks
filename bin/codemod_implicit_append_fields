@@ -28,6 +28,15 @@ DRY_RUN = ARGV.include?("--dry-run")
 
 Candidate = Struct.new(:command_name, :field, :type, keyword_init: true)
 
+# Says whether `candidate` repeats `owner_attr` byte-for-byte across type, pattern,
+# `optional?`, and `admits` — the test for whether the command's own local `attribute`
+# line adds nothing the append target doesn't already declare for that field.
+#
+# @param candidate [Bluebook::Attribute] the command's own local attribute declaration
+# @param owner_attr [Bluebook::Attribute, nil] the append target's attribute of the same
+#   name, or `nil` when the target declares no such attribute
+# @return [Boolean] whether every compared trait matches, or `false` when there is no
+#   `owner_attr` to compare against
 def identical_attribute?(candidate, owner_attr)
   return false unless owner_attr
 

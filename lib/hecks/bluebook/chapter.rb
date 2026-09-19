@@ -63,6 +63,12 @@ module Hecks
       # ("RoleAssignment.Assign"); `Behaviour::Chapter#provided_verb`
       # qualifies it with the chapter's own name.
       Provision = Struct.new(:capability, :key, :verb, keyword_init: true) do
+        # Coerces one declared or reconstructed `provides` row into a `Provision`.
+        #
+        # @param row [Bluebook::Chapter::Provision, #to_h] a `Provision` already, or
+        #   anything answering `to_h` with `capability`/`key`/`verb` entries
+        # @return [Bluebook::Chapter::Provision] `row` itself if it already is one, else
+        #   a new `Provision` built from its fields
         def self.from(row)
           return row if row.is_a?(self)
 
@@ -74,6 +80,23 @@ module Hecks
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
                   :classification, :read_models, :ports, :formerly_known_as, :attaches_to, :provides
 
+      # @param name [String, Symbol] the chapter's declared name
+      # @param version [String, Symbol, nil] the chapter's declared business version,
+      #   such as `"v1"`, or `nil` if it declares none
+      # @param vision [String, nil] the chapter's declared vision statement
+      # @param aggregates [Array<Bluebook::Aggregate>] the chapter's declared aggregates
+      # @param policies [Array<Bluebook::Policy>] every reaction declared across the
+      #   chapter's own aggregates, hoisted here
+      # @param process_managers [Array<Bluebook::ProcessManager>] the chapter's declared
+      #   process managers
+      # @param classification [String, Symbol, nil] whether this chapter is central to
+      #   its project's own domain model, or `nil` if undeclared
+      # @param read_models [Array<Bluebook::ReadModel>] the chapter's declared read models
+      # @param formerly_known_as [String, Symbol, nil] an earlier name this domain was
+      #   known under, or `nil` if it was never renamed
+      # @param attaches_to [Array<String, Symbol>] the contexts this chapter attaches to
+      # @param provides [Array<Bluebook::Chapter::Provision, Hash>] the capabilities this
+      #   chapter declares it provides
       def initialize(name:, version: nil, vision: nil, aggregates: [], policies: [],
                      process_managers: [], classification: nil, read_models: [], formerly_known_as: nil,
                      attaches_to: [], provides: [])

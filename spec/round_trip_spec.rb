@@ -40,8 +40,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   end
 
   # Dispatch it in and keep the records — the only difference between judging a
-  # bluebook and holding one. This used to be `Judge.allocate` and four
-  # `instance_variable_set` calls, because the judge threw its runtime away.
+  # bluebook and holding one.
   def read_back(bluebook)
     judge = Hecks::Bluebook::MetaValidator::Judge.new(bluebook)
 
@@ -51,10 +50,10 @@ RSpec.describe "a bluebook dispatched in and read back out" do
 
   # Nothing is sorted any more, and that is the claim getting stronger.
   #
-  # This used to canonicalise the presentation axis on both sides — which position
-  # a command occupies in its aggregate's list — because `Reconstruction` read the
-  # chapter through the whole-bluebook read model, and a read model sorts by id on purpose.
-  # So the comparison had to sort too, and said so out loud.
+  # A `Reconstruction` that instead read the chapter through the whole-bluebook read
+  # model would need to canonicalise the presentation axis on both sides — which
+  # position a command occupies in its aggregate's list — because a read model sorts
+  # by id on purpose, so the comparison would have to sort too, and say so out loud.
   #
   # The reconstruction reads level by level through `DeclaredIn` now, which
   # preserves declaration order, so both sides are compared exactly as written. The

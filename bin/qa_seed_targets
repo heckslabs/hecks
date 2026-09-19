@@ -7,13 +7,13 @@
 #
 # Why a script and not a hand-typed `bin/run ... identify` per domain:
 # item 6 of the detection plan ("free targets") — every domain listed
-# below is a real, bootable, already-FUZZABLE directory this repository
+# below is a real, bootable, already-fuzzable directory this repository
 # ships, most with a compiled Rust conformance feature (`rust/Cargo.toml`
 # `[features]`) that `spec/rust_conformance_fuzz_spec.rb` never wired
 # in (angle-3). Nothing about them needed building; they only needed
 # Identifying, and a list a person edits by reviewing a diff is how this
 # practice records every other "which domains" fact (`QualityControlDials`,
-# `bin/qa_seed_angles`'s own SEED).
+# `bin/qa_seed_angles`'s own `SEED`).
 #
 # `Hecks::Fuzzing::TargetCapabilities.infer` is printed per target so
 # the person running this sees, before the first sweep, which modes each

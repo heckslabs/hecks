@@ -24,18 +24,24 @@ module Hecks
       # about whether a declaration is admissible — the language settled that on the
       # way in. This is only how a spelling becomes an object again.
       #
-      # Why a table and not a method per category. The judge used to carry one
-      # hand-written branch per category, and the price was fourteen verbs the
-      # language declared and the walk never offered — every rule hanging off them
-      # decoration, and nothing red, because a branch that does not exist cannot
-      # fail. An assembler with a method per category is the same shape. So the
-      # table is checked against the language by spec/assembly_spec: a field the
-      # language declares that no contract consumes is a failure, not a silence.
+      # Why a table and not a method per category. A hand-written branch per
+      # category pays a fixed price: fourteen verbs the language declares and the
+      # walk never offers, every rule hanging off them decoration, and nothing
+      # red, because a branch that does not exist cannot fail. An assembler with a
+      # method per category is the same shape. So the table is checked against the
+      # language by spec/assembly_spec: a field the language declares that no
+      # contract consumes is a failure, not a silence.
       #
       # The `derived` list is how a field says it needs no assembling — a parent
       # pointer the containment tree already knows, or something computed from what
       # is here (`query_name` is `Naming.snake(name)`, `creates?` is whether a verb
       # names a root). Naming one is a claim, and the coverage gate holds it.
+      # Looks up the built `Contract` for a construct category.
+      #
+      # @param category [String, Symbol] the category's name, such as `"Aggregate"`
+      #   or `"Command"`
+      # @return [Bluebook::Assembly::Contract] the category's contract
+      # @raise [KeyError] if no contract is declared for `category`
       def self.contract(category) = CONTRACTS.fetch(category.to_s)
 
       CONTRACTS = {
@@ -163,13 +169,13 @@ module Hecks
           fields: {
             name:          [:name,          :plain],
             description:   [:description,   :plain],
-            # A list of paths, exactly as an aggregate's is. The two used to differ
-            # — a Symbol here and a String there, which byte equality with `to_h`
-            # could not see because both render as a string, so the assembled graph
-            # got a String and `element_of` looked up `args["sequence"]` in a
-            # symbol-keyed payload and found nothing: "Reverse acts on one
-            # LedgerEntry — pass sequence:", while passing sequence. There is one
-            # spelling now, and no room left for that difference.
+            # A list of paths, exactly as an aggregate's is, and pinned to the same
+            # spelling — a Symbol here and a String there would byte-equal under
+            # `to_h` (both render as a string) while leaving the assembled graph
+            # with a String that `element_of` looks up as `args["sequence"]` in a
+            # symbol-keyed payload and finds nothing: "Reverse acts on one
+            # LedgerEntry — pass sequence:", while passing sequence. One spelling,
+            # no room for that gap.
             identified_by: [:identified_by, :plain],
             attributes:    [:attributes,    [:each, :shape_field]],
             # ADR 0028 — the same shape Aggregate's own `preconditions`
@@ -263,15 +269,15 @@ module Hecks
         # S17, ADR 0026 — Dispatch is a genuine entity now, nested under
         # Handler (`entity "Dispatch"`, process_manager.bluebook) — two
         # levels deep, "no life outside its Handler" (the ADR's own
-        # words). `command_name` alone used to be Dispatch's own
-        # identity, until items #151/#152 (`process_manager.bluebook`'s
-        # own `DispatchPosition` comment) found it collided the instant a
-        # real handler fanned the same command out more than once —
-        # `position` now joins it, walk-minted the same way every other
+        # words). `command_name` alone is not enough to be Dispatch's own
+        # identity — items #151/#152 (`process_manager.bluebook`'s own
+        # `DispatchPosition` comment) found it collides the instant a
+        # real handler fans the same command out more than once, so
+        # `position` joins it, walk-minted the same way every other
         # category's own `position` is (`derived: { position: :walk }`,
         # the same entry ProcessManager's own contract carries above) —
         # never a stored field on `DispatchSpec` itself, exactly like
-        # `handler` before it.
+        # `handler`.
         # `compensates_command_name`/`compensates_with_spec` — folded,
         # the same kind `Lifecycle`'s own `state_field`/`default` claim
         # (one IR object, `DispatchSpec#compensates`, feeding two

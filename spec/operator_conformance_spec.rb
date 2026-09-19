@@ -205,15 +205,15 @@ RSpec.describe "the operator domain" do
   end
 
   # The gap this file's own header now names: everything above holds the
-  # ledger equal to the evaluator's tables (COMPARISONS, PROBES) — but
+  # ledger equal to the evaluator's tables (`COMPARISONS`, `PROBES`) — but
   # eight real node types (MatchesRegex/Presence/Split/StartsWith/
-  # EndsWith/First/Last, admitted above for the first time) used to
+  # EndsWith/First/Last, admitted above for the first time)
   # reach `resolver.rb` as hand-coded Structs with a parse branch and an
-  # `interpret` arm and nothing else — no ledger entry, no PROBES entry,
-  # nothing any table-shaped guard could see, because they were never
-  # table entries; they were leaf-grammar code. `operator_conformance_
-  # spec` checking tables could not structurally notice code the tables
-  # never mentioned.
+  # `interpret` arm and nothing else — no ledger entry, no `PROBES` entry,
+  # nothing a table-shaped guard alone could see, because they are not
+  # table entries; they are leaf-grammar code. A table-checking
+  # `operator_conformance_spec` cannot structurally notice code the tables
+  # never mention.
   #
   # This closes it at the struct level instead of the table level: every
   # Class Resolver/Evaluator actually define, found by reflection
@@ -226,7 +226,7 @@ RSpec.describe "the operator domain" do
   # file by hand.
   NODE_TYPE_FOR_SYMBOL = {
     "||" => Evaluator::Or, "&&" => Evaluator::And, "!" => Evaluator::Not, ".include?" => Evaluator::Include,
-    # All six comparison symbols (`>=`/`<=`/`</`>`/`==`/`!=`) share one
+    # All six comparison symbols (`>=`/`<=`/`<`/`>`/`==`/`!=`) share one
     # node type — `Evaluator::Compare`, `operator:` naming which of the
     # six — the identical reduction `SignTest` already applies for
     # `.positive?`/`.negative?`/`.zero?` below. `COMPARISONS` (`==

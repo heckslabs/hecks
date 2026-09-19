@@ -33,6 +33,19 @@ module Hecks
       # what the adapter came back with, `refuses` for what it said instead.
       # Naming only the happy one would put the failure somewhere the model
       # cannot see, which is the whole reason a boundary is worth modelling.
+      #
+      # @param name [String, Symbol] the operation's declared name
+      # @param attributes [Array<Bluebook::Attribute>] the operation's declared payload
+      #   fields
+      # @param emits [Array<String>] the events an inbound operation declares it records
+      # @param direction [Symbol, String] `:inbound` for a `tells`/`operation`, `:outbound`
+      #   for an `asks`
+      # @param answers [String, nil] an outbound operation's declared event for what the
+      #   adapter came back with
+      # @param refuses [String, nil] an outbound operation's declared event for what the
+      #   adapter said instead
+      # @param to [String, nil] the aggregate this operation routes to, or `nil` if it
+      #   declares no routing target
       def initialize(name:, attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil)
         @hecks_name = name.to_s
         @attributes = attributes
@@ -44,7 +57,14 @@ module Hecks
         @attributes_by_name = attributes.to_h { |attribute| [attribute.name, attribute] }
       end
 
+      # Says whether this operation is the domain asking something of an adapter.
+      #
+      # @return [Boolean] whether this operation is an `asks`
       def outbound? = @direction == :outbound
+
+      # Says whether this operation is an adapter telling the domain something.
+      #
+      # @return [Boolean] whether this operation is a `tells`/`operation`
       def inbound?  = @direction == :inbound
 
       # No root reference of its own — unlike a command, every attribute
@@ -72,6 +92,9 @@ module Hecks
       # migrated yet keeps the exact prior IR shape, byte for byte,
       # instead of an unconditional new key breaking parser_parity_spec
       # for every domain that never touched this.
+      #
+      # @return [Hash] the declared emission, plus `direction`/`answers`/`refuses` for an
+      #   outbound operation and `to` when a routing target is declared
       def to_h
         shape = super
         shape = shape.merge(direction: @direction.to_s, answers: @answers, refuses: @refuses) unless inbound?
@@ -93,6 +116,8 @@ module Hecks
 
       attr_reader :name, :operations
 
+      # @param name [String, Symbol] the port's declared name
+      # @param operations [Array<Bluebook::PortOperation>] the port's declared operations
       def initialize(name:, operations: [])
         @name       = name.to_s
         @operations = operations

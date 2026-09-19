@@ -3,7 +3,7 @@ require_relative "corpus"
 
 module Hecks
   # Shared machinery for a codemod that migrates real `.bluebook` source
-  # once a DSL builder change makes some previously-required declaration
+  # once a DSL builder change makes some no-longer-required declaration
   # optional/redundant — pulled out of `bin/codemod_implicit_append_fields`
   # (the first one built), which needed three real, hard-won fixes before
   # it could be trusted: a process-lifetime AST cache with no
@@ -17,9 +17,11 @@ module Hecks
   # specific procs (`find_candidates`, `apply_candidate`) and inherits
   # the boot/safety-net machinery rather than rediscovering it.
   #
-  # **A codemod is not pattern-matching alone**. Deciding "is this line safe
-  # to delete" means knowing what the runtime would resolve it to — so
-  # every codemod built on this module follows the same three steps:
+  # ## A codemod is not pattern-matching alone
+  #
+  # Deciding "is this line safe to delete" means knowing what the runtime
+  # would resolve it to — so every codemod built on this module follows the
+  # same three steps:
   #   1. Boot the real domain (or the self-hosted meta-domain) and read
   #      its IR to find candidates — provided by the caller's own
   #      `find_candidates`, since the actual redundancy rule is specific
@@ -33,9 +35,11 @@ module Hecks
   #      can surface as a runtime refusal, not just a differing export)
   #      -> revert and report skipped, never silently guessed past.
   #
-  # Design-time checklist for the spine change a future codemod migrates
-  # corpus text for — both items below are real bugs this module's own
-  # first use found, not hypothetical:
+  # ## Design-time checklist
+  #
+  # For the spine change a future codemod migrates corpus text for — both
+  # items below are real bugs this module's own first use found, not
+  # hypothetical:
   #   - Does the resolved value get inserted into an order-sensitive
   #     list (the exported IR is array-order-sensitive throughout)? If
   #     so, the spine's own insertion must preserve the original
@@ -70,6 +74,10 @@ module Hecks
     MEMORY_ADAPTER   = File.join(ROOT, "lib/hecks/adapters/driven/memory.adapter")
     PRISM_ADAPTER    = File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter")
 
+    # Exports a booted registry's bluebook IR as JSON.
+    #
+    # @param registry [Runtime::Registry] a booted registry
+    # @return [String] the registry's bluebook IR, as pretty-printed JSON
     def self.export_json(registry) = Hecks::Projector::Exporter.json(registry)
 
     # `Hecks::Adapters::Prism` caches a file's parsed AST for the
@@ -83,6 +91,11 @@ module Hecks
     # file. `Prism.forget` is the real invalidation API this module's
     # own first use motivated (found here, fixed at the source rather
     # than left as a private `TREES.clear` poke from outside).
+    #
+    # @param path [String, Array<String>] a `.bluebook` file, a directory of them, or
+    #   an explicit list of files
+    # @return [Runtime::Registry] the registry booted from `path`, its meta-domain
+    #   judged
     def self.load_bluebook(path)
       paths = if path.is_a?(Array)
                 path
@@ -109,12 +122,19 @@ module Hecks
     # files (`MetaValidator::GRAMMAR_FILES`) merged into one registry,
     # and a caller here (the codemod runner) doesn't generally know in
     # advance which one it just edited.
+    #
+    # @return [String] the fresh meta-domain grammar registry's IR, as pretty-printed
+    #   JSON
     def self.boot_meta
       Hecks::Adapters::Prism.forget_all
       Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
       export_json(Hecks::Bluebook::MetaValidator.grammar_registry)
     end
 
+    # Re-boots and returns the self-hosted meta-domain's grammar registry,
+    # discarding any cached AST or registry from a previous boot.
+    #
+    # @return [Runtime::Registry] the fresh grammar registry
     def self.meta_registry
       Hecks::Adapters::Prism.forget_all
       Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
@@ -128,6 +148,12 @@ module Hecks
     # `AggregateBuilder#command` vs `EntityBuilder#command` already
     # draws. Generic enough for any rule that needs to walk real
     # commands, not specific to the attribute-redundancy rule.
+    #
+    # @param registry [Runtime::Registry] a booted registry
+    # @yieldparam construct [Bluebook::Aggregate, Bluebook::Entity] the aggregate or
+    #   entity that owns `command`
+    # @yieldparam command [Bluebook::Command] the command
+    # @return [void]
     def self.each_command(registry)
       registry.bluebooks.each_value do |chapter|
         chapter.aggregates.each do |aggregate|
@@ -140,6 +166,12 @@ module Hecks
       end
     end
 
+    # Finds one attribute of `construct` by name.
+    #
+    # @param construct [Bluebook::Aggregate, Bluebook::Entity, Bluebook::ValueObject]
+    #   the construct whose attributes are searched
+    # @param name [String, Symbol, #to_s] the attribute's declared name
+    # @return [Bluebook::Attribute, nil] the matching attribute, or nil when none matches
     def self.owner_attribute(construct, name)
       construct.attributes.find { |attr| attr.name.to_s == name.to_s }
     end
@@ -149,6 +181,13 @@ module Hecks
     # `AttributeCollector#resolve_identity_field!` already does. Shared
     # because "what does this list actually hold" is a question any
     # append-shaped rule needs answered, not just this one.
+    #
+    # @param construct [Bluebook::Aggregate, Bluebook::Entity] the construct declaring
+    #   `list_field`
+    # @param list_field [String, Symbol, #to_s] the list attribute's declared name
+    # @return [Bluebook::ValueObject, Bluebook::Entity, nil] the element construct
+    #   `list_field` holds, or nil when `list_field` is not a list attribute, or no
+    #   value object or entity matches its element type
     def self.element_construct_for(construct, list_field)
       list_attr = owner_attribute(construct, list_field)
       return nil unless list_attr&.list?
@@ -160,7 +199,11 @@ module Hecks
 
     # Either a raised exception or a differing export counts as unsafe
     # — see the module header on why the meta-domain specifically can
-    # raise. Returns [value_or_nil, error_message_or_nil].
+    # raise.
+    #
+    # @yield the work to run safely
+    # @return [Array(Object, nil), Array(nil, String)] the block's result and nil on
+    #   success, or nil and the rescued error's `"Class: message"` text on failure
     def self.safely
       [yield, nil]
     rescue StandardError => e
@@ -186,12 +229,24 @@ module Hecks
     #   label: ->(candidate) { "..." }
     #     One-line description for the results report.
     class Runner
+      # @param find_candidates [Proc] `->(registry) { [...] }` — every candidate this
+      #   rule could migrate, given a booted registry
+      # @param apply_candidate [Proc] `->(text, candidate) { [new_text, changed_bool] }`
+      #   — one file's edited text and whether the candidate actually matched it
+      # @param label [Proc] `->(candidate) { "..." }` — one-line description for the
+      #   results report
       def initialize(find_candidates:, apply_candidate:, label:)
         @find_candidates = find_candidates
         @apply_candidate = apply_candidate
         @label = label
       end
 
+      # Runs the codemod across every example domain and the meta-domain.
+      #
+      # @param dry_run [Boolean] when true, every edit is still written and
+      #   reverified, then reverted regardless of safety, rather than kept
+      # @return [Hash{Symbol => Array}] `:applied`, `:skipped`, and `:clean` result
+      #   lists
       def run(dry_run: false)
         results = { applied: [], skipped: [], clean: [] }
         run_example_domains(results, dry_run)
@@ -199,6 +254,11 @@ module Hecks
         results
       end
 
+      # Prints `run`'s results to stdout.
+      #
+      # @param results [Hash{Symbol => Array}] the Hash `run` returned
+      # @param dry_run [Boolean] whether this was a dry run, for the header line
+      # @return [void]
       def report(results, dry_run:)
         puts "== results (#{dry_run ? 'DRY RUN — nothing written' : 'applied'}) =="
         puts "clean (no candidates): #{results[:clean].join(', ')}" unless results[:clean].empty?

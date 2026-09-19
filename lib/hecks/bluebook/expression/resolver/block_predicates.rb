@@ -119,6 +119,10 @@ module Hecks
         # is captured from whatever follows the closing brace ; every
         # other suffix instead requires nothing follow it at all (the
         # `BlockPredicate` shape, unchanged from before this rewrite).
+        #
+        # @param expr [String] the leaf expression text to parse
+        # @return [Find, BlockPredicate, nil] the parsed node, or nil when `expr` does
+        #   not open a `.all?`/`.any?`/`.none?`/`.find` block, or its brace never closes
         def parse_block_opener(expr)
           pattern = /\A(.+?)\.(#{BLOCK_OPENER_SUFFIXES.map { |suffix| Regexp.escape(suffix) }.join('|')})\s*\{\s*\|(\w+)\|\s*/m
           header = expr.match(pattern)
@@ -155,6 +159,11 @@ module Hecks
         # quoted substring (`.start_with?("}")`) never miscounts, the
         # same discipline `split_addition`/`array_elements` already
         # apply for their own depth tracking.
+        #
+        # @param expr [String] the text to scan
+        # @param start [Integer] the index just after the opening `{`, where depth is 1
+        # @return [Integer, nil] the index of the matching `}`, or nil if `expr` runs
+        #   out before depth returns to 0
         def matching_brace(expr, start)
           depth = 1
           quote = nil
@@ -186,6 +195,13 @@ module Hecks
         # variable concept added anywhere else in Resolver's state model,
         # just `attrs` extended with the bound name for the span of that
         # one predicate evaluation, discarded immediately after.
+        #
+        # @param node [BlockPredicate] the parsed `.all?`/`.any?`/`.none?` node
+        # @param collection [Object] the interpreted receiver, expected to be an Array
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Boolean] whether the collection satisfies `node.mode`
+        # @raise [EvaluationError] if `collection` is not an Array
         def evaluate_block_predicate(node, collection, state, attrs)
           raise EvaluationError, "#{node.mode}? expects a list, got #{describe(collection)}" unless collection.is_a?(Array)
 
@@ -219,6 +235,14 @@ module Hecks
         # value case in this grammar already has, and the one a re-
         # routing check like "is there a leg after this one" needs :
         # not finding one is a normal outcome, not an error.
+        #
+        # @param node [Find] the parsed `.find` node
+        # @param collection [Object] the interpreted receiver, expected to be an Array
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Object, nil] the found element (or `node.path` projected through it),
+        #   or nil when no element matches or a `path` segment does not resolve
+        # @raise [EvaluationError] if `collection` is not an Array
         def found_of(node, collection, state, attrs)
           raise EvaluationError, "find expects a list, got #{describe(collection)}" unless collection.is_a?(Array)
 

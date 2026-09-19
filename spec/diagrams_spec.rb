@@ -22,7 +22,7 @@ RSpec.describe "the generated diagrams" do
   end
 
   # A `to:`-declaring port operation, in-memory — no domain in the real
-  # corpus uses `to:` yet (PR #351's own real motivating case,
+  # corpus uses `to:` yet (the real motivating case,
   # lifeadelics' vendored PaymentGateway, lives outside this repo; the
   # corpus's one real port, pizzas' own PaymentGateway.Receive, doesn't
   # happen to need a receiver reference at all). Built the same way
@@ -197,7 +197,8 @@ RSpec.describe "the generated diagrams" do
 
   it "draws nothing for a command with no declared role" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["roles.mmd"]
-    expect(diagram).not_to include("CardPayment.Authorize") # a real command in the corpus with role: nil
+    # a real command in the corpus with role: nil
+    expect(diagram).not_to include("CardPayment.Authorize")
   end
 
   it "sanitizes a multi-word role into a legal id while keeping the real name as the label" do
@@ -324,7 +325,7 @@ RSpec.describe "the generated diagrams" do
                                "attr_Order_customer_name[customer_name]")
   end
 
-  # Pizzas' own `Purchase` used to be the example here — its `sets :status,
+  # Pizzas' own `Purchase` was the example here — its `sets :status,
   # to: "sold"` went with C5.3 (a lifecycle field moves only by
   # transition), so the scratch chapter's `Create` carries the literal now.
   it "states a literal source verbatim, quoted, distinct from an argument source" do
@@ -355,7 +356,8 @@ RSpec.describe "the generated diagrams" do
   it "merges the same attribute into one node across every command that writes it, in banking" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Account_surface.mmd"]
     balance_edges = diagram.lines.count { |line| line.include?("attr_Account_balance[balance]") }
-    expect(balance_edges).to eq(6) # Credit, Debit, ApplyFee, CorrectFee, AccrueInterest, CorrectInterest
+    # Credit, Debit, ApplyFee, CorrectFee, AccrueInterest, CorrectInterest
+    expect(balance_edges).to eq(6)
   end
 
   # **The bug this type actually had**: a literal value that is itself a
@@ -371,7 +373,7 @@ RSpec.describe "the generated diagrams" do
                                "attr_Customer_standing[standing]")
   end
 
-  # **A real, genuine zero**. `Order.CreatePizza` used to be this test's own
+  # **A real, genuine zero**. `Order.CreatePizza` was this test's own
   # example — until Wave 8's own corpus audit found and fixed the exact
   # bug this shape looks like: CreatePizza's `:name`/`:pizza` attributes
   # were declared and simply never `sets`, so every created pizza's own

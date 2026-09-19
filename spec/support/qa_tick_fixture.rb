@@ -3,7 +3,7 @@ require_relative "qa_ledger_fixture"
 require "pathname"
 require "tmpdir"
 
-# **The `bin/qa_tick` fixture, shared** — extracted from what used to be one
+# **The `bin/qa_tick` fixture, shared** — extracted out of a single
 # `qa_tick_spec.rb` (2026-09-18, following the same reasoning
 # `spec/support/qa_sweep_all_fixture.rb`'s own header already spells
 # out): the file's own 4 examples took 128s together, each a real
@@ -109,18 +109,34 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
     FileUtils.remove_entry(@origin) if @origin
   end
 
+  # Runs a git subcommand inside this example's own throwaway repo.
+  #
+  # @param args [Array<String>] the git subcommand and its arguments, such as `"commit", "-qm",
+  #   "init"`
+  # @return [Boolean] `true` once the command succeeds
+  # @raise [RuntimeError] if the git command exits non-zero
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
            out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
   end
 
+  # Runs `bin/qa_tick` once as a real subprocess against this spec's own fixture repo and
+  # ledger.
+  #
   # `QA_GENERATED_DOMAINS_PER_TICK=0` — the generated-domains step runs
   # from the real checkout's dials, which a throwaway tick must not spend
   # minutes generating and building against; zero is its own "off" path.
+  #
+  # @return [Array(String, String, Process::Status)] the subprocess's stdout, stderr, and
+  #   exit status, per `QaLedgerFixture::Ledger#run`
   def tick
     @ledger.run("qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
   end
 
+  # Boots the ledger's fixture domain in-process and writes each given `Target` row directly.
+  #
+  # @param targets [Hash{String => String}] each target's reference mapped to its bluebook path
+  # @return [void]
   def identify!(targets)
     @ledger.boot
     targets.each do |reference, path|

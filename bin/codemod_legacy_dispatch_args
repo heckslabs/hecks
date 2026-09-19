@@ -42,6 +42,10 @@ ROOT = File.expand_path("..", __dir__)
 RECORDER = File.join(ROOT, "lib/hecks/codemod/legacy_dispatch_recorder.rb")
 DEFAULT_RECORDING = File.join(ROOT, "tmp/legacy_dispatch_args.jsonl")
 
+# Prints both invocation forms to stderr and exits the process; called wherever
+# argument parsing finds a shape it does not recognize.
+#
+# @return [void]
 def usage!
   warn "usage: bin/codemod_legacy_dispatch_args record [--recording PATH] -- COMMAND..."
   warn "       bin/codemod_legacy_dispatch_args [--write] [--recording PATH]"

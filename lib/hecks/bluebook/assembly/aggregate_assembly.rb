@@ -10,10 +10,17 @@ module Hecks
       # It decides nothing. Whether a declaration is admissible was settled on the
       # way in, by the language.
       class AggregateAssembly
+        # @param row [Hash{Symbol => Object}] one declared aggregate's raw contract data,
+        #   as `@declaration[:aggregates]` carries it
         def initialize(row)
           @row = row
         end
 
+        # Builds the aggregate's whole owner-chain graph — its value objects, commands,
+        # entities, queries and lifecycle — from its raw declaration.
+        #
+        # @return [Bluebook::Aggregate] the built aggregate, with every reference stamped
+        #   to resolve against it
         def aggregate
           shapes   = Array(@row[:value_objects]).map { |shape| value_object(shape) }
           commands = Array(@row[:commands]).map { |verb| Build.call("Command", verb) }

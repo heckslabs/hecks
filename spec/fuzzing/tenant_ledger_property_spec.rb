@@ -31,7 +31,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
   # typed `Value` objects for every other field, then hand-patching only
   # `:ledger` — the one plain scalar reference field — to point at the
   # other region's ledger, simulating exactly what an unenforced write
-  # used to persist.
+  # would persist.
   it "fires on a stored Transfer whose own ledger reference disagrees with its region" do
     steps = [
       { "verb" => "TenantLedger::Ledger.Open",
@@ -171,9 +171,9 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
   #
   # **The corpus here is derived** — `Hecks::Corpus.rust_domains`, the same
   # set the Rust fuzz bridge walks — minus the one domain this file
-  # exists for. It used to be a hand list of five at 10 seeds each; the
-  # same 50-seed total is spread over the derived list, so widening it
-  # adds no gating time.
+  # exists for, rather than a hand list of five at 10 seeds each. The
+  # same 50-seed total is spread over the derived list instead, so
+  # widening it adds no gating time.
   it "never fires on the existing corpus, which declares no second tenant-scoped aggregate to cross" do
     domains = Hecks::Corpus.rust_domains.map(&:dir).reject { |dir| dir == TENANT_LEDGER_STRESS_DOMAIN }
     domains.each do |domain|

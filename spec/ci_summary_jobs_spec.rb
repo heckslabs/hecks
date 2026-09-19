@@ -68,8 +68,8 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
-  # The light PR set (PR #666) is gone: every job runs on `pull_request`
-  # again. Nothing may gate on the label that used to put a PR back on the
+  # The light PR set is gone: every job runs on `pull_request`
+  # again. Nothing may gate on the retired label that once put a PR back on the
   # full set, or the gap it opened — a job that never ran on the PR failing
   # in the merge queue and ejecting the batch — comes straight back.
   it "gates no job on the retired full-ci label" do

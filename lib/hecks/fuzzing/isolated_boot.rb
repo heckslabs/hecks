@@ -17,6 +17,8 @@ module Hecks
     # database, so a "fresh" boot against a Postgres-bound domain would
     # still see every record any other run, ever, wrote to it.
     #
+    # ## The rewrite
+    #
     # So every `.hecksagon` in the copy gets its persistence binding
     # rewritten to Memory before booting, and any `projected_by` bind
     # dropped outright (optional — `Registry#read_repository` already
@@ -25,7 +27,9 @@ module Hecks
     # one ephemeral copy answers through changes. What the domain is
     # bound to for real deployment is never touched — only this tmp copy.
     #
-    # `adapter:` (PRD 02) — Memory is the default and the only mode every
+    # ## `adapter:` modes
+    #
+    # (PRD 02) — Memory is the default and the only mode every
     # existing caller still gets with no change. `:sqlite` rebinds to the
     # real SQLite adapter instead of the in-memory one, for exactly the
     # same reason PRD 02 exists: 15 declared properties (properties.rb)
@@ -44,11 +48,11 @@ module Hecks
     # `root:`, which `Hecks.boot(copy)` passes as this ephemeral copy's
     # own directory — a fresh, empty `data/` per run, exactly like
     # Memory's own zero-history guarantee, just backed by a real SQLite
-    # file instead of a Hash. Stale as of this paragraph's original
-    # writing — both `Postgres` (PRD 02, docs/prds/02-fuzzer-real-
+    # file instead of a Hash. `Postgres` (PRD 02, docs/prds/02-fuzzer-real-
     # adapters.md) and `PostgresEra` (this mode's own header, below,
-    # `rebind_to_postgres_era!`) since gained real `adapter:` modes here.
-    # Each writes its own fresh `.world` per `.hecksagon` rather than
+    # `rebind_to_postgres_era!`) are the two further real `adapter:` modes
+    # here, alongside `:memory` and `:sqlite`. Each writes its own fresh
+    # `.world` per `.hecksagon` rather than
     # relying on the zero-config default Sqlite/Memory get, and each
     # needs a real, reachable Postgres server — but "no place to source a
     # connection safely" turned out not to be true: `:postgres` sources
@@ -83,6 +87,20 @@ module Hecks
       # signature per adapter) keeps `SequenceGenerator`/`Replay`'s own
       # single passthrough (`adapter:`, now joined by these two) uniform
       # across all four modes.
+      #
+      # @param domain_path [String] path to the domain directory to copy and boot
+      # @param adapter [Symbol] which persistence to rebind the copy to — `:memory`,
+      #   `:sqlite`, `:postgres`, or `:postgres_era`
+      # @param database [String, nil] the throwaway database name; required (and
+      #   only meaningful) for `adapter: :postgres_era`
+      # @param schema [String, nil] the throwaway schema name; required (and only
+      #   meaningful) for `adapter: :postgres_era`
+      # @yield [copy] runs with the isolated, rebound copy's own directory
+      # @yieldparam copy [String] path to the isolated copy, ready to boot
+      # @return [Object] the block's own return value
+      # @raise [ArgumentError] if `adapter` names none of the four known adapters,
+      #   or if `adapter: :postgres_era` is given without both `database:` and
+      #   `schema:`
       def call(domain_path, adapter: :memory, database: nil, schema: nil)
         Dir.mktmpdir("hecks-fuzz") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))
@@ -113,6 +131,9 @@ module Hecks
       # what an isolated boot wants: the copy has to stand alone, since
       # rebind! rewrites files in it and must not reach back through a
       # link into the real tree.
+      # @param source [String] path to the directory to copy
+      # @param destination [String] path to copy into; created if missing
+      # @return [void]
       def copy_dereferencing(source, destination)
         FileUtils.mkdir_p(destination)
         Dir.glob(File.join(source, "**", "*"), File::FNM_DOTMATCH).each do |path|
@@ -136,6 +157,10 @@ module Hecks
         end
       end
 
+      # Rebinds every `.hecksagon` in `copy` to Memory and drops every `.world`.
+      #
+      # @param copy [String] path to the isolated copy to rebind
+      # @return [void]
       def rebind_to_memory!(copy)
         rewrite_bindings!(copy, "Memory")
         strip_translations!(copy)
@@ -162,6 +187,8 @@ module Hecks
       # needed" property Memory has. `data/` itself is left for Sqlite to
       # recreate on first write, same as it always was for Memory/Heki —
       # nothing here creates it up front.
+      # @param copy [String] path to the isolated copy to rebind
+      # @return [void]
       def rebind_to_sqlite!(copy)
         rewrite_bindings!(copy, "SqlitePersistence")
         strip_translations!(copy)
@@ -193,6 +220,11 @@ module Hecks
       FUZZ_POSTGRES_DATABASE = "hecks_fuzz".freeze
       FUZZ_POSTGRES_SCHEMA   = "hecks_fuzz".freeze
 
+      # Rebinds every `.hecksagon` in `copy` to Postgres, against the shared
+      # `FUZZ_POSTGRES_DATABASE`/`FUZZ_POSTGRES_SCHEMA` scratch schema.
+      #
+      # @param copy [String] path to the isolated copy to rebind
+      # @return [void]
       def rebind_to_postgres!(copy)
         require "pg"
         rewrite_bindings!(copy, "Postgres")
@@ -244,6 +276,7 @@ module Hecks
       # .available?` already uses) ; the schema inside it is dropped and
       # recreated on every call, which is what actually isolates one
       # ephemeral boot's data from the next.
+      # @return [void]
       def ensure_fuzz_schema!
         # `Adapters::Postgres#initialize` opens one real `PG::Connection`
         # per aggregate and never explicitly closes it — fine for a
@@ -400,6 +433,9 @@ module Hecks
       # again is the caller's own job (its name and lifecycle belong to
       # the caller — see `rebind_to_postgres_era!`'s own header), not
       # something this per-ephemeral-boot helper should ever do mid-sweep.
+      # @param database [String] the throwaway database name; created if missing
+      # @param schema [String] the throwaway schema name; dropped if it exists
+      # @return [void]
       def ensure_postgres_era_schema!(database:, schema:)
         GC.start
 
@@ -467,10 +503,19 @@ module Hecks
       # an ephemeral boot, deleted outright) — never called for
       # `:postgres_era` itself, where the bound adapter genuinely is
       # lineage-capable and the edge causes no refusal to begin with.
+      # @param copy [String] path to the isolated copy to strip translation edges from
+      # @return [void]
       def strip_translations!(copy)
         Dir.glob(File.join(copy, "**", "translations", "*.bluebook")).each { |path| File.delete(path) }
       end
 
+      # Rewrites every `persisted_by` bind (aggregate-scoped or bare) in `copy`'s
+      # own `.hecksagon` files to `adapter_name`, and drops every `projected_by`.
+      #
+      # @param copy [String] path to the isolated copy to rewrite
+      # @param adapter_name [String] the persistence adapter name to rewrite every
+      #   `persisted_by` bind to
+      # @return [void]
       def rewrite_bindings!(copy, adapter_name)
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
           lines = File.readlines(path).grep_v(/\bprojected_by\s*\(?\s*"/)

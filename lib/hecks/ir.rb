@@ -1,6 +1,8 @@
 module Hecks
   # What a construct emits, declared rather than written out.
   #
+  # ## Why IR and not a model
+  #
   # `IR` is a thing this framework produces, not a thing its model is.
   # The language self-hosts, and its own bluebook declares aggregates
   # named `Bluebook`, `Aggregate`, `Command`, `Entity`, `ValueObject`,
@@ -17,13 +19,14 @@ module Hecks
   # nesting everything a chapter declares. It is deliberately not named
   # after this, its own output.
   #
-  # Before this, eighteen constructs each hand-wrote a `to_h` that said
-  # the same four things in the same order — read a field, recurse into a
-  # child, recurse into a list, or compute something — and the shape of a
-  # construct was knowable only by reading a method body. Declared, it is
-  # data: `ir_spec` can be walked by anything that wants to know what a
-  # construct carries, which is the whole point of hanging emission off
-  # the model rather than burying it.
+  # ## Why declared, not hand-written
+  #
+  # Each construct's shape is declared once, as data, rather than hand-written
+  # in a `to_h` method that repeats the same four moves — read a field,
+  # recurse into a child, recurse into a list, or compute something. Declared,
+  # it is data: `ir_spec` can be walked by anything that wants to know what a
+  # construct carries, which is the whole point of hanging emission off the
+  # model rather than burying it in a method body per construct.
   #
   #   include Hecks::IR            # an instance-shaped construct
   #
@@ -57,11 +60,18 @@ module Hecks
     #   extend  Hecks::IR   # class-shaped    — to_h is a class method
     #
     # Both get the same `emits_ir` and the same emission rules.
+    # @param base [Module, Class] the object that ran `include Hecks::IR`
+    # @return [void]
     def self.included(base)
       base.extend(Declares)
       base.include(Emits)
     end
 
+    # (see .included) — the class-shaped door: `extend Hecks::IR` makes `to_h`
+    # a class method rather than an instance one.
+    #
+    # @param base [Module, Class] the object that ran `extend Hecks::IR`
+    # @return [void]
     def self.extended(base)
       base.extend(Declares)
       base.extend(Emits)
@@ -79,17 +89,35 @@ module Hecks
     # back — walking the superclass chain so an anonymous `Class.new(base)`
     # inherits its base's shape instead of redeclaring it.
     module Declares
+      # Records this construct's field -> emission rule map.
+      #
+      # @param spec [Hash{Symbol => Symbol, Many, One, Proc}] each declared field, in
+      #   emission order: a Symbol to send, `many`/`one` to recurse into a child
+      #   construct, or a Proc to `instance_exec` for anything else
+      # @return [void]
       def emits_ir(**spec)
         @ir_spec = spec
       end
 
+      # Wraps `source` as a field that recurses into a list of child constructs.
+      #
+      # @param source [Symbol] the method to call for the list of children
+      # @return [Many]
       def many(source) = Many.new(source)
+
+      # Wraps `source` as a field that recurses into a single, optional child construct.
+      #
+      # @param source [Symbol] the method to call for the (possibly nil) child
+      # @return [One]
       def one(source)  = One.new(source)
 
       # Walks the superclass chain so a `Class.new(ValueObject)` — which
       # is what every declared value object actually is — inherits the
       # shape its base declared, rather than each anonymous subclass
       # having to redeclare it.
+      #
+      # @return [Hash{Symbol => Symbol, Many, One, Proc}, nil] this construct's (or its
+      #   nearest ancestor's) declared field -> rule map, or nil if none was ever declared
       def ir_spec
         return @ir_spec if defined?(@ir_spec) && @ir_spec
 

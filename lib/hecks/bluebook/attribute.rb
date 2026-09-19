@@ -51,6 +51,21 @@ module Hecks
       # The wire carries the name, not the members. A reader resolves it
       # against the IR it holds, so the members are declared once and
       # copied nowhere — which is the same reason `admits` exists at all.
+      #
+      # @param name [Symbol, String] the attribute's name
+      # @param type [Module, Bluebook::Reference, String, Symbol] the bare constant naming
+      #   a primitive or a value object, a `reference_to`-built Reference, or already-spelled
+      #   text
+      # @param list [Boolean] whether this attribute holds a list of values rather than one
+      # @param default [Object, nil] the value a new record starts with when none is given
+      # @param optional [Boolean] whether a command may omit this attribute
+      # @param pattern [String, nil] a regex source the value must match; shared-engine
+      #   subset only (`PatternSubset`)
+      # @param admits [String, nil] an already-declared closed set's aggregate-qualified
+      #   name, such as `"Vocabulary::QueryComparator"`, that the value must belong to
+      # @param relationship [Symbol, nil] the DSL word that minted this attribute
+      #   (`:reference_to`, `:has_many`, `:has_one` or `:belongs_to`), or `nil` for an
+      #   ordinary attribute
       def initialize(name:, type:, list: false, default: nil, optional: false, pattern: nil,
                      admits: nil, relationship: nil)
         @name     = name.to_sym
@@ -77,7 +92,7 @@ module Hecks
       # built against somebody else's aggregate — silently, with no refusal —
       # and the attribute stops meaning what the file plainly says.
       #
-      # DEMODULISED, so both paths spell it the same: `:Target` and
+      # Demodulised, so both paths spell it the same: `:Target` and
       # `QualityControl::Target` are both "Target". A plain class stays itself —
       # `String` demodulises to "String" — so the ordinary case is untouched.
       # This does not undo the constant leak; it makes the leak unable to change
@@ -91,8 +106,7 @@ module Hecks
       private :spell
 
       # Held because a declared vocabulary pins it — spec/vocabulary_conformance
-      # holds `Primitive`'s members to this list. The `primitive?` predicate that
-      # used to read it had no caller anywhere and is gone.
+      # holds `Primitive`'s members to this list.
       PRIMITIVES = Hecks::Vocabulary.fetch("Primitive")
 
       # `type` is spelled, never handed over. A Reference renders as
