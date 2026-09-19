@@ -1,4 +1,5 @@
 require_relative "errors"
+require_relative "../deprecation"
 require_relative "refusal_wording"
 require_relative "caller"
 require_relative "invocation"
@@ -78,7 +79,44 @@ module Hecks
       def policy_dispatches = @registry.policy_dispatch_log
       def verbs = @registry.verbs
 
+      # LOOSE KEYWORD FACTS ARE DEPRECATED (roadmap I3) — `dispatch(verb,
+      # amount: 5)` still works, and warns once per call site; pass
+      # `with: { amount: 5 }` (and the receiver in `to:`) instead. The
+      # keyword door closes in LEGACY_ARGS_REMOVAL. `bin/codemod_legacy_
+      # dispatch_args` rewrites existing callers.
       def dispatch(verb, to: nil, with: nil, saga_correlation: nil, **legacy_args)
+        Dispatcher.deprecate_loose_facts(legacy_args)
+        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, legacy_args: legacy_args)
+      end
+
+      LEGACY_ARGS_REMOVAL = "1.4.0".freeze
+      LEGACY_ARGS_WARNING =
+        "passing command facts to dispatch as loose keyword arguments is deprecated and will be removed in " \
+        "hecks #{LEGACY_ARGS_REMOVAL} — pass them as `with: { ... }`, with the receiver identity in `to:` " \
+        "(bin/codemod_legacy_dispatch_args rewrites existing callers)".freeze
+
+      def self.deprecate_loose_facts(legacy_args)
+        Deprecation.call(:legacy_dispatch_args, LEGACY_ARGS_WARNING) unless legacy_args.empty?
+      end
+
+      # THE FLAT-FACTS WIRE FORM — one Hash, NOT keywords, and NOT
+      # deprecated: the shape `spec/corpus/*.json` steps, the Rust kernel's
+      # `cli.rs` contract, a reaction without a `with:` projection, and the
+      # self-hosted meta-domain all carry. Routes exactly as
+      # `dispatch(verb, **args)` always did: a Symbol `:to`, `:with` or
+      # `:saga_correlation` key is lifted out as that keyword, everything
+      # else is a fact (so a String "to" key stays a fact, as it did).
+      # Framework code that replays data calls this; application code
+      # calls `dispatch(verb, to:, with:)`.
+      def dispatch_flat(verb, args = {})
+        facts = args.dup
+        to = facts.delete(:to)
+        with = facts.delete(:with)
+        saga_correlation = facts.delete(:saga_correlation)
+        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, legacy_args: facts)
+      end
+
+      def dispatch_invocation(verb, to:, with:, saga_correlation:, legacy_args:)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 
@@ -134,6 +172,11 @@ module Hecks
         Result.new(verb: verb, instance: instance, events: announced,
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome)
       end
+
+      # THE ONE BODY BOTH DOORS RUN — `dispatch` (keywords) and
+      # `dispatch_flat` (one Hash) differ only in how the call's parts are
+      # spelled, never in what happens next.
+      private :dispatch_invocation
 
       # EVERYTHING OWED BECAUSE `announced` COMMITTED — policies first,
       # then sagas, the order this method always ran them in. The
@@ -212,6 +255,7 @@ module Hecks
       # `Hecks.adapter`'s existing job (unchanged by this), and wiring "which
       # adapter may call this port" through is the next piece, not this one.
       def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, **legacy_args)
+        Dispatcher.deprecate_loose_facts(legacy_args)
         aggregate = resolve_aggregate(domain, aggregate_name, "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}")
         port = aggregate.port(port_name) ||
                raise(UnknownVerb, "#{aggregate_name} has no port #{port_name.inspect}")
@@ -279,7 +323,7 @@ module Hecks
       def reenter(verb, saga_correlation: nil, **args)
         depth = Thread.current[:hecks_reaction_depth].to_i
         Thread.current[:hecks_reaction_depth] = depth + 1
-        Caller.without { dispatch(verb, saga_correlation: saga_correlation, **args) }
+        Caller.without { dispatch_flat(verb, args.merge(saga_correlation: saga_correlation)) }
       ensure
         Thread.current[:hecks_reaction_depth] = depth
       end

@@ -7,6 +7,26 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Deprecated: command facts as loose keyword arguments to `dispatch`.**
+`runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
+amount: { cents: 100 })` still works and now warns once per call site;
+pass the facts as `with: { ... }` with the receiver's identity in `to:`
+instead. Removal is 1.4.0 (`Hecks::Runtime::Dispatcher::
+LEGACY_ARGS_REMOVAL`). One bag holding both the route and the payload is
+the shape behind nine past routing bugs, and `Runtime::Invocation` now
+reads every call's shape in one place — this closes the door that made
+the ambiguity possible. `bin/codemod_legacy_dispatch_args` rewrites
+existing callers: it records how each site's facts really split (against
+the live registry, not the call's text), then rewrites only the sites
+every observation agrees on, reporting the rest by name. The framework's
+own doors — `Hecks::Router` and the namespace shortcut, the forms app,
+the CLI and JSON doors, `Storehouse`, reaction re-entry, `bin/run`,
+corpus replay and the fuzzers — hand their argument bag to the new
+`Dispatcher#dispatch_flat(verb, args)` instead, the wire form the corpus
+JSON, `cli.rs` and a `with:`-less reaction all carry; it routes exactly
+as `dispatch(verb, **args)` always did and is not deprecated. Silence the
+warning with `HECKS_SILENCE_DEPRECATIONS=1`.
+
 **`rust/host` answers the console's writes: `POST /api/:coll` and
 `POST /api/:coll/:id/:command`.** A create runs the aggregate's one
 creating command, with the two things the console does around it that

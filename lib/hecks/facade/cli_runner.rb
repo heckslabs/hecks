@@ -70,7 +70,7 @@ module Hecks
         # Postgres-backed domain the full dump is every record there has been.
         request = CommandRequest.normalize(args, receiver:        spec[:receiver],
                                                  legacy_receiver: spec[:legacy_receiver])
-        handle = runtime.dispatch(spec[:verb], **request)
+        handle = runtime.dispatch_flat(spec[:verb], request)
         return [JSON.pretty_generate(answered(handle)), 0] if handle.state.nil?
 
         [JSON.pretty_generate(id:     handle.id,

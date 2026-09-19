@@ -1818,8 +1818,8 @@ end
 # `sequence:` is the Check's own identity within it — see this script's
 # own header comment on why this is NOT `to.aggregate=`/`to.entity=`.
 def mark_held!(runtime, sweep, sequence, observation)
-  runtime.dispatch("QualityControl::Sweep.Check.Held", id: sweep.id,
-                    sequence: { value: sequence }, observation: { value: observation })
+  runtime.dispatch_flat("QualityControl::Sweep.Check.Held",
+                        { id: sweep.id, sequence: { value: sequence }, observation: { value: observation } })
 end
 
 # `target:` RESTATED — what `SuspendOnSurprise` (the ledger's own policy)
@@ -1828,9 +1828,9 @@ end
 # INSIDE this dispatch, as a reaction, before it returns — nothing below
 # has to dispatch `Target.Suspend` itself.
 def mark_surprised!(runtime, sweep, sequence, observation, target_reference)
-  runtime.dispatch("QualityControl::Sweep.Check.Surprised", id: sweep.id,
-                    sequence: { value: sequence }, observation: { value: observation },
-                    target: { value: target_reference })
+  runtime.dispatch_flat("QualityControl::Sweep.Check.Surprised",
+                        { id: sweep.id, sequence: { value: sequence }, observation: { value: observation },
+                          target: { value: target_reference } })
 end
 
 mode_label =

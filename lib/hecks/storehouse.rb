@@ -308,7 +308,7 @@ module Hecks
     end
 
     def real_dispatch(runtime, spec, envelope, summary)
-      result = runtime.dispatch(spec[:verb], **envelope)
+      result = runtime.dispatch_flat(spec[:verb], envelope)
       ok(summary: summary,
          id:      result.id,
          state:   result.state.nil? ? nil : Facade::JsonDoor.materialize(result.state),
