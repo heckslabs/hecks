@@ -4,18 +4,18 @@ require "securerandom"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 
-# THE LINEAGE DIFFERENTIAL HARNESS — ADR 0029's step 4/5, `rust/host`'s
+# **The lineage differential harness** — ADR 0029's step 4/5, `rust/host`'s
 # own sibling to spec/rust_conformance_spec.rb. That spec proves parity
-# for the KERNEL crate (compiled dispatch/type-checking, one process,
+# for the kernel crate (compiled dispatch/type-checking, one process,
 # no Postgres); this one proves it for the one thing `rust/host` alone
-# does — read and write across a REAL era boundary a REAL Ruby mint
+# does — read and write across a real era boundary a real Ruby mint
 # produced, for the generic lineage path (`journal::
 # read_lineage_head_all/_by_id`/`append_lineage_mutation`) every
 # lineage-capable aggregate shares, not just `Member`.
 #
 # `mint_and_seed_lineage.rb` (rust/host/tests/fixtures/) does the
-# minting AND the writing, then hands back its own ground truth: era 1's
-# raw writes run through Ruby's OWN `Ports::Persistence::Lineage#
+# minting and the writing, then hands back its own ground truth: era 1's
+# raw writes run through Ruby's own `Ports::Persistence::Lineage#
 # translate` — the same in-process reference the real Layer 2 audit
 # checks Postgres's compiled SQL against — merged with era 2's own
 # untranslated writes. `lineage_harness` (rust/host/src/bin/) is the
@@ -24,9 +24,9 @@ require_relative "support/postgres_probe"
 # prove nothing about the fence a real deployment actually runs behind),
 # reading and writing through nothing but the generic functions.
 #
-# Deliberately does NOT reuse Ruby's OWN read as the oracle (e.g.
+# Deliberately does not reuse Ruby's own read as the oracle (e.g.
 # `PostgresEra#find`/`#all`) — that would only prove "Rust's SQL client
-# agrees with Ruby's SQL client reading the SAME compiled view," a
+# agrees with Ruby's SQL client reading the same compiled view," a
 # structurally weaker claim than "Rust agrees with Ruby's own
 # independently-computed translation." See mint_and_seed_lineage.rb's
 # own header for the full argument, and its compute/rekey sibling for
@@ -52,13 +52,13 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   # makes memoizing the one build across examples safe rather than a
   # staleness risk.
   #
-  # A FAILED BUILD RAISES, WITH CARGO'S STDERR — never a skip. These
+  # A failed build raises, with cargo's STDERR — never a skip. These
   # binaries have no feature to be missing, so there is no legitimate
   # "not declared" answer; a failure is memoized too, so every example
   # re-raises it rather than re-paying the doomed build.
   def self.lineage_harness_binary = host_binary("lineage_harness")
 
-  # Same memoization reasoning — one more binary out of the SAME crate.
+  # Same memoization reasoning — one more binary out of the same crate.
   def self.mint_harness_binary = host_binary("mint_harness")
 
   def self.host_binary(name)
@@ -93,9 +93,9 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     admin.close
   end
 
-  # `capture3`, NOT `capture2`, HERE AND BELOW — a real CI failure
+  # `capture3`, not `capture2`, here and below — a real CI failure
   # (2026-08-26, three merges in a row) raised from `mint_via_rust_
-  # matches_ruby.rb failed` with an EMPTY message: `capture2` only ever
+  # matches_ruby.rb failed` with an empty message: `capture2` only ever
   # captured stdout, and a crashing script's own reporting goes to
   # stderr. Reproduced clean locally on the same commit (real Postgres,
   # a correctly-versioned toolchain) — whatever failed in CI wasn't
@@ -139,7 +139,7 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     expect(rust_rows).to eq(ruby_rows)
 
     # read_by_id, individually, for every row — the generic function's
-    # OTHER half (`read_lineage_head_by_id`), not exercised by read_all
+    # other half (`read_lineage_head_by_id`), not exercised by read_all
     # at all.
     by_id_ops = ruby_rows.map { |id, _| { "op" => "read_by_id", "storage_name" => storage_name, "id" => id } }
     by_id_results = run_harness(binary, db_name, app_role, domain, era, by_id_ops)
@@ -171,13 +171,13 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     results = run_harness(binary, db_name, app_role, domain, era, [write_op])
     expect(results.first["ok"]).to be(true), results.first["error"]
 
-    # Ruby reads back through its OWN adapter (owner-authenticated, per
+    # Ruby reads back through its own adapter (owner-authenticated, per
     # mint_and_seed_lineage.rb's own comment on why a fresh PostgresEra.
     # new avoids the app role for construction) — proving the write
     # Rust made is durably visible to Ruby's own read path, not just to
     # a second Rust-side read of the same connection.
     require "pg"
-    # domain-qualified (docs/decisions/0059) — mint_and_seed_lineage.rb's own DOMAIN is "Ledger".
+    # domain-qualified (docs/decisions/0059) — mint_and_seed_lineage.rb's own domain is "Ledger".
     raw = PG.connect("postgres://#{owner_role}@localhost/#{db_name}")
             .exec_params("SELECT state FROM ledger_account_head WHERE id = $1", ["written-by-rust"])
     expect(raw.ntuples).to eq(1)
@@ -186,9 +186,9 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     drop_scratch!(db_name, owner_role, app_role) if db_name
   end
 
-  # THE OTHER HALF OF ADR 0029's CLAIM — "every lineage_capable?
+  # The other half of ADR 0029's claim — "every lineage_capable?
   # aggregate," not just a synthetic single-attribute one. Pizzas::Order
-  # is a REAL corpus aggregate (examples/pizzas/bluebook/pizzas.bluebook,
+  # is a real corpus aggregate (examples/pizzas/bluebook/pizzas.bluebook,
   # bound to PostgresEra in examples/pizzas/bluebook/pizzas.hecksagon)
   # with a structurally richer shape the synthetic Ledger fixture above
   # never exercises: a nested value object (Pizza -> Price), a
@@ -197,18 +197,18 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   # against a second implementation the way the Ledger fixture's write
   # path does; the claim under test is narrower and still real: does
   # the generic read path agree with what Ruby itself wrote, for a
-  # shape this rich, through the SAME RLS-fenced app role a production
+  # shape this rich, through the same RLS-fenced app role a production
   # deployment actually reads through.
   #
   # `boot_in_memory.registry.bluebook("Pizzas").aggregate("Order")` —
   # spec_helper.rb's own helper, reused exactly as postgres_era_spec.rb
   # already does: it boots Pizzas bound to Memory, which this test
-  # ignores entirely — only the AGGREGATE's declared shape is wanted,
+  # ignores entirely — only the aggregate's declared shape is wanted,
   # not that binding. `LineageManager.check!` (a genuine first-boot
   # hold, era 1) is what actually establishes lineage capability and
   # grants the app role, exactly like mint_and_seed_lineage.rb's own
   # era-1 hold_first! path, just with a real corpus bluebook instead of
-  # a synthetic one and role: passed on the FIRST check! call instead
+  # a synthetic one and role: passed on the first check! call instead
   # of a second mint.
   # A real Postgres database/role/lineage setup (fresh scratch DB, owner
   # and RLS-fenced app roles, a genuine LineageManager.check! hold), one
@@ -279,13 +279,13 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     drop_scratch!(db_name, owner_role, app_role) if db_name
   end
 
-  # THE COMPUTE/REKEY CASE — the one migration kind with no in-process
+  # **The compute/rekey case** — the one migration kind with no in-process
   # Ruby reference implementation anywhere (Ports::Persistence::Lineage#
   # translate's own header names this explicitly), so its only
   # verification is the human-approved sample the real audit records —
   # mint_and_seed_lineage_compute.rb is the first thing in this whole
   # codebase to drive that approval gate for real from outside
-  # bin/translation_audit itself, then mint a REAL compute-bearing era
+  # bin/translation_audit itself, then mint a real compute-bearing era
   # on the strength of it. Ground truth here is necessarily Postgres's
   # own compiled SQL, read directly (see that script's own header for
   # why that's the honest bar for this specific case, not a weakening).
@@ -320,9 +320,9 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     drop_scratch!(db_name, owner_role, app_role) if db_name
   end
 
-  # ADR-0030-in-progress step 8 — THE ONE EXAMPLE ABOVE WHERE RUST DOES
-  # THE MINTING TOO, not just the reading/writing every earlier example
-  # in this file proves. `mint_via_rust_matches_ruby.rb` does BOTH
+  # ADR-0030-in-progress step 8 — the one example above where Rust does
+  # the minting too, not just the reading/writing every earlier example
+  # in this file proves. `mint_via_rust_matches_ruby.rb` does both
   # sides itself (own header has the full argument): mints era 1, then
   # era 2 across a real rename edge, independently in Ruby (`Lineage
   # Manager.check!`/`mint!`) and in Rust (`mint_harness`, the actual
@@ -351,7 +351,7 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     end
   end
 
-  # NOT YET DONE: Compliance::AccountFreezeReview and
+  # **Not yet done**: Compliance::AccountFreezeReview and
   # Compliance::BoxSurrenderReview (examples/compliance/bluebook/
   # compliance.hecksagon:8-9) are the other two real, lineage-capable
   # corpus aggregates — a mechanical extension of the exact pattern
@@ -360,12 +360,12 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   # risk surface Pizzas::Order didn't already cover. Left for whoever
   # next touches this file rather than padded in here for volume alone.
   #
-  # ALSO NOT YET DONE: `rekey` specifically. It shares compute's exact
+  # **Also not yet done**: `rekey` specifically. It shares compute's exact
   # approval-gate mechanism (minter.rb's own check treats
   # `!declared.computes.empty? || !declared.rekeys.empty?` as one
   # condition) and mint_and_seed_lineage_compute.rb's approval-recording
   # code already generalizes to it verbatim — only the edge's own rule
-  # (`rekey sql: "..."`, recomputing THE AGGREGATE'S IDENTITY rather
+  # (`rekey sql: "..."`, recomputing the aggregate's identity rather
   # than one field) and this fixture's `identified_by :kind` domain
   # shape would need to change. Scoped out here as the same kind of
   # low-marginal-value repetition as the two Compliance aggregates

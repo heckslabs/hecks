@@ -1,10 +1,10 @@
 require "spec_helper"
 require "tmpdir"
 
-# §5/§6/§7 END TO END — the actual regression this whole phase exists
+# §5/§6/§7 end to end — the actual regression this whole phase exists
 # to fix: a process manager sitting in a mid-flight (or, here, a
 # terminal-but-never-cleaned-up) state survives a process restart,
-# through a REAL adapter, not the Memory one `spec/runtime/saga_spec.rb`
+# through a real adapter, not the Memory one `spec/runtime/saga_spec.rb`
 # stays on. Uses the Wire fixture's own `Carry` saga
 # (spec/fixtures/settlement.bluebook) bound to SqlitePersistence rather
 # than a purpose-built fixture, the same "reuse the existing Carry
@@ -12,13 +12,13 @@ require "tmpdir"
 # for.
 #
 # `Carry`'s own `on "WireAsked"`/`on "Taken"`/`on "PutIn"` legs all
-# cascade SYNCHRONOUSLY within one `dispatch` call (`deliver_saga_
+# cascade synchronously within one `dispatch` call (`deliver_saga_
 # dispatch` re-enters through the same door), so there is no publicly
 # observable "waiting for a later, separate dispatch" window for the
 # happy path. The `on :refused` leg is different: shutting the
-# DESTINATION drawer before asking a wire makes `Wire::Drawer.Put`
+# destination drawer before asking a wire makes `Wire::Drawer.Put`
 # refuse, `unwind` moves the saga to `"returned"`, and `"returned"` has
-# no further transition in this bluebook — a REAL, naturally-arising
+# no further transition in this bluebook — a real, naturally-arising
 # stuck state, structurally the same shape as Banking's own `Settlement`
 # sitting in `"awaiting_credit"` this whole arc is about.
 RSpec.describe "durable saga/process-manager state" do
@@ -101,7 +101,7 @@ RSpec.describe "durable saga/process-manager state" do
     stuck_wire(boot_wire)
 
     # A fresh Registry — no in-memory state carried over, only the
-    # SAME sqlite file on disk. This is what a process restart/cold
+    # same sqlite file on disk. This is what a process restart/cold
     # start looks like.
     reopened = boot_wire
 
@@ -149,8 +149,8 @@ RSpec.describe "durable saga/process-manager state" do
       runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
       runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
 
-      # Ten threads all asking the SAME wire reference concurrently —
-      # the correlation collides on every one. Exactly one may WIN
+      # Ten threads all asking the same wire reference concurrently —
+      # the correlation collides on every one. Exactly one may win
       # (begin the saga instance); the rest must see it already exists
       # and quietly skip, never partially overwriting it. Without the
       # mutex covering the check-then-set, this is the exact race

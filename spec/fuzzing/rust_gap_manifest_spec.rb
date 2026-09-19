@@ -33,7 +33,7 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
       expect(unclassified).to be_empty
     end
 
-    # THE RATCHET. `structural_refusal_boundary` may only name construct
+    # **The ratchet**. `structural_refusal_boundary` may only name construct
     # families some committed domain really leaves ungenerated. When codegen
     # closes the last instance of a family, the regenerated manifests stop
     # declaring it and this fails until the family is removed from

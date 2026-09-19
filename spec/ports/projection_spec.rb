@@ -75,7 +75,7 @@ RSpec.describe Hecks::Ports::Projection::Worker do
       .to raise_error(Hecks::Runtime::WiringError, /does not match/)
   end
 
-  # Before this fix, ANY policy other than the exact Symbol `:strict`
+  # Before this fix, any policy other than the exact Symbol `:strict`
   # (a typo, or any other spelling meaning the same thing) silently fell
   # through the consistency check and appended onto divergent history —
   # no error, no refresh, just a wrong answer built on top of a mismatch.

@@ -1,7 +1,7 @@
 require "hecks"
 require_relative "../../qa/adapters/github_checks"
 
-# TRANSPORT ONLY — never spawns the real `gh` binary (that would make this
+# **Transport only** — never spawns the real `gh` binary (that would make this
 # suite hit live GitHub on every run: slow, rate-limited, non-deterministic,
 # and the one thing `spec/quality_control_spec.rb`'s own `GreenCi`/`RedCi`
 # stubs exist specifically to avoid needing at the port-and-policy level).
@@ -29,7 +29,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
 
   subject(:adapter) { described_class.new }
 
-  # `commit:` ARRIVES AS THE VALUE OBJECT'S OWN MATERIALIZED SHAPE — a
+  # `commit:` arrives as the value object's own materialized shape — a
   # `{value: "…"}` hash, per `PortOperationInterpreter#ask`'s own comment
   # ("a Value never crosses the boundary"). This is the one shape a live
   # dispatch actually hands the adapter (see `quality_control.hecksagon`'s
@@ -59,7 +59,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
       expect(adapter.run(commit: { value: SHA })).to eq(summary: { value: "3 checks, all green (4f2a19c)" })
     end
 
-    # A CONCLUSION THAT ISN'T `success` BUT ISN'T A FAILURE EITHER —
+    # A conclusion that isn't `success` but isn't a failure either —
     # GitHub's own words for "ran, and chose not to fail the commit."
     it "does not count neutral or skipped runs against the commit" do
       stub_gh(runs_json(check_run("rspec"), check_run("path-filtered", conclusion: "skipped"),
@@ -87,7 +87,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
         .to raise_error(/no checks at all against #{SHA}/)
     end
 
-    # DEFENSIVE, NOT EXPECTED — `bin/qa_pr_check` only ever asks once its
+    # **Defensive, not expected** — `bin/qa_pr_check` only ever asks once its
     # own `gh pr checks` has already shown nothing pending. This is the
     # adapter's own guard against the rare race where a check starts
     # running in between (see this class's own header comment on why it
@@ -112,7 +112,7 @@ RSpec.describe Hecks::Adapters::GithubChecks do
     end
   end
 
-  # THE PORT'S OWN CONTRACT — `answers "SuitePassed"`/`refuses "SuiteFailed"`
+  # **The port's own contract** — `answers "SuitePassed"`/`refuses "SuiteFailed"`
   # (`quality_control.hecksagon`) reach `Clearance::Passed`/`Failed` by
   # spreading whatever this method returns/raises straight into the
   # triggered command's own arguments (`PortOperationInterpreter#ask`'s own
@@ -121,5 +121,5 @@ RSpec.describe Hecks::Adapters::GithubChecks do
   # message. Both are exercised end to end (a real boot, a real dispatch,
   # the real `ClearOnPass`/`RefuseOnFail` policies actually firing) in
   # `spec/quality_control_spec.rb`'s own "clearance" and "the CI watch"
-  # examples — this file stays scoped to what THIS class alone decides.
+  # examples — this file stays scoped to what this class alone decides.
 end

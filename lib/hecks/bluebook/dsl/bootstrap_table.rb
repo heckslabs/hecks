@@ -1,11 +1,11 @@
-# GENERATED — projected from the language's own Keyword rows (the
+# Generated — projected from the language's own Keyword rows (the
 # `calls:`, `resolves_via:` and `disambiguator:` columns of every
 # KeywordSeed under lib/hecks/language/).
 #
-# DO NOT EDIT. spec/bootstrap_table_spec.rb re-projects this in memory
+# Do not edit. spec/bootstrap_table_spec.rb re-projects this in memory
 # and refuses a diff — run bin/project_bootstrap_table instead.
 #
-# Plain data, no requires: this is read WHILE the grammar table it was
+# Plain data, no requires: this is read while the grammar table it was
 # projected from is still being built (`MetaValidator.bootstrapping?`).
 
 module Hecks

@@ -2,26 +2,26 @@ require_relative "../ports/persistence/binding_policy"
 
 module Hecks
   module Runtime
-    # The capability idiom for MULTI-TENANT hosting — mirrors EraCheck's
+    # The capability idiom for multi-tenant hosting — mirrors EraCheck's
     # own `lineage_capable?`, one level over. An adapter answers
-    # `tenant_capable?` with true when its OWN instances genuinely
+    # `tenant_capable?` with true when its own instances genuinely
     # isolate one boot's data from another's, given each tenant is its
     # own separate `Runtime.boot` call (its own Registry, its own
     # Dispatcher, its own adapter instances) rather than one shared
     # process switching connections mid-dispatch.
     #
-    # THAT LAST PART IS THE FINDING THIS MODULE ENCODES. The project
+    # That last part is the finding this module encodes. The project
     # register (Bluebook::ProjectRegister) already resolves an address's
-    # REALM to a DISPATCHER at registration time — Router#resolve looks
+    # realm to a dispatcher at registration time — Router#resolve looks
     # the FQN up in one flat table keyed by realm::domain::aggregate.verb,
-    # and each entry already carries its OWN dispatcher from its OWN
-    # boot. So "which tenant" is decided ONCE, at boot/registration time
+    # and each entry already carries its own dispatcher from its own
+    # boot. So "which tenant" is decided once, at boot/registration time
     # (which of possibly many boots of the same directory a request's
     # realm resolves to), never per-dispatch inside a shared registry.
     # No ambient thread-local "current tenant" is needed, and no
     # connection cache is needed beyond what booting-once-per-tenant
     # already gives for free — each tenant's own PostgresEra instance
-    # IS its own connection, held for the life of that boot.
+    # is its own connection, held for the life of that boot.
     #
     # So `tenant_capable?` asks a narrower question than it might sound:
     # not "can this adapter switch tenants," but "does booting this
@@ -41,7 +41,7 @@ module Hecks
     module TenantCheck
       module_function
 
-      # A domain is safe to boot for MORE THAN ONE TENANT only if every
+      # A domain is safe to boot for more than one tenant only if every
       # aggregate's resolved persistence adapter is tenant_capable? — one
       # ungoverned adapter sharing state across two tenant boots is a
       # real data leak, not a theoretical one, so this is checked before
@@ -67,7 +67,7 @@ module Hecks
               "or keep #{domain} single-tenant."
       end
 
-      # The capability idiom itself — an adapter CLASS that answers
+      # The capability idiom itself — an adapter class that answers
       # tenant_capable? with true keeps two boots' data apart by
       # construction (Memory) or by an explicit per-boot isolation
       # setting (PostgresEra's schema:). Same defensive shape

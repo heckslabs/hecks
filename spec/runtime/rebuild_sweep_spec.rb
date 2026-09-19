@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# THE OUT-OF-BAND HALF OF `projects` (S12, ADR 0025 — "Consistency
+# The out-of-band half of `projects` (S12, ADR 0025 — "Consistency
 # across aggregate boundaries") — proven end to end against a
 # dedicated fixture, not the real corpus: banking's own Account
 # declares `projects :customer_status`, which its own `given
@@ -10,11 +10,11 @@ require "spec_helper"
 #
 # `seed_projected_fields` (`command_interpreter.rb`) means a
 # projected field is no longer absent-until-manually-swept the way
-# it was before this migration — every command that SAVES a record
+# it was before this migration — every command that saves a record
 # with `projects` fields resolves them once, synchronously, the same
 # read `RebuildSweep` itself would do. `RebuildSweep` stays the
-# mechanism for the case seeding cannot cover: the TARGET moving
-# AFTER this record's own last write, with nothing here to notice.
+# mechanism for the case seeding cannot cover: the target moving
+# after this record's own last write, with nothing here to notice.
 RSpec.describe "the rebuild sweep" do
   FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/projected_fields.bluebook")
 
@@ -46,12 +46,12 @@ RSpec.describe "the rebuild sweep" do
       .not_to raise_error
   end
 
-  # THE ONE CASE SYNCHRONOUS SEEDING CANNOT COVER: a record that
+  # The one case synchronous seeding cannot cover: a record that
   # never went through `CommandInterpreter#step_save` at all — a
   # direct repository write, the same shape a bulk import or a
   # migration script would use. This is `ProjectionAbsent`'s real
   # job now: not "before the first save," which no longer happens,
-  # but "before ANY save this runtime's own dispatch pipeline ever
+  # but "before any save this runtime's own dispatch pipeline ever
   # touched."
   it "still refuses on a projected field a direct repository write never seeded" do
     runtime = boot
@@ -85,12 +85,12 @@ RSpec.describe "the rebuild sweep" do
 
     runtime.dispatch("ProjectedFields::Customer.Suspend", ref: "c3")
 
-    # STALE ON PURPOSE — this is the whole point of "kept fresh by a
+    # **Stale on purpose** — this is the whole point of "kept fresh by a
     # seed-on-write plus a sweep for drift, rather than read live":
     # Customer.Suspend only touches Customer's own record, so Account's
-    # own copy still answers "active" until SOMETHING saves this
+    # own copy still answers "active" until something saves this
     # Account record again. Checked directly against storage, not via
-    # another dispatch — dispatching ANYTHING against this same
+    # another dispatch — dispatching anything against this same
     # Account (even a pure read-shaped command like
     # CheckCustomerActive, which still runs step_save) would itself
     # re-seed the field before the sweep gets a chance to be the one

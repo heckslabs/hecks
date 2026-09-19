@@ -6,8 +6,8 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # THE READ-SIDE HALF OF LAMBDA ROUTING — `persisted_by("Lambda")`'s
-    # own adapter, resolved through the SAME `Ports::Persistence`
+    # **The read-side half of lambda routing** — `persisted_by("Lambda")`'s
+    # own adapter, resolved through the same `Ports::Persistence`
     # machinery `persisted_by("Postgres")`/`persisted_by("Memory")`
     # already use (`Runtime::Registry#repository`, `RepositoryFactory
     # .build`) — no new framework plumbing, just a new adapter class at
@@ -16,7 +16,7 @@ module Hecks
     # compose through one shared `Client` per domain rather than each
     # inventing its own AWS wiring.
     #
-    # READ-ONLY, DELIBERATELY — `append`/`project` raise rather than
+    # **Read-only, deliberately** — `append`/`project` raise rather than
     # silently no-op. A write reaching this class would mean
     # `Runtime::CommandInterpreter` ran locally against a Lambda-routed
     # domain, which is exactly the bypass `Runtime::RemoteDispatcher`
@@ -40,36 +40,36 @@ module Hecks
             aggregate.name
           end
         region = setting(settings, :region, "us-east-1")
-        # NAMED, WHEN THIS DEPLOYMENT'S FUNCTION ISN'T `hecks-<domain>`
+        # Named, when this deployment's function isn't `hecks-<domain>`
         # — `Client`'s own comment has the real case that needs it.
         # Absent (every domain whose stack name was never pinned), the
         # computation below is exactly as it was.
         function = setting(settings, :function, nil)
-        # TWO DIFFERENT "domain"s, deliberately not conflated: `domain`
-        # (this aggregate's OWN bluebook name — "Identity", "Governance")
+        # Two different "domain"s, deliberately not conflated: `domain`
+        # (this aggregate's own bluebook name — "Identity", "Governance")
         # only ever prefixes the instances lookup, since that's how
         # rust/host's own `Store::instances()` keys every record
         # (`registry.rb`'s own `"#{a[:domain_name]}::#{a[:name]}#"`
         # dump format, unchanged by which chapter attached it). The
-        # FUNCTION to actually call is a different question: Governance
-        # and Identity aggregates are compiled into the ATTACHING
+        # function to actually call is a different question: Governance
+        # and Identity aggregates are compiled into the attaching
         # domain's own Lambda (one merged `Store` per target — Phase 0's
         # framework-bluebook work), never a function of their own, so
         # `settings[:domain]` is the wrong signal for `Client.new`.
         # `root` is the boot's own directory (`Registry#root`, shared by
-        # EVERY bluebook in one registry regardless of which one
+        # every bluebook in one registry regardless of which one
         # attached it) — `File.basename(root)` reproduces the exact
         # same string `bin/project_deploy`'s own `stack_name` computes
-        # from the domain PATH, so the two can never name two
-        # different functions for the same deploy... on a LOCAL boot,
+        # from the domain path, so the two can never name two
+        # different functions for the same deploy... on a local boot,
         # where `root` is a real project directory. Inside the deployed
-        # Lambda itself `root` is ALWAYS `/var/task` (every Lambda's own
+        # Lambda itself `root` is always `/var/task` (every Lambda's own
         # fixed code root, regardless of domain) — `File.basename` gives
         # "task", not the domain name, and invokes the wrong function
         # entirely. A real, live AccessDeniedException on
         # "hecks-task" caught this: invisible through every earlier
         # phase's own verify step, all run from a local boot, until
-        # WebFunction became the first Ruby process to EVER make this
+        # WebFunction became the first Ruby process to ever make this
         # exact call from inside a deployed Lambda. `DOMAIN_NAME` (set
         # by bin/project_deploy's own WebFunction Environment) is the
         # real, unambiguous signal in that specific context; the
@@ -116,16 +116,16 @@ module Hecks
 
       private
 
-      # RE-FETCHED EVERY CALL, deliberately NOT memoized across them —
+      # Re-fetched every call, deliberately not memoized across them —
       # this adapter itself is long-lived (one instance per aggregate,
-      # held by the registry `RUNTIME = Hecks.boot(...)` builds ONCE
+      # held by the registry `RUNTIME = Hecks.boot(...)` builds once
       # per Lambda web process — WebFunction's own top-level constant,
       # reused warm across every HTTP request that process serves, not
       # rebuilt per request the way a memoize-for-one-request comment
       # here used to assume). A real, live bug caught this: a mutation
       # dispatched fine (RemoteDispatcher always calls the dispatch
-      # Lambda fresh) and the very next `.all` on the SAME warm
-      # container kept returning the state from BEFORE that mutation,
+      # Lambda fresh) and the very next `.all` on the same warm
+      # container kept returning the state from before that mutation,
       # forever, until the container cold-started — memoizing here
       # made every write invisible to every read on a warm container.
       # Keyed by bare id (the part after "Domain::Aggregate#"), not the
@@ -139,7 +139,7 @@ module Hecks
         end.to_h
       end
 
-      # Lambda's own JSON response is already Ruby-decoded with STRING
+      # Lambda's own JSON response is already Ruby-decoded with string
       # keys (plain `JSON.parse`, no `symbolize_names:`) — decoded through
       # the state codec (PR A3), the same IR-driven spelling every other
       # adapter's read produces.

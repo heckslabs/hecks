@@ -1,14 +1,14 @@
 module Hecks
   # The invisible field a built construct carries.
   #
-  # A construct is a RECORD WITH AN OWNER CHAIN — the chapter (Bluebook)
+  # A construct is a record with an owner chain — the chapter (Bluebook)
   # owns its aggregates, an aggregate owns everything declared on it — and the
   # bluebook identity is carried in its own field, under a `hecks_` prefix that
   # no domain attribute can collide with. Invisible means exactly that: not an
   # attribute, not a key in `to_h`, not a reader on instances. Framework
   # metadata about the construct, not part of the domain it describes.
   #
-  # The identity is COMPUTED by walking owners rather than stamped, so nothing
+  # The identity is computed by walking owners rather than stamped, so nothing
   # has to be re-stamped when a chapter is assembled after its aggregates:
   #
   #     Pizzas                     the chapter — no owner
@@ -17,7 +17,7 @@ module Hecks
   #
   # That spelling is not invented here. It is the id `MetaValidator::Judge`
   # already mints in `#identify`, so a construct and the meta-domain's
-  # record OF that construct carry the same identity, and there is no
+  # record of that construct carry the same identity, and there is no
   # translation table between them to be quietly wrong in.
   #
   # Usage:
@@ -37,7 +37,7 @@ module Hecks
     attr_writer :hecks_name
 
     # A chapter is the only construct that legitimately has no owner. Everything
-    # else is DECLARED IN something, so a missing owner is an unstamped construct
+    # else is declared in something, so a missing owner is an unstamped construct
     # rather than a top — see hecks_fqn.
     attr_writer :hecks_root
 
@@ -47,11 +47,11 @@ module Hecks
     def hecks_name = @hecks_name
 
     # How this construct joins its owner. An aggregate is a member of its
-    # chapter's namespace (`::`) ; everything else is declared ON its owner
+    # chapter's namespace (`::`) ; everything else is declared on its owner
     # (`.`). Overridden by Aggregate, defaulted here for every other construct.
     def hecks_separator = "."
 
-    # REFUSES rather than guesses. A construct with no owner and no claim to be a
+    # Refuses rather than guesses. A construct with no owner and no claim to be a
     # chapter has simply not been stamped yet — entity commands are in that state
     # while entities are still IR objects — and answering the bare name would be a
     # plausible half-truth that no test would notice. That shape of falsehood is

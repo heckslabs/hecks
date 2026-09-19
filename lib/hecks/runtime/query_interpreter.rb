@@ -15,7 +15,7 @@ module Hecks
     # repository: prefers a native adapter hook (Ports::Query.execute)
     # when the store can answer directly, falling back to interpreting
     # wheres/order_by/limit/offset over every loaded record itself.
-    # #reference_call/#reference_interpret are a SEPARATE, deliberately
+    # #reference_call/#reference_interpret are a separate, deliberately
     # naive re-implementation of the same evaluation, used only as the
     # fuzzer's oracle to catch divergence between adapters and this
     # interpreter's own native path.
@@ -32,10 +32,10 @@ module Hecks
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
         declared = TenantScope.apply(declared, args)
-        # AFTER TenantScope, so its synthetic clause is already present
-        # in `.wheres` and rides through as an ordinary LOCAL clause on
-        # the OUTER query. It does not reach the hop's own inner
-        # sub-query against the TARGET aggregate — a hop's target may
+        # After TenantScope, so its synthetic clause is already present
+        # in `.wheres` and rides through as an ordinary local clause on
+        # the outer query. It does not reach the hop's own inner
+        # sub-query against the target aggregate — a hop's target may
         # not even declare the same tenant boundary, and propagating one
         # aggregate's tenant scope onto an unrelated aggregate's own
         # query is a real design question of its own, not answered here.
@@ -51,14 +51,14 @@ module Hecks
         if (native = Ports::Query.execute(repository, declared, args,
                                           context: { domain: domain, aggregate: aggregate, registry: @registry }))
           records = native
-          # `record.state.merge(id: record.id)` — id LAST, not first. See
+          # `record.state.merge(id: record.id)` — id last, not first. See
           # Instance#to_h's own comment: an aggregate free to declare its
           # own attribute literally named `id` has that attribute's own
           # wrapped value sitting in `record.state[:id]` already; merging
-          # it OVER a `{id:}.merge(state)` used to let it silently
+          # it over a `{id:}.merge(state)` used to let it silently
           # clobber the correct bare identity this row is supposed to
           # carry.
-          # A QUERY ROW IS AN ANSWER, NOT A HANDLE. Mutating one edits
+          # A query row is an answer, not a handle. Mutating one edits
           # nobody's state and silently disagrees with the store.
           return Freezer.deep(records.map { |record| record.state.merge(id: record.id) })
         end
@@ -66,18 +66,18 @@ module Hecks
         Freezer.deep(interpret(repository.all, declared, args, domain: domain))
       end
 
-      # The REFERENCE answer — this interpreter's own evaluation, never an
+      # The reference answer — this interpreter's own evaluation, never an
       # adapter's native hook. The fuzzer's query oracle replays every
       # generated ask through both paths and treats a difference as a
       # finding: the differential gate the retired cross-runtime harness
       # should always have been, aimed where the divergence actually
       # lives — between the engines inside this one runtime.
       #
-      # A hop clause is answered here by its OWN, deliberately naive
+      # A hop clause is answered here by its own, deliberately naive
       # walk (reference_where_holds?) — never Runtime::ReferenceHop's
-      # partition/fold/IN-clause. Sharing that algorithm would have made
+      # partition/fold/in-clause. Sharing that algorithm would have made
       # this oracle blind to exactly the code the hop feature adds: every
-      # PHASE of a shared fold would still get diffed against the native
+      # phase of a shared fold would still get diffed against the native
       # adapters, but the fold itself — the empty candidate set, a
       # duplicate id, a dangling reference, a chain's inside-out
       # resolution order — would only ever be compared against itself.
@@ -102,7 +102,7 @@ module Hecks
       def interpret(records, declared, args, domain: nil)
         matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args, domain: domain) } }
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
-        # OFFSET FIRST, THEN LIMIT — the order SQL means by `LIMIT n
+        # **Offset first, then limit** — the order SQL means by `LIMIT n
         # OFFSET m`, and the order Ports::Query::InMemory#execute already
         # applies (see that file's own comment). This interpreter used to
         # never read declared.offset at all — offset silently vanished for
@@ -110,7 +110,7 @@ module Hecks
         skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
         capped  = declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
 
-        # id LAST — see the native-path comment above; same clobbering
+        # id last — see the native-path comment above; same clobbering
         # risk for the in-memory reference interpreter's own rows.
         capped.map { |r| r.state.merge(id: r.id) }
       end
@@ -120,7 +120,7 @@ module Hecks
       # reference is answered by reference_where_holds? instead of the
       # plain FieldPath.dig(record, field) `where_holds?` uses (which
       # has no concept of a reference at all — it would just read the
-      # raw id straight off the record and compare THAT).
+      # raw id straight off the record and compare that).
       def reference_interpret(records, declared, args, domain:, shape:)
         matched = records.select do |r|
           declared.wheres.all? do |w|
@@ -128,20 +128,20 @@ module Hecks
           end
         end
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
-        # OFFSET FIRST, THEN LIMIT — same fix, same reasoning, as
+        # **Offset first, then limit** — same fix, same reasoning, as
         # #interpret's own rows above.
         skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
         capped  = declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
 
-        # id LAST — same reasoning, same fix, as interpret's own rows.
+        # id last — same reasoning, same fix, as interpret's own rows.
         capped.map { |r| r.state.merge(id: r.id) }
       end
 
-      # THE NAIVE READING OF A HOP: not a fold, not an id set — for
+      # **The naive reading of a hop**: not a fold, not an id set — for
       # each candidate row, walk the reference by hand and dig the
       # field out of whatever it actually points at. A nil reference,
       # or one that resolves to nothing (a dangling id), makes the
-      # WHOLE clause false outright, whatever the comparator — "points
+      # whole clause false outright, whatever the comparator — "points
       # at a client that is not active" is false for a proposal with no
       # client at all, the same way it is false for one whose client
       # really is active; falling through to holds?(clause, nil, args)
@@ -177,8 +177,8 @@ module Hecks
 
         ordered = ordered_elements(rows, declared.order_by, declared.null_semantics,
                                    parent_key, entity.identity_heads)
-        # OFFSET FIRST, THEN LIMIT — same fix, same reasoning, as
-        # #interpret's own rows above. `entity_rows` is the ONLY engine
+        # **Offset first, then limit** — same fix, same reasoning, as
+        # #interpret's own rows above. `entity_rows` is the only engine
         # for entity/sub-list queries, so a declared offset here silently
         # vanished for every entity query, not merely one path among
         # several.
@@ -186,8 +186,8 @@ module Hecks
         declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
       end
 
-      # THE THREE DECLARATIONS `entity_rows` NEEDS BEFORE IT CAN READ A
-      # SINGLE RECORD — the entity itself, its declared query, and the
+      # The three declarations `entity_rows` needs before it can read a
+      # single record — the entity itself, its declared query, and the
       # list attribute that holds it on the aggregate. Extracted from
       # `entity_rows` (pure extraction, same lookups, same order, same
       # UnknownVerb refusals) purely to separate "which declarations does
@@ -207,7 +207,7 @@ module Hecks
 
       # FieldPath.dig, not a raw `element[clause.field.to_sym]` — a dotted
       # `where` (`where "price.cents" < 100`) needs the same segment-by-
-      # segment walk every other query path already gets. Reading the WHOLE
+      # segment walk every other query path already gets. Reading the whole
       # dotted string as one key always missed — `element[:"price.cents"]`
       # is never a real key — so a dotted where on an entity query
       # silently matched nothing, on the only engine entity queries have.
@@ -220,17 +220,17 @@ module Hecks
       # `EntityListCoercion#hydrate_entity_list` symbolizes each element — PR A4
       # removed the string-spelling fallback that coped with the old per-adapter
       # shapes). It rides `comparable` for the same reason a where-clause does : an
-      # identity is a value object, and `to_s` on one is an OBJECT ADDRESS — a sort key
+      # identity is a value object, and `to_s` on one is an object address — a sort key
       # that differs run to run, which is worse than the store order it replaced.
       def cell(row, key) = row[key.to_sym]
 
-      # A sub-list row is identified by its PARENT and then its own key : two
+      # A sub-list row is identified by its parent and then its own key : two
       # entities under different parents can share a sequence, so the parent has
       # to lead or the tie is not broken at all.
       #
-      # EVERY KEY THE PIECE IS KNOWN BY, in declaration order, for the same
+      # Every key the piece is known by, in declaration order, for the same
       # reason the parent leads: a part that ties is a part that breaks no tie.
-      # This took `identified_by`, which is the SINGLE head and is nil the
+      # This took `identified_by`, which is the single head and is nil the
       # moment an identity has two parts — and `cell(row, nil)` calls
       # `nil.to_sym`, so a query against a composite piece did not sort wrongly,
       # it raised. A piece known by one key sorts exactly as it did.
@@ -253,7 +253,7 @@ module Hecks
       # Ports::Query::InMemory#holds? used to carry a copy each and the
       # two drifted — `none_in_state` reached only one of them, and
       # `comparable` disagreed about value objects with two numeric
-      # members. What stays here is how a value is REACHED for this
+      # members. What stays here is how a value is reached for this
       # path: the registry is instance state rather than an argument.
       def holds?(clause, held, args, record: nil, domain: nil)
         QuerySpecification::Common::Comparison.holds?(
@@ -267,8 +267,8 @@ module Hecks
 
       # `boundary: false` always (C3.8 — a query's declared argument types
       # name the argument for callers and generators, never a runtime
-      # shape checked here). A null required VALUE-OBJECT-typed query
-      # argument, though, is NOT a runtime-shape question at all: C3.7
+      # shape checked here). A null required value-object-typed query
+      # argument, though, is not a runtime-shape question at all: C3.7
       # says a named query's declared value-object arguments are checked
       # the same way a command argument's own is, so a `nil` offered for
       # a non-optional value-object-typed query attribute
@@ -277,30 +277,30 @@ module Hecks
       # let it through as a silent, unfiltered query instead, a real
       # Ruby/Rust divergence the fuzzer caught (QualityControl BUG#2).
       #
-      # `checked_vo?` true is handled by `null_vo_argument!` DIRECTLY,
+      # `checked_vo?` true is handled by `null_vo_argument!` directly,
       # never by routing through `Value.for_attribute(argument: true)`
-      # into the shared `Value::Coercion#nil_argument` the COMMAND door
+      # into the shared `Value::Coercion#nil_argument` the command door
       # (`Interpreting#coerce_declared_arguments`) still uses — that
-      # method builds a null value object from ZERO fields, which
-      # SUCCEEDS (silently absorbing the null via the type's own field
+      # method builds a null value object from zero fields, which
+      # succeeds (silently absorbing the null via the type's own field
       # defaults) whenever every field happens to have one
       # (`Lease.Expired`'s `now`, a `LeaseInstant` with a `default: 0`
       # field; `Account.Overdrawn`/`HighBalance`/`StrictlyAbove`/
       # `AtMost`'s `floor`/`cap`, a two-defaulted-field `Money`) and only
       # refuses when a field has none (`Order.CostingLessThan`'s
-      # `ceiling`, a defaultless `Price`) — a real QUERY-side divergence
+      # `ceiling`, a defaultless `Price`) — a real query-side divergence
       # from Rust, which always refuses `TypeMismatch` on an explicit
       # null argument regardless of any default (QualityControl BUG#36).
       # `null_vo_argument!` instead treats an explicit null exactly the
-      # way `Value.fields_for` already treats any other WRONG-SHAPED
+      # way `Value.fields_for` already treats any other wrong-shaped
       # (non-Hash, non-Value) value offered for that same attribute — a
       # single-field value object auto-wraps into `{field: nil}` (whose
-      # OWN `nil` is a PRESENT key, so `Value.build`'s `apply_defaults`
+      # own `nil` is a present key, so `Value.build`'s `apply_defaults`
       # never fills it, and `check_required_fields` refuses it exactly
       # as any other missing required field would); a multi-field value
       # object refuses immediately with the same `value_object_shape`
       # wording an ordinary wrong-shaped scalar already gets. Command
-      # arguments are deliberately UNTOUCHED — this is a query-only
+      # arguments are deliberately untouched — this is a query-only
       # door; `nil_argument`'s own default-absorbing fallback still
       # governs a null command argument exactly as it always has.
       #

@@ -21,7 +21,7 @@ RSpec.describe "Hecks.boot_files" do
 
     # "Governance" arrives via `uses_framework` inside the hecksagon, not
     # from a directory glob — the point this proves is that nothing else
-    # under examples/pizzas/bluebook/ (the REAL pizzas.hecksagon, say)
+    # under examples/pizzas/bluebook/ (the real pizzas.hecksagon, say)
     # snuck in.
     expect(runtime.registry.bluebooks.keys).to eq(["Pizzas", "Governance"])
   end

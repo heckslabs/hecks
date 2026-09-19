@@ -15,13 +15,13 @@ module Hecks
     # `{name, note, steps}` shape `spec/corpus/*.json` already uses — so a
     # generated sequence replays as a corpus member, completely unchanged.
     # Boots a throwaway copy of
-    # the domain and DISPATCHES each candidate step for real as it builds the
+    # the domain and dispatches each candidate step for real as it builds the
     # sequence (not just synthesizing plausible-looking JSON) : the only way to
     # know whether a step actually reached a new state, or which id an
     # auto-minted entity landed on, is to run it and watch what happened.
     #
     # Single-call fuzzing mostly misses the bugs this project has actually
-    # found — they needed STATE first (a saga leg acting on a transfer that
+    # found — they needed state first (a saga leg acting on a transfer that
     # already exists, a reference pointing at a customer already registered).
     # So this tracks what it has created as it goes, the same way
     # spec/banking_state_machine_spec.rb's hand-written generator does, and
@@ -47,18 +47,18 @@ module Hecks
       CREATING_WEIGHT = 2
 
       # How often a payload is deliberately the wrong shape. Low, because a
-      # refused step reaches no new state and a sequence of them is SILENT.
+      # refused step reaches no new state and a sequence of them is silent.
       MALFORMED_ARGUMENT_PROBABILITY = 0.12
 
-      # HOW OFTEN AN OPTIONAL ARGUMENT IS SIMPLY NOT GIVEN — a fair coin,
+      # How often an optional argument is simply not given — a fair coin,
       # because that is exactly what `optional:` means: present or absent,
       # both legal, neither the interesting case.
       #
-      # This is NOT a malformation and must not be filed as one. `malform`
-      # drops an argument too, but a dropped REQUIRED argument is refused,
-      # a refusal writes no record, and bin/fuzz counts it SILENT — so the
+      # This is not a malformation and must not be filed as one. `malform`
+      # drops an argument too, but a dropped required argument is refused,
+      # a refusal writes no record, and bin/fuzz counts it silent — so the
       # one outcome worth reaching (a stored record carrying a null, then
-      # QUERIED) was unreachable from that path by construction. Until
+      # queried) was unreachable from that path by construction. Until
       # this existed no generated history contained a null at all, which
       # meant `query_answers_match_reference` — the differential that
       # diffs every native adapter against the reference interpreter — had
@@ -72,11 +72,11 @@ module Hecks
       # How strongly an unexercised verb is preferred over one this sequence has
       # already dispatched. Random picking revisits the same handful of verbs and
       # leaves whole commands untouched for a whole run — which is the same
-      # "reached no interesting state" problem the SILENT count reports, seen from
+      # "reached no interesting state" problem the silent count reports, seen from
       # the generating end rather than the scoring end.
       UNEXERCISED_WEIGHT = 4
 
-      # `adversarial:` — the fraction of generated COMMAND steps (0.0..1.0)
+      # `adversarial:` — the fraction of generated command steps (0.0..1.0)
       # that get one deliberately adversarial argument mutation
       # (adversary.rb — the shapes BUG#7–#16 were found through). `0.0`,
       # the default, draws nothing extra from the seeded RNG, so a seed's
@@ -102,7 +102,7 @@ module Hecks
         new(domain_path, seed: seed, steps: steps, **).call
       end
 
-      # THE SAME GENERATION, WITH WHAT IT REACHED — `coverage` is
+      # The same generation, with what it reached — `coverage` is
       # `[[attempt_index, tuple], ...]` (`coverage_tuple`), `verbs` every
       # verb the booted catalog offered, so a campaign can tell a verb it
       # never hit from one that does not exist.
@@ -120,11 +120,11 @@ module Hecks
 
       attr_reader :coverage, :verbs
 
-      # How many EVENTS the generated sequence actually produced — not
+      # How many events the generated sequence actually produced — not
       # steps, not successful dispatches, but the sum of every Result#events
       # length across the run. This is the count bin/fuzz declares as the
       # script's own `expectations.events` claim: whatever was achieved
-      # DURING generation becomes the claim a fresh replay of the same
+      # during generation becomes the claim a fresh replay of the same
       # script is held to. Zero means the sequence never
       # reached an interesting state — a fuzzer-effectiveness fact, not a
       # replay one.
@@ -149,7 +149,7 @@ module Hecks
         @known_ids           = Hash.new { |h, k| h[k] = [] }
         @entity_known_ids    = Hash.new { |h, k| h[k] = [] }
         @appended_identities = Hash.new { |h, k| h[k] = [] }
-        # ROLE => [actor ids] this sequence's own successful
+        # Role => [actor ids] this sequence's own successful
         # `Governance::RoleAssignment.Assign` steps granted — what the
         # `actor_known` caller shape draws from (adversary.rb).
         @granted             = Hash.new { |h, k| h[k] = [] }
@@ -168,7 +168,7 @@ module Hecks
         # Real leftover data from ordinary use (bin/console, whatever) lives
         # under the example's data/ — a generator that boots against it
         # starts from state its own known_ids tracking doesn't know about.
-        # IsolatedBoot resets that AND rebinds persistence to Memory, since
+        # IsolatedBoot resets that and rebinds persistence to Memory, since
         # a Postgres-bound domain's real store lives outside the copied
         # directory entirely and `rm_rf`ing data/ alone cannot reach it —
         # see isolated_boot.rb's own header.
@@ -191,18 +191,18 @@ module Hecks
 
       private
 
-      # A PREFIX IS THE FIRST `limit` ATTEMPTS OF ANOTHER SEED'S GENERATION,
+      # A prefix is the first `limit` attempts of another seed's generation,
       # re-run for real: its own nested prefix first (capped the same way it
       # was capped when that seed was generated), then that seed's own
       # `Random.new(seed)` and favor for the rest. Same inputs, same
       # catalog, same draws — the same steps, and the same known ids and
       # exercised verbs carried forward into this seed.
       #
-      # THE PREFIX IS ON TOP OF THIS SEED'S OWN BUDGET, NOT OUT OF IT. A
+      # The prefix is on top of this seed's own budget, not out of it. A
       # spliced seed still makes all `steps` attempts of its own after the
       # prefix; a prefix is capped at `steps` attempts, so a spliced
       # sequence is at most twice as long as an unspliced one. Taking the
-      # prefix OUT of the budget (the first version of this) left a spliced
+      # prefix out of the budget (the first version of this) left a spliced
       # seed replaying state already seen with almost nothing left to
       # explore from it — measured: fewer distinct tuples than unguided.
       def realize_prefix(runtime, catalog, spec, limit, steps)

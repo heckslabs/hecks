@@ -56,7 +56,7 @@ RSpec.describe Hecks::Projector do
       expect(projected[:ir_version]).to eq(Hecks::Bluebook::Chapter::IR_VERSION)
     end
 
-    # Determinism, proven against the SAME golden fixture
+    # Determinism, proven against the same golden fixture
     # spec/ir_golden_spec.rb already pins — not a fixture invented
     # solely for this framework, which would only prove agreement with
     # itself.

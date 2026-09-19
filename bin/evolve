@@ -11,12 +11,14 @@
 #   bin/evolve deprecate <word> --context X        admitted -> deprecated
 #   bin/evolve retire  <word> --context X          deprecated/admitted -> retired
 #
-# A word's ARGUMENTS carry the same lifecycle, one level down — a keyword
+# A word's arguments carry the same lifecycle, one level down — a keyword
 # may have several (one row per position, one per named kwarg), so an
 # argument is addressed by --keyword/--context plus --at or --named:
 #
-#   bin/evolve argument-propose <keyword> --context X --kind K [--at N] [--named NAME] [--required true|false] [--fills F] [--pairs-shape verbatim]
-#   bin/evolve argument-admit|argument-deprecate|argument-retire <keyword> --context X [--at N] [--named NAME]
+#   bin/evolve argument-propose <keyword> --context X --kind K [--at N] [--named name] [--required
+#   true|false] [--fills F] [--pairs-shape verbatim]
+#   bin/evolve argument-admit|argument-deprecate|argument-retire <keyword> --context X [--at N]
+#   [--named name]
 #
 # Every mutating command does the same dance: snapshot the touched
 # files, rewrite the row, regenerate what the row feeds (the golden

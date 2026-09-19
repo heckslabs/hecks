@@ -4,7 +4,7 @@ require_relative "../../vocabulary"
 module Hecks
   module Bluebook
     module Expression
-      # Rewrites a predicate's SOURCE TEXT into one canonical spelling
+      # Rewrites a predicate's source text into one canonical spelling
       # before it's ever parsed or hashed — collapsing whitespace and
       # folding admitted synonyms (e.g. `.length` → `.size`) via the
       # `RULES` table projected from the grammar chapter, so two byte-
@@ -16,7 +16,7 @@ module Hecks
 
         STRATEGIES = Hecks::Vocabulary.fetch("NormalisationStrategy")
 
-        # READ, NOT RESTATED — the admitted normalisation rules, projected
+        # **Read, not restated** — the admitted normalisation rules, projected
         # from the grammar chapter by bin/expression_projection exactly as
         # the evaluator's operator table is. See Evaluator::PROJECTION for
         # why a projection rather than a boot.
@@ -61,7 +61,7 @@ module Hecks
           end
         end
 
-        # Applies a normalisation rule to the text OUTSIDE quoted string
+        # Applies a normalisation rule to the text outside quoted string
         # literals only, copying every quoted run through byte-for-byte.
         # Every rule here (collapse_whitespace, the `.length`→`.size` fold)
         # used to run quote-blind — `"a  b"` collapsed to `"a b"` and
@@ -69,7 +69,7 @@ module Hecks
         # source outside the quotes, silently rewriting what a predicate
         # compares a string attribute against, not merely how the
         # predicate itself is spelled. A canonical string literal's
-        # CONTENTS are data, never syntax to normalise.
+        # contents are data, never syntax to normalise.
         #
         # Handles both `"` and `'` delimiters (this grammar's own
         # `Resolver.quoted?` admits either), quote-aware exactly the way
@@ -93,9 +93,9 @@ module Hecks
               result << yield(buffer)
               # `char.dup`, not `char.to_s` (a no-op on a String — always
               # returns self, never a copy) and not `+char` either
-              # (`String#+@` only dups a FROZEN receiver; `each_char`'s
+              # (`String#+@` only dups a frozen receiver; `each_char`'s
               # yielded strings aren't frozen, so `+char` is just as
-              # much a no-op here). Without a REAL copy, `buffer` and
+              # much a no-op here). Without a real copy, `buffer` and
               # `quote` alias the same mutable object: the very next
               # `buffer << char` grows `quote` right along with it, so
               # `char == quote` can only ever compare a single character
@@ -103,12 +103,12 @@ module Hecks
               # literal — everything after a predicate's first quoted
               # string silently skipped normalisation for the rest of
               # the text, undetected because passing text through
-              # unnormalised is silent. MASKED by every existing spec
-              # here, which only checks that quoted CONTENTS survive
+              # unnormalised is silent. Masked by every existing spec
+              # here, which only checks that quoted contents survive
               # untouched (the M7 fix this method exists for) — that
               # still holds by accident once the bug makes the "outside"
               # branch unreachable. Found live: a multi-line `given`/
-              # `ensures` block whose ONLY quoted literal closes before a
+              # `ensures` block whose only quoted literal closes before a
               # later line — the newline and that later line's own
               # indentation went uncollapsed, diverging from
               # `hecks-parse`'s own (correct) single-space join.

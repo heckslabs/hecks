@@ -1,12 +1,12 @@
 require "spec_helper"
 
-# THE NAME A FAN-OUT'S ROW ID ARRIVES UNDER.
+# The name a fan-out's row ID arrives under.
 #
 # `spec/runtime/policy_spec.rb` already covers `for_each` end to end and
 # asserts delivery — and passed for a reason that was not the rule. Its
 # `Fanout::Account` is `identified_by :account_id` over an
 # `attribute :account_id`, so the row id merged as `account_id:` matched
-# the aggregate's own IDENTITY HEAD directly and never needed the
+# the aggregate's own identity head directly and never needed the
 # reference key at all. Every aggregate in the real corpus names its
 # identity something else (`Account` is `identified_by AccountNumber,
 # as: :number`), so the same policy shape refused there with
@@ -14,7 +14,7 @@ require "spec_helper"
 # refusal was recorded per row in the reaction log rather than raised
 # anywhere a caller would look.
 #
-# So this fixture deliberately does NOT name its identity after itself.
+# So this fixture deliberately does not name its identity after itself.
 # It is the difference between the two spellings, isolated:
 #
 #   trigger acts on the fanned aggregate -> bare `chit:`
@@ -23,7 +23,7 @@ RSpec.describe "a for_each policy's row id" do
   # One DSL-declared fixture domain (three aggregates plus the one policy
   # under test), not branchy logic — its length and ABC score come from
   # declaring the domain shape both examples below share, per the class
-  # comment above explaining why `Chit`'s identity is deliberately NOT
+  # comment above explaining why `Chit`'s identity is deliberately not
   # named `chit`. Splitting the bluebook block across helper methods would
   # fragment one coherent domain declaration for no readability gain.
   # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
@@ -38,7 +38,7 @@ RSpec.describe "a for_each policy's row id" do
 
       Hecks.bluebook "FanKey" do
         aggregate "Chit" do
-          # NOT `chit_id` — that is the whole point. An identity head
+          # Not `chit_id` — that is the whole point. An identity head
           # spelled after the aggregate would mask the reference key by
           # answering to the suffixed name itself.
           identified_by :serial
@@ -49,7 +49,7 @@ RSpec.describe "a for_each policy's row id" do
           value_object("Serial")    { attribute :value, String }
           value_object("Holder")    { attribute :value, String }
           value_object("ChitState") { attribute :value, String }
-          # A policy forwards the triggering event's WHOLE payload, so a
+          # A policy forwards the triggering event's whole payload, so a
           # trigger has to be able to take every field the event carries
           # — `Void` declaring nothing for `alarm:` is the ordinary
           # UnknownArgument refusal, not the key bug under test here.
@@ -64,7 +64,7 @@ RSpec.describe "a for_each policy's row id" do
             emits "Issued"
           end
 
-          # ACTS ON the chit — addressed by the bare reference key.
+          # Acts on the chit — addressed by the bare reference key.
           command "Void" do
             reference_to Chit
             attribute :holder, Holder,   optional: true
@@ -79,7 +79,7 @@ RSpec.describe "a for_each policy's row id" do
           end
         end
 
-        # A SECOND AGGREGATE that STORES a chit rather than being one —
+        # A second aggregate that stores a chit rather than being one —
         # the foreign-reference half of the same rule.
         aggregate "Audit" do
           identified_by :note
@@ -148,7 +148,7 @@ RSpec.describe "a for_each policy's row id" do
 
     expect(FanKey::Chit.find("chit-1").condition[:value]).to eq("void")
     expect(FanKey::Chit.find("chit-2").condition[:value]).to eq("void")
-    # A DIFFERENT HOLDER'S CHIT is outside the query's answer.
+    # A different holder's chit is outside the query's answer.
     expect(FanKey::Chit.find("chit-3").condition[:value]).to eq("live")
   end
 
@@ -158,7 +158,7 @@ RSpec.describe "a for_each policy's row id" do
 
     runtime.dispatch("FanKey::Alarm.Raise", alarm: { value: "al-1" }, holder: { value: "h1" })
 
-    # The refusal this asserts the ABSENCE of is the exact one the bug
+    # The refusal this asserts the absence of is the exact one the bug
     # produced: `Void does not declare chit_id — it takes `.
     reasons = runtime.reactions.filter_map { |row| row[:reason] }
     expect(reasons).to be_empty

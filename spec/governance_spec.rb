@@ -81,7 +81,7 @@ RSpec.describe "Governance" do
       .to raise_error(Hecks::Runtime::TypeMismatch, /IdentityId\.value expects String, got nil/)
   end
 
-  # The C3.8 carve-out this fix must NOT touch: a bare-scalar query
+  # The C3.8 carve-out this fix must not touch: a bare-scalar query
   # argument (Allowed's `from_role`/`to_role` are value objects too, so
   # this only distinguishes via `checked_vo?`'s own guard — asserted
   # directly since no bare-scalar-typed query argument exists in this
@@ -114,7 +114,7 @@ RSpec.describe "Governance" do
     expect(result.instance.state[:ends_at]).to be_nil
   end
 
-  # M25 — `starts_at` is part of the identity for the SAME reason it is
+  # M25 — `starts_at` is part of the identity for the same reason it is
   # for RoleAssignment (see the aggregate's own header comment): without
   # it, `identified_by :from_role, :to_role` alone made a revoked pair
   # permanently occupied — `Grant` is a creating command, so a repeat

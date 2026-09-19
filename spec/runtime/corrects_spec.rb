@@ -180,8 +180,8 @@ RSpec.describe "a command's corrects" do
             emits "Deposited"
           end
 
-          # `as: :original` binds the LOCATED "Deposited" event's own
-          # payload — checked from BOTH sides: a `given` (pre-mutation)
+          # `as: :original` binds the located "Deposited" event's own
+          # payload — checked from both sides: a `given` (pre-mutation)
           # refusing a reversal that doesn't name the exact amount
           # originally deposited, and an `ensures` (post-mutation)
           # confirming the balance actually landed back where it
@@ -217,33 +217,33 @@ RSpec.describe "a command's corrects" do
     expect(reversed.instance.balance.cents).to eq(0)
   end
 
-  # BUG#30 — `corrects` DECLARED ON AN ENTITY-LEVEL COMMAND, not the
+  # BUG#30 — `corrects` declared on an entity-level command, not the
   # aggregate. Before this fix, `Ledger::Entry.Amend` (below) crashed
   # outright with `Hecks::Runtime::WiringError` — `EntityInterpreter`
   # never called `enforce_correction_target` at all, and
   # `EntityElement.apply_to_element`'s own `case mutation.op` had no
   # `:corrects` branch. `qa/stress_domains/corrections` found this live
-  # (ANGLE-9); this is the runtime regression coverage for the fix.
+  # (angle-9); this is the runtime regression coverage for the fix.
   #
-  # `Ledger.Record` — AGGREGATE-level — is what actually `emits
-  # "EntryRecorded"`; `Entry.Amend` — ENTITY-level — is what `corrects`
+  # `Ledger.Record` — aggregate-level — is what actually `emits
+  # "EntryRecorded"`; `Entry.Amend` — entity-level — is what `corrects`
   # it. This is deliberate, not incidental: an entity has no event
-  # stream of its own, so admissibility is checked against the PARENT
+  # stream of its own, so admissibility is checked against the parent
   # record's own history (see `EntityInterpreter#step_enforce_givens`'s
   # own comment for the full reasoning) — proving the fix against a
-  # correction target that an AGGREGATE-level sibling command emits is
+  # correction target that an aggregate-level sibling command emits is
   # the realistic shape, not a simplification for the test's own sake.
   #
-  # `Ledger.Import` — a SECOND way to add an Entry that never emits
+  # `Ledger.Import` — a second way to add an Entry that never emits
   # "EntryRecorded" at all — exists purely so the refusal half below has
-  # a real, already-existing entity element to address whose PARENT
+  # a real, already-existing entity element to address whose parent
   # ledger's own event history genuinely never announced the corrected
   # event, the entity-level analogue of the aggregate-level "two boxes,
-  # only one deposited" refusal proof above. TWO SEPARATE LEDGERS, for
+  # only one deposited" refusal proof above. Two separate ledgers, for
   # the same reason the aggregate-level proof uses two separate boxes:
-  # admissibility is checked against the PARENT RECORD's own history as
+  # admissibility is checked against the parent record's own history as
   # a whole (this file's own `step_enforce_givens` comment), so a second
-  # entry added to the SAME already-recording ledger would still find
+  # entry added to the same already-recording ledger would still find
   # "EntryRecorded" in that ledger's history and dispatch cleanly — the
   # refusal needs a ledger whose own history genuinely never has it.
   # rubocop:disable-next RSpec/ExampleLength
@@ -285,7 +285,7 @@ RSpec.describe "a command's corrects" do
             emits "EntryRecorded"
           end
 
-          # NEVER emits "EntryRecorded" — the clean-refusal fixture's
+          # Never emits "EntryRecorded" — the clean-refusal fixture's
           # own entry gets here instead.
           command "Import" do
             role "Clerk"
@@ -338,15 +338,15 @@ RSpec.describe "a command's corrects" do
     dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Open", reference: { value: "l-2" })
     dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Import", reference: { value: "l-2" }, amount: { cents: 2000 })
 
-    # LEGITIMATE — l-1's own entry (sequence 1) targets a real,
-    # already-emitted "EntryRecorded" for THIS exact ledger. Dispatches
+    # Legitimate — l-1's own entry (sequence 1) targets a real,
+    # already-emitted "EntryRecorded" for this exact ledger. Dispatches
     # cleanly, never a WiringError.
     amended = dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Entry.Amend",
                                   reference: { value: "l-1" }, sequence: { value: 1 }, amount: { cents: 1500 })
     entry = amended.instance.entries.find { |e| e[:sequence].value == 1 }
     expect(entry[:amount].cents).to eq(1500)
 
-    # ILLEGITIMATE — l-2's own entry exists for real (imported, not
+    # Illegitimate — l-2's own entry exists for real (imported, not
     # recorded), but l-2's own event history never emitted
     # "EntryRecorded" at all — refuses with NothingToCorrect, never a
     # crash.

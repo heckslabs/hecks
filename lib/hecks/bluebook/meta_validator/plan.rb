@@ -1,13 +1,13 @@
 module Hecks
   module Bluebook
     module MetaValidator
-      # What the language says about ITSELF, read back as something walkable.
+      # What the language says about itself, read back as something walkable.
       #
       # The judge used to carry one hand-written branch per category, and the
       # reason given for keeping it that way was that "which append command
       # belongs to which list is not derivable from a name". True — and beside
       # the point. It is derivable from the language's own IR, because every
-      # append command DECLARES its target:
+      # append command declares its target:
       #
       #     command "Argument" do
       #       reference_to Command
@@ -18,7 +18,7 @@ module Hecks
       # appender for the `arguments` list, and the map binds each value-object
       # field to the command argument that fills it. Nothing is matched by name.
       #
-      # The same reading recovers the containment tree. A command with NO
+      # The same reading recovers the containment tree. A command with no
       # self-reference is the creating one, and the `*_id` argument it carries
       # names the parent — so Bluebook -> Aggregate -> Command / ValueObject /
       # Query / Entity, ValueObject -> Member, ProcessManager -> Handler ->
@@ -57,7 +57,7 @@ module Hecks
              *alternates.map(&:verb), *sealers].compact
           end
 
-          # DOES THIS ARGUMENT CARRY AN ID? A reference is the id of a head, and
+          # Does this argument carry an ID? A reference is the id of a head, and
           # an id is a scalar — so the judge offers it bare, where every other
           # field goes as a one-field value object. The language answers this
           # about itself, so declaring a new reference needs no change here.
@@ -84,33 +84,33 @@ module Hecks
 
             @categories[aggregate.hecks_name] = read(aggregate)
 
-            # S17, ADR 0026 — Member/Handler/Dispatch are ENTITIES now
+            # S17, ADR 0026 — Member/Handler/Dispatch are entities now
             # (`entity "Member" do ... end`, nested under `ValueObject`/
             # `ProcessManager`/`Handler`), not their own top-level
             # aggregates — so `meta.aggregates` alone no longer finds
             # them the way it always found a standalone `aggregate
-            # "Member"`. Each STILL needs its own named category here:
+            # "Member"`. Each still needs its own named category here:
             # `Assembly::Contracts` keeps a bespoke entry for each
             # (Member's own open-map `pairs`, Dispatch's own open-map
             # `with_spec`), distinct from the single generic "Entity"
-            # category every ORDINARY real-corpus entity (LedgerEntry,
+            # category every ordinary real-corpus entity (LedgerEntry,
             # Withdrawal, ...) is described through instead. Safe to
-            # walk EVERY meta-domain aggregate's own `.entities`
-            # unconditionally — `Plan` only ever reads the META-
-            # DOMAIN'S OWN self-description (`Plan.for(MetaValidator.
+            # walk every meta-domain aggregate's own `.entities`
+            # unconditionally — `Plan` only ever reads the meta-
+            # domain's own self-description (`Plan.for(MetaValidator.
             # grammar_registry)`), which never declares a generic,
-            # nameless entity of its own the way a REAL domain's
+            # nameless entity of its own the way a real domain's
             # `LedgerEntry` is; the only entities the meta-domain
             # itself ever declares are exactly the three this ADR
-            # names. `entity_owned: true` records WHY this is a
+            # names. `entity_owned: true` records why this is a
             # category at all — the real runtime has no top-level
-            # aggregate named "Member" to dispatch a BARE verb into
-            # any more, so the judge has to build a DOTTED one instead
+            # aggregate named "Member" to dispatch a bare verb into
+            # any more, so the judge has to build a dotted one instead
             # (see `Judge#verb_for`).
             #
-            # RECURSES — `Dispatch` nests inside `Handler`, which nests
+            # Recurses — `Dispatch` nests inside `Handler`, which nests
             # inside `ProcessManager`, two levels deep, not one. Each
-            # nested entity's own `parent` names the DIRECT owner it was
+            # nested entity's own `parent` names the direct owner it was
             # actually found under (Dispatch's is "Handler", not
             # "ProcessManager") — `read`'s own `owner:` argument already
             # takes whichever name is passed, so walking one level deeper
@@ -125,10 +125,10 @@ module Hecks
         def names          = @categories.keys
 
         # Every verb the language declares, spelled as the judge would
-        # dispatch it. S17, ADR 0026 — an ENTITY-OWNED category (its
+        # dispatch it. S17, ADR 0026 — an entity-owned category (its
         # own `entity_owned` flag) has no real top-level aggregate the
-        # runtime can route a BARE verb into any more, so it is
-        # spelled DOTTED here too — `Bluebook::ValueObject.Member.
+        # runtime can route a bare verb into any more, so it is
+        # spelled dotted here too — `Bluebook::ValueObject.Member.
         # Declare`, `Bluebook::ProcessManager.Handler.Dispatch.Bind` —
         # matching `Judge#verb_for`/`#dotted_prefix`'s own build
         # exactly (recursing the same way, for the same reason: an
@@ -147,8 +147,8 @@ module Hecks
         # found entity's own `.entities` in turn — S17, ADR 0026's
         # two-level chain (`Dispatch`, inside `Handler`, inside
         # `ProcessManager`). `owner` is passed down explicitly rather
-        # than re-derived, because it names whichever construct THIS
-        # call actually found the entity under — the DIRECT parent, not
+        # than re-derived, because it names whichever construct this
+        # call actually found the entity under — the direct parent, not
         # the root.
         def add_nested_entities(owner)
           owner.entities.each do |entity|
@@ -159,9 +159,9 @@ module Hecks
           end
         end
 
-        # THE FULL DOTTED PREFIX a category's own verbs hang off —
+        # The full dotted prefix a category's own verbs hang off —
         # mirrors `Judge#dotted_prefix` exactly (S17, ADR 0026): the
-        # plain name for an ordinary category, or its PARENT's own
+        # plain name for an ordinary category, or its parent's own
         # prefix with this category's name appended, for an entity-
         # owned one, recursing because the parent may itself be
         # entity-owned.
@@ -172,28 +172,28 @@ module Hecks
           "#{dotted_prefix(found.parent)}.#{name}"
         end
 
-        # `owner:`/`entity_owned:` — S17, ADR 0026. An AGGREGATE-level
+        # `owner:`/`entity_owned:` — S17, ADR 0026. An aggregate-level
         # creating command carries its own parent as a `reference_to`
         # argument (read via `parent_reference_of` below), the same
-        # way it always has. An ENTITY-level one never does — `entity
+        # way it always has. An entity-level one never does — `entity
         # "Member" do ... end`'s own creating command reaches its
-        # parent through the DOTTED CALL itself (`ValueObject.Member.
+        # parent through the dotted call itself (`ValueObject.Member.
         # Declare`), the same reason an ordinary entity's own commands
         # never declare `reference_to` either (entity.md's own
-        # reference page states this). So the OWNING aggregate's name
+        # reference page states this). So the owning aggregate's name
         # is passed in directly here, by the caller who already knows
         # it (the same `.entities` walk that found this node), rather
         # than derived from an argument that was never going to be
         # there.
         def read(aggregate, owner: nil, entity_owned: false)
-          # An ENTITY-OWNED category has no creating command of its own to find.
+          # An entity-owned category has no creating command of its own to find.
           # `creating_command` tests `command.references.nil?` — the same test
-          # a REAL entity's own commands pass too, since `entity "Member" do
+          # a real entity's own commands pass too, since `entity "Member" do
           # command "Pair" ... end end` never writes `reference_to` (an
           # entity's commands never do — banking's own LedgerEntry.Amend
           # doesn't either). Calling it here would have it seize on Member's
-          # own "Pair" and call THAT the creating command, which it is not:
-          # a Member is created by `ValueObject.Member`, its OWNER's own bare
+          # own "Pair" and call that the creating command, which it is not:
+          # a Member is created by `ValueObject.Member`, its owner's own bare
           # append command, the same way a real LedgerEntry is created by
           # `Account.LogEntry`, never by a dotted verb of its own.
           declare    = entity_owned ? nil : declaration_command(aggregate)
@@ -211,11 +211,11 @@ module Hecks
             alternates:     alternates_in(rest),
             setters:        setters_in(rest),
             sealers:        sealers_in(rest),
-            # EVERY command, not `rest` — the creating command carries the parent
+            # Every command, not `rest` — the creating command carries the parent
             # link, which is the most common reference of all.
             references:     references_in(aggregate.commands),
-            # HOW THE CATEGORY NAMES ITS RECORDS, read from the language rather
-            # than restated. The judge has to know a record's id BEFORE it
+            # How the category names its records, read from the language rather
+            # than restated. The judge has to know a record's id before it
             # dispatches, because the children it walks next carry it as their
             # parent — so it derives the same join the runtime will, off the same
             # declaration. It used to be a branch per category, and a branch that
@@ -261,7 +261,7 @@ module Hecks
           aggregate.attributes.find(&:reference?)
         end
 
-        # What the creating command sets directly. EVERY reference
+        # What the creating command sets directly. Every reference
         # argument is dropped, not just the parent link: a reference is
         # not a field. Command.Declare carries `entity_id` as well as
         # the parent `aggregate` reference, because an entity declares
@@ -279,7 +279,7 @@ module Hecks
             Array(command.mutations).each do |mutation|
               next unless mutation.op == :append
 
-              # FIRST wins, not last. Two commands can append to the same list —
+              # First wins, not last. Two commands can append to the same list —
               # Aggregate.Attribute and Aggregate.Reference both extend `attributes`,
               # because a reference's type is not a value object and cannot go
               # through the same verb. Overwriting would have let the one declared
@@ -290,7 +290,7 @@ module Hecks
           end
         end
 
-        # The appenders DISPLACED by first-wins — Aggregate.Reference behind
+        # The appenders displaced by first-wins — Aggregate.Reference behind
         # Aggregate.Attribute. The walk reaches them by reading the row, not the
         # plan, but they are still verbs the language declares and the coverage
         # gate has to see them.
@@ -311,7 +311,7 @@ module Hecks
           end
         end
 
-        # Commands that SET rather than append. Lifecycle sets two targets at once,
+        # Commands that set rather than append. Lifecycle sets two targets at once,
         # so a setter is keyed by its verb and carries every target it writes.
         def setters_in(commands)
           commands.filter_map do |command|
@@ -324,7 +324,7 @@ module Hecks
           end
         end
 
-        # Commands that change nothing — they exist to be REFUSED. Aggregate.Seal is
+        # Commands that change nothing — they exist to be refused. Aggregate.Seal is
         # the whole-document check: dispatched once everything is declared, carrying
         # only givens. A category with no sealer simply has no such rule.
         def sealers_in(commands)

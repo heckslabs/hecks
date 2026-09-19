@@ -5,7 +5,7 @@ module Hecks
   module Forms
     # The one shape every renderer in this directory reads a record as —
     # `id` plus its state hash. `Runtime::Instance` already answers both,
-    # so `repository.all`'s own records pass straight through; a QUERY's
+    # so `repository.all`'s own records pass straight through; a query's
     # answer does not (`QueryInterpreter#call` flattens `{id:}.merge(state)`
     # into one hash with no method to call — see
     # docs/command-form-and-query-form-bluebook.md's note on why), so

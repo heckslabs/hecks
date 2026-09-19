@@ -1,7 +1,7 @@
 require "tmpdir"
 require "open3"
 
-# bin/stores is a SCRIPT, not a library — same reasoning
+# bin/stores is a script, not a library — same reasoning
 # project_deploy_contract_spec.rb's own header gives: there's nothing to
 # require, so this runs it as a real subprocess (Open3) against a real
 # path, the same way bin/project_tenant's own spec does.
@@ -10,10 +10,10 @@ require "open3"
 # `exit 0` with no output at all, indistinguishable from a domain that
 # legitimately has zero aggregates.
 RSpec.describe "bin/stores" do
-  # BIN_STORES_SCRIPT, not a bare SCRIPT — see word_coverage_spec.rb's own
+  # BIN_STORES_SCRIPT, not a bare script — see word_coverage_spec.rb's own
   # comment on InMemoryDomain::ROOT: a bare top-level constant collides
   # with another spec file's identical name (project_tenant_spec.rb
-  # already claims SCRIPT), caught by load_hygiene_spec.rb's "no two spec
+  # already claims script), caught by load_hygiene_spec.rb's "no two spec
   # files disagree about a top-level constant" gate.
   BIN_STORES_SCRIPT = File.join(InMemoryDomain::ROOT, "bin/stores").freeze
 

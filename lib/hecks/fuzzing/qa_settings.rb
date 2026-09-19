@@ -2,15 +2,15 @@ require "yaml"
 
 module Hecks
   module Fuzzing
-    # READS `qa/settings.yml` — the hecks_qa practice's own dials, now
-    # data in a file rather than Ruby constant literals. The WHY of each
+    # Reads `qa/settings.yml` — the hecks_qa practice's own dials, now
+    # data in a file rather than Ruby constant literals. The why of each
     # dial (what it does, who reads it) stays exactly one place: the
     # comments on `QualityControlDials` in `qa/bluebook/quality_control.
     # bluebook`, which now sources every value from an instance of this
     # class instead of writing it inline. This class is only the loading
     # and the validation — no dial policy lives here.
     #
-    # FAILS LOUD, NOT QUIET — the whole practice's own opening line
+    # **Fails loud, not quiet** — the whole practice's own opening line
     # ("the enemy is the quiet divergence") applies to its own settings
     # file too: a missing key, an extra key nothing recognises, or a
     # value of the wrong shape all raise immediately, at load time
@@ -18,7 +18,7 @@ module Hecks
     # what's wrong — never a `nil` dial silently reaching a script that
     # assumes a number.
     #
-    # PLAIN DATA IN, FROZEN DATA OUT. `.load` parses the YAML with
+    # **Plain data in, frozen data out**. `.load` parses the YAML with
     # `Psych.safe_load_file` (no custom tags, no arbitrary Ruby objects)
     # and hands back an instance whose accessors are the exact values a
     # human wrote in the file — a `Hash`/`Array` for the nested dials,
@@ -65,16 +65,16 @@ module Hecks
 
       attr_reader(*EXPECTED_TYPES.keys)
 
-      # THE REAL FILE, ALWAYS — resolved off THIS file's own `__dir__`
+      # **The real file, always** — resolved off this file's own `__dir__`
       # (lib/hecks/fuzzing/), never off the caller's. `QualityControlDials`
       # is defined inside `qa/bluebook/quality_control.bluebook`, and that
-      # exact directory gets COPIED to a tmpdir for every isolated/replayed
+      # exact directory gets copied to a tmpdir for every isolated/replayed
       # boot (`Hecks::Fuzzing::IsolatedBoot#copy_dereferencing` copies only
       # `qa/bluebook`'s own contents, never its parent `qa/`) — a path
       # resolved from the bluebook's own `__dir__` would silently point at
       # a copy with no `settings.yml` beside it at all. `qa/settings.yml`
       # is read-only, human-edited data with no lifecycle (see this class's
-      # own header) — there is no isolation reason to ever read a COPY of
+      # own header) — there is no isolation reason to ever read a copy of
       # it, real boot or fuzzed one, so every caller gets the one real file
       # by default. `qa_settings_spec.rb` passes its own fixture paths
       # explicitly instead, the same way every other test in this practice
@@ -127,9 +127,9 @@ module Hecks
       private
 
       # `left:`/`right:` name adapters `IsolatedBoot` case-matches by
-      # SYMBOL (`case adapter when :memory ...`), and YAML has no way to
-      # spell a bare Ruby Symbol as a mapping VALUE — only
-      # `symbolize_names:` turns a KEY into one. So `adapter_parity_
+      # symbol (`case adapter when :memory ...`), and YAML has no way to
+      # spell a bare Ruby Symbol as a mapping value — only
+      # `symbolize_names:` turns a key into one. So `adapter_parity_
       # pairs` is the one dial that needs a coercion step after the
       # type check above, rather than every dial growing one.
       def symbolize_adapter_parity_pairs!(path)

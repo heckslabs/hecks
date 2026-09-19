@@ -1,7 +1,7 @@
 module Hecks
   module Ports
     module Persistence
-      # THE NO-OP SAGA STORE — what `Registry#saga_persistence` hands
+      # **The no-op saga store** — what `Registry#saga_persistence` hands
       # back for a domain whose resolved adapter doesn't implement the
       # (optional) saga-persistence capability: Memory, deliberately
       # (sagas stay in-memory-only, exactly as they always have), and
@@ -14,8 +14,19 @@ module Hecks
       # `Ports::Persistence::AppendOnly` already gives adapters that
       # don't implement `reset!`/`events`/`record_event`.
       class NullSagaStore
+        # Accepts and discards a saga checkpoint, whatever keywords it carries.
+        #
+        # @return [nil] always; nothing is stored
         def save_saga(**) = nil
+
+        # Accepts and ignores a request to forget a saga.
+        #
+        # @return [nil] always; there is nothing to delete
         def delete_saga(**) = nil
+
+        # Yields nothing, because no saga is ever stored here.
+        #
+        # @return [nil] always; a block, if given, is never called
         def each_saga(*) = nil
       end
 

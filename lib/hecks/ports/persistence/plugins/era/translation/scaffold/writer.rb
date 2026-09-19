@@ -8,7 +8,7 @@ module Hecks
       module Writer
         # The edge file, regenerated in place when one for the same shape
         # pair already exists (matched textually — an unresolved file
-        # cannot be LOADED to ask, that being the whole point of
+        # cannot be loaded to ask, that being the whole point of
         # unresolved).
         def write!(directory, edge)
           translations_dir = File.join(directory, "translations")

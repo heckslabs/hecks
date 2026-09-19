@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# A DOTTED WHERE HOPS THROUGH A REFERENCE — end to end, on Memory, the
+# A dotted where hops through a reference — end to end, on Memory, the
 # same fixture single-hop, multi-hop, and self-referential.
 RSpec.describe "cross-aggregate query filtering" do
   HOP_CHAIN = File.join(InMemoryDomain::ROOT, "spec/fixtures/hop_chain.bluebook")
@@ -69,7 +69,7 @@ RSpec.describe "cross-aggregate query filtering" do
     expect(ids("HopChain::Proposal.PricedAboveViaEngagement")).to eq(%w[P-1])
   end
 
-  # THE EXISTENTIAL-NEGATION CASE — "not from an active client" must
+  # **The existential-negation case** — "not from an active client" must
   # mean "points at a client that is churned," never "no client at
   # all counts too." P-3 (no engagement) and P-1 (active client) both
   # have to be excluded here, for different reasons, and neither may
@@ -84,7 +84,7 @@ RSpec.describe "cross-aggregate query filtering" do
     expect(ids("HopChain::Proposal.SentButNotFromActiveClients")).not_to include("P-3")
   end
 
-  # A SELF-REFERENTIAL CHAIN, TWO HOPS DEEP — proving the same
+  # **A self-referential chain, two hops deep** — proving the same
   # aggregate type can appear twice in one chain without being refused
   # as a "cycle." See spec/dsl_spec.rb for the seal-time proof that a
   # chain revisiting a type builds cleanly; this is the runtime half.
@@ -96,7 +96,7 @@ RSpec.describe "cross-aggregate query filtering" do
     expect(ids("HopChain::Node.GrandparentLabelled", label: { value: "root" })).to eq(%w[grandchild])
   end
 
-  # NATIVE (Runtime::ReferenceHop's fold) and REFERENCE (the naive
+  # Native (Runtime::ReferenceHop's fold) and reference (the naive
   # per-row walk reference_call gives the fuzzer's oracle) must answer
   # every hop query identically — the same differential proof
   # spec/fuzzing exercises generatively, pinned here by hand for the

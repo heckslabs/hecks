@@ -2,7 +2,7 @@ require "spec_helper"
 require "open3"
 require "rbconfig"
 
-# bin/rust_coverage's ALLOWLIST is shrink-only: each rule names a gap by
+# bin/rust_coverage's allowlist is shrink-only: each rule names a gap by
 # kind + gap_class + construct, and `--check-allowlist` fails when a rule
 # excuses no gap in any generated module. A closed gap must take its rule
 # with it, rather than leave the rule behind to excuse the next one.

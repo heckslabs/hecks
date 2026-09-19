@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     class Assembly
-      # ONE WAY TO BUILD A CONSTRUCT, for every construct.
+      # One way to build a construct, for every construct.
       #
       # There used to be a method per category here — `value_object(row)`,
       # `command(row)`, `policy(row)` — each one gathering the same keywords the

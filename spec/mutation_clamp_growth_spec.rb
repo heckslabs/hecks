@@ -109,10 +109,10 @@ RSpec.describe "mutation op clamp" do
     expect(organ[:strength][:value]).to eq(0.42)
   end
 
-  # THE PHANTOM-FIELD FIX (docs/fuzzer-property-expansion-plan.md
+  # The phantom-field fix (docs/fuzzer-property-expansion-plan.md
   # summary, item 4): #arithmetic/#multiply both give a never-set
   # numeric field `current ||= 0` — #clamp didn't, so it hit TypeMismatch
-  # on the FIRST clamp of a field OpenBare never assigned, where
+  # on the first clamp of a field OpenBare never assigned, where
   # increment/decrement/multiply would have silently treated the same
   # absence as zero. Clamping 0.0 into [0.0, 1.0] leaves it at the
   # bottom of the range, untouched — the same "in range" outcome the

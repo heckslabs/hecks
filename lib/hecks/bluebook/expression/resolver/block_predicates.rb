@@ -1,7 +1,7 @@
-# HAND-WRITTEN — the block-predicate/find family of the leaf grammar
+# **Hand-written** — the block-predicate/find family of the leaf grammar
 # (`Bluebook::Expression::Resolver`'s own `.all?`/`.any?`/`.none?`/
 # `.find` suffixes), split into this sibling file to keep resolver.rb
-# under Metrics/ModuleLength (350) : this reopens the SAME `Resolver`
+# under Metrics/ModuleLength (350) : this reopens the same `Resolver`
 # module resolver.rb defines, the long nested `module A; module B; ...`
 # form (not the compact `A::B` form) so bare constant/method lookups
 # here (`EvaluationError`, `Evaluator`, `describe`, `unwrap_scalar`,
@@ -12,7 +12,7 @@
 module Hecks
   module Bluebook
     module Expression
-      # Reopens the SAME `Resolver` module resolver.rb defines — see this
+      # Reopens the same `Resolver` module resolver.rb defines — see this
       # file's own header comment above for why the block-predicate/find
       # family lives here rather than in resolver.rb itself.
       module Resolver
@@ -23,12 +23,12 @@ module Hecks
         # (`value.split("::").all? { |s| s.length > 0 }`). Structurally
         # different from every other addition in this file: every prior
         # suffix is a flat receiver -> scalar transform, but a block
-        # predicate needs to evaluate its own sub-expression ONCE PER
-        # ELEMENT with the block parameter bound to that element. Kept
+        # predicate needs to evaluate its own sub-expression once per
+        # element with the block parameter bound to that element. Kept
         # minimal per the migration plan's own instruction -- no
         # persistent iteration-variable concept added to Resolver's
         # state model at all ; `predicate` below is a fully-parsed
-        # EVALUATOR ast (not a Resolver ast -- the predicate is a
+        # evaluator ast (not a Resolver ast -- the predicate is a
         # boolean/comparison expression like `s.length > 0`, exactly the
         # grammar `Bluebook::Expression::Evaluator` owns, not this
         # module's own leaf grammar), parsed once at `parse`-time same as
@@ -78,7 +78,7 @@ module Hecks
 
         # Every suffix that opens a `{ |x| ... }` block, `.find` included
         # -- shared by `parse_block_opener` below, and by nothing else
-        # (this is NOT `BLOCK_PREDICATE_MODES` — `.find` isn't a mode
+        # (this is not `BLOCK_PREDICATE_MODES` — `.find` isn't a mode
         # `evaluate_block_predicate` aggregates through, it builds a
         # `Find` node instead, see below).
         BLOCK_OPENER_SUFFIXES = (BLOCK_PREDICATE_MODES.keys + ["find"]).freeze
@@ -88,27 +88,27 @@ module Hecks
         # last among the suffix rules (right before the `Lookup`
         # catch-all) since a block's own predicate text can itself
         # contain almost anything a leaf expression can, including
-        # ANOTHER block-opening suffix -- letting every more specific
+        # another block-opening suffix -- letting every more specific
         # rule above try first avoids this one accidentally swallowing a
         # receiver another rule was meant to parse.
         #
-        # ONE combined header regex over ALL FOUR suffixes together,
+        # One combined header regex over all four suffixes together,
         # not `.find` and `.all?/any?/none?` scanned separately (that
         # was this file's own first cut, and it broke the moment a
-        # block predicate's own predicate text contained a DIFFERENT
+        # block predicate's own predicate text contained a different
         # kind of block-opener than the one being scanned for --
         # `legs.any? { |leg| ... legs.find { |o| ... } ... }` : scanning
-        # for `.find` FIRST found the INNER `.find`, not the outer
+        # for `.find` first found the inner `.find`, not the outer
         # `.any?`, because a non-greedy receiver capture only guarantees
-        # the FIRST occurrence of ITS OWN suffix, not the first
-        # occurrence of ANY block-opening suffix -- confirmed live via
+        # the first occurrence of its own suffix, not the first
+        # occurrence of any block-opening suffix -- confirmed live via
         # the shipping domain's own re-routing rules, the same
         # "no implicit conversion of Symbol into Integer" signature the
         # original nested-`.any?` bug had, not inferred). Scanning for
-        # all four AT ONCE and letting the regex engine's own leftmost
-        # match win fixes both directions (`.find` nested in `.any?` OR
-        # `.any?` nested in `.find`) with the SAME one rule, since the
-        # true receiver never itself contains ANY of these four words
+        # all four at once and letting the regex engine's own leftmost
+        # match win fixes both directions (`.find` nested in `.any?` or
+        # `.any?` nested in `.find`) with the same one rule, since the
+        # true receiver never itself contains any of these four words
         # followed by `{`.
         #
         # `matching_brace` walks forward counting `{`/`}` depth from
@@ -210,7 +210,7 @@ module Hecks
         # comment above. Reuses `interpret_with_element` unchanged
         # (below, shared with `BlockPredicate` — both bind `node.param`
         # to one element and interpret `node.predicate` against it) to
-        # find the FIRST element the predicate accepts, then projects
+        # find the first element the predicate accepts, then projects
         # `node.path` through it via `walk_path`, the same dotted-
         # segment walk `lookup` uses for a plain attribute path. `nil`
         # (no matching element, or a `path` segment that doesn't

@@ -11,19 +11,19 @@
 # different histories (Properties.replay_is_deterministic — the runtime
 # promises nothing is minted, so this should never fire).
 #
-# This used to shell out to bin/parity and treat a cross-runtime SPLIT as
+# This used to shell out to bin/parity and treat a cross-runtime split as
 # the finding. That comparison was retired for a while (docs/implemented/
 # rust-experiment.md — reversed 2026-08-07, Rust came back for real) —
-# STALE the moment it did: a real cross-runtime differential exists again,
+# stale the moment it did: a real cross-runtime differential exists again,
 # `spec/rust_conformance_fuzz_spec.rb` (PRD 04), generating sequences the
 # identical way this script does and diffing each one against the
 # compiled Rust binary. This script's own job stays single-runtime on
 # purpose (a property violation or an uncaught exception, checked here,
-# needs no subprocess or second boot) — it's just no longer true that NO
+# needs no subprocess or second boot) — it's just no longer true that no
 # cross-runtime check exists at all; it lives in that spec now, not here.
 #
 # On the first finding, shrinks it (repeatedly trying to remove one step at
-# a time, keeping the removal if the SAME finding still reproduces) and
+# a time, keeping the removal if the same finding still reproduces) and
 # saves the result under tmp/fuzz-failures/ — small enough to actually
 # debug, not just a seed number to re-run blind.
 
@@ -49,8 +49,8 @@ end
 
 # :clean / :property_violation / :crash.
 #
-# Replay.call already isolates a DOMAIN_REFUSAL or an EvaluationError PER
-# STEP (the domain declining a step, recorded and not fatal) — so anything
+# Replay.call already isolates a DOMAIN_REFUSAL or an EvaluationError per
+# step (the domain declining a step, recorded and not fatal) — so anything
 # that still propagates out of it is, by construction, something that
 # escaped that isolation : a real interpreter defect, not an expected
 # refusal. That is the whole reason this needs no second-opinion
@@ -65,7 +65,7 @@ rescue StandardError => e
   [:crash, "#{e.class}: #{e.message}"]
 end
 
-# WHICH FINDING THIS IS, so twenty seeds that all found one bug read as one
+# Which finding this is, so twenty seeds that all found one bug read as one
 # bug. A property violation's signature is the property's own name ; a
 # crash's is the exception class — both stable across the exact values a
 # shrink candidate happens to carry, which is the whole difference between
@@ -78,16 +78,16 @@ end
 
 DRAW_LIMIT = 5
 
-# A SPECIFIC, DELIBERATE PROPERTY-CHECK FINDING, excused from failing
+# A specific, deliberate property-check finding, excused from failing
 # this sweep without being silenced — the same "named, narrow, explained"
 # discipline `Bluebook::ModelCheck::ALLOWED_FINDINGS` already holds real
-# findings to (lib/hecks/bluebook/model_check.rb), applied to THIS file's
+# findings to (lib/hecks/bluebook/model_check.rb), applied to this file's
 # own kind of finding instead. `bin/fuzz` has no broader exemption
 # mechanism for a generated-history property violation, and this shape —
 # a domain name, keyed to the exact `failure[:signature]` this sweep
-# already computes, holding Regexps that must match EVERY ";"-joined
+# already computes, holding Regexps that must match every ";"-joined
 # offender in the message — is exactly the one PR #527 added for hecks_qa
-# BUG#4/#5, and later `qa/stress_domains/tenant_ledger`'s (ANGLE-8) own
+# BUG#4/#5, and later `qa/stress_domains/tenant_ledger`'s (angle-8) own
 # `commands_respect_tenant_scope` entry (a real, then-open write-side
 # tenant enforcement gap, not a bug in the property check's own
 # recompute — see that domain's own NOTES.md). Both were removed whole
@@ -100,7 +100,7 @@ KNOWN_FUZZ_FINDINGS = {}.freeze
 # Every "; "-joined chunk of the message must match one of the domain's
 # own allowed shapes — a compound finding that mixes this known shape
 # with anything else (a second, unrelated offender in the same history)
-# is NOT known, and still fails the run.
+# is not known, and still fails the run.
 def known_finding?(name, failure)
   matchers = KNOWN_FUZZ_FINDINGS.dig(name, failure[:signature])
   return false unless matchers
@@ -108,9 +108,9 @@ def known_finding?(name, failure)
   failure[:message].split("; ").all? { |chunk| matchers.any? { |regex| regex.match?(chunk) } }
 end
 
-# KNOWN, ALREADY-LOGGED GAPS this sweep skips outright rather than crash
+# Known, already-logged gaps this sweep skips outright rather than crash
 # on — never a blanket `WiringError` catch. Each `when` is scoped to one
-# EXACT exception message, so a match here names a mystery already
+# exact exception message, so a match here names a mystery already
 # tracked elsewhere, not a genuine, still-uninvestigated interpreter
 # defect this sweep should keep failing loudly on (bin/fuzz's own whole
 # point: "an interpreter defect propagates and fails" — see the header
@@ -120,7 +120,7 @@ def known_unfuzzable_wiring_gap(error)
   when %r{a compute/rekey rule is declared}
     # A `compute`/`rekey` translation rule is an era/Postgres-only
     # construct (lib/hecks/ports/persistence/plugins/era/era_check.rb)
-    # — it needs a real SQL migration to interpret, so it CANNOT boot
+    # — it needs a real SQL migration to interpret, so it cannot boot
     # under IsolatedBoot's Memory (or :sqlite) rebind, whatever adapter
     # this sweep picked; `Loader.check_compute_rules_backstop!` refuses
     # by design the moment nothing era-aware is loaded to interpret it
@@ -128,7 +128,7 @@ def known_unfuzzable_wiring_gap(error)
     # would refuse more specifically, "...is bound to Memory" — this is
     # the same refusal, just from the plugin-free path IsolatedBoot
     # always takes). Not a bug in this domain or in fuzzing — every
-    # OTHER domain in the sweep is still fuzzable, so one unfuzzable
+    # other domain in the sweep is still fuzzable, so one unfuzzable
     # domain skipping itself beats the whole sweep dying on the first
     # `compute`/`rekey` domain anyone ever adds to the corpus (examples/
     # directory is the first, closing the audit's own "no rekey
@@ -196,10 +196,10 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
                   signature: "#{verdict}: #{signature_of(message)}" }
   end
 
-  # KNOWN findings are printed — visible, auditable, never silently
+  # Known findings are printed — visible, auditable, never silently
   # swallowed — but don't fail the run: they're accounted for the same
   # way a clean seed is, so a sweep that draws exactly `seeds` known-plus-
-  # clean results doesn't read as SHORT. See KNOWN_FUZZ_FINDINGS above.
+  # clean results doesn't read as short. See KNOWN_FUZZ_FINDINGS above.
   known, failures = failures.partition { |failure| known_finding?(name, failure) }
   known.each do |failure|
     puts "   KNOWN (allowlisted, not failing) — #{failure[:signature]} — #{failure[:message]}"
@@ -210,7 +210,7 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
 end
 
 # Removes steps, then arguments inside the surviving steps, keeping each
-# removal only when the SAME finding still reproduces without it. The
+# removal only when the same finding still reproduces without it. The
 # algorithm lives in `Hecks::Fuzzing::Shrinker` (shared with
 # `bin/qa_sweep`); what counts as "the same finding" — this script's own
 # verdict signature — stays here.
@@ -314,7 +314,7 @@ until ARGV.empty?
 end
 
 if adapter == :postgres
-  # NOT spec/support/postgres_probe.rb — bin/ ships independently of
+  # Not spec/support/postgres_probe.rb — bin/ ships independently of
   # spec/, so this repeats that file's own tiny reachability probe
   # rather than reaching across the tree for it. Same check, same
   # reasoning: a real `PG.connect` round trip, asked once, up front.
@@ -327,10 +327,10 @@ if adapter == :postgres
   end
 end
 
-# EVERY DOMAIN IN THE PROJECT, not a hand-kept list. This used to be
+# Every domain in the project, not a hand-kept list. This used to be
 # `examples/*/` plus the grammar, and what that list left out mattered:
-# the generator can only produce a null by OMITTING AN OPTIONAL
-# ARGUMENT, and between them the example domains hold exactly ONE
+# the generator can only produce a null by omitting an optional
+# argument, and between them the example domains hold exactly one
 # non-list optional command attribute — measured, 2400 generated steps
 # produced zero nulls. `lib/hecks/framework` alone holds 29, and
 # the language's own chapters hold 96. A differential oracle only ever
@@ -351,7 +351,7 @@ domains = domain_arg ? [domain_arg] : Hecks::Corpus.sweepable_domains(ROOT)
 # asked otherwise — nobody has measured these domains sharing one server.
 workers ||= adapter == :postgres ? 1 : Etc.nprocessors
 
-# ONE DOMAIN PER CHILD, AS MANY AT ONCE AS THERE ARE CORES. A domain's
+# One domain per child, as many at once as there are cores. A domain's
 # seeds are its own (1..N, nothing shared between domains), so the sweep
 # is the same sweep in any order — it was one CPU-bound loop on a 4-core
 # runner. Each child's output is held and printed whole, in the domains'

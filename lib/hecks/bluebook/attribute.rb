@@ -28,15 +28,15 @@ module Hecks
 
       attr_reader :name, :type, :default, :pattern, :admits, :relationship
 
-      # A Reference is kept AS ITSELF. Every other type is still a name, and
+      # A Reference is kept as itself. Every other type is still a name, and
       # crosses over as its construct does.
       #
-      # `admits` names an ALREADY-DECLARED closed set the value must belong
+      # `admits` names an already-declared closed set the value must belong
       # to — `Vocabulary::QueryComparator` — spelled aggregate-qualified
-      # because the set is a value object INSIDE an aggregate, and the
+      # because the set is a value object inside an aggregate, and the
       # aggregate is the only thing `reference_to` can reach.
       #
-      # ON THE WIRE, because it is a RULE and not only a typing hint.
+      # On the wire, because it is a rule and not only a typing hint.
       #
       # It began as neither. The link existed so a generator could type
       # `WhereClause.op` as `WhereOp` — a typing convenience, not worth
@@ -48,7 +48,7 @@ module Hecks
       # refused "burnt" through one reading and emitted the event through
       # another.
       #
-      # The wire carries the NAME, not the members. A reader resolves it
+      # The wire carries the name, not the members. A reader resolves it
       # against the IR it holds, so the members are declared once and
       # copied nowhere — which is the same reason `admits` exists at all.
       def initialize(name:, type:, list: false, default: nil, optional: false, pattern: nil,
@@ -63,13 +63,13 @@ module Hecks
         @relationship = relationship&.to_s
       end
 
-      # A BARE CONSTANT IN A BLUEBOOK IS A NAME, EVEN WHEN RUBY HAS HEARD OF IT.
+      # A bare constant in a bluebook is a name, even when Ruby has heard of it.
       #
       # `BluebookBuilder.build` says exactly this and installs a `const_missing`
       # resolver that hands back the symbol — `attribute :target, Target` becomes
       # the name "Target" and nothing looks Target up. That works only while the
-      # lookup FAILS, and `Facade::Surface` installs every aggregate name as a
-      # TOP-LEVEL constant (its own comment, and `ConstShim`'s, both say so).
+      # lookup fails, and `Facade::Surface` installs every aggregate name as a
+      # top-level constant (its own comment, and `ConstShim`'s, both say so).
       #
       # So in one process: boot a domain with an aggregate named `Target`, then
       # load a chapter whose own value object is called `Target`, and Ruby
@@ -81,7 +81,7 @@ module Hecks
       # `QualityControl::Target` are both "Target". A plain class stays itself —
       # `String` demodulises to "String" — so the ordinary case is untouched.
       # This does not undo the constant leak; it makes the leak unable to change
-      # what a chapter MEANS, which is the part that has to hold.
+      # what a chapter means, which is the part that has to hold.
       def spell(type)
         return type if type.is_a?(Reference)
         return Naming.demodulise(type) if type.is_a?(Module)

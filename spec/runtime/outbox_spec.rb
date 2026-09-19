@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 
-# THE TRANSACTIONAL OUTBOX (`Runtime::Outbox`) — a command's save, its
+# The transactional outbox (`Runtime::Outbox`) — a command's save, its
 # events, and one row per (event, consumer) commit together; the
 # dispatcher then drains those rows inline (pending → claimed →
 # delivered | failed); a row left behind by a crash is found again on
@@ -191,7 +191,7 @@ RSpec.describe "the transactional outbox" do
       Dir.mktmpdir do |dir|
         runtime = boot_sqlite(dir)
         policies = runtime.instance_variable_get(:@policies)
-        # Crash AFTER the claim, INSIDE the consumer — the outcome is
+        # Crash after the claim, inside the consumer — the outcome is
         # genuinely unknown to the next boot.
         allow(policies).to receive(:react).and_raise(Interrupt)
         expect { place(runtime, "o-1") }.to raise_error(Interrupt)

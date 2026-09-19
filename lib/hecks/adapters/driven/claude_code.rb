@@ -6,16 +6,16 @@ require_relative "../../ports/agent"
 
 module Hecks
   module Adapters
-    # THE REAL `agent` FULFILLMENT — shells out to the `claude` CLI
+    # **The real `agent` fulfillment** — shells out to the `claude` CLI
     # itself, `claude -p --output-format json`, one process per call.
     # `Ports::Agent`'s own scripted double (`spec/fixtures/scripted_
     # agent.{adapter,rb}`) is the deterministic sibling every spec binds
     # instead, the same relationship `SecureRandomIdentity` already has
     # to `SequentialIdentity`.
     #
-    # THIS FILE OWNS TRANSPORT ONLY — spawning the process, unwrapping
+    # **This file owns transport only** — spawning the process, unwrapping
     # the CLI's own JSON envelope (`{"result": "..."}`) down to the
-    # model's raw text, and parsing THAT text as JSON. It hands back a
+    # model's raw text, and parsing that text as JSON. It hands back a
     # plain Hash. Whether that Hash has the keys a caller asked for, and
     # whether its values are within the closed vocabularies this port
     # recognizes (a critique's `kind`, a proposal's `verb` pattern) is
@@ -40,7 +40,7 @@ module Hecks
 
       module_function
 
-      # THE NEXT BEST QUESTION. `state` is whatever
+      # **The next best question**. `state` is whatever
       # `Interview::Session#declaration`/`#gaps` produced — passed
       # through as JSON, not reformatted, so this adapter never
       # re-derives what the session already knows.
@@ -53,7 +53,7 @@ module Hecks
         )
       end
 
-      # PROSE -> PROPOSED DECLARATIONS.
+      # Prose -> proposed declarations.
       def interpret(prose:, state:)
         call(
           system:  SYSTEM_PREFIX + "Given the domain model so far and a sentence the human just said, " \
@@ -66,7 +66,7 @@ module Hecks
         )
       end
 
-      # WHAT IS WRONG WITH THIS AS A MODEL — closed to the same kind
+      # What is wrong with this as a model — closed to the same kind
       # vocabulary `Ports::Agent::CRITIQUE_KINDS` declares, spelled out
       # here too since the system prompt is the only place the model
       # itself ever sees that list.
@@ -82,7 +82,7 @@ module Hecks
         )
       end
 
-      # VOCABULARY HELP. Named `suggest_name`, not `name` — see
+      # **Vocabulary help**. Named `suggest_name`, not `name` — see
       # `Ports::Agent#suggest_name`'s own comment for why `name` is
       # never a safe module-function name here.
       def suggest_name(meaning:, kind:, near:)

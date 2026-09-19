@@ -13,28 +13,28 @@ module Hecks
   # working, golden-tested example of the shape every future projector
   # (`:rust`, `:ul`, `:openid`, ...) is meant to follow.
   #
-  # The unit is ONE bluebook's IR, not a whole booted registry — matching
+  # The unit is one bluebook's IR, not a whole booted registry — matching
   # every real projection target (Rust/UL/OIDC all project one domain at
   # a time), and deliberately narrower than `Exporter.call`'s own
   # multi-domain shape.
-  # THREE KINDS OF "PROJECT", TOLD APART BY WHAT THEY NEED AS INPUT.
+  # Three kinds of "PROJECT", told apart by what they need as input.
   # Only the first belongs in this registry.
   #
-  #   A PROJECTION takes a chapter's DECLARATION and answers something
-  #   that DESCRIBES the domain: its IR, its storage shape, an OIDC scope
+  #   a projection takes a chapter's declaration and answers something
+  #   that describes the domain: its IR, its storage shape, an OIDC scope
   #   manifest, the parser's keyword table, the reference pages. Inert,
   #   derived, and runnable against any chapter that carries what it
   #   declares it needs. These are what `register` holds.
   #
-  #   AN EXPORT takes a declaration AND its BINDINGS and answers
-  #   something that IS the domain, running elsewhere — rust/project.rb's
+  #   an export takes a declaration and its bindings and answers
+  #   something that is the domain, running elsewhere — rust/project.rb's
   #   generated crate, the WASM artifact, the SAM template
   #   bin/project_deploy renders. It needs the `.world`/`.hecksagon` a
   #   projection never looks at, because a running system has to know how
   #   it is wired. That is the whole reason bin/project_deploy cannot use
   #   this protocol: `call(bluebook:, options:)` has no channel for it.
   #
-  #   A STATE PROJECTION takes RECORDS — a domain after dispatch — and is
+  #   a state projection takes records — a domain after dispatch — and is
   #   a read-model question wearing the same word.
   #   `bin/expression_projection` is the one of these: its operators are
   #   not declared anywhere, they are what exists after
@@ -42,7 +42,7 @@ module Hecks
   #   dispatches. Converting it into this registry would be a category
   #   error, however much its name suggests otherwise.
   #
-  # ONE WORD, THREE OTHER MEANINGS — worth naming too, because grepping
+  # **One word, three other meanings** — worth naming too, because grepping
   # "projection" turns all of these up and none is the above:
   #
   #   Ports::Projection    read-model catch-up, events folded into state
@@ -68,7 +68,7 @@ module Hecks
     # `bluebook:` is kept as the keyword because it is the shipped
     # spelling and every existing caller uses it — but what it accepts is
     # any construct that emits IR, and `admits!` is what decides whether
-    # THIS target can actually take the one handed over.
+    # this target can actually take the one handed over.
     def call(name, bluebook:, options: {})
       projector = registry.fetch(name.to_sym) do
         raise UnknownProjector, "no projector registered for #{name.inspect} — registered: #{registered.sort.inspect}"
@@ -77,12 +77,12 @@ module Hecks
       projector.call(bluebook: bluebook, options: options)
     end
 
-    # A projection names the CAPABILITIES it needs; this refuses a
+    # A projection names the capabilities it needs; this refuses a
     # construct that lacks one, before the projector runs.
     #
-    # ONE CHECK COVERS BOTH SHAPES. An ordinary construct INCLUDES its
+    # One check covers both shapes. An ordinary construct includes its
     # capabilities and a class-shaped one — Command, Entity, ValueObject
-    # — EXTENDS them, and `is_a?` consults the singleton chain, so it
+    # — extends them, and `is_a?` consults the singleton chain, so it
     # answers for an extended module as readily as an included one. This
     # started as two checks on the assumption it would not; a spec
     # asserting the assumption failed, which is the only reason the
@@ -107,7 +107,7 @@ module Hecks
 
     def capable?(construct, capability) = construct.is_a?(capability)
 
-    # What KIND of artifact a registered target emits — asked of the
+    # What kind of artifact a registered target emits — asked of the
     # projection rather than inferred from what it returned.
     def emits_for(name)
       projector = registry.fetch(name.to_sym) { return :artifact }
@@ -132,7 +132,7 @@ module Hecks
       target
     end
 
-    # WRITING IS THE CALLER'S CHOICE, NOT THE PROJECTOR'S. A projector
+    # Writing is the caller's choice, not the projector's. A projector
     # returns an artifact and never touches disk, which is what lets
     # spec/projector_spec.rb compare `:ir`'s output against a golden
     # fixture without a tmpdir. `out:` is the only thing that writes.
@@ -178,7 +178,7 @@ Hecks::Projector.register(:docs, Hecks::Projector::DocsProjector)
 Hecks::Projector.register(:narrate, Hecks::Projector::NarrateProjector)
 Hecks::Projector.register(:cli, Hecks::Projector::CliProjector)
 
-# The TARGETS are required from lib/hecks.rb, immediately after this
+# The targets are required from lib/hecks.rb, immediately after this
 # file — deliberately not from here. A target requires this file (it
 # needs `Target` and the registry), so requiring them back from here
 # would close a genuine `circular require considered harmful` loop. Ruby

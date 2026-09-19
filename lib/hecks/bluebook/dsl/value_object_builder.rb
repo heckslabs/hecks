@@ -23,7 +23,7 @@ module Hecks
           @owner_value_objects = owner_value_objects
         end
 
-        # THE WRAPPER BLOCK IS GONE (ADR 0025, "Attributes" — "closed sets
+        # The wrapper block is gone (ADR 0025, "Attributes" — "closed sets
         # lose the wrapper block"). `member` lines are bare now, written
         # directly in the `value_object` body with no `one_of do ... end`
         # around them — `build`'s own `closed_set: @closed_set ||
@@ -39,24 +39,24 @@ module Hecks
         # use the inline form on one of its own attributes. One `one_of`
         # method now, not two.
         #
-        # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era text
+        # Legacy under shadow-parsing (S0a's own bridge) — frozen era text
         # still writes the block form (2 locations in
         # `examples/banking/data/eras/banking/1.bluebook`, duplicated once
         # more in that era's own archive copy), so `EraGuard.shadow_parse`
         # still needs to read it. `block_given?` is what tells the two
         # calling shapes apart: the type-position form
         # (`one_of("a", "b")`) never passes a block, only the wrapper does.
-        # RENAMED FROM `one_of` — item #13's full metaprogrammed dispatch
-        # (slice 5). SAME NAME as `AttributeCollector#one_of_impl`'s own
+        # Renamed from `one_of` — item #13's full metaprogrammed dispatch
+        # (slice 5). Same name as `AttributeCollector#one_of_impl`'s own
         # — required for the `super(*values)` call below to keep
         # resolving; see that method's own comment. Reached directly
         # through its own "ValueObject"-context Keyword row (the
         # block-wrapper form has its own row, distinct from "Type"'s),
-        # not through the Type-position fallback this word's OTHER
+        # not through the Type-position fallback this word's other
         # context uses.
         def one_of_impl(*values, &block)
           unless block
-            # NO VALUES, NO BLOCK is the SCALAR spelling — nonsensical, not
+            # No values, no block is the scalar spelling — nonsensical, not
             # merely inert: it names a closed set with nothing in it. The
             # original block form caught this by a side effect (`@closed_set
             # = true` ran unconditionally, before the `if block`), and this
@@ -83,7 +83,7 @@ module Hecks
           instance_eval(&block)
         end
 
-        # RENAMED FROM `member` — item #13's full metaprogrammed dispatch
+        # Renamed from `member` — item #13's full metaprogrammed dispatch
         # (slice 4c). Bootstrap-reachable, in
         # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
         def member_impl(**fields)
@@ -92,11 +92,11 @@ module Hecks
           @members << fields
         end
 
-        # NO BLOCK is a REFERENCE, not a fresh declaration — the same
+        # No block is a reference, not a fresh declaration — the same
         # move S10 already made for `CommandBuilder#given` (ADR 0025,
         # "a precondition shared across commands is declared once... a
         # command references it by name"), one level over: a rule
-        # shared across SIBLING value objects on the same aggregate,
+        # shared across sibling value objects on the same aggregate,
         # declared once, on the first one to need it. Real, live
         # redundancy this closes: `Account`'s own `Money`/`PositiveMoney`
         # both declared `invariant("a currency is a three-letter code")
@@ -105,7 +105,7 @@ module Hecks
         # the referencing value object's own build time, against
         # whatever sibling value objects the aggregate has already
         # built, the same ordering rule `given` carries.
-        # RENAMED FROM `invariant` — item #13's full metaprogrammed
+        # Renamed from `invariant` — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable, in
         # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
         def invariant_impl(description, &predicate)
@@ -119,7 +119,7 @@ module Hecks
 
         private
 
-        # PRIMITIVE 3 (RuleReference#resolve_sibling_scan) — see that
+        # Primitive 3 (RuleReference#resolve_sibling_scan) — see that
         # method's own comment for why this is a live scan, not a pool.
         def reference_named_invariant(description)
           verify_resolves_via!("invariant", "ValueObject", "sibling_scan")
@@ -157,15 +157,15 @@ module Hecks
 
         private
 
-        # THE NEW SPELLING — `attribute :name, String, one_of: %w[...]`,
-        # overriding `AttributeCollector`'s own refusal (every OTHER
-        # includer has no meaningful use for this). PRIVATE, like the
+        # **The new spelling** — `attribute :name, String, one_of: %w[...]`,
+        # overriding `AttributeCollector`'s own refusal (every other
+        # includer has no meaningful use for this). Private, like the
         # module's own version it overrides — it is a callback `attribute`
         # invokes on itself, never a word a bluebook author calls by name.
-        # Refuses a SECOND attribute naming one_of: on the same value
+        # Refuses a second attribute naming one_of: on the same value
         # object outright — a single-field set names exactly one field, by
         # construction; two would be structurally ambiguous about which
-        # field each member line belongs to. `build` refuses the OTHER
+        # field each member line belongs to. `build` refuses the other
         # half of that same rule (this attribute coexisting with unrelated
         # ones on a multi-field object).
         def install_inline_closed_set(field, values)

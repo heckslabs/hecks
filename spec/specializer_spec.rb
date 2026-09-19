@@ -1,10 +1,10 @@
 require "spec_helper"
 
 RSpec.describe "the first specializer" do
-  # WHAT IT CLAIMS, AND ONLY THAT. `Specializer` speaks for fields that
+  # **What it claims, and only that**. `Specializer` speaks for fields that
   # are scalar and not references — its own header says so at length, and
   # says that a list is exactly what `contracts.rb`'s `reads:` exists to
-  # answer instead. So the comparison is against the PLAIN subset of the
+  # answer instead. So the comparison is against the plain subset of the
   # hand-written table, not the whole of it.
   #
   # Written as whole-table equality first, which held only for as long as
@@ -23,8 +23,8 @@ RSpec.describe "the first specializer" do
       expect(derived).to eq(hand)
     end
 
-    # THE OTHER HALF OF THE SAME CLAIM. Deriving the plain fields is only
-    # worth anything if it derives ALL of them — a specializer that
+    # The other half of the same claim. Deriving the plain fields is only
+    # worth anything if it derives all of them — a specializer that
     # silently skipped one would pass the comparison above by matching a
     # table it had itself shrunk.
     it "leaves no plain field of #{category}'s for the hand-written table alone to carry" do

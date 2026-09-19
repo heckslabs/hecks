@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` — THE `dry_runs` COMPARISON SURFACE. One of seven
+# `bin/qa_sweep --all` — the `dry_runs` comparison surface. One of seven
 # sibling files split out of the original `qa_sweep_all_spec.rb` (Phase 2
 # of the CI speed effort — see `spec/qa_sweep_all_lifecycle_spec.rb`'s
 # own header and `spec/support/qa_sweep_all_fixture.rb` for the full
@@ -13,14 +13,14 @@ require_relative "support/qa_sweep_all_fixture"
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_dry_run_spec"
 
-  # THE `dry_runs` COMPARISON SURFACE FINDS SOMETHING ON ITS OWN — item 5
+  # The `dry_runs` comparison surface finds something on its own — item 5
   # of the detection plan. `--dry-run 1` turns every generated command
   # step into a `{"dry_run": …}` step, so the Ruby side of
-  # `spec/fixtures/qa_sweep_all_dry_run_fixture` produces NO instances,
+  # `spec/fixtures/qa_sweep_all_dry_run_fixture` produces no instances,
   # events or refusals — exactly what the fixture crate's own feature
   # answers — and the two sides differ on `dry_runs` alone.
   # `--self-consistency false` keeps the Rust rehydration door out of
-  # it: this example is about ONE surface, proven in isolation.
+  # it: this example is about one surface, proven in isolation.
   it "finds a dry_runs-only divergence, with every other surface agreeing" do
     identify_targets!("dry_run_one" => "spec/fixtures/qa_sweep_all_dry_run_fixture")
 

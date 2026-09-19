@@ -3,12 +3,12 @@ require "tmpdir"
 require "sqlite3"
 require_relative "../../support/persistence_legacy_fixture"
 
-# THE STATE CODEC (Phase 2, Track A, PR A2) — one IR-driven spelling of an
+# The state Codec (Phase 2, Track A, PR A2) — one IR-driven spelling of an
 # aggregate's state across the store boundary. The first half pins each
 # shape the codec walks; the second decodes every A1 legacy fixture
 # (spec/fixtures/persistence_legacy/, pinned as today's per-adapter decode
 # by spec/ports/persistence_legacy_decode_spec.rb) through it and asserts
-# ONE canonical form: old rows still decode, whichever adapter wrote them.
+# one canonical form: old rows still decode, whichever adapter wrote them.
 RSpec.describe Hecks::Ports::Persistence::StateCodec do
   def codec = described_class
   def fixture = PersistenceLegacyFixture
@@ -247,7 +247,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
 
     # [label, aggregate IR, raw state, canonical decode] for one adapter.
     # A SQL head's never-seeded projected field is a NULL column, which
-    # the adapter reads back ABSENT (Sqlite::Codec#projected_only?) — so
+    # the adapter reads back absent (Sqlite::Codec#projected_only?) — so
     # every source, head or journal, lands on the one canonical form.
     def expect_canonical(sources)
       sources.each do |label, ir, raw, expected|

@@ -4,10 +4,10 @@ require_relative "form_census"
 
 module Hecks
   module Fuzzing
-    # AN AGENT READS THE ADVERSARIAL CORPUS AND WRITES THE NEXT MEETING.
+    # An agent reads the adversarial corpus and writes the next meeting.
     #
     # `DomainGenerator` forces two `FormCensus::FORMS` onto one aggregate
-    # from a seed — cheap, mechanical, and blind to WHY a combination
+    # from a seed — cheap, mechanical, and blind to why a combination
     # should break. The bugs the ledger actually logged came from someone
     # reading a stress domain, a bug title, and a runtime file side by
     # side and guessing where the next divergence lives (`corrections`
@@ -16,13 +16,13 @@ module Hecks
     # (what the corpus already puts together, which pairs nothing meets,
     # what the recent bugs were) is computed here; the judgment half is a
     # prompt (`qa/combination_miner/prompt.md`) an agent answers by
-    # WRITING candidate bluebooks, each with a hypothesis. Checking them
+    # writing candidate bluebooks, each with a hypothesis. Checking them
     # is not this module's job — `bin/qa_mine_combinations` hands every
     # valid candidate to `bin/qa_generated_domains --source`, the same
     # differential, self-consistency, Rust build and shrinking path a
     # generated domain takes.
     #
-    # OPT-IN, NEVER THE ROTATION. An agent call costs money and minutes
+    # **Opt-in, never the rotation**. An agent call costs money and minutes
     # and answers differently every time; `bin/qa_tick` never runs it and
     # no `QualityControlDials` entry turns it on. A person runs
     # `bin/qa_mine_combinations` when they want new shapes.

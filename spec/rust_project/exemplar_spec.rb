@@ -1,9 +1,9 @@
 require "tmpdir"
 require_relative "../../rust/project/exemplar"
 
-# THE LOADER, TESTED IN ISOLATION — against a small scratch fixture tree,
+# **The loader, tested in isolation** — against a small scratch fixture tree,
 # never the real rust/src/exemplar/*.rs (that tree is proven valid by
-# `cargo test --lib` instead; this spec proves the RUBY side of the
+# `cargo test --lib` instead; this spec proves the Ruby side of the
 # pipeline: fence-parsing, substitution, drift detection, nested-slot
 # composition). `Exemplar.reset!(dir: ...)` repoints the loader at each
 # example's own fixture directory.

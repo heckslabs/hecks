@@ -14,7 +14,7 @@ end
 require_relative "driven/memory"
 require_relative "driven/sqlite"
 require_relative "driven/postgres"
-# `PostgresEra` is NOT `require_relative`d here — ADR 0033 moved it, and
+# `PostgresEra` is not `require_relative`d here — ADR 0033 moved it, and
 # the rest of the era/lineage/translation subsystem, behind a loadable
 # persistence plugin (`hecks/ports/persistence/plugins/era`) rather than
 # requiring every app to carry it whether or not anything ever binds
@@ -22,10 +22,10 @@ require_relative "driven/postgres"
 # that makes that genuinely load-nothing-until-asked instead of pushing
 # an explicit `require` onto every one of the ~15 generic `bin/*` tools
 # that boot an arbitrary checked-in domain (several of which — pizzas,
-# compliance, chess, roster — bind PostgresEra): the FIRST real
+# compliance, chess, roster — bind PostgresEra): the first real
 # `Adapters.const_get("PostgresEra")` (`registry/verification.rb`'s own
 # adapter resolution, unchanged) transparently `require`s the plugin
-# entry point, which defines the constant AND calls `register_plugin`
+# entry point, which defines the constant and calls `register_plugin`
 # as its own side effect (`plugins/era.rb`'s last line) — the exact
 # same effect an explicit `require "hecks/ports/persistence/plugins/
 # era"` has, just deferred to the moment something is actually asked
@@ -43,7 +43,7 @@ require_relative "driven/mock_stripe_adapter"
 require_relative "driven/secure_random_identity"
 require_relative "driven/system_clock"
 # `SequentialIdentity` — the deterministic identity_generation test
-# double — is NOT required here on purpose. It lives at
+# double — is not required here on purpose. It lives at
 # spec/fixtures/sequential_identity.{adapter,rb}, loaded explicitly by
 # whichever spec wants it: this file's `require_relative` list is what
 # `Folder#load_library`'s `.adapter` glob backs, and `.adapter` DSL

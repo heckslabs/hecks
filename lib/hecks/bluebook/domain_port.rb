@@ -2,8 +2,8 @@ require_relative "behaviour/domain_port"
 
 module Hecks
   module Bluebook
-    # THE PRIMARY/DRIVING HALF OF HEXAGONAL ARCHITECTURE (Cockburn) — called
-    # BY an adapter living outside the bluebook entirely, never by the
+    # The primary/driving half of hexagonal architecture (Cockburn) — called
+    # by an adapter living outside the bluebook entirely, never by the
     # domain calling out. That is already `Hecks.port` (persistence,
     # projection, extraction, loading) plus `Ports::*` : the secondary/
     # driven half, unchanged by this.
@@ -21,7 +21,7 @@ module Hecks
 
       attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to
 
-      # TWO DIRECTIONS THROUGH ONE DOOR.
+      # Two directions through one door.
       #
       # `:inbound` is what this class has always been — `tells`, spelled
       # `operation` before it had a twin: an external fact arriving, turned
@@ -29,7 +29,7 @@ module Hecks
       # channel back to whoever called.
       #
       # `:outbound` is `asks` — the domain wanting something from outside
-      # and having to live with either answer. It names BOTH: `answers` for
+      # and having to live with either answer. It names both: `answers` for
       # what the adapter came back with, `refuses` for what it said instead.
       # Naming only the happy one would put the failure somewhere the model
       # cannot see, which is the whole reason a boundary is worth modelling.
@@ -48,15 +48,15 @@ module Hecks
       def inbound?  = @direction == :inbound
 
       # No root reference of its own — unlike a command, every attribute
-      # EQUALLY describes the payload, including whichever one identifies
+      # equally describes the payload, including whichever one identifies
       # the record its emitted event belongs to. Kept only so
       # CommandInterpreter::ArgumentGate's `reference_key` can ask for it
       # without learning this isn't a command.
 
-      # `direction`/`answers`/`refuses` are deliberately OUTSIDE `emits_ir`'s
+      # `direction`/`answers`/`refuses` are deliberately outside `emits_ir`'s
       # declared shape and added here only for an outbound operation — an
       # ordinary inbound one (`tells`, still spelled `operation` everywhere
-      # in the existing corpus) keeps the EXACT prior IR shape, byte for
+      # in the existing corpus) keeps the exact prior IR shape, byte for
       # byte. Pizzas' `PaymentGateway` port is inbound-only and is checked
       # against `hecks-parse`'s own Rust output for byte-identity
       # (parser_parity_spec.rb) — the Rust side has no notion of `asks` yet,
@@ -64,12 +64,12 @@ module Hecks
       # domain that never asked for the feature. Only a chapter that
       # actually declares `asks` (this extraction's own QualityControl
       # ledger, not yet in any Rust-parity corpus) pays for it.
-      # `to` — SAME "deliberately outside emits_ir, merged in only when
+      # `to` — same "deliberately outside emits_ir, merged in only when
       # present" treatment as direction/answers/refuses just above, and
       # for the identical reason: an operation still spelled the old way
       # (`reference_to` inside the block, shadow-parsing only — see
       # reference_to_impl's own comment) or one that simply hasn't
-      # migrated yet keeps the EXACT prior IR shape, byte for byte,
+      # migrated yet keeps the exact prior IR shape, byte for byte,
       # instead of an unconditional new key breaking parser_parity_spec
       # for every domain that never touched this.
       def to_h

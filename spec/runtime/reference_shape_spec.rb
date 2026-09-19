@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# A REFERENCE IS AN ID, SO AN OBJECT IS NOT ONE.
+# A reference is an ID, so an object is not one.
 #
 # Nothing coerced a reference anywhere: the value-object lookup misses
 # on "Reference<Drawer>", which is no value object's name, so the argument was
@@ -8,7 +8,7 @@ require "spec_helper"
 # whatever the first caller happened to write — `{"value":"a"}` — became the
 # shape the corpus used for years.
 #
-# The refusal's WORDING is contract, not prose: the corpus scripts pin refusal
+# The refusal's wording is contract, not prose: the corpus scripts pin refusal
 # text byte for byte, so the string here is asserted exactly.
 RSpec.describe "a reference that arrives as an object" do
   SETTLEMENT = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
@@ -42,7 +42,7 @@ RSpec.describe "a reference that arrives as an object" do
                        "(Drawer is known by number)")
   end
 
-  # DECLARATION ORDER, not payload order. `refuse_unknown_arguments` had to sort
+  # Declaration order, not payload order. `refuse_unknown_arguments` had to sort
   # its list because map iteration order is an accident of the store ; this one
   # walks the command's own attributes, an array with a declared order, so the
   # argument named first is stable without sorting.
@@ -53,8 +53,8 @@ RSpec.describe "a reference that arrives as an object" do
     end.to raise_error(Hecks::Runtime::TypeMismatch, /and source arrived as an object/)
   end
 
-  # WITHOUT THIS THE GUARD PROVES NOTHING. A refusal on the wrapped form is only
-  # half the claim ; the other half is that the accepted form is STORED as the
+  # **Without this the guard proves nothing**. A refusal on the wrapped form is only
+  # half the claim ; the other half is that the accepted form is stored as the
   # scalar, rather than quietly re-wrapped somewhere downstream.
   it "accepts the id, and stores it as the id" do
     runtime.dispatch("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
@@ -76,8 +76,8 @@ RSpec.describe "a reference that arrives as an object" do
   # command's own `given` said instead (GivenNotMet here — "a wire moves
   # something" never even reaches `amount`). Rust's generated `from_json`
   # has always required a JSON string for a required reference field
-  # before anything else runs — these four pin Ruby refusing the SAME
-  # kind, at the SAME step (`normalize_args`, before `resolve_references`
+  # before anything else runs — these four pin Ruby refusing the same
+  # kind, at the same step (`normalize_args`, before `resolve_references`
   # ever gets a value to look up), matching it.
   describe "a non-string, non-object reference argument" do
     {
@@ -104,14 +104,14 @@ RSpec.describe "a reference that arrives as an object" do
     end
   end
 
-  # THE OTHER HALF OF THE JUDGMENT — an OPTIONAL command-level reference
+  # **The other half of the judgment** — an optional command-level reference
   # (`reference_to ..., optional: true`) still passes an explicit `null`
   # straight through untouched: the caller genuinely may have nothing to
   # name yet (`Improvement.Open`'s own `reference_to Angle, optional:
   # true`, qa/bluebook/quality_control.bluebook), and BUG#27's fix is
-  # scoped to a REQUIRED reference's own wrong shapes, not to this case.
+  # scoped to a required reference's own wrong shapes, not to this case.
   describe "an optional reference argument" do
-    # NOT `HOP_CHAIN` — `spec/runtime/query_hop_spec.rb` already owns that
+    # Not `HOP_CHAIN` — `spec/runtime/query_hop_spec.rb` already owns that
     # top-level name for the identical fixture path, and `load_hygiene_
     # spec.rb` refuses two spec files disagreeing about (or merely
     # duplicating) a top-level constant.
@@ -147,7 +147,7 @@ RSpec.describe "a reference that arrives as an object" do
     end
   end
 
-  # AN ASK'S REFERENCE IS AN ID TOO, and this one closes a real split rather
+  # An ask's reference is an ID too, and this one closes a real split rather
   # than a hypothetical: one query path once opened a wrapped reference and
   # answered, while another read it whole and found nothing. Only a stale caller
   # would show it, which is exactly the kind of divergence that waits.

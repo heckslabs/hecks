@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_ledger_fixture"
 
-# `bin/qa_log_bug`, PROVEN AGAINST THE REAL THING — a real subprocess, a
+# `bin/qa_log_bug`, proven against the real thing — a real subprocess, a
 # real disposable PostgresEra ledger (`spec/support/qa_ledger_fixture.rb`,
 # and `spec/support/qa_sweep_all_fixture.rb`'s own header for why nothing here can
 # be proven against Memory). The three claims the script exists for: a
@@ -63,10 +63,10 @@ RSpec.describe "bin/qa_log_bug", :io do
     expect(reproduced_values).to eq(["yes"])
   end
 
-  # THE ESCAPE HATCH: A FINDING WITH NO RELIABLE PASS/FAIL SIGNAL. Without
+  # **The escape hatch**: a finding with no reliable pass/fail signal. Without
   # `--reproduced no`, a demonstration that does not reliably fail is
   # simply refused and the finding is lost — the whole reason this flag
-  # exists. `ruby -e '...'` here would PASS if actually run (exit 0), and
+  # exists. `ruby -e '...'` here would pass if actually run (exit 0), and
   # never is: `--reproduced no` skips the must-fail check entirely.
   it "logs a bug with --reproduced no even though the demonstration does not fail" do
     a_sweep_on_file
@@ -81,8 +81,8 @@ RSpec.describe "bin/qa_log_bug", :io do
     expect(reproduced_values).to eq(["no"])
   end
 
-  # STILL REQUIRED, STILL REAL CODE — `--reproduced no` only removes the
-  # must-fail CHECK, not the requirement that `--demonstration` be an
+  # **Still required, still real code** — `--reproduced no` only removes the
+  # must-fail check, not the requirement that `--demonstration` be an
   # actual reproduction attempt rather than prose describing what
   # happened.
   it "refuses --reproduced no when --demonstration reads like prose, not code" do
@@ -107,8 +107,8 @@ RSpec.describe "bin/qa_log_bug", :io do
     expect(bugs_on_file).to be_empty
   end
 
-  # A REAL BUG#21 WAS ASSIGNED TWICE once — this is the mint that cannot
-  # do that: past the highest sequence on file, AND past any reference a
+  # A real BUG#21 was assigned twice once — this is the mint that cannot
+  # do that: past the highest sequence on file, and past any reference a
   # hand-typed `log` already took out of order.
   it "mints past every sequence and every reference already on file" do
     sweep = a_sweep_on_file
@@ -122,7 +122,7 @@ RSpec.describe "bin/qa_log_bug", :io do
 
     expect(status.exitstatus).to eq(0), stdout
     # sequences on file: 2, 3 → next is 4; "BUG#4" is taken → walks to 5,
-    # reference and sequence in lockstep (the reference IS the sequence).
+    # reference and sequence in lockstep (the reference is the sequence).
     expect(stdout).to include("logged BUG#5 (sequence 5, self_contained, reproduced=yes)")
     expect(bugs_on_file.map(&:first)).to contain_exactly("BUG#1", "BUG#4", "BUG#5")
   end

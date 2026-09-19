@@ -2,14 +2,14 @@ require "spec_helper"
 require_relative "support/doctest"
 require_relative "support/doctest_names"
 
-# THE REFERENCE'S EXAMPLES RUN, the same way the guides' do. Presence is
+# The reference's examples run, the same way the guides' do. Presence is
 # spec/reference_golden_spec.rb's question — every live word carrying an
 # example at all — and this is the other half: that the example works.
 # Either alone is worth little. A word can carry a fence that has never
 # been executed, and a page of executed fences can still leave half the
 # language undocumented.
 #
-# A page boots ONCE, in its hand-written preamble (the prose between the
+# A page boots once, in its hand-written preamble (the prose between the
 # page's generated lede and its first word heading), and every word's
 # example below runs against that boot — `Doctest::Session#waves` groups
 # a run of declaration blocks with every usage block that follows it.

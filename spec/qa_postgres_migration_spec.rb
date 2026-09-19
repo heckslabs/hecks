@@ -6,29 +6,29 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# PROVES `bin/qa_postgres_migrate`'s ROUND TRIP, NOT the real ledger's own
-# migration. Boots the real `qa/bluebook/quality_control.bluebook` TWICE —
+# Proves `bin/qa_postgres_migrate`'s round trip, not the real ledger's own
+# migration. Boots the real `qa/bluebook/quality_control.bluebook` twice —
 # once under a Heki binding written here (the shape the ledger used to
 # have), once under the real, shipped `quality_control.hecksagon` (already
-# bound to `PostgresEra`) plus a throwaway `.world` naming a SCRATCH
+# bound to `PostgresEra`) plus a throwaway `.world` naming a scratch
 # database — never the real `hecks_quality_control` this repo's own
 # `quality_control.world` names, and never the real, persistent worktree's
 # own `qa/data/`. Both are copies built fresh in a `Dir.mktmpdir`, dropped
 # in `after(:all)`.
 #
-# Generates data through REAL command dispatch (creating commands, entity
+# Generates data through real command dispatch (creating commands, entity
 # commands, lifecycle transitions) rather than hand-built state hashes —
 # the same discipline `spec/quality_control_spec.rb`'s own header states
 # for why it goes through the facade: what this proves is what the ledger
 # actually produces, not what a spec author imagined it might.
 #
-# EVERY EXAMPLE BELOW CALLS `run_migrate` ITSELF before asserting anything
+# Every example below calls `run_migrate` itself before asserting anything
 # that depends on migrated state (the tool is idempotent by design, so a
 # redundant call costs a little time and changes nothing) — `config.order
-# = :random` (spec_helper.rb) means these examples cannot lean on ANY
+# = :random` (spec_helper.rb) means these examples cannot lean on any
 # ordering between them. The one exception is the dry-run assertion, whose
 # whole claim is "nothing was written yet" — that only means something
-# read BEFORE any `--force` call anywhere in this file, so it is captured
+# read before any `--force` call anywhere in this file, so it is captured
 # once, in `before(:all)`, before generation even finishes.
 RSpec.describe "bin/qa_postgres_migrate", :io do
   # `InMemoryDomain::ROOT` spelled out, not aliased to a bare `ROOT` — a
@@ -39,12 +39,12 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
   MIGRATE_SCRIPT   = File.join(InMemoryDomain::ROOT, "bin/qa_postgres_migrate")
   SCRATCH_DB       = "hecks_qa_migration_spec".freeze
 
-  # THE LEDGER'S OWN FORMER WIRING, restated here rather than read off a
+  # The ledger's own former wiring, restated here rather than read off a
   # git revision — this is what a Heki-backed `quality_control.hecksagon`
   # looked like before the PostgresEra move this migration tool exists
   # for, and it needs to keep meaning that regardless of what the real
   # file goes on to say next. Structurally identical to the real,
-  # PostgresEra-bound file this spec ALSO loads (same ports, same
+  # PostgresEra-bound file this spec also loads (same ports, same
   # dormant/discovered-adapter shape) — only the seven `persisted_by` lines
   # differ.
   HEKI_HECKSAGON = <<~HECKSAGON.freeze
@@ -211,7 +211,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
       body: { value: "see BUG#2 in the QA ledger" }
     )
 
-    # ── the dry run, captured HERE — before any --force call anywhere in
+    # ── the dry run, captured here — before any --force call anywhere in
     # this file has had a chance to write a single row.
     @dry_run_stdout, @dry_run_stderr, @dry_run_status = run_migrate
     @dry_run_pg_rows = Hecks.boot(@pg_dir).query("QualityControl::Target.All")
@@ -236,7 +236,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     expect(@dry_run_stdout).to include("WOULD MIGRATE sweep/SW-1")
     expect(@dry_run_stdout).to include("would migrate 12, skipped 0")
 
-    # NOTHING WAS ACTUALLY WRITTEN — read before any `--force` call.
+    # **Nothing was actually written** — read before any `--force` call.
     expect(@dry_run_pg_rows).to be_empty
   end
 
@@ -254,7 +254,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
       expect(pg_rows).not_to be_empty
     end
 
-    # THE ENTITY LIST, BY NAME — `Sweep.All`'s own `state` already proves
+    # **The entity list, by name** — `Sweep.All`'s own `state` already proves
     # this (it is nested inside), but this is the direct claim the whole
     # migration exists to make: 25 checks went in, 25 checks came back,
     # in the order they were made.
@@ -262,11 +262,11 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     expect(sweep_row[:checks].length).to eq(25)
     expect(sweep_row[:checks].map { |c| c[:sequence][:value] }).to eq((1..25).to_a)
 
-    # THE VALUE-OBJECT LIST, BY NAME.
+    # **The value-object list, by name**.
     bug_row = pg_runtime.query("QualityControl::Bug.All").find { |r| r[:reference][:value] == "BUG#1" }
     expect(bug_row[:tags].map { |t| t[:value] }.sort).to eq(%w[as-alias framework silent-divergence])
 
-    # LIFECYCLE STATUS, EXACTLY — a bug that was Logged, Investigated,
+    # **Lifecycle status, exactly** — a bug that was Logged, Investigated,
     # Fixed, then Verified should read back "verified", not silently
     # regressed to its own initial state.
     expect(bug_row[:status]).to eq("verified")
@@ -296,19 +296,19 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     out, err, status = run_migrate("--force")
 
     expect(status.exitstatus).to eq(1)
-    # THE REFUSAL ITSELF IS ON STDERR — the same split `bin/heki_compact`
+    # The refusal itself is on STDERR — the same split `bin/heki_compact`
     # already draws between its own `puts` (what happened, uneventfully)
     # and `warn` (what needs a human's attention).
     expect(err).to include("REFUSED target/pizzas")
     expect(out).to include("refused 1 (conflicting data)")
 
-    # NOT OVERWRITTEN — the mutation from this very example is still
+    # Not OVERWRITTEN — the mutation from this very example is still
     # there, exactly, which is the whole point of refusing.
     still_mutated = repo.find("pizzas")
     expect(still_mutated.state[:reason].to_h).to eq({ value: "DELIBERATELY MUTATED FOR CONFLICT TEST" })
   ensure
-    # RESTORED — other examples in this file (`config.order = :random`)
-    # read the SAME scratch database and must not see this example's own
+    # Restored — other examples in this file (`config.order = :random`)
+    # read the same scratch database and must not see this example's own
     # deliberate corruption.
     if defined?(repo) && repo && defined?(original) && original
       repo.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "pizzas", state: original.state))

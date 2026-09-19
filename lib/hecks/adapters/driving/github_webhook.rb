@@ -4,19 +4,19 @@ require "rack"
 
 module Hecks
   module Adapters
-    # THE DRIVING SIDE — code an OUTSIDE caller reaches IN through,
-    # rather than code the domain reaches OUT through. Every existing
+    # **The driving side** — code an outside caller reaches in through,
+    # rather than code the domain reaches out through. Every existing
     # file under `adapters/driven/` is the latter: a store or reader a
-    # `persisted_by`/`port` binding resolves TO, called BY this
+    # `persisted_by`/`port` binding resolves to, called by this
     # framework's own runtime. Nothing under this repository has ever
-    # been the mirror image before — code that receives a request FROM
+    # been the mirror image before — code that receives a request from
     # the outside world and turns it into a dispatch — so this is the
     # first entry, and the directory itself is new.
     module Driving
-      # A GITHUB WEBHOOK RECEIVER, TRANSPORT ONLY — the same split
+      # **A GitHub webhook receiver, transport only** — the same split
       # `Hecks::Adapters::GithubChecks` (qa/adapters/github_checks.rb,
-      # this class's own PULL-side sibling) already draws for itself:
-      # THIS file owns proving a request really came from GitHub and
+      # this class's own pull-side sibling) already draws for itself:
+      # this file owns proving a request really came from GitHub and
       # unwrapping GitHub's own webhook envelope (`X-GitHub-Event`, the
       # JSON body, GitHub's own automatic `ping` check) — never which
       # commands to dispatch about what it finds inside. That is exactly
@@ -26,10 +26,10 @@ module Hecks
       # in `qa/adapters/github_ci_webhook.rb`, the subclass of this file
       # that actually knows what a `QualityControl::Clearance` is.
       #
-      # A PLAIN RACK APP (`#call(env)`) — no Sinatra, no Rails — the same
+      # A plain rack app (`#call(env)`) — no Sinatra, no Rails — the same
       # shape `Hecks::Forms::App` (lib/hecks/forms/app.rb) already
       # established for the one other HTTP-facing surface this library
-      # ships. `rack` is a LAZY Gemfile dependency for exactly the reason
+      # ships. `rack` is a lazy Gemfile dependency for exactly the reason
       # that file's own header gives: this file is never required by
       # `require "hecks"` (nothing under `adapters.rb`'s own eager
       # `adapters/driven` load names it — see that file's own header),
@@ -37,9 +37,9 @@ module Hecks
       # `rack` installed, the same "opt in by requiring the file at all"
       # contract `hecks/forms.rb` already has for `Forms::App`.
       #
-      # SUBCLASS RESPONSIBILITY: implement `#handle_event(event, action,
+      # **Subclass responsibility**: implement `#handle_event(event, action,
       # payload)`, returning `[http_status, response_body_hash]`. Called
-      # ONLY after the signature has verified and the body has parsed as
+      # only after the signature has verified and the body has parsed as
       # JSON — a subclass never has to re-check either. `event` is
       # GitHub's own `X-GitHub-Event` header value ("check_suite",
       # "check_run", "pull_request", ...); `action` is the payload's own
@@ -51,7 +51,7 @@ module Hecks
       # subclass at all; there is nothing domain-specific to decide
       # about it.
       class GithubWebhook
-        # REFUSED, LOUDLY — the same shape a domain refusal already takes
+        # **Refused, loudly** — the same shape a domain refusal already takes
         # everywhere else in this codebase (`Runtime::DOMAIN_REFUSALS`,
         # `Forms::App`'s own `{error:, message:}` JSON body for a bad
         # command). A request that cannot prove it came from GitHub gets
@@ -60,20 +60,20 @@ module Hecks
         # exactly like success in a log nobody re-reads.
         class InvalidSignature < StandardError; end
 
-        # THE BODY DID NOT EVEN PARSE — distinct from a signature refusal:
+        # **The body did not even parse** — distinct from a signature refusal:
         # this body genuinely came from whoever signed it (checked
-        # FIRST, before parsing ever runs — see `#call`), and simply
+        # first, before parsing ever runs — see `#call`), and simply
         # is not JSON. Still refused, never guessed at.
         class MalformedPayload < StandardError; end
 
         SIGNATURE_HEADER = "HTTP_X_HUB_SIGNATURE_256".freeze
         EVENT_HEADER     = "HTTP_X_GITHUB_EVENT".freeze
 
-        # `secret:` HAS NO DEFAULT, ON PURPOSE — the same rule
+        # `secret:` has no default, on purpose — the same rule
         # `GoogleAuthentication`'s own header states for its own
         # `ENV.fetch`, restated here because the consequence is worse for
         # a webhook: an unverified signature check is not "half
-        # configured", it is NO verification at all, silently accepting
+        # configured", it is no verification at all, silently accepting
         # anything claiming to be GitHub. A caller passes the real
         # secret explicitly — from `ENV.fetch("GITHUB_WEBHOOK_SECRET")`
         # or wherever it keeps one — rather than this class reaching into
@@ -107,8 +107,8 @@ module Hecks
 
         private
 
-        # CONSTANT-TIME COMPARE, NOT `==`. A byte-by-byte `==` returns
-        # the moment it finds the first mismatching byte, so how LONG
+        # Constant-time compare, not `==`. A byte-by-byte `==` returns
+        # the moment it finds the first mismatching byte, so how long
         # that took leaks how many leading bytes of a forged signature
         # were already right to anyone timing the response — GitHub's
         # own webhook documentation calls this out by name and recommends

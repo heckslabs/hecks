@@ -11,7 +11,7 @@ require_relative "../../../support/fenced_owner"
 # but invents both eras and the edge inline — none of it lives in
 # examples/, so word_coverage_spec.rb's own corpus scan has never once
 # seen a real `rekey` declaration). This spec loads era 2's bluebook
-# AND the translation edge straight off disk — the same files a real
+# and the translation edge straight off disk — the same files a real
 # checkout ships — and mints them against a real Postgres, seeded with
 # several distinct historical records, not one hand-picked name: a
 # `backfill` default could only ever be right for at most one of them,
@@ -55,7 +55,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     admin.exec("DROP DATABASE IF EXISTS #{DIRECTORY_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{DIRECTORY_DB}")
     admin.close
-    # every check! below connects as a NON-superuser owner — the ambient
+    # every check! below connects as a non-superuser owner — the ambient
     # dev/CI user is a superuser, which PostgresEra refuses to boot as
     # (BUG#24; see support/fenced_owner.rb)
     FencedOwner.own!(DIRECTORY_DB)
@@ -100,7 +100,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
   # One end-to-end scenario: seed several distinct historical records,
   # prove the mint refuses the rekey without a human approval, approve
   # it, mint, then check every record resolved under its new identity
-  # AND the raw journal stayed untouched. Splitting would either re-pay
+  # and the raw journal stayed untouched. Splitting would either re-pay
   # the real-Postgres seed/mint setup or separate the approval gate
   # from the multi-row proof it exists to establish.
   # rubocop:disable-next RSpec/ExampleLength

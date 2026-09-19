@@ -5,17 +5,17 @@ module Hecks
     # Every DomainRefusal wording that is not already data — `given`/
     # `ensures`/a declared `invariant` already carry their own description,
     # read at dispatch time off the command or value object that declared
-    # them. These are different in kind: LANGUAGE-LEVEL refusals, the same
+    # them. These are different in kind: language-level refusals, the same
     # wording for every domain, not authored per-bluebook.
     #
-    # READ OFF THE GENERATED TABLE, not typed a second time. The rows are
+    # Read off the generated table, not typed a second time. The rows are
     # Vocabulary::RefusalTemplate (language/bluebook/vocabulary.bluebook),
     # projected into lib/hecks/vocabulary.rb by bin/project_vocabulary and
     # into rust/src/kernel/vocab/refusal_template.rs by
     # bin/project_rust_vocabulary; both regenerations are diffed in CI, so
     # there is no hand copy left here to drift. Declared order is kept.
     #
-    # THE ARGUMENTS ARE DATA TOO. Vocabulary::RefusalSiteArgument names the
+    # **The arguments are data too**. Vocabulary::RefusalSiteArgument names the
     # values each site takes and how each is written (a list's separator,
     # its sort, its empty reading, its quoting). Call sites use
     # `render_site` and hand over raw values; the Rust kernel's typed

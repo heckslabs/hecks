@@ -4,7 +4,7 @@ require_relative "../statements"
 module Hecks
   module Projections
     module Glossary
-      # EVERY SENTENCE THE GLOSSARY SAYS, AND THE RULE EACH ONE OBEYS.
+      # Every sentence the glossary says, and the rule each one obeys.
       #
       # Authored text is verbatim: an aggregate's `description`, a
       # command's `goal`, a query's `description`, an invariant's own
@@ -65,7 +65,7 @@ module Hecks
           [value_object_sentence(value_object, index, within), rules_line(rules)].compact
         end
 
-        # A one-field object whose field is just "value" IS its type —
+        # A one-field object whose field is just "value" is its type —
         # "Text.", "A whole number." — the field name would add nothing.
         def value_object_sentence(value_object, index, within)
           return closed_set_sentence(value_object.members) if value_object.closed_set?
@@ -92,7 +92,7 @@ module Hecks
           field.list? ? "a list of #{inner}" : inner
         end
 
-        # A CLOSED SET'S ROWS — a one-field set is its values; a set
+        # A closed set's rows — a one-field set is its values; a set
         # whose rows carry more (StatementFrequency's cadence plus a
         # retention and a fee) leads with the first field and keeps the
         # rest beside it, so no row loses what makes it distinct.
@@ -162,7 +162,7 @@ module Hecks
           sentence
         end
 
-        # A NOUN LIST, DELIBERATELY — "Responsible for Credit and Debit",
+        # A noun list, deliberately — "Responsible for Credit and Debit",
         # never "Can credit and debit": banking's System role raises
         # `Debited` and `Credited`, and "can … debited" is a wrong
         # sentence. The headwords are already what people say.
@@ -170,7 +170,7 @@ module Hecks
           "Responsible for #{Naming.to_sentence_list(command_links(issues, index))}."
         end
 
-        # THE SAME WORD FOR TWO DIFFERENT THINGS gets its holder beside it
+        # The same word for two different things gets its holder beside it
         # — a role responsible for CardPayment's Reverse and Transfer's
         # Reverse is responsible for "Reverse (card payment)" and
         # "Reverse (transfer)", not for "Reverse" twice.

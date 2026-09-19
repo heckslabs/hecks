@@ -6,7 +6,7 @@ require "tmpdir"
 # a plain scalar, a bare value-object field, and a dotted value-object
 # member) plus one fixture from Banking (`CardPayment`'s "Flagged", the only
 # `contains`-on-a-list query in the corpus) to prove the one case that must
-# NOT get an index. `schema_builder.rb`'s own header comment explains why
+# not get an index. `schema_builder.rb`'s own header comment explains why
 # each of these resolves the way it does — this spec proves the SQL text,
 # not just that queries still return the right rows.
 RSpec.describe "Hecks::Adapters::Sqlite automatic indexing" do

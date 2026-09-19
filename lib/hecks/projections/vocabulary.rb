@@ -2,20 +2,20 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # THE CLOSED SETS, PROJECTED — lib/hecks/vocabulary.rb rendered
+    # **The closed sets, projected** — lib/hecks/vocabulary.rb rendered
     # from whichever chapter declares a `Vocabulary` aggregate, which in
     # practice is the language projecting its own tables.
     #
     #   Projector.call(:vocabulary, bluebook: <the Bluebook chapter>)
     #
-    # A PROJECTION RATHER THAN A BIN/ SCRIPT, and that correction is the
+    # A projection rather than a bin/ script, and that correction is the
     # point of it. This was first written as its own program with its own
     # call shape, beside `bin/project_parser_table`, `bin/reference` and
     # `bin/expression_projection` — four tools doing "canonical IR in,
     # external artifact out" four different ways, which is the exact
     # thing the projector registry exists to stop.
     #
-    # Reads the chapter's JUDGED IR, so what is written out is what the
+    # Reads the chapter's judged IR, so what is written out is what the
     # language actually holds rather than what a builder happened to
     # produce.
     module Vocabulary
@@ -24,10 +24,10 @@ module Hecks
       projects_as :vocabulary, declares: "Vocabulary"
 
       HEADER = <<~RUBY.freeze
-        # GENERATED — projected from the language's own Vocabulary aggregate
+        # Generated — projected from the language's own Vocabulary aggregate
         # (lib/hecks/language/bluebook/vocabulary.bluebook).
         #
-        # DO NOT EDIT. spec/vocabulary_table_spec.rb re-projects this in memory
+        # Do not edit. spec/vocabulary_table_spec.rb re-projects this in memory
         # and refuses a diff, so an edit here fails the ordinary suite.
         #
         # Plain data on purpose — no requires, no dependency on the model —
@@ -42,9 +42,9 @@ module Hecks
       # has nothing to vary.
       def call(bluebook:, options: {}) = render(bluebook)
 
-      # FULL ROWS, not just the first field of each.
+      # Full rows, not just the first field of each.
       #
-      # Most vocabularies ARE one-field lists and the field is the term.
+      # Most vocabularies are one-field lists and the field is the term.
       # Several are not: `Comparison` declares the algebra each operator
       # computes with, `RefusalTemplate` an error plus its key and text.
       # Taking the first field of those produced a list of thirty-nine
@@ -69,8 +69,8 @@ module Hecks
           #{rows.join(",\n")}
               }.freeze
 
-              # THE TERMS — the first field of each row, which for a
-              # one-field vocabulary is the whole of it. Derived ONCE and
+              # The terms — the first field of each row, which for a
+              # one-field vocabulary is the whole of it. Derived once and
               # frozen rather than mapped per call: these are constant
               # tables, and a constant that allocates a new array every
               # time it is read is not one.

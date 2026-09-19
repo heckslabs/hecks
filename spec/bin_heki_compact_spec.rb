@@ -2,16 +2,16 @@ require "tmpdir"
 require "open3"
 require "fileutils"
 
-# bin/heki_compact is a SCRIPT, not a library — same reasoning
+# bin/heki_compact is a script, not a library — same reasoning
 # bin_stores_spec.rb's own header gives: run it as a real subprocess
 # (Open3) against real, on-disk fixture directories.
 #
 # Two fixtures, both real:
 #   - spec/fixtures/heki_compact_fixture — one Heki-persisted aggregate
-#     with NO `projected_by` binding at all, where compaction is
+#     with no `projected_by` binding at all, where compaction is
 #     genuinely safe. Proves the actual behavior (dry run reports,
 #     --force compacts, current state survives a fresh boot).
-#   - examples/banking — a REAL, already-shipped example that pairs
+#   - examples/banking — a real, already-shipped example that pairs
 #     `persisted_by("Heki")` with `projected_by("SqliteProjection")`.
 #     Proves the refusal: compacting here would silently break
 #     `Ports::Projection::Worker#catch_up!`/`Registry#
@@ -72,7 +72,7 @@ RSpec.describe "bin/heki_compact" do
     it "dry-runs without touching the journal, then compacts for real under --force" do
       bluebook_dir = copy_fixture(HEKI_COMPACT_FIXTURE, "fixture")
       seed_gadget(bluebook_dir)
-      # Heki's own `resolve_path` resolves relative to the BOOT ROOT
+      # Heki's own `resolve_path` resolves relative to the boot ROOT
       # (`File.dirname` of the bluebook directory itself, per
       # `Runtime::Loader.boot`), not the bluebook directory — so the
       # store lands one level up from `bluebook_dir`, beside it, not

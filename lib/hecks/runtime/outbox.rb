@@ -6,25 +6,25 @@ require_relative "../naming"
 
 module Hecks
   module Runtime
-    # THE TRANSACTIONAL OUTBOX — the durable hand-off between "a command
+    # **The transactional outbox** — the durable hand-off between "a command
     # committed" and "everything that was owed because it committed":
     # the policies that react to its events, the process managers that
     # advance on them, and (through a policy whose trigger is an
     # outbound port operation) the external effects those reactions
     # cause. `future-features.md` item 8, built.
     #
-    # THE SHAPE. One row per (event, consumer). A consumer is a named
+    # **The shape**. One row per (event, consumer). A consumer is a named
     # policy or process manager that would react to the event — resolved
-    # at ENQUEUE time from the registry (`Fanout`), so the outbox records
-    # WHO was owed what, not just that an event happened. Rows move
+    # at enqueue time from the registry (`Fanout`), so the outbox records
+    # who was owed what, not just that an event happened. Rows move
     # `pending → claimed → delivered | failed`:
     #
-    #   pending    written in the SAME adapter transaction as the
+    #   pending    written in the same adapter transaction as the
     #              aggregate save (`Interpreting#run_dispatch_order`
     #              wraps `save` + `emit` + enqueue in `repository.
     #              transaction`), so a row exists iff the state change
     #              it reacts to committed — never one without the other.
-    #   claimed    the relay is about to run this consumer. Set BEFORE
+    #   claimed    the relay is about to run this consumer. Set before
     #              the reaction (a policy's `reenter`, a saga leg's
     #              dispatch, an adapter call) runs.
     #   delivered  the consumer ran to completion — including the
@@ -33,7 +33,7 @@ module Hecks
     #              tracks delivery, not the domain's answer.
     #   failed     the consumer raised a defect (non-refusal error).
     #
-    # DELIVERY IS INLINE BY DEFAULT — the dispatcher drains the rows it
+    # **Delivery is inline by default** — the dispatcher drains the rows it
     # just wrote, in the same call, in the order C10.2 fixes (per event
     # in `emits` order: that event's policy rows, then its saga rows —
     # the emitting domain's own policies before other domains'). Nothing about the
@@ -44,20 +44,20 @@ module Hecks
     # `Relay#redrive!` — run at boot by `Loader.run_boot_gates!` —
     # finds it.
     #
-    # WHAT REDRIVE DOES, AND DELIBERATELY DOESN'T. A `pending` row is
-    # REDRIVEN: its consumer provably never started (claiming is the
+    # **What redrive does, and deliberately doesn't**. A `pending` row is
+    # redriven: its consumer provably never started (claiming is the
     # first thing delivery does), so running it now is exactly-once by
-    # construction. A `claimed` row is NOT auto-redriven: the consumer
+    # construction. A `claimed` row is not auto-redriven: the consumer
     # started and the crash hid its outcome — the same reasoning
     # `saga_pending_dispatch.rb` gives (a stalled transfer is a better
     # defect than a double-credited one). It is surfaced loudly
     # (`warn`, and a `stalled: true` entry in `Relay#log`) and left for
     # `Relay#redrive!(claimed: true)` — an explicit operator decision,
     # never a boot-time default. `delivery_id` (event uid + consumer) is
-    # UNIQUE per store, so a re-enqueue of the same fact to the same
+    # unique per store, so a re-enqueue of the same fact to the same
     # consumer is a no-op rather than a second row.
     #
-    # WHICH ADAPTERS. Memory (in-process rows — visible to specs,
+    # **Which adapters**. Memory (in-process rows — visible to specs,
     # gone with the process, exactly like everything else Memory holds),
     # Sqlite and Postgres (a `hecks_outbox` table in the aggregate's own
     # database — the only way the enqueue can share the save's
@@ -93,7 +93,7 @@ module Hecks
         event.to_h.merge(correlation: event.correlation)
       end
 
-      # THE EMITTING DOMAIN'S OWN BLUEBOOK FIRST, then the rest in load
+      # The emitting domain's own bluebook first, then the rest in load
       # order (C10.2) — the one policy ordering both `PolicyInterpreter#
       # policies_for` and `Fanout.policies` read.
       def bluebooks_home_first(registry, domain)
@@ -121,7 +121,7 @@ module Hecks
         end
       end
 
-      # WHO IS OWED WHAT — the same selection `PolicyInterpreter#policies_for`
+      # **Who is owed what** — the same selection `PolicyInterpreter#policies_for`
       # and `SagaInterpreter#advance` make at delivery time, made once at
       # enqueue time so the row names its consumer. Policy rows first,
       # then saga rows, event order preserved within each: exactly the
@@ -129,13 +129,13 @@ module Hecks
       module Fanout
         module_function
 
-        # ONE UID PER EVENT for this enqueue — the Event struct is
+        # One UID per event for this enqueue — the Event struct is
         # frozen after `emit!`, so the uid lives on the rows rather than
         # on it (and stays off `Event#to_h`, whose shape the golden and
         # parity specs pin). Policy and saga rows for the same event
         # share it, which is what makes `delivery_id` mean "this fact,
         # this consumer".
-        # ROW ORDER IS DELIVERY ORDER (C10.2): per event, in `emits`
+        # Row order is delivery order (C10.2): per event, in `emits`
         # order — that event's policy rows, then its saga rows.
         def rows_for(registry, events, domain)
           uids = events.to_h { |event| [event, SecureRandom.uuid] }
@@ -194,13 +194,13 @@ module Hecks
         end
       end
 
-      # THE RELAY — one per `Dispatcher`. Enqueues into a repository's
+      # **The relay** — one per `Dispatcher`. Enqueues into a repository's
       # store, drains rows inline, and redrives what a previous process
       # left behind.
       class Relay
         attr_reader :registry, :log
 
-        # NOT `saga_log`/`reaction_log` — those are ported byte-for-byte
+        # Not `saga_log`/`reaction_log` — those are ported byte-for-byte
         # by the Rust kernel (`spec/rust_conformance_spec.rb`); this is
         # an additive, Ruby-only log, the same rule `saga_dispatch_log`
         # and `policy_dispatch_log` already follow.
@@ -213,7 +213,7 @@ module Hecks
         # through (`Dispatcher#initialize`). Until then this relay can
         # enqueue (that needs only the registry) but not deliver — and
         # nothing can dispatch without a dispatcher, so nothing asks it
-        # to. The registry holds ONE relay for its lifetime; a second
+        # to. The registry holds one relay for its lifetime; a second
         # dispatcher fronting the same registry re-attaches, which is
         # fine because both dispatchers share every log and store.
         def attach(policies:, sagas:)
@@ -224,7 +224,7 @@ module Hecks
 
         def attached? = !@policies.nil?
 
-        # Called INSIDE the save transaction by `Interpreting` for the
+        # Called inside the save transaction by `Interpreting` for the
         # command/entity paths, and outside one by `Dispatcher` for port
         # operations (which save nothing, so there is no transaction to
         # share). Returns the rows as stored (ids assigned), or nil when
@@ -243,7 +243,7 @@ module Hecks
         # outbox here" — react directly, the pre-outbox path.
         def deliver(rows, events, domain, repository)
           if rows.nil?
-            # PER EVENT, in `emits` order — its policies, then its sagas
+            # Per event, in `emits` order — its policies, then its sagas
             # (C10.2, docs/semantics/bluebook-semantics.md); the same
             # order `Fanout.rows_for` lays the outbox rows in.
             events.each do |event|
@@ -287,9 +287,9 @@ module Hecks
           stores.flat_map { |repository| repository.outbox_rows(status: status) }
         end
 
-        # BOOT-TIME RECONCILIATION. Redrives `pending` rows (never
+        # **Boot-time reconciliation**. Redrives `pending` rows (never
         # claimed — safe by construction); surfaces `claimed` rows and
-        # redrives them ONLY when told to (`claimed: true`).
+        # redrives them only when told to (`claimed: true`).
         def redrive!(claimed: false)
           redriven = []
           stores.each do |repository|

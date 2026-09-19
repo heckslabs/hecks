@@ -4,7 +4,7 @@ require_relative "vocabulary"
 
 module Hecks
   module Projections
-    # THE LANGUAGE'S CLOSED SETS, PROJECTED INTO THE RUST KERNEL — one
+    # **The language's closed sets, projected into the Rust kernel** — one
     # `rust/src/kernel/vocab/<table>.rs` per Vocabulary table, each a
     # `pub enum` plus `match`-based accessors with no wildcard arm, so a
     # row the chapter gains is a compile error at every exhaustive match
@@ -18,7 +18,7 @@ module Hecks
     # which read Runtime::RefusalWording::TEMPLATES — a hand-typed copy of
     # the RefusalTemplate rows. This reads the chapter itself.
     #
-    # ONLY TABLES THE KERNEL NEEDS. Each entry in TABLES names its enum
+    # **Only TABLES the kernel needs**. Each entry in TABLES names its enum
     # and its generated extras; a table not listed is not projected. The
     # enum names that differ from the table name keep existing Rust call
     # sites (`RefusalSite`) and the dispatch-step names D1 consumes

@@ -3,11 +3,11 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # THE STORAGE SHAPE of one bluebook — the same structural form
+    # The storage shape of one bluebook — the same structural form
     # `StorageShape.mint_hash` hashes to name an era, which is what makes
     # a bump/no-bump question answerable by diffing two of these.
     #
-    # THE RETROFIT, and the point of it: `Runtime::StorageShape.project`
+    # The retrofit, and the point of it: `Runtime::StorageShape.project`
     # was written long before this framework existed, and it already
     # takes exactly one bluebook, already returns a plain Hash, already
     # touches no disk and no live runtime — it even already uses the

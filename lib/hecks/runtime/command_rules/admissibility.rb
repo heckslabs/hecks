@@ -11,7 +11,7 @@ module Hecks
       # Whether a command may run at all: its declared givens, and the
       # lifecycle transition it asks for.
       module Admissibility
-        # WRAPS `subject` so a guard can read a DECLARED-but-storage-absent
+        # Wraps `subject` so a guard can read a declared-but-storage-absent
         # optional attribute as nil, not "cannot resolve." `Instance
         # #hydrate_with_defaults` deliberately leaves one absent rather
         # than nil-filled — "an attribute with no default stays absent,
@@ -25,10 +25,10 @@ module Hecks
         # exact behavior, zero risk to a path this bug was never measured
         # against.
         #
-        # NIL IS NOT THE ONLY OUTCOME, though. The Item.Promote fix above
-        # covered an OPTIONAL field — the honest case, where absence is
+        # NIL is not the only outcome, though. The Item.Promote fix above
+        # covered an optional field — the honest case, where absence is
         # exactly what optional means. It also, as a side effect, let a
-        # NON-optional field predating a record read nil the same way,
+        # non-optional field predating a record read nil the same way,
         # which is the `ne:`/array-`in:` bug class applied to rule
         # evaluation: a predicate silently answers against a value nobody
         # ever wrote (ADR 0025, "Added attributes and absence"). `[]`
@@ -40,14 +40,14 @@ module Hecks
           def initialize(instance)
             @instance = instance
             @declared = instance.respond_to?(:aggregate) ? instance.aggregate.attributes.to_h { |a| [a.name, a] } : {}
-            # S12, ADR 0025 — a SEPARATE index, the same reason
+            # S12, ADR 0025 — a separate index, the same reason
             # `Aggregate#projected_fields` is a separate IR collection
             # rather than folded into `attributes` (see that field's
             # own comment): a projected field's absence means
             # something different from an ordinary attribute's, so it
             # needs its own refusal below, not `AttributeAbsent`'s.
-            # `projects` is AGGREGATE-scoped only — an entity's own
-            # `instance.aggregate` answers the ENTITY construct here
+            # `projects` is aggregate-scoped only — an entity's own
+            # `instance.aggregate` answers the entity construct here
             # (EntityInterpreter's own subject), which declares no
             # `projected_fields` of its own, hence the extra guard
             # `@declared` above does not need.
@@ -89,54 +89,54 @@ module Hecks
         # `Instance`); a `subject` with no `.aggregate` just hydrates
         # nothing from state, same as GuardState degrades above.
         #
-        # MERGE ORDER MATTERS, and it is NOT "args always win": an
+        # Merge order matters, and it is not "args always win": an
         # unaliased command-level reference dereferences under a
         # different name than the argument holds (`account_id` the arg,
         # `account` the hydrated key — no collision, order is moot). An
-        # ALIASED one (`reference_to Customer, as: :customer`) hydrates
-        # under the SAME name the argument itself holds — `customer` is
+        # aliased one (`reference_to Customer, as: :customer`) hydrates
+        # under the same name the argument itself holds — `customer` is
         # both the raw id an arg puts there and the key `customer.status`
         # expects to dig into. If `args` merged last, the raw id (a
         # String) would win and `.status` on a String is where a fuzzer
         # found this — TypeError, not a refusal. Command-level
-        # dereferencing is the one thing that is SUPPOSED to override
+        # dereferencing is the one thing that is supposed to override
         # its own source argument for exactly this reason; args still
-        # wins over stored OWNER state (unchanged from before this fix).
-        # `parent:` is an entity command's OWN parent aggregate record
-        # (EntityInterpreter's `ctx.instance` — "the PARENT aggregate
+        # wins over stored owner state (unchanged from before this fix).
+        # `parent:` is an entity command's own parent aggregate record
+        # (EntityInterpreter's `ctx.instance` — "the parent aggregate
         # record", its own doc comment) — the entity's containment, not a
         # declared reference attribute, so it doesn't come from
         # `dereference`'s attribute scan the way `owner`'s do. Hydrated
-        # the same shape regardless: the parent's own state, MERGED so
+        # the same shape regardless: the parent's own state, merged so
         # the dereferenced hash wins over the raw reference it replaces
         # (ADR 0025 dropped the `_id` suffix that used to keep the two
         # apart by name, so `parent.state.merge(dereference(...))` is
-        # now load-bearing, not redundant) — plus ITS OWN references
+        # now load-bearing, not redundant) — plus its own references
         # dereferenced one level in, so `parent.customer.status` (a
-        # parent aggregate reaching ITS OWN customer) resolves the same
+        # parent aggregate reaching its own customer) resolves the same
         # way `account.customer.status` does for a command-level reference.
         # nil for an aggregate command — CommandInterpreter never passes it.
         # `correction:` — the `{as_name => payload}` bindings
         # `enforce_correction_target` (above) already located, merged in
-        # LAST so an `as:` name wins the same way `old:` always wins in
+        # last so an `as:` name wins the same way `old:` always wins in
         # `enforce_ensures`, below — it is a fresh local binding a
         # `corrects` command introduces, not a real argument/state field
         # a caller could collide with by accident.
         def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil, correction: {})
           state = GuardState.new(subject)
-          # A RULE MAY ONLY READ WITHIN ITS OWN AGGREGATE BOUNDARY (S12,
-          # ADR 0025) — `subject`'s own STORED references are no longer
+          # A rule may only read within its own aggregate boundary (S12,
+          # ADR 0025) — `subject`'s own stored references are no longer
           # dereferenced here at all. What used to be a live query against
           # another aggregate's own repository is now just `subject`'s own
           # state: a `projects :customer_status, from: :"customer.status"`
-          # field is a REGULAR stored attribute, already present in
+          # field is a regular stored attribute, already present in
           # `subject`/`state` with no hydration step needed. `dereference`
           # is still called on `command`/`args`, below — that is a
-          # DIFFERENT case the ADR explicitly keeps in bounds ("its command
-          # arguments"): a reference-typed ARGUMENT this dispatch was just
+          # different case the ADR explicitly keeps in bounds ("its command
+          # arguments"): a reference-typed argument this dispatch was just
           # handed (`Dispute`'s own `disputed_by`, say) has nothing stored
           # to project yet, so resolving it here, once, synchronously with
-          # THIS command's own admission, is not the live-query-against-
+          # this command's own admission, is not the live-query-against-
           # another-aggregate's-stored-state pattern the boundary rule
           # forbids.
           attrs = args.merge(dereference(domain, command, args))
@@ -154,26 +154,26 @@ module Hecks
           enforce_lifecycle_guard(declaring, command, subject) if declaring
         end
 
-        # `corrects` — CommandBuilder#corrects_impl's own comment. NOT
+        # `corrects` — CommandBuilder#corrects_impl's own comment. Not
         # expressible as an ordinary `given`: "has this exact record
         # already emitted this exact event" is not a predicate over the
-        # record's OWN fields, it is a fact about the event log, so it is
+        # record's own fields, it is a fact about the event log, so it is
         # raised structurally here, the same way NotFound/AlreadyExists
         # are, rather than through the expression evaluator. The build-
-        # time half — does ANYTHING in this aggregate ever emit the named
+        # time half — does anything in this aggregate ever emit the named
         # event at all — is `AggregateBuilder#seal_correction_targets`;
-        # this is the dispatch-time half — has THIS record actually done
+        # this is the dispatch-time half — has this record actually done
         # so yet.
         #
-        # ALSO LOCATES the matched event now, not just its existence, and
+        # Also locates the matched event now, not just its existence, and
         # returns a `{as_name => payload}` bindings hash — one entry per
         # `:corrects` mutation that named an `as:` — so `given`/`ensures`
-        # on a corrects-bearing command can reference the located OLD
+        # on a corrects-bearing command can reference the located old
         # event by that name, the same shape `enforce_ensures`'s own
         # `old:` binding already has (CommandBuilder#corrects_impl's own
         # comment: `as:` was stored, from the start, specifically to be
         # wired into the evaluator once a real runtime consumer existed —
-        # this is that consumer). `.reverse.find` — the MOST RECENT
+        # this is that consumer). `.reverse.find` — the most recent
         # matching event, if this record has somehow emitted the same
         # correction target more than once; the prior existence-only
         # check never had to make this choice, so it's a genuinely new
@@ -181,7 +181,7 @@ module Hecks
         # corrected," which is naturally the latest fact on record, not
         # an arbitrary one.
         # C9.2 (docs/semantics/bluebook-semantics.md) — a correction target
-        # is judged against the record's DURABLE history: the events the
+        # is judged against the record's durable history: the events the
         # aggregate's own store recorded (`AppendOnly#events`), which
         # survive a restart the way the Rust kernel's persisted
         # `emitted_<event>` flag does. The in-process log is the fallback
@@ -213,14 +213,14 @@ module Hecks
           bindings
         end
 
-        # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `command
-        # "Debit", from: "open"` checked here, folded into the SAME
+        # Lifecycle state as a command guard (S10, ADR 0025) — `command
+        # "Debit", from: "open"` checked here, folded into the same
         # dispatch step `given` already runs at (both are preconditions,
         # evaluated before any mutation) rather than earning its own
-        # DISPATCH_ORDER entry. A GUARD, never a transition: it names no
+        # DISPATCH_ORDER entry. A guard, never a transition: it names no
         # target state and `step_advance_lifecycle` never sees it — see
         # `admissible_transition`, right below, for the transition this
-        # is deliberately NOT reusing (its own `StateTransition#target`
+        # is deliberately not reusing (its own `StateTransition#target`
         # is required, and a guard-only command has none to give it).
         def enforce_lifecycle_guard(declaring, command, subject)
           return unless command.from
@@ -229,8 +229,8 @@ module Hecks
           current   = Value.scalar(subject[lifecycle.field]).to_s
           return if Array(command.from).include?(current)
 
-          # ROUTED THROUGH RefusalWording's OWN "transition_blocked"
-          # TEMPLATE — the same one #admissible_transition, right below,
+          # Routed through RefusalWording's own "transition_blocked"
+          # template — the same one #admissible_transition, right below,
           # already raises LifecycleRefused through for the same
           # refusal class. This used to hand-roll its own wording
           # inline ("...only runs from..." vs. the template's "...moves
@@ -245,16 +245,16 @@ module Hecks
                                            allowed: Array(command.from))
         end
 
-        # The far side of the contract: evaluated against the SETTLED record
+        # The far side of the contract: evaluated against the settled record
         # — after mutations and the lifecycle move, before anything persists
         # — with `old` carrying the state as the givens saw it. Injected into
         # the attrs at evaluation time only; the payload gate never sees it.
         #
-        # `old` — and every dispatch ARGUMENT — wins over a same-named STATE
+        # `old` — and every dispatch argument — wins over a same-named state
         # field in expression scope (Resolver#fetch checks attrs first). An
         # ensures naming a field the command also takes as an argument (or,
         # on an entity, a field that doubles as the addressing argument
-        # element_of reads) will read the ARGUMENT, not the settled value.
+        # element_of reads) will read the argument, not the settled value.
         # Not new to ensures — `given` lives under the same rule — but an
         # ensures is more likely to collide, since it typically re-reads a
         # field the command just took in to mutate it.
@@ -264,14 +264,14 @@ module Hecks
           # above: `subject`'s own stored references are no longer
           # dereferenced here; a `projects`-maintained field is already
           # part of `state`. `command`/`args` still dereferences — a
-          # fresh reference-typed ARGUMENT stays in bounds.
+          # fresh reference-typed argument stays in bounds.
           # `old` still wins over everything, unchanged. `correction`
           # (an `as:`-bound corrected event, if this command declares
           # one) wins right alongside it — a settled-record ensures can
           # reference the correction target exactly as freely as a
           # pre-mutation given already can.
           # C2.3 (docs/semantics/bluebook-semantics.md) — an ensures reads
-          # the SETTLED STATE first: an argument that shares a field's
+          # the settled state first: an argument that shares a field's
           # name does not shadow the candidate here (it does in a given,
           # C2.2), so `sets :note` + `ensures { note == ... }` judges what
           # landed, and `old.<field>` remains the pre-state.
@@ -286,20 +286,20 @@ module Hecks
           end
         end
 
-        # THE AGGREGATE BOUNDARY, checked after every command, before
+        # The aggregate boundary, checked after every command, before
         # save (S10, ADR 0025 — "Rules") — the same point `enforce_
         # ensures` already checks at, and for the same reason: an
-        # invariant is a claim about the SETTLED record, not the
+        # invariant is a claim about the settled record, not the
         # command that produced it, so it reads no `args`/`old` at all,
         # only the record's own state. `subject` here is
-        # always the AGGREGATE's own instance — `CommandInterpreter`
+        # always the aggregate's own instance — `CommandInterpreter`
         # passes its own `ctx.instance`, and `EntityInterpreter` passes
-        # the PARENT record (`ctx.instance`, not the element), since an
-        # entity mutation changes data inside the SAME aggregate
+        # the parent record (`ctx.instance`, not the element), since an
+        # entity mutation changes data inside the same aggregate
         # boundary the invariant guards; there is no separate "entity
         # invariant" to check the piece's own view against.
         #
-        # NO `dereference` (S12, ADR 0025) — an invariant may only read
+        # No `dereference` (S12, ADR 0025) — an invariant may only read
         # `subject`'s own boundary, same rule `enforce_givens`/
         # `enforce_ensures` now hold to. No invariant in the corpus has
         # ever read across a `reference_to` (verified before this
@@ -317,20 +317,20 @@ module Hecks
           check_entity_invariants(aggregate, subject, domain: domain)
         end
 
-        # A PIECE'S OWN SHAPE RULE, checked against EVERY INSTANCE the
+        # A piece's own shape rule, checked against every instance the
         # aggregate holds — not a separate boundary from the aggregate's
         # own invariants just above (same two checkpoints: after every
-        # mutation, before save), just a WIDER one: the aggregate's own
+        # mutation, before save), just a wider one: the aggregate's own
         # consistency includes each of its pieces individually looking
         # right, the same way `ValueObject#invariants` already checks
-        # each of ITS OWN instances one construct up. RECURSES into
+        # each of its own instances one construct up. Recurses into
         # nested pieces (S17, ADR 0026 — Dispatch inside Handler) the
         # same way `check_entity_invariants`'s own caller recurses
         # nowhere else needs to, since a piece's `entities` are already
         # exactly as reachable as an aggregate's.
         #
-        # `list_attr` reuses the EXACT lookup `EntityInterpreter#
-        # element_of` already makes to locate a SINGLE addressed
+        # `list_attr` reuses the exact lookup `EntityInterpreter#
+        # element_of` already makes to locate a single addressed
         # element by identity — this reads every element instead, but
         # the "which field on the owner holds this piece's own
         # instances" question is the identical one. A piece declaring
@@ -348,7 +348,7 @@ module Hecks
             Array(owner_instance[list_attr.name]).each do |element|
               wrapped = Instance.new(aggregate: entity, id: nil, state: element)
               element_state = GuardState.new(wrapped)
-              # NO `dereference` (S12, ADR 0025) — same boundary rule as
+              # No `dereference` (S12, ADR 0025) — same boundary rule as
               # enforce_invariants above; `parent` (the owner's own
               # state, projected fields included) stays readable.
               attrs = { parent: owner_instance.state }
@@ -379,7 +379,7 @@ module Hecks
           # default `Object#to_s` instead of unwrapping the inner
           # scalar first -- `current` came back as a raw object-pointer
           # string (`"#<Hecks::Runtime::Value:0x...>"`) that could
-          # never match any declared `from` state, so EVERY transition
+          # never match any declared `from` state, so every transition
           # on a VO-typed lifecycle field refused unconditionally, and
           # when it refused the message leaked the pointer too.
           # Confirmed live via `Plan::Task.Complete` (status defaults to

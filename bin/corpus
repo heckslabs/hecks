@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# THE RUST-FACING CORPUS, PRINTED — for callers that aren't Ruby (CI
+# **The Rust-facing corpus, printed** — for callers that aren't Ruby (CI
 # workflow steps) and for a person asking "what does CI walk?".
 # Everything here reads `Hecks::Corpus` (lib/hecks/corpus.rb), so a
 # workflow never hand-lists a domain again.

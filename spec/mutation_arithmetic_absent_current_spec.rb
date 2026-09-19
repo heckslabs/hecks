@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # CommandRules::Arithmetic's `current ||= 0` (`#arithmetic`/`#multiply`)
-# only ever produced a genuine zero when `amount` was ALSO plain — a
+# only ever produced a genuine zero when `amount` was also plain — a
 # VO-typed attribute with no declared `default:` (genuinely absent, never
 # set) hit a misleading refusal on its very first increment/decrement/
 # multiply: "increment needs an Integer, got 500" — true of nothing.
@@ -16,7 +16,7 @@ require "spec_helper"
 # multiply, by unwrapping `amount`'s own single numeric field rather than
 # refusing on it.
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
-  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.

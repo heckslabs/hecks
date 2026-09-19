@@ -1,16 +1,16 @@
 module Hecks
   module Projections
     module Model
-      # HOW THE MODEL'S SHAPE DIFFERS FROM THE LANGUAGE'S, and why.
+      # How the model's shape differs from the language's, and why.
       #
       # Every construct's `emits_ir` restates what the grammar declares —
       # and the two legitimately differ, in seven ways. These lived only
       # as prose in Ruby comments until spec/model_shape_conformance_spec
-      # made them checkable; they live HERE so the generator and the gate
+      # made them checkable; they live here so the generator and the gate
       # read one source rather than two that must agree.
       #
       # A reason is carried beside each entry because the generated file
-      # will CARRY it: a deviation is exactly the kind of thing whose
+      # will carry it: a deviation is exactly the kind of thing whose
       # explanation must survive regeneration, and the only way it can is
       # to be emitted rather than typed into the output.
       module Deviations
@@ -51,7 +51,7 @@ module Hecks
           "Policy"      => { where_ast:      "the structured form of `where`, derived from the same text at emission" }
         }.freeze
 
-        # DECLARED, AND DELIBERATELY NOT EMITTED. The category that had no
+        # **Declared, and deliberately not emitted**. The category that had no
         # home anywhere before — each of these was a comment and nothing
         # more.
         OFF_THE_WIRE = {
@@ -72,7 +72,7 @@ module Hecks
 
         module_function
 
-        # The grammar is relational — a Command points UP at its
+        # The grammar is relational — a Command points up at its
         # Aggregate — where the model composes. An explicit `as:` still
         # keeps its `_id` (Command's own `entity_id`, kept as data); the
         # parent link itself mints bare now (ADR 0025) — `aggregate` or

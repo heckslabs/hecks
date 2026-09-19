@@ -12,10 +12,10 @@ require "tempfile"
 # SqlitePersistence alone, which has no `query_read_model` at all and so
 # always falls back to the in-process loop regardless of adapter):
 #
-# - a MISSING root reference: in-process refuses with `NotFound`;
+# - a missing root reference: in-process refuses with `NotFound`;
 #   the native path answered a silent `{root: nil, ...}`.
-# - a CHAINED include (a non-root head that references another
-#   INCLUDED head rather than the root directly): in-process matches a
+# - a chained include (a non-root head that references another
+#   included head rather than the root directly): in-process matches a
 #   head against any already-resolved source, root or not; the native
 #   path always matched only against the root, so a chained head's own
 #   rows came back empty no matter what actually existed.
@@ -128,7 +128,7 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
 
   # Confirms the spec is actually exercising SqliteProjection's own
   # `query_read_model`, not silently falling back to the in-process
-  # loop the way every OTHER SQLite read-model spec does (no
+  # loop the way every other SQLite read-model spec does (no
   # `projected_by` binding declared there at all) — a false pass here
   # would prove nothing about the native path this file exists to cover.
   def assert_native_path!(runtime)
@@ -148,7 +148,7 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
       ChainProjectionGrowth::Mid.make!(ref: { value: "m1" }, root: "r1")
       ChainProjectionGrowth::Leaf.make!(ref: { value: "l1" }, mid: "m1")
 
-      # A second, unrelated chain — proves the join is scoped to THIS
+      # A second, unrelated chain — proves the join is scoped to this
       # root's own descendants, not "every Leaf that exists".
       ChainProjectionGrowth::Root.make!(ref: { value: "r2" })
       ChainProjectionGrowth::Mid.make!(ref: { value: "m2" }, root: "r2")
