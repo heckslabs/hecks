@@ -59,7 +59,6 @@ Hecks.bluebook "Tenancy" do
     # `deploy.bluebook`'s own `Tenant` aggregate comment already argued
     # three local, idempotent, single-process steps don't need.
     command "Register" do
-      role "Deploy tooling"
       goal "Record that a tenant now exists, after its shape has been validated and its schema provisioned"
 
       attribute :slug,   Slug
@@ -83,7 +82,6 @@ Hecks.bluebook "Tenancy" do
     # says a check runs when nothing runs it" defect class this
     # project has already been burned by once.
     command "Suspend" do
-      role "Deploy tooling"
       goal "Record that a tenant should no longer be treated as active — nothing yet enforces this at dispatch or boot time"
 
       reference_to Tenant
@@ -94,7 +92,6 @@ Hecks.bluebook "Tenancy" do
     end
 
     command "Reactivate" do
-      role "Deploy tooling"
       goal "Restore a suspended tenant to active"
 
       reference_to Tenant
@@ -110,7 +107,6 @@ Hecks.bluebook "Tenancy" do
     # corpus holds to. Real teardown, if ever built, is its own
     # separate, deliberately reviewed tool — never implicit here.
     command "Retire" do
-      role "Deploy tooling"
       goal "Record that a tenant is permanently done — real schema teardown is a deliberately separate, manually-run tool, never automatic here"
 
       reference_to Tenant
