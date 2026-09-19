@@ -12,7 +12,7 @@
 # `--from-run` downloads the per-leg runtime logs that `rspec_shard` and
 # `rspec_postgres_io_parallel_shard` upload as artifacts and writes
 #   .github/rspec_runtime_baseline.log        (from both `rspec-runtime-group-N`)
-#   .github/postgres_io_runtime_baseline.log  (from all eight `postgres-io-runtime-group-N`)
+#   .github/postgres_io_runtime_baseline.log  (from every `postgres-io-runtime-group-N` leg)
 # Runner seconds, not a laptop's: subprocess-heavy specs run ~2.7x slower on
 # a runner, relative to the rest of the suite, than locally (PR #688's run),
 # which a local baseline cannot see. Only a SUCCESSFUL run is read, and a
@@ -41,9 +41,18 @@ USAGE = "usage: bin/refresh_rspec_runtime_baseline --from-run <run-id> | [worker
 # (`9.69e-05` for a near-instant file).
 RUNTIME_LINE = %r{\A(?<file>spec/\S+_spec\.rb):(?<seconds>\d+(?:\.\d+)?(?:e-?\d+)?)\z}
 
+# How many legs a family has is whatever its workflow's own matrix says —
+# a number copied here would go stale the day a matrix is resized.
+def matrix_legs(workflow, job)
+  require "yaml"
+  YAML.load_file(File.join(ROOT, ".github/workflows", workflow)).dig("jobs", job, "strategy", "matrix", "group").size
+end
+
 FAMILIES = {
-  "rspec-runtime-group"       => { legs: 2, baseline: ".github/rspec_runtime_baseline.log" },
-  "postgres-io-runtime-group" => { legs: 8, baseline: ".github/postgres_io_runtime_baseline.log" }
+  "rspec-runtime-group"       => { legs: matrix_legs("ci-rspec.yml", "rspec_shard"),
+                                   baseline: ".github/rspec_runtime_baseline.log" },
+  "postgres-io-runtime-group" => { legs: matrix_legs("ci-postgres-io-parallel.yml", "rspec_postgres_io_parallel_shard"),
+                                   baseline: ".github/postgres_io_runtime_baseline.log" }
 }.freeze
 
 def baseline_lines(paths)

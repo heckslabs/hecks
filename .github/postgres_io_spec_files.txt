@@ -33,6 +33,7 @@ spec/qa_sweep_all_dry_run_divergence_spec.rb
 spec/qa_sweep_all_lifecycle_spec.rb
 spec/qa_sweep_all_output_capture_spec.rb
 spec/qa_sweep_all_parity_wave_spec.rb
+spec/qa_sweep_all_pool_drain_spec.rb
 spec/qa_sweep_all_shrink_spec.rb
 spec/qa_sweep_concurrency_spec.rb
 spec/qa_sweep_era_boundary_spec.rb

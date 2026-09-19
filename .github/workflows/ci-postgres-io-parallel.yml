@@ -4,7 +4,7 @@ name: CI postgres io parallel (reusable)
 # ci-rspec.yml's own header for why this group needed three separate
 # files instead of one. This file holds `postgres_io_relevant_changed`
 # (the skip-gate detector) and `rspec_postgres_io_parallel_shard` (the
-# 8-way matrix), the two jobs behind the `rspec_postgres_io_parallel`
+# 6-leg matrix), the two jobs behind the `rspec_postgres_io_parallel`
 # required-status-check name.
 
 on:
@@ -253,17 +253,14 @@ jobs:
   # `--only-group` — researched against the vendored parallel_tests-4.10.1
   # gem source (lib/parallel_tests/cli.rb), not assumed to exist: it does,
   # and does exactly what this needs. `tests_in_groups` below is still
-  # computed for the FULL `-n 8`, using the SAME grouping algorithm and
+  # computed for the FULL `-n 12`, using the SAME grouping algorithm and
   # the SAME committed runtime baseline in every leg (see the step that
   # replaced the old cache restores for why it must be committed);
-  # `--only-group` then just selects ONE
-  # of those 8 already-computed groups and forces `num_processes = 1` for
-  # it (cli.rb's own `run_tests_in_parallel`). So all 8 matrix legs
-  # independently compute the IDENTICAL 8-way split and each runs only
-  # its own slice, as ONE `rspec` process instead of one of 4 processes
-  # sharing one job's CPU — the real hardware-parallelism lever, not a
-  # hand-rolled reimplementation of the balancing `parallel_tests`
-  # already does.
+  # `--only-group A,B` then selects TWO of those 12 already-computed
+  # groups and runs them as two parallel processes (cli.rb's own
+  # `run_tests_in_parallel`). So all 6 matrix legs independently compute
+  # the IDENTICAL 12-way split and each runs only its own pair — the
+  # balancing stays `parallel_tests`' own, not a hand-rolled copy of it.
   #
   # `--group-by runtime` IS NOW EXPLICIT, NOT LEFT UNSET — `--only-group`
   # requires `--group-by` to be one of `filesize`/`runtime`/`found`
@@ -297,29 +294,25 @@ jobs:
 
     strategy:
       # `fail-fast: false` — a real regression in one shard shouldn't
-      # cancel the others mid-run and hide their own results; all 8
+      # cancel the others mid-run and hide their own results; all 6
       # report independently, same as the old single job's own
       # `parallel_rspec` invocation always ran all of its internal
       # processes to completion regardless of one of them failing.
       fail-fast: false
       matrix:
-        # MUST match the `-n 8` passed to parallel_rspec below — both are
-        # the total group count `parallel_tests`' own grouping math
-        # divides by; changing one without the other desyncs
-        # `--only-group`'s 1-indexed range from what `-n` actually
-        # computed.
+        # SIX LEGS, TWO GROUPS EACH — `-n 12` below is twice this list's
+        # length, and leg G runs groups 2G-1 and 2G as two processes on its
+        # 4-vCPU runner (`--only-group A,B` runs the named groups in
+        # parallel; cli.rb's `execute_in_parallel(groups, groups.size)`).
+        # Changing one number without the other leaves groups unrun.
         #
-        # BUMPED FROM 4 TO 8, 2026-09-17 — this job is Postgres-bound
-        # (`--only-group` forces `num_processes = 1` per leg, see the
-        # header comment below), so unlike `rspec_shard` more legs is a
-        # real win here, not diminishing returns: the committed baseline's
-        # total (1619s across 44 files) divided by 4 legs averaged ~405s,
-        # while the single slowest file (`qa_open_pr_spec.rb`, ~173s) sets
-        # the real floor — 8 legs average ~202s, close to that floor,
-        # roughly halving this job's wall-clock. This was the long pole
-        # in a 9-minute merge_group run (run 35284295457) while every
-        # other job finished within 6 minutes.
-        group: [1, 2, 3, 4, 5, 6, 7, 8]
+        # Was 8 legs of one process each (2026-09-17). The committed
+        # baseline splits 12 ways at ~156s a group against ~234s at 8, and
+        # the slowest single file (~146s) is the floor either way, so six
+        # legs finish sooner on two fewer of the account's 20 runners.
+        # Different files never share a database, and the pre-matrix job
+        # ran four processes against one Postgres.
+        group: [1, 2, 3, 4, 5, 6]
 
     env:
       PGHOST: localhost
@@ -361,7 +354,7 @@ jobs:
 
       # THE COMMITTED BASELINE IS THE ONLY GROUPING INPUT — 2026-09-14.
       #
-      # All 8 legs compute the 8-way split themselves and each keeps its own
+      # All 6 legs compute the 12-way split themselves and each keeps its own
       # `--only-group`, so the split is only a PARTITION if every leg
       # computes it from byte-identical inputs. This used to restore the
       # latest cached runtime log for each group and merge them, and that
@@ -386,14 +379,15 @@ jobs:
           mkdir -p tmp
           IO_FILES=()
           while IFS= read -r line; do IO_FILES+=("$line"); done < .github/postgres_io_spec_files.txt
+          LEG=${{ matrix.group }}
           bundle exec parallel_rspec "${IO_FILES[@]}" \
-            -n 8 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
+            -n 12 --group-by runtime --allowed-missing 100 --only-group "$((2 * LEG - 1)),$((2 * LEG))" \
             --runtime-log .github/postgres_io_runtime_baseline.log \
             -o "--tag io --tag ~fuzzing --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 
       # UPLOADED, NEVER RESTORED — each leg's own per-file seconds, for
       # `bin/refresh_rspec_runtime_baseline --from-run <run-id>`, which needs
-      # all eight legs' logs from one successful run to rewrite the committed
+      # all six legs' logs from one successful run to rewrite the committed
       # baseline. `--out` above points each leg at its own `group${N}.log`,
       # written fresh by `ParallelTests::RSpec::RuntimeLogger` (its
       # `--only-group`-forced single process still gets a real, non-empty
