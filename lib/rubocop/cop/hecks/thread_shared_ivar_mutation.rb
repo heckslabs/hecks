@@ -9,21 +9,17 @@ module RuboCop
       # shared, mutable state with no per-thread or mutex-guarded
       # isolation at all.
       #
-      # ## Why this cop exists
-      #
       # This is the mechanical follow-up to a real bug already fixed here
       # (see `dispatcher.rb`'s own `#reenter` comment, and
-      # `spec/runtime/dispatcher_spec.rb`): a plain ivar on `Dispatcher`
-      # named `@reaction_depth` let two threads' concurrent top-level
-      # dispatches corrupt each other's view of "how deep into a
+      # `spec/runtime/dispatcher_spec.rb`): `@reaction_depth` used to be a
+      # plain ivar on `Dispatcher`, so two threads' concurrent top-level
+      # dispatches corrupted each other's view of "how deep into a
       # reaction cascade am I". The fix moved that one ivar to
       # `Thread.current[:hecks_reaction_depth]`. This cop exists so the
       # next plain ivar someone adds to either class gets flagged before
       # it becomes the next instance of the same bug, rather than after.
       #
-      # ## Scoped narrowly on purpose
-      #
-      # By class name
+      # **Scoped narrowly on purpose** — by class name
       # (`Hecks::Runtime::Dispatcher`/`Hecks::Runtime::Registry`), not by
       # blanket-flagging every ivar mutation in the codebase. Most classes
       # in this codebase are not shared across threads (a fresh value
@@ -33,9 +29,7 @@ module RuboCop
       # same reasoning `.rubocop.yml`'s own header gives for every other
       # cop in this repo.
       #
-      # ## What counts as "PLAIN"
-      #
-      # `@ivar = ...`, `@ivar ||= ...`, `@ivar +=
+      # What counts as "PLAIN": `@ivar = ...`, `@ivar ||= ...`, `@ivar +=
       # ...`, `@ivar << ...`, `@ivar[k] = v`. `initialize` is exempt — an
       # ivar being set up for the first time, before any other thread can
       # possibly hold a reference to this object, is not the hazard (see
@@ -73,56 +67,32 @@ module RuboCop
 
         RESTRICT_ON_SEND = [:<<, :[]=].freeze
 
-        # RuboCop callback: flags a plain `@ivar = value` assignment.
-        #
-        # A plain `@x = 1` parses as `(ivasgn :@x (int 1))` — two
-        # children. The commissioner also visits the bare `(ivasgn :@x)`
-        # node nested one level inside an `op_asgn`/`or_asgn` (`@x += 1`,
-        # `@x ||= 1`) as its own `ivasgn` node with only one child — that
-        # one is handled by `on_op_asgn`/`on_or_asgn` below instead, so
-        # it's skipped here to avoid double-reporting the same mutation.
-        #
-        # @param node [RuboCop::AST::IvasgnNode] the plain ivar assignment the commissioner
-        #   is visiting
-        # @return [void]
         def on_ivasgn(node)
+          # A plain `@x = 1` parses as `(ivasgn :@x (int 1))` — two
+          # children. The commissioner also visits the bare `(ivasgn :@x)`
+          # node nested one level inside an `op_asgn`/`or_asgn` (`@x += 1`,
+          # `@x ||= 1`) as its own `ivasgn` node with only one child — that
+          # one is handled by `on_op_asgn`/`on_or_asgn` below instead, so
+          # it's skipped here to avoid double-reporting the same mutation.
           return unless node.children.size == 2
 
           check(node, node.children.first)
         end
 
-        # RuboCop callback: flags a plain `@ivar += value`-shaped compound assignment.
-        #
-        # `@x += 1` parses as `(op_asgn (ivasgn :@x) :+ (int 1))` — the
-        # target is an `ivasgn` node carrying just the name (no value
-        # child, unlike a plain `@x = 1`), not an `ivar` node.
-        #
-        # @param node [RuboCop::AST::OpAsgnNode] the compound assignment the commissioner is
-        #   visiting
-        # @return [void]
         def on_op_asgn(node)
+          # `@x += 1` parses as `(op_asgn (ivasgn :@x) :+ (int 1))` — the
+          # target is an `ivasgn` node carrying just the name (no value
+          # child, unlike a plain `@x = 1`), not an `ivar` node.
           ivar_node = node.children.first
           return unless ivar_node.is_a?(RuboCop::AST::Node) && ivar_node.ivasgn_type?
 
           check(node, ivar_node.children.first)
         end
 
-        # RuboCop callback: flags a plain `@ivar ||= value` assignment, the same way
-        # `on_op_asgn` flags `@ivar += value`.
-        #
-        # @param node [RuboCop::AST::OrAsgnNode] the `||=` assignment the commissioner is
-        #   visiting
-        # @return [void]
         def on_or_asgn(node)
           on_op_asgn(node)
         end
 
-        # RuboCop callback: flags `@ivar << value` and `@ivar[key] = value`, the two ivar
-        # mutations that read as a method send rather than an assignment node.
-        #
-        # @param node [RuboCop::AST::SendNode] the send the commissioner is visiting; only
-        #   `<<` and `[]=` sends are inspected, per `RESTRICT_ON_SEND`
-        # @return [void]
         def on_send(node)
           return unless RESTRICT_ON_SEND.include?(node.method_name)
 

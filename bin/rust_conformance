@@ -28,8 +28,10 @@
 #     shape for a pinned fixture, not a live run.
 #
 #   bin/rust_conformance <domain> <script.json> native|<path/to/module.wasm>
-#     Runs the comparison against a live subprocess rather than a pinned
-#     file. `native` runs rust/target/{release,debug}/rust (bin/project_rust's own
+#     the subprocess hook this file's own header used to say didn't exist
+#     yet ("this tool does not invoke Rust itself... until then, 'give me
+#     a JSON file to compare against' is the whole interface"). `native`
+#     runs rust/target/{release,debug}/rust (bin/project_rust's own
 #     `cargo build` artifact); a `.wasm` path runs it under `wasmtime`
 #     (bin/project_wasm's artifact). Either way `script.json`'s bytes go
 #     on the subprocess's stdin and its stdout is the comparison JSON —
@@ -54,11 +56,6 @@ require "hecks/fuzzing"
 require "json"
 require "open3"
 
-# Runs a comparison-side subprocess to completion and hands back what it printed.
-#
-# @param cmd [Array<String>] the subprocess argv
-# @param stdin_data [String] bytes written to the subprocess's stdin (the script's JSON)
-# @return [String] the subprocess's stdout
 def run_subprocess(cmd, stdin_data)
   stdout, status = Open3.capture2(*cmd, stdin_data: stdin_data)
   abort "#{cmd.join(' ')} exited #{status.exitstatus}:\n#{stdout}" unless status.success?
@@ -66,10 +63,6 @@ def run_subprocess(cmd, stdin_data)
   stdout
 end
 
-# Finds the already-built native Rust binary, preferring a release build over debug.
-#
-# @return [String, nil] absolute path to the first executable binary found under
-#   rust/target/{release,debug}/rust, or `nil` if neither exists
 def native_binary
   %w[release debug]
     .map { |profile| File.expand_path("../rust/target/#{profile}/rust", __dir__) }

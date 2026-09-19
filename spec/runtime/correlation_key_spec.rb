@@ -83,7 +83,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
 
   it "still ends the right instance, correlated by the stamp alone" do
     runtime = boot_beacon
-    runtime.dispatch("Beacon::Sighting.Raise", code: { value: "smoke-1" })
+    runtime.dispatch_flat("Beacon::Sighting.Raise", code: { value: "smoke-1" })
 
     expect(runtime.sagas).to include(
       hash_including(process_manager: "Watch", instance: "smoke-1", born: true)

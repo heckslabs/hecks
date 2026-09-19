@@ -37,25 +37,8 @@ module Hecks
 
       module_function
 
-      # The ambient caller bound by the innermost `as` block on this thread.
-      #
-      # @return [Hecks::Runtime::Caller::Current, nil] the bound caller, or nil outside any
-      #   `as` block
       def current = Thread.current[:hecks_caller]
 
-      # Binds the ambient caller for the duration of the block, restoring whatever was
-      # bound before (nil if nothing was).
-      #
-      # @param role [String, Symbol] the role to check a dispatched command's declared
-      #   `role` against
-      # @param actor_id [String, Symbol, nil] who is acting, checked against a Governance
-      #   `RoleAssignment` when the command's domain has Governance attached
-      # @param as_of [Integer, nil] Unix epoch seconds a `RoleAssignment`'s `starts_at` is
-      #   checked against; unbound (nil) leaves `starts_at` unchecked
-      # @param scope [String, Symbol, nil] the scope this caller is acting in, checked
-      #   against the matching `RoleAssignment`'s own `scope`
-      # @yield the dispatch to run with this caller bound
-      # @return [Object] the block's own return value
       def as(role:, actor_id: nil, as_of: nil, scope: nil)
         previous = Thread.current[:hecks_caller]
         Thread.current[:hecks_caller] = Current.new(
@@ -66,17 +49,11 @@ module Hecks
         Thread.current[:hecks_caller] = previous
       end
 
-      # Clears the ambient caller for the duration of the block, restoring whatever was
-      # bound before.
-      #
       # A reaction is the system acting, not the caller who happened to be
       # on the stack when the triggering command ran — `Dispatcher#reenter`
       # clears the ambient caller around a reaction's own dispatch so a
       # triggering caller's role can neither satisfy nor block a reaction
       # command it has nothing to do with.
-      #
-      # @yield the dispatch to run with no caller bound
-      # @return [Object] the block's own return value
       def without
         previous = Thread.current[:hecks_caller]
         Thread.current[:hecks_caller] = nil

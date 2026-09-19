@@ -2,7 +2,7 @@ require "spec_helper"
 require "open3"
 
 # R5 (docs/audits/2026-08-11-bug-triage.md) -- the actual build-failure
-# half of the finding: `cargo build --features banking` would otherwise fail
+# half of the finding: `cargo build --features banking` used to fail
 # with E0252 ("the name `active` is defined multiple times") because
 # rust/Cargo.toml's `default = ["<whichever domain was last
 # generated>"]` stays enabled unless `--no-default-features` is also
@@ -110,11 +110,11 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", :io do
   # now gates each domain module behind its own Cargo feature
   # (`#[cfg(feature = "<name>")] pub mod <name>;`, `domains` — a
   # directory with its own `merged.rs`) rather than declaring every
-  # generated domain unconditionally. Without that gate, a domain whose
+  # generated domain unconditionally. Before this fix, a domain whose
   # generated code didn't even compile (a `has_many` field was BUG#25's
   # own real, live trigger — referral_chain's removed `Circle`, see that
-  # bug's ledger entry) would break `cargo build --features <any OTHER
-  # domain>` too, because the broken module would always be in the crate
+  # bug's ledger entry) broke `cargo build --features <any OTHER
+  # domain>` too, because the broken module was always in the crate
   # regardless of which feature was selected. Proven here directly: pick
   # two real, non-default domains, deliberately break one's own
   # generated `.rs` file with a `compile_error!`, and confirm the other

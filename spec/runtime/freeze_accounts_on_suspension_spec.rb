@@ -62,17 +62,17 @@ RSpec.describe "FreezeAccountsOnSuspension" do
 
   it "freezes every open account the suspended customer holds, and only theirs" do
     runtime = build
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
-                                                   name:      { given: "Ada", family: "Lovelace" },
-                                                   email:     { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0001" },
+                                                        name:      { given: "Ada", family: "Lovelace" },
+                                                        email:     { address: "ada@example.com" })
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-2" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-2" },
                                                kind: { name: "savings" }, daily_limit: { cents: 10_000 })
 
-    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
-                                                  standing:  { value: "chargeback investigation" })
+    runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
+                                                       standing:  { value: "chargeback investigation" })
 
     fan = runtime.reactions.select { |r| r[:policy] == "FreezeAccountsOnSuspension" }
     expect(fan.map { |r| r[:for_row] }).to contain_exactly("acct-1", "acct-2")
@@ -83,20 +83,20 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     expect(repository.find("acct-2").state[:status]).to eq("frozen")
   end
 
-  # **The refusal a bare payload causes**. `with: { account: :account }`
-  # is what closes it — without a projection the whole `CustomerSuspended`
-  # payload would ride along, and `FreezeAccount` (which declares no arguments
-  # at all) would refuse every row with `does not declare standing`.
+  # **The refusal this used to assert**. `with: { account: :account }` is
+  # what closed it — without a projection the whole `CustomerSuspended`
+  # payload rode along, and `FreezeAccount` (which declares no arguments
+  # at all) refused every row with `does not declare standing`.
   it "hands the trigger the row and nothing else, so the event's own fields never reach it" do
     runtime = build
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
-                                                   name:      { given: "Ada", family: "Lovelace" },
-                                                   email:     { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0001" },
+                                                        name:      { given: "Ada", family: "Lovelace" },
+                                                        email:     { address: "ada@example.com" })
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
-    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
-                                                  standing:  { value: "chargeback investigation" })
+    runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
+                                                       standing:  { value: "chargeback investigation" })
 
     fan = runtime.reactions.select { |r| r[:policy] == "FreezeAccountsOnSuspension" }
     expect(fan.filter_map { |r| r[:reason] }).to be_empty
@@ -105,32 +105,31 @@ RSpec.describe "FreezeAccountsOnSuspension" do
   it "Account.OpenForCustomer answers correctly on its own — the for_each target, scoped to ONE customer, " \
      "ready for whichever gap closes first" do
     runtime = build
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
-                                                   name:      { given: "Ada", family: "Lovelace" },
-                                                   email:     { address: "ada@example.com" })
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0002" },
-                                                   name:      { given: "Grace", family: "Hopper" },
-                                                   email:     { address: "grace@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0001" },
+                                                        name:      { given: "Ada", family: "Lovelace" },
+                                                        email:     { address: "ada@example.com" })
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0002" },
+                                                        name:      { given: "Grace", family: "Hopper" },
+                                                        email:     { address: "grace@example.com" })
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0002", number: { value: "acct-2" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0002", number: { value: "acct-2" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     rows = runtime.query("Banking::Account.OpenForCustomer", reference: { value: "CUST-0001" })
 
-    # not acct-2 — scoped to the right customer, not every open account
-    expect(rows.map { |row| row[:id] }).to eq(["acct-1"])
+    expect(rows.map { |row| row[:id] }).to eq(["acct-1"]) # not acct-2 — scoped to the right customer, not every open account
   end
 
   # The business rule itself, pinned independently of any reaction.
   #
-  # Dispatching `FreezeAccount` directly against a suspended customer's
-  # open account, to prove the given in isolation, is no longer possible:
-  # the policy freezes every open account the
+  # This used to dispatch `FreezeAccount` directly against a suspended
+  # customer's open account, to prove the given in isolation. That state
+  # is no longer reachable: the policy freezes every open account the
   # moment its customer is suspended, `Account.Open` refuses a suspended
   # customer, and `Unfreeze` refuses one too — so "an open account
-  # belonging to a suspended customer" cannot be constructed at all,
-  # which is the domain working rather than the test decaying.
+  # belonging to a suspended customer" cannot be constructed at all any
+  # more, which is the domain working rather than the test decaying.
   #
   # What remains checkable is the rule as declared, plus the behaviour
   # above: the policy's own fan-out succeeding is the given admitting a

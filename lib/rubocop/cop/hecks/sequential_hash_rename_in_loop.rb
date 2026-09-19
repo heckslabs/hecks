@@ -22,9 +22,7 @@ module RuboCop
       # shape loses data identically for any chain longer than one link
       # (`a->b->c->a`), not just a two-element swap.
       #
-      # ## The fix this cop points at
-      #
-      # Snapshot every old key's value
+      # **The fix this cop points at** — snapshot every old key's value
       # first, delete all old keys, then write all new keys, so no
       # rename in the pass ever reads a key this same pass has already
       # written:
@@ -34,9 +32,7 @@ module RuboCop
       #   snapshot.each { |old_name, _new_name, _value| state.delete(old_name) }
       #   snapshot.each { |_old_name, new_name, value| state[new_name] = value }
       #
-      # ## What this cop does not attempt
-      #
-      # The general checklist item is
+      # **What this cop does not attempt** — the general checklist item is
       # broader than any AST pattern can safely automate ("any method
       # that both reads and writes the same collection across a loop"
       # covers plenty of correct code too — accumulating into a result
@@ -88,11 +84,6 @@ module RuboCop
           (send $_recv :[]= _new_key (send $_recv2 :delete _old_key))
         PATTERN
 
-        # RuboCop callback: flags a `recv[new] = recv.delete(old)` send when its same
-        # receiver appears on both sides and it sits inside a loop.
-        #
-        # @param node [RuboCop::AST::SendNode] the `[]=` send the commissioner is visiting
-        # @return [void]
         def on_send(node)
           rename_write?(node) do |recv, recv2|
             next unless same_receiver?(recv, recv2)

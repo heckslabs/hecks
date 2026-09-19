@@ -360,28 +360,38 @@ pub fn unknown_and_absent_argument_checks(command_name: &str, attributes: &[Json
     check
 }
 
-/// Port of `json_codec.rb#structural_precheck` (BUG#23, qa/bluebook/
-/// quality_control.bluebook) — object-shape check, then
-/// `unknown_and_absent_argument_checks` above: the IDENTICAL text
-/// `emit_from_json_skeleton`'s own preamble builds for a command's
-/// top-level Args struct. Exposed (`pub`) so `registry.rs` can run this
-/// SAME check directly against `facts_json`, standalone, BEFORE an
-/// acting aggregate command's own `id_line`/`extract_id` resolves at
-/// all — see that file's own header for the full reasoning:
-/// `id_line` used to run BEFORE `Args::from_json` (the ONE place these
-/// structural checks lived), so a malformed `id`/`to:` short-circuited
-/// dispatch before a missing OTHER argument was ever checked, and Ruby/
-/// Rust refused different KINDS for the identical malformed command.
-/// `absent_argument_check` is always `true` here — every real caller
-/// (an acting aggregate command's own top-level args, `domain_
-/// generator.rs`'s `registry_commands`) already passes it that way to
-/// `emit_from_json_flat` too.
-pub fn structural_precheck(struct_name: &str, command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>) -> String {
+/// Port of `json_codec.rb#emit_argument_gates` (roadmap D2) — one
+/// generated function per declared argument-gate step, emitted beside a
+/// command's own `from_json` so `kernel::decode_aggregate_arguments`/
+/// `decode_entity_arguments` can call them in `AggregateStep::ORDER`/
+/// `EntityStep::ORDER`. Replaces the standalone `structural_precheck`
+/// the router used to splice ahead of `id_line`/`extract_id`: the same
+/// checks are the steps themselves now, and identity resolution runs
+/// after every gate, which is Ruby's own order. See the Ruby half's own
+/// header for the full argument, including why `from_json` keeps its
+/// internal preamble for every OTHER caller.
+pub fn emit_argument_gates(struct_name: &str, command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>) -> String {
+    let unknown = match unknown_argument_allowlist {
+        Some(_) => unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, false),
+        None => String::new(),
+    };
+    let absent = emit_absent_argument_check(command_name, attributes);
+
     format!(
-        "{}{}",
-        emit_object_shape_check(struct_name),
-        unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, true)
+        "impl {struct_name} {{\n{}\n\n{}\n\n{}\n}}\n",
+        argument_gate_fn("decode_arguments", &emit_object_shape_check(struct_name)),
+        argument_gate_fn("refuse_unknown_arguments", &unknown),
+        argument_gate_fn("refuse_absent_arguments", &absent),
     )
+}
+
+/// One gate function — port of `json_codec.rb#argument_gate_fn`. An empty
+/// body still gets its own function (the kernel's loop calls every
+/// declared step for every command) and names its parameter `_v` so an
+/// empty one never warns.
+fn argument_gate_fn(name: &str, body: &str) -> String {
+    let parameter = if body.is_empty() { "_v" } else { "v" };
+    format!("    pub fn {name}({parameter}: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {{\n{body}        Ok(())\n    }}")
 }
 
 /// `interleave_checks`/`aggregates_by_name` — port of `json_codec.rb#

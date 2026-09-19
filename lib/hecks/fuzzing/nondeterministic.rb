@@ -1,6 +1,6 @@
 module Hecks
   module Fuzzing
-    # The one declared set of `FIELDS` that leave a comparison — partition,
+    # The one declared set of FIELDS that leave a comparison — partition,
     # not filter. Every comparison in lib/hecks/fuzzing that drops a field
     # before comparing two histories names a group here instead of writing
     # its own literal `except(...)` list, so the reason for dropping a field
@@ -48,30 +48,17 @@ module Hecks
 
       module_function
 
-      # The nondeterministic field names declared for one group.
-      #
-      # @param group [Symbol] one of `:query_row`, `:outbox_row`, `:event`, `:history`
-      # @return [Array<Symbol>] the field names `FIELDS` declares for `group`
-      # @raise [KeyError] if `group` names no declared group
       def names(group)
         FIELDS.fetch(group).keys
       end
 
       # Every declared name, across every group.
-      #
-      # @return [Array<Symbol>] every field name `FIELDS` declares, deduplicated
       def all_names
         FIELDS.values.flat_map(&:keys).uniq
       end
 
       # `hash` without `group`'s fields — symbol keys, the shape every
       # Ruby-side history carries.
-      #
-      # @param hash [Hash] a symbol-keyed query row, outbox row, event, or top-level
-      #   history hash
-      # @param group [Symbol] which `FIELDS` group's names to drop
-      # @return [Hash] `hash` with `group`'s declared field names removed
-      # @raise [KeyError] if `group` names no declared group
       def strip(hash, group)
         hash.except(*names(group))
       end

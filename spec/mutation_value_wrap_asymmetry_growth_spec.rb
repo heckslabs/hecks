@@ -2,14 +2,14 @@ require "spec_helper"
 require "tempfile"
 
 # Real dispatch coverage for the Value-wrap asymmetry bug fix across
-# increment/decrement/multiply: wrapping `amount` into a Value whenever the
-# target attribute exists, without also checking whether `current`
-# (the field's own existing value) is wrapped, breaks on a phantom-created
+# increment/decrement/multiply: #apply used to wrap `amount` into a Value
+# whenever the target attribute existed, never checking whether `current`
+# (the field's own existing value) was also wrapped. On a phantom-created
 # field -- a VO-typed attribute with no declared default, genuinely nil
-# until first touched -- because `current` comes back as a raw, unwrapped 0,
-# so the two sides of the same arithmetic call disagree on Value-ness and the
-# primitive path refuses a correctly-typed number as a type mismatch the
-# caller never made. `#apply` now checks both sides.
+# until first touched -- `current` came back as a raw, unwrapped 0, so the
+# two sides of the same arithmetic call disagreed on Value-ness and the
+# primitive path refused a correctly-typed number as a type mismatch the
+# caller never made.
 #
 # Uses a literal amount (`increment: 1`, not `increment: :amount`)
 # deliberately: a Symbol source naming a command argument arrives already
@@ -97,8 +97,8 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   it "increments a phantom (never-touched) VO-typed field on its FIRST mutation, not just later ones" do
     runtime = boot_value_wrap
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Open", id: { value: "b1" })
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b1")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Open", id: { value: "b1" })
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b1")
 
     breaker = repository_for(runtime).find("b1")
     expect(breaker[:count][:value]).to eq(1)
@@ -106,9 +106,9 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   it "keeps mutating correctly on the SECOND increment, once the field is no longer phantom" do
     runtime = boot_value_wrap
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Open", id: { value: "b2" })
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Open", id: { value: "b2" })
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.RecordFailure", id: "b2")
 
     breaker = repository_for(runtime).find("b2")
     expect(breaker[:count][:value]).to eq(2)
@@ -116,8 +116,8 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   it "multiplies a phantom field correctly on its first mutation too" do
     runtime = boot_value_wrap
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Open", id: { value: "b3" })
-    runtime.dispatch("MutationValueWrapGrowth::Breaker.Scale", id: "b3")
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Open", id: { value: "b3" })
+    runtime.dispatch_flat("MutationValueWrapGrowth::Breaker.Scale", id: "b3")
 
     breaker = repository_for(runtime).find("b3")
     # current starts at the raw, unwrapped 0 (never touched) -- 0 * 5 stays 0,

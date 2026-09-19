@@ -2,13 +2,13 @@ require "spec_helper"
 require "hecks/fuzzing/value_generator"
 
 # A type-position `one_of` on an entity attribute synthesizes a closed-set
-# value object — building it without installing it onto the aggregate would drop it:
-# `Entity.declare` carries no value objects, so the set would exist nowhere in
-# the finished graph. The attribute would stay typed at a name nothing could
-# resolve — the one_of would be decorative at runtime (no admission), and the
-# fuzzer would crash every run on the first domain to declare one (a chess
+# value object — and EntityBuilder used to build it and then drop it:
+# `Entity.declare` carries no value objects, so the set existed nowhere in
+# the finished graph. The attribute stayed typed at a name nothing could
+# resolve — the one_of was decorative at runtime (no admission), and the
+# fuzzer crashed every run on the first domain to declare one (a chess
 # King/Rook's own castling flag) with `ValueGenerator does not know
-# primitive type "Moved"`. The set rides the same installer an
+# primitive type "Moved"`. The set now rides the same installer an
 # entity's own identity value object already rides to the aggregate.
 RSpec.describe "an entity attribute's own one_of" do
   def build_chapter(&block)

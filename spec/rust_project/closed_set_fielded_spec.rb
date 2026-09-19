@@ -4,7 +4,7 @@ require_relative "../../rust/project/naming"
 require_relative "../../rust/project/fielded"
 
 # `fielded_capable_nested?`/`emit_closed_set_fielded_impl` — a real,
-# invisible-until-now gap: `fielded.rb`'s three "is this attribute a
+# previously-invisible gap: `fielded.rb`'s three "is this attribute a
 # nested value object" sites excluded every closed-set VO from a
 # `Fielded` impl at all, so a `given` clause naming a closed-set-typed
 # attribute (`processor: Processor`, a `one_of:` VO) could never resolve

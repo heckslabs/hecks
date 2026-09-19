@@ -13,9 +13,7 @@ module RuboCop
       # `h[k.to_sym] || h[k]`, reading a value that could arrive keyed
       # either by symbol or by string off the wire).
       #
-      # ## The fix
-      #
-      # This codebase already converged on — see
+      # The fix this codebase already converged on — see
       # `lib/hecks/query_specification/field_path.rb#read`, the shared
       # digger this whole bug class got consolidated behind: check
       # `key?` first, never fall back through `||`.
@@ -29,8 +27,6 @@ module RuboCop
       # This cop exists so the next `holder[a] || holder[b]` gets caught
       # mechanically, before it becomes bug #9, rather than found by
       # hand again in a future audit.
-      #
-      # ## What it does and doesn't flag
       #
       # Scoped to the `[]`/`[]` shape only, deliberately — a receiver
       # method-call is compared by AST structure (`==`, which ignores
@@ -62,11 +58,6 @@ module RuboCop
         # @!method bracket_lookup(node)
         def_node_matcher :bracket_lookup, "(send $_receiver :[] $_key)"
 
-        # RuboCop callback: flags an `||` node shaped as `receiver[a] || receiver[b]` with
-        # the same receiver on both sides.
-        #
-        # @param node [RuboCop::AST::OrNode] the `||` node the commissioner is visiting
-        # @return [void]
         def on_or(node)
           lhs_receiver, lhs_key = bracket_lookup(node.lhs)
           return unless lhs_receiver

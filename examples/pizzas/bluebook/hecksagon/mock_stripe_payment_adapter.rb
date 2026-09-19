@@ -47,9 +47,11 @@ puts "Before payment: #{order.status}, customer=#{order.customer_name.inspect}"
 # id (never an object), matching every other reference in this language.
 RUNTIME.dispatch_port(
   "Pizzas", "Order", "PaymentGateway", "Receive",
-  name:          NAME,
-  customer_name: { value: "Chris" },
-  amount:        { cents: 1200 }
+  flat: {
+    name:          NAME,
+    customer_name: { value: "Chris" },
+    amount:        { cents: 1200 }
+  }
 )
 
 sold = Order.find(NAME)

@@ -110,9 +110,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::referral_chain::sponsor::EnrollArgs::from_json(facts_json)?;
-                      args.handle.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::sponsor::EnrollArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::sponsor::EnrollArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::sponsor::EnrollArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::sponsor::EnrollArgs::from_json(v)?; args.handle.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::referral_chain::sponsor::EnrollArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::sponsor::EnrollArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::sponsor::EnrollArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::sponsor::EnrollArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::sponsor::EnrollArgs::from_json(v)?; args.handle.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::referral_chain::sponsor::EnrollArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -123,22 +121,8 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("SuspendArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "sponsor", "handle"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Suspend",
-        unknown: &unknown,
-        declared: &[],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::referral_chain::sponsor::Sponsor::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Suspend", aggregate: "Sponsor", identity: "handle.value" }.render_args()))?, };
-              let args = crate::generated::referral_chain::sponsor::SuspendArgs::from_json(facts_json)?;
-              crate::kernel::check_role_via(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::sponsor::SuspendArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::sponsor::SuspendArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::sponsor::SuspendArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::sponsor::SuspendArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::referral_chain::sponsor::SuspendArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::sponsor::SuspendArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::sponsor::SuspendArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::sponsor::SuspendArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::sponsor::SuspendArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::referral_chain::sponsor::SuspendArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::referral_chain::sponsor::Sponsor::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Suspend", aggregate: "Sponsor", identity: "handle.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ReferralChain::Sponsor", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -149,10 +133,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::referral_chain::member::JoinArgs::from_json(facts_json)?;
-                      args.handle.check_invariants()?;
-              crate::kernel::check_reference(&store.sponsor, &args.sponsor, "Sponsor", "handle")?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::member::JoinArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::member::JoinArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::member::JoinArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::member::JoinArgs::from_json(v)?; args.handle.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::member::JoinArgs| { crate::kernel::check_reference(&store.sponsor, &args.sponsor, "Sponsor", "handle")?; Ok(()) } })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::member::JoinArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::member::JoinArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::member::JoinArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::member::JoinArgs::from_json(v)?; args.handle.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::member::JoinArgs| { crate::kernel::check_reference(&store.sponsor, &args.sponsor, "Sponsor", "handle")?; Ok(()) } })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "sponsor", as_name: "sponsor", target: "ReferralChain::Sponsor" }], &args);
@@ -163,10 +144,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::referral_chain::referral::IssueArgs::from_json(facts_json)?;
-                      args.code.check_invariants()?;
-              crate::kernel::check_reference(&store.member, &args.member, "Member", "handle")?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::referral::IssueArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::referral::IssueArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::referral::IssueArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::referral::IssueArgs::from_json(v)?; args.code.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::referral::IssueArgs| { crate::kernel::check_reference(&store.member, &args.member, "Member", "handle")?; Ok(()) } })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::referral::IssueArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::referral::IssueArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::referral::IssueArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::referral::IssueArgs::from_json(v)?; args.code.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::referral::IssueArgs| { crate::kernel::check_reference(&store.member, &args.member, "Member", "handle")?; Ok(()) } })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "member", as_name: "member", target: "ReferralChain::Member" }], &args);
@@ -177,31 +155,8 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReassignArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["member", "id", "referral", "code"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Reassign",
-        unknown: &unknown,
-        declared: &["member"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["member"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Reassign",
-        absent: &absent,
-        declared: &["member"],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::referral_chain::referral::Referral::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reassign", aggregate: "Referral", identity: "code.value" }.render_args()))?, };
-              let args = crate::generated::referral_chain::referral::ReassignArgs::from_json(facts_json)?;
-                      args.member.check_invariants()?;
-              crate::kernel::check_reference(&store.member, &args.member.value, "Member", "handle")?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::referral::ReassignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::referral::ReassignArgs::from_json(v)?; args.member.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::referral::ReassignArgs| { crate::kernel::check_reference(&store.member, &args.member.value, "Member", "handle")?; Ok(()) } })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::referral::ReassignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::referral::ReassignArgs::from_json(v)?; args.member.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::referral::ReassignArgs| { crate::kernel::check_reference(&store.member, &args.member.value, "Member", "handle")?; Ok(()) } })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::referral_chain::referral::Referral::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reassign", aggregate: "Referral", identity: "code.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ReferralChain::Referral", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

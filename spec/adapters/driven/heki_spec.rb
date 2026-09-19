@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Heki do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # Booted once per file — only to read the static "Order" IR back
+  # Booted once per file — only used to read the static "Order" IR back
   # out; every real mutation below goes to the adapter's own per-example
   # tmpdir store (the `around` above), so a shared boot is safe.
   before(:context) { @aggregate = boot_in_memory.registry.bluebook("Pizzas").aggregate("Order") }
@@ -321,11 +321,10 @@ RSpec.describe Hecks::Adapters::Heki do
   end
 
   describe "resolve_path" do
-    # Issue #129: `dir: :default` (a bare Symbol) would crash
+    # Issue #129: `dir: :default` (a bare Symbol) used to crash
     # `File.join` with `TypeError: no implicit conversion of Symbol
-    # into String` if resolve_path checked only for a missing
-    # `dir` setting and never a Symbol one — it maps `:default` to `"data"`
-    # explicitly instead.
+    # into String` — resolve_path only ever checked for a missing
+    # `dir` setting, never a Symbol one.
     it "treats a bare :default Symbol the same as no dir setting at all" do
       defaulted = described_class.new(aggregate: aggregate, settings: { dir: :default }, root: @dir)
       absent    = described_class.new(aggregate: aggregate, settings: {}, root: @dir)

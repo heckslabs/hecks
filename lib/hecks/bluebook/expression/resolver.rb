@@ -188,9 +188,9 @@ module Hecks
         # storehouse-kernel files, byte-identical text) -- `.start_with?(`/
         # `.end_with?(` matched none of this grammar's known suffixes, so
         # both fell through to the `Lookup` catch-all and crashed with the
-        # same `TypeError: no implicit conversion of Symbol into
-        # Integer` shape `.split`/`.all?` also crashed with, confirmed live
-        # via a real dispatch (not validate), not inferred. Two separate node
+        # identical `TypeError: no implicit conversion of Symbol into
+        # Integer` shape `.split`/`.all?` used to, confirmed live via a
+        # real dispatch (not validate), not inferred. Two separate node
         # types rather than one `mode:`-keyed struct (the `BlockPredicate`/
         # `SignTest` precedent) -- `start_with?`/`end_with?` aren't two
         # spellings of the same test the way `all?`/`any?`/`none?` are (one
@@ -206,12 +206,6 @@ module Hecks
 
         module_function
 
-        # Parses and interprets a leaf expression in one step.
-        #
-        # @param expr [String] the leaf expression's own source text
-        # @param state [Hash{Symbol => Object}] the record's own current state
-        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
-        # @return [Object, nil] the resolved value
         def resolve(expr, state, attrs)
           interpret(parse(expr), state, attrs)
         end
@@ -224,12 +218,6 @@ module Hecks
         # branch is already one line; splitting the table into smaller
         # methods would not shrink any single check, only hide the
         # precedence order this method's own line-by-line sequence is.
-        # @param expr [String, nil] the leaf expression's own source text
-        # @return [Object] a `Resolver` leaf AST node — one of `IntegerLiteral`,
-        #   `FloatLiteral`, `StringLiteral`, `BoolLiteral`, `NilLiteral`, `ArrayLiteral`,
-        #   `Addition`, `SignTest`, `Empty`, `ToS`, `Modulo`, `Size`, `MatchesRegex`,
-        #   `Presence`, `Assignment`, `Split`, `First`, `Last`, `StartsWith`, `EndsWith`,
-        #   `BlockPredicate`, `Find`, or `Lookup` (the catch-all)
         # rubocop:disable-next Metrics/AbcSize
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/MethodLength
@@ -299,10 +287,6 @@ module Hecks
           Lookup.new(path: expr)
         end
 
-        # Builds a `SignTest` node from a matched `.positive?`/`.negative?`/`.zero?` suffix.
-        #
-        # @param parts [Array(String, String)] `[receiver_text, test_name]`, as `match_suffix` found
-        # @return [SignTest] the parsed sign-test node
         def sign_test_node(parts)
           receiver, test = parts
           symbol   = SIGN_TEST_OPERATORS.fetch(test)
@@ -317,14 +301,6 @@ module Hecks
         # exhaust; the `else` backstop's own comment explains why a
         # missing arm is a bug this method is built to make loud, not
         # quiet.
-        # @param node [Object] a `Resolver` leaf AST node, as `parse` produces
-        # @param state [Hash{Symbol => Object}] the record's own current state
-        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
-        # @return [Object, nil] the resolved value — a scalar, Array, or nil, depending
-        #   on `node`'s own type
-        # @raise [EvaluationError] if `node` is not a known leaf type, or from any
-        #   nested reader (`blank?`, `matches_regex?`, `split_value`, `apply_modulo`,
-        #   `walk_path`, `fetch`, and others below each raise their own)
         # rubocop:disable-next Metrics/AbcSize
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/MethodLength
@@ -392,10 +368,6 @@ module Hecks
         # `Value#to_h`'d first) is present regardless of what its own
         # inner value holds, matching how every VO-typed field in this
         # corpus is actually shaped once set at all.
-        #
-        # @param value [Object, nil] a resolved value
-        # @return [Boolean] true for nil, false, or an empty String/Array/Hash
-        #   (a to_h-able value is unwrapped to its Hash first)
         def blank?(value)
           return true if value.nil? || value == false
 
@@ -420,13 +392,6 @@ module Hecks
         # `Modulo`'s own parse rule above calling a same-named
         # `match_call` that has the identical cross-module problem --
         # found live while building this, not assumed).
-        #
-        # @param receiver_value [Object, nil] the resolved receiver
-        # @param pattern [String] the regex pattern text, between the slashes
-        # @param flags [String] the regex flags, any of `"i"`/`"m"`/`"x"`
-        # @return [Boolean] whether `receiver_value`, stringified, matches the pattern
-        # @raise [EvaluationError] if `receiver_value` is not a scalar, or `pattern`
-        #   is not a valid regex
         def matches_regex?(receiver_value, pattern, flags)
           text = case receiver_value
                  when String, Symbol, Integer, Float then receiver_value.to_s
@@ -456,10 +421,6 @@ module Hecks
         # Splits on top-level commas only — quote-aware and depth-aware,
         # the same discipline `split_addition` already applies, so a
         # nested array or a comma inside a string element stays whole.
-        #
-        # @param expr [String] the text to check
-        # @return [Array<String>, nil] the unparsed element texts, or nil when `expr`
-        #   is not bracketed
         def array_elements(expr)
           return nil unless expr.start_with?("[") && expr.end_with?("]")
 
@@ -505,10 +466,6 @@ module Hecks
         # downstream chess domain's castling given; the evaluator's own
         # top_level_index has counted braces since its own version of this
         # exact lesson.
-        #
-        # @param expr [String] the text to split
-        # @return [Array(String, String), nil] `[left, right]`, both stripped, or nil
-        #   when `expr` carries no top-level `+`
         def split_addition(expr)
           depth = 0
           quote = nil
@@ -523,12 +480,11 @@ module Hecks
             # type-directed bounded-exhaustive expression generator,
             # Phase 7 of the equivalence-gap plan): `ArrayLiteral` can
             # appear as a general sub-expression now, not only as
-            # `.include?`'s own haystack, so leaving `[`/`]` untracked
-            # would let an array element containing its own top-level
-            # `+` (`[0, 0 + 0]`) read as this expression's own addition
-            # split point -- tearing the whole receiver before
-            # `.all?`/`.any?`/etc. in half before `parse_block_opener`
-            # ever saw it as one atomic leaf.
+            # `.include?`'s own haystack, so an array element containing
+            # its own top-level `+` (`[0, 0 + 0]`) used to read as this
+            # expression's own addition split point -- the whole
+            # receiver before `.all?`/`.any?`/etc. torn in half before
+            # `parse_block_opener` ever saw it as one atomic leaf.
             elsif ["(", "{", "["].include?(char)
               depth += 1
             elsif [")", "}", "]"].include?(char)
@@ -547,13 +503,6 @@ module Hecks
         # it. A Float sum that is not finite is the same fault (C3.4).
         INT64_RANGE = (-(2**63))..((2**63) - 1)
 
-        # Adds two resolved values, checked against the language's own numeric bounds.
-        #
-        # @param left [Object, nil] the resolved left operand
-        # @param right [Object, nil] the resolved right operand
-        # @return [Integer, Float] the sum, Integer when both operands are Integer
-        # @raise [EvaluationError] if either operand is not numeric, or the sum
-        #   overflows a signed 64-bit integer or is not finite
         def add(left, right)
           lhs = require_number(left, "addition")
           rhs = require_number(right, "addition")
@@ -568,10 +517,6 @@ module Hecks
           raise EvaluationError, "addition overflowed: #{lhs} + #{rhs} is not a finite number"
         end
 
-        # Tells whether `expr` is a quoted string literal.
-        #
-        # @param expr [String] the text to check
-        # @return [Boolean] whether `expr` is fully wrapped in matching quotes
         def quoted?(expr)
           return false if expr.length < 2
 
@@ -585,22 +530,12 @@ module Hecks
         # which admit the same set for the same reason.
         SIZED_TYPES = Hecks::Vocabulary.fetch("SizedType")
 
-        # `.length`/`.size` — the size of a resolved list or string.
-        #
-        # @param value [Object, nil] a resolved value
-        # @return [Integer] `value`'s own size
-        # @raise [EvaluationError] if `value` is not an Array, String, or Hash
         def size_of(value)
           return value.size if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
 
           raise EvaluationError, "size expects a list or string, got #{describe(value)}"
         end
 
-        # `.empty?` — whether a resolved list or string is empty.
-        #
-        # @param value [Object, nil] a resolved value
-        # @return [Boolean] whether `value` is empty
-        # @raise [EvaluationError] if `value` is not an Array, String, or Hash
         def emptiness_of(value)
           return value.empty? if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
 
@@ -613,11 +548,6 @@ module Hecks
         # meaningful over Array/Hash too, `.split` is a String-only
         # method in the corpus's own usage (every occurrence found this
         # pass splits a Phrase's own string value).
-        #
-        # @param value [Object, nil] a resolved value
-        # @param separator [String] the literal separator to split on
-        # @return [Array<String>] `value` split on `separator`
-        # @raise [EvaluationError] if `value` is not a String
         def split_value(value, separator)
           raise EvaluationError, "split expects a string, got #{describe(value)}" unless value.is_a?(String)
 
@@ -632,10 +562,6 @@ module Hecks
         # Array-specific, and this matches `Empty`/`Size`'s own
         # duck-typed-over-a-known-set precedent without inventing a
         # narrower rule than the method needs.
-        #
-        # @param value [Object, nil] a resolved value
-        # @return [Object, nil] `value`'s own last element
-        # @raise [EvaluationError] if `value` does not respond to `:last`
         def last_of(value)
           return value.last if value.respond_to?(:last)
 
@@ -645,10 +571,6 @@ module Hecks
         # `.first` -- see the `First` struct's own comment above.
         # `last_of` with the one method swapped, same duck-typed
         # reasoning.
-        #
-        # @param value [Object, nil] a resolved value
-        # @return [Object, nil] `value`'s own first element
-        # @raise [EvaluationError] if `value` does not respond to `:first`
         def first_of(value)
           return value.first if value.respond_to?(:first)
 
@@ -660,11 +582,6 @@ module Hecks
         # reasoning as `.split` above -- every corpus usage found this
         # pass (`Params`'s own JSON-object-shape invariant) receives a
         # plain String field.
-        #
-        # @param value [Object, nil] a resolved value
-        # @param substring [String] the literal prefix to test for
-        # @return [Boolean] whether `value` starts with `substring`
-        # @raise [EvaluationError] if `value` is not a String
         def starts_with?(value, substring)
           raise EvaluationError, "start_with? expects a string, got #{describe(value)}" unless value.is_a?(String)
 
@@ -674,11 +591,6 @@ module Hecks
         # `.end_with?("suffix")` -- vendored addition, see the `EndsWith`
         # struct's own comment above. Same String-only reasoning as
         # `start_with?` immediately above.
-        #
-        # @param value [Object, nil] a resolved value
-        # @param substring [String] the literal suffix to test for
-        # @return [Boolean] whether `value` ends with `substring`
-        # @raise [EvaluationError] if `value` is not a String
         def ends_with?(value, substring)
           raise EvaluationError, "end_with? expects a string, got #{describe(value)}" unless value.is_a?(String)
 
@@ -690,11 +602,6 @@ module Hecks
         # holds this equal to the language.
         TO_STRING_TYPES = Hecks::Vocabulary.fetch("ToStringType")
 
-        # `.to_s` — stringifies a resolved scalar.
-        #
-        # @param value [Object, nil] a resolved value
-        # @return [String] `value`'s own String form, `""` for nil
-        # @raise [EvaluationError] if `value` is not a scalar
         def string_of(value)
           case value
           when String then value
@@ -705,12 +612,6 @@ module Hecks
           end
         end
 
-        # Finds the first suffix in `suffixes` that `expr` ends with.
-        #
-        # @param expr [String] the text to check
-        # @param suffixes [Array<String>] the suffix names to try, unprefixed (no leading `.`)
-        # @return [Array(String, String), nil] `[receiver_text, suffix]`, or nil when
-        #   `expr` ends with none of `suffixes`
         def match_suffix(expr, suffixes)
           suffixes.each do |suffix|
             marker = ".#{suffix}"
@@ -719,13 +620,6 @@ module Hecks
           nil
         end
 
-        # `.positive?`/`.negative?`/`.zero?` — applies a sign test's own comparison
-        # against the literal 0.
-        #
-        # @param node [SignTest] the parsed sign-test node
-        # @param value [Object, nil] the resolved receiver
-        # @return [Boolean] the sign test's own result
-        # @raise [EvaluationError] if `value` is not numeric
         def apply_sign_test(node, value)
           number = numeric(value)
           raise EvaluationError, "#{node.test} expects a number, got #{describe(value)}" unless number
@@ -777,11 +671,6 @@ module Hecks
         # call to the true final `)`; for chaining, the leftmost
         # occurrence's close lands short and is rejected, so the next
         # occurrence (the true outermost call) is tried instead.
-        #
-        # @param expr [String] the text to scan for a call
-        # @param marker [String] the call's own opening text, such as `".modulo("`
-        # @return [Array(String, String), nil] `[receiver_text, argument_text]`, or nil
-        #   when no occurrence of `marker` in `expr` closes at the string's own end
         def match_call(expr, marker)
           start = 0
           while (index = expr.index(marker, start))
@@ -797,11 +686,6 @@ module Hecks
         # bracket pair over: `start` is the index just past the opening
         # `(` already consumed by the caller (depth starts at 1, not 0,
         # for the same reason).
-        #
-        # @param expr [String] the text to scan
-        # @param start [Integer] the index just after the opening `(`, where depth is 1
-        # @return [Integer, nil] the index of the matching `)`, or nil if `expr` runs
-        #   out before depth returns to 0
         def matching_paren(expr, start)
           depth = 1
           quote = nil
@@ -840,11 +724,6 @@ module Hecks
         # operands down to Integer first was pure data loss with no
         # purpose: `7.5.modulo(2.5)` silently became `7 % 2` (`1`)
         # instead of the real `0.0`.
-        #
-        # @param receiver_value [Object, nil] the resolved receiver
-        # @param divisor_value [Object, nil] the resolved divisor
-        # @return [Integer, Float] `receiver_value % divisor_value`, coerced to numeric
-        # @raise [EvaluationError] if either operand is not numeric, or the divisor is 0
         def apply_modulo(receiver_value, divisor_value)
           receiver = require_number(receiver_value, "modulo")
           divisor  = require_number(divisor_value, "modulo")
@@ -853,14 +732,6 @@ module Hecks
           receiver % divisor
         end
 
-        # Resolves a dotted attribute path against state/attrs.
-        #
-        # @param expr [String] the dotted path text, such as `"customer.name"`
-        # @param state [Hash{Symbol => Object}] the record's own current state
-        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
-        # @return [Object, nil] the resolved, unwrapped value at that path
-        # @raise [EvaluationError] if the path's own root cannot be found, or a
-        #   later segment cannot be read off what the walk reached
         def lookup(expr, state, attrs)
           return unwrap_scalar(fetch(expr, state, attrs)) unless expr.include?(".")
 
@@ -877,13 +748,6 @@ module Hecks
         # which spelling answers — a bare `||` between the two would
         # treat a genuinely-held `false` the same as an absent key and
         # fall through to the other spelling, landing on `nil`.
-        #
-        # @param value [Object, nil] an already-resolved value to walk into
-        # @param segments [Array<String>] the dotted path's own remaining segments
-        # @return [Object, nil] the value reached, or nil once `value` no longer
-        #   responds to `:[]`
-        # @raise [EvaluationError] if a non-Hash segment cannot be read (an Array
-        #   given a non-Integer segment, for instance)
         def walk_path(value, segments)
           segments.reduce(value) do |current, segment|
             break nil unless current.respond_to?(:[])
@@ -900,7 +764,7 @@ module Hecks
                 # or a `list_of` attribute) — Array#[] demands an
                 # Integer/Range and raises a raw TypeError for a String
                 # segment ("no implicit conversion of String into
-                # Integer"), which would otherwise cross straight past this
+                # Integer"), which used to cross straight past this
                 # sublanguage's own refusal boundary and crash the
                 # runtime instead of reading as "this predicate doesn't
                 # apply here."
@@ -951,7 +815,7 @@ module Hecks
         # shaped dotted lookups too -- they already returned a raw
         # scalar and are unaffected.
         # Update (single-element value objects strictly answer `.value`):
-        # the unwrap once gated on the sole key being literally named
+        # the unwrap used to gate on the sole key being literally named
         # `:value` — correct for the shorthand/closed-set shapes that
         # motivated it, but a lie of omission for `Money{amount}` and
         # every other single-field value object whose author picked a
@@ -970,10 +834,6 @@ module Hecks
         # `impl Fielded for Json` mirrors the count-only reading on the
         # Rust side — change them in lockstep or rust_conformance
         # diverges.
-        # @param value [Object, nil] a resolved value, possibly a single-field wrapper
-        # @return [Object, nil] `value`'s own sole scalar when it wraps exactly one
-        #   (a declared single-attribute value object's own field, or a bare
-        #   `{value: X}` Hash); `value` itself otherwise
         def unwrap_scalar(value)
           return value unless value.respond_to?(:to_h) && !value.is_a?(Hash) && !value.is_a?(Array)
 
@@ -986,14 +846,6 @@ module Hecks
           hash.size == 1 && hash.key?(:value) ? hash[:value] : value
         end
 
-        # Reads one name off `attrs`, falling back to `state`.
-        #
-        # @param name [String, Symbol] the attribute or argument name to read
-        # @param state [Hash{Symbol => Object}] the record's own current state
-        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
-        # @return [Object, nil] the raw (not yet unwrapped) value found
-        # @raise [EvaluationError] if `name` names neither a bound argument nor a
-        #   known state field
         def fetch(name, state, attrs)
           key = name.to_sym
           return attrs[key] if attrs.key?(key)
@@ -1002,40 +854,21 @@ module Hecks
           raise EvaluationError, "cannot resolve #{name.inspect} — no such attribute or argument"
         end
 
-        # Tells whether `state` declares `key`, duck-typed for a non-Hash state object.
-        #
-        # @param state [Hash{Symbol => Object}, Object] the record's own current state
-        # @param key [Symbol] the field name to check
-        # @return [Boolean] whether `state` declares `key`
         def known?(state, key)
           return state.key?(key) if state.respond_to?(:key?)
 
           !state[key].nil?
         end
 
-        # Coerces a resolved value to numeric, when it already is one.
-        #
-        # @param value [Object, nil] a resolved value
-        # @return [Integer, Float, nil] `value` when it is Integer or Float, else nil
         def numeric(value)
           value if value.is_a?(Integer) || value.is_a?(Float)
         end
 
-        # Coerces a resolved value to numeric, refusing when it is not one.
-        #
-        # @param value [Object, nil] a resolved value
-        # @param operation [String] the operation's own name, named in a refusal
-        # @return [Integer, Float] `value`, coerced via `numeric`
-        # @raise [EvaluationError] if `value` is not numeric
         def require_number(value, operation)
           numeric(value) ||
             raise(EvaluationError, "#{operation} expects a number, got #{describe(value)}")
         end
 
-        # Renders any value for a refusal message.
-        #
-        # @param value [Object, nil] any value to describe
-        # @return [String] a human-readable description, for a refusal message
         def describe(value) = Rendering.describe(value)
       end
     end

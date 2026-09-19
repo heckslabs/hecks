@@ -22,26 +22,10 @@ module Hecks
     class QueryInterpreter
       attr_reader :registry
 
-      # @param registry [Runtime::Registry] the booted registry this interpreter reads
-      #   repositories from
       def initialize(registry)
         @registry = registry
       end
 
-      # Answers a declared aggregate, entity, or sub-list query.
-      #
-      # @param domain [String] the domain the aggregate belongs to
-      # @param aggregate [Bluebook::Aggregate] the aggregate to query
-      # @param query_name [String] the declared query's name, or a dotted `"Entity.Query"`
-      #   name for an entity/sub-list query
-      # @param args [Hash] the query's arguments
-      # @return [Array<Hash>] the matching rows, each frozen, `id` merged in last
-      # @raise [Runtime::UnknownVerb] if `query_name` (or, for a dotted name, the entity or
-      #   its list attribute) is not declared
-      # @raise [Runtime::TypeMismatch] if an offered argument does not coerce to its declared
-      #   type
-      # @raise [Runtime::Unauthorized] if the query declares `authorize policy, tenant:
-      #   :field` and `args` omits that field
       def call(domain, aggregate, query_name, args)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
@@ -71,7 +55,7 @@ module Hecks
           # Instance#to_h's own comment: an aggregate free to declare its
           # own attribute literally named `id` has that attribute's own
           # wrapped value sitting in `record.state[:id]` already; merging
-          # it over a `{id:}.merge(state)` would let it silently
+          # it over a `{id:}.merge(state)` used to let it silently
           # clobber the correct bare identity this row is supposed to
           # carry.
           # A query row is an answer, not a handle. Mutating one edits
@@ -97,20 +81,6 @@ module Hecks
       # adapters, but the fold itself — the empty candidate set, a
       # duplicate id, a dangling reference, a chain's inside-out
       # resolution order — would only ever be compared against itself.
-      #
-      # @param domain [String] the domain the aggregate belongs to
-      # @param aggregate [Bluebook::Aggregate] the aggregate to query
-      # @param query_name [String] the declared query's name, or a dotted `"Entity.Query"`
-      #   name for an entity/sub-list query
-      # @param args [Hash] the query's arguments
-      # @return [Array<Hash>] the matching rows, `id` merged in last; not frozen (an oracle
-      #   answer, never handed to a caller)
-      # @raise [Runtime::UnknownVerb] if `query_name` (or, for a dotted name, the entity or
-      #   its list attribute) is not declared
-      # @raise [Runtime::TypeMismatch] if an offered argument does not coerce to its declared
-      #   type
-      # @raise [Runtime::Unauthorized] if the query declares `authorize policy, tenant:
-      #   :field` and `args` omits that field
       def reference_call(domain, aggregate, query_name, args)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
@@ -134,9 +104,9 @@ module Hecks
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         # **Offset first, then limit** — the order SQL means by `LIMIT n
         # OFFSET m`, and the order Ports::Query::InMemory#execute already
-        # applies (see that file's own comment). Reading `declared.offset`
-        # here matters: without it, offset would silently vanish for any
-        # query answered here, not just come out reversed.
+        # applies (see that file's own comment). This interpreter used to
+        # never read declared.offset at all — offset silently vanished for
+        # any query answered here, not just come out reversed.
         skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
         capped  = declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
 
@@ -279,12 +249,12 @@ module Hecks
       end
 
       # The comparator table itself lives in
-      # QuerySpecification::Common::Comparison, shared rather than copied
-      # separately by this method and Ports::Query::InMemory#holds? — a
-      # copy each is what would let `none_in_state` reach only one of
-      # them, and `comparable` disagree about value objects with two
-      # numeric members. What stays here is how a value is reached for
-      # this path: the registry is instance state rather than an argument.
+      # QuerySpecification::Common::Comparison. This method and
+      # Ports::Query::InMemory#holds? used to carry a copy each and the
+      # two drifted — `none_in_state` reached only one of them, and
+      # `comparable` disagreed about value objects with two numeric
+      # members. What stays here is how a value is reached for this
+      # path: the registry is instance state rather than an argument.
       def holds?(clause, held, args, record: nil, domain: nil)
         QuerySpecification::Common::Comparison.holds?(
           clause.op, comparable(held), comparable(resolve_query_value(clause.value, args)), registry: @registry
@@ -303,9 +273,9 @@ module Hecks
       # the same way a command argument's own is, so a `nil` offered for
       # a non-optional value-object-typed query attribute
       # (Governance::RoleAssignment.AssignmentsForActor's `actor_id`, say)
-      # has to refuse — passing it through unchecked would let it through
-      # as a silent, unfiltered query instead, a real Ruby/Rust
-      # divergence the fuzzer caught (QualityControl BUG#2).
+      # has to refuse — passing it through unchecked (as this used to)
+      # let it through as a silent, unfiltered query instead, a real
+      # Ruby/Rust divergence the fuzzer caught (QualityControl BUG#2).
       #
       # `checked_vo?` true is handled by `null_vo_argument!` directly,
       # never by routing through `Value.for_attribute(argument: true)`

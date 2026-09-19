@@ -10,12 +10,10 @@ module Hecks
     # then drifts — and the first thing to drift is the help text, which is the
     # only part anybody reads.
     #
-    # ## What is projected, and what is not
-    #
-    # This answers the surface — the verb tree, the argument spec, the
-    # usage text — and nothing executes here. One small generic runner
-    # (`bin/run`) boots a domain, asks for this, parses against it and
-    # dispatches.
+    # What is projected, and what is not. This answers the surface — the verb
+    # tree, the argument spec, the usage text — and nothing executes here. One
+    # small generic runner (`bin/run`) boots a domain, asks for this, parses
+    # against it and dispatches.
     #
     # The alternative was generating an executable per domain, which is what
     # `bin/project_rust` does for a whole runtime and would be the more
@@ -25,13 +23,11 @@ module Hecks
     # reads. Projecting the surface keeps one dispatcher and a help text that
     # cannot be stale, because it is computed at the moment it is printed.
     #
-    # ## The typing is the point
-    #
-    # A CLI hands everything over as a String. `sequence.value=99` has to
-    # become the Integer 99 or the runtime refuses it, and the only
-    # honest place to learn that is the value object's own declared
-    # field type. A CLI that guessed — "it looks like a number" — would
-    # send 99 for a version string of "99" and be wrong in a way nobody
+    # **The typing is the point**. A CLI hands everything over as a String.
+    # `sequence.value=99` has to become the Integer 99 or the runtime refuses
+    # it, and the only honest place to learn that is the value object's own
+    # declared field type. A CLI that guessed — "it looks like a number" —
+    # would send 99 for a version string of "99" and be wrong in a way nobody
     # could see.
     module CliProjector
       module_function
@@ -49,18 +45,6 @@ module Hecks
       # shell-safe where a `?` suffix would be eaten by globbing, and it makes
       # the collision impossible rather than detected. It also reads as what it
       # is: everything under `ask` changes nothing.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to project a
-      #   command-line surface for
-      # @param options [Hash] optional inputs, passed through to `usage`
-      # @option options [String] :program the invoked program name, for usage text;
-      #   defaults to `"bin/run"`
-      # @return [Hash{Symbol => Object}] `:verbs` and `:questions` (each
-      #   `Hash{String => Hash}`, name => spec), `:names` (`Hash{Symbol => Hash{String
-      #   => String}}`, every accepted spelling mapped to its canonical key, under
-      #   `:command`/`:question`), and `:usage` (String)
-      # @raise [Bluebook::DSL::Malformed] if a command and a query project to the
-      #   same command-line name
       def call(bluebook:, options: {})
         verbs     = {}
         questions = {}
@@ -130,10 +114,6 @@ module Hecks
       # aggregates declaring `Close` keep `customer.close` and `account.close`,
       # which is the honest answer — a CLI that picked one would be choosing
       # for the caller.
-      #
-      # @param specs [Hash{String => Hash}] every verb's own full dotted name, mapped
-      #   to its spec Hash; each spec's own `:short` key is set in place
-      # @return [void]
       def shorten(specs)
         tails = specs.keys.group_by { |name| name.split(".").last }
         specs.each do |name, spec|
@@ -142,12 +122,6 @@ module Hecks
         end
       end
 
-      # Maps every accepted spelling of a verb to its canonical full name.
-      #
-      # @param specs [Hash{String => Hash}] every verb's own full dotted name, mapped
-      #   to its spec Hash (already `shorten`ed)
-      # @return [Hash{String => String}] every accepted spelling (full name and short
-      #   name) mapped to its canonical full name
       def aliases(specs)
         specs.each_with_object({}) do |(name, spec), map|
           map[name]         = name
@@ -160,13 +134,6 @@ module Hecks
       # subcommands. Refused here rather than silently resolving to whichever
       # was walked first, which is how `Ticket.Filed` (a command) and
       # `Ticket.Filed` (a query) sat undetected until something flattened them.
-      #
-      # @param verbs [Hash{String => Hash}] the namespace to claim `name` in; mutated
-      #   in place
-      # @param name [String] the dotted command-line name to claim
-      # @param spec [Hash] the verb's own spec Hash to store under `name`
-      # @return [void]
-      # @raise [Bluebook::DSL::Malformed] if `name` is already claimed in `verbs`
       def claim(verbs, name, spec)
         if verbs.key?(name)
           raise Bluebook::DSL::Malformed,
@@ -177,14 +144,6 @@ module Hecks
         verbs[name] = spec
       end
 
-      # Names a verb's own dotted command-line spelling.
-      #
-      # @param aggregate [Bluebook::Aggregate] the verb's own owning aggregate
-      # @param verb [Bluebook::Command, Bluebook::Query, Bluebook::PortOperation] the
-      #   verb to name
-      # @param entity [Bluebook::Entity, nil] the verb's own owning entity, or nil if
-      #   it belongs to `aggregate` directly
-      # @return [String] the verb's dotted command-line name, such as `"order.create_pizza"`
       def name_for(aggregate, verb, entity = nil)
         parts = [Naming.snake(aggregate.hecks_name)]
         parts << Naming.snake(entity.hecks_name) if entity
@@ -192,16 +151,6 @@ module Hecks
         parts.join(".")
       end
 
-      # Names a verb's own fully qualified dispatch spelling.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the verb's own owning chapter
-      # @param aggregate [Bluebook::Aggregate] the verb's own owning aggregate
-      # @param verb [Bluebook::Command, Bluebook::Query, Bluebook::PortOperation] the
-      #   verb to name
-      # @param entity [Bluebook::Entity, nil] the verb's own owning entity, or nil if
-      #   it belongs to `aggregate` directly
-      # @return [String] the verb's fully qualified dispatch name, such as
-      #   `"Pizzas::Order.CreatePizza"`
       def fqn(bluebook, aggregate, verb, entity = nil)
         [bluebook.name, "::", aggregate.hecks_name, ".",
          entity ? "#{entity.hecks_name}." : "", verb.hecks_name].join
@@ -217,14 +166,6 @@ module Hecks
       #
       # `nil` — a creating command — takes none: there is no existing record
       # yet for `to=` to name.
-      #
-      # @param receiver [Symbol, nil] `:entity`, `:aggregate`, or nil for a
-      #   creating command
-      # @param aggregate [Bluebook::Aggregate] the receiver's own aggregate
-      # @param entity [Bluebook::Entity, nil] the receiver's own entity, when
-      #   `receiver` is `:entity`
-      # @return [Array<Hash>] one option Hash (`:path`/`:type`/`:required`/`:note`)
-      #   per id argument `receiver` needs; empty for `nil`
       def receiver_options(receiver, aggregate, entity)
         case receiver
         when :entity
@@ -244,16 +185,6 @@ module Hecks
 
       # ── one verb ──────────────────────────────────────────────────────
 
-      # Projects one command as its full command-line spec.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] `command`'s own owning chapter
-      # @param aggregate [Bluebook::Aggregate] `command`'s own owning aggregate
-      # @param entity [Bluebook::Entity, nil] `command`'s own owning entity, or nil
-      #   if it belongs to `aggregate` directly
-      # @param command [Bluebook::Command] the command to project
-      # @return [Hash{Symbol => Object}] the command's spec: `:verb`, `:kind`
-      #   (`:command`), `:summary`, `:role`, `:role_gated`, `:creates`, `:receiver`,
-      #   `:legacy_receiver`, `:legacy_arguments`, `:refusals`, `:arguments`
       def command_spec(bluebook, aggregate, entity, command)
         holder    = entity || aggregate
         arguments = command.attributes.flat_map { |a| options_for(a, holder, aggregate) }
@@ -298,14 +229,6 @@ module Hecks
       # suite is red, and refuse only when rspec could not run. Somebody
       # reading `--help` should not have to open the hecksagon to find that
       # out.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] `port`'s own owning chapter
-      # @param aggregate [Bluebook::Aggregate] `port`'s own owning aggregate
-      # @param port [Bluebook::DomainPort] `operation`'s own owning port
-      # @param operation [Bluebook::PortOperation] the port operation to project
-      # @return [Hash{Symbol => Object}] the operation's spec: `:verb`, `:kind`
-      #   (`:command`), `:creates` (`false`), `:receiver` (`:aggregate`), `:refusals`
-      #   (`[]`), `:role`, `:role_gated` (`false`), `:summary`, `:arguments`
       def port_spec(bluebook, aggregate, port, operation)
         arguments = receiver_options(:aggregate, aggregate, nil) +
                     operation.attributes.flat_map { |a| options_for(a, aggregate, aggregate) }
@@ -337,12 +260,6 @@ module Hecks
           summary: port_summary(port, operation), arguments: arguments }
       end
 
-      # Summarizes a port operation for its verb-table listing.
-      #
-      # @param port [Bluebook::DomainPort] `operation`'s own owning port
-      # @param operation [Bluebook::PortOperation] the operation to summarize
-      # @return [String] a one-line summary naming what the operation emits, or, for
-      #   an outbound operation, what it answers and refuses
       def port_summary(port, operation)
         return "#{port.name} reports it; emits #{operation.emits.join(', ')}" unless operation.outbound?
 
@@ -351,11 +268,6 @@ module Hecks
 
       # A rootless report takes nothing; a rooted one takes the id of the
       # record it is a view of, under the name the model gave that reference.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] `model`'s own owning chapter
-      # @param model [Bluebook::ReadModel] the read model to project as a report
-      # @return [Hash{Symbol => Object}] the report's spec: `:verb`, `:kind`
-      #   (`:query`), `:summary`, `:arguments`
       def report_spec(bluebook, model)
         arguments =
           if model.reference_target
@@ -369,15 +281,6 @@ module Hecks
           summary: model.description, arguments: arguments }
       end
 
-      # Projects one query as its full command-line spec.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] `query`'s own owning chapter
-      # @param aggregate [Bluebook::Aggregate] `query`'s own owning aggregate
-      # @param entity [Bluebook::Entity, nil] `query`'s own owning entity, or nil if
-      #   it belongs to `aggregate` directly
-      # @param query [Bluebook::Query] the query to project
-      # @return [Hash{Symbol => Object}] the query's spec: `:verb`, `:kind` (`:query`),
-      #   `:summary`, `:arguments`
       def query_spec(bluebook, aggregate, entity, query)
         arguments = Array(query.to_h[:attributes]).flat_map do |declared|
           attribute = query.attributes.find { |a| a.name.to_s == declared[:name].to_s }
@@ -405,18 +308,6 @@ module Hecks
       # one-level CLI is not merely inconvenient, it is a machine for writing
       # malformed records into a real store, which is what it did on its first
       # run against the pizzas database.
-      #
-      # @param attribute [Bluebook::Attribute] the attribute to flatten
-      # @param holder [Bluebook::Aggregate, Bluebook::Entity, Bluebook::ValueObject]
-      #   the construct declaring `attribute`, searched for its value object type
-      # @param aggregate [Bluebook::Aggregate] the outermost aggregate, searched next
-      #   when `attribute`'s value object type is not found on `holder`
-      # @param prefix [String, nil] the dotted path already built for an enclosing
-      #   value object; nil at the top level
-      # @param optional [Boolean, nil] whether an enclosing value object was itself
-      #   optional, inherited by every nested field; nil at the top level
-      # @return [Array<Hash>] one option Hash per leaf scalar field `attribute`
-      #   flattens to
       def options_for(attribute, holder, aggregate, prefix = nil, optional = nil)
         path = [prefix, attribute.name].compact.join(".")
         optional ||= attribute.optional?
@@ -451,24 +342,11 @@ module Hecks
         fields.map { |option| option.merge(list: true, note: [option[:note], "repeatable"].compact.join("; ")) }
       end
 
-      # Projects a reference attribute as an id-typed option.
-      #
-      # @param attribute [Bluebook::Attribute] the reference attribute to project
-      # @return [Hash] the option Hash: `:path`, `:type` (`"String"`), `:required`,
-      #   `:note`
       def reference_option(attribute)
         { path: attribute.name.to_s, type: "String", required: !attribute.optional?,
           note: "id of a #{attribute.type.target_name}" }
       end
 
-      # Projects a scalar field as one option.
-      #
-      # @param path [String] the option's own dotted path
-      # @param field [Bluebook::Attribute] the field to project
-      # @param optional [Boolean] whether the option is optional
-      # @param enum [Array<Object>] the field's own admitted closed-set values, if any
-      # @return [Hash] the option Hash: `:path`, `:type`, `:required`, plus `:enum`,
-      #   `:pattern`, `:default` when applicable
       def scalar_option(path, field, optional, enum: [])
         option = { path: path, type: field.type.to_s, required: !optional }
         option[:enum]    = enum          unless enum.empty?
@@ -477,27 +355,12 @@ module Hecks
         option
       end
 
-      # Names a closed set's own admitted values for one field.
-      #
-      # @param value_object [Bluebook::ValueObject] the value object to check
-      # @param field [Bluebook::Attribute] the closed set's own single distinguishing
-      #   field
-      # @return [Array<Object>] every unique value of `field` across `value_object`'s
-      #   own member rows, or `[]` if `value_object` is not a closed set
       def closed_members(value_object, field)
         return [] unless value_object.closed_set?
 
         value_object.members.filter_map { |member| member[field.name] }.uniq
       end
 
-      # Resolves an attribute's own value object type, if it has one.
-      #
-      # @param attribute [Bluebook::Attribute] the attribute whose type to resolve
-      # @param holder [Bluebook::Aggregate, Bluebook::Entity, Bluebook::ValueObject]
-      #   searched first
-      # @param aggregate [Bluebook::Aggregate] searched next, if `holder` has no match
-      # @return [Bluebook::ValueObject, nil] the value object class `attribute`'s type
-      #   names, or nil if it names none
       def value_object_for(attribute, holder, aggregate)
         [holder, aggregate].compact.each do |scope|
           next unless scope.respond_to?(:value_objects)
@@ -510,10 +373,6 @@ module Hecks
 
       # Every way this verb can say no, in the chapter's own words — printed
       # by `--help` before the caller spends a dispatch finding out.
-      #
-      # @param command [Bluebook::Command] the command to gather refusals for
-      # @param holder [Bluebook::Aggregate, Bluebook::Entity] `command`'s own holder
-      # @return [Array<String>] every way `command` can refuse, stated as sentences
       def refusals(command, holder)
         out = []
         lifecycle = holder.lifecycle
@@ -527,22 +386,6 @@ module Hecks
 
       # ── the help ──────────────────────────────────────────────────────
 
-      # Renders the domain's own usage text: one verb's own detailed help
-      # when `options[:verb]` names one, otherwise the full verb/question list.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to render usage for
-      # @param verbs [Hash{String => Hash}] every command/port-operation spec, keyed
-      #   by dotted name (already `shorten`ed)
-      # @param questions [Hash{String => Hash}] every query/report spec, keyed by
-      #   dotted name (already `shorten`ed)
-      # @param options [Hash] optional inputs
-      # @option options [String] :program the invoked program name; defaults to
-      #   `"bin/run"`
-      # @option options [String, Symbol, nil] :verb narrows the output to one verb's
-      #   own detailed help
-      # @option options [Boolean] :ask whether `:verb` names a question rather than
-      #   a command
-      # @return [String] the rendered usage text
       def usage(bluebook, verbs, questions, options)
         program = options[:program] || "bin/run"
         only    = options[:verb]
@@ -573,12 +416,6 @@ module Hecks
         out.join("\n")
       end
 
-      # Builds a "short is also full" example sentence for the usage footer.
-      #
-      # @param verbs [Hash{String => Hash}] every command spec, keyed by dotted name
-      #   (already `shorten`ed)
-      # @return [String] a sentence showing one verb's short spelling alongside its
-      #   full one, or `""` if `verbs` is empty
       def example_qualified(verbs)
         name, spec = verbs.find { |key, value| key != value[:short] } || verbs.first
         name ? "#{spec[:short]} is also #{name}" : ""
@@ -587,9 +424,6 @@ module Hecks
       # A query's `description` is written as a paragraph — it argues for why
       # the list is worth reading. A verb table wants the first sentence of
       # that argument; `--help` still prints the whole thing.
-      #
-      # @param text [String, nil] the text to take the first sentence of
-      # @return [String] `text`'s first sentence, or `""` if `text` is nil or empty
       def first_sentence(text)
         text.to_s.split(/(?<=\.)\s/).first.to_s
       end
@@ -600,12 +434,6 @@ module Hecks
       # below), so each is its own method returning the lines it
       # contributes — `[]` when it contributes none — concatenated in the
       # same order the original inline version built them in.
-      #
-      # @param program [String] the invoked program name
-      # @param name [String] the verb's own display name
-      # @param spec [Hash] the verb's own spec Hash
-      # @param ask [Boolean] whether `name` is a question rather than a command
-      # @return [String] the verb's full `--help` text
       def verb_help(program, name, spec, ask: false)
         out = verb_help_meta_lines(name, spec)
         out.concat(verb_help_invocation_lines(program, name, spec, ask))
@@ -614,12 +442,6 @@ module Hecks
         out.join("\n")
       end
 
-      # Renders a verb's own name, summary, dispatch/read, and role lines.
-      #
-      # @param name [String] the verb's own display name
-      # @param spec [Hash] the verb's own spec Hash
-      # @return [Array<String>] the name/summary line, plus dispatch/read and role
-      #   lines when applicable
       def verb_help_meta_lines(name, spec)
         out = ["#{name} — #{spec[:summary]}", ""]
         out << "dispatches #{spec[:verb]}" if spec[:kind] == :command
@@ -628,22 +450,11 @@ module Hecks
         out
       end
 
-      # Renders a verb's own example invocation line.
-      #
-      # @param program [String] the invoked program name
-      # @param name [String] the verb's own display name
-      # @param spec [Hash] the verb's own spec Hash
-      # @param ask [Boolean] whether `name` is a question rather than a command
-      # @return [Array<String>] the invocation example line, blank-line-bracketed
       def verb_help_invocation_lines(program, name, spec, ask)
         invocation = ask ? "#{program} ask #{name}" : "#{program} #{name}"
         ["", "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}", ""]
       end
 
-      # Renders a verb's own argument table lines.
-      #
-      # @param spec [Hash] the verb's own spec Hash
-      # @return [Array<String>] one line per argument, or `[]` if `spec` declares none
       def verb_help_argument_lines(spec)
         return [] if spec[:arguments].empty?
 
@@ -661,11 +472,6 @@ module Hecks
         lines << ""
       end
 
-      # Renders a verb's own "refused when:" lines.
-      #
-      # @param spec [Hash] the verb's own spec Hash
-      # @return [Array<String>] the "refused when:" header and one line per refusal,
-      #   or `[]` if `spec` declares none
       def verb_help_refusal_lines(spec)
         return [] if Array(spec[:refusals]).empty?
 

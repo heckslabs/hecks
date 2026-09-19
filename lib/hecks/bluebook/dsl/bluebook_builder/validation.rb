@@ -24,28 +24,18 @@ module Hecks
         # same "one class, its methods, filed across files" pattern
         # `Runtime::Registry` already uses (`include Verification`), just
         # turning each method into a class (singleton) method instead of
-        # an instance method, the same shape `def self.foo` gives a method
-        # declared directly on the class.
+        # an instance method, matching what `def self.foo` already made
+        # every one of these before the split.
         module Validation
-          # Runs every whole-chapter, cross-aggregate check against an assembled chapter.
-          #
-          # A pure function of an assembled
-          # `Bluebook::Chapter`, so `MetaValidator.judge_deferred!` can run
+          # **Every whole-chapter check, in one place** — the battery `#build`
+          # used to run inline, now a pure function of an assembled
+          # `Bluebook::Chapter` so `MetaValidator.judge_deferred!` can run
           # it too, once, on a chapter whose files have all loaded (see
           # `#build`'s own comment for why that split exists at all).
           # Public, not `private_class_method`'d, for exactly that second
           # caller — `MetaValidator` needs to reach this with no builder
           # instance in hand, only the chapter `judge_deferred!` already
           # read back out of the registry.
-          #
-          # @param bluebook [Bluebook::Chapter] the fully assembled chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if any of the checks it runs refuses the chapter —
-          #   an undeclared reference target, a bidirectional reference cycle, a disagreeing
-          #   event shape, an unresolvable `with:` projection, an unresolvable query hop, a bad
-          #   projected field, or a malformed `provides` declaration
-          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a saga's own
-          #   correlation key resolves to something other than a scalar
           def validate_assembled!(bluebook)
             # moved to the language: an attribute type is a reference to its Shape,
             # so an undeclared value object fails reference resolution
@@ -77,19 +67,11 @@ module Hecks
             validate_provisions!(bluebook)
           end
 
-          # Checks that every `provides` row names a real capability, the right keys, and a
-          # command/query this chapter actually declares.
-          #
-          # A `provides` row is only
+          # **What a declared capability must name**. A `provides` row is only
           # worth trusting in place of a name check if it is checked: an
           # unknown capability, a missing or extra key, or a verb that is
           # not this chapter's own command/query of the right kind would
           # otherwise wire a role check to nothing, in silence.
-          #
-          # @param bluebook [Bluebook::Chapter] the fully assembled chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if a `provides` names an unknown capability, the
-          #   wrong set of keys, or a verb naming no command/query of the right kind
           def validate_provisions!(bluebook)
             bluebook.provides.group_by(&:capability).each do |capability, rows|
               contract = Capabilities::CONTRACTS.fetch(capability) do
@@ -107,15 +89,6 @@ module Hecks
             end
           end
 
-          # Checks that one `provides` row's verb names a real command or query of the right kind.
-          #
-          # @param bluebook [Bluebook::Chapter] the fully assembled chapter
-          # @param capability [String] the capability's name, for the refusal message
-          # @param row [Bluebook::Chapter::Provision] the row being checked
-          # @param kind [Symbol] `:command` or `:query`, the contract's expected verb kind
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if the row's verb names no aggregate, or no
-          #   command/query of the given kind on it
           def validate_provided_verb!(bluebook, capability, row, kind)
             aggregate_name, member = row.verb.split(".", 2)
             aggregate = bluebook.aggregate(aggregate_name)
@@ -125,20 +98,15 @@ module Hecks
                              "which names no #{kind} this chapter declares (spelled \"Aggregate.#{kind.capitalize}\")"
           end
 
-          # Names every command or query, of the given kind, that an aggregate declares.
-          #
-          # @param aggregate [Bluebook::Aggregate] the aggregate to read verbs off
-          # @param kind [Symbol] `:command` or `:query`
-          # @return [Array<String, Symbol>] every matching command or query name on `aggregate`
           def provided_member_names(aggregate, kind)
             kind == :command ? aggregate.commands.map(&:hecks_name) : aggregate.queries.map(&:name)
           end
 
-          # Refuses an entity command that names itself as its root.
+          # An entity command may not name itself as its root.
           #
-          # That is the whole of what is left here, and it needs saying plainly:
-          # a broader-sounding refusal — "references must target
-          # aggregate heads" — would claim to check more than this actually does.
+          # That is the whole of what is left here, and it needs saying plainly
+          # because the sentence this used to raise — "references must target
+          # aggregate heads" — was never what it checked.
           #
           # `CommandBuilder#reference_to` sets `references` only when the target's
           # bare name equals the owner's ; anything else becomes a reference
@@ -155,11 +123,6 @@ module Hecks
           # Reference attributes are the language's business now — offered as the
           # head's own id and resolved as references, so `Aggregate.Reference` and
           # `Command.Reference` refuse an undeclared head with no predicate at all.
-          #
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if an entity command's own bare reference names
-          #   itself rather than a real aggregate head
           def validate_reference_value_objects!(aggregates)
             heads = aggregates.map(&:hecks_name)
 
@@ -196,13 +159,6 @@ module Hecks
           # claim about what the payload holds, so two emitting commands
           # are free to differ there without actually disagreeing about
           # the event's own shape.
-          # Checks that every command emitting the same event name agrees on its structural
-          # shape.
-          #
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if two commands emit the same event name with
-          #   different structural (name/type/list/optional) shapes
           def validate_event_shapes!(aggregates)
             event_emitters(aggregates).each do |event_name, pairs|
               next if pairs.size == 1
@@ -240,17 +196,6 @@ module Hecks
           # (does the dispatched command actually declare the field) still
           # runs, since that half is true regardless of where the value
           # came from.
-          # Checks every policy's and process manager's own `with:` projection: that its target
-          # command declares the field, and (same-chapter only) its source resolves.
-          #
-          # @param policies [Array<Bluebook::Policy>] every chapter-scoped and
-          #   aggregate-scoped policy
-          # @param process_managers [Array<Bluebook::ProcessManager>] every process manager in
-          #   the chapter
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if a `with:` names a field its target command does
-          #   not declare, or (same-chapter only) reads a source field its event does not carry
           def validate_with_projections!(policies, process_managers, aggregates)
             lookup = command_lookup(aggregates)
             heads  = correlation_heads(process_managers)
@@ -297,27 +242,6 @@ module Hecks
           # reads as its own rule at its own site.
           # rubocop:disable-next Metrics/CyclomaticComplexity
           # rubocop:disable-next Metrics/PerceivedComplexity
-          #
-          # Checks one `with:` projection's own fields, both that the target declares them and
-          # (when resolvable) that each source actually exists.
-          #
-          # @param command_ref [String] the dotted target command reference, `"Aggregate.Command"`
-          # @param event_name [String, Symbol, nil] the triggering event's name, if any; nil for
-          #   a fan-out policy's own for-each source
-          # @param with_spec [Array<Array>] the `with:` Hash as an Array of `[field, source]`
-          #   pairs
-          # @param lookup [Hash{String => Bluebook::Command}] every dotted command name in the
-          #   chapter mapped to its `Command`
-          # @param label [String] the declaring construct's own label, for the refusal message
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @param correlation_heads [Array<Symbol>] every saga's own `correlates_by` head,
-          #   legal on any command regardless of whether it declares the field
-          # @param process_manager [Bluebook::ProcessManager, nil] the process manager this
-          #   check runs for, when it is one of a saga's own dispatches; nil for a policy
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if a field is not declared by the target command,
-          #   or a Symbol source resolves to nothing the source shape, memory shape, correlation
-          #   key, or emitter identity can supply
           def check_with_spec!(command_ref, event_name, with_spec, lookup, label, aggregates, correlation_heads,
                                process_manager: nil)
             target        = lookup[command_ref]
@@ -372,15 +296,6 @@ module Hecks
           # legal here : this mirrors that gate rather than re-deriving a
           # narrower rule that would refuse one of two real, already-shipped
           # dispatch conventions.
-          # Reports whether a command may legally be addressed under `field`, at dispatch time.
-          #
-          # @param command [Bluebook::Command] the target command
-          # @param field [Symbol] the argument name to check
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @param correlation_heads [Array<Symbol>] every saga's own `correlates_by` head
-          # @return [Boolean] true if `field` is a declared attribute, `:id`, a correlation
-          #   head, or (for a self-referencing command) an identity head or reference key of
-          #   the referenced aggregate
           def command_declares?(command, field, aggregates, correlation_heads)
             return true if command.attributes.any? { |a| a.name == field }
             return true if field == :id
@@ -401,11 +316,6 @@ module Hecks
           # passthrough, not an addressing key"). A command declaring none of
           # its attributes named this is not a gap; the correlation key rides
           # through commands that never read it, same as it does at runtime.
-          # Names every saga's own `correlates_by` field, legal on any command in the chapter.
-          #
-          # @param process_managers [Array<Bluebook::ProcessManager>] every process manager in
-          #   the chapter
-          # @return [Array<Symbol>] each declared correlation head, one per correlating saga
           def correlation_heads(process_managers)
             process_managers.filter_map { |pm| pm.correlates_by && pm.correlation_head }
           end
@@ -415,15 +325,6 @@ module Hecks
           # declares it — shared by `validate_event_shapes!` and
           # `validate_with_projections!`'s own command lookup, the same
           # reach `HecksagonBuilder#commands_in` needs one level up (S8).
-          # Iterates every command this chapter declares, an aggregate's own and every entity
-          # nested inside one, each paired with a name for what declares it.
-          #
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @yieldparam owner [String] the declaring construct's dotted name, `"Aggregate"` or
-          #   `"Aggregate.Entity"`
-          # @yieldparam command [Bluebook::Command] the command
-          # @return [Enumerator, void] an Enumerator when no block is given, otherwise nothing
-          #   useful
           def each_command(aggregates)
             return enum_for(:each_command, aggregates) unless block_given?
 
@@ -435,31 +336,22 @@ module Hecks
             end
           end
 
-          # Groups every command in the chapter by the event names it emits.
-          #
-          # Not memoised — a builder-instance `@event_emitters ||=` cache
-          # would be safe for a one-file chapter but
-          # wrong for one split across several: the first file's `build()`
+          # **Not memoised** — this used to be `@event_emitters ||=` on the
+          # builder instance, which is safe for a one-file chapter but
+          # wrong for one split across several: the first file's build()
           # call would compute and cache it from whatever `@aggregates`
           # held at that moment, and every later file's own validation
           # would keep reading that same stale snapshot, silently missing
           # any command a later file adds. Recomputed fresh every call
           # instead — this walks the whole chapter once per `#build`, not
           # a hot path worth memoising at that cost.
-          #
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [Hash{String => Array<Array>}] each event name mapped to every
-          #   `[owner, command]` pair that emits it
           def event_emitters(aggregates)
             each_command(aggregates).with_object(Hash.new { |h, k| h[k] = [] }) do |(owner, command), index|
               command.emits.each { |event_name| index[event_name] << [owner, command] }
             end
           end
 
-          # Computes a command's own structural event shape: its attributes' names, unwrapped
-          # types, list-ness and optionality.
-          #
-          # Structural, not nominal. Two commands on two different
+          # **Structural, not nominal**. Two commands on two different
           # aggregates that both `emits "SameEvent"` are free to type a
           # field through two different, locally-scoped wrapper value
           # objects (e.g. one aggregate's own `value: SomeText` vs
@@ -480,34 +372,18 @@ module Hecks
           # same-named VO private to themselves, so the unwrap has to ask
           # the same aggregate the field's own command belongs to, never a
           # neighbor's.
-          #
-          # @param command [Bluebook::Command] the command whose emitted shape is computed
-          # @param owner [Bluebook::Aggregate, nil] the aggregate the command belongs to, whose
-          #   own value objects unwrap the command's attribute types; nil when unresolved
-          # @return [Array<Array>] one `[name, unwrapped_type, list?, optional?]` row per
-          #   attribute, sorted
           def event_shape(command, owner)
             command.attributes.map { |a| [a.name, unwrap_shape(owner, a.type.to_s), a.list?, a.optional?] }.sort
           end
 
-          # Recursively unwraps a value-object type name to its own attribute shape, so two
-          # isomorphic wrapper types compare equal.
-          #
-          # @param owner [Bluebook::Aggregate, nil] the aggregate whose value objects the type
-          #   name resolves against; nil leaves the name unwrapped
-          # @param type_name [String] the type name to unwrap
-          # @param seen [Array<String>] type names already unwrapped on this path, to stop a
-          #   self-referential value object from recursing forever
-          # @return [String, Array<Array>] the type name unchanged when it is a primitive,
-          #   unresolved, or already seen, otherwise the recursively unwrapped attribute shape
           def unwrap_shape(owner, type_name, seen = [])
-            return type_name if owner.nil? # owner couldn't be resolved -- compare by name
+            return type_name if owner.nil? # owner couldn't be resolved -- compare by name, same as before this unwrap existed
             return type_name if Attribute::PRIMITIVES.include?(type_name)
             # a self-referential VO bottoms out on its own name, not an infinite unwrap
             return type_name if seen.include?(type_name)
 
             shape = owner.value_object(type_name)
-            return type_name unless shape # not this owner's own VO (a reference type, say)
+            return type_name unless shape # not this owner's own VO (a reference type, say) -- nothing further to unwrap
 
             shape.attributes.map { |a| [a.name, unwrap_shape(owner, a.type.to_s, seen + [type_name]), a.list?, a.optional?] }.sort
           end
@@ -520,23 +396,10 @@ module Hecks
           # already resolves hop/type lookups only at the aggregate level,
           # e.g. `validate_hop_tail!`'s `target.value_object(type)`), so only
           # the first segment ever matters here.
-          # Resolves an `each_command`-style dotted owner name to its aggregate.
-          #
-          # @param owner [String] the owner name, `"Aggregate"` or `"Aggregate.Entity"`
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [Bluebook::Aggregate, nil] the aggregate named by `owner`'s first segment,
-          #   or nil if this chapter declares none by that name
           def owner_aggregate(owner, aggregates)
             aggregates.find { |a| a.hecks_name == owner.to_s.split(".").first }
           end
 
-          # Looks up an event's own structural shape, from whichever command emitting it comes
-          # first.
-          #
-          # @param event_name [String, Symbol] the event's name
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [Array<Array>, nil] the shape `event_shape` computes for the first emitting
-          #   command, or nil if nothing in the chapter emits this event
           def event_shape_for(event_name, aggregates)
             pairs = event_emitters(aggregates).fetch(event_name.to_s, [])
             return nil if pairs.empty?
@@ -545,18 +408,10 @@ module Hecks
             event_shape(command, owner_aggregate(owner_name, aggregates))
           end
 
-          # Names the identity heads of the aggregate that emits `event_name`.
-          #
-          # An
+          # The identity heads of the aggregate that emits `event_name` — an
           # entity's event is stamped with its owning aggregate's identity
           # (`Event#id` is the parent's), so an owner spelled "Game.Knight"
           # answers Game's heads.
-          #
-          # @param event_name [String, Symbol] the event's name
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [Array<Symbol>] the emitting aggregate's own identity heads, plus the
-          #   emitting entity's own identity heads when the event comes from a piece; empty if
-          #   nothing in the chapter emits this event
           def event_identity_heads_for(event_name, aggregates)
             pairs = event_emitters(aggregates).fetch(event_name.to_s, [])
             return [] if pairs.empty?
@@ -576,11 +431,6 @@ module Hecks
             heads + (entity ? entity.identity_heads.map(&:to_sym) : [])
           end
 
-          # Indexes every command in the chapter by its dotted name.
-          #
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [Hash{String => Bluebook::Command}] each `"Owner.Command"` name mapped to
-          #   its command
           def command_lookup(aggregates)
             each_command(aggregates).with_object({}) do |(owner, command), index|
               index["#{owner}.#{command.hecks_name}"] = command
@@ -601,9 +451,9 @@ module Hecks
           # aggregate finishes building long before it can know whether
           # some later aggregate in the same file points back at it.
           #
-          # Acyclic within a chapter (ADR 0025, "References") — catches
-          # any ring, however long (A -> B -> C -> A), not only the direct pair
-          # (A -> B -> A), via the same DFS
+          # Acyclic within a chapter (ADR 0025, "References") — widened
+          # from the direct pair (A -> B -> A) this used to catch alone to
+          # any ring, however long (A -> B -> C -> A), the same DFS
           # coloring a reference graph needs for any cycle. A cross-chapter
           # reference is unreachable here rather than unchecked:
           # `Reference#resolve` is scoped to its own chapter by
@@ -611,12 +461,8 @@ module Hecks
           # dangling name, not an edge — `edges.key?` below is what keeps
           # the walk from ever leaving this chapter's own aggregates.
           # Self-reference stays legal (`parent.parent.name` for a
-          # hierarchy is real and safe) and excluded from the graph.
-          #
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if the chapter's own reference graph contains a
-          #   cycle
+          # hierarchy is real and safe) — excluded the same way the
+          # direct-pair check already excluded it.
           def validate_no_bidirectional_references!(aggregates)
             edges = aggregates.to_h do |aggregate|
               [aggregate.hecks_name, aggregate.reference_targets.uniq.reject { |target| target == aggregate.hecks_name }]
@@ -633,12 +479,9 @@ module Hecks
                   "through a query instead of a reference pointing back"
           end
 
-          # Searches a reference graph for a cycle, with a plain DFS visiting/done coloring.
-          #
-          # @param edges [Hash{String => Array<String>}] each aggregate name mapped to the
-          #   names it references
-          # @return [Array<String>, nil] the ring's own aggregate names, in the order it
-          #   closes, or nil if the graph has no cycle
+          # Plain DFS with a visiting/done coloring, over the reference
+          # graph this chapter's own aggregates declare. Returns the ring
+          # itself (in the order it closes), or nil.
           def find_reference_cycle(edges)
             state = {}
 
@@ -650,15 +493,6 @@ module Hecks
             nil
           end
 
-          # Visits one node of `find_reference_cycle`'s own DFS, recursing along its own edges.
-          #
-          # @param node [String] the aggregate name being visited
-          # @param edges [Hash{String => Array<String>}] each aggregate name mapped to the
-          #   names it references
-          # @param state [Hash{String => Symbol}] each visited node's own `:visiting`/`:done`
-          #   coloring, mutated in place
-          # @param path [Array<String>] the current DFS path, mutated in place
-          # @return [Array<String>, nil] the ring's own aggregate names once one closes, or nil
           def reference_cycle_from(node, edges, state, path)
             return nil if state[node] == :done
             return path[path.index(node)..] if state[node] == :visiting
@@ -667,7 +501,7 @@ module Hecks
             path.push(node)
 
             edges[node].each do |target|
-              next unless edges.key?(target) # a name this chapter never declares is dangling
+              next unless edges.key?(target) # a name this chapter never declares is dangling, not an edge
 
               found = reference_cycle_from(target, edges, state, path)
               return found if found
@@ -678,10 +512,7 @@ module Hecks
             nil
           end
 
-          # Checks every deferred where-clause hop in the chapter's own queries, now that every
-          # aggregate exists to resolve targets against.
-          #
-          # The other half of a hop — `AggregateBuilder#seal_query_field`
+          # **The other half of a hop** — AggregateBuilder#seal_query_field
           # recognised the head of a dotted where-field that names one of
           # its own references and deferred it here, unable to check
           # further: it cannot yet resolve what the reference points at.
@@ -706,12 +537,6 @@ module Hecks
           # member needs an entity query to cross a reference yet, and a
           # named refusal beats a runtime that resolves nothing while
           # looking like it might.
-          #
-          # @param bluebook [Bluebook::Chapter] the fully assembled chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if a hop is unresolvable, too deep, lands on a
-          #   non-scalar, names an undeclared field, uses an ordered comparator on a non-numeric
-          #   field, or an entity query itself attempts a hop
           def validate_query_hops!(bluebook)
             bluebook.aggregates.each do |aggregate|
               aggregate.queries.each do |query|
@@ -731,9 +556,6 @@ module Hecks
           # built; here every Reference has an owner and target, so a symbolic
           # comparison can inherit the type of the scalar it compares without a
           # duplicate query-local declaration.
-          #
-          # @param bluebook [Bluebook::Chapter] the fully assembled chapter
-          # @return [void]
           def infer_hop_query_arguments!(bluebook)
             bluebook.aggregates.each do |aggregate|
               aggregate.queries.each do |query|
@@ -762,11 +584,6 @@ module Hecks
           # iteration state (it neither reads nor mutates anything about
           # `bluebook`/`aggregate`/`query` beyond what `plan` already
           # carries).
-          #
-          # @param name [Symbol] the query argument's inferred name
-          # @param plan [QuerySpecification::HopPath::Plan] the resolved hop plan
-          # @return [Bluebook::Attribute, nil] the inferred argument attribute, typed from the
-          #   hop's own landing field, or nil if the plan's tail resolves to nothing
           def inferred_hop_leaf(name, plan)
             target = plan.hops.last.target
             head, *nested = plan.tail.to_s.split(".")
@@ -781,15 +598,6 @@ module Hecks
             end
           end
 
-          # Refuses any hop attempted by one of an entity's own queries; a piece query never
-          # follows a reference.
-          #
-          # @param aggregate [Bluebook::Aggregate] the entity's own owning aggregate, for the
-          #   refusal message
-          # @param entity [Bluebook::Entity] the piece whose queries are checked
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if any of the entity's own queries has a
-          #   where-clause that hops through a reference
           def refuse_entity_query_hops!(aggregate, entity)
             entity.queries.each do |query|
               query.wheres.each do |clause|
@@ -804,15 +612,6 @@ module Hecks
             end
           end
 
-          # Resolves and checks one where-clause's own hop, refusing an unresolvable or too-deep
-          # chain before checking its landing field.
-          #
-          # @param aggregate [Bluebook::Aggregate] the querying aggregate
-          # @param query [Bluebook::Query] the query the clause belongs to
-          # @param clause [QuerySpecification::Common::WhereClause] the hop-shaped where clause
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if the hop is unresolvable, too deep, or its
-          #   landing field fails `validate_hop_tail!`'s own checks
           def validate_hop_clause!(aggregate, query, clause)
             plan = QuerySpecification::HopPath.plan(clause.field, aggregate.attributes)
 
@@ -845,16 +644,6 @@ module Hecks
           # on a value object (refused by name), or naming nothing at all
           # (refused by name) — asked instead of the hop's target aggregate,
           # since that is whose shape the tail actually has to answer for.
-          #
-          # @param aggregate [Bluebook::Aggregate] the querying aggregate, for the refusal
-          #   message
-          # @param query [Bluebook::Query] the query the clause belongs to
-          # @param clause [QuerySpecification::Common::WhereClause] the hop-shaped where clause
-          # @param target [Bluebook::Aggregate] the aggregate the hop lands on
-          # @param tail [String] the dotted field path asked of `target`
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if the tail lands on a value object rather than a
-          #   scalar, or names a field `target` does not declare
           def validate_hop_tail!(aggregate, query, clause, target, tail)
             name, *nested = tail.to_s.split(".")
             attribute = target.attributes.find { |candidate| candidate.name.to_s == name }
@@ -885,20 +674,6 @@ module Hecks
           # already deferred this exact check for the same reason every
           # other hop check is deferred, and this is where it gets asked,
           # against the hop's target instead of the querying aggregate.
-          #
-          # @param aggregate [Bluebook::Aggregate] the querying aggregate, for the refusal
-          #   message
-          # @param query [Bluebook::Query] the query the clause belongs to
-          # @param clause [QuerySpecification::Common::WhereClause] the where clause being
-          #   checked
-          # @param target [Bluebook::Aggregate] the aggregate the hop lands on
-          # @param attribute [Bluebook::Attribute, nil] the landing attribute, or nil when the
-          #   hop lands on the target's own lifecycle field
-          # @param nested [Array<String>] any dotted segments past `attribute`, into a nested
-          #   value object
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if `clause` uses an ordered comparator on a
-          #   non-numeric field
           def validate_hop_comparator!(aggregate, query, clause, target, attribute, nested)
             return unless AggregateBuilder::ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
             return if attribute &&
@@ -927,13 +702,6 @@ module Hecks
           # one resolution primitive. A single hop can never reach
           # HopPath::MAX_HOPS, so :too_deep is structurally unreachable
           # here and is not special-cased.
-          # Checks every `projects` declaration in the chapter, now that every aggregate exists
-          # to resolve its reference against.
-          #
-          # @param bluebook [Bluebook::Chapter] the fully assembled chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if any projected field fails
-          #   `validate_projected_field!`'s own checks
           def validate_projected_fields!(bluebook)
             bluebook.aggregates.each do |aggregate|
               aggregate.projected_fields.each { |field| validate_projected_field!(aggregate, field) }
@@ -949,15 +717,6 @@ module Hecks
           # scatter `plan`/`target`/`remote_attribute` across new methods
           # that would each need most of them anyway.
           # rubocop:disable-next Metrics/AbcSize
-          #
-          # Checks that one projected field's own reference resolves and its remote field is a
-          # real scalar.
-          #
-          # @param aggregate [Bluebook::Aggregate] the aggregate declaring the projection
-          # @param field [Bluebook::ProjectedField] the projected field to check
-          # @return [void]
-          # @raise [Bluebook::DSL::Malformed] if the reference is unresolvable, or the remote
-          #   field is undeclared or not a scalar
           def validate_projected_field!(aggregate, field)
             plan = QuerySpecification::HopPath.plan("#{field.reference}/#{field.remote_field}", aggregate.attributes)
 
@@ -1011,11 +770,6 @@ module Hecks
                   "value, never a reference, a value object, or a list"
           end
 
-          # Reports whether an attribute is a single scalar value a `projects` field may copy.
-          #
-          # @param target [Bluebook::Aggregate] the aggregate `attribute` is declared on
-          # @param attribute [Bluebook::Attribute] the candidate remote attribute
-          # @return [Boolean] true unless `attribute` is a list, a reference, or a value object
           def projectable_scalar?(target, attribute)
             !attribute.list? && !attribute.reference? && target.value_object(attribute.type).nil?
           end
@@ -1040,16 +794,6 @@ module Hecks
           # aggregate's own reference key; saga_interpreter/correlation.rb), so
           # an absent field is not this check's business. Only a field that
           # resolves, and resolves to something other than a scalar, is.
-          # Checks that every saga's own `correlates_by` field, walked through the chapter's own
-          # aggregates, resolves to a real scalar.
-          #
-          # @param process_managers [Array<Bluebook::ProcessManager>] every process manager in
-          #   the chapter
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [void]
-          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a
-          #   correlation key resolves to a list, an unresolvable value object, or an
-          #   undeclared field
           def validate_correlation_keys!(process_managers, aggregates)
             process_managers.each do |pm|
               next unless pm.correlates_by
@@ -1062,14 +806,6 @@ module Hecks
             end
           end
 
-          # Finds why one saga's own correlation key would not resolve to a scalar, if it
-          # wouldn't.
-          #
-          # @param process_manager [Bluebook::ProcessManager] the saga whose correlation key is
-          #   checked
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [String, nil] the violation's own description, or nil if the key resolves
-          #   cleanly (or no emitting command declares its head field at all)
           def correlation_key_violation(process_manager, aggregates)
             head, *rest = process_manager.correlates_by.to_s.split(".")
             events = reacted_events(process_manager)
@@ -1085,11 +821,6 @@ module Hecks
             nil
           end
 
-          # Names every real event a saga reacts to: `starts_on`, `ends_on`, and every handler's
-          # own trigger, `REFUSED` excluded.
-          #
-          # @param process_manager [Bluebook::ProcessManager] the saga to read events off
-          # @return [Array<String>] each bare event name, deduplicated
           def reacted_events(process_manager)
             ([process_manager.starts_on, process_manager.ends_on] + process_manager.handlers.map(&:event_type))
               .compact
@@ -1098,12 +829,6 @@ module Hecks
               .uniq
           end
 
-          # Finds every command in the chapter that emits any of the given events.
-          #
-          # @param events [Array<String>] the bare event names to match against
-          # @param aggregates [Array<Bluebook::Aggregate>] every aggregate in the chapter
-          # @return [Array<Array>] every `[aggregate, command]` pair whose command emits a
-          #   matching event
           def emitting_commands(events, aggregates)
             aggregates.flat_map do |aggregate|
               commands = aggregate.commands + aggregate.entities.flat_map(&:commands)
@@ -1112,15 +837,6 @@ module Hecks
             end
           end
 
-          # Checks that a correlation key's own head attribute, and any dotted tail through it,
-          # resolves to a scalar rather than a list.
-          #
-          # @param owner [Bluebook::Aggregate] the aggregate `attribute` is declared on
-          # @param attribute [Bluebook::Attribute] the correlation key's own head attribute
-          # @param segments [Array<String>] the dotted path segments past the head, into a
-          #   nested value object
-          # @return [String, nil] the violation's own description, or nil if the path resolves
-          #   to a scalar
           def list_or_scalar_violation(owner, attribute, segments)
             if attribute.list?
               return "#{attribute.name} is a list — a correlation key must name one instance's own field, " \
@@ -1137,13 +853,6 @@ module Hecks
           # a value object this domain never declared, a field that value
           # object does not have, or a segment left over after already
           # reaching a scalar.
-          #
-          # @param owner [Bluebook::Aggregate] the aggregate whose value objects `type_name`
-          #   resolves against
-          # @param type_name [String] the current step's own declared type
-          # @param segments [Array<String>] the dotted path segments still to walk
-          # @return [String, nil] the violation's own description, or nil once the path bottoms
-          #   out on a real scalar
           def walk_scalar(owner, type_name, segments)
             if segments.empty?
               return nil if Attribute::PRIMITIVES.include?(type_name)

@@ -14,29 +14,16 @@ module Hecks
       PORTS        = "ports".freeze
       ADAPTERS     = "adapters".freeze
 
-      # @param settings [Hash] accepted for the shared adapter constructor shape and unused;
-      #   this adapter has no world settings of its own
-      # @param root [String, nil] accepted for the shared adapter constructor shape and
-      #   unused; every method here that needs a root takes one as an argument instead
       def initialize(settings: {}, root: nil)
         @settings = settings
         @root     = root
       end
 
-      # Loads every `.port` and `.adapter` file this gem ships under `lib/hecks/ports` and
-      # `lib/hecks/adapters`, so the framework's own ports and adapters are always registered.
-      #
-      # @return [void]
       def load_library
         load_each(library(PORTS),    %w[*.port])
         load_each(library(ADAPTERS), %w[*/*.adapter */*/*.adapter])
       end
 
-      # Loads any `.port`/`.adapter` files a shared project root declares, beside a domain's
-      # own but loaded before it — see `shared_root`.
-      #
-      # @param root [String, nil] the shared project root to load from; nil is a silent no-op
-      # @return [void]
       def load_project(root)
         return unless root
 
@@ -71,15 +58,6 @@ module Hecks
       # concatenate/override rather than replace), so an overlay can
       # rebind or add settings for anything the base file declared
       # without needing to know what else the base file said.
-      # Loads one domain directory's own bluebook chapters, translations, hecksagons and
-      # worlds, in `Vocabulary.fetch("LoadOrder")`'s category order, then any environment
-      # overlay named.
-      #
-      # @param directory [String] the domain's own root directory to glob
-      # @param environment [String, nil] loads `environments/<environment>.hecksagon` and
-      #   `environments/<environment>.world` last, whichever exist; nil skips this step
-      #   entirely
-      # @return [void]
       def load_domain(directory, environment: nil)
         boundary = DOMAIN_ORDER.rindex { |pattern| pattern.end_with?(".bluebook") }
         if boundary
@@ -101,10 +79,6 @@ module Hecks
       # each file, so a folder may hold more than one chapter without a catalog.
       # Sorting makes source order deterministic while the deferred window keeps
       # cross-file references from being judged against a partial chapter.
-      # @param directory [String] the directory to glob `patterns` against
-      # @param patterns [Array<String>] glob patterns relative to `directory`; defaults to
-      #   every `.bluebook` file directly inside it
-      # @return [void]
       def load_bluebooks(directory, patterns = ["*.bluebook"])
         Bluebook::MetaValidator.defer { load_each(directory, patterns) }
         Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
@@ -127,13 +101,6 @@ module Hecks
       # "x.hecksagon", "x.bluebook"` in. Bluebook chapters are judged as one
       # deferred group exactly like `load_domain` does, for the identical
       # forward-reference reason (MetaValidator.defer's own header).
-      # @param files [Array<String>] the exact bluebook/hecksagon/world file paths to load,
-      #   loaded in place wherever they live; bluebooks first as one deferred group, then
-      #   hecksagons, then worlds — never the caller's own list order
-      # @param environment [String, nil] loads `environments/<environment>.hecksagon` and
-      #   `environments/<environment>.world`, resolved against `File.dirname(files.first)`,
-      #   whichever exist; nil skips this step entirely
-      # @return [void]
       def load_selected(files, environment: nil)
         bluebooks, rest = files.partition { |f| f.end_with?(".bluebook") }
 
@@ -153,12 +120,6 @@ module Hecks
         load_each(directory, [File.join("environments", "#{environment}.world")])
       end
 
-      # Loads every file matching any of `patterns` inside `directory`, in pattern order.
-      #
-      # @param directory [String] the directory to glob; a non-existent directory is a
-      #   silent no-op
-      # @param patterns [Array<String>] glob patterns relative to `directory`
-      # @return [void]
       def load_each(directory, patterns)
         return unless File.directory?(directory)
 
@@ -167,13 +128,6 @@ module Hecks
         end
       end
 
-      # Resolves a domain path to the directory its bluebook files actually live in.
-      #
-      # @param path [String] a domain directory, either holding bluebook files directly or
-      #   holding a `bluebook/` subdirectory that does
-      # @return [String] the expanded directory bluebook files are loaded from: `path/
-      #   bluebook` when that exists, otherwise the expanded `path` itself
-      # @raise [Errno::ENOENT] if neither `path` nor `path/bluebook` is a directory
       def bluebook_directory(path)
         expanded = File.expand_path(path)
         nested   = File.join(expanded, "bluebook")
@@ -184,8 +138,6 @@ module Hecks
         raise Errno::ENOENT, "no such domain directory: #{path}"
       end
 
-      # Finds the domain directory a caller is standing in, for a boot that omits its path.
-      #
       # **The domain you are standing in**. Walks up from `from` — the way git
       # finds `.git` — and answers the nearest directory a boot would accept,
       # or nil if there is not one above you.
@@ -207,11 +159,6 @@ module Hecks
       # so the registry root comes out the same — but `examples/banking` is the
       # directory a person names, and the one a `.world`'s `dir "data"` reads
       # as relative to.
-      #
-      # @param from [String] the directory to walk up from; defaults to the process's
-      #   current working directory
-      # @return [String, nil] the nearest domain directory, normalised to the outer
-      #   directory when it holds a `bluebook/` subdirectory; nil if none is found above `from`
       def domain_root(from = Dir.pwd)
         found = nearest_domain(File.expand_path(from))
         return nil unless found
@@ -220,11 +167,6 @@ module Hecks
         File.basename(found) == "bluebook" && domain?(parent) ? parent : found
       end
 
-      # Walks up from `current` looking for the nearest directory a `.hecksagon` marks.
-      #
-      # @param current [String] the expanded directory to start searching from
-      # @return [String, nil] the nearest directory (possibly `current` itself) that
-      #   `domain?` accepts, or nil if none is found before the filesystem root
       def nearest_domain(current)
         loop do
           return current if domain?(current)
@@ -236,24 +178,11 @@ module Hecks
         end
       end
 
-      # Checks whether a directory (or its `bluebook/` subdirectory) declares a `.hecksagon`.
-      #
-      # @param directory [String] the directory to check
-      # @return [Boolean] true if `directory` or `directory/bluebook` holds a `.hecksagon` file
       def domain?(directory)
         !Dir[File.join(directory, "*.hecksagon")].empty? ||
           !Dir[File.join(directory, "bluebook", "*.hecksagon")].empty?
       end
 
-      # Resolves the shared project root a domain's own `load_project` reads from.
-      #
-      # @param given [String, nil] an explicit shared root; when present, returned expanded
-      #   without walking anything
-      # @param directory [String] the domain's own bluebook directory to walk up from when
-      #   `given` is nil
-      # @return [String, nil] `given` expanded, when given; otherwise the nearest ancestor of
-      #   `directory` holding a `ports` or `adapters` subdirectory, or nil if none is found
-      #   before the filesystem root
       def shared_root(given, directory)
         return File.expand_path(given) if given
 
@@ -269,10 +198,6 @@ module Hecks
         end
       end
 
-      # Resolves the path to this gem's own bundled `ports` or `adapters` directory.
-      #
-      # @param folder [String] `"ports"` or `"adapters"`
-      # @return [String] the expanded directory path
       def library(folder)
         File.expand_path("../../#{folder}", __dir__)
       end

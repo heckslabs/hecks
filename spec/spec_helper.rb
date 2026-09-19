@@ -11,23 +11,6 @@ end
 require "hecks"
 require_relative "support/ci_skip_backstop"
 
-# Loose keyword facts in dispatch are deprecated (roadmap I3), and the suite
-# refuses a new one outright rather than warning, so no spec — nor a doctested
-# guide, which runs under this helper too — can reintroduce the shape. The
-# sites that already exist are counted, file by file, in
-# spec/support/legacy_dispatch_sites.rb (its own header says what is left and
-# why); anywhere else the deprecation raises, naming the caller's own line.
-# `bin/codemod_legacy_dispatch_args` drains the list.
-#
-# A spec testing the deprecation itself wraps its call in
-# `Hecks::Deprecation.allowing(:legacy_dispatch_args) { ... }`.
-# `HECKS_DEPRECATIONS=warn` turns the whole thing back into a warning — what
-# `bin/codemod_legacy_dispatch_args record` needs to observe old callers.
-require_relative "support/legacy_dispatch_sites"
-LegacyDispatchSites.install_suite_guard!
-
-# Shared paths and boot helpers for specs that boot a real, in-memory registry
-# rather than loading a fixture domain from disk piecemeal.
 module InMemoryDomain
   ROOT             = File.expand_path("..", __dir__)
   PIZZAS_BLUEBOOK  = File.join(ROOT, "examples/pizzas/bluebook/pizzas.bluebook")
@@ -44,15 +27,9 @@ module InMemoryDomain
   # same as any other consumer would.
   ERA_PLUGIN = "hecks/ports/persistence/plugins/era".freeze
 
-  # Loads one or more bluebook files as a single chapter.
-  #
   # A chapter may reopen across several business-concept files. Load the set
   # inside the same deferred validation window Runtime::Loader uses, then judge
   # the completed chapter once rather than treating each file as a domain.
-  #
-  # @param path [String, Array<String>] a single file, or every file making up one chapter
-  # @return [Object] the judged chapter (when `path` is an Array), or the folder adapter's
-  #   own load result (when `path` is a single file or directory)
   def load_bluebook_files(path)
     if path.is_a?(Array)
       Hecks::Bluebook::MetaValidator.defer { path.each { |file| Kernel.load(file) } }
@@ -66,10 +43,6 @@ module InMemoryDomain
   end
   module_function :load_bluebook_files
 
-  # Boots a fresh, real registry with the Pizzas and Governance chapters wired
-  # to the Memory adapter — a minimal real domain, not a stub.
-  #
-  # @return [Hecks::Runtime::Registry] the booted, bound registry
   def boot_in_memory
     registry = Hecks::Runtime::Registry.new
 

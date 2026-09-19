@@ -42,17 +42,10 @@ directory = File.join(File.expand_path("..", __dir__), "docs/implemented/referen
 undocumented  = Hecks::Doc::Reference.undocumented(directory)
 unexemplified = Hecks::Doc::Reference.unexemplified(directory)
 
-# Prints one coverage gate's failing words, if any.
-#
 # Reported separately, because they are different repairs: an
 # undocumented word needs somebody to write about it, an unexemplified
 # one needs somebody to prove it. A word with neither shows up in both
 # lists on purpose — you owe it both.
-#
-# @param words [Array<String>] the live words failing this gate, as returned by
-#   `Hecks::Doc::Reference.undocumented` or `.unexemplified`
-# @param owed [String] the gate's description, printed after each word count
-# @return [Boolean] true if `words` is empty (this gate is clean)
 def report(words, owed)
   return true if words.empty?
 

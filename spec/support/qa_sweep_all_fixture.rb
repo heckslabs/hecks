@@ -5,8 +5,8 @@ require "pathname"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
 
-# **The `bin/qa_sweep --all` fixture, shared** — extracted out of a single
-# 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
+# **The `bin/qa_sweep --all` fixture, shared** — extracted from what used to
+# be one 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
 # effort): the file's own 13 examples took 336s together on one CI
 # runner, a floor no matrix size could split further since
 # `parallel_rspec` balances at file granularity. Splitting the fixture
@@ -190,7 +190,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
       end
     RUBY
 
-    # Living inside the real repo root, not `/tmp` — `bin/qa_sweep`
+    # Living inside the real repo ROOT, not `/tmp` — `bin/qa_sweep`
     # always resolves a `Target`'s own `path` against the real repository
     # root, independent of `QA_SWEEP_DOMAIN_DIR`.
     @target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_target-", InMemoryDomain::ROOT)
@@ -227,9 +227,6 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # next one's own rotation.
   before { reset_schema! }
 
-  # Scrubs the database back to an empty `public` schema, owned again by the QA role.
-  #
-  # @return [void]
   def reset_schema!
     scrub = PG.connect(dbname: @qa_sweep_all_database)
     scrub.exec("DROP SCHEMA public CASCADE")
@@ -238,14 +235,9 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     QaLedgerRole.own_public!(@qa_sweep_all_database)
   end
 
-  # Boots the fixture domain in-process and writes each given `Target` row directly.
-  #
   # Booted in-process, briefly, purely to write `Target` rows down —
   # never to dispatch a sweep itself (every sweep in this file runs as a
   # real, separate `bin/qa_sweep` process, which is the whole point).
-  #
-  # @param targets [Hash{String => String}] each target's reference mapped to its bluebook path
-  # @return [void]
   def identify_targets!(targets)
     Hecks.boot(@fixture_dir)
     targets.each do |reference, path|
@@ -253,18 +245,12 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   end
 
-  # Runs `bin/qa_sweep` as a real subprocess against this spec's own fixture ledger.
-  #
   # The exact invocation a human (or `--all`'s own children) would type,
   # run for real via `Open3.capture3` — `QA_SWEEP_DOMAIN_DIR` is what
   # tells it to use this spec's own fixture ledger instead of the real
   # one, and `QA_SWEEP_RUST_DIR` is what tells `found_one`'s own
   # differential diff to build/run this spec's own hand-maintained
   # fixture crate rather than reaching for the real `rust/`.
-  #
-  # @param args [Array<String>] command-line arguments forwarded to `bin/qa_sweep`
-  # @return [Array(String, String, Process::Status)] the subprocess's stdout, stderr, and
-  #   exit status, per `Open3.capture3`
   def run_qa_sweep(*args)
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir, "QA_SWEEP_RUST_DIR" => FIXTURE_RUST_DIR },
@@ -273,20 +259,13 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     )
   end
 
-  # Polls a child process without blocking until it exits, collecting one probe result per poll.
-  #
   # The non-blocking reap loop — see the `keeps at most SWEEP_MAX_PARALLEL`
   # example's own comment (wherever that example landed) for why this is
   # `Process.waitpid2(pid, Process::WNOHANG)`, polled, and not a
   # `Process.kill(0, pid)` liveness check in a loop (a zombie answers it just as
   # a live process would, so that loop can never observe the child
-  # exiting).
-  #
-  # @param pid [Integer] process id of the child to poll for
-  # @yield called once per poll interval while the child is still running
-  # @yieldreturn [Object] one probe result, collected on every poll
-  # @return [Array(Process::Status, Array<Object>)] the child's exit status once reaped, and
-  #   every probe result collected while waiting for it
+  # exiting). `probe` is called once per poll and returns whatever this
+  # run wants tracked; returns `[status, probe_results]`.
   def reap_while_polling(pid)
     results = []
     loop do

@@ -4,7 +4,7 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 
-# The multi-bluebook / PostgresEra gap, found live against a real,
+# The multi-BLUEBOOK / PostgresEra gap, found live against a real,
 # private project (children-of-the-light) attaching a vendored chapter
 # via `uses_embryonaut_bluebook`: PostgresEra's own era-1 self-mint for
 # the second bluebook loaded into a registry wrote the first (target)
@@ -199,7 +199,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
       notes_row  = rows.find { |row| row["domain"] == "Notes" }
 
       expect(target_row["held_text"]).to include('Hecks.bluebook "Target"')
-      # **The bug, pinned**: without the fix, this would hold the target's own
+      # **The bug, pinned**: before the fix, this held the target's own
       # text (byte-identical to target_row["held_text"]) instead of
       # Notes' own.
       expect(notes_row["held_text"]).to include('Hecks.bluebook "Notes"')

@@ -29,13 +29,13 @@ RSpec.describe "a reference that arrives as an object" do
   let(:runtime) { boot_settlement }
 
   before do
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "a" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "b" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "a" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "b" })
   end
 
   it "is refused, and says what to send instead" do
     expect do
-      runtime.dispatch("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
+      runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
                                          source: { value: "a" }, destination: "b")
     end.to raise_error(Hecks::Runtime::TypeMismatch,
                        "Ask refused — a reference is an id, and source arrived as an object " \
@@ -48,7 +48,7 @@ RSpec.describe "a reference that arrives as an object" do
   # argument named first is stable without sorting.
   it "names the first reference the command declares, not the first one passed" do
     expect do
-      runtime.dispatch("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
+      runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
                                          destination: { value: "b" }, source: { value: "a" })
     end.to raise_error(Hecks::Runtime::TypeMismatch, /and source arrived as an object/)
   end
@@ -57,7 +57,7 @@ RSpec.describe "a reference that arrives as an object" do
   # half the claim ; the other half is that the accepted form is stored as the
   # scalar, rather than quietly re-wrapped somewhere downstream.
   it "accepts the id, and stores it as the id" do
-    runtime.dispatch("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
+    runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
                                        source: "a", destination: "b")
 
     wire = runtime.registry.repository("Wire", runtime.registry.bluebook("Wire").aggregate("Wire")).find("w1")
@@ -87,7 +87,7 @@ RSpec.describe "a reference that arrives as an object" do
     }.each do |description, malformed|
       it "refuses #{description} as a wrong shape, not a lookup" do
         expect do
-          runtime.dispatch("Wire::Wire.Ask", reference: { value: "w3" }, amount: { cents: 100 },
+          runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w3" }, amount: { cents: 100 },
                                               source: malformed, destination: "b")
         end.to raise_error(Hecks::Runtime::TypeMismatch,
                            "Ask refused — a reference is an id, and source arrived as " \
@@ -97,7 +97,7 @@ RSpec.describe "a reference that arrives as an object" do
 
     it "refuses a REQUIRED reference offered as null, rather than reaching the command's own given" do
       expect do
-        runtime.dispatch("Wire::Wire.Ask", reference: { value: "w4" }, amount: { cents: 100 },
+        runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "w4" }, amount: { cents: 100 },
                                             source: nil, destination: "b")
       end.to raise_error(Hecks::Runtime::TypeMismatch,
                          "Ask refused — a reference is an id, and source arrived as nil (Drawer is known by number)")
@@ -134,13 +134,13 @@ RSpec.describe "a reference that arrives as an object" do
 
     it "accepts an explicit null for a reference declared optional: true" do
       expect do
-        hop_chain_runtime.dispatch("HopChain::Proposal.Draft", number: { value: "p1" }, engagement: nil)
+        hop_chain_runtime.dispatch_flat("HopChain::Proposal.Draft", number: { value: "p1" }, engagement: nil)
       end.not_to raise_error
     end
 
     it "still refuses a wrong NON-NULL shape on that same optional reference" do
       expect do
-        hop_chain_runtime.dispatch("HopChain::Proposal.Draft", number: { value: "p2" }, engagement: false)
+        hop_chain_runtime.dispatch_flat("HopChain::Proposal.Draft", number: { value: "p2" }, engagement: false)
       end.to raise_error(Hecks::Runtime::TypeMismatch,
                          "Draft refused — a reference is an id, and engagement arrived as false " \
                          "(Engagement is known by reference)")
@@ -169,7 +169,7 @@ RSpec.describe "a reference that arrives as an object" do
 
     it "is refused by the query's own name" do
       banking = boot_banking
-      banking.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
 
       expect { banking.query("Banking.customer_portfolio", customer: { value: "c" }) }
@@ -179,7 +179,7 @@ RSpec.describe "a reference that arrives as an object" do
 
     it "answers when it is given the id" do
       banking = boot_banking
-      banking.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
 
       expect(banking.query("Banking.customer_portfolio", customer: "c")).not_to be_empty

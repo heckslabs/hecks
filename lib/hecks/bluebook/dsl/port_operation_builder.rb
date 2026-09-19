@@ -26,8 +26,8 @@ module Hecks
         # operation attribute"), which anticipated this shape before either
         # side actually built it. Stored separately (below, threaded to
         # PortOperation as `to:`) rather than reusing reference_to_impl's
-        # own attribute-adding path — Invocation.port_call
-        # (lib/hecks/runtime/invocation.rb) is the one place that resolves
+        # own attribute-adding path — Dispatcher#port_invocation
+        # (lib/hecks/runtime/dispatcher.rb) is the one place that resolves
         # routing at dispatch time; it gained a second, purely additive
         # branch for this (falls back to a plain attribute named for the
         # owning aggregate's own identified_by field, the same "declare

@@ -53,12 +53,12 @@
 # elsewhere.
 
 #
-# The list is committed (.github/postgres_io_spec_files.txt) and the shards read that file
-# instead of re-running the dry run themselves: the dry run costs 26-48s on a CI runner, and
-# every shard would otherwise pay it before running a single example. `--write FILE`
-# refreshes the committed list; `--check FILE` is what CI's postgres_io_file_list job runs,
-# once, off the shards' critical path — a stale list fails there instead of an io spec
-# silently never running.
+# The list is committed (.github/postgres_io_spec_files.txt) and the shards
+# read that file: the dry run costs 26-48s on a CI runner, and every shard
+# used to pay it before running a single example. `--write FILE` refreshes
+# the committed list; `--check FILE` is what CI's postgres_io_file_list job
+# runs, once, off the shards' critical path — a stale list fails there
+# instead of an io spec silently never running.
 #
 #   bin/rspec_io_parallel_files --write .github/postgres_io_spec_files.txt '<pattern>' -- --tag io
 #   --tag ~fuzzing
@@ -107,11 +107,6 @@ end
 warn "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a matching example " \
      "(#{data['examples'].size} examples total) under `#{tag_args.join(' ')}`"
 
-# Formats one labeled, indented block of file paths for a `--check` mismatch report.
-#
-# @param heading [String] the label describing why these paths are listed
-# @param paths [Array<String>] the file paths to list, one per line
-# @return [String] `heading` followed by each path, indented
 def named(heading, paths)
   "  #{heading}:\n    #{paths.join("\n    ")}"
 end

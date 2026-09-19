@@ -279,9 +279,6 @@ module Hecks
           bounded(current * amount, "multiply", current, amount, "*")
         end
 
-        # Bounds an attribute's current value into `[min, max]`, on a bare number or on the
-        # one numeric field a value object carries.
-        #
         # Vendored addition, not (yet) upstream hecks (migration plan
         # task 4, i106): bound the current value into `[min, max]` -- no
         # "amount" to combine, so it does not go through
@@ -289,16 +286,6 @@ module Hecks
         # it clamps whichever single numeric field the wrapping value
         # object carries (a synthesised wrapper always carries exactly
         # one, per Part 3a's auto-synthesis).
-        #
-        # @param current [Numeric, Runtime::Value, nil] the attribute's pre-dispatch value; nil
-        #   (never set) counts as 0
-        # @param bounds [Array(Numeric, Numeric)] the `[min, max]` pair to clamp into, always
-        #   a literal, never resolved through `resolve_source`
-        # @param target [Symbol, String] name of the attribute, used only to word a refusal
-        # @return [Numeric, Runtime::Value] the clamped value: a `Runtime::Value` when
-        #   `current` is one, otherwise a bare number the caller re-wraps
-        # @raise [Runtime::TypeMismatch] if `current` is neither numeric nor a value object
-        #   with a numeric field
         def clamp(current, bounds, target)
           min, max = bounds
           # The same `current ||= 0` #arithmetic/#multiply both give a
@@ -307,13 +294,11 @@ module Hecks
           # attribute with no declared `default:` (genuinely absent,
           # `Instance.defaults`/`#default_for`) hit TypeMismatch on the
           # first clamp. (#arithmetic/#multiply's own absent-current gap
-          # is a real, separate bug, fixed alongside this one by
-          # unwrapping `amount` first — see #unwrap_single_numeric_field:
-          # without that, an absent `current` paired with a
-          # Money-wrapped `amount` blames a perfectly valid `amount` for
-          # not being an Integer, when it was one, just still wrapped —
-          # not the "silently treats the absent field as zero" shape a
-          # reader might otherwise assume.)
+          # was a real, separate bug this comment used to describe wrong —
+          # they did not "silently treat the same absent field as zero";
+          # they raised too, blaming a perfectly valid `amount` for not
+          # being an Integer when it was one, just still Money-wrapped.
+          # Fixed alongside this one — see #unwrap_single_numeric_field.)
           current ||= 0
           if current.is_a?(Value)
             fields = current.to_h

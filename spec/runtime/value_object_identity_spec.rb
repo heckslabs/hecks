@@ -37,7 +37,7 @@ RSpec.describe "multi-field value-object identity at runtime" do
 
   it "coerces defaults and concatenates every member in declaration order" do
     runtime = boot_identity_runtime
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "IdentityRuntime::TransferInstruction.Register",
       identity: { end_to_end_id: "e2e-42" }
     )
@@ -62,7 +62,7 @@ RSpec.describe "multi-field value-object identity at runtime" do
     runtime = boot_identity_runtime
 
     expect do
-      runtime.dispatch(
+      runtime.dispatch_flat(
         "IdentityRuntime::TransferInstruction.Register",
         identity: { scheme: "ACH", end_to_end_id: "" }
       )

@@ -6,20 +6,13 @@ module Hecks
       # behaviour is singleton behaviour, and the holding half's `absorb`
       # is what a generated constructor would be.
       module ValueObject
-        # A one_of declared but left empty is recorded as its own fact, distinct
-        # from no one_of at all — both are `members: []` on the wire, so only
-        # this flag tells them apart. Recording the declaration lets the
-        # language judge it, the same way an empty attribute name survives into
-        # the IR and is judged there.
-        #
-        # @return [Boolean] whether a `one_of` was declared, even if it lists no members
+        # A one_of declared but left empty used to be indistinguishable from no
+        # one_of at all — both are `members: []` — so the rule about it could
+        # only live in the builder. Recording the declaration lets the language
+        # judge it, the same way an empty attribute name survives into the IR
+        # and is judged there.
         def closed_set? = @closed_set
 
-        # Finds a declared attribute by name.
-        #
-        # @param named [String, Symbol] the attribute's declared name
-        # @return [Bluebook::Attribute, nil] the attribute, or `nil` if none is declared
-        #   by that name
         def attribute(named) = attributes.find { |held| held.name == named.to_sym }
 
         # A single-attribute value object (EmailAddress{address},
@@ -37,9 +30,6 @@ module Hecks
         # `retention_months`/`paper_fee_cents`). `sole_attribute` would
         # return `nil` for that shape and break the discriminant lookup —
         # left as `.first` on purpose, not a missed migration.
-        #
-        # @return [Bluebook::Attribute, nil] the one declared attribute if this value
-        #   object declares exactly one, else `nil`
         def sole_attribute
           attributes.first if attributes.size == 1
         end

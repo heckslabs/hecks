@@ -3,38 +3,38 @@ require "open3"
 require "hecks/fuzzing"
 require_relative "support/rust_conformance_helpers"
 
-# **The Rust differential harness, wired in** — 0012 gave `bin/rust_conformance` a
-# `native` mode that actually runs a compiled artifact, replacing the plain
-# claim its own header comment made until then ("this tool
+# **The Rust differential harness, wired in** — bin/rust_conformance's own
+# header comment used to say plainly that nothing did this ("this tool
 # does not invoke Rust itself... until then, 'give me a JSON file to
-# compare against' is the whole interface"). This is that mode, run as part
+# compare against' is the whole interface"). 0012 gave it a `native` mode
+# that actually runs a compiled artifact; this is that mode, run as part
 # of the same `bundle exec rspec` both `.githooks/pre-push` and CI already
 # require — no separate CI step needed beyond building the binary first
 # (`.github/workflows/ci.yml`), the same "provision it for real, don't
 # skip" discipline that workflow already holds Postgres/SQLite to.
 #
 # Compares `instances`, `events`, `queries`, and full refusal wording
-# (`verb` + `error`, not just `verb`) — the two gaps that would otherwise make
+# (`verb` + `error`, not just `verb`) — the two gaps that used to make
 # exact `events`/wording comparison the wrong bar here are both closed
-# now (0021): `Event.payload` would otherwise be the router's raw, unfiltered args
+# now (0021): `Event.payload` used to be the router's raw, unfiltered args
 # (0013's own `stamp_payload`) with no post-coercion default-fill —
-# `Json::overlay` (json.rs) merges the raw args with the typed args
-# struct's own `to_json()` instead, matching Ruby's own coerced-hash payload; and
-# `GivenNotMet`/`EnsuresNotMet` refusal wording carries the same
+# `Json::overlay` (json.rs) now merges the raw args with the typed args
+# struct's own `to_json()`, matching Ruby's own coerced-hash payload; and
+# `GivenNotMet`/`EnsuresNotMet` refusal wording now carries the same
 # `"{command} refused — {description}"` prefix Ruby's own
 # `CommandRules::Admissibility` raises with. Fixtures with no "query" step
 # at all (every fixture below except query_filters.json) trivially pass
 # the `queries` comparison — both engines report an empty array — so
 # adding it here costs those fixtures nothing.
 #
-# The refusal-wording gap this file once named is closed. Fixtures no longer
-# need to be picked/maintained specifically to stay clear of `LifecycleRefused`'s
+# The refusal-wording gap this file used to name is closed. Fixtures used
+# to be picked/maintained specifically to stay clear of `LifecycleRefused`'s
 # `transition_blocked`, the general VO-`invariant` message, `one_of`
-# closed-set membership, and entity-element-missing — the real, separate,
-# deliberately out-of-scope gap `rust/project.rb`'s own header once named.
-# `bin/project_refusal_wording` (generating `rust/src/
+# closed-set membership, and entity-element-missing — `rust/project.rb`'s
+# own header used to name these as a real, separate, deliberately
+# out-of-scope gap. `bin/project_refusal_wording` (generating `rust/src/
 # kernel/refusal_wording.rs`, `RefusalSite`) closed all four, plus
-# `record_missing` via `Hydrate::Act` (found live, unnamed until then) and
+# `record_missing` via `Hydrate::Act` (found live, previously unnamed) and
 # a wrong refusal class on `closed_set_member` (`TypeMismatch`, not
 # `InvariantViolation` — a behavioral bug, not just wording). The general
 # VO-invariant message is no longer a gap at all: it was promoted into
@@ -117,7 +117,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # reaction-ordering gap described above is closed; its always-false
   # `known_reaction_gap?` predicate was deleted in Phase 4.
 
-  # The READ_MODEL/query-codegen boundary's own refusal, one level up
+  # The READ_MODEL/query-CODEGEN boundary's own refusal, one level up
   # from the single-step example below — the same gap
   # (rust/project/read_models.rb's and queries.rb's own headers, and
   # bin/rust_coverage's "known red, on purpose" citation for banking),
@@ -141,7 +141,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # its own queries log simply has no matching entry — exempted the same
   # way, checking either key a step's own log entry uses.
   #
-  # Both verbs this once exempted are closed by Phase 10, so the fixed
+  # Both verbs this used to exempt were closed by Phase 10, so the fixed
   # corpus compares refusals and queries with no tolerance. PRD 04's
   # generated-sequence bridge (spec/rust_conformance_fuzz_spec.rb) can
   # reach verbs Rust never generated; it tolerates exactly the ones the
@@ -206,9 +206,9 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
   # The other "query" step shape's own remaining boundary — a named/declared
   # bluebook ask (the string form) whose own shape this generator's query
-  # codegen doesn't cover. `Banking::Account.Open` filled this role until
-  # 2026-08-11 (it declared `order_by`, which disqualified it outright) —
-  # that gap closed the moment `kernel/query_ordering.rs` gave `named_query.rs` the same
+  # codegen doesn't cover. Used to be `Banking::Account.Open` (it declared
+  # `order_by`, which disqualified it outright) — that closed 2026-08-11,
+  # the moment `kernel/query_ordering.rs` gave `named_query.rs` the same
   # sort/limit tail `read_model.rs` already had (see named_queries_order_
   # limit.json for `Account.Open` now genuinely executing, byte-for-byte
   # against Ruby). `Banking::Account.OpenForSuspendedCustomers` takes its
@@ -234,7 +234,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
     # Every query banking declares is generated now — the reference hop
     # (`OpenForSuspendedCustomers`) and the entity-scoped ones
-    # (`LedgerEntry.Reversed`) this once sampled in turn — so the refusal
+    # (`LedgerEntry.Reversed`) this used to sample in turn — so the refusal
     # path is proven with a verb banking never declares.
     uncovered = "Banking::Account.NoSuchQuery"
     stdout, status = Open3.capture2(

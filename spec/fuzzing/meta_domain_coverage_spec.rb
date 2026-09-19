@@ -52,11 +52,11 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # **Recursive, at every depth** — not just one hop down. An entity can
   # nest its own entities (`entity "Dispatch"`, inside `entity "Handler"`,
   # inside `aggregate "ProcessManager"` — lib/hecks/language/bluebook/
-  # process_manager.bluebook), and walking only `agg.entities` would
+  # process_manager.bluebook), and walking only `agg.entities` used to
   # stop at Handler, leaving Dispatch's own fields
   # (command_name/position/with_spec/compensates_command_name/
   # compensates_with_spec) outside this list entirely — never claimed,
-  # never exempted, never gapped, because they would never even be
+  # never exempted, never gapped, because they were never even
   # enumerated. That is the exact one-level assumption BUG#11 broke in
   # the sequence generator's own catalog (`lib/hecks/fuzzing/
   # sequence_generator/catalog.rb`'s `each_entity_chain`, walking every

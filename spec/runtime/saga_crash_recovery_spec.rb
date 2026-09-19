@@ -57,9 +57,9 @@ RSpec.describe "saga durability across a process death mid-leg" do
 
   it "leaves the checkpointed state AND a durable pending marker when the leg's own dispatch never ran" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
 
     # `WireAsked`'s own handler dispatches exactly one command
     # (`Drawer::Take`, settlement.bluebook's first `Carry` leg) — raise
@@ -72,7 +72,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
     end
 
     expect do
-      runtime.dispatch("Wire::Wire.Ask", reference: { value: "wire-1" }, amount: { cents: 2_500 },
+      runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "wire-1" }, amount: { cents: 2_500 },
                        source: "left", destination: "right")
     end.to raise_error(SimulatedCrash)
 
@@ -100,9 +100,9 @@ RSpec.describe "saga durability across a process death mid-leg" do
   # rubocop:disable-next RSpec/ExampleLength
   it "rehydrating that same store surfaces the stall loudly and does NOT auto-redrive the leg" do
     runtime = boot_wire
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
 
     allow(runtime).to receive(:reenter).and_wrap_original do |original, *args, **kwargs|
       raise SimulatedCrash if args.first&.include?("Take")
@@ -110,7 +110,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
       original.call(*args, **kwargs)
     end
     begin
-      runtime.dispatch("Wire::Wire.Ask", reference: { value: "wire-1" }, amount: { cents: 2_500 },
+      runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "wire-1" }, amount: { cents: 2_500 },
                        source: "left", destination: "right")
     rescue SimulatedCrash
       nil # the "process" died — a fresh boot against the same store is what happens next

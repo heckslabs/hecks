@@ -43,31 +43,42 @@
 # sites give once a human closes the gap by adding the file
 # (bin/rust_kernel_coverage checks for exactly that file, mechanically).
 #
-# A third capability, query comparators, is deliberately not written here.
-# `Hecks::QuerySpecification::Common::COMPARATORS` (lib/hecks/
-# query_specification/common/comparators.rb) — `eq`/`ne`/`gt`/`gte`/`lt`/
-# `lte`/`in`/`contains`, the same eight names `Vocabulary::QueryComparator`
-# (language/bluebook/vocabulary.bluebook) declares — has a real kernel
-# dispatch site: `rust/src/kernel/cli.rs`'s single-comparator "query" step
-# (the object form) dispatches over `rust/src/kernel/query_comparators.rs`'s
-# own enum; see that file's own header for the full story, including what
-# still, deliberately, does not dispatch (a named/declared bluebook query,
-# the string form of the same step).
+# A third capability used to be written here too, and no longer is —
+# worth recording why, since its absence could otherwise look like an
+# oversight rather than a decision. `Hecks::QuerySpecification::
+# Common::COMPARATORS` (lib/hecks/query_specification/common/
+# comparators.rb) — `eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`in`/`contains`, the
+# same eight names `Vocabulary::QueryComparator` (language/bluebook/
+# vocabulary.bluebook) declares — used to have no kernel dispatch site at
+# all, so this script wrote `rust/src/kernel/query_comparators.rs` as a
+# bare, undispatched gap-enum (`emit_gap_enum`, formerly here): no `match`
+# anywhere to protect, so nothing for a generator to keep honest, just
+# eight names tracked so they wouldn't stay undiscoverable until a real
+# query engine came along and someone had to re-derive them from Ruby by
+# hand.
 #
-# Because a real dispatch site exists, `query_comparators.rs` looks like
-# every other hand-written file under rust/src/kernel/ rather than like
-# `attribute_shapes`/`expression_operators` (a generator-owned roster plus
-# hand-written interpretation files behind it): the enum and its
-# interpretation are one file, hand-maintained together, the same way
-# `cli.rs`/`dispatch.rs`/`repository.rs` already are. This script has
-# nothing left to regenerate there without overwriting that hand-written
-# dispatch logic, so it never touches `query_comparators.rs`. A ninth
-# `Vocabulary::QueryComparator` name (`none_in_state`) already needed a
-# human to update `QueryComparator::ALL`/`parse`/`matches`/
-# `none_in_state_matches` by hand (item #9, whole-project
-# table-unification survey) — the same way a ninth `AttributeShape` needs a
-# human to write `rust/src/kernel/attribute_shapes/<name>.rs`. `emit_mod`
-# only ever writes the roster for a capability, never its interpretation.
+# That day came: `rust/src/kernel/cli.rs`'s ad hoc, single-comparator
+# "query" step (the object form) now dispatches over this enum for real,
+# in `query_comparators.rs` itself — see that file's own header for the
+# full story, including what still, deliberately, does not dispatch (a
+# named/declared bluebook query, the string form of the same step). Once
+# a real dispatch site exists, this capability stops looking like
+# `attribute_shapes`/`expression_operators` (a generator-owned roster
+# plus hand-written interpretation files behind it) and starts looking
+# like every other hand-written file under rust/src/kernel/ — the enum
+# and its interpretation are one file, hand-maintained together, the same
+# way `cli.rs`/`dispatch.rs`/`repository.rs` already are. Regenerating it
+# here would have nothing left to do but overwrite that hand-written
+# dispatch logic with the old bare enum — so this script no longer
+# touches `query_comparators.rs` at all. This prediction already came
+# true once — `Vocabulary::QueryComparator` had grown a ninth name
+# (`none_in_state`) before this script's own comment above caught up to
+# say so; `QueryComparator::ALL`/`parse`/`matches`/`none_in_state_matches`
+# in that file got that human's own hand (item #9, whole-project table-
+# unification survey) — the same way a ninth `AttributeShape` would need
+# a human to write `rust/src/kernel/attribute_shapes/<name>.rs`. This
+# script's `emit_mod` only ever wrote the roster for that capability,
+# never the interpretation, either.
 #
 #   bin/project_kernel_capabilities
 
@@ -81,13 +92,6 @@ require "tempfile"
 
 ROOT = File.expand_path("..", __dir__)
 
-# Writes `content` to `target` through a temp file and atomic rename, so a
-# reader never observes a partially written file even if the process is
-# killed mid-write.
-#
-# @param target [String] absolute path of the file to write
-# @param content [String] full file content to write
-# @return [void]
 def write_atomically(target, content)
   FileUtils.mkdir_p(File.dirname(target))
   Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|
@@ -99,30 +103,13 @@ def write_atomically(target, content)
 end
 
 # snake_case grammar/Ruby name -> PascalCase Rust variant name. Plain
-# ASCII splitting on "_" — every name this ever sees (`SHAPES`' own
+# ASCII splitting on "_" — every name this ever sees (SHAPES' own
 # symbols, Grammar's own `category` strings) is already a simple
 # lowercase/underscore token, never anything richer.
-#
-# @param name [String, Symbol] the snake_case grammar or Ruby name
-# @return [String] the PascalCase Rust variant name
 def pascal(name)
   name.to_s.split("_").map { |part| part[0].upcase + part[1..] }.join
 end
 
-# Writes one capability's `mod.rs`: the `pub mod <name>;` line per name and
-# the exhaustive enum over them, together — see this script's own header for
-# why the roster and the module list are generated as one file.
-#
-# @param target [String] absolute path of the `mod.rs` file to write
-# @param header [String] the ground-truth comment block placed above the
-#   generated module declarations
-# @param enum_name [String] the Rust enum's name, `"AttributeShape"` or
-#   `"OperatorCategory"`
-# @param names [Array<String, Symbol>] one entry per variant/module, in the
-#   order they must appear
-# @param doc_line [String] names the Ruby source of truth, quoted in the
-#   generated enum's own doc comment
-# @return [void]
 def emit_mod(target, header:, enum_name:, names:, doc_line:)
   variants = names.map { |name| "    #{pascal(name)}," }.join("\n")
   mods     = names.map { |name| "pub mod #{name};" }.join("\n")
@@ -165,7 +152,7 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
   write_atomically(target, content)
 end
 
-# ── Attribute shapes ──────────────────────────────────────────────────
+# ── Attribute SHAPES ──────────────────────────────────────────────────
 shape_names = Hecks::Runtime::Value::Coercion::SHAPES
 emit_mod(
   File.join(ROOT, "rust/src/kernel/attribute_shapes/mod.rs"),

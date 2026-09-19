@@ -4,8 +4,8 @@ require_relative "../../rust/project/naming"
 require_relative "../../rust/project/reactions"
 
 # `emit_merged_policy_table`/`emit_merged_cross_domain_policy_table` —
-# the recovery of a documented, deliberate gap: bin/project_rust once
-# built its one merged Store's policy/cross-domain-policy tables from
+# the recovery of a documented, deliberate gap: bin/project_rust used to
+# build its one merged Store's policy/cross-domain-policy tables from
 # only the target domain's own policies, silently dropping every
 # attached/vendored chapter's own. Invisible until a domain vendored a
 # chapter that actually declares policies (Governance/Identity, the only

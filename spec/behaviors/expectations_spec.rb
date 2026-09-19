@@ -60,9 +60,9 @@ RSpec.describe Hecks::Behaviors::Expectations do
       expect(described_class.runtime_for(suite)).to be(first)
     end
 
-    # The isolation a per-test boot would otherwise buy for free: nothing the
-    # first test dispatched is visible to the second — not its events, not
-    # its records.
+    # The isolation the per-test boot used to buy: nothing the first test
+    # dispatched is visible to the second — not its events, not its
+    # records.
     it "resets everything a test wrote before the next one runs" do
       expect(described_class.run_one(create("First"), suite).status).to eq(:pass)
       runtime = described_class.runtime_for(suite)
@@ -139,9 +139,9 @@ RSpec.describe Hecks::Behaviors::Expectations do
     end
   end
 
-  # Without calling check_fields, run_query would never check a field
-  # expectation (or a typo'd key) on a query — it would silently pass no
-  # matter what the query actually answered.
+  # run_query used to never call check_fields at all — a field
+  # expectation (or a typo'd key) on a query silently passed no matter
+  # what the query actually answered.
   describe "field expectations on a query" do
     let(:suite) { Hecks::Behaviors::BehaviorsSuite.new(loads: [File.join(root, "pizzas.bluebook"), memory_hecksagon]) }
 

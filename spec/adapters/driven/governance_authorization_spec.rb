@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
   let(:business) { runtime }
 
   def register_customer(runtime, reference: "C-1")
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Banking::Customer.Register",
       reference: { value: reference },
       name:      { given: "Dana", family: "Ng" },
@@ -37,7 +37,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
   end
 
   def assign(runtime, actor:, role:)
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Governance::RoleAssignment.Assign",
       actor_id: { value: actor }, role_name: { value: role },
       scope: { value: "Branch-1" }, starts_at: { value: "2026-01-01" }
@@ -45,7 +45,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
   end
 
   def grant_transition(runtime, from:, to:, starts_at: "2026-01-01")
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Governance::RoleTransition.Grant",
       from_role: { value: from }, to_role: { value: to }, starts_at: { value: starts_at }
     )
@@ -67,7 +67,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
 
   it "answers false once the assignment is revoked" do
     created = assign(business, actor: "officer-1", role: "Compliance officer")
-    business.dispatch("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
+    business.dispatch_flat("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
 
     expect(
       described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer")
@@ -102,7 +102,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     end
 
     it "fails closed for a starts_at that does not parse as a time, once as_of is given" do
-      business.dispatch(
+      business.dispatch_flat(
         "Governance::RoleAssignment.Assign",
         actor_id: { value: "officer-2" }, role_name: { value: "Compliance officer" },
         scope: { value: "Branch-1" }, starts_at: { value: "not-a-real-date" }
@@ -153,7 +153,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     expect(allowed).to be(true)
 
     result = Hecks.as_caller(role: "Compliance officer") do
-      business.dispatch(
+      business.dispatch_flat(
         "Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" }
       )
     end
@@ -191,7 +191,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
 
     it "returns nil once the assignment is revoked" do
       created = assign(business, actor: "officer-1", role: "Compliance officer")
-      business.dispatch("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
+      business.dispatch_flat("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
 
       expect(described_class.live_role_for(business.registry, actor_id: "officer-1")).to be_nil
     end
@@ -214,7 +214,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
 
     it "answers false once the grant is revoked" do
       created = grant_transition(business, from: "Branch clerk", to: "Compliance officer")
-      business.dispatch("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
+      business.dispatch_flat("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
 
       expect(
         described_class.authorized_as?(business.registry, from_role: "Branch clerk", to_role: "Compliance officer")
@@ -233,7 +233,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
       expect(allowed).to be(true)
 
       suspended = Hecks.as_caller(role: "Compliance officer") do
-        business.dispatch(
+        business.dispatch_flat(
           "Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" }
         )
       end

@@ -23,14 +23,15 @@ Kernel.load(File.expand_path("../bin/lint_deploy_recipes", __dir__))
 #      touched (mint-era, scaffold-translation, translation-audit,
 #      migrate-console-settings, rename-schema, sync-google-oauth).
 #
-# `deploy:` is included in the "known clean" set below because
-# bin/project_deploy now echoes what each AWS call is about to check
-# right before making it. predeploy_bridge_shell's own `aws
-# cloudformation describe-stacks` existence check (and, in Shared mode,
-# the owner-stack Outputs lookup) ran with no echo of its own
-# before it until this fix (only prose comments, invisible to a human running `make
-# deploy`, explained it), which this linter flagged as one genuine, if
-# low-severity, PROD_TOUCH_WITHOUT_ECHO finding. So the CLI's own
+# `deploy:` used to be excluded from the "known clean" set below — running
+# this linter against the real generator used to surface one genuine (if
+# low-severity) finding there: PROD_TOUCH_WITHOUT_ECHO on
+# predeploy_bridge_shell's own `aws cloudformation describe-stacks`
+# existence check (and, in Shared mode, the owner-stack Outputs lookup),
+# both of which used to run with no echo of their own before them (only
+# prose comments, invisible to a human running `make deploy`, explained
+# them). Now fixed — bin/project_deploy echoes what each of those AWS
+# calls is about to check, right before making it — so the CLI's own
 # "no arguments" test now expects a clean run across every target,
 # `deploy` included. If this ever regresses
 # (the echo silently gets lost again), these assertions will fail.
@@ -190,8 +191,8 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
   # (`DeployRecipeLint.fixtures`) through the real bin/project_deploy
   # and requires zero violations across every target in each generated
   # Makefile — a strict superset of the per-target "known clean" checks
-  # this file otherwise runs against its own separately-generated copies
-  # of those same three fixtures.
+  # this file used to run against its own separately-generated copies of
+  # those same three fixtures.
   #
   # --- End-to-end CLI ----------------------------------------------------
 
@@ -243,11 +244,11 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
       end
 
       it "generates its own fixture domains and lints them (real bin/project_deploy output)" do
-        # A genuinely clean run is expected — see this file's own top
-        # comment for the PROD_TOUCH_WITHOUT_ECHO finding this pinned on
-        # `deploy` before that generator's fix; any violation reappearing
-        # here is a regression in bin/project_deploy's own generated
-        # recipes.
+        # Used to pin one known, real, reported-not-fixed PROD_TOUCH_WITHOUT_
+        # echo finding on `deploy` here — see this file's own top comment.
+        # Now fixed, so a genuinely clean run is expected; any violation
+        # reappearing here is a regression in bin/project_deploy's own
+        # generated recipes.
         expect(@no_args_status.success?).to be(true), @no_args_report
         expect(@no_args_report).to include("no violations found")
       end

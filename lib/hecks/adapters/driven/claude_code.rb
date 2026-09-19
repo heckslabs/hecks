@@ -40,22 +40,10 @@ module Hecks
 
       module_function
 
-      # Asks the model for the next best interview question.
-      #
       # **The next best question**. `state` is whatever
       # `Interview::Session#declaration`/`#gaps` produced — passed
       # through as JSON, not reformatted, so this adapter never
       # re-derives what the session already knows.
-      #
-      # @param state [Hash] the interview's whole current picture, serialized into the
-      #   prompt as JSON
-      # @param asked [Array<Object>] JSON-able record of the questions already asked
-      # @return [Hash] the model's parsed reply, expected to hold a `"questions"` array;
-      #   `Ports::Agent::Answers.questions` validates and converts it
-      # @raise [Ports::Agent::Unavailable] if `claude` is not on PATH, the subprocess fails,
-      #   or the call times out after `TIMEOUT_SECONDS`
-      # @raise [Ports::Agent::ValidationError] if `claude`'s own JSON envelope, or the text
-      #   inside it, is not valid JSON
       def ask(state:, asked:)
         call(
           system:  SYSTEM_PREFIX + "Given the domain model so far, ask the single best next " \
@@ -65,19 +53,7 @@ module Hecks
         )
       end
 
-      # Asks the model to turn a human's sentence into proposed declarations.
-      #
       # Prose -> proposed declarations.
-      #
-      # @param prose [String] a human's plain-English sentence
-      # @param state [Hash] the interview's whole current picture, serialized into the
-      #   prompt as JSON
-      # @return [Hash] the model's parsed reply, expected to hold a `"proposals"` array;
-      #   `Ports::Agent::Answers.proposals` validates and converts it
-      # @raise [Ports::Agent::Unavailable] if `claude` is not on PATH, the subprocess fails,
-      #   or the call times out after `TIMEOUT_SECONDS`
-      # @raise [Ports::Agent::ValidationError] if `claude`'s own JSON envelope, or the text
-      #   inside it, is not valid JSON
       def interpret(prose:, state:)
         call(
           system:  SYSTEM_PREFIX + "Given the domain model so far and a sentence the human just said, " \
@@ -90,23 +66,10 @@ module Hecks
         )
       end
 
-      # Asks the model to judge a declared model on taste.
-      #
       # What is wrong with this as a model — closed to the same kind
       # vocabulary `Ports::Agent::CRITIQUE_KINDS` declares, spelled out
       # here too since the system prompt is the only place the model
       # itself ever sees that list.
-      #
-      # @param declared [Hash] the chapter as declared so far, serialized into the prompt as
-      #   JSON
-      # @param refusals [Array<Object>] JSON-able refusals the language itself already raised
-      # @param findings [Array<Object>] JSON-able mechanical findings already reported
-      # @return [Hash] the model's parsed reply, expected to hold a `"findings"` array;
-      #   `Ports::Agent::Answers.findings` validates and converts it
-      # @raise [Ports::Agent::Unavailable] if `claude` is not on PATH, the subprocess fails,
-      #   or the call times out after `TIMEOUT_SECONDS`
-      # @raise [Ports::Agent::ValidationError] if `claude`'s own JSON envelope, or the text
-      #   inside it, is not valid JSON
       def critique(declared:, refusals:, findings:)
         kinds = Ports::Agent::CRITIQUE_KINDS.join(", ")
         call(
@@ -119,22 +82,9 @@ module Hecks
         )
       end
 
-      # Asks the model to suggest a name for a construct.
-      #
       # **Vocabulary help**. Named `suggest_name`, not `name` — see
       # `Ports::Agent#suggest_name`'s own comment for why `name` is
       # never a safe module-function name here.
-      #
-      # @param meaning [String] what the new name needs to mean
-      # @param kind [String] the kind of construct being named, such as `"event"`
-      # @param near [Array<String>] names already in use, which a suggestion must not collide
-      #   with
-      # @return [Hash] the model's parsed reply, expected to hold a `"names"` array;
-      #   `Ports::Agent::Answers.suggestions` validates and converts it
-      # @raise [Ports::Agent::Unavailable] if `claude` is not on PATH, the subprocess fails,
-      #   or the call times out after `TIMEOUT_SECONDS`
-      # @raise [Ports::Agent::ValidationError] if `claude`'s own JSON envelope, or the text
-      #   inside it, is not valid JSON
       def suggest_name(meaning:, kind:, near:)
         call(
           system:  SYSTEM_PREFIX + "Suggest a name for a #{kind} meaning \"#{meaning}\", distinct from " \
@@ -146,16 +96,6 @@ module Hecks
 
       # ── transport ───────────────────────────────────────────────────
 
-      # Spawns `claude -p --output-format json`, feeds it `payload` as JSON on stdin, and
-      # parses the model's own reply text back out of the CLI's JSON envelope.
-      #
-      # @param system [String] the system prompt to append via `--append-system-prompt`
-      # @param payload [Hash] the request body, serialized as JSON and written to stdin
-      # @return [Hash] the model's parsed reply
-      # @raise [Ports::Agent::Unavailable] if `claude` is not on PATH, exits non-zero, or the
-      #   call times out after `TIMEOUT_SECONDS`
-      # @raise [Ports::Agent::ValidationError] if `claude`'s own JSON envelope, or the text
-      #   inside it, is not valid JSON (see `unwrap`)
       def call(system:, payload:)
         stdout, status = Timeout.timeout(TIMEOUT_SECONDS) do
           Open3.capture2(
@@ -173,13 +113,6 @@ module Hecks
         raise Ports::Agent::Unavailable, "claude is not on PATH: #{e.message}"
       end
 
-      # Unwraps the `claude` CLI's own `{"result": "..."}` envelope and parses the model's
-      # reply text as JSON.
-      #
-      # @param stdout [String] the CLI's raw stdout
-      # @return [Hash] the model's own reply, parsed
-      # @raise [Ports::Agent::ValidationError] if `stdout` is not JSON, has no `"result"` key,
-      #   or `"result"`'s own text is not JSON
       def unwrap(stdout)
         envelope = JSON.parse(stdout)
         result = envelope["result"]

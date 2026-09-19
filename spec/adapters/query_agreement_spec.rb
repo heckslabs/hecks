@@ -257,9 +257,9 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       # part of its own content, not as a separator. `contains` on a
       # scalar field means substring on every engine (Ports::Query::
       # InMemory#contains?, QueryInterpreter#contains?,
-      # SqlQueryBuilder#contains_clause) — reading `contains` as CSV-split
-      # membership instead would expose a divergence here, splitting this
-      # note in two.
+      # SqlQueryBuilder#contains_clause) — this exact case used to expose
+      # a divergence, back when the reference interpreter read `contains`
+      # as CSV-split membership and would have split this note in two.
       builder.query("NoteContainsPhrase") { where(note: { contains: "high, risk" }) }
 
       # A NULL satisfies no comparison — one case per comparator, because
@@ -434,8 +434,8 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
 
   # r2 and r4 hold no rating and no label. Every case below asserts they
   # are absent from the answer — a null is unknown, and unknown satisfies
-  # no comparison. Without the shared comparator table, Memory could
-  # return them for `ne` while every SQL engine omits them.
+  # no comparison. Memory used to return them for `ne` while every SQL
+  # engine omitted them.
   it "excludes nulls from ne, the same everywhere" do
     agree!("LabelNotBeta", expected: %w[r1 r5])
   end

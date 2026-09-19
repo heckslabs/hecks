@@ -16,13 +16,6 @@ module Hecks
       # hand-built history, an older corpus) are skipped, not failed: no
       # claim, no finding.
       module DryRuns
-        # Checks every dry-run step against `history[:dry_run_traces]`'s own
-        # before/after snapshots.
-        #
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every dry-run step's before/after
-        #   snapshot shows no change to events or instances (entries with no
-        #   snapshot are skipped); otherwise a message naming the verb and trace
         def dry_runs_leave_no_trace(history)
           offenders = Array(history[:dry_run_traces]).filter_map do |entry|
             before = entry[:before]
@@ -74,7 +67,7 @@ module Hecks
         # argument binding on a fan-out dispatch that produces a perfectly
         # normal-looking log entry (`delivered: true`) and would only ever
         # surface as a downstream assertion failure, if it surfaces at
-        # all" — the same defect class, one level over the dispatch itself.
+        # all" — PR #325's own defect class, one level over.
         #
         # Real targets: Settlement (mixed literal/correlation-head/event-
         # payload/memory-fallback bindings across three legs, plus a
@@ -82,10 +75,6 @@ module Hecks
         # the forward Credit leg carries), ExternalSettlement, Onboarding
         # (no compensation leg, by design — nothing to check there beyond
         # the forward leg's own event-payload binding).
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every saga/policy dispatch's own bound
-        #   args match an independent re-derivation of its `with_spec`; otherwise
-        #   a message naming the dispatch and the disagreement
         def dispatch_binding_fidelity(history)
           saga_offenders = history.fetch(:saga_dispatches, []).filter_map do |entry|
             expected = resolve_dispatch_binding(entry)
@@ -113,11 +102,6 @@ module Hecks
         # the current triggering event's own payload, or — the fallback —
         # the saga's own carried memory (seeded from the starting event's
         # payload, at begin_saga).
-        # @param entry [Hash] one `history[:saga_dispatches]` entry, with
-        #   `:with_spec`, `:correlation_head`, `:instance`, `:event_payload`,
-        #   `:memory`
-        # @return [Hash{Symbol => Object}] the independently re-derived, materialized
-        #   dispatch args
         def resolve_dispatch_binding(entry)
           entry[:with_spec].to_h do |key, value|
             resolved = if !value.is_a?(Symbol) then value
@@ -133,10 +117,6 @@ module Hecks
         # policy holds no correlation and no memory, so `payload` (the
         # triggering event's own payload, already merged with a fan-out
         # row's id when there is one) is the whole source.
-        # @param entry [Hash] one `history[:policy_dispatches]` entry, with
-        #   `:with_spec`, `:payload`
-        # @return [Hash{Symbol => Object}] the independently re-derived, materialized
-        #   trigger args
         def resolve_trigger_binding(entry)
           entry[:with_spec].to_h do |key, value|
             resolved = value.is_a?(Symbol) ? entry[:payload][value] : value
@@ -229,13 +209,6 @@ module Hecks
         # corpus shape).
         RECOMPUTABLE_MUTATION_OPS = %i[append remove multiply clamp set].freeze
 
-        # Checks every entity-owned append/remove/multiply/clamp/set mutation
-        # against an independent recomputation of the same rule.
-        #
-        # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true if every recomputable mutation's own
-        #   after-state matches the independent recomputation; otherwise a
-        #   message naming the verb, op, target, and disagreement
         def mutations_match_recompute(history)
           bluebooks = history.fetch(:bluebooks)
 
@@ -276,11 +249,6 @@ module Hecks
         # value-object type against the root's own namespace only, the
         # same reason `EntityElement#locate_chain` threads `root_aggregate`
         # through every hop separately from each hop's own `owner`.
-        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
-        #   keyed by name (`history[:bluebooks]`)
-        # @param verb [String] the dispatched verb to resolve
-        # @return [Bluebook::Aggregate, nil] the verb's own root aggregate, or `nil`
-        #   if `verb` names no domain/aggregate this map declares
         def aggregate_for_verb(bluebooks, verb)
           domain_name, aggregate_name, = Naming.split_verb(verb)
           return nil unless domain_name
@@ -300,13 +268,6 @@ module Hecks
         # each hop's own `owner`. Re-derived independently from
         # `entry[:verb]` alone, the same reasoning `aggregate_for_verb`'s
         # own comment gives.
-        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
-        #   keyed by name (`history[:bluebooks]`)
-        # @param verb [String] the dispatched verb to resolve
-        # @return [Bluebook::Aggregate, Bluebook::Entity, nil] the construct that
-        #   actually declares `mutation.target` — the root aggregate for an
-        #   aggregate-owned command, or the owning entity for a dotted one; `nil`
-        #   if `verb` names no domain/aggregate this map declares
         def owner_for_verb(bluebooks, verb)
           domain_name, aggregate_name, command_path = Naming.split_verb(verb)
           return nil unless command_path
@@ -319,24 +280,6 @@ module Hecks
           aggregate.entities.find { |candidate| candidate.hecks_name == entity_name }
         end
 
-        # Dispatches to the recomputation matching `mutation.op`.
-        #
-        # @param mutation [Bluebook::Command::Mutation] the declared mutation to
-        #   recompute
-        # @param current [Object] the mutation's own target field, before the
-        #   dispatch (`entry[:before][mutation.target]`)
-        # @param args [Hash] the step's own captured, string-keyed args
-        # @param before_scope [Hash] the entity element's own before-state
-        #   (`entry[:before]`), for an `:append`'s field-mapping fallback
-        # @param aggregate [Bluebook::Aggregate] the root aggregate, for
-        #   value-object namespace resolution
-        # @param command [Bluebook::Command] the dispatched command
-        # @param owner [Bluebook::Aggregate, Bluebook::Entity] the construct that
-        #   actually declares `mutation.target`
-        # @return [Object, Symbol] the recomputed value for `mutation.target`;
-        #   `:unrecomputable` if the recomputation cannot be trusted (malformed
-        #   generator input); `nil` if `mutation.op` names none of the
-        #   recomputable ops
         def recompute_mutation(mutation, current, args, before_scope, aggregate, command, owner = aggregate)
           case mutation.op
           when :append
@@ -369,17 +312,18 @@ module Hecks
         # (the root aggregate, for value-object namespace resolution
         # only — `value_object_for(aggregate, attribute.type)` — the
         # same aggregate/owner split `owner_for_verb`'s own comment
-        # explains for `recompute_append`). Mirroring `MutationApplier#
-        # apply`'s `:set` branch instead (StateRef-aware, coerced against
-        # `aggregate.attribute` rather than `owner.attribute`) would
-        # false-positive on every real entity-owned `sets` in the corpus
-        # — `NestedPieces::Workspace.Board.Label` (`sets :label`) has no
-        # `:label` attribute on `Workspace` at all, so `Value.for
-        # (aggregate, :label, raw)` would silently pass the raw,
-        # uncoerced String through instead of wrapping it as
-        # `BoardLabel`, and the comparison below would then disagree with
-        # the real, correctly-coerced `after` state on every single run —
-        # caught by running this against `qa/stress_domains/nested_pieces`,
+        # explains for `recompute_append`). An earlier version of this
+        # method mirrored `MutationApplier#apply`'s `:set` branch instead
+        # (StateRef-aware, coerced against `aggregate.attribute` rather
+        # than `owner.attribute`) and false-positived on every real
+        # entity-owned `sets` in the corpus — `NestedPieces::Workspace.
+        # Board.Label` (`sets :label`) has no `:label` attribute on
+        # `Workspace` at all, so `Value.for(aggregate, :label, raw)`
+        # silently passed the raw, uncoerced String through instead of
+        # wrapping it as `BoardLabel`, and the comparison below then
+        # disagreed with the real, correctly-coerced `after` state on
+        # every single run — caught immediately by running this against
+        # `qa/stress_domains/nested_pieces` before this comment existed,
         # not by inspection alone.
         #
         # Reusing `Value.for_attribute` for the coercion step, rather
@@ -397,16 +341,6 @@ module Hecks
         # real dispatch was itself malformed — `:unrecomputable`, not a
         # crash, the same discipline every other branch in this method
         # already follows for the generator's own deliberate malforming.
-        # @param source [Symbol, Object] the mutation's own declared source — an
-        #   argument name or a literal
-        # @param args [Hash] the step's own captured, string-keyed args
-        # @param aggregate [Bluebook::Aggregate] the root aggregate, for
-        #   value-object namespace resolution
-        # @param owner [Bluebook::Aggregate, Bluebook::Entity, nil] the construct
-        #   that declares `target`
-        # @param target [Symbol, String] the attribute name being set
-        # @return [Object, Symbol] the recomputed, materialized value;
-        #   `:unrecomputable` if resolving or coercing the source raises
         def recompute_set(source, args, aggregate, owner, target)
           raw = resolve_mutation_source(source, args)
           attribute = owner&.attribute(target)
@@ -459,19 +393,6 @@ module Hecks
         # through it via `Instance.defaults`), not the new glue
         # (`fill_declared_defaults` itself) this property exists to
         # catch a drift in.
-        # @param current [Object] the mutation's own target field, before dispatch
-        # @param source_map [Hash{Symbol => Symbol, Object}] the append's own
-        #   declared field mapping (`mutation.source`)
-        # @param before_scope [Hash] the entity element's own before-state
-        # @param args [Hash] the step's own captured, string-keyed args
-        # @param aggregate [Bluebook::Aggregate] the root aggregate, for
-        #   value-object namespace resolution
-        # @param command [Bluebook::Command] the dispatched command
-        # @param owner [Bluebook::Aggregate, Bluebook::Entity] the construct that
-        #   declares `target`
-        # @param target [Symbol, String, nil] the attribute name being appended to
-        # @return [Array] `current` (coerced to an Array) with the newly
-        #   recomputed, materialized element appended
         def recompute_append(current, source_map, before_scope, args, aggregate, command, owner = aggregate, target = nil)
           fields = source_map.transform_values do |source|
             resolve_mutation_append_field(source, before_scope, args, aggregate, command)
@@ -494,15 +415,6 @@ module Hecks
         # (`Card` is `Board.entities`, never `Workspace.entities`), the
         # same distinction `EntityElement#appended_to_element`'s own fix
         # draws.
-        # @param aggregate [Bluebook::Aggregate] the root aggregate, for
-        #   `Runtime::Instance.default_for`
-        # @param owner [Bluebook::Aggregate, Bluebook::Entity, nil] the construct
-        #   that declares `target`
-        # @param target [Symbol, String, nil] the attribute name being appended to
-        # @param fields [Hash] the appended element's own recomputed fields so far,
-        #   mutated in place
-        # @return [Hash] `fields`, with every declared default filled in when
-        #   `target`'s own type is a nested entity
         def fill_recompute_declared_defaults(aggregate, owner, target, fields)
           return fields unless target
 
@@ -518,15 +430,6 @@ module Hecks
           fields
         end
 
-        # Resolves one append field's own source — a literal, the entity's
-        # current field, or a coerced caller-supplied arg.
-        #
-        # @param source [Symbol, Object] the field's own declared source
-        # @param before_scope [Hash] the entity element's own before-state
-        # @param args [Hash] the step's own captured, string-keyed args
-        # @param aggregate [Bluebook::Aggregate] the root aggregate
-        # @param command [Bluebook::Command] the dispatched command
-        # @return [Object] the resolved field value
         def resolve_mutation_append_field(source, before_scope, args, aggregate, command)
           return source unless source.is_a?(Symbol)
           return before_scope[source] unless args.key?(source)
@@ -552,14 +455,6 @@ module Hecks
         # throughout this whole property, so the eventual `symbolize_deep`
         # comparison is always materialized-against-materialized, never a
         # live `Value` against a Hash.
-        # @param aggregate [Bluebook::Aggregate] the root aggregate, for
-        #   value-object namespace resolution
-        # @param command [Bluebook::Command] the dispatched command, whose own
-        #   declared attributes `source` is checked against
-        # @param source [Symbol] the argument name
-        # @param raw [Object] the raw argument value
-        # @return [Object] `raw`, materialized and coerced when `source` names one
-        #   of `command`'s own declared attributes; `raw` unchanged otherwise
         def coerce_recompute_append_arg(aggregate, command, source, raw)
           attribute = command.attribute(source)
           return raw unless attribute
@@ -568,12 +463,6 @@ module Hecks
         end
 
         # `MutationApplier#removed`'s own value-equality match, reproduced.
-        # @param current [Object] the mutation's own target field, before dispatch
-        # @param source [Symbol, Object] the removal's own declared source — an
-        #   argument name or a literal
-        # @param args [Hash] the step's own captured, string-keyed args
-        # @return [Array] `current` (coerced to an Array) with every
-        #   value-equal-to-`source` element rejected
         def recompute_remove(current, source, args)
           target = symbolize_deep(resolve_mutation_source(source, args))
           Array(current).reject { |element| symbolize_deep(element) == target }
@@ -586,12 +475,6 @@ module Hecks
         # `current ||= 0` — the same phantom-field fallback #multiply
         # itself already gives (unaffected by this session's #clamp fix,
         # since #multiply never needed one).
-        # @param current [Object] the mutation's own target field, before dispatch
-        # @param amount [Object] the resolved multiplier
-        # @return [Numeric, Hash, Symbol] the scaled Numeric, or a Hash with its
-        #   sole Numeric field scaled; `:unrecomputable` if `amount` is not
-        #   Numeric, or `current` is neither a Hash with a Numeric field nor a
-        #   Numeric itself
         def recompute_multiply(current, amount)
           return :unrecomputable unless amount.is_a?(Numeric)
 
@@ -615,12 +498,6 @@ module Hecks
         # is always a literal `[min, max]`, never an argument reference
         # (MutationApplier's own comment on why `resolve_source` is
         # skipped for clamp) — so nothing here reads `args` for it at all.
-        # @param current [Object] the mutation's own target field, before dispatch
-        # @param bounds [Object] the mutation's own declared `[min, max]` literal
-        # @return [Numeric, Hash, Symbol] the clamped Numeric, or a Hash with its
-        #   sole Numeric field clamped; `:unrecomputable` if `bounds` is not a
-        #   two-element Array, or `current` is neither a Hash with a Numeric field
-        #   nor a Numeric itself
         def recompute_clamp(current, bounds)
           return :unrecomputable unless bounds.is_a?(Array) && bounds.size == 2
 
@@ -641,10 +518,6 @@ module Hecks
         # `CommandRules::Arithmetic#resolve_source`, reproduced: a
         # mutation's source is either the name of an argument or a
         # literal, told apart by type.
-        # @param source [Symbol, Object] a mutation's own declared source
-        # @param args [Hash] the step's own captured, string-keyed args
-        # @return [Object] `args[source]` when `source` is a Symbol; `source`
-        #   itself otherwise
         def resolve_mutation_source(source, args)
           source.is_a?(Symbol) ? args[source] : source
         end
@@ -658,10 +531,6 @@ module Hecks
         # both sides are normalized the same way first. Recursive, since
         # an appended/removed element can itself nest a value object
         # (RemoveTag's own `Tag` argument, `{"key"=>..., "value"=>...}`).
-        # @param value [Object] a value to normalize — typically a Hash, Array, or
-        #   scalar from a generated step's own args or a materialized state
-        # @return [Object] `value` with every Hash key (recursively, through
-        #   nested Hashes and Arrays) converted to a Symbol
         def symbolize_deep(value)
           case value
           when Hash  then value.to_h { |key, val| [key.to_sym, symbolize_deep(val)] }

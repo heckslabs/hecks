@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 require_relative "../support/rust_conformance_helpers"
 
 # BUG#25 — the regression proof. `qa/stress_domains/referral_chain`'s
-# first draft found that a `has_many` field (a list of
+# first draft (PR #580) found that a `has_many` field (a list of
 # references, never before exercised anywhere in the corpus) emitted a
 # Rust module that did not compile — `&String` has no `.to_json()`; a
 # fabricated, never-generated `ReferenceMember::from_json`; the scalar
@@ -16,9 +16,9 @@ require_relative "../support/rust_conformance_helpers"
 # `spec/fixtures/rust_project/has_many_fixture` is the minimal domain
 # that reaches every one of those three sites at once: `Circle` declares
 # `has_many Members`, and its own `Admit` command `sets :members` from a
-# `list_of(Handle)` argument — exactly the removed `Circle`
-# (`Admit` "supplying the list under `list_of(Handle)`", per
-# `qa/stress_domains/referral_chain/NOTES.md`, finding 1).
+# `list_of(Handle)` argument — exactly PR #580's own removed `Circle`
+# (`Admit` "supplying the list under `list_of(Handle)`", per that PR's
+# body and `qa/stress_domains/referral_chain/NOTES.md`, finding 1).
 #
 # `io: true` — a real `cargo build` (and, below, a real compiled-binary
 # subprocess), same convention as every other spec in this file's own

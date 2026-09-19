@@ -8,8 +8,6 @@ module Hecks
       # The argument shapes the Ruby/Rust divergences were actually found
       # through, injected on purpose, on every domain.
       #
-      # ## What it generates
-      #
       # Ten bugs in one QA session (BUG#7–#16, `QualityControl`'s own
       # ledger) clustered in a handful of mechanisms — and several were
       # only ever reachable because one domain happened to declare the
@@ -18,26 +16,22 @@ module Hecks
       # but-null `to:` was misread as a routing envelope (BUG#16), a blank
       # creating identity minted a phantom aggregate in Rust (BUG#15), a
       # single-field closed-set argument offered as bare `null` refused
-      # with a different `KINDS` entry on the two engines (BUG#14). No
-      # other domain in the rotation could ever have found any of those,
-      # because nothing generated ever produced the shape. This module
-      # produces them — for a configurable fraction of command steps,
-      # chosen and parameterised from the same seeded RNG the rest of the
-      # generator already draws from, so `generate(domain, seed:, steps:,
+      # with different KINDS on the two engines (BUG#14). No other domain
+      # in the rotation could ever have found any of those, because
+      # nothing generated ever produced the shape. This module produces
+      # them — for a configurable fraction of command steps, chosen and
+      # parameterised from the same seeded RNG the rest of the generator
+      # already draws from, so `generate(domain, seed:, steps:,
       # adversarial:)` stays exactly as reproducible per seed as it was.
       #
-      # ## Opt-in, by construction
-      #
-      # `adversarial: 0.0` (the default) returns before drawing a single
-      # random number, so every pinned seed in spec/fuzzing,
-      # spec/rust_conformance_fuzz_spec.rb, bin/fuzz and bin/generate
-      # produces byte-for-byte what it produced before this module
-      # existed. `bin/qa_sweep` turns it on (reading
+      # **Opt-in, by construction**. `adversarial: 0.0` (the default) returns
+      # before drawing a single random number, so every pinned seed in
+      # spec/fuzzing, spec/rust_conformance_fuzz_spec.rb, bin/fuzz and
+      # bin/generate produces byte-for-byte what it produced before this
+      # module existed. `bin/qa_sweep` turns it on (reading
       # `QualityControlDials::ADVERSARIAL_FRACTION`) — that script is the
       # one place a mutated step's own divergence is a finding rather than
       # a red CI gate.
-      #
-      # ## Where it hooks in
       #
       # One mutation per step, applied in `StepBuilder#build_command_step`
       # after the arguments and identity are built and before the step's

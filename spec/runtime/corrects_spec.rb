@@ -66,17 +66,17 @@ RSpec.describe "a command's corrects" do
 
     dispatcher = Hecks::Runtime::Dispatcher.new(registry)
 
-    dispatcher.dispatch("CorrectsSmoke::Box.Open", number: { value: "b-1" })
-    dispatcher.dispatch("CorrectsSmoke::Box.Open", number: { value: "b-2" })
-    after_deposit = dispatcher.dispatch("CorrectsSmoke::Box.Deposit", number: { value: "b-1" }, amount: { cents: 1000 })
+    dispatcher.dispatch_flat("CorrectsSmoke::Box.Open", number: { value: "b-1" })
+    dispatcher.dispatch_flat("CorrectsSmoke::Box.Open", number: { value: "b-2" })
+    after_deposit = dispatcher.dispatch_flat("CorrectsSmoke::Box.Deposit", number: { value: "b-1" }, amount: { cents: 1000 })
 
     expect(after_deposit.instance.balance.cents).to eq(1000)
 
     expect do
-      dispatcher.dispatch("CorrectsSmoke::Box.ReverseDeposit", number: { value: "b-2" })
+      dispatcher.dispatch_flat("CorrectsSmoke::Box.ReverseDeposit", number: { value: "b-2" })
     end.to raise_error(Hecks::Runtime::NothingToCorrect)
 
-    after_reversal = dispatcher.dispatch("CorrectsSmoke::Box.ReverseDeposit", number: { value: "b-1" })
+    after_reversal = dispatcher.dispatch_flat("CorrectsSmoke::Box.ReverseDeposit", number: { value: "b-1" })
     expect(after_reversal.instance.balance.cents).to eq(500)
     expect(registry.event_log.map(&:name)).to eq(["Opened", "Opened", "Deposited", "DepositCorrected"])
   end
@@ -133,10 +133,11 @@ RSpec.describe "a command's corrects" do
     end
 
     dispatcher = Hecks::Runtime::Dispatcher.new(registry)
-    dispatcher.dispatch("CorrectsAutoSmoke::Box.Open", number: { value: "b-1" })
-    dispatcher.dispatch("CorrectsAutoSmoke::Box.Deposit", number: { value: "b-1" }, amount: { cents: 1000 })
+    dispatcher.dispatch_flat("CorrectsAutoSmoke::Box.Open", number: { value: "b-1" })
+    dispatcher.dispatch_flat("CorrectsAutoSmoke::Box.Deposit", number: { value: "b-1" }, amount: { cents: 1000 })
 
-    reversed = dispatcher.dispatch("CorrectsAutoSmoke::Box.ReverseDeposit", number: { value: "b-1" }, amount: { cents: 1000 })
+    reversed = dispatcher.dispatch_flat("CorrectsAutoSmoke::Box.ReverseDeposit", number: { value: "b-1" },
+                                                                                 amount: { cents: 1000 })
     expect(reversed.instance.balance.cents).to eq(0)
   end
 
@@ -206,23 +207,23 @@ RSpec.describe "a command's corrects" do
 
     dispatcher = Hecks::Runtime::Dispatcher.new(registry)
 
-    dispatcher.dispatch("CorrectsAsSmoke::Box.Open", number: { value: "b-1" })
-    dispatcher.dispatch("CorrectsAsSmoke::Box.Deposit", number: { value: "b-1" }, amount: { cents: 1000 })
+    dispatcher.dispatch_flat("CorrectsAsSmoke::Box.Open", number: { value: "b-1" })
+    dispatcher.dispatch_flat("CorrectsAsSmoke::Box.Deposit", number: { value: "b-1" }, amount: { cents: 1000 })
 
     expect do
-      dispatcher.dispatch("CorrectsAsSmoke::Box.ReverseDeposit", number: { value: "b-1" }, amount: { cents: 999 })
+      dispatcher.dispatch_flat("CorrectsAsSmoke::Box.ReverseDeposit", number: { value: "b-1" }, amount: { cents: 999 })
     end.to raise_error(Hecks::Runtime::GivenNotMet)
 
-    reversed = dispatcher.dispatch("CorrectsAsSmoke::Box.ReverseDeposit", number: { value: "b-1" }, amount: { cents: 1000 })
+    reversed = dispatcher.dispatch_flat("CorrectsAsSmoke::Box.ReverseDeposit", number: { value: "b-1" }, amount: { cents: 1000 })
     expect(reversed.instance.balance.cents).to eq(0)
   end
 
   # BUG#30 — `corrects` declared on an entity-level command, not the
-  # aggregate. Without `EntityInterpreter` calling `enforce_correction_target`,
-  # and without a `:corrects` branch in `EntityElement.apply_to_element`'s own
-  # `case mutation.op`, `Ledger::Entry.Amend` (below) would crash
-  # outright with `Hecks::Runtime::WiringError`.
-  # `qa/stress_domains/corrections` found this live
+  # aggregate. Before this fix, `Ledger::Entry.Amend` (below) crashed
+  # outright with `Hecks::Runtime::WiringError` — `EntityInterpreter`
+  # never called `enforce_correction_target` at all, and
+  # `EntityElement.apply_to_element`'s own `case mutation.op` had no
+  # `:corrects` branch. `qa/stress_domains/corrections` found this live
   # (angle-9); this is the runtime regression coverage for the fix.
   #
   # `Ledger.Record` — aggregate-level — is what actually `emits
@@ -332,17 +333,17 @@ RSpec.describe "a command's corrects" do
 
     dispatcher = Hecks::Runtime::Dispatcher.new(registry)
 
-    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Open", reference: { value: "l-1" })
-    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Record", reference: { value: "l-1" }, amount: { cents: 1000 })
+    dispatcher.dispatch_flat("EntityCorrectsSmoke::Ledger.Open", reference: { value: "l-1" })
+    dispatcher.dispatch_flat("EntityCorrectsSmoke::Ledger.Record", reference: { value: "l-1" }, amount: { cents: 1000 })
 
-    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Open", reference: { value: "l-2" })
-    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Import", reference: { value: "l-2" }, amount: { cents: 2000 })
+    dispatcher.dispatch_flat("EntityCorrectsSmoke::Ledger.Open", reference: { value: "l-2" })
+    dispatcher.dispatch_flat("EntityCorrectsSmoke::Ledger.Import", reference: { value: "l-2" }, amount: { cents: 2000 })
 
     # Legitimate — l-1's own entry (sequence 1) targets a real,
     # already-emitted "EntryRecorded" for this exact ledger. Dispatches
     # cleanly, never a WiringError.
-    amended = dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Entry.Amend",
-                                  reference: { value: "l-1" }, sequence: { value: 1 }, amount: { cents: 1500 })
+    amended = dispatcher.dispatch_flat("EntityCorrectsSmoke::Ledger.Entry.Amend",
+                                       reference: { value: "l-1" }, sequence: { value: 1 }, amount: { cents: 1500 })
     entry = amended.instance.entries.find { |e| e[:sequence].value == 1 }
     expect(entry[:amount].cents).to eq(1500)
 
@@ -351,8 +352,8 @@ RSpec.describe "a command's corrects" do
     # "EntryRecorded" at all — refuses with NothingToCorrect, never a
     # crash.
     expect do
-      dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Entry.Amend",
-                          reference: { value: "l-2" }, sequence: { value: 1 }, amount: { cents: 500 })
+      dispatcher.dispatch_flat("EntityCorrectsSmoke::Ledger.Entry.Amend",
+                               reference: { value: "l-2" }, sequence: { value: 1 }, amount: { cents: 500 })
     end.to raise_error(Hecks::Runtime::NothingToCorrect)
 
     expect(registry.event_log.map(&:name)).to eq(%w[Opened EntryRecorded Opened EntryImported EntryAmended])

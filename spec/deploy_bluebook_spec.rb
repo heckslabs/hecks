@@ -4,8 +4,8 @@ require "fileutils"
 require "open3"
 
 # `lib/hecks/deploy/bluebook/deploy.bluebook`'s own header explains
-# why this domain exists: without it, `deployed_to("AwsLambda")`'s settings
-# would be validated nowhere in the language — only a bare `fetch(:region) { abort
+# why this domain exists: `deployed_to("AwsLambda")`'s settings used to
+# be validated nowhere in the language — a bare `fetch(:region) { abort
 # ... }` chain in bin/project_deploy, the exact raw-Ruby-refusal pattern
 # every other kind of bluebook mistake in this codebase does not use.
 # This asserts the domain itself validates correctly, and that
@@ -31,7 +31,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       database: { value: "Postgres" },
       web:      { value: "None" }
     }.merge(overrides)
-    dispatcher.dispatch("Deploy::LambdaTarget.Declare", **args)
+    dispatcher.dispatch_flat("Deploy::LambdaTarget.Declare", **args)
   end
 
   it "accepts a fully-specified, in-range target" do

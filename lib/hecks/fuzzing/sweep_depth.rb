@@ -7,11 +7,13 @@ module Hecks
     # the policy, and this module is where the two meet — a pure function
     # of both, nothing else read.
     #
-    # Policy data lives in the bluebook a human edits and reviews, like
-    # every other dial — not scattered across a script's own constants and
-    # duplicated again as prose in SKILL.md. `QualityControlDials::
-    # WIDENING_TIERS` holds the table; this module is its one reader, and
-    # `bin/qa_sweep` calls it the way it already calls `RotationPriority.pick`.
+    # Why this is not in `bin/qa_sweep` any more. It was — `WIDENING_TIERS`
+    # and `widen_for_streak` lived at the top of that script, which meant
+    # policy data lived in a script (unlike every other dial, which lives
+    # in the bluebook a human edits and reviews) and duplicated itself as
+    # prose in SKILL.md. Now the table is a dial, this is the one reader,
+    # and `bin/qa_sweep` calls it the way it already calls
+    # `RotationPriority.pick`.
     #
     # **Pure, deliberately** — the same discipline `RotationPriority` keeps:
     # same streak in, same `[seeds, steps]` out, every time, which is what
@@ -38,15 +40,6 @@ module Hecks
       # streak does not exceed wins — rows are read in order, so the table
       # must be ascending, and the last row's `Float::INFINITY` is what
       # makes it the ceiling rather than a gap.
-      #
-      # @param streak [Integer] `Target.clean_streak`, the number of consecutive
-      #   clean sweeps
-      # @param tiers [Array<Hash{Symbol => Integer, Float}>] ascending rows, each
-      #   with `:upto` (the streak ceiling, `Integer` or `Float::INFINITY` on the
-      #   last row), `:seeds`, and `:steps`; defaults to `DEFAULT_TIERS`
-      # @return [Array(Integer, Integer)] the `[seeds, steps]` pair for the tier
-      #   that covers `streak`
-      # @raise [ArgumentError] if `streak` is negative, or no row's `upto` covers it
       def for_streak(streak, tiers: DEFAULT_TIERS)
         raise ArgumentError, "streak must not be negative" if streak.negative?
 

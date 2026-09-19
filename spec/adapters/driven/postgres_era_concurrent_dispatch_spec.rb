@@ -171,7 +171,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
       gate_first_lock(account_repository(dispatcher).adapter, **gate_opts)
       outcome =
         begin
-          dispatcher.dispatch("EraConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
+          dispatcher.dispatch_flat("EraConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
           "succeeded"
         rescue Hecks::Runtime::GivenNotMet
           "refused"
@@ -184,7 +184,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
   # rubocop:disable-next RSpec/ExampleLength
   it "admits exactly one of two concurrent cross-process Debits that together would overdraw the account" do
     seed = boot
-    seed.dispatch("EraConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
+    seed.dispatch_flat("EraConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
 
     outcome_read,  outcome_write  = IO.pipe
     paused_read,   paused_write   = IO.pipe

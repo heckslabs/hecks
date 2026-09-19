@@ -20,17 +20,10 @@ module Hecks
         UNSET = Object.new.freeze
         private_constant :UNSET
 
-        # Every attribute declared on this construct so far, in declaration order.
-        #
-        # @return [Array<Bluebook::Attribute>] the accumulated attributes; empty before any
-        #   `attribute`/`identified_by`/`reference_to` call
         def attributes = @attributes ||= []
 
         # Value objects synthesised from inline closed sets, collected here and
         # installed by whoever owns value objects (the aggregate).
-        #
-        # @return [Array<Bluebook::ValueObject>] the closed sets synthesised so far from this
-        #   construct's own `one_of(...)` type-position calls; empty until one is used
         def closed_sets = @closed_sets ||= []
 
         # `admits:` names a closed set that is already declared elsewhere —
@@ -61,39 +54,22 @@ module Hecks
         # (S0b) already resolves a bare, not-yet-declared constant to the
         # same forward reference the quoted form existed for — a bareword
         # `Name` reaches a value object named "Name" declared later in the
-        # same block, and `spell`'s own `to_s` renders a bareword and quoted
-        # text identically. Neither form appears in any frozen
-        # era text (checked directly), so both are refused unconditionally.
-        #
-        # Answers the `attribute` word through the table's `calls:` column —
-        # item #13's full metaprogrammed dispatch (slice 3, whole-project
-        # table-unification survey). The word `attribute` itself is no
-        # longer a real method any builder answers directly: every
-        # (context, word) Keyword row for it carries `calls: "attribute_impl"`,
-        # and `GenericDispatch` forwards the whole call here untouched — this
-        # method's own body is exactly what `attribute` always was, unchanged,
-        # just reached generically now rather than by Ruby's own direct
+        # same block exactly as `"Name"` used to, `spell`'s own `to_s`
+        # renders either one identically. Neither form appears in any frozen
+        # era text (checked directly), so both are refused unconditionally —
+        # nothing for `MetaValidator.shadow_parsing?` to answer for.
+        # Renamed from `attribute` — item #13's full metaprogrammed
+        # dispatch (slice 3, whole-project table-unification survey).
+        # The word `attribute` itself is no longer a real method any
+        # builder answers directly: every (context, word) Keyword row
+        # for it carries `calls: "attribute_impl"`, and `GenericDispatch`
+        # forwards the whole call here untouched — this method's own
+        # body is exactly what `attribute` always was, unchanged, just
+        # reached generically now rather than by Ruby's own direct
         # method lookup. `attribute_collector_spec.rb` (`AttributeCollector
         # has no method without a test` — dsl_coverage_spec.rb) and the
         # bootstrap fallback (`GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`) both
         # name this same string; they must never drift apart.
-        #
-        # @param name [Symbol, String] the attribute's name
-        # @param type [Module, Bluebook::Reference, Bluebook::DSL::AttributeCollector::ListOf,
-        #   Bluebook::DSL::AttributeCollector::OneOf] the bare constant naming a primitive or a
-        #   value object, a `reference_to`-built Reference, or a `list_of`/`one_of` wrapper
-        # @param default [Object, nil] the value a new record starts with when none is given
-        # @param optional [Boolean] whether the attribute may be absent
-        # @param pattern [String, nil] a regex source the value must match; shared-engine subset
-        #   only (`PatternSubset`)
-        # @param admits [String, nil] an already-declared closed set's aggregate-qualified name,
-        #   such as `"Vocabulary::QueryComparator"`, that the value must belong to
-        # @param one_of [Bluebook::DSL::AttributeCollector::OneOf, nil] set only by the deprecated
-        #   `one_of:` keyword; always refused outside `ValueObjectBuilder`
-        # @return [void]
-        # @raise [Bluebook::DSL::Malformed] if `name` is already declared, `type` is omitted or
-        #   given as quoted text, `pattern` uses a construct `PatternSubset` refuses, or `one_of:`
-        #   is used outside a `value_object` block
         def attribute_impl(name, type = UNSET, default: nil, optional: false, pattern: nil,
                            admits: nil, one_of: nil)
           # moved to the language: FieldName invariant, on Root.Attribute
@@ -133,25 +109,17 @@ module Hecks
           install_inline_closed_set(name, one_of) if one_of
         end
 
-        # Wraps a type so `attribute_impl` builds a list-typed attribute instead of a scalar one.
-        #
-        # Answers the `list_of` word through the table's `calls:` column —
-        # item #13's full metaprogrammed dispatch (slice 5). Called in an
-        # attribute's own type
+        # Renamed from `list_of` — item #13's full metaprogrammed
+        # dispatch (slice 5). Called in an attribute's own type
         # position (`attribute :x, list_of(Y)`), never through a `def
         # list_of` any one builder answers as its own word — reached
-        # via `WordGate#word_gate_dispatch`'s "Type"-context
+        # via `WordGate#word_gate_dispatch`'s new "Type"-context
         # fallback, the same one `one_of_impl` below uses. Bootstrap-
         # reachable (every core chapter's own list-typed attributes use
         # it), so `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` carries a
         # single `["Type", "list_of"]` entry rather than one per calling
         # context — the bootstrap branch checks that key too now, same
         # reasoning as the ordinary fallback.
-        #
-        # @param type [Module, Bluebook::Reference] the bare constant naming the list's element
-        #   type
-        # @return [Bluebook::DSL::AttributeCollector::ListOf] the wrapped type, for `attribute_impl`
-        #   to unwrap
         def list_of_impl(type) = ListOf.new(type)
 
         # `reference_to Account` mints `:account` — no `_id` — the default
@@ -191,18 +159,12 @@ module Hecks
         # away: the attribute became a plain String and the closed set meant
         # nothing, in a construct that looked supported. The desugaring is
         # pinned now — the same bluebook must always yield the same IR.
-        #
-        # Answers the `one_of` word through the table's `calls:` column —
-        # item #13's full metaprogrammed dispatch (slice 5), same reasoning
-        # as `list_of_impl` above. Same name as
+        # Renamed from `one_of` — item #13's full metaprogrammed dispatch
+        # (slice 5), same reasoning as list_of_impl above. Same name as
         # `ValueObjectBuilder#one_of_impl`'s own override on purpose —
         # that method's own `super(*values)` call (the no-block, bare
         # type-position case) resolves by method name up the ancestor
         # chain, and renaming only one side would silently break it.
-        #
-        # @param values [Array<String, Symbol>] the permitted values, at least one
-        # @return [Bluebook::DSL::AttributeCollector::OneOf] the wrapped values, for
-        #   `attribute_impl` to synthesise a closed set from
         def one_of_impl(*values) = OneOf.new(values)
 
         private
@@ -242,8 +204,8 @@ module Hecks
         # (`seal_mutation_targets`, `seal_query_field`, `projects`'s own
         # local check, `Instance#[]`, ...) uses `Array#find`/`any?`, which
         # silently answers whichever declaration happens to come first and
-        # discards the second — a bluebook with the duplicate boots clean,
-        # and both declarations survive into the IR, one of them permanently
+        # discards the second. Used to boot clean and stay that way : both
+        # declarations survived into the IR, one of them permanently
         # unreachable by name. Refused here, at the one place every owner
         # (Aggregate/Entity/Command/Query/PortOperation/ValueObject, each
         # `include AttributeCollector`) mints an attribute through, rather
@@ -340,9 +302,9 @@ module Hecks
           # regardless of where `identified_by` was actually written.
           # Most real bluebooks write it first (insert_at 0); one (a
           # ScheduledPayment corpus member) writes it after a reference_to
-          # and an attribute — this matches either, and matches what a
-          # person hand-writing `attribute field, Type` at that exact
-          # point would produce.
+          # and an attribute — this matches either, and whatever a person
+          # hand-writing `attribute field, Type` at that exact point,
+          # the way this used to be required, would have produced.
           attributes.insert(insert_at, attributes.pop)
           vo.attributes.flat_map do |attribute|
             identity_paths_for_attribute(attribute, value_objects, context_name,
@@ -375,9 +337,8 @@ module Hecks
           # deriving its path only makes sense while every value object along
           # the way wraps exactly one field itself — the same "single-field
           # value object" ADR 0025 names this shape after. A multi-field
-          # value object here is refused rather than expanded silently into
-          # every one of its own fields, which would mint an unannounced
-          # compound key nothing declared.
+          # value object here used to expand silently into every one of its
+          # own fields, minting an unannounced compound key nothing declared.
           if nested.attributes.size != 1
             candidates = nested.attributes.map(&:name).join(", ")
             raise Malformed,

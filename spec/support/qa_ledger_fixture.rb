@@ -61,22 +61,15 @@ module QaLedgerFixture
     end
   RUBY
 
-  # One spec file's own disposable, Postgres-backed `QualityControl` ledger: its own database,
-  # its own symlinked fixture bluebook directory, and the subprocess plumbing (`#run`, `#env`)
-  # every `bin/qa_*` script under test is driven through.
   class Ledger
     attr_reader :database, :dir
 
-    # @param database [String] name of this spec file's own disposable Postgres database
     def initialize(database:)
       @database = database
     end
 
     # Creates the database and the fixture directory. Call from
     # `before(:all)`, after a `PostgresProbe.available?` skip.
-    #
-    # @return [QaLedgerFixture::Ledger] self, once the database, fixture directory, and QA
-    #   role are provisioned
     def stand_up!
       @root = Dir.mktmpdir("qa_ledger_fixture")
       @dir  = File.join(@root, "bluebook")
@@ -103,9 +96,6 @@ module QaLedgerFixture
       self
     end
 
-    # Drops the database and removes the fixture directory.
-    #
-    # @return [void]
     def tear_down!
       admin = PG.connect(dbname: "postgres")
       admin.exec("DROP DATABASE IF EXISTS #{@database} WITH (FORCE)")
@@ -113,12 +103,8 @@ module QaLedgerFixture
       FileUtils.remove_entry(@root) if @root
     end
 
-    # Scrubs the database back to an empty `public` schema, owned again by the QA role.
-    #
     # A fresh schema before every example — a row a prior example left
     # behind must never leak into the next one's own ledger.
-    #
-    # @return [void]
     def reset!
       scrub = PG.connect(dbname: @database)
       scrub.exec("DROP SCHEMA public CASCADE")
@@ -127,36 +113,19 @@ module QaLedgerFixture
       QaLedgerRole.own_public!(@database)
     end
 
-    # Boots the ledger's fixture domain in-process, to seed or read rows directly.
-    #
     # Booted in-process, briefly, to seed or read rows — never to run
     # the script under test, which is always a real subprocess.
-    #
-    # @return [Runtime::Dispatcher] the dispatcher bound to the fixture domain
     def boot
       Hecks.boot(@dir)
     end
 
-    # Builds the environment every subprocess gets: the seam `bin/qa_sweep`,
+    # The environment every subprocess gets: the seam `bin/qa_sweep`,
     # `bin/qa_pr_check`, `bin/qa_log_bug`, `bin/qa_open_pr` all honour.
-    #
-    # @param extra [Hash] additional environment entries, merged over the default and
-    #   overriding it on a key collision
-    # @return [Hash{String => String}] `"QA_SWEEP_DOMAIN_DIR"` pointing at the fixture
-    #   directory, plus any `extra` entries
     def env(extra = {})
       { "QA_SWEEP_DOMAIN_DIR" => @dir }.merge(extra)
     end
 
-    # Runs one of the `bin/qa_*` scripts as a real subprocess, `bundle exec ruby bin/<script>
-    # …`, exactly as a human would type it. Any further positional arguments are forwarded to
-    # the script as its own command-line arguments.
-    #
-    # @param script [String] basename of the script under `bin/` to run
-    # @param env [Hash] additional environment entries, merged into `#env`'s default
-    # @param chdir [String] directory to run the subprocess from
-    # @return [Array(String, String, Process::Status)] the subprocess's stdout, stderr, and
-    #   exit status, per `Open3.capture3`
+    # `bundle exec ruby bin/<script> …`, exactly as a human would type it.
     def run(script, *, env: {}, chdir: InMemoryDomain::ROOT)
       Open3.capture3(self.env(env), "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin", script), *,
                      chdir: chdir)

@@ -8,7 +8,7 @@
 # lead this session's own investigation already surfaced — see each one's
 # own `citation:` — not invented for this script. Where a lever was already
 # chased down before this script existed (the saga/process-manager gap,
-# closed by `BUG#6`/`qa/stress_domains/waybill`), it is seeded
+# closed by `BUG#6`/PR #530/`qa/stress_domains/waybill`), it is seeded
 # `proposed` → `investigating` → `built` in one pass, so the backlog opens
 # already telling the truth about what is and is not still open.
 #
@@ -36,16 +36,9 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
-# Queries the QualityControl ledger by its query name alone, so every call site
-# below is spared repeating the `"QualityControl::"` prefix.
-#
-# @param runtime [Runtime::Instance] the booted QualityControl runtime to query
-# @param name [String] the query name relative to `QualityControl::`, such as `"Angle.All"`
-# @param args [Hash{Symbol => Object}] the query's declared arguments
-# @return [Array<Hash>] the matching rows, exactly as `Runtime::Instance#query` returns them
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
-# **The `SEED` itself**. `resolution:` present means "already chased down before
+# **The SEED itself**. `resolution:` present means "already chased down before
 # this script existed" — proposed, investigated, and built in one pass
 # below; its absence means the lever is real and still open, exactly the
 # state `Angle.Backlog` should show it in.

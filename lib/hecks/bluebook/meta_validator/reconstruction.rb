@@ -8,8 +8,6 @@ module Hecks
       # IR it stores must equal the IR the DSL builder produces". The judge is the
       # first half. This reads the records back and assembles `to_h`.
       #
-      # ## Relation to the judge and the walk
-      #
       # It is the inverse of the walk and shares its plan: the walk reads a node's
       # lists through the command that appends to each, and this reads them back out
       # of the rows those commands wrote. The retired `experiment/replay.rb` needed
@@ -18,8 +16,6 @@ module Hecks
       #
       # This file is the traversal. The hashes at its tips, and the encodings they
       # undo, are in Shapes.
-      #
-      # ## Traversal order
       #
       # It reads level by level, through `DeclaredIn`, and not through the read
       # model — which is the difference between a reconstruction that can be the
@@ -39,8 +35,6 @@ module Hecks
       # Plan the walk dispatches from — so the two directions really are one table,
       # which is what the header above has always claimed.
       #
-      # ## What cannot be rebuilt
-      #
       # What it cannot rebuild matters as much as what it can, and
       # spec/round_trip_spec pins the difference as an exact set: a field the language
       # does not hold appears there as a named gap, and a field it stops holding
@@ -49,19 +43,8 @@ module Hecks
         include Readings
         include Shapes
 
-        # Rebuilds one chapter's declarations from the meta-domain records `runtime` holds.
-        #
-        # @param runtime [Runtime::Dispatcher] the meta-domain runtime the chapter was judged into
-        # @param chapter [String] the chapter's own name, as declared (`bluebook.hecks_name`)
-        # @return [Hash{Symbol => Object}] the chapter's declaration, in `Assembly.call`-ready shape
-        # @raise [NameError] if no bluebook named `chapter` was judged into `runtime` — raised via
-        #   a bare `NotFound` that does not resolve to this repo's `Runtime::NotFound`; looks like
-        #   a bug, flagged rather than fixed since only comments are in scope here
         def self.of(runtime, chapter) = new(runtime, chapter).to_h
 
-        # @param runtime [Runtime::Dispatcher] the meta-domain runtime the chapter was judged into
-        # @param chapter [String] the chapter's own name, as declared (`bluebook.hecks_name`)
-        # @raise [NameError] if no bluebook named `chapter` was judged into `runtime` (see `.of`)
         def initialize(runtime, chapter)
           @runtime = runtime
           @plan    = Plan.for(MetaValidator.grammar_registry)

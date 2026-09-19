@@ -65,12 +65,12 @@ require_relative "../rust/project"
 # silently dropped — see `mutations.rs`'s own header for the full
 # argument.
 # `io: true` — a `cargo build` subprocess spawn is real I/O by this
-# suite's own convention (see spec_helper.rb's `io: true` note). Running
-# `build_codegen!` at `describe`-body load time, unconditionally,
-# would run it on every `bundle exec rspec` regardless — RSpec still evaluates a group's top-level
+# suite's own convention (see spec_helper.rb's `io: true` note), and
+# `build_codegen!` used to run at `describe`-body load time, unconditionally,
+# on every `bundle exec rspec` — RSpec still evaluates a group's top-level
 # body while building the example tree even when every example in it gets
-# excluded by the `io: true` filter, so tagging the group alone is not
-# enough; the build runs inside a `before(:context)` hook instead,
+# excluded by the `io: true` filter, so tagging the group alone wasn't
+# enough; the build itself had to move into a `before(:context)` hook,
 # which — unlike plain body code — really is skipped when excluded.
 RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
@@ -151,7 +151,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     expect(CODEGEN_PENDING_MEMBERS.keys - CODEGEN_CORPUS_MEMBERS.map(&:first)).to be_empty
   end
 
-  # Embryonaut is external, not pending: its bluebook lives in its own
+  # EMBRYONAUT is external, not pending: its bluebook lives in its own
   # repository, which owes its codegen parity. This fails the day an
   # in-repo source for it appears, so it joins the derived members.
   it "embryonaut: has no in-repo source, so its own repository owns its codegen parity" do

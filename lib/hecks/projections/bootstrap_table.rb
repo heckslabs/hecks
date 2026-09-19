@@ -8,12 +8,15 @@ module Hecks
     #   Projector.call(:bootstrap_table, bluebook: <the Bluebook chapter>)
     #
     # While `MetaValidator.bootstrapping?` the grammar table does not exist
-    # yet, so `WordGate#method_missing` and `RuleReference#lookup` read
-    # `calls:`/`resolves_via:`/`disambiguator:` off this table instead.
-    # Every live row lands here — a partition, not a filter — so any
-    # bootstrap chapter calling a live word is answered, and the ones no
-    # bootstrap chapter calls cost nothing — a builder with its own `def`
-    # never reaches `method_missing` at all.
+    # yet, so `WordGate#method_missing` and `RuleReference#lookup` cannot
+    # read `calls:`/`resolves_via:`/`disambiguator:` off it. They used to
+    # read two hand-kept Hashes instead, each "kept in sync by hand" with
+    # those columns. Kept in sync by hand meant a subset: 48 of the 87 live
+    # `calls:` rows, chosen word by word by grepping which ones the core
+    # chapters happened to use during bootstrap. A partition, not a filter:
+    # every live row now lands in the table, and the ones no bootstrap
+    # chapter calls cost nothing — a builder with its own `def` never
+    # reaches `method_missing` at all.
     #
     # The table cannot be built at boot for the same reason it exists: it
     # is read before the grammar it comes from has been assembled. So it is
@@ -40,21 +43,11 @@ module Hecks
 
       module_function
 
-      # Projects `lib/hecks/bluebook/dsl/bootstrap_table.rb`'s source.
-      #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
-      #   Syntax aggregate; unused beyond admission, since the Keyword rows this
-      #   reads come from the global grammar boot
-      # @param options [Hash] unused; accepted to satisfy the registry's call shape
-      # @return [String] the generated Ruby source
       def call(bluebook:, options: {}) = render(bluebook)
 
       # Retired rows are out of the language; admitted and deprecated rows
       # still dispatch — the same `status != "retired"` reading
       # `GenericDispatch.shape_for` gives the live table.
-      #
-      # @return [Array<Hash{Symbol => Object}>] every Keyword row whose `:status` is
-      #   not `"retired"`
       def live_keywords
         Bluebook::MetaValidator::SyntaxBoot.call[:keywords].reject { |row| row[:status] == "retired" }
       end
@@ -64,11 +57,6 @@ module Hecks
       # An overloaded word has one row per argument shape, and they all
       # name the same method. Two that don't would make the table keep
       # whichever came last, so that is refused instead.
-      #
-      # @param rows [Array<Hash{Symbol => Object}>] Keyword rows to build the table from
-      # @return [Hash{Array(String, String) => Symbol}] `[context, word]` mapped to the
-      #   method the word's whole call forwards to
-      # @raise [Conflict] if the same `[context, word]` names more than one method
       def calls(rows = live_keywords)
         rows.reject { |row| row[:calls].to_s.empty? }
             .group_by { |row| [row[:context], row[:word]] }
@@ -83,10 +71,6 @@ module Hecks
       # `[word, context] => { resolves_via:, disambiguator: }` —
       # RuleReference's own key order, blank columns omitted, the same
       # shape its live `lookup` answers.
-      #
-      # @param rows [Array<Hash{Symbol => Object}>] Keyword rows to build the table from
-      # @return [Hash{Array(String, String) => Hash{Symbol => String}}] `[word, context]`
-      #   mapped to its non-blank `resolves_via:`/`disambiguator:` fields
       def resolves(rows = live_keywords)
         rows.reject { |row| row[:resolves_via].to_s.empty? }.to_h do |row|
           rule = { resolves_via: row[:resolves_via], disambiguator: row[:disambiguator] }
@@ -94,13 +78,6 @@ module Hecks
         end
       end
 
-      # Renders `lib/hecks/bluebook/dsl/bootstrap_table.rb`'s full source: the
-      # frozen `CALLS` and `RESOLVES` constants, built from the live grammar's
-      # Keyword rows.
-      #
-      # @param _bluebook [Bluebook::Behaviour::Chapter] unused; the rows come from
-      #   the global grammar boot, not from this chapter
-      # @return [String] the generated Ruby source, ready to write to disk
       def render(_bluebook)
         rows = live_keywords
         calls_lines = calls(rows).map { |key, target| "          #{key.inspect} => #{target.inspect}" }

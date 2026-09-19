@@ -75,14 +75,14 @@ RSpec.describe Hecks::Ports::Projection::Worker do
       .to raise_error(Hecks::Runtime::WiringError, /does not match/)
   end
 
-  # Any policy other than the exact Symbol `:strict`
-  # (a typo, or any other spelling meaning the same thing) would silently fall
-  # through the consistency check and append onto divergent history —
+  # Before this fix, any policy other than the exact Symbol `:strict`
+  # (a typo, or any other spelling meaning the same thing) silently fell
+  # through the consistency check and appended onto divergent history —
   # no error, no refresh, just a wrong answer built on top of a mismatch.
   # `:refresh` and `:strict` are the only two policies anything in this
   # codebase ever passes (`bin/project`, every spec) — there is no third,
   # legitimate policy to silently fall back to, so an unrecognized one
-  # refuses loudly, at construction, before it can touch any data.
+  # now refuses loudly, at construction, before it can touch any data.
   it "refuses loudly, at construction, rather than silently skipping the consistency check for an unknown policy" do
     authoritative = ProjectionStore.new([
                                           ProjectionEntry.new(operation: "save", id: "acct-ada", state: { balance: 500 })

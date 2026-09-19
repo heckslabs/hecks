@@ -35,21 +35,11 @@ module Hecks
       # browser tab is exactly one origin, exactly one user; there is no
       # second tenant this in-process Hash could ever confuse a first
       # one with.
-      # @return [Boolean] always true
       def self.tenant_capable? = true
-
-      # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
-      #
-      # @return [Array<Symbol>] `[:atomic_put]`
       def persistence_capabilities = [:atomic_put]
 
       attr_reader :aggregate, :events
 
-      # @param aggregate [Bluebook::Aggregate] the aggregate whose records this store holds
-      # @param settings [Hash] world settings for the binding; accepted for the shared adapter
-      #   constructor shape and ignored
-      # @param root [String, nil] project root directory; accepted for the shared adapter
-      #   constructor shape and ignored
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @records   = {}
@@ -57,51 +47,22 @@ module Hecks
         @entries   = []
       end
 
-      # Looks up the current record for one aggregate identity.
-      #
-      # @param id [String, Object] the aggregate identity, compared as `id.to_s`
-      # @return [Runtime::Instance, nil] the held record, or nil when no record has that id
       def find(id) = @records[id.to_s]
-
-      # Counts the records currently held, deleted ones excluded.
-      #
-      # @return [Integer] number of live records
       def count    = @records.size
 
-      # Lists every held record, in insertion order unless an ordering attribute is given.
-      #
-      # @param order_by [String, Symbol, nil] attribute (or dotted value-object path) to sort
-      #   by; nil leaves the records in insertion order
-      # @param direction [Symbol, String] `:asc` or `:desc`
-      # @return [Array<Runtime::Instance>] the held records, `[]` when the store is empty
-      # @raise [Runtime::WiringError] if `order_by` names no attribute of the aggregate
       def all(order_by: nil, direction: :asc)
         InMemoryOrdering.ordered(@records.values, aggregate: @aggregate, order_by: order_by, direction: direction)
       end
 
-      # Answers a declared query by filtering, ordering and paging the held records in Ruby.
-      #
       # The decision the guide asks for, made explicitly: no compiled
       # dialect of its own, same as Heki/Memory — a personal-scale local
       # store answering by walking `all` is correct on day one, and
       # nothing about a browser tab's own data volume asks for pushdown.
-      #
-      # @param specification [QuerySpecification::Common::Options] the declared query
-      # @param args [Hash{Symbol => Object}] values for the specification's symbolic operands
-      # @param context [Hash] execution context; only `:registry` (a `Runtime::Registry` or
-      #   nil) is read, for comparators that look up another aggregate
-      # @return [Array<Runtime::Instance>] the matching records, `[]` when none match
-      # @raise [Runtime::WiringError] if a where clause uses an operation no comparator handles
       def query(specification, args = {}, context: {})
         Ports::Query::InMemory.execute(all, specification, args, registry: context[:registry])
       end
 
-      # Records one journal entry, holding a codec copy of its state.
-      #
       # Through the state codec, the same as Memory (see its `append`).
-      #
-      # @param entry [Ports::Persistence::Entry] the save or delete to journal
-      # @return [Ports::Persistence::Entry] the caller's own `entry`, not the journalled copy
       def append(entry)
         copied = Ports::Persistence::Entry.new(operation: entry.operation, id: entry.id,
                                                state: copy(entry.state), mirrors: entry.mirrors)
@@ -109,11 +70,6 @@ module Hecks
         entry
       end
 
-      # Applies one journal entry to the current-state Hash.
-      #
-      # @param entry [Ports::Persistence::Entry] the save or delete to materialize
-      # @return [Runtime::Instance, nil] the new record for a save; for a delete, the record
-      #   removed, or nil when none was held
       def project(entry)
         if entry.save?
           @records[entry.id] = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: copy(entry.state))
@@ -122,22 +78,12 @@ module Hecks
         end
       end
 
-      # Journals and materializes an instance's current state in one call.
-      #
-      # @param instance [Runtime::Instance] the instance to store
-      # @return [Runtime::Instance] the stored record, a fresh instance over a copy of the state
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: copy(instance.state))
         append(entry)
         project(entry)
       end
 
-      # Stores an entry and reports whether it inserted, replaced or conflicted.
-      #
-      # @param entry [Ports::Persistence::Entry] the save to store
-      # @param insert_only [Boolean] when true, an existing record is left untouched
-      # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met an
-      #   existing record and nothing was written
       def atomic_put(entry, insert_only: false)
         exists = @records.key?(entry.id.to_s)
         return :conflicted if insert_only && exists
@@ -148,31 +94,16 @@ module Hecks
         status
       end
 
-      # Journals a delete and removes the record, whether or not one is held.
-      #
-      # @param id [String, Object] the aggregate identity, journalled as `id.to_s`
-      # @return [Runtime::Instance, nil] the record removed, or nil when none was held
       def delete(id)
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
         append(entry)
         project(entry)
       end
 
-      # Appends an emitted event to the in-process event log.
-      #
-      # @param event [Runtime::Event] the emitted event
-      # @return [Array<Runtime::Event>] the live event log, including `event`
       def record_event(event) = @events << event
 
-      # Lists the journal in append order, for `AppendOnly#recover!` to replay.
-      #
-      # @return [Array<Ports::Persistence::Entry>] a copy of the journal, `[]` when nothing
-      #   has been appended
       def entries = @entries.dup
 
-      # Empties the records, journal and event log, keeping the adapter itself.
-      #
-      # @return [Adapters::LocalStorage] self, now empty
       def reset!
         @records = {}
         @events  = []

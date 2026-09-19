@@ -8,8 +8,6 @@ module Hecks
   # attribute, not a key in `to_h`, not a reader on instances. Framework
   # metadata about the construct, not part of the domain it describes.
   #
-  # ## Identity is walked, not stamped
-  #
   # The identity is computed by walking owners rather than stamped, so nothing
   # has to be re-stamped when a chapter is assembled after its aggregates:
   #
@@ -22,7 +20,7 @@ module Hecks
   # record of that construct carry the same identity, and there is no
   # translation table between them to be quietly wrong in.
   #
-  # ## Usage
+  # Usage:
   #
   #     price = Class.new(ValueObject)   # a declaration holder
   #     price.hecks_name  = "Price"
@@ -43,22 +41,14 @@ module Hecks
     # rather than a top — see hecks_fqn.
     attr_writer :hecks_root
 
-    # Tells whether this construct is a chapter — the one construct allowed to
-    # have no owner.
-    #
-    # @return [Boolean]
     def hecks_root? = @hecks_root ? true : false
 
     # The name as the bluebook declares it, never the constant path.
-    #
-    # @return [String, nil] the declared name, or nil before `hecks_name=` is set
     def hecks_name = @hecks_name
 
     # How this construct joins its owner. An aggregate is a member of its
     # chapter's namespace (`::`) ; everything else is declared on its owner
     # (`.`). Overridden by Aggregate, defaulted here for every other construct.
-    #
-    # @return [String] the joining separator, `"."` for every construct but an aggregate
     def hecks_separator = "."
 
     # Refuses rather than guesses. A construct with no owner and no claim to be a
@@ -66,9 +56,6 @@ module Hecks
     # while entities are still IR objects — and answering the bare name would be a
     # plausible half-truth that no test would notice. That shape of falsehood is
     # what this repo keeps finding, so it goes red instead.
-    #
-    # @return [String] the fully-qualified name, walking `hecks_owner` up to the chapter
-    # @raise [Unowned] if this construct is not a chapter and has no `hecks_owner`
     def hecks_fqn
       return hecks_name.to_s if hecks_root?
 

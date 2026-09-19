@@ -207,8 +207,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
 
         dispatcher = Hecks.boot(domain_dir, install_facade: false)
 
-        dispatcher.dispatch("Target::Note.Make", ref: { value: "target-owns-this" })
-        dispatcher.dispatch("Notes::Note.Write", ref: { value: "notes-owns-this" })
+        dispatcher.dispatch_flat("Target::Note.Make", ref: { value: "target-owns-this" })
+        dispatcher.dispatch_flat("Notes::Note.Write", ref: { value: "notes-owns-this" })
 
         target_rows = dispatcher.query("Target::Note.All")
         notes_rows  = dispatcher.query("Notes::Note.All")
@@ -238,7 +238,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
         Hecks.boot(domain_dir, install_facade: false)
         dispatcher = Hecks.boot(domain_dir, install_facade: false)
 
-        dispatcher.dispatch("Target::Note.Make", ref: { value: "still-here" })
+        dispatcher.dispatch_flat("Target::Note.Make", ref: { value: "still-here" })
         expect(dispatcher.query("Target::Note.All").map { |r| r[:ref][:value] }).to eq(["still-here"])
       end
     end
@@ -494,8 +494,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     end
 
     # The full end-to-end reproduction — era-1 mint, a real era-2
-    # translation, then the ordinary multi-bluebook boot that would
-    # clobber it without this fix — genuinely needs every step below to mean anything;
+    # translation, then the ordinary multi-bluebook boot that used to
+    # clobber it — genuinely needs every step below to mean anything;
     # splitting it would leave no single example that reproduces the
     # live bug's own actual mechanism.
     # rubocop:disable-next RSpec/ExampleLength
@@ -582,7 +582,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
 
         # Notes' own boot-time self-mint happened, genuinely — it just
         # landed in its own physical relations, never Target's.
-        dispatcher.dispatch("Notes::Note.Write", ref: { value: "notes-owns-this" })
+        dispatcher.dispatch_flat("Notes::Note.Write", ref: { value: "notes-owns-this" })
         expect(dispatcher.query("Notes::Note.All").map { |r| r[:ref][:value] }).to eq(["notes-owns-this"])
         # ...and Target's own query is still untouched by that write.
         expect(dispatcher.query("Target::Note.All").map { |r| r[:heading][:value] }).to eq(["Original Title"])

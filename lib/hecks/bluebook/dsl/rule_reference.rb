@@ -15,9 +15,7 @@ module Hecks
       # reuses one of these three shapes instead of a fourth hand-written
       # near-duplicate resolver.
       #
-      # ## Not one unified algorithm
-      #
-      # A real design question this file
+      # **Not one unified algorithm** — a real design question this file
       # answers directly: the three existing resolvers are not
       # superficially different, they are structurally different (a
       # multi-pool fallback chain; one pool keyed by declaring owner,
@@ -29,8 +27,6 @@ module Hecks
       # identical across all 7 declaring methods (`given`×3,
       # `invariant`×3, `ensures`×1) before this file existed — extract
       # predicate source, refuse if extraction failed, build the struct.
-      #
-      # ## Cross-checked against the grammar table
       #
       # `#lookup`/`#verify_resolves_via!` read which construct uses which
       # primitive off the self-hosted grammar table itself
@@ -56,22 +52,6 @@ module Hecks
         # this method existed; unifying them into one generic sentence
         # would be a real (if small) behavior change this refactor is
         # not making.
-        #
-        # Extracts a predicate block's source and builds the rule struct every `given`/
-        # `invariant`/`ensures` declaration shares.
-        #
-        # @param struct_class [Class] `Given` or `Invariant`, the Struct subclass to build
-        # @param description [String] the rule's description, carried onto the built struct
-        # @param predicate [Proc] the block whose source is extracted as the rule's condition
-        # @param owner_name [String] the declaring construct's name, for the refusal message
-        # @param word [String] the DSL word being documented (`"given"`, `"invariant"`,
-        #   `"ensures"`), for the refusal message
-        # @param extraction_failure [String] the refusal message's tail, naming what extraction
-        #   failing would mean for this word
-        # @return [Object] an instance of `struct_class`, with `description`, `canonical`
-        #   (the extracted source), `predicate` and `ast` set
-        # @raise [Bluebook::DSL::Malformed] if the predicate's source could not be extracted, or
-        #   uses a pattern construct engines disagree on
         def build_rule(struct_class, description, predicate, owner_name:, word:, extraction_failure:)
           canonical = Ports::Extraction.canonical(predicate)
 
@@ -92,12 +72,6 @@ module Hecks
         # piece's entity-wide pool) is this with a 2-element chain — a
         # future single-pool bare reference is the same primitive with a
         # 1-element chain, not a separate "just look in one hash" method.
-        #
-        # Looks a description up across an ordered chain of pools, first match wins.
-        #
-        # @param pools [Array<Hash{String => Object}>] pools to search, in order
-        # @param description [String] the rule's description to look up
-        # @return [Object, nil] the first pool's rule for `description`, or nil if none has one
         def resolve_hash_chain(pools, description)
           pools.each { |pool| return pool[description] if pool.key?(description) }
           nil
@@ -113,13 +87,6 @@ module Hecks
         # wording for "none," "ambiguous," and "declared_by: named the
         # wrong owner" rather than one generic message papering over all
         # three.
-        #
-        # Looks a description up in a pool keyed first by description, then by declaring owner.
-        #
-        # @param pool [Hash{String => Hash{String => Object}}] description to (owner-name to rule)
-        # @param description [String] the rule's description to look up
-        # @return [Hash{String => Object}] every candidate for `description`, keyed by owner
-        #   name; empty when none exists
         def resolve_owner_keyed(pool, description)
           pool[description] || {}
         end
@@ -135,14 +102,6 @@ module Hecks
         # sibling (`:invariants` today; kept a parameter, not hardcoded,
         # since a future sibling-scan scope might reference a different
         # collection).
-        #
-        # Scans already-built sibling objects' own rule collections for a matching description.
-        #
-        # @param siblings [Array<Object>] the already-built sibling constructs to scan
-        # @param description [String] the rule's description to look up
-        # @param reader [Symbol] the method to call on each sibling to get its rule collection,
-        #   such as `:invariants`
-        # @return [Object, nil] the first matching rule found, or nil if no sibling declares one
         def resolve_sibling_scan(siblings, description, reader:)
           siblings.flat_map { |sibling| sibling.public_send(reader) }
                   .find { |rule| rule.description == description }
@@ -179,14 +138,6 @@ module Hecks
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).
         BOOTSTRAP_FALLBACK = BootstrapTable::RESOLVES
 
-        # Reads which resolution primitive a (word, context) pair uses, off the grammar table
-        # while running, or the bootstrap fallback while the table is still being built.
-        #
-        # @param word [String] the DSL word, such as `"given"` or `"invariant"`
-        # @param context [String] the grammar context, such as `"Command"` or `"ValueObject"`
-        # @return [Hash{Symbol => String, nil}] `:resolves_via` (the primitive's name, such as
-        #   `"hash_chain"`) and `:disambiguator`, both nil when the row carries none, or an empty
-        #   Hash when the pair is not found
         def lookup(word, context)
           if MetaValidator.bootstrapping?
             BOOTSTRAP_FALLBACK[[word, context]] || {}
@@ -211,17 +162,6 @@ module Hecks
         # real drift between the language's own self-description and
         # its own implementation, caught at the next boot of anything,
         # not just the next `rspec` run.
-        #
-        # Refuses to proceed if the grammar table names a different primitive than the caller
-        # is about to use.
-        #
-        # @param word [String] the DSL word about to be resolved, such as `"given"`
-        # @param context [String] the grammar context, such as `"Command"`
-        # @param expected_primitive [String] the primitive name the caller is about to use, such
-        #   as `"hash_chain"`, `"owner_keyed"` or `"sibling_scan"`
-        # @return [void]
-        # @raise [RuntimeError] if the grammar table's `resolves_via` for this (word, context)
-        #   pair does not match `expected_primitive`
         def verify_resolves_via!(word, context, expected_primitive)
           actual = lookup(word, context)[:resolves_via]
           return if actual == expected_primitive

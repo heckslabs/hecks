@@ -9,7 +9,7 @@
 # So, under `ENV["CI"]`, after the suite runs every example that ended
 # pending is held against two tables:
 #
-#   `ALLOWED` — pattern => destination. The skip is fine here because the
+#   ALLOWED — pattern => destination. The skip is fine here because the
 #     named CI job runs that check for real. spec/ci_skip_backstop_spec.rb
 #     proves each destination job exists and runs the call site's spec
 #     file, and each pattern still matches a live `skip` call site.
@@ -48,24 +48,12 @@ module CiSkipBackstop
 
   module_function
 
-  # Says whether the backstop should run at all.
-  #
-  # @return [Boolean] `true` in CI, unless `GOLDEN=rewrite`'s deliberate rewrite mode is running
   def enabled? = !ENV["CI"].to_s.empty? && ENV["GOLDEN"] != "rewrite"
 
-  # Checks a skip reason against the routing tables.
-  #
-  # @param message [String] a pending example's skip reason
-  # @return [Boolean] whether `message` matches a pattern in `ALLOWED` or `UNROUTED_BUGS`
   def accounted_for?(message)
     (ALLOWED + UNROUTED_BUGS).any? { |entry| entry.pattern.match?(message) }
   end
 
-  # Finds every example that skipped in CI with no accounted-for destination.
-  #
-  # @param examples [Array<RSpec::Core::Example>] every example the suite ran
-  # @return [Array<String>] one line per unaccounted-for skip, naming its location, description,
-  #   and skip message; `[]` if none
   def offenders(examples)
     examples.filter_map do |example|
       result = example.execution_result
@@ -83,12 +71,6 @@ module CiSkipBackstop
     end
   end
 
-  # Registers the `after(:suite)` hook that enforces the backstop.
-  #
-  # @param config [RSpec::Core::Configuration] the RSpec configuration being built
-  # @return [void]
-  # @raise [RuntimeError] after the suite, if any example skipped in CI with an unaccounted-for
-  #   reason
   def install(config)
     return unless enabled?
 

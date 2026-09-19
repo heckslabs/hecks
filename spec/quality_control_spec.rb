@@ -106,7 +106,7 @@ RSpec.describe "QualityControl" do
 
   def rows(query, **args) = runtime.query("QualityControl::#{query}", **args)
   def references(query, **args) = rows(query, **args).map { |row| row[:reference][:value] }
-  def check(sweep, verb, **args) = runtime.dispatch("QualityControl::Sweep.Check.#{verb}", id: sweep.id, **args)
+  def check(sweep, verb, **args) = runtime.dispatch_flat("QualityControl::Sweep.Check.#{verb}", id: sweep.id, **args)
 
   def a_target(reference = "banking", path = "examples/banking")
     runtime
@@ -142,7 +142,7 @@ RSpec.describe "QualityControl" do
 
     def target = @target ||= a_target("banking")
 
-    # **The friction this removed**. Every claim would otherwise want
+    # **The friction this removed**. Every claim used to want
     # `now.value=$(date +%s) window.value=900` typed in front of it, which is a
     # shell incantation an agent gets wrong by pasting a stale number.
     it "fills now from the clock when the caller leaves it out" do
@@ -204,7 +204,7 @@ RSpec.describe "QualityControl" do
     # The one thing a query cannot do is count. `Bug.Open` answers rows and
     # leaves the arithmetic to whoever is reading; a tally is the arithmetic,
     # and it is grouped by the lifecycle state — which no `attribute` declares
-    # and `group_by` once refused.
+    # and `group_by` used to refuse.
     it "counts every bug under what became of it" do
       one = a_logged_bug("BUG#1")
       a_logged_bug("BUG#2")
@@ -317,7 +317,7 @@ RSpec.describe "QualityControl" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
 
-      expect { runtime.dispatch("QualityControl::Target.Release", id: target.id, now: { value: 1_000 }) }
+      expect { runtime.dispatch_flat("QualityControl::Target.Release", id: target.id, now: { value: 1_000 }) }
         .to raise_error(Hecks::Runtime::AbsentArgument)
     end
 
@@ -760,7 +760,7 @@ RSpec.describe "QualityControl" do
         title: { value: "as: is accepted and does not alias" },
         body: { value: "see the demonstration" }
       )
-      runtime.dispatch("QualityControl::Ticket.Submit", id: "TK-1")
+      runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
     end
 
     it "cannot be raised for a bug that does not exist" do
@@ -781,13 +781,13 @@ RSpec.describe "QualityControl" do
     # Fixed: `trigger Ticket::IssueTracker::File` — a policy triggering an
     # `asks`/`tells` port operation (three segments: aggregate, port,
     # operation) rather than a plain command (two segments: aggregate,
-    # command) now resolves. `Naming.command_ref`'s bare-constant
+    # command) used to never resolve. `Naming.command_ref`'s bare-constant
     # rewrite (only the last `::` becomes `.`) turns this into
     # "Ticket::IssueTracker.File", which `Naming.split_verb` now folds any
     # leftover `::` past the already-resolved domain boundary into the
     # dot-joined command path instead of capping at two pieces — recovering
     # "Ticket.IssueTracker.File", the same shape a working port dispatch
-    # already uses. `ReactionInvocation#resolve_target` gained a matching
+    # already used. `ReactionInvocation#resolve_target` gained a matching
     # port-operation branch (checked before entity resolution, same order
     # `Dispatcher#dispatch` already uses), and `PortOperation#creates?`
     # (always false) lets `source_receiver_for` lift the triggering
@@ -822,7 +822,7 @@ RSpec.describe "QualityControl" do
         repository: { value: "chrisyoung/hecksagain" },
         title: { value: "x" }, body: { value: "y" }
       )
-      runtime.dispatch("QualityControl::Ticket.Submit", id: "TK-1")
+      runtime.dispatch_flat("QualityControl::Ticket.Submit", id: "TK-1")
 
       names = runtime.events.map(&:name)
       expect(names).to include("IssueFilingRefused", "TicketFilingRefused", "TicketRetried")
@@ -992,8 +992,8 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
-    # **Real, not hypothetical** — a deliberate proof-only PR, never
-    # meant to merge, was closed by a human the moment its point was made,
+    # **Real, not hypothetical** — PR #543 (a deliberate proof-only PR, never
+    # meant to merge) was closed by a human the moment its point was made,
     # while still sitting at "opened" in this ledger: `bin/qa_pr_check`
     # never got a chance to dispatch `Land` at all. `retire_if_settled?`
     # dispatches `Close` the instant `gh pr view` reports closed, whatever
@@ -1083,7 +1083,7 @@ RSpec.describe "QualityControl" do
       runtime
 
       QualityControl::Clearance.start!(commit: { value: "abc1234" })
-      runtime.dispatch("QualityControl::Clearance.CI.Run", commit: "abc1234")
+      runtime.dispatch_flat("QualityControl::Clearance.CI.Run", commit: "abc1234")
 
       expect(rows("Clearance.All").first[:status]).to eq("green")
     end
@@ -1091,7 +1091,7 @@ RSpec.describe "QualityControl" do
     it "records a red run under the word the runtime actually hands back" do
       red = boot_quality_control(StubTracker, ci_adapter: RedCi)
       QualityControl::Clearance.start!(commit: { value: "def5678" })
-      red.dispatch("QualityControl::Clearance.CI.Run", commit: "def5678")
+      red.dispatch_flat("QualityControl::Clearance.CI.Run", commit: "def5678")
 
       expect(red.query("QualityControl::Clearance.Red").first[:summary][:value]).to include("2 failures")
     end
@@ -1277,7 +1277,7 @@ RSpec.describe "QualityControl" do
 
   # ── a surprised chapter waits for a person ───────────────────────────
 
-  # `suspended` — the state `held` once stood in for. Nothing here
+  # `suspended` — the state `held` used to stand in for. Nothing here
   # dispatches `Target.Suspend` by hand: `SuspendOnSurprise` (the
   # chapter's own foot) does it, from the `target` a surprising check
   # restates, and that is the whole claim under test.

@@ -16,7 +16,7 @@ module Hecks
     # closely enough that everything built on top of a dispatcher —
     # `Handle`, `AggregateDoor`, `Facade::Surface` — needs no changes
     # at all: `Handle#run`'s entire contract is
-    # `@dispatcher.dispatch("#{fqn}.#{command}", **identity, **args).instance.state`,
+    # `@dispatcher.dispatch("#{fqn}.#{command}", to: @id, with: args).instance.state`,
     # and both classes answer that identically.
     #
     # **Reads delegate, writes don't**. `query`/`reference_query` hand off
@@ -31,24 +31,12 @@ module Hecks
     # against incomplete local state and then merely persisted.
     class RemoteDispatcher
       Result = Struct.new(:verb, :instance, :events, keyword_init: true) do
-        # Reads the identity of the record the dispatch settled on.
-        #
-        # @return [String] the settled record's identity
         def id    = instance.id
-
-        # Reads the settled record's attributes as one Hash.
-        #
-        # @return [Hash{Symbol => Object}] the settled record's attributes as one Hash
         def state = instance.to_h
       end
 
       attr_reader :registry
 
-      # @param registry [Runtime::Registry] the booted registry this dispatcher reads and
-      #   forwards through
-      # @param region [String] the AWS region the domain's Lambda function is deployed to
-      # @param function [String, nil] the Lambda function's own name; nil resolves it from
-      #   the domain name
       def initialize(registry, region: "us-east-1", function: nil)
         @registry = registry
         # `File.basename(registry.root)`, not `bluebooks.keys.first` —
@@ -74,47 +62,18 @@ module Hecks
         @local = Dispatcher.new(registry)
       end
 
-      # Same deprecation as `Dispatcher#dispatch` — loose keyword facts warn;
-      # `to:`/`with:` do not.
-      #
-      # @param verb [String] the fully qualified verb: `"Domain::Aggregate.Command"`
-      # @param saga_correlation [Hash{Symbol => Object}, nil] correlation head => value,
-      #   stamped on every emitted event when a saga leg causes this dispatch
-      # @param args [Hash] the command's facts, plus optional `:to`/`:with` keys, or deprecated
-      #   loose keyword facts
-      # @return [Hecks::Runtime::RemoteDispatcher::Result] the verb, settled instance, and
-      #   emitted events
-      # @raise [Runtime::UnknownVerb] if the verb is not fully qualified, or names a domain or
-      #   aggregate that is not declared
-      # @raise [Runtime::RemoteRefusal] if rust/host refuses the call
-      # @raise [Runtime::WiringError] if rust/host accepts the call but reports no mutation
-      #   for the dispatched aggregate
-      # @raise [Deprecation::Error] if loose keyword facts are given where
-      #   `Deprecation.raise_on!(:legacy_dispatch_args)` applies
+      # Same shape as `Dispatcher#dispatch_flat` — everything but
+      # `saga_correlation:` is forwarded through unread, `to:`/`with:`
+      # included, and lifted out downstream by whichever path actually
+      # dispatches (`@local.dispatch_flat` locally, the flat wire form
+      # remotely). Not the strict `to:`/`with:`-only door `Dispatcher#
+      # dispatch` is — see that class's own comment for why this file
+      # never had one.
       def dispatch(verb, saga_correlation: nil, **args)
-        Dispatcher.deprecate_loose_facts(args.except(:to, :with))
         dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
       end
 
       # Same flat-facts wire form as `Dispatcher#dispatch_flat`.
-      #
-      # @param verb [String] the fully qualified verb: `"Domain::Aggregate.Command"`
-      # @param args [Hash] the facts, plus optional Symbol keys `:to`, `:with` and
-      #   `:saga_correlation`
-      # @return [Hecks::Runtime::RemoteDispatcher::Result] the verb, settled instance, and
-      #   emitted events, when the aggregate is Lambda-routed; a `Runtime::Dispatcher::Result`
-      #   from the local dispatcher when it is not (e.g. an era-computed aggregate still bound
-      #   locally)
-      # @raise [Runtime::UnknownVerb] if the verb is not fully qualified, or names a domain or
-      #   aggregate that is not declared
-      # @raise [Runtime::RemoteRefusal] if rust/host refuses the call
-      # @raise [Runtime::WiringError] if rust/host accepts the call but reports no mutation
-      #   for the dispatched aggregate, or (delegated path) the aggregate's local repository
-      #   cannot be resolved
-      # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when a locally-bound
-      #   aggregate's domain refuses the call (delegated path)
-      # @raise [Runtime::StaleWrite] if concurrent local writers beat this one through every
-      #   retry (delegated path)
       def dispatch_flat(verb, args = {})
         args = args.dup
         saga_correlation = args.delete(:saga_correlation)
@@ -170,30 +129,7 @@ module Hecks
         Result.new(verb: verb, instance: instance, events: step_events(response))
       end
 
-      # Delegates to a local `Dispatcher#query` over the same, already Lambda-backed registry.
-      #
-      # @param verb [String, Symbol] the query's verb — an aggregate query, entity query, or
-      #   read model
-      # @param args [Hash{Symbol => Object}] the query's declared arguments
-      # @return [Array<Hash>] see `Dispatcher#query`
-      # @raise [Runtime::UnknownVerb] if the verb is not fully qualified, or names a domain,
-      #   aggregate, entity, query or read model that is not declared
-      # @raise [Runtime::NotFound] if a read model's root reference names no record
-      # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its declared type
-      # @raise [KeyError] if a rooted read model is asked without its reference argument
-      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def query(verb, **args)           = @local.query(verb, **args)
-
-      # Delegates to a local `Dispatcher#reference_query` over the same registry.
-      #
-      # @param verb [String] the fully qualified query verb, `"Domain::Aggregate.Query"` or
-      #   `"Domain::Aggregate.Entity.Query"`
-      # @param args [Hash{Symbol => Object}] the query's declared arguments
-      # @return [Array<Hash>] see `Dispatcher#reference_query`
-      # @raise [Runtime::UnknownVerb] if the verb is not fully qualified, or names a domain,
-      #   aggregate, entity or query that is not declared
-      # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its declared type
-      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def reference_query(verb, **args) = @local.reference_query(verb, **args)
 
       # The full domain's event history, on every call — `{"read":
@@ -203,8 +139,6 @@ module Hecks
       # dispatch. Not cached: `AggregateDoor.events`/`Handle#events`
       # are not called in this codebase's own hot paths today: if that
       # changes, caching belongs here, not in every caller.
-      #
-      # @return [Array<Runtime::Event>] every event this domain has ever emitted, oldest first
       def events
         @client.read.fetch("events", []).map { |e| build_event(e) }
       end

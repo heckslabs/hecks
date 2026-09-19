@@ -27,7 +27,7 @@ RSpec.describe "Governance" do
   let(:runtime) { boot }
 
   def assign(actor: "u-1", role: "Teller", scope: "Branch-1", starts_at: "2026-01-01")
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Governance::RoleAssignment.Assign",
       actor_id: { value: actor }, role_name: { value: role },
       scope: { value: scope }, starts_at: { value: starts_at }
@@ -52,7 +52,8 @@ RSpec.describe "Governance" do
 
   it "revokes by setting ends_at, without deleting the record" do
     created = assign
-    result  = runtime.dispatch("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
+    result  = runtime.dispatch_flat("Governance::RoleAssignment.Revoke", id:      created.instance.id,
+                                                                         ends_at: { value: "2026-05-31" })
 
     expect(result.events.map(&:name)).to eq(["RoleRevoked"])
     expect(result.instance.state[:ends_at][:value]).to eq("2026-05-31")
@@ -61,7 +62,7 @@ RSpec.describe "Governance" do
 
   it "AssignmentsForActor returns a revoked assignment too — filtering by ends_at is the caller's decision" do
     created = assign
-    runtime.dispatch("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
+    runtime.dispatch_flat("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
 
     rows = runtime.query("Governance::RoleAssignment.AssignmentsForActor", actor_id: { value: "u-1" })
     expect(rows.map { |row| row[:id] }).to eq(["u-1:Teller:2026-01-01"])
@@ -100,7 +101,7 @@ RSpec.describe "Governance" do
   end
 
   def grant(from: "Customer administrator", to: "Customer registrar", starts_at: "2026-01-01")
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "Governance::RoleTransition.Grant",
       from_role: { value: from }, to_role: { value: to }, starts_at: { value: starts_at }
     )
@@ -124,7 +125,7 @@ RSpec.describe "Governance" do
   # succeed as a genuinely new record, not be refused.
   it "grants a previously-revoked pair again, as a distinct record — the pair is not an absorbing state" do
     first = grant(starts_at: "2026-01-01")
-    runtime.dispatch("Governance::RoleTransition.Revoke", id: first.instance.id, ends_at: { value: "2026-05-31" })
+    runtime.dispatch_flat("Governance::RoleTransition.Revoke", id: first.instance.id, ends_at: { value: "2026-05-31" })
 
     second = grant(starts_at: "2026-06-01")
 
@@ -141,7 +142,8 @@ RSpec.describe "Governance" do
 
   it "revokes a role transition by setting ends_at, without deleting the record" do
     created = grant
-    result  = runtime.dispatch("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
+    result  = runtime.dispatch_flat("Governance::RoleTransition.Revoke", id:      created.instance.id,
+                                                                         ends_at: { value: "2026-05-31" })
 
     expect(result.events.map(&:name)).to eq(["RoleTransitionRevoked"])
     expect(result.instance.state[:ends_at][:value]).to eq("2026-05-31")
@@ -165,7 +167,7 @@ RSpec.describe "Governance" do
 
   it "Allowed still returns a revoked transition — the caller reads ends_at, same as RoleAssignment" do
     created = grant
-    runtime.dispatch("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
+    runtime.dispatch_flat("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
 
     rows = runtime.query(
       "Governance::RoleTransition.Allowed",

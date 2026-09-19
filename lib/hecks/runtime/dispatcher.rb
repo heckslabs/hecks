@@ -1,5 +1,4 @@
 require_relative "errors"
-require_relative "../deprecation"
 require_relative "refusal_wording"
 require_relative "caller"
 require_relative "invocation"
@@ -121,22 +120,21 @@ module Hecks
       # Runs one command, entity command or port operation, then every policy and saga reaction
       # its events are owed.
       #
-      # Loose keyword facts are deprecated (roadmap I3) — `dispatch(verb,
-      # amount: 5)` still works, and warns once per call site; pass
-      # `with: { amount: 5 }` (and the receiver in `to:`) instead. The
-      # keyword door closes in `LEGACY_ARGS_REMOVAL`. `bin/codemod_legacy_
-      # dispatch_args` rewrites existing callers.
+      # The receiver in `to:`, the facts in `with:`, and nothing else.
+      # Loose keyword facts — `dispatch(verb, amount: 5)`, one bag holding
+      # both the route and the payload — were deprecated in 1.3.x and are
+      # gone: Ruby now refuses them itself, by name ("unknown keyword:
+      # :amount"). Code holding a bag of data rather than written keywords
+      # calls `dispatch_flat` below; that door is not going anywhere.
       #
       # @param verb [String] the fully qualified verb: `"Domain::Aggregate.Command"`,
       #   `"Domain::Aggregate.Entity.Command"` or `"Domain::Aggregate.Port.Operation"`
       # @param to [String, Hash, nil] the receiver: an aggregate identity, or an entity route
       #   Hash with `:aggregate` and one of `:entity`/`:entities`; nil when the facts carry
       #   the identity themselves
-      # @param with [Hash, nil] the command's facts, keyed by argument name (String or Symbol);
-      #   may not be combined with loose keyword facts
+      # @param with [Hash, nil] the command's facts, keyed by argument name (String or Symbol)
       # @param saga_correlation [Hash, nil] correlation head => value, stamped on every
       #   emitted event when a saga leg causes this dispatch; nil otherwise
-      # @param legacy_args [Hash{Symbol => Object}] deprecated loose keyword facts
       # @return [Runtime::Dispatcher::Result] the verb, settled instance (nil for a port
       #   operation), emitted events, execution plan and persistence outcome
       # @raise [Runtime::UnknownVerb] if the verb is not fully qualified, or names a domain,
@@ -145,39 +143,20 @@ module Hecks
       #   the call (`GivenNotMet`, `TypeMismatch`, `Unauthorized`, `NotFound`, …)
       # @raise [Runtime::StaleWrite] if concurrent writers beat this one through every retry
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
-      # @raise [Deprecation::Error] if loose keyword facts are given where
-      #   `Deprecation.raise_on!(:legacy_dispatch_args)` applies
-      def dispatch(verb, to: nil, with: nil, saga_correlation: nil, **legacy_args)
-        Dispatcher.deprecate_loose_facts(legacy_args)
-        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, legacy_args: legacy_args)
-      end
-
-      LEGACY_ARGS_REMOVAL = "1.4.0".freeze
-      LEGACY_ARGS_WARNING =
-        "passing command facts to dispatch as loose keyword arguments is deprecated and will be removed in " \
-        "hecks #{LEGACY_ARGS_REMOVAL} — pass them as `with: { ... }`, with the receiver identity in `to:` " \
-        "(bin/codemod_legacy_dispatch_args rewrites existing callers)".freeze
-
-      # Warns, once per call site, that a dispatch passed its facts as loose keyword arguments.
-      #
-      # @param legacy_args [Hash] the loose keyword facts a dispatch received; empty means
-      #   nothing deprecated was used, and nothing is warned
-      # @return [nil] always, whether or not a warning was issued
-      # @raise [Deprecation::Error] if `legacy_args` is not empty where
-      #   `Deprecation.raise_on!(:legacy_dispatch_args)` applies
-      def self.deprecate_loose_facts(legacy_args)
-        Deprecation.call(:legacy_dispatch_args, LEGACY_ARGS_WARNING) unless legacy_args.empty?
+      def dispatch(verb, to: nil, with: nil, saga_correlation: nil)
+        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, flat: {})
       end
 
       # Dispatches a verb whose receiver and facts arrive together in one flat Hash.
       #
-      # **The flat-facts wire form** — one Hash, not keywords, and not
-      # deprecated: the shape `spec/corpus/*.json` steps, the Rust kernel's
-      # `cli.rs` contract, a reaction without a `with:` projection, and the
-      # self-hosted meta-domain all carry. Routes exactly as
-      # `dispatch(verb, **args)` does: a Symbol `:to`, `:with` or
+      # **The flat-facts wire form** — one Hash, not keywords: the shape
+      # `spec/corpus/*.json` steps, the Rust kernel's `cli.rs` contract, a
+      # reaction without a `with:` projection, and the self-hosted
+      # meta-domain all carry, where the receiver's identity is one of the
+      # keys because that is how the wire spells it. Routes exactly as the
+      # removed keyword door did: a Symbol `:to`, `:with` or
       # `:saga_correlation` key is lifted out as that keyword, everything
-      # else is a fact (so a String "to" key stays a fact).
+      # else is a fact (so a String "to" key stays a fact, as it did).
       # Framework code that replays data calls this; application code
       # calls `dispatch(verb, to:, with:)`.
       #
@@ -196,10 +175,10 @@ module Hecks
         to = facts.delete(:to)
         with = facts.delete(:with)
         saga_correlation = facts.delete(:saga_correlation)
-        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, legacy_args: facts)
+        dispatch_invocation(verb, to: to, with: with, saga_correlation: saga_correlation, flat: facts)
       end
 
-      def dispatch_invocation(verb, to:, with:, saga_correlation:, legacy_args:)
+      def dispatch_invocation(verb, to:, with:, saga_correlation:, flat:)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 
@@ -222,12 +201,12 @@ module Hecks
               operation = port.operation(sub) ||
                           raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "port_no_operation",
                                                                         port: head, operation: sub))
-              invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args,
+              invocation = Invocation.from_call(verb, to: to, with: with, flat: flat,
                                                       receiver: :port, aggregate: aggregate) { operation }
               [nil, @port_ops.call(domain, aggregate, operation, invocation), nil, nil, :enqueue]
             else
               resolution = nil
-              invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args,
+              invocation = Invocation.from_call(verb, to: to, with: with, flat: flat,
                                                       receiver: :entity, entity_depth: command_name.count(".")) do
                 (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
               end
@@ -235,7 +214,7 @@ module Hecks
             end
           else
             command = command_of(aggregate, aggregate_name, command_name)
-            invocation = Invocation.from_call(verb, to: to, with: with, legacy: legacy_args) { command }
+            invocation = Invocation.from_call(verb, to: to, with: with, flat: flat) { command }
             @commands.call(domain, aggregate, command, invocation, saga_correlation)
           end
 
@@ -328,13 +307,13 @@ module Hecks
           # `to:`/`with:` are not keywords of this method — a key named
           # either is an ordinary fact here (BUG#131), so both go in as nil.
           resolution = nil
-          invocation = Invocation.from_call(verb, to: nil, with: nil, legacy: args, receiver: :entity) do
+          invocation = Invocation.from_call(verb, to: nil, with: nil, flat: args, receiver: :entity) do
             (resolution = EntityInterpreter::Resolution.of(aggregate, command_name)).command
           end
           @entities.call(domain, aggregate, resolution, invocation, dry_run: true)
         else
           command = command_of(aggregate, aggregate_name, command_name)
-          invocation = Invocation.from_call(verb, to: nil, with: nil, legacy: args) { command }
+          invocation = Invocation.from_call(verb, to: nil, with: nil, flat: args) { command }
           @commands.call(domain, aggregate, command, invocation, dry_run: true)
         end
 
@@ -360,7 +339,9 @@ module Hecks
       # @param to [String, Hash, nil] the receiving aggregate's identity; when nil it is read
       #   from the facts, by the operation's reference or identity attribute
       # @param with [Hash, nil] the operation's facts, keyed by argument name
-      # @param legacy_args [Hash{Symbol => Object}] deprecated loose keyword facts
+      # @param flat [Hash] the wire form `dispatch_flat` takes, for the driving adapter
+      #   holding a decoded webhook rather than written keywords; it is where the operation's
+      #   own reference attribute is read from and lifted into `to:` when `to:` is nil
       # @return [Array<Runtime::Event>] the events the operation announced: one per declared
       #   `emits` for an inbound operation, the one answering or refusing event for an
       #   outbound one
@@ -369,10 +350,7 @@ module Hecks
       #   is malformed
       # @raise [Runtime::NotFound] if the receiving aggregate record does not exist
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
-      # @raise [Deprecation::Error] if loose keyword facts are given where
-      #   `Deprecation.raise_on!(:legacy_dispatch_args)` applies
-      def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, **legacy_args)
-        Dispatcher.deprecate_loose_facts(legacy_args)
+      def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, flat: {})
         aggregate = resolve_aggregate(domain, aggregate_name, "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}")
         port = aggregate.port(port_name) ||
                raise(UnknownVerb, "#{aggregate_name} has no port #{port_name.inspect}")
@@ -380,7 +358,7 @@ module Hecks
                     raise(UnknownVerb, "#{port_name} has no operation #{operation_name.inspect}")
 
         invocation = Invocation.from_call("#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}",
-                                          to: to, with: with, legacy: legacy_args,
+                                          to: to, with: with, flat: flat,
                                           receiver: :port, aggregate: aggregate) { operation }
         announced = @port_ops.call(domain, aggregate, operation, invocation)
 

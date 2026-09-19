@@ -9,7 +9,8 @@ module Hecks
     # (`target`, a `Routing::Envelope` or nil), and every fact the caller did
     # or did not offer. Built once per dispatch by `Invocation.from_call`, the
     # only place the runtime interprets the shape of a call (`to:` vs `with:`
-    # vs loose keyword arguments, a port operation's reference attribute
+    # vs the flat facts hash `dispatch_flat` carries, a port operation's
+    # reference attribute
     # lifted into `to:`). `Runtime::Routing.envelope`/`.payload` delegate here
     # and no longer hold that logic themselves.
     #
@@ -21,12 +22,12 @@ module Hecks
     #   - `Invocation::Present` — the key was offered with a value
     #
     # Keys are kept exactly as offered: `with:` keys are symbolized (as they
-    # always were), loose keyword arguments keep whatever key the caller
-    # used. Undeclared keys a caller offered are kept too — refusing them is
+    # always were), a flat facts hash keeps whatever key the wire used. Undeclared keys a caller
+    # offered are kept too — refusing them is
     # still `refuse_unknown_arguments`' job, a dispatch step, not this one.
     #
     # PR I1 changes no behavior: every interpreter still reads `ctx.args`,
-    # which is `#to_args` — the same Hash shape `Routing.payload` returns.
+    # which is `#to_args` — the same Hash `Routing.payload` used to return.
     # Roadmap I2 moves the Ruby `decode_arguments` step onto `facts` itself.
     Invocation = Data.define(:verb, :target, :facts)
 
@@ -41,7 +42,6 @@ module Hecks
       # The class of the two frozen marker singletons below — never
       # instantiated anywhere else.
       class Marker
-        # @param name [String] the marker's display name, such as `"Absent"` or `"Null"`
         def initialize(name)
           @name = name
           freeze
@@ -55,48 +55,22 @@ module Hecks
       Absent = Marker.new("Absent")
       Null   = Marker.new("Null")
 
-      # @param verb [String] the fully qualified verb this invocation dispatches
-      # @param target [Routing::Envelope, nil] the `to:` receiver, or nil
-      # @param facts [Hash{Symbol => Object}] each fact name mapped to `Absent`, `Null`, or a
-      #   `Present`; duplicated and frozen before being stored
       def initialize(verb:, target:, facts:)
         super(verb: verb, target: target, facts: facts.dup.freeze)
       end
 
       # The fact recorded under `name` — `Absent` for a name never offered
       # and never declared either.
-      #
-      # @param name [Symbol] the fact name
-      # @return [Hecks::Runtime::Invocation::Present, Hecks::Runtime::Invocation::Null,
-      #   Hecks::Runtime::Invocation::Absent] the recorded marker
       def fact(name) = facts.fetch(name, Absent)
 
-      # Reports whether the caller offered `name` with a real (non-nil) value.
-      #
-      # @param name [Symbol] the fact name
-      # @return [Boolean] true if `name`'s fact is a `Present`
       def present?(name) = fact(name).is_a?(Present)
-
-      # Reports whether the caller offered `name` with an explicit nil.
-      #
-      # @param name [Symbol] the fact name
-      # @return [Boolean] true if `name`'s fact is `Null`
       def null?(name)    = fact(name).equal?(Null)
-
-      # Reports whether the caller never offered `name` at all.
-      #
-      # @param name [Symbol] the fact name
-      # @return [Boolean] true if `name`'s fact is `Absent`
       def absent?(name)  = fact(name).equal?(Absent)
 
       # A Present fact's value; nil for an explicit Null. Raises KeyError for
       # an Absent fact — "never offered" has no value, and answering nil
       # would re-conflate it with an explicit null, the very ambiguity this
       # type exists to remove. Ask `absent?`/`present?` first.
-      #
-      # @param name [Symbol] the fact name
-      # @return [Object, nil] the offered value, or nil for an explicit Null
-      # @raise [KeyError] if `name` was never offered
       def value(name)
         case (found = fact(name))
         when Present then found.value
@@ -105,11 +79,9 @@ module Hecks
         end
       end
 
-      # The legacy args hash, byte for byte what `Routing.payload` returned
+      # The flat args hash, byte for byte what `Routing.payload` returned
       # before this type existed: offered keys in offered order, Absent keys
       # omitted, Null keys mapped to nil. A fresh Hash every call.
-      #
-      # @return [Hash] the offered facts, Absent keys omitted and Null keys mapped to nil
       def to_args
         facts.each_with_object({}) do |(name, found), args|
           next if found.equal?(Absent)
@@ -119,10 +91,7 @@ module Hecks
       end
 
       class << self
-        # Builds the Invocation for one dispatch, reading the call's shape according to
-        # `receiver:`.
-        #
-        # **One reading of a call's shape**. `receiver:` picks which of the
+        # The one reading of a call's shape. `receiver:` picks which of the
         # three dispatch shapes this is, because each has always checked its
         # parts in its own order and a malformed call's refusal depends on
         # that order:
@@ -139,56 +108,24 @@ module Hecks
         # the point in that order where the caller always resolved it.
         # `aggregate:` is the owning aggregate construct, read for `:port`
         # only.
-        #
-        # @param verb [String] the fully qualified verb being dispatched
-        # @param to [String, Hash, nil] the receiver: an aggregate identity, an entity route
-        #   Hash with `:aggregate` and one of `:entity`/`:entities`, or nil
-        # @param with [Hash, nil] the command's facts, keyed by argument name; may not be
-        #   combined with a non-empty `legacy`
-        # @param legacy [Hash] loose keyword facts, read when `with` is falsy
-        # @param receiver [Symbol] which dispatch shape this is: `:aggregate`, `:entity`, or
-        #   `:port`
-        # @param entity_depth [Integer] the number of entity identities `to:` must carry, for
-        #   `:entity`
-        # @param aggregate [Bluebook::Aggregate, nil] the owning aggregate construct, read
-        #   only for `:port`
-        # @yield resolves the declaring command or port operation, once, at the point in the
-        #   receiver's own order where it was always resolved
-        # @yieldreturn [Bluebook::Command, Bluebook::PortOperation] the construct declaring
-        #   the attributes facts are checked against
-        # @return [Hecks::Runtime::Invocation] the built invocation
-        # @raise [Runtime::TypeMismatch] if `to:` is malformed, `with:` is combined with loose
-        #   keyword facts, or `with:` is not a Hash
-        # @raise [Runtime::UnknownArgument] if `with:` offers a key the declaring construct
-        #   does not declare
-        # @raise [Runtime::AbsentArgument] if `with:` omits a non-optional declared attribute
-        # @raise [ArgumentError] if `receiver` is none of `:aggregate`, `:entity`, `:port`
-        def from_call(verb, to:, with:, legacy:, receiver: :aggregate, entity_depth: 0, aggregate: nil, &declaring)
+        def from_call(verb, to:, with:, flat:, receiver: :aggregate, entity_depth: 0, aggregate: nil, &declaring)
           case receiver
           when :aggregate
             command = declaring.call
-            facts   = facts_for(command, with: with, legacy: legacy)
+            facts   = facts_for(command, with: with, flat: flat)
             new(verb: verb, target: route(to), facts: facts)
           when :entity
             target  = route(to, entity_depth: entity_depth)
             command = declaring.call
-            new(verb: verb, target: target, facts: facts_for(command, with: with, legacy: legacy))
+            new(verb: verb, target: target, facts: facts_for(command, with: with, flat: flat))
           when :port
-            port_call(verb, aggregate, declaring.call, to: to, with: with, legacy: legacy)
+            port_call(verb, aggregate, declaring.call, to: to, with: with, flat: flat)
           else
             raise ArgumentError, "unknown receiver #{receiver.inspect}"
           end
         end
 
         # `to:` as a `Routing::Envelope`, or nil when no `to:` was given.
-        #
-        # @param to [String, Hash, nil] the receiver: an aggregate identity, an entity route
-        #   Hash with `:aggregate` and one of `:entity`/`:entities`, or nil
-        # @param entity_depth [Integer] the number of entity identities `to` must carry
-        # @return [Routing::Envelope, nil] the parsed envelope, or nil when `to` is nil
-        # @raise [Runtime::TypeMismatch] if `to` names no aggregate identity, carries the
-        #   wrong number of entity identities, contains a blank identity, is neither a String
-        #   nor a Hash, or names an unrecognized Hash key
         def route(to, entity_depth: 0)
           return nil if to.nil?
 
@@ -210,22 +147,8 @@ module Hecks
         # The offered facts for `declaring`, as Absent/Null/Present — offered
         # keys first, in offered order, then every declared attribute that was
         # not offered, as Absent.
-        #
-        # @param declaring [Bluebook::Command, Bluebook::PortOperation] the construct whose
-        #   `attributes` the facts are checked against
-        # @param with [Hash, nil] the command's facts, keyed by argument name
-        # @param legacy [Hash] loose keyword facts, read when `with` is falsy
-        # @return [Hash{Symbol => Hecks::Runtime::Invocation::Present,
-        #   Hecks::Runtime::Invocation::Null, Hecks::Runtime::Invocation::Absent}] each offered
-        #   key mapped to `Null` (nil value) or `Present` (real value), in offered order, plus
-        #   every declared attribute `with`/`legacy` did not offer, mapped to `Absent`
-        # @raise [Runtime::TypeMismatch] if `with:` is combined with a non-empty `legacy`, or
-        #   `with:` is not a Hash
-        # @raise [Runtime::UnknownArgument] if `with:` offers a key `declaring` does not
-        #   declare
-        # @raise [Runtime::AbsentArgument] if `with:` omits a non-optional declared attribute
-        def facts_for(declaring, with:, legacy:)
-          offered = offered_facts(declaring, with: with, legacy: legacy)
+        def facts_for(declaring, with:, flat:)
+          offered = offered_facts(declaring, with: with, flat: flat)
           facts = offered.each_with_object({}) do |(name, value), found|
             found[name] = value.nil? ? Null : Present.new(value: value)
           end
@@ -238,10 +161,10 @@ module Hecks
 
         private
 
-        # **The port operation shape**.
+        # **The port operation shape** — formerly `Dispatcher#port_invocation`.
         #
         # A Reference-typed attribute naming the owning aggregate is routing,
-        # not a fact: lifted out of the loose kwargs into `to:` when no `to:`
+        # not a fact: lifted out of the flat facts into `to:` when no `to:`
         # was given. A `to:`-declared operation carries no Reference
         # attribute at all (PortOperationBuilder#initialize's own comment),
         # so its receiver is read — not removed — from the plain attribute
@@ -251,31 +174,31 @@ module Hecks
         # with attribute"; a real AbsentArgument confirmed this before `[]`
         # replaced `delete`). Composite identity is not attempted — `.first`
         # only, no domain in the corpus needs more for a port operation.
-        def port_call(verb, aggregate, operation, to:, with:, legacy:)
-          legacy = legacy.dup
+        def port_call(verb, aggregate, operation, to:, with:, flat:)
+          flat = flat.dup
           identity = operation.identity_attribute(aggregate.hecks_name)
-          if to.nil? && identity && legacy.key?(identity.name)
-            to = legacy.delete(identity.name)
+          if to.nil? && identity && flat.key?(identity.name)
+            to = flat.delete(identity.name)
           elsif to.nil? && operation.to == aggregate.hecks_name
             identity_name = Array(aggregate.identified_by).first
-            to = legacy[identity_name] if identity_name && legacy.key?(identity_name)
+            to = flat[identity_name] if identity_name && flat.key?(identity_name)
           end
 
           target = route(to)
           raise TypeMismatch, "#{operation.hecks_name} requires its receiving aggregate in to:" unless target
 
-          new(verb: verb, target: target, facts: facts_for(operation, with: with, legacy: legacy))
+          new(verb: verb, target: target, facts: facts_for(operation, with: with, flat: flat))
         end
 
         # BUG#7 — a non-Hash `to:` must be a String, matching Rust's
         # `RoutingEnvelope::from_json` (kernel/routing.rs), which refuses
         # anything neither a JSON string nor object before the domain payload
         # is examined. Surfaced on `examples/roster`'s `Mark`, whose own
-        # attribute is literally named `to`: a flat-kwargs dispatch steals
-        # that key into this parameter, and without this check an
-        # out-of-range Integer would be accepted as the aggregate identity,
-        # leaving Mark's `to` fact absent (AbsentArgument in Ruby,
-        # TypeMismatch in Rust). See spec/runtime/routing_envelope_shape_spec.rb.
+        # attribute is literally named `to`: a flat-facts dispatch steals
+        # that key into this parameter, and an out-of-range Integer used to be
+        # accepted as the aggregate identity, leaving Mark's `to` fact absent
+        # (AbsentArgument in Ruby, TypeMismatch in Rust). See
+        # spec/runtime/routing_envelope_shape_spec.rb.
         def scalar_envelope(to)
           return [to, []] if to.is_a?(String)
 
@@ -292,12 +215,11 @@ module Hecks
 
         # BUG#18 — an entity route naming no entity (`entities: []`, or
         # neither key) refuses here, unconditionally, before entity_depth is
-        # consulted: for an aggregate-level command (depth 0), without this
-        # check `[].size == 0` would satisfy the depth check and let the
-        # degenerate Hash reach the command's own validation. Rust's
-        # `RoutingEnvelope::from_json` always refuses it at this point. A
-        # bare aggregate identity String remains the ordinary
-        # aggregate-command shape.
+        # consulted: for an aggregate-level command (depth 0) `[].size == 0`
+        # used to satisfy the depth check and let the degenerate Hash reach
+        # the command's own validation. Rust's `RoutingEnvelope::from_json`
+        # always refused it at this point. A bare aggregate identity String
+        # remains the ordinary aggregate-command shape.
         def entity_identities(hash)
           raise TypeMismatch, "to: takes entity: or entities:, not both" if hash.key?(:entities) && hash.key?(:entity)
 
@@ -309,16 +231,16 @@ module Hecks
 
         # `with:` is deliberately strict: a caller choosing the explicit
         # envelope cannot smuggle receiver identity back into the payload,
-        # and may not mix it with loose keyword arguments. Without `with:`
-        # (nil or false) the loose keyword arguments are the facts, unread —
+        # and may not mix it with a flat facts hash. Without `with:`
+        # (nil or false) the flat facts are the facts, unread —
         # whether `to:` was given never enters this decision (BUG#17).
-        def offered_facts(declaring, with:, legacy:)
-          if with && !legacy.empty?
+        def offered_facts(declaring, with:, flat:)
+          if with && !flat.empty?
             raise TypeMismatch,
-                  "dispatch takes command facts in with:, not both with: and loose keyword arguments"
+                  "dispatch takes command facts in with:, not both with: and a flat facts hash"
           end
 
-          return legacy unless with
+          return flat unless with
           raise TypeMismatch, "with: must be a hash of command facts" unless with.is_a?(Hash)
 
           offered = with.transform_keys(&:to_sym)

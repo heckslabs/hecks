@@ -19,13 +19,9 @@ module DoctestNames
 
   module_function
 
-  # Lists the narrative guides that carry runnable claims.
-  #
   # AUTHORING.md is the contract for writing these, and index.md is a
   # generated table of contents — neither is a document with claims of
   # its own to back.
-  #
-  # @return [Array<String>] absolute paths to every guide, plus `README.md`
   def guides
     (Dir.glob(File.join(ROOT, "docs/implemented/guides/*.md")) -
      [File.join(ROOT, "docs/implemented/guides/AUTHORING.md"),
@@ -33,18 +29,11 @@ module DoctestNames
       [File.join(ROOT, "README.md")]
   end
 
-  # Lists the DSL reference pages that carry runnable claims.
-  #
-  # @return [Array<String>] absolute paths to every reference page except its generated
-  #   `index.md`
   def reference
     Dir.glob(File.join(ROOT, "docs/implemented/reference/*.md")) -
       [File.join(ROOT, "docs/implemented/reference/index.md")]
   end
 
-  # Lists every document this gate holds to a runnable claim.
-  #
-  # @return [Array<String>] absolute paths to every guide and every reference page
   def all = guides + reference
 
   # Everything at docs/*.md (one level, not docs/implemented/, not the
@@ -93,41 +82,29 @@ module DoctestNames
     value-object-identity-and-relationships-plan.md
   ].freeze
 
-  # Finds any top-level doc this gate has not yet decided how to treat.
-  #
   # Empty means the exclusion above is still the complete, deliberate
   # list — a nonempty result means a new docs/*.md file landed and
   # nobody decided yet whether it belongs in `guides` (write it as a
   # narrative with real fences) or on the list above (a status/planning
   # document, exempt with the same reasoning as its neighbors).
-  #
-  # @return [Array<String>] basenames of every `docs/*.md` file not already in
-  #   `UNGATED_STATUS_DOCS`, sorted; `[]` when the list is still complete
   def unaccounted_top_level_docs
     Dir.glob(File.join(ROOT, "docs/*.md")).map { |path| File.basename(path) }.sort -
       UNGATED_STATUS_DOCS
   end
 
-  # Collects every chapter name each document invents, keyed by path.
-  #
-  # A document that instead `Kernel.load`s a real corpus file never writes that
+  # Every chapter name each document invents, keyed by path. A document
+  # that instead `Kernel.load`s a real corpus file never writes that
   # chapter's own `Hecks.bluebook` line itself, so it claims nothing and
   # any number of documents may share one corpus example safely — see
   # `Doctest.declared_domains` for why that is deliberate. It is also the
   # reason the reference pages prefer loading the corpus: 105 invented
   # chapters would be 105 names to keep distinct, and the corpus is
   # already the honest thing to document a shipped language with.
-  #
-  # @return [Hash{String => Array<String>}] every document's absolute path mapped to the
-  #   chapter names it declares itself; `[]` for a document that declares none
   def claims
     all.to_h { |path| [path, Doctest.declared_domains(Doctest.parse(path))] }
   end
 
   # Returns a list of sentences, empty when nothing collides.
-  #
-  # @return [Array<String>] one sentence per chapter name declared by more than one document,
-  #   naming both the offending document and the one that claimed it first; `[]` if none collide
   def collisions
     owners = {}
     claims.flat_map do |path, domains|
@@ -142,9 +119,5 @@ module DoctestNames
     end
   end
 
-  # Shortens an absolute path to one relative to the repository root, for a readable message.
-  #
-  # @param path [String] an absolute path under `ROOT`
-  # @return [String] `path` with the `ROOT` prefix removed
   def relative(path) = path.delete_prefix("#{ROOT}/")
 end

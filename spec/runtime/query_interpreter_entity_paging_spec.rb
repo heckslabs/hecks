@@ -56,8 +56,8 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
             attribute :price, Price
 
             # A dotted where and a dotted order_by, on the only engine
-            # entity queries have — bugs 2 and 1 above, respectively,
-            # reproduced together.
+            # entity queries have — element_where_holds? used to answer
+            # `[]` for this whatever the data, and offset was never read.
             query "ByPrice" do
               where("price.cents": { gt: 0 })
               order_by :"price.cents"
@@ -82,9 +82,8 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
           end
 
           # A dotted order_by on an ordinary, aggregate-level query —
-          # the third, sibling bug the header above describes, where the
-          # reference engine's own `ordered` read `record[field]` directly
-          # and landed on nil for every row.
+          # the reference engine's own `ordered` used to read
+          # `record[field]` directly and land on nil for every row.
           query "ByFeaturedPrice" do
             order_by :"featured_price.cents"
           end
@@ -100,12 +99,12 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
 
   let(:runtime) do
     boot.tap do |bound|
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b1" }, featured_price: { cents: 500 })
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b2" }, featured_price: { cents: 100 })
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b3" }, featured_price: { cents: 300 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b1" }, featured_price: { cents: 500 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b2" }, featured_price: { cents: 100 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b3" }, featured_price: { cents: 300 })
 
       [10, 20, 30, 40, 50].each do |cents|
-        bound.dispatch("EntityPaging::Board.AddItem", name: { value: "b1" }, price: { cents: cents })
+        bound.dispatch_flat("EntityPaging::Board.AddItem", name: { value: "b1" }, price: { cents: cents })
       end
     end
   end

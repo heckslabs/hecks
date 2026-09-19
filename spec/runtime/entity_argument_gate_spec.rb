@@ -1,13 +1,13 @@
 require "spec_helper"
 
-# H1 (docs/audits/2026-08-10-main-bug-audit.md) — a comment on the entity
-# dispatch path once claimed it "inherits its aggregate's own gate," but
-# ran neither `refuse_unknown_arguments` nor `refuse_absent_arguments` at
-# all. Nothing on that path ran one: a bogus argument was
+# H1 (docs/audits/2026-08-10-main-bug-audit.md) — an entity command used to
+# run neither `refuse_unknown_arguments` nor `refuse_absent_arguments` at
+# all, on a comment claiming it "inherits its aggregate's own gate."
+# Nothing on the entity dispatch path ever ran one: a bogus argument was
 # accepted outright, and a command that both declares an argument and
 # `sets` a field from it (`Advance`'s own `note`, below) silently wrote
 # `nil` over the stored value when that argument was simply omitted —
-# persisted data loss, no refusal. `EntityInterpreter` `include`s the
+# persisted data loss, no refusal. `EntityInterpreter` now `include`s the
 # same `CommandInterpreter::ArgumentGate` an aggregate command's own dispatch
 # already runs (entity_interpreter.rb's own H1 comment), extended with the
 # entity chain's own identity heads as addressing (`step_refuse_unknown_
@@ -31,7 +31,7 @@ RSpec.describe "an entity command's own argument gate" do
   end
 
   def open_widget(runtime)
-    runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "w1" }, amount: { value: 1 },
+    runtime.dispatch_flat("DispatchOrder::Widget.Open", label: { value: "w1" }, amount: { value: 1 },
                      part_sequence: { value: 1 }, part_note: { value: "first" })
   end
 
@@ -40,7 +40,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" }, bogus_arg: 123)
     end.to raise_error(Hecks::Runtime::UnknownArgument, /bogus_arg/)
   end
@@ -50,7 +50,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
     end.to raise_error(Hecks::Runtime::AbsentArgument, /note/)
 
     # **The regression itself** — confirm the refusal actually happened before
@@ -68,7 +68,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" })
     end.not_to raise_error
   end
@@ -78,7 +78,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Touch", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Touch", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "touched" }, sneaky: "x")
     end.to raise_error(Hecks::Runtime::UnknownArgument, /sneaky/)
   end

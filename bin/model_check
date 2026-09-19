@@ -23,12 +23,6 @@ require "hecks/bluebook/model_check"
 
 ROOT = File.expand_path("..", __dir__)
 
-# Boots one corpus member's bluebook(s) and its sibling hecksagon, if any,
-# into a fresh registry ready for `Hecks::Bluebook::ModelCheck.call`.
-#
-# @param source [String] a directory of `.bluebook` files, or one `.bluebook`
-#   file's path
-# @return [Runtime::Registry] the freshly booted registry
 def boot(source)
   registry = Hecks::Runtime::Registry.new
   Hecks.with_registry(registry) do
@@ -60,10 +54,8 @@ def boot(source)
   registry
 end
 
-# Runs the model checker over one already-booted target and prints its findings.
-#
 # `known_domains:` — every bluebook/hecksagon name booted anywhere across
-# this run, not just this one target — see the no-domain-arg branch below for
+# this run, not just this one target — see `boot_all`'s own comment for
 # how it's built. `nil` for the single-target CLI form (`bin/model_check
 # some/domain`), where only that one target's own boot is ever seen —
 # a real, accepted reduction in the cross-domain check's own reach for
@@ -73,13 +65,6 @@ end
 # same inference `Fuzzing::TargetCapabilities` makes for bin/qa_sweep), so
 # a `rust_reserved_name` finding is an error for it, not a warning.
 # `STRICT` (`--strict`) makes it an error for every target.
-#
-# @param name [String] the target's corpus stem, printed as a header
-# @param registry [Runtime::Registry] the target's already-booted registry
-# @param known_domains [Set<String>, nil] every bluebook/hecksagon name booted
-#   anywhere this run, or nil when only this one target was booted
-# @return [Boolean] true if the allowlist has no stale entries and every
-#   finding not on the allowlist is a warning, not an error
 def examine(name, registry, known_domains: nil)
   puts "── #{name}"
 
@@ -111,18 +96,12 @@ def examine(name, registry, known_domains: nil)
   errors.empty?
 end
 
-# Runs the model checker over the language's own meta chapters (`Bluebook`,
-# `World`) and prints their findings.
-#
 # The language, examined through the same door its own conformance specs
 # use — not a standalone Kernel.load of one grammar file. The nine
 # GRAMMAR_FILES only assemble into one real "Bluebook" chapter together
 # (they all open `Hecks.bluebook "Bluebook" do`), and grammar_registry is
 # the judged, fixpointed graph — booting any one of them alone would
 # check a ninth of the language and call it clean.
-#
-# @return [Boolean] true if every meta chapter's findings are all warnings,
-#   never errors
 def examine_language
   ok = true
   %w[Bluebook World].each do |name|

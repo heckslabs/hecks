@@ -122,11 +122,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::tenant_ledger::ledger::OpenArgs::from_json(facts_json)?;
-                      args.code.check_invariants()?;
-                      args.region.check_invariants()?;
-              crate::kernel::check_role_via(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::tenant_ledger::ledger::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::tenant_ledger::ledger::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::tenant_ledger::ledger::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::tenant_ledger::ledger::OpenArgs::from_json(v)?; args.code.check_invariants()?; args.region.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::tenant_ledger::ledger::OpenArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::tenant_ledger::ledger::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::tenant_ledger::ledger::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::tenant_ledger::ledger::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::tenant_ledger::ledger::OpenArgs::from_json(v)?; args.code.check_invariants()?; args.region.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::tenant_ledger::ledger::OpenArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -137,33 +133,8 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CreditArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["amount_cents", "sequence", "reference", "id", "ledger", "code"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Credit",
-        unknown: &unknown,
-        declared: &["amount_cents", "sequence", "reference"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["amount_cents", "reference", "sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Credit",
-        absent: &absent,
-        declared: &["amount_cents", "sequence", "reference"],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Credit", aggregate: "Ledger", identity: "code.value" }.render_args()))?, };
-              let args = crate::generated::tenant_ledger::ledger::CreditArgs::from_json(facts_json)?;
-                      args.amount_cents.check_invariants()?;
-                      args.sequence.check_invariants()?;
-                      args.reference.check_invariants()?;
-              crate::kernel::check_role_via(Some("System"), "Credit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::tenant_ledger::ledger::CreditArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::tenant_ledger::ledger::CreditArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::tenant_ledger::ledger::CreditArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::tenant_ledger::ledger::CreditArgs::from_json(v)?; args.amount_cents.check_invariants()?; args.sequence.check_invariants()?; args.reference.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "Credit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::tenant_ledger::ledger::CreditArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::tenant_ledger::ledger::CreditArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::tenant_ledger::ledger::CreditArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::tenant_ledger::ledger::CreditArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::tenant_ledger::ledger::CreditArgs::from_json(v)?; args.amount_cents.check_invariants()?; args.sequence.check_invariants()?; args.reference.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "Credit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::tenant_ledger::ledger::CreditArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Credit", aggregate: "Ledger", identity: "code.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -174,13 +145,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::tenant_ledger::transfer::RequestArgs::from_json(facts_json)?;
-                      args.reference.check_invariants()?;
-                      args.region.check_invariants()?;
-                      args.amount_cents.check_invariants()?;
-              crate::kernel::check_role_via(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
-              crate::kernel::check_reference(&store.ledger, &args.ledger, "Ledger", "code")?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::tenant_ledger::transfer::RequestArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::tenant_ledger::transfer::RequestArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::tenant_ledger::transfer::RequestArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::tenant_ledger::transfer::RequestArgs::from_json(v)?; args.reference.check_invariants()?; args.region.check_invariants()?; args.amount_cents.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::tenant_ledger::transfer::RequestArgs| { crate::kernel::check_reference(&store.ledger, &args.ledger, "Ledger", "code")?; Ok(()) } })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::tenant_ledger::transfer::RequestArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::tenant_ledger::transfer::RequestArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::tenant_ledger::transfer::RequestArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::tenant_ledger::transfer::RequestArgs::from_json(v)?; args.reference.check_invariants()?; args.region.check_invariants()?; args.amount_cents.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::tenant_ledger::transfer::RequestArgs| { crate::kernel::check_reference(&store.ledger, &args.ledger, "Ledger", "code")?; Ok(()) } })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = (|| -> Result<(), crate::kernel::Refusal> { if let Some(record) = store.ledger.find(&args.ledger) { if let Some(target_tenant) = record.region.as_ref().map(|v| v.value.clone()) { let own_tenant = args.region.value.clone(); if target_tenant != own_tenant { return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::refusal_wording::UnauthorizedCrossTenantReferenceArgs { aggregate: "Transfer", field: "region", tenant: &format!("{:?}", own_tenant), attribute: "ledger", target: "Ledger", target_field: "region", other: &format!("{:?}", target_tenant) }.render_args())); } } } Ok(()) })();
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "ledger", as_name: "ledger", target: "TenantLedger::Ledger" }], &args);
@@ -191,13 +156,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::governance::roleassignment::AssignArgs::from_json(facts_json)?;
-                      args.actor_id.check_invariants()?;
-                      args.role_name.check_invariants()?;
-                      args.scope.check_invariants()?;
-                      args.starts_at.check_invariants()?;
-              crate::kernel::check_role_via(Some("Governance administrator"), "Assign", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roleassignment::AssignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roleassignment::AssignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roleassignment::AssignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roleassignment::AssignArgs::from_json(v)?; args.actor_id.check_invariants()?; args.role_name.check_invariants()?; args.scope.check_invariants()?; args.starts_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Assign", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roleassignment::AssignArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roleassignment::AssignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roleassignment::AssignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roleassignment::AssignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roleassignment::AssignArgs::from_json(v)?; args.actor_id.check_invariants()?; args.role_name.check_invariants()?; args.scope.check_invariants()?; args.starts_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Assign", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roleassignment::AssignArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -208,31 +167,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("RevokeArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["ends_at", "id", "role_assignment", "actor_id", "role_name", "starts_at"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Revoke",
-        unknown: &unknown,
-        declared: &["ends_at"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["ends_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Revoke",
-        absent: &absent,
-        declared: &["ends_at"],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Revoke", aggregate: "RoleAssignment", identity: "actor_id.value, role_name.value, starts_at.value" }.render_args()))?, };
-              let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(facts_json)?;
-                      args.ends_at.check_invariants()?;
-              crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roleassignment::RevokeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roleassignment::RevokeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roleassignment::RevokeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(v)?; args.ends_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roleassignment::RevokeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roleassignment::RevokeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roleassignment::RevokeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roleassignment::RevokeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(v)?; args.ends_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roleassignment::RevokeArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Revoke", aggregate: "RoleAssignment", identity: "actor_id.value, role_name.value, starts_at.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -243,12 +179,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::governance::roletransition::GrantArgs::from_json(facts_json)?;
-                      args.from_role.check_invariants()?;
-                      args.to_role.check_invariants()?;
-                      args.starts_at.check_invariants()?;
-              crate::kernel::check_role_via(Some("Governance administrator"), "Grant", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roletransition::GrantArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roletransition::GrantArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roletransition::GrantArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roletransition::GrantArgs::from_json(v)?; args.from_role.check_invariants()?; args.to_role.check_invariants()?; args.starts_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Grant", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roletransition::GrantArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roletransition::GrantArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roletransition::GrantArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roletransition::GrantArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roletransition::GrantArgs::from_json(v)?; args.from_role.check_invariants()?; args.to_role.check_invariants()?; args.starts_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Grant", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roletransition::GrantArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -259,31 +190,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("RevokeArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["ends_at", "id", "role_transition", "from_role", "to_role", "starts_at"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Revoke",
-        unknown: &unknown,
-        declared: &["ends_at"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["ends_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Revoke",
-        absent: &absent,
-        declared: &["ends_at"],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Revoke", aggregate: "RoleTransition", identity: "from_role.value, to_role.value, starts_at.value" }.render_args()))?, };
-              let args = crate::generated::governance::roletransition::RevokeArgs::from_json(facts_json)?;
-                      args.ends_at.check_invariants()?;
-              crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roletransition::RevokeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roletransition::RevokeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roletransition::RevokeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roletransition::RevokeArgs::from_json(v)?; args.ends_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roletransition::RevokeArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::governance::roletransition::RevokeArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::governance::roletransition::RevokeArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::governance::roletransition::RevokeArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::governance::roletransition::RevokeArgs::from_json(v)?; args.ends_at.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::governance::roletransition::RevokeArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Revoke", aggregate: "RoleTransition", identity: "from_role.value, to_role.value, starts_at.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -294,30 +202,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("EntryAnnotateEntityArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["note", "id", "code", "sequence", "reference"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Annotate",
-        unknown: &unknown,
-        declared: &["note"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Annotate",
-        absent: &absent,
-        declared: &["note"],
-    }.render_args()));
-}
- } let _args_precheck = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Ledger's Entry — pass code.value:".to_string()))?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?;
-                      args.note.check_invariants()?;
-              crate::kernel::check_role_via(Some("Auditor"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              if let Some(route) = route { route.require_depth(1)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(v)?; args.note.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Auditor"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs| Ok(()) })?;
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Ledger's Entry — pass code.value:".to_string()))?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &parent_id) { command_deref.push(("parent", parent_node)); }

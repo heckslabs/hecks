@@ -125,7 +125,7 @@ RSpec.describe "a policy projecting its emitter's identity" do
 
   it "addresses another aggregate by the identity of the record that emitted the event" do
     runtime = boot_board({ label: :label, id: :id })
-    runtime.dispatch("Boards::Board.Create", label: { value: "g" })
+    runtime.dispatch_flat("Boards::Board.Create", label: { value: "g" })
     runtime.dispatch("Boards::Board.Place", to: "g", with: { id: "p1" })
     runtime.dispatch("Boards::Board.CapturePiece", to: "g", with: { id: "p1" })
 
@@ -138,7 +138,7 @@ RSpec.describe "a policy projecting its emitter's identity" do
 
   it "never lets the identity shadow a field the payload itself carries" do
     runtime = boot_board({ label: :label, id: :id })
-    runtime.dispatch("Boards::Board.Create", label: { value: "g" })
+    runtime.dispatch_flat("Boards::Board.Create", label: { value: "g" })
     runtime.dispatch("Boards::Board.Place", to: "g", with: { id: "p1" })
     runtime.dispatch("Boards::Board.CapturePiece", to: "g", with: { id: "p1" })
 

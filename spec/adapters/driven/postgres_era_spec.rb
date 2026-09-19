@@ -78,14 +78,12 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   # RepositoryFactory#build always merges `era: registry.resolved_eras[domain]`
   # into settings — genuinely present, not absent, holding plain `nil` for any
-  # domain the era boot gate hasn't resolved yet. Reading `:era` through
-  # `PostgresEra.setting`'s presence-over-truthiness discipline (correct for
-  # :role, where a stored `false` is real) would return that stored `nil`
-  # verbatim instead of falling back to `@lineage.current_era` — @era would
-  # become nil, era.to_i (field_cache.rb) would coerce it to 0, and every
-  # self-healing table would mint at "era 0" instead of era 1, breaking the
-  # very first boot of a fresh domain. `@era` is coalesced directly instead,
-  # not read through `setting`.
+  # domain the era boot gate hasn't resolved yet. `PostgresEra.setting`'s
+  # presence-over-truthiness discipline (correct for :role, where a stored
+  # `false` is real) used to return that stored `nil` verbatim instead of
+  # falling back to `@lineage.current_era` — @era became nil, era.to_i (field_
+  # cache.rb) coerced it to 0, and every self-healing table got minted at
+  # "era 0" instead of era 1, breaking the very first boot of a fresh domain.
   it "resolves era 1 (not nil, not 0) when settings carry an explicit era: nil, the RepositoryFactory#build shape" do
     described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, era: nil })
 
@@ -102,20 +100,17 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   # ensure_base! (provisioning.rb) runs on every boot, not only the first —
   # a domain's Nth reboot re-provisions the same base unconditionally. Two
-  # of its statements would be reissued with no guard at all if run naively
+  # of its statements used to be reissued with no existence guard at all
   # (install_transforms!'s six create or replace FUNCTIONs; the journal's
   # REVOKE UPDATE, DELETE FROM public), unlike the RLS ALTER TABLE calls in
-  # the same method, which read current state first for exactly
+  # the same method, which already read current state first for exactly
   # this reason ("Postgres does not skip the lock just because the
-  # statement would be a no-op"). `install_transforms!` takes its own
-  # advisory lock, and the REVOKE only runs while `relacl` is still NULL,
-  # because two real sessions reissuing either would race Postgres's own
-  # catalog MVCC into `PG::InternalError: tuple concurrently updated`.
-  # Real threads, real separate PG connections (each
+  # statement would be a no-op"). Two real sessions reissuing either
+  # raced Postgres's own catalog MVCC into `PG::InternalError: tuple
+  # concurrently updated`. Real threads, real separate PG connections (each
   # `described_class.new` opens its own) — not a synthetic simulation.
   it "boots the same already-provisioned domain from many concurrent connections without a catalog race" do
-    # establishes the base once
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB }) # establishes the base once
 
     errors = []
     threads = Array.new(10) do
@@ -334,9 +329,9 @@ status: "sold"))
     # NOTE: on semantics, not just mechanics: `contains` on a plain scalar
     # field means substring everywhere now — the reference (in-memory)
     # interpreter's `contains?` (query_interpreter.rb) reads the same way,
-    # rather than reading `contains` as CSV/list membership even for a
-    # scalar (which would agree with this SQL substring search only by
-    # coincidence on a comma-free field). See
+    # having previously read `contains` as CSV/list membership even for a
+    # scalar, which agreed with this SQL substring search only by
+    # coincidence on a comma-free field. See
     # spec/adapters/query_agreement_spec.rb's "carries a comma" case for
     # the cross-engine proof. This test verifies only that PostgresEra's own
     # compilation (a value-object member would also need query_value's

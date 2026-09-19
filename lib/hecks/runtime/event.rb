@@ -17,19 +17,14 @@ module Hecks
       # alone would leave every value in it editable in place, which is
       # the shape all four previous freezing bugs had.
       #
-      # Freezes the payload, the correlation, and the event itself, so it can be logged.
-      #
-      # The whole event, not just its payload. Correlation is set at
-      # construction, not merged onto an already-emitted event by
-      # `Dispatcher#dispatch` — merging after the fact is what would keep
-      # an event writable after it had happened. Setting it at
-      # construction works because correlation is part of the transaction,
-      # known from `dispatch`'s own argument before anything is emitted.
+      # The whole event, not just its payload. Correlation used to be
+      # merged onto already-emitted events by `Dispatcher#dispatch`, which
+      # is what kept an event writable after it had happened; it is set at
+      # construction now, because it is part of the transaction and known
+      # from `dispatch`'s own argument before anything is emitted.
       #
       # The log stays appendable: new events are still recorded. It is
       # each event that stops changing once it exists.
-      #
-      # @return [Hecks::Runtime::Event] this event, frozen
       def emit!
         Freezer.deep(payload)
         Freezer.deep(correlation)

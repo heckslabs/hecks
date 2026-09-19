@@ -8,12 +8,11 @@ module Hecks
       # What a construct needs that the language cannot say, and how a claim that a
       # field needs no assembling is checked.
       #
-      # `derived:` names a kind for each claim rather than listing bare field names —
-      # a bare list of names is a promise with nobody holding it. A coverage gate
-      # that only asks whether a field is accounted for would let `derived:
-      # %i[version]` satisfy it while a chapter's version silently drops, which is
-      # the exact shape of every defect this arc has found. Naming a field derived
-      # is a claim, and a claim needs a kind:
+      # `derived:` used to be a list of names, and a list of names is a promise with
+      # nobody holding it. The coverage gate only asked whether a field was accounted
+      # for — so writing `derived: %i[version]` would have satisfied it while dropping
+      # a chapter's version in silence, which is the exact shape of every defect this
+      # arc has found. Naming a field derived is a claim, and a claim needs a kind:
       #
       #   :parent            the containment tree supplies it — a `*_id`, or one of
       #                      the named pointers below. Checked against the name.
@@ -33,11 +32,6 @@ module Hecks
         # shape, because a list needs a reader per element and a folded field is
         # gathered rather than fetched. Same pattern as `rows`, in the other
         # direction: declare the exceptions, default the rest.
-        #
-        # @param key [Symbol] the declaration key to look up a reader for
-        # @return [Symbol, Array, nil] the reader spec `Build.read` decodes (`:plain`,
-        #   `:identity`, `:flag`, `[:each, marks_method]`, `[:option, name]`, or a bare
-        #   `Marks` method name), or `nil` for the default single-cell reader
         def reader(key) = Hash(reads)[key.to_sym]
 
         # How an appendable list becomes rows the walk can offer. A list absent from
@@ -45,25 +39,10 @@ module Hecks
         # because the IR keeps a shape the language does not — a transition whose
         # `from` is a list is several rows, an append binds several fields at once,
         # an open map is one row per entry.
-        #
-        # @param list [Symbol] the list field's name
-        # @return [Symbol, nil] the `Marks` method that shapes `list`'s rows, or `nil`
-        #   to read the list straight off the node
         def shaper(list) = Hash(rows)[list.to_sym]
 
-        # Says whether this contract's construct declares a field.
-        #
-        # @param field [Symbol] the field to check
-        # @return [Boolean] whether this contract's construct declares `field`, either
-        #   as a language field or as a derived claim
         def declares?(field) = fields.key?(field) || derived.key?(field)
 
-        # Looks up the derived kind claimed for a field.
-        #
-        # @param field [Symbol] the field to look up
-        # @return [Symbol, Array, nil] the derived kind claimed for `field` — `:parent`,
-        #   `:children`, `[:computed, method]`, `[:folded, keys]`, `:elsewhere`, `:walk` —
-        #   or `nil` if `field` is not a derived claim
         def kind_of(field) = derived[field]
 
         # The fields the walk supplies — every `derived: { field => :walk }` claim.
@@ -71,27 +50,20 @@ module Hecks
         # judge can order siblings, but no constructor takes one. This is the one
         # place that fact is stated ; `Specializer` and `Model::Deviations` read it
         # here rather than each keeping their own `%i[position]`.
-        #
-        # @return [Array<Symbol>] every field this contract claims the walk supplies
         def walked = derived.select { |_field, kind| kind == :walk }.keys
 
         # Where a folded field actually lives, as [object, member].
         #
         # `[:folded, :lifecycle, :field]` says the language's `state_field` is the
-        # `field` of the IR's one Lifecycle. That is the same fact `Readings` would
-        # otherwise have to state a second time as `node.lifecycle&.field` — saying it
-        # once here drives both directions: the walk reads the member on the way in,
-        # and the reconstruction gathers the members back into the object on the way
-        # out.
+        # `field` of the IR's one Lifecycle. That is the same fact `Readings` used to
+        # state a second time as `node.lifecycle&.field` — so saying it once here
+        # drives both directions: the walk reads the member on the way in, and the
+        # reconstruction gathers the members back into the object on the way out.
         #
         # A nil member means the fold has no single member to name — `rows` is a
         # count of what `closed_set` and `members` hold between them, and `options`
         # spreads across eight keys. Those keep their own code, and the gate still
         # checks the object they name is real.
-        #
-        # @param field [Symbol] the field to look up
-        # @return [Array(Symbol, Symbol), nil] `[holder_field, member]` naming where a
-        #   folded field actually lives, or `nil` if `field` is not a `:folded` claim
         def folded(field)
           kind = derived[field]
           return nil unless kind.is_a?(Array) && kind.first == :folded
@@ -109,10 +81,6 @@ module Hecks
         #
         # So a computed field is one the holder answers and the constructor does not
         # accept. `query_name` qualifies (`Naming.snake(name)`) ; `version` cannot.
-        #
-        # @param method [Symbol] the field's name, asked as a method
-        # @return [Boolean] whether the holder answers `method` but its constructor
-        #   does not accept it as a keyword
         def computes?(method)
           return false unless holder
           return false unless answers?(method)
@@ -120,20 +88,10 @@ module Hecks
           !accepts?(method)
         end
 
-        # Says whether the holder answers a method at all.
-        #
-        # @param method [Symbol] the method name to check
-        # @return [Boolean] whether the holder (its class, for `:declare`; its
-        #   instances, for `:new`) responds to `method`
         def answers?(method)
           make == :declare ? holder.respond_to?(method) : holder.method_defined?(method)
         end
 
-        # Says whether the holder's builder accepts a keyword argument.
-        #
-        # @param keyword [Symbol] the keyword to check
-        # @return [Boolean] whether the holder's builder (`.declare` or `#initialize`)
-        #   accepts `keyword` as a required or optional keyword argument
         def accepts?(keyword)
           builder = make == :declare ? holder.method(:declare) : holder.instance_method(:initialize)
 
@@ -151,19 +109,13 @@ module Hecks
       #   owner                 Entity's own text twin of that link, which is why
       #                         Entity's contract claims `owner: :parent`
       #
-      # A hand-maintained list here that drifts from the model's own copy is a
-      # silent failure mode this arc has already found once: `shape` and `handler`
-      # were Member's and Dispatch's own parent fields before S17 (ADR 0026) made
-      # both nested entities, and nothing noticed the two lists had stopped
-      # agreeing. spec/assembly_spec now derives this set from `Plan` and the
-      # contracts instead, and fails on any drift.
+      # It used to read `%i[owner shape handler]` here while the model's copy read
+      # `owner aggregate bluebook`: `shape` and `handler` were Member's and
+      # Dispatch's parent fields before S17 (ADR 0026) made both nested entities,
+      # and nothing noticed the two lists had stopped agreeing. spec/assembly_spec
+      # now derives this set from `Plan` and the contracts and fails on any drift.
       PARENT_POINTERS = %i[aggregate bluebook owner].freeze
 
-      # Says whether a field is a bare pointer at a parent construct.
-      #
-      # @param field [Symbol, String] the field to check
-      # @return [Boolean] whether `field` is a bare parent pointer — named in
-      #   `PARENT_POINTERS`, or ending in `_id`
       def self.parent_pointer?(field)
         field.to_s.end_with?("_id") || PARENT_POINTERS.include?(field.to_sym)
       end
@@ -179,12 +131,6 @@ module Hecks
         Bluebook: %i[normalisations]
       }.freeze
 
-      # Says whether a field is allow-listed to describe something other than its
-      # own construct.
-      #
-      # @param category [Symbol, String] the construct category's name
-      # @param field [Symbol] the field to check
-      # @return [Boolean] whether `field` is allow-listed as `:elsewhere` for `category`
       def self.elsewhere?(category, field)
         Array(ELSEWHERE[category.to_sym]).include?(field)
       end

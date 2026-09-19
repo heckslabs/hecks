@@ -26,9 +26,9 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
   end
 
   def rent_box(runtime)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c1",
+    runtime.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c1",
                      branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
                      size: { value: "small" })
   end
@@ -38,7 +38,7 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
     rent_box(runtime)
 
     expect do
-      runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
+      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
                        date: { value: "2026-08-16" }, sequence: { value: 1 }, note: { text: "" })
     end.to raise_error(Hecks::Runtime::InvariantViolation, /Visit refused.*a written note is not blank/)
   end
@@ -48,7 +48,7 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
     rent_box(runtime)
 
     expect do
-      runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
+      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
                        date: { value: "2026-08-16" }, sequence: { value: 1 })
     end.not_to raise_error
   end
@@ -58,7 +58,7 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
     rent_box(runtime)
 
     expect do
-      runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
+      runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
                        date: { value: "2026-08-16" }, sequence: { value: 1 }, note: { text: "Vault officer inspected the lock." })
     end.not_to raise_error
   end

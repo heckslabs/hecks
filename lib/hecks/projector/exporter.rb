@@ -13,18 +13,10 @@ module Hecks
     module Exporter
       module_function
 
-      # Exports every booted bluebook's own canonical IR.
-      #
-      # @param registry [Runtime::Registry] the booted registry to export
-      # @return [Hash{String => Hash}] each domain name, mapped to its bluebook's `to_h`
       def call(registry)
         registry.bluebooks.transform_values(&:to_h)
       end
 
-      # Exports every booted bluebook's own canonical IR as JSON.
-      #
-      # @param registry [Runtime::Registry] the booted registry to export
-      # @return [String] `call`'s output, as pretty-printed JSON
       def json(registry)
         JSON.pretty_generate(call(registry))
       end
@@ -50,12 +42,6 @@ module Hecks
       # already answers for a domain with nothing lineage-capable bound —
       # `capable_aggregates: []` — rather than raising on an undefined
       # constant.
-      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-      # @param domain_name [String] the domain to check era-adapter lineage capability for
-      # @return [Hash{Symbol => Array<Hash{Symbol => String}>}] `:capable_aggregates`,
-      #   each a `:name`/`:storage_name` Hash; empty when the era plugin is unloaded or
-      #   nothing this domain binds is lineage-capable
-      # @raise [KeyError] if `domain_name` is not a loaded domain
       def lineage(registry, domain_name)
         return { capable_aggregates: [] } unless Ports::Persistence.plugin?(:era)
 
@@ -82,13 +68,6 @@ module Hecks
       # today), rather than silently building up a second, disjoint
       # history nothing but Rust ever reads while the real state stays
       # wherever its own adapter actually wrote it.
-      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-      # @param domain_name [String] the domain to export persistence bindings for
-      # @return [Hash{Symbol => Array<Hash{Symbol => Object}>}] `:aggregates`, each a
-      #   `:name`/`:storage_name`/`:adapter` Hash
-      # @raise [KeyError] if `domain_name` is not a loaded domain
-      # @raise [Runtime::WiringError] if an aggregate has no authoritative bind, more
-      #   than one, or a bind with a role this port does not support
       def persistence(registry, domain_name)
         bluebook = registry.bluebooks.fetch(domain_name)
         aggregates = bluebook.aggregates.map do |aggregate|
@@ -106,12 +85,6 @@ module Hecks
       # "authorization"`), with that chapter's declared verbs qualified.
       # `rust/host` (auth.rs) reads this instead of naming Governance.
       # `{}` when nothing this domain attaches provides authorization.
-      # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-      # @param domain_name [String] the domain to export the authorization binding for
-      # @return [Hash{Symbol => String, nil}] `:provider` (name), `:grant`, `:assignments`
-      #   (both provided-verb names), and `:assignment_aggregate` (`:assignments`' own
-      #   leading aggregate name); `{}` if nothing this domain attaches provides
-      #   authorization
       def authorization(registry, domain_name)
         provider = registry.authorization_provider_for(domain_name)
         return {} unless provider
@@ -134,19 +107,10 @@ module Hecks
       # separate). `values:` tables serialize as `[key, value]` pairs,
       # never an object, because JSON object keys are always strings and
       # a convert's keys are typed.
-      # @param registry [Runtime::Registry] the booted registry to export translations from
-      # @return [Array<Hash>] every registered translation, as `compiled_translation_hash`
-      #   builds
       def translations(registry)
         registry.translations.map { |translation| compiled_translation_hash(translation) }
       end
 
-      # Exports one translation, its aggregates' compiled SQL included.
-      #
-      # @param translation [Bluebook::Translation] the translation to export
-      # @return [Hash{Symbol => Object}] `:domain` (String), `:from`/`:to` (the era
-      #   identifiers as declared), `:retired` (`Array<String>`), and `:aggregates`
-      #   (each `compiled_translation_aggregate`'s own Hash)
       def compiled_translation_hash(translation)
         {
           domain:     translation.domain,
@@ -157,10 +121,6 @@ module Hecks
         }
       end
 
-      # Exports every registered translation as JSON.
-      #
-      # @param registry [Runtime::Registry] the booted registry to export translations from
-      # @return [String] `translations`' output, as pretty-printed JSON
       def translations_json(registry)
         JSON.pretty_generate(translations(registry))
       end
@@ -176,10 +136,6 @@ module Hecks
       # reviewed never changed at all. The approval binds to what was
       # declared, not to what a particular compiler build happened to
       # emit from it.
-      # @param translation [Bluebook::Translation] the translation to digest
-      # @return [Hash{Symbol => Object}] `:domain` (String), `:from`/`:to` (the era
-      #   identifiers as declared), `:retired` (`Array<String>`), and `:aggregates`
-      #   (each `translation_aggregate`'s own Hash)
       def translation_hash(translation)
         {
           domain:     translation.domain,
@@ -190,14 +146,6 @@ module Hecks
         }
       end
 
-      # Digests one aggregate's own declared translation rules.
-      #
-      # @param aggregate [Bluebook::TranslationAggregate] the aggregate's own
-      #   translation rules to digest
-      # @return [Hash{Symbol => Object}] `:name` (String), `:was` (String, nil),
-      #   `:renames` (`Hash{String => String}`), `:moves`/`:converts`/`:retypes`/
-      #   `:computes`/`:rekeys`/`:backfills` (each an `Array<Hash>`), `:drops`
-      #   (`Array<String>`)
       def translation_aggregate(aggregate)
         {
           name:      aggregate.name,
@@ -210,14 +158,17 @@ module Hecks
           drops:     aggregate.drops.map(&:to_s),
           retypes:   aggregate.retypes.map { |retype| { from: retype.from, to: retype.to } },
           computes:  aggregate.computes.map { |compute| { from: compute.from, to: compute.to, sql: compute.sql } },
-          # **`rekeys`/`backfills` are digest-relevant too.** Without them, an
-          # edge carrying only a rekey (no compute) would bind its approval
-          # to nothing rekey-specific: any two rekey edges with otherwise-
-          # identical renames/moves/converts/drops/retypes/computes would
-          # produce the same digest regardless of what their `rekey sql:`
-          # actually said, letting a rekey's own SQL change without
-          # invalidating an existing approval. Same reasoning covers
-          # `backfills`.
+          # **Previously missing** — found live while planning Rust-side mint
+          # support. An edge carrying only a rekey (no compute) had its
+          # approval bind to nothing rekey-specific at all: any two
+          # rekey edges with otherwise-identical renames/moves/converts/
+          # drops/retypes/computes produced the same digest regardless
+          # of what their `rekey sql:` actually said, and a rekey's own
+          # SQL could change without invalidating an existing approval.
+          # Same bug shape for `backfills` (present, just never
+          # exported). Fixing this changes every existing rekey/
+          # backfill edge's digest — any approval already recorded for
+          # one is invalidated by this fix and must be re-reviewed.
           rekeys:    aggregate.rekeys.map { |rekey| { sql: rekey.sql } },
           backfills: aggregate.backfills.map { |backfill| { name: backfill.name.to_s, default: backfill.default } }
         }
@@ -246,11 +197,6 @@ module Hecks
       # declared-rules shape, just without precompiled SQL to execute —
       # consistent with there being no mint/audit machinery to run it
       # against either.
-      # @param aggregate [Bluebook::TranslationAggregate] the aggregate's own
-      #   translation rules to compile and export
-      # @return [Hash{Symbol => Object}] `translation_aggregate`'s own Hash, plus
-      #   `:compiled_state_expression` (String) and `:compiled_id_expression`
-      #   (String, nil) when the era persistence plugin is loaded
       def compiled_translation_aggregate(aggregate)
         return translation_aggregate(aggregate) unless Ports::Persistence.plugin?(:era)
 

@@ -9,7 +9,7 @@ require_relative "../../rust/project"
 # al.) each declare an argument coincidentally named the same as one of
 # their owner's `identified_by` components (both have a field called
 # `name`) while never setting the owner's own field — their one mutation
-# appends that argument into a list, sourced by it, which would otherwise fool
+# appends that argument into a list, sourced by it, which used to fool
 # `identity_components`'s bare-name check into treating it as the owner's
 # own id and misassigning it into the wrong-typed identity slot.
 #

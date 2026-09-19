@@ -18,9 +18,6 @@ module Hecks
                   :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex,
                   :saga_dispatch_log, :policy_dispatch_log
 
-      # @param root [String, nil] the project root a `Loader` boot resolves shared
-      #   ports/adapters from; nil outside a `Loader` boot
-      # @return [void]
       def initialize(root: nil)
         @root         = root
         @bluebooks    = {}
@@ -115,11 +112,6 @@ module Hecks
       # several files (`language/bluebook/*.bluebook`, all `Hecks.bluebook "Bluebook"`)
       # needs its declarations to accumulate into one builder rather than each
       # file minting its own and silently discarding the one before.
-      #
-      # @param name [String, Symbol] the chapter name
-      # @yield builds a fresh builder, called only on this chapter's first request
-      # @yieldreturn [Bluebook::DSL::BluebookBuilder] the fresh builder to hold onto
-      # @return [Bluebook::DSL::BluebookBuilder] the builder for `name`, memoized across calls
       def bluebook_builder(name)
         @bluebook_builders[name.to_s] ||= yield
       end
@@ -138,9 +130,6 @@ module Hecks
       # registry/saga_persistence.rb) there is no concurrent caller for
       # `Hecks/ThreadSharedIvarMutation` to actually be warning about here.
       # rubocop:disable Hecks/ThreadSharedIvarMutation
-      #
-      # @param item [Bluebook::Chapter] the built chapter to register
-      # @return [Bluebook::Chapter] `item`
       def add_bluebook(item) = @bluebooks[item.name] = item
 
       # Merged, not replaced — recovered, not new (see Runtime::Loader
@@ -149,25 +138,12 @@ module Hecks
       # plus an `environments/<name>.hecksagon` overlay), and the second
       # block should add to what the first declared, not silently
       # discard it.
-      #
-      # @param item [Bluebook::Hecksagon] the built hecksagon to register or merge
-      # @return [Bluebook::Hecksagon] the stored hecksagon: `item`, or the merge of `item`
-      #   with any hecksagon already registered for `item.domain`
       def add_hecksagon(item)
         existing = @hecksagons[item.domain]
         @hecksagons[item.domain] = existing ? merge_hecksagons(existing, item) : item
       end
 
-      # Registers a built port, keyed by name.
-      #
-      # @param item [Bluebook::Port, Bluebook::DomainPort] the built port to register
-      # @return [Bluebook::Port, Bluebook::DomainPort] `item`
       def add_port(item) = @ports[item.name] = item
-
-      # Registers a built adapter, keyed by name.
-      #
-      # @param item [Bluebook::Adapter] the built adapter to register
-      # @return [Bluebook::Adapter] `item`
       def add_adapter(item) = @adapters[item.name] = item
 
       # Merged, not replaced — the same generalization for `World` that
@@ -180,20 +156,11 @@ module Hecks
       # bare verb key and the `"verb:adapter"` qualified key point at the
       # same resolved hash) — an overlay's key wins over the base's same
       # key; a key only the base declares survives untouched.
-      #
-      # @param item [Bluebook::World] the built world to register or merge
-      # @return [Bluebook::World] the stored world: `item`, or the merge of `item` with any
-      #   world already registered for `item.domain`
       def add_world(item)
         existing = @worlds[item.domain]
         @worlds[item.domain] = existing ? merge_worlds(existing, item) : item
       end
 
-      # Registers a built translation.
-      #
-      # @param item [Bluebook::Translation] the built translation to register
-      # @return [Array<Bluebook::Translation>] every translation registered so far, `item`
-      #   included
       def add_translation(item) = @translations << item
       # rubocop:enable Hecks/ThreadSharedIvarMutation
 
@@ -209,31 +176,10 @@ module Hecks
       # an old checkout only — see `initialize`'s own comment on it.
       attr_reader :superseded_eras
 
-      # Looks up a registered chapter by name.
-      #
-      # @param name [String, Symbol] the chapter name
-      # @return [Bluebook::Chapter, nil] the registered chapter, or nil if none is registered
-      #   under that name
       def bluebook(name)  = @bluebooks[name.to_s]
-
-      # Looks up a registered hecksagon by domain name.
-      #
-      # @param name [String, Symbol] the domain name
-      # @return [Bluebook::Hecksagon, nil] the registered hecksagon, or nil if none is
-      #   registered for that domain
       def hecksagon(name) = @hecksagons[name.to_s]
-
-      # Looks up a registered world by domain name.
-      #
-      # @param name [String, Symbol] the domain name
-      # @return [Bluebook::World, nil] the registered world, or nil if none is registered for
-      #   that domain
       def world(name)     = @worlds[name.to_s]
 
-      # Lists every dispatchable verb this registry knows.
-      #
-      # @return [Array<String>] every dispatchable verb, across every registered chapter,
-      #   sorted
       def verbs = @bluebooks.values.flat_map(&:verbs).sort
 
       # The chapter that answers a role check for `domain` — the domain's
@@ -242,11 +188,6 @@ module Hecks
       # every check for the literal name "Governance": Governance is
       # recognised by what it declares, and a chapter that declares the
       # same thing is recognised the same way.
-      #
-      # @param domain [String] the domain to find a role-check authority for
-      # @return [Bluebook::Chapter, nil] the chapter declaring `provides "authorization"` for
-      #   `domain` — its own chapter, or a framework member its hecksagon attaches; nil when
-      #   none does
       def authorization_provider_for(domain)
         names = [domain.to_s, *Array(hecksagon(domain)&.framework_members)]
         names.filter_map { |name| bluebook(name) }
@@ -254,21 +195,10 @@ module Hecks
       end
 
       # Every loaded chapter declaring `provides "authorization"`.
-      #
-      # @return [Array<Bluebook::Chapter>] every registered chapter that declares `provides
-      #   "authorization"`
       def authorization_providers
         @bluebooks.values.select { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
       end
 
-      # Resolves and memoizes the repository for one aggregate's authoritative store.
-      #
-      # @param domain [String] the domain the aggregate belongs to
-      # @param aggregate [Bluebook::Aggregate] the aggregate to resolve a repository for
-      # @return [Ports::Persistence::AppendOnly] the aggregate's authoritative repository,
-      #   the same instance on every call for this `[domain, aggregate]` pair
-      # @raise [Runtime::WiringError] if the aggregate has no authoritative bind, more than
-      #   one, or a bind with a role this port does not support
       def repository(domain, aggregate)
         @repositories[[domain.to_s, aggregate.hecks_name]] ||= Ports::Persistence.repository(self, domain, aggregate)
       end
@@ -286,13 +216,10 @@ module Hecks
       # that store again, the way `Loader.boot_files` does after
       # `verify!`.
       #
-      # What this is for: a test runner that would otherwise boot a
-      # runtime per test to get isolation (`Behaviors::Expectations.run_one`)
-      # — ~2s a boot, 76 chess behaviours = two and a half minutes of
-      # booting the same two files — can instead boot once and reset
-      # between tests.
-      #
-      # @return [Hecks::Runtime::Registry] self
+      # What this is for: a test runner that used to boot a runtime per
+      # test to get isolation (`Behaviors::Expectations.run_one`) — ~2s a
+      # boot, 76 chess behaviours = two and a half minutes of booting the
+      # same two files — can now boot once and reset between tests.
       #
       # Single-threaded caller, the same reason the `add_*` cluster above
       # is exempt — `Behaviors::Expectations.run_one` is this method's only
@@ -323,14 +250,6 @@ module Hecks
       # gives, just without a lazy `||=` race on standing it up.
       attr_reader :capability_graph
 
-      # Resolves the repository a query should read: a projected bind when one exists and is
-      # current with the authoritative store, otherwise the authoritative store itself.
-      #
-      # @param domain [String] the domain the aggregate belongs to
-      # @param aggregate [Bluebook::Aggregate] the aggregate to resolve a read repository for
-      # @return [Ports::Persistence::AppendOnly] the projection's repository when a `projects`
-      #   bind exists and its journal agrees with the authoritative store's; the authoritative
-      #   repository (see `#repository`) otherwise
       def read_repository(domain, aggregate)
         key = [domain.to_s, aggregate.hecks_name]
         binding = Ports::Projection.binds_for(self, domain, aggregate).first
@@ -345,15 +264,6 @@ module Hecks
         projection_current?(projection, authoritative) ? projection : authoritative
       end
 
-      # Reports whether a projected repository's journal and rows still agree with the
-      # authoritative store's.
-      #
-      # @param projection [Ports::Persistence::AppendOnly] the projected repository to check
-      # @param authoritative [Ports::Persistence::AppendOnly] the authoritative repository to
-      #   check it against
-      # @return [Boolean] true if both journals have the same length and entries
-      #   (operation/id/state, in order) and both stores hold the same rows once sorted by
-      #   id; false on any mismatch, or if reading either repository raises
       def projection_current?(projection, authoritative)
         projected_entries = projection.entries
         source_entries = authoritative.entries
@@ -378,12 +288,6 @@ module Hecks
       # authoritative bind" check is what actually catches a genuine
       # double-bind; this merge only concatenates, it does not itself
       # decide which of two binds for the same aggregate wins.
-      #
-      # @param base [Bluebook::Hecksagon] the hecksagon already registered for the domain
-      # @param overlay [Bluebook::Hecksagon] the newly-loaded hecksagon for the same domain
-      # @return [Bluebook::Hecksagon] a new hecksagon whose list-shaped facts (binds,
-      #   subscriptions, framework_members, vendored_bluebooks) are `base`'s concatenated with
-      #   `overlay`'s
       def merge_hecksagons(base, overlay)
         Bluebook::Hecksagon.new(
           domain:             base.domain,
@@ -401,11 +305,6 @@ module Hecks
       # also declares replaces that key's whole resolved hash (the same
       # all-or-nothing shape `WorldBuilder#method_missing` already builds
       # each entry as), it does not deep-merge field by field within it.
-      #
-      # @param base [Bluebook::World] the world already registered for the domain
-      # @param overlay [Bluebook::World] the newly-loaded world for the same domain
-      # @return [Bluebook::World] a new world: `overlay`'s `realm`/`latest` when present, else
-      #   `base`'s; `settings` shallow-merged, `overlay`'s key wins
       def merge_worlds(base, overlay)
         Bluebook::World.new(
           domain:   base.domain,

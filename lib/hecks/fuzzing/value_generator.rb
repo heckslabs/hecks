@@ -99,13 +99,12 @@ module Hecks
       # keeps the full Bignum edge-case pool).
       CLOCK_OR_COUNT_NAME_PATTERN = /clock|instant|expir|ttl|\bnow\b|timestamp|epoch|count/i
       # NaN and +/-Infinity — the real find (see `spec/runtime/
-      # numeric_boundary_spec.rb`): each really is a Float, so without
-      # `Value::Coercion#check_numeric_fields` catching all three, one
-      # would sail through untyped-checked, reaching either
-      # `CommandRules::Arithmetic#clamp` (raw `ArgumentError`, not a
-      # domain refusal) or `JSON.generate` (`JSON::GeneratorError`, also
-      # not a domain refusal) — both fixed at the source, so these are
-      # safe to generate. -0.0 is
+      # numeric_boundary_spec.rb`): `Value::Coercion#check_numeric_fields`
+      # used to let all three sail through untyped-checked (each really
+      # is a Float), reaching either `CommandRules::Arithmetic#clamp`
+      # (raw `ArgumentError`, not a domain refusal) or `JSON.generate`
+      # (`JSON::GeneratorError`, also not a domain refusal) — both fixed
+      # at the source now, so these are safe to generate. -0.0 is
       # deliberately included too even though it was already safe
       # (finite, round-trips through JSON as `-0.0` cleanly) — a signed
       # zero is exactly the kind of boundary a hand-written corpus never
@@ -126,17 +125,6 @@ module Hecks
       # just named "address"; the VO's own name is where "email" lives. A
       # combined hint catches both spellings without needing to guess which
       # level a domain happened to name the thing on.
-      #
-      # @param attribute [Bluebook::Attribute] the attribute to generate a value for
-      # @param aggregate [Bluebook::Aggregate] the aggregate that declares
-      #   `attribute` (and any value object or cross-aggregate identity it needs)
-      # @param random [Random] the seeded RNG to draw the value from
-      # @param known_ids [Hash{String => Array<String>}] known scalar ids, keyed by
-      #   aggregate/entity name, for reference attributes to draw from
-      # @param context [String, nil] the enclosing value object's own declared
-      #   name, for a nested primitive field's own name-aware generation
-      # @return [Object] a value shaped for `attribute` — a scalar, a Hash keyed by
-      #   field name, or a bare scalar reference id
       def value_for(attribute, aggregate, random:, known_ids: {}, context: nil)
         return reference_value(attribute, random: random, known_ids: known_ids) if attribute.reference?
 
@@ -155,19 +143,6 @@ module Hecks
         primitive(attribute.type.to_s, random: random, name: "#{context} #{attribute.name}")
       end
 
-      # A value object's own value — a closed-set member's own fields, an
-      # occasionally deliberately-wrong combination, or every declared
-      # attribute's own generated value, keyed by field name.
-      #
-      # @param value_object [Bluebook::ValueObject] the value object to generate a
-      #   value for
-      # @param aggregate [Bluebook::Aggregate] the aggregate that declares
-      #   `value_object`
-      # @param random [Random] the seeded RNG to draw the value from
-      # @param known_ids [Hash{String => Array<String>}] known scalar ids, keyed by
-      #   aggregate/entity name, forwarded to nested reference attributes
-      # @return [Hash, Object] a Hash keyed by field name; a bare scalar when
-      #   `value_object` has exactly one field and the bare-scalar draw hits
       def object_for(value_object, aggregate, random:, known_ids:)
         fields =
           if value_object.closed_set? && !value_object.members.empty?
@@ -197,11 +172,6 @@ module Hecks
       # A combination that (almost certainly) isn't one of the closed set's
       # admitted rows — deliberately, to exercise the refusal a `one_of`
       # exists to enforce, not just its happy path.
-      # @param value_object [Bluebook::ValueObject] the closed-set value object to
-      #   build an inadmissible member for
-      # @param random [Random] the seeded RNG to draw each field's value from
-      # @return [Hash] every declared attribute's own generated value, keyed by
-      #   field name, not guaranteed to match any admitted row
       def invalid_member(value_object, random:)
         value_object.attributes.to_h do |field|
           [field.name.to_s, primitive(field.type.to_s, random: random, name: field.name.to_s)]
@@ -213,13 +183,6 @@ module Hecks
       # still emitting it would have every generated reference refused and
       # the silent guard would report the fuzzer broken rather than
       # the runtime.
-      # @param attribute [Bluebook::Attribute] the reference-typed attribute to
-      #   generate a value for
-      # @param random [Random] the seeded RNG to draw the id from
-      # @param known_ids [Hash{String => Array<String>}] known scalar ids, keyed by
-      #   aggregate/entity name
-      # @return [String] a real id drawn from `known_ids` most of the time, or a
-      #   fabricated `"missing-..."` id to exercise NotFound
       def reference_value(attribute, random:, known_ids:)
         pool = known_ids[attribute.type.target_name.to_s] || []
         return "missing-#{random.bytes(4).unpack1('H*')}" if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
@@ -227,16 +190,6 @@ module Hecks
         pool.sample(random: random)
       end
 
-      # Generates a value of one primitive type.
-      #
-      # @param type_name [String] a primitive type name — `"String"`, `"Integer"`,
-      #   `"Float"`, `"TrueClass"`, or `"FalseClass"`
-      # @param random [Random] the seeded RNG to draw the value from
-      # @param name [String, nil] the attribute's own (and enclosing value
-      #   object's) name, for name-aware String/Integer generation
-      # @return [String, Integer, Float, Boolean] a value of the primitive type
-      # @raise [ArgumentError] if `type_name` names a type this generator does not
-      #   know
       def primitive(type_name, random:, name: nil)
         case type_name
         when "String"  then string_value(random, name: name)
@@ -247,13 +200,6 @@ module Hecks
         end
       end
 
-      # Generates a String value, name-aware for an email or currency field.
-      #
-      # @param random [Random] the seeded RNG to draw the value from
-      # @param name [String, nil] the attribute's own name, matched against
-      #   `/email/i`/`/currency/i` for name-aware generation
-      # @return [String] a String value — an edge case, an email address, a
-      #   currency code, or one to three random words
       def string_value(random, name: nil)
         return STRING_EDGE_CASES.sample(random: random) if random.rand < EDGE_CASE_PROBABILITY
         return email_value(random) if name&.match?(/email/i)
@@ -262,10 +208,6 @@ module Hecks
         Array.new(random.rand(1..3)) { WORDS.sample(random: random) }.join(" ")
       end
 
-      # Generates an email-shaped String value.
-      #
-      # @param random [Random] the seeded RNG to draw the two words from
-      # @return [String] an email-shaped `"word@word.example"` address
       def email_value(random)
         "#{WORDS.sample(random: random)}@#{WORDS.sample(random: random)}.example"
       end
@@ -275,11 +217,6 @@ module Hecks
       # sequence that can never get past one never reaches the state a deeper
       # bug would need. Zero and negative are still real, reachable outcomes —
       # via the edge-case pool, deliberately, not by starving them entirely.
-      #
-      # @param random [Random] the seeded RNG to draw the value from
-      # @param name [String, nil] the attribute's own name, checked against
-      #   `#clock_or_count_shaped?` to narrow the edge-case pool
-      # @return [Integer] a skewed-positive Integer value
       def integer_value(random, name: nil)
         if random.rand < EDGE_CASE_PROBABILITY
           pool = clock_or_count_shaped?(name) ? SAFE_INTEGER_EDGE_CASES : INTEGER_EDGE_CASES
@@ -289,19 +226,10 @@ module Hecks
         random.rand(1..1000)
       end
 
-      # Answers whether `name` reads as a clock reading or a policy-capped count,
-      # per `CLOCK_OR_COUNT_NAME_PATTERN`.
-      #
-      # @param name [String, Symbol, nil] the attribute's own name to match
-      # @return [Boolean] true if `name` matches the clock/count wording
       def clock_or_count_shaped?(name)
         name.to_s.match?(CLOCK_OR_COUNT_NAME_PATTERN)
       end
 
-      # Generates a Float value.
-      #
-      # @param random [Random] the seeded RNG to draw the value from
-      # @return [Float] a Float value, from the edge-case pool or a random range
       def float_value(random)
         return FLOAT_EDGE_CASES.sample(random: random) if random.rand < EDGE_CASE_PROBABILITY
 
@@ -311,19 +239,11 @@ module Hecks
       # The bare scalar a generated identity value stands for, for recording into
       # `known_ids`. An identity is declared as a value object, so this opens one ;
       # a reference pointing at this record is already that scalar and needs no
-      # opening at all.
-      #
-      # @param identity_value [Hash, Object] a generated identity value object's
-      #   own value (Hash), or a bare scalar already
-      # @return [String] the bare scalar the identity value stands for
+      # opening at all. The two used to be the same reading and are not any more.
       def scalar_of(identity_value)
         identity_value.is_a?(Hash) ? identity_value.values.first.to_s : identity_value.to_s
       end
 
-      # Fabricates an id naming no real record.
-      #
-      # @param random [Random] the seeded RNG to draw the bytes from
-      # @return [String] a fabricated `"gen-<hex>"` id, naming no real record
       def random_id(random)
         "gen-#{random.bytes(4).unpack1('H*')}"
       end

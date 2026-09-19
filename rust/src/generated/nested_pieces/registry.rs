@@ -86,10 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::nested_pieces::workspace::OpenArgs::from_json(facts_json)?;
-                      args.reference.check_invariants()?;
-              crate::kernel::check_role_via(Some("Owner"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::OpenArgs::from_json(v)?; args.reference.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::OpenArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::OpenArgs::from_json(v)?; args.reference.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::OpenArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -100,31 +97,8 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddBoardArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["number", "id", "workspace", "reference"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "AddBoard",
-        unknown: &unknown,
-        declared: &["number"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["number"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "AddBoard",
-        absent: &absent,
-        declared: &["number"],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AddBoard", aggregate: "Workspace", identity: "reference.value" }.render_args()))?, };
-              let args = crate::generated::nested_pieces::workspace::AddBoardArgs::from_json(facts_json)?;
-                      args.number.check_invariants()?;
-              crate::kernel::check_role_via(Some("Owner"), "AddBoard", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::AddBoardArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::AddBoardArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::AddBoardArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::AddBoardArgs::from_json(v)?; args.number.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "AddBoard", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::AddBoardArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::AddBoardArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::AddBoardArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::AddBoardArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::AddBoardArgs::from_json(v)?; args.number.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "AddBoard", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::AddBoardArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AddBoard", aggregate: "Workspace", identity: "reference.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -135,30 +109,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardAddCardEntityArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["sequence", "id", "reference", "number"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "AddCard",
-        unknown: &unknown,
-        declared: &["sequence"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "AddCard",
-        absent: &absent,
-        declared: &["sequence"],
-    }.render_args()));
-}
- } let _args_precheck = crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddCard acts on a Workspace's Board — pass reference.value:".to_string()))?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddCard acts on one Board — pass number.value:".to_string()))?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::from_json(facts_json)?;
-                      args.sequence.check_invariants()?;
-              crate::kernel::check_role_via(Some("Owner"), "AddCard", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              if let Some(route) = route { route.require_depth(1)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::from_json(v)?; args.sequence.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "AddCard", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs| Ok(()) })?;
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddCard acts on a Workspace's Board — pass reference.value:".to_string()))?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddCard acts on one Board — pass number.value:".to_string()))?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -169,30 +122,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardLabelEntityArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["label", "id", "reference", "number"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Label",
-        unknown: &unknown,
-        declared: &["label"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["label"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Label",
-        absent: &absent,
-        declared: &["label"],
-    }.render_args()));
-}
- } let _args_precheck = crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on a Workspace's Board — pass reference.value:".to_string()))?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on one Board — pass number.value:".to_string()))?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::from_json(facts_json)?;
-                      args.label.check_invariants()?;
-              crate::kernel::check_role_via(Some("Owner"), "Label", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              if let Some(route) = route { route.require_depth(1)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::from_json(v)?; args.label.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Label", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::BoardLabelEntityArgs| Ok(()) })?;
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on a Workspace's Board — pass reference.value:".to_string()))?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on one Board — pass number.value:".to_string()))?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -203,30 +135,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CardAnnotateNestedEntityArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["note", "id", "reference", "number", "sequence"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Annotate",
-        unknown: &unknown,
-        declared: &["note"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Annotate",
-        absent: &absent,
-        declared: &["note"],
-    }.render_args()));
-}
- } let _args_precheck = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Workspace's Board.Card — pass reference.value:".to_string()))?; let hop1_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Board — pass number.value:".to_string()))?; let hop1_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); let hop2_id = crate::generated::nested_pieces::workspace::Card::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Card — pass sequence.value:".to_string()))?; let hop2_wants = crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
-              let args = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(facts_json)?;
-                      args.note.check_invariants()?;
-              crate::kernel::check_role_via(Some("Owner"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              if let Some(route) = route { route.require_depth(2)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(v)?; args.note.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owner"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs| Ok(()) })?;
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Workspace's Board.Card — pass reference.value:".to_string()))?; let hop1_id = crate::generated::nested_pieces::workspace::Board::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Board — pass number.value:".to_string()))?; let hop1_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); let hop2_id = crate::generated::nested_pieces::workspace::Card::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Card — pass sequence.value:".to_string()))?; let hop2_wants = crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());

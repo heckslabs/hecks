@@ -100,7 +100,7 @@ RSpec.describe "Banking across persistence adapters" do
         end
       else
         begin
-          runtime.dispatch(step.fetch("verb"), **args)
+          runtime.dispatch_flat(step.fetch("verb"), **args)
         rescue StandardError => e
           refusals << { verb: step.fetch("verb"), error: e.message }
         end
@@ -139,13 +139,13 @@ RSpec.describe "Banking across persistence adapters" do
   AUTHORITATIVE_ADAPTERS.each do |adapter|
     it "keeps the same account result through #{adapter}" do
       runtime = boot(adapter)
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
                                                    email: { address: "ada@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
 daily_limit: { cents: 1_000 })
-      runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" },
+      runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" },
 narrative: { text: "Opening" })
-      runtime.dispatch("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" },
+      runtime.dispatch_flat("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" },
 narrative: { text: "Lunch" })
 
       account = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account")).find("a")
@@ -158,9 +158,9 @@ narrative: { text: "Lunch" })
 
   it "reads the projection after catch-up and keeps all three stores in parity" do
     runtime = boot("Heki", projected: true)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
 email: { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
 daily_limit: { cents: 1_000 })
 
     before = runtime.query("Banking.customer_portfolio", customer: "c")

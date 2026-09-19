@@ -38,8 +38,8 @@ require "json"
 # sides get it from the same `hecks-codegen full` call.
 RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # Prefixed (HB_*), not the bare names `spec/project_rust_pipeline_spec.rb`
-  # already uses (`ROOT`/`GENERATED_ROOT`/`CARGO_TOML`/`PROJECT_RUST`/
-  # `PARITY_DOMAINS`) — `spec/load_hygiene_spec.rb`'s own "lets no two spec
+  # already uses (ROOT/GENERATED_ROOT/CARGO_TOML/PROJECT_RUST/
+  # PARITY_DOMAINS) — `spec/load_hygiene_spec.rb`'s own "lets no two spec
   # files disagree about a top-level constant" check flags any same-name
   # top-level constant across spec files (a `describe` block's constant
   # assignment lands at Object, not a lexical scope of its own), even

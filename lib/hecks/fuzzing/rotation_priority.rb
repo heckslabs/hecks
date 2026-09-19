@@ -19,9 +19,8 @@ module Hecks
     # pure function cannot ask the time, so whoever calls this supplies
     # it, exactly as it supplies an id.
     #
-    # ## Where this actually matters, and where it does not
-    #
-    # Checked against `bin/qa_sweep`'s own code, not assumed. `bin/qa_sweep
+    # Where this actually matters, and where it does not — checked
+    # against `bin/qa_sweep`'s own code, not assumed. `bin/qa_sweep
     # --all` sweeps every currently-waiting target in one pass,
     # regardless of order (`run_all_mode`'s own `waiting.map { spawn_
     # sweep_child }` — every element the query returned, never
@@ -47,13 +46,6 @@ module Hecks
       # that does not care still gets the practice's own current answer
       # to "how much of this is 'recent'" rather than a second, silently
       # drifting copy of the same number.
-      # @param old_score [Integer] the target's current `Target.yield_score`
-      # @param surprises_this_period [Integer] surprises found in the period just
-      #   concluded
-      # @param decay_percent [Integer] percent of `old_score` that survives into
-      #   the new score, before adding `surprises_this_period`
-      # @return [Integer] the next stored `Target.yield_score`
-      # @raise [ArgumentError] if `old_score` or `surprises_this_period` is negative
       def next_yield_score(old_score:, surprises_this_period:,
                            decay_percent: QualityControlDials::YIELD_DECAY_PERCENT)
         raise ArgumentError, "old_score must not be negative" if old_score.negative?
@@ -85,15 +77,6 @@ module Hecks
       # "how many seconds of extra staleness one point of yield is
       # worth" rather than an opaque multiplier nobody could sanity
       # check by eye.
-      # @param rows [Array<Hash>] rows as returned by `Target.Rotation`, each with
-      #   at least `:last_swept` and `:yield_score`, both `{value: Integer}`
-      # @param now [Integer] the current time (Unix epoch seconds), supplied by the
-      #   caller since this method reads no clock itself
-      # @param weight_seconds [Integer] seconds of extra staleness one point of
-      #   yield score is worth, below the floor
-      # @param floor_seconds [Integer] staleness past which a row is picked ahead
-      #   of every row that has not crossed it, regardless of score
-      # @return [Hash, nil] the picked row, or `nil` if `rows` is empty
       def pick(rows, now:, weight_seconds: QualityControlDials::YIELD_WEIGHT_SECONDS,
                floor_seconds: QualityControlDials::ROTATION_STALE_FLOOR_SECONDS)
         return nil if rows.empty?

@@ -25,16 +25,15 @@ RSpec.describe "the language's own rules" do
   # cannot simply invent one. Reading it back off the dispatch result is the
   # only honest way to name a record in a later dispatch : the same derivation
   # the runtime just ran, not a second guess at what it must have computed.
-  def id_of(verb, **args) = @runtime.dispatch(verb, **args).instance.id
+  def id_of(verb, **args) = @runtime.dispatch_flat(verb, **args).instance.id
 
   before do
     @runtime = boot_meta
-    # A bluebook is reached by id like every other root — its own name
-    # (Bluebook.identified_by { name.value }), not a minted id. A minted
-    # id would leave `Bluebook.Normalise` unable to name what it acts on,
-    # since the runtime would read an argument called `name` as the
-    # reference lookup instead. Reached by name, the lookup collision is
-    # gone rather than ducked.
+    # A bluebook is reached by id like every other root. It used to be reached
+    # by a minted id, which made `Bluebook.Normalise` unable to name what it
+    # acts on — the runtime read an argument called `name` as the reference
+    # lookup. It is reached by its own name now (Bluebook.identified_by {
+    # name.value }), so the lookup collision is gone rather than ducked.
     @bluebook_id = id_of("Bluebook::Bluebook.Declare", name: v("D"),
                          vision: v("a vision"), classification: v("core"))
     @aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
@@ -48,13 +47,13 @@ RSpec.describe "the language's own rules" do
   # ---- tier 1 : presence, as invariants on the value ------------------------
 
   it "refuses a chapter whose vision says nothing" do
-    expect { @runtime.dispatch("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
+    expect { @runtime.dispatch_flat("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /a vision says something/)
   end
 
   it "refuses an aggregate whose description says nothing" do
     expect do
-      @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
+      @runtime.dispatch_flat("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                                name: v("B"), description: v(""))
     end
       .to raise_error(Hecks::Runtime::InvariantViolation, /a description says something/)
@@ -84,7 +83,7 @@ RSpec.describe "the language's own rules" do
     # an InvariantViolation. The invariant still guards whitespace-only names
     # that would otherwise slip past `!value.to_s.empty?` alone, but can no
     # longer be reached by a plain empty string.
-    expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
+    expect { @runtime.dispatch_flat("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /ValueObjectName\.value must match/)
   end
 
@@ -121,12 +120,11 @@ RSpec.describe "the language's own rules" do
 
     # The same refusal, from a named set rather than a restated one.
     #
-    # `Change.op` says `admits: "Vocabulary::MutationOp"` and coercion
-    # refuses a non-member, so the rule fires at the door with no second
-    # copy to drift — rather than `Command::OpName` carrying `set ||
-    # append || increment || decrement` in an invariant, Vocabulary::
-    # MutationOp written out a second time, one level in, where nothing
-    # would compare the two.
+    # `Command::OpName` used to carry `set || append || increment || decrement`
+    # in an invariant — Vocabulary::MutationOp written out a second time, one
+    # level in, where nothing compared the two. `Change.op` now says
+    # `admits: "Vocabulary::MutationOp"` and coercion refuses a non-member, so
+    # the rule still fires at the door and there is no second copy to drift.
     #
     # The message names the set, which the invariant never could: the old one
     # could only say "an op is one the runtime applies" and leave the reader to
@@ -201,11 +199,10 @@ RSpec.describe "the language's own rules" do
   # value-object unwrap, a bare reference, or now a bare scalar too, ADR
   # 0025's "Identity") is the builder's own question
   # (`AttributeCollector#resolve_identity_field!`), resolved before an
-  # identity part ever reaches this dispatch. This given does not re-check
-  # the shape here too — re-checking would refuse a bare "sequence"
-  # outright, exactly the bug ADR 0025 names: bare-scalar identity
-  # already works at the builder, so only this rule would be refusing
-  # it. What is left for the
+  # identity part ever reaches this dispatch. This given used to re-check
+  # the shape here too — refusing a bare "sequence" outright — which is
+  # exactly the bug ADR 0025 names: bare-scalar identity already worked at
+  # the builder, and only this rule refused it. What is left for the
   # meta-domain to say, once the builder has already resolved a real
   # shape, is that a part was actually given a name at all. The rule now
   # fires on each part as it is appended (`Entity.Identify`), not once at
@@ -289,7 +286,7 @@ RSpec.describe "the language's own rules" do
     @runtime.dispatch("Bluebook::ValueObject.Member", to: value_object_id, with: { position: { value: 0 } })
 
     expect do
-      @runtime.dispatch("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
+      @runtime.dispatch_flat("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
                         position: { value: 0 }, key: v(""), value: v("q"))
     end.to raise_error(Hecks::Runtime::GivenNotMet, /an admitted row binds a named field/)
   end

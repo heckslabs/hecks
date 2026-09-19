@@ -12,20 +12,17 @@
 # caller decides where a generated file lands and git decides whether it
 # drifted.
 #
-# Every failure is a sentence, not a backtrace, and not silence: a misspelled
-# aggregate refuses with a message naming the problem, rather than printing
-# nothing and exiting 0 — the silent-wrong-answer shape this repository has
-# already been bitten by twice in its query engine. An agent calling this
-# cannot tell an empty document from an empty domain, so it refuses instead
-# and names what is actually there.
+# Every failure is a sentence, not a backtrace, and not silence. A misspelled
+# aggregate used to print nothing and exit 0 — the silent-wrong-answer shape
+# this repository has already been bitten by twice in its query engine. An
+# agent calling this cannot tell an empty document from an empty domain, so it
+# refuses instead and names what is actually there.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 
 ROOT = File.expand_path("..", __dir__)
 
-# Lists every directory in this checkout that `Hecks.boot` would accept as a domain root.
-#
 # **Every directory `Hecks.boot` would accept**. Derived by walking for `.bluebook`
 # files rather than hand-listed, for the reason `Framework.members` gives about
 # its own directory: a list somebody maintains is a list that goes stale the
@@ -47,9 +44,6 @@ IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 # A `.hecksagon` is the thing that says "this is a domain, and here is how its
 # aggregates are stored", so it is the honest marker of somewhere `Hecks.boot`
 # will do what a caller expects.
-#
-# @return [Array<String>] each bootable domain's path relative to the repository root,
-#   deduplicated and sorted
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
      .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path) }

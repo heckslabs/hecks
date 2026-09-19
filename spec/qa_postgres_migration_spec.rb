@@ -8,8 +8,8 @@ require "open3"
 
 # Proves `bin/qa_postgres_migrate`'s round trip, not the real ledger's own
 # migration. Boots the real `qa/bluebook/quality_control.bluebook` twice —
-# once under a Heki binding written here (the shape the ledger once
-# had), once under the real, shipped `quality_control.hecksagon` (already
+# once under a Heki binding written here (the shape the ledger used to
+# have), once under the real, shipped `quality_control.hecksagon` (already
 # bound to `PostgresEra`) plus a throwaway `.world` naming a scratch
 # database — never the real `hecks_quality_control` this repo's own
 # `quality_control.world` names, and never the real, persistent worktree's
@@ -143,14 +143,14 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     25.times do |i|
       n = i + 1
       freeze_expectation = "a frozen account refuses a second freeze, check #{n}"
-      @heki_runtime.dispatch("QualityControl::Sweep.Check", id:          sweep.id,
-                                                            subject:     { value: "Banking::Account.Freeze##{n}" },
-                                                            expectation: { value: freeze_expectation })
+      @heki_runtime.dispatch_flat("QualityControl::Sweep.Check", id:          sweep.id,
+                                                                 subject:     { value: "Banking::Account.Freeze##{n}" },
+                                                                 expectation: { value: freeze_expectation })
       if n.even?
-        @heki_runtime.dispatch("QualityControl::Sweep.Check.Held", id: sweep.id,
+        @heki_runtime.dispatch_flat("QualityControl::Sweep.Check.Held", id: sweep.id,
                                 sequence: { value: n }, observation: { value: "refused as expected, check #{n}" })
       else
-        @heki_runtime.dispatch("QualityControl::Sweep.Check.Surprised", id: sweep.id,
+        @heki_runtime.dispatch_flat("QualityControl::Sweep.Check.Surprised", id: sweep.id,
                                 sequence: { value: n }, observation: { value: "silently accepted, check #{n}" },
                                 target: { value: t1.id })
       end
@@ -302,7 +302,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     expect(err).to include("REFUSED target/pizzas")
     expect(out).to include("refused 1 (conflicting data)")
 
-    # Not overwritten — the mutation from this very example is still
+    # Not OVERWRITTEN — the mutation from this very example is still
     # there, exactly, which is the whole point of refusing.
     still_mutated = repo.find("pizzas")
     expect(still_mutated.state[:reason].to_h).to eq({ value: "DELIBERATELY MUTATED FOR CONFLICT TEST" })

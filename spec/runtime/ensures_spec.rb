@@ -93,14 +93,14 @@ RSpec.describe "a command's ensures" do
   end
 
   def open_box(runtime)
-    runtime.dispatch("Vault::Box.Open", number: { value: "b1" })
+    runtime.dispatch_flat("Vault::Box.Open", number: { value: "b1" })
     runtime
   end
 
   it "saves and emits when the postcondition holds" do
     runtime = open_box(vault)
 
-    result = runtime.dispatch("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 500 })
+    result = runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 500 })
 
     expect(result.instance[:balance][:cents]).to eq(500)
     expect(result.events.map(&:name)).to eq(["Deposited"])
@@ -111,7 +111,7 @@ RSpec.describe "a command's ensures" do
   it "refuses with EnsuresNotMet, in the command's own words, and persists nothing" do
     runtime = open_box(vault)
 
-    expect { runtime.dispatch("Vault::Box.Overstate", number: { value: "b1" }, amount: { cents: 100 }) }
+    expect { runtime.dispatch_flat("Vault::Box.Overstate", number: { value: "b1" }, amount: { cents: 100 }) }
       .to raise_error(Hecks::Runtime::EnsuresNotMet,
                       "Overstate refused — the balance grew by exactly double the deposit")
 
@@ -121,12 +121,12 @@ RSpec.describe "a command's ensures" do
 
   it "hands `old` the PRE-mutation state, not the post" do
     runtime = open_box(vault)
-    runtime.dispatch("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 500 })
+    runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 500 })
 
     # A passing Deposit already proves old != current (0 -> 500 -> 700):
     # if `old` had leaked the post-mutation value, 700 == 500 + 200 would
     # be false and this dispatch would itself raise.
-    result = runtime.dispatch("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 200 })
+    result = runtime.dispatch_flat("Vault::Box.Deposit", number: { value: "b1" }, amount: { cents: 200 })
     expect(result.instance[:balance][:cents]).to eq(700)
   end
 
@@ -249,9 +249,9 @@ RSpec.describe "a command's ensures" do
 
     it "leaves the aggregate untouched in Memory when an ensures after apply_mutations refuses" do
       runtime = coin
-      runtime.dispatch("Coin::Purse.Open", number: { value: "p1" })
+      runtime.dispatch_flat("Coin::Purse.Open", number: { value: "p1" })
 
-      expect { runtime.dispatch("Coin::Purse.TotalUp", number: { value: "p1" }) }
+      expect { runtime.dispatch_flat("Coin::Purse.TotalUp", number: { value: "p1" }) }
         .to raise_error(Hecks::Runtime::EnsuresNotMet)
 
       stored = runtime.registry.repository("Coin", runtime.registry.bluebook("Coin").aggregate("Purse")).find("p1")
@@ -260,11 +260,11 @@ RSpec.describe "a command's ensures" do
 
     it "leaves an entity element untouched in Memory when its own ensures refuses" do
       runtime = coin
-      runtime.dispatch("Coin::Purse.Open", number: { value: "p1" })
-      runtime.dispatch("Coin::Purse.AddCoin", number: { value: "p1" }, serial: { value: "c1" }, label: { value: "heads" },
+      runtime.dispatch_flat("Coin::Purse.Open", number: { value: "p1" })
+      runtime.dispatch_flat("Coin::Purse.AddCoin", number: { value: "p1" }, serial: { value: "c1" }, label: { value: "heads" },
 cents: { cents: 25 })
 
-      expect { runtime.dispatch("Coin::Purse.Coin.Reface", number: { value: "p1" }, serial: { value: "c1" }, new_label: { value: "tails" }) }
+      expect { runtime.dispatch_flat("Coin::Purse.Coin.Reface", number: { value: "p1" }, serial: { value: "c1" }, new_label: { value: "tails" }) }
         .to raise_error(Hecks::Runtime::EnsuresNotMet)
 
       stored = runtime.registry.repository("Coin", runtime.registry.bluebook("Coin").aggregate("Purse")).find("p1")

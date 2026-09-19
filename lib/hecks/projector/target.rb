@@ -55,11 +55,11 @@ module Hecks
       #
       # A capability says what a construct can do; this says what it must
       # carry. `:vocabulary` needs a chapter declaring a Vocabulary
-      # aggregate, `:parser_table` one declaring Syntax — declared here
-      # rather than as a `raise` in the projection's own body, so the
-      # requirement is stated instead of written as behaviour. The
-      # registry refuses before the projection runs, so the projection
-      # itself no longer carries a guard about its own admission.
+      # aggregate, `:parser_table` one declaring Syntax — and both used
+      # to state that as a `raise` in their own body, which is a
+      # requirement written as behaviour instead of declared. Stated
+      # here, the registry refuses before the projection runs and the
+      # projection stops carrying a guard about its own admission.
       # `emits:` says what kind of artifact comes back.
       #
       # `:artifact` (the default) is one thing — a Hash, or a String.
@@ -70,17 +70,6 @@ module Hecks
       # an ordinary Hash is guesswork — `{"name" => "Pizzas"}` is
       # indistinguishable from a one-file tree — so `write` asks what the
       # projection said rather than inspecting what it returned.
-      # Registers `self` as a projection target under `key`, and stores the
-      # capability and aggregate requirements `admits!` later checks against.
-      #
-      # @param key [String, Symbol] the key to register `self` under (converted to a symbol)
-      # @param requires [Module, Array<Module>, nil] capability module(s) a construct must
-      #   satisfy; nil or empty means `Bluebook::Behaviour::Chapter`
-      # @param declares [String, Symbol, Array<String, Symbol>, nil] aggregate name(s) the
-      #   chapter must declare; nil means none
-      # @param emits [Symbol] the kind of artifact `self` returns: `:artifact` (the default,
-      #   a single Hash or String) or `:files` (a path => contents tree)
-      # @return [Symbol] the registered key
       def projects_as(key, requires: nil, declares: nil, emits: :artifact)
         @projection_emits    = emits
         @projection_key      = key.to_sym
@@ -90,28 +79,15 @@ module Hecks
         @projection_key
       end
 
-      # Gives the key this target registered under.
-      #
-      # @return [Symbol, nil] the key given to `projects_as`, or nil before it is called
       def projection_key = @projection_key
 
       # Empty means "a chapter" — resolved here rather than as a default
       # argument, because Behaviour::Chapter is not loaded yet when this
       # file is.
-      #
-      # @return [Array<String, Symbol>] aggregate names the chapter must declare; empty
-      #   for none
       def projection_declares = @projection_declares || []
 
-      # Gives the kind of artifact this target returns.
-      #
-      # @return [Symbol] the kind of artifact `self` returns: `:artifact` or `:files`
       def projection_emits = @projection_emits || :artifact
 
-      # Names the capability module(s) a construct must satisfy, defaulting
-      # to plain chapter-hood when `projects_as` named none.
-      #
-      # @return [Array<Module>] required capability modules
       def projection_requires
         req = @projection_requires
         req.nil? || req.empty? ? [Bluebook::Behaviour::Chapter] : req

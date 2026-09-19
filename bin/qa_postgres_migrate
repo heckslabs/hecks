@@ -70,12 +70,6 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../lib/hecks/adapters/driven/heki"
 
-# Prints an optional explanation followed by the usage line to stderr, then exits
-# the process with a failing status.
-#
-# @param message [String, nil] extra context to print above the usage line, or `nil`
-#   to print the usage line alone
-# @return [void]
 def usage_and_exit(message = nil)
   warn "bin/qa_postgres_migrate: #{message}" if message
   warn "usage: bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...] [--force]"
@@ -131,14 +125,6 @@ end
 # order they happen to carry; only array order is preserved as
 # meaningful (an entity list's `sequence` is its order, and two Sweeps
 # whose checks arrived in a different order are not the same sweep).
-# Recursively stringifies and sorts every Hash's keys so two states that mean the
-# same thing compare equal regardless of which side's key type or hash-insertion
-# order they happen to carry; Array order is left alone since it is meaningful.
-#
-# @param value [Object] any value, typically an aggregate's state Hash, arbitrarily
-#   nested with Hashes, Arrays, and scalars
-# @return [Object] `value` with every nested Hash's keys converted to strings and
-#   sorted; Arrays and scalars are returned in their original shape
 def canonical(value)
   case value
   when Hash

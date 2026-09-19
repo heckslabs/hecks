@@ -24,11 +24,10 @@
 # below). Default remains `yes`, unchanged: every ordinary bug still
 # demands a demonstration that actually fails.
 #
-# **It also mints the number**. Picking the next Bug number by reading
-# `Bug.All` and adding one, as `.claude/skills/hecks_qa/SKILL.md` once
-# instructed, is a race: a real BUG#21 was assigned twice this way, by two
-# agents each reading the same highest number before the other's `Log`
-# landed. `next_reference` below reads the
+# **It also mints the number**. `BUG#<n>` used to be "pick the next Bug
+# number" in `.claude/skills/hecks_qa/SKILL.md` — and a real BUG#21 was
+# assigned twice, by two agents each reading `Bug.All` and each adding
+# one before the other's `Log` landed. `next_reference` below reads the
 # highest `sequence` over `Bug.All` and takes the next one, then walks
 # forward past any reference somehow already on file — so a collision
 # on the reference is a refusal (`AlreadyExists`) this script retries
@@ -125,10 +124,6 @@ end
 # command (`bundle exec …`, `bin/…`, `./…`, a bare interpreter, or a
 # direct `Hecks::Fuzzing::Replay.call` snippet) both count; a sentence
 # describing what happened does not.
-#
-# @param str [String] the `--demonstration` value to inspect
-# @return [Boolean] true if `str` looks like a real file path or a
-#   shell/ruby/etc. invocation, rather than a sentence of prose
 def looks_runnable?(str)
   first = str.to_s.strip.split(/\s+/).first.to_s
   return true if first.start_with?("/") && File.exist?(first)
@@ -183,14 +178,6 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
-# Queries this ledger's QualityControl domain by verb suffix, saving every
-# caller from repeating the `"QualityControl::"` prefix.
-#
-# @param runtime [Runtime::Dispatcher] the booted QualityControl ledger
-# @param name [String] the verb suffix, such as `"Bug.All"`
-# @param args [Hash{Symbol => Object}] the query's declared arguments, if any
-# @return [Array<Hash>] one deep-frozen Hash per matching record, as
-#   `Runtime::Dispatcher#query` returns it
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
 sweep = QualityControl::Sweep.find(options[:sweep])
@@ -205,11 +192,6 @@ abort "no such sweep: #{options[:sweep].inspect} — the sweep id is on bin/qa_s
 # minters both see the same maximum, both try the same number, and the
 # loser's `Log` is refused (`AlreadyExists`) rather than landing a twin —
 # `mint_and_log!` below retries from a fresh read.
-#
-# @param runtime [Runtime::Dispatcher] the booted QualityControl ledger to read
-#   `Bug.All` from
-# @return [Array(Integer, String)] the next free sequence number and its
-#   `"BUG#n"` reference
 def next_reference(runtime)
   rows = q(runtime, "Bug.All")
   taken = rows.map { |row| row[:reference][:value] }
@@ -218,16 +200,6 @@ def next_reference(runtime)
   [sequence, "BUG##{sequence}"]
 end
 
-# Retries the mint-and-log dance up to three times against a live race
-# with another minter (see `next_reference`, above).
-#
-# @param runtime [Runtime::Dispatcher] the booted QualityControl ledger to mint
-#   and log against
-# @param sweep [Facade::Handle] the Sweep record this bug is filed against
-# @param options [Hash{Symbol => Object}] the parsed CLI options: `:title`,
-#   `:demonstration`, `:symptom`, `:expectation`, `:submitter`, `:reproduced`
-#   (all String), and `:tags` (Array<String>)
-# @return [Facade::Handle] the newly logged Bug record
 def mint_and_log!(runtime, sweep, options)
   3.times do
     sequence, reference = next_reference(runtime)

@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # M3 (docs/audits/2026-08-10-main-bug-audit.md) — an undeclared
-# (`NullSemantics.default`, mode `:native`) null policy would otherwise leave
+# (`NullSemantics.default`, mode `:native`) null policy used to leave
 # `sql_order` rendering no `NULLS ...` clause at all, deferring to
 # whichever dialect happened to run the query: Postgres's own native
 # default is NULLS LAST on ASC (and FIRST on DESC), while `NullPolicy#order`

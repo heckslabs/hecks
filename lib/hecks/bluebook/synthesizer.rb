@@ -42,15 +42,6 @@ module Hecks
       # the same run; a reference whose target isn't in there yet gets
       # a placeholder instead of failing outright, since the caller may
       # not care about that particular argument's real value.
-      #
-      # @param chapter [Bluebook::Chapter] the chapter the command's aggregate belongs to
-      # @param aggregate [Bluebook::Aggregate] the aggregate the command belongs to
-      # @param command [Class] the command class (a `Bluebook::Command` subclass) to
-      #   synthesize arguments for
-      # @param created [Hash{String => Object}] each aggregate name already given a real
-      #   id earlier in the same run
-      # @return [Hash{Symbol => Object}] one synthesized value per declared argument,
-      #   keyed by attribute name
       def args_for(chapter, aggregate, command, created = {})
         command.attributes.to_h do |attribute|
           if attribute.reference?
@@ -68,15 +59,6 @@ module Hecks
       # same tolerance `bin/interview shape`'s own lookup already
       # needed: a value object referenced by name doesn't have to be
       # declared on the same aggregate using it.
-      #
-      # @param chapter [Bluebook::Chapter] the chapter to search for `type_name` when
-      #   `aggregate` does not declare it
-      # @param aggregate [Bluebook::Aggregate] the aggregate to look up `type_name` on
-      #   first
-      # @param type_name [String, Symbol] the value object's declared type name
-      # @return [String, Hash{Symbol => Object}] `"smoke-test"` if no value object is
-      #   found by that name, the closed set's first admitted member's fields as a Hash
-      #   if `type_name` is a closed set, else one synthesized value per declared field
       def value_for(chapter, aggregate, type_name)
         value_object = aggregate.value_object(type_name) ||
                        chapter.aggregates.filter_map { |a| a.value_object(type_name) }.first
@@ -93,14 +75,6 @@ module Hecks
       # another value object, resolved the identical way `value_for`
       # resolves any other one (its own closed set or its own nested
       # fields, however deep that nesting actually goes).
-      #
-      # @param chapter [Bluebook::Chapter] the chapter to search when `type_name` is a
-      #   nested value object not declared on `aggregate`
-      # @param aggregate [Bluebook::Aggregate] the aggregate `type_name` is declared on,
-      #   if it names a value object
-      # @param type_name [String, Symbol] the field's declared type name
-      # @return [Integer, Float, Boolean, String, Hash{Symbol => Object}] a plain scalar
-      #   for a primitive type, else the same shapes `value_for` returns
       def field_value_for(chapter, aggregate, type_name)
         PRIMITIVES.include?(type_name.to_s) ? scalar_for(type_name) : value_for(chapter, aggregate, type_name)
       end
@@ -109,10 +83,6 @@ module Hecks
       # closed set's own field (that's `value_for`'s job, reading the
       # set's real first member) — only for a plain scalar field with
       # no declared vocabulary to respect.
-      #
-      # @param primitive [String, Symbol] the primitive type name, such as `"Integer"`
-      # @return [Integer, Float, Boolean, String] `0` for Integer, `0.0` for Float,
-      #   `false` for TrueClass/FalseClass, else `"smoke-test"`
       def scalar_for(primitive)
         case primitive.to_s
         when "Integer" then 0
