@@ -10,11 +10,12 @@ RSpec.describe Hecks::Runtime::Value do
     let(:runtime) { boot_in_memory }
 
     def pizza_toppings
-      pizza = runtime.dispatch("Pizzas::Order.CreatePizza", name:  { value: "Margherita" },
-                                                            pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-      runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
-      runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 5 })
-      runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 1 })
+      pizza = runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                                    name:  { value: "Margherita" },
+                                    pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
+      runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 5 })
+      runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 1 })
       repository.find(pizza.id).state[:toppings]
     end
 

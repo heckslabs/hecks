@@ -65,11 +65,11 @@ RSpec.describe "relationship list runtime behavior" do
 
   it "stores a has_many as a list and existence-checks every member" do
     runtime = boot_relationships
-    runtime.dispatch("RelationshipRuntime::Customer.Register", number: "c-1")
-    runtime.dispatch("RelationshipRuntime::Account.Open", number: "a-1")
-    runtime.dispatch("RelationshipRuntime::Account.Open", number: "a-2")
+    runtime.dispatch_flat("RelationshipRuntime::Customer.Register", number: "c-1")
+    runtime.dispatch_flat("RelationshipRuntime::Account.Open", number: "a-1")
+    runtime.dispatch_flat("RelationshipRuntime::Account.Open", number: "a-2")
 
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "RelationshipRuntime::Portfolio.Open",
       number:   "p-1",
       customer: "c-1",
@@ -85,7 +85,7 @@ RSpec.describe "relationship list runtime behavior" do
     expect(portfolio[:accounts]).to eq(%w[a-1 a-2])
 
     expect do
-      runtime.dispatch(
+      runtime.dispatch_flat(
         "RelationshipRuntime::Portfolio.Open",
         number:   "p-2",
         customer: "c-1",
@@ -96,11 +96,11 @@ RSpec.describe "relationship list runtime behavior" do
 
   it "refuses a scalar where has_many promises a list" do
     runtime = boot_relationships
-    runtime.dispatch("RelationshipRuntime::Customer.Register", number: "c-1")
-    runtime.dispatch("RelationshipRuntime::Account.Open", number: "a-1")
+    runtime.dispatch_flat("RelationshipRuntime::Customer.Register", number: "c-1")
+    runtime.dispatch_flat("RelationshipRuntime::Account.Open", number: "a-1")
 
     expect do
-      runtime.dispatch(
+      runtime.dispatch_flat(
         "RelationshipRuntime::Portfolio.Open",
         number:   "p-1",
         customer: "c-1",

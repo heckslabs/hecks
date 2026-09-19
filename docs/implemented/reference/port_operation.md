@@ -141,7 +141,7 @@ The same gate a command's arguments meet applies here — a field the
 operation never declared is refused rather than carried along:
 
 ```ruby
-runtime.dispatch("PortOperationReference::Licence.Registry.Inspected", serial: "lic-1", weather: "fine")  # ~> UnknownArgument: weather
+runtime.dispatch_flat("PortOperationReference::Licence.Registry.Inspected", serial: "lic-1", weather: "fine")  # ~> UnknownArgument: weather
 ```
 
 ## emits

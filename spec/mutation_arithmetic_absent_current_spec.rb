@@ -95,31 +95,31 @@ RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
   let(:runtime) { boot { ArithmeticAbsentCurrent::Wallet.persisted_by("Memory") } }
 
   it "increment wraps the raw result back into the declared VO type" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Deposit", label: "w1", amount: { cents: 500 })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Deposit", label: "w1", amount: { cents: 500 })
 
     expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: 500)
   end
 
   it "decrement wraps the raw result back into the declared VO type" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Withdraw", label: "w1", amount: { cents: 500 })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Withdraw", label: "w1", amount: { cents: 500 })
 
     expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: -500)
   end
 
   it "multiply wraps the raw result back into the declared VO type" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Scale", label: "w1", factor: { cents: 7 })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Scale", label: "w1", factor: { cents: 7 })
 
     expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: 0)
   end
 
   it "refuses rather than guesses when the source value has more than one numeric field" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
 
     expect do
-      runtime.dispatch("ArithmeticAbsentCurrent::Wallet.IncrementAmbiguous", label: "w1", pair: { a: 1, b: 2 })
+      runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.IncrementAmbiguous", label: "w1", pair: { a: 1, b: 2 })
     end.to raise_error(Hecks::Runtime::TypeMismatch)
   end
 end

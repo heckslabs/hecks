@@ -76,7 +76,7 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
 
   it "returns a bare id, not the wrapped value object, off the in-memory query path" do
     runtime = boot
-    runtime.dispatch("Thingy::Thing.Mint", id: { value: "t1" }, name: { value: "goggles" })
+    runtime.dispatch_flat("Thingy::Thing.Mint", id: { value: "t1" }, name: { value: "goggles" })
 
     rows = runtime.query("Thingy::Thing.Everywhere")
 

@@ -191,7 +191,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
 
   it "admits two concurrent Debits that together overdraw the account, instead of refusing the second" do
     seed = boot
-    seed.dispatch("ConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
+    seed.dispatch_flat("ConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
 
     # **Two separate processes, modeled honestly** — each `boot` is its own
     # Registry, its own Dispatcher, its own real `PG.connect`.
@@ -203,7 +203,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
     outcomes = Queue.new
     threads = [first, second].map do |dispatcher|
       Thread.new do
-        dispatcher.dispatch("ConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
+        dispatcher.dispatch_flat("ConcurrencyGap::Account.Debit", number: { value: "a" }, amount: { cents: 6_000 })
         outcomes << :succeeded
       rescue Hecks::Runtime::GivenNotMet
         outcomes << :refused

@@ -38,8 +38,8 @@ RSpec.describe Hecks::Adapters::LocalStorage do
   end
 
   def create(name: "Margherita")
-    runtime.dispatch("Pizzas::Order.CreatePizza",
-                     name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+    runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                          name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
   end
 
   it "boots and dispatches a real domain against it, same as any other persistence adapter" do

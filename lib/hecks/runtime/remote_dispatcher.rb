@@ -16,7 +16,7 @@ module Hecks
     # closely enough that everything built on top of a dispatcher —
     # `Handle`, `AggregateDoor`, `Facade::Surface` — needs no changes
     # at all: `Handle#run`'s entire contract is
-    # `@dispatcher.dispatch("#{fqn}.#{command}", **identity, **args).instance.state`,
+    # `@dispatcher.dispatch("#{fqn}.#{command}", to: @id, with: args).instance.state`,
     # and both classes answer that identically.
     #
     # **Reads delegate, writes don't**. `query`/`reference_query` hand off
@@ -62,10 +62,14 @@ module Hecks
         @local = Dispatcher.new(registry)
       end
 
-      # Same deprecation as `Dispatcher#dispatch` — loose keyword facts warn;
-      # `to:`/`with:` do not.
+      # Same shape as `Dispatcher#dispatch_flat` — everything but
+      # `saga_correlation:` is forwarded through unread, `to:`/`with:`
+      # included, and lifted out downstream by whichever path actually
+      # dispatches (`@local.dispatch_flat` locally, the flat wire form
+      # remotely). Not the strict `to:`/`with:`-only door `Dispatcher#
+      # dispatch` is — see that class's own comment for why this file
+      # never had one.
       def dispatch(verb, saga_correlation: nil, **args)
-        Dispatcher.deprecate_loose_facts(args.except(:to, :with))
         dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
       end
 

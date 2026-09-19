@@ -142,10 +142,10 @@ RSpec.describe "a construct's identity" do
         # `number:` was written twice — the first a copy of the customer id — and
         # Ruby warned on every run while silently keeping the second. What this
         # test is about is the customer pointing at nothing, not the number.
-        banking.dispatch("Banking::Account.Open", customer:    "nobody-registered-this",
-                                                  number:      { value: "ACC-1" },
-                                                  kind:        { name: "current" },
-                                                  daily_limit: { cents: 100 })
+        banking.dispatch_flat("Banking::Account.Open", customer:    "nobody-registered-this",
+                                                       number:      { value: "ACC-1" },
+                                                       kind:        { name: "current" },
+                                                       daily_limit: { cents: 100 })
       end.to raise_error(Hecks::Runtime::NotFound, /no Customer with/)
     end
 

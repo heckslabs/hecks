@@ -164,7 +164,7 @@ File.write(File.join(GRANGE_DIR, "bluebook/grange.world"), <<~WORLD)
 WORLD
 
 era_one = Hecks.boot(GRANGE_DIR)
-era_one.dispatch("Grange::Crate.Store", label: { value: "c1" }, weight: { value: 10 })
+era_one.dispatch_flat("Grange::Crate.Store", label: { value: "c1" }, weight: { value: 10 })
 Grange::Crate.count   # => 1
 ```
 

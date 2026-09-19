@@ -127,7 +127,7 @@ actually does:
 
 ```ruby
 before = runtime.reactions.size
-runtime.dispatch("Banking::ScheduledPayment.Fail", instruction: "instr1")
+runtime.dispatch_flat("Banking::ScheduledPayment.Fail", instruction: "instr1")
 cascade = runtime.reactions[before..]
 
 cascade.size  # => 4
@@ -247,7 +247,7 @@ runtime.dispatch("Banking::Account.Open", with: { customer: "c2", number: { valu
                                                   kind: { name: "savings" }, daily_limit: { cents: 10_000 } })
 
 before = runtime.reactions.size
-runtime.dispatch("Banking::Customer.Suspend", reference: "c2", standing: { value: "under review" })
+runtime.dispatch_flat("Banking::Customer.Suspend", reference: "c2", standing: { value: "under review" })
 
 # Filtered by policy: each freeze this one causes goes on to fire
 # `ReviewOnFreeze` in its own right, so the log carries those too.
@@ -303,7 +303,7 @@ runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { valu
                                                   kind: { name: "current" }, daily_limit: { cents: 50_000 } })
 
 before = runtime.reactions.size
-runtime.dispatch("Banking::Account.FreezeAccount", number: "a1")
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: "a1")
 runtime.reactions[before..].size     # => 1
 runtime.reactions.last[:trigger]     # => "Compliance::AccountFreezeReview.Open"
 runtime.reactions.last[:delivered]   # => false
@@ -407,7 +407,7 @@ runtime.dispatch("Banking::Account.Open", with: { customer: "c4", number: { valu
                                                   kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Account.Open", with: { customer: "c4", number: { value: "dst1" },
                                                   kind: { name: "current" }, daily_limit: { cents: 100_000 } })
-runtime.dispatch("Banking::Account.Credit", number: "src1", amount: { cents: 1000 }, narrative: { text: "opening balance" })
+runtime.dispatch_flat("Banking::Account.Credit", number: "src1", amount: { cents: 1000 }, narrative: { text: "opening balance" })
 
 runtime.dispatch("Banking::Transfer.Request", with: { reference: { value: "tr1" }, amount: { cents: 200 },
                                                       narrative: { text: "rent" }, source: "src1", destination: "dst1" })
@@ -442,8 +442,8 @@ runtime.dispatch("Banking::Account.Open", with: { customer: "c5", number: { valu
                                                   kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Account.Open", with: { customer: "c5", number: { value: "dst2" },
                                                   kind: { name: "current" }, daily_limit: { cents: 100_000 } })
-runtime.dispatch("Banking::Account.Credit", number: "src2", amount: { cents: 1000 }, narrative: { text: "opening balance" })
-runtime.dispatch("Banking::Account.FreezeAccount", number: "dst2")
+runtime.dispatch_flat("Banking::Account.Credit", number: "src2", amount: { cents: 1000 }, narrative: { text: "opening balance" })
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: "dst2")
 
 runtime.dispatch("Banking::Transfer.Request", with: { reference: { value: "tr2" }, amount: { cents: 200 },
                                                       narrative: { text: "rent" }, source: "src2", destination: "dst2" })
@@ -573,7 +573,7 @@ runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c6" 
                                                        name: { given: "Salim", family: "Haddad" }, email: { address: "salim@example.com" } })
 runtime.dispatch("Banking::OnboardingCase.Open", with: { customer: "c6",
                                                          reference: { value: "ob1" }, account_number: { value: "acct1" } })
-runtime.dispatch("Banking::OnboardingCase.Clear", reference: "ob1")
+runtime.dispatch_flat("Banking::OnboardingCase.Clear", reference: "ob1")
 
 runtime.sagas.select { |s| s[:instance] == "ob1" && s[:ended] }
 # => [{ process_manager: "Onboarding", on: "AccountOpened", instance: "ob1", ended: true }]
@@ -590,7 +590,7 @@ runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c7" 
                                                        name: { given: "Priya", family: "Nair" }, email: { address: "priya@example.com" } })
 runtime.dispatch("Banking::OnboardingCase.Open", with: { customer: "c7",
                                                          reference: { value: "ob2" }, account_number: { value: "acct2" } })
-runtime.dispatch("Banking::OnboardingCase.Decline", reference: "ob2")
+runtime.dispatch_flat("Banking::OnboardingCase.Decline", reference: "ob2")
 
 runtime.sagas.select { |s| s[:instance] == "ob2" }.size  # => 2
 runtime.sagas.select { |s| s[:instance] == "ob2" && s.key?(:dispatch) }  # => []

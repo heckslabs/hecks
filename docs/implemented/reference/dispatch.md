@@ -75,8 +75,8 @@ runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { valu
                                                   kind: { name: "current" }, daily_limit: { cents: 100_000 } })
 runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "dst" },
                                                   kind: { name: "current" }, daily_limit: { cents: 100_000 } })
-runtime.dispatch("Banking::Account.Credit", number: "src", amount: { cents: 1000 }, narrative: { text: "opening balance" })
-runtime.dispatch("Banking::Account.FreezeAccount", number: "dst")
+runtime.dispatch_flat("Banking::Account.Credit", number: "src", amount: { cents: 1000 }, narrative: { text: "opening balance" })
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: "dst")
 
 runtime.dispatch("Banking::Transfer.Request", with: { reference: { value: "t1" }, amount: { cents: 200 },
                                                       narrative: { text: "rent" }, source: "src", destination: "dst" })

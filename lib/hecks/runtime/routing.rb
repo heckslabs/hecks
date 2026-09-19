@@ -22,8 +22,8 @@ module Hecks
 
       # Loaded by invocation.rb (which requires this file), so `Invocation`
       # is always defined by the time either method runs.
-      def payload(command, with:, legacy:)
-        facts = Invocation.facts_for(command, with: with, legacy: legacy)
+      def payload(command, with:, flat:)
+        facts = Invocation.facts_for(command, with: with, flat: flat)
         Invocation.new(verb: nil, target: nil, facts: facts).to_args
       end
     end

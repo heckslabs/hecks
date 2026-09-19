@@ -89,7 +89,7 @@ Given a list, the command may fire from any of several states —
 closes an account whether or not it was frozen first:
 
 ```ruby
-runtime.dispatch("Banking::Account.CloseAccount", number: { value: "lc-a1" })
+runtime.dispatch_flat("Banking::Account.CloseAccount", number: { value: "lc-a1" })
 Banking::Account.find("lc-a1").status  # => "closed"
 ```
 

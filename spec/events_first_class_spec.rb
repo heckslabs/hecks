@@ -252,13 +252,13 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     registry.verify!
     runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "ACC1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: "ACC1" },
                      kind: { name: "current" }, daily_limit: { cents: 100_000 })
 
     expect do
-      runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "ACC1" })
+      runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "ACC1" })
     end.not_to raise_error
 
     account = registry.repository("Banking", registry.bluebook("Banking").aggregate("Account")).find("ACC1")

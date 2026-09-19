@@ -15,8 +15,8 @@ RSpec.describe Hecks::Adapters::Memory do
   end
 
   def create(name: "Margherita")
-    runtime.dispatch("Pizzas::Order.CreatePizza",
-                     name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+    runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                          name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
   end
 
   it "clears saved records, the append log, and recorded events back to empty" do

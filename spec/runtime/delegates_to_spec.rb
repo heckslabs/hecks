@@ -37,8 +37,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
   it "mutates the target entity and emits its own event, in ONE dispatch that never names the entity" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     result = runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b1", with: { id: { value: "p1" }, to: { file: 5, rank: 5 } })
 
@@ -60,8 +60,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
   # dispatch always would.
   it "carries the delegating command's own ambient args through to the target's own emitted event" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b4", with: { id: { value: "p1" }, to: { file: 5, rank: 5 } })
 
@@ -72,8 +72,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
   it "raises the target's own refusal AS the delegating command's own refusal — synchronously, not recorded and swallowed" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     expect do
       runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b2", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
@@ -82,8 +82,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
   it "persists nothing from a refused delegation — the failed attempt leaves the piece exactly where it was" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     begin
       runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b3", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })

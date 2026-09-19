@@ -1,5 +1,4 @@
 require_relative "hecks/version"
-require_relative "hecks/deprecation"
 # The closed sets the runtime computes with, generated from
 # vocabulary.bluebook. Plain data, required first, because some of
 # them are read while a bluebook is still being parsed.

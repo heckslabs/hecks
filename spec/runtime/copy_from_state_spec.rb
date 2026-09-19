@@ -107,7 +107,7 @@ RSpec.describe "a mutation sourced from the record's own state" do
 
   let(:runtime) do
     boot_board.tap do |bound|
-      bound.dispatch("Snapshots::Board.Create", label: { value: "b" })
+      bound.dispatch_flat("Snapshots::Board.Create", label: { value: "b" })
       bound.dispatch("Snapshots::Board.Place", to: "b", with: { id: "p1", square: { file: 1 } })
     end
   end

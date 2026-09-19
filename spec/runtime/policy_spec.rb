@@ -21,15 +21,15 @@ RSpec.describe "a policy" do
   def topped_pizza(runtime)
     # `name:` was written twice here — once bare, once as the value object — and
     # Ruby warned on every run while silently keeping the second.
-    pizza = runtime.dispatch("Pizzas::Order.CreatePizza",
-                             name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
-    runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
+    pizza = runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                                  name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
+    runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
     pizza
   end
 
   it "fires the command its event names, and the reaction lands" do
     runtime = boot_reflex
-    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
+    runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
 
     expect(Reflex::Light.find("light-1").condition.to_h).to eq(value: "logged")
 
@@ -46,16 +46,16 @@ RSpec.describe "a policy" do
     # with the first (same `name:`, silently overwritten) and still pass,
     # because nothing checked whether a creating command's identity already
     # existed. AlreadyExists (see command_interpreter.rb) caught it.
-    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
-    runtime.dispatch("Reflex::Light.Flip", name: { value: "light-2" }, id: "light-2")
+    runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1")
+    runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-2" }, id: "light-2")
 
     expect(runtime.reactions.size).to eq(2)
   end
 
   it "stops a reaction that feeds itself, and says so" do
     runtime = boot_reflex
-    runtime.dispatch("Reflex::Echo.Install", name: { value: "bell-1" })
-    runtime.dispatch("Reflex::Echo.Ring", name: { value: "bell-1" })
+    runtime.dispatch_flat("Reflex::Echo.Install", name: { value: "bell-1" })
+    runtime.dispatch_flat("Reflex::Echo.Ring", name: { value: "bell-1" })
 
     expect(runtime.reactions.size).to eq(Hecks::Runtime::Dispatcher::MAX_REACTION_DEPTH + 1)
 
@@ -66,7 +66,7 @@ RSpec.describe "a policy" do
 
   it "records a reaction it cannot deliver rather than swallowing it" do
     runtime = boot_reflex
-    runtime.dispatch("Reflex::Beacon.Raise", signal: { value: "beacon-1" })
+    runtime.dispatch_flat("Reflex::Beacon.Raise", signal: { value: "beacon-1" })
 
     expect(runtime.reactions).to contain_exactly(
       hash_including(
@@ -82,7 +82,7 @@ RSpec.describe "a policy" do
   it "leaves the triggering command's own state committed" do
     runtime = boot_in_memory
     pizza   = topped_pizza(runtime)
-    runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 900 })
+    runtime.dispatch_flat("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 900 })
 
     expect(Pizzas::Order.find(pizza.id).status).to eq("sold")
   end
@@ -111,7 +111,7 @@ RSpec.describe "a policy" do
     end
 
     result = nil
-    expect { result = runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1") }
+    expect { result = runtime.dispatch_flat("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1") }
       .to output(/LogOnFlip.*Flipped.*Reflex::Light\.Log.*boom/m).to_stderr
 
     expect(result.events.map(&:name)).to eq(["Flipped"])
@@ -251,17 +251,17 @@ RSpec.describe "a policy" do
     end
 
     def open_two_accounts_for(runtime, customer_id)
-      runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
-                                               customer_id: { value: customer_id })
-      runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
-                                               customer_id: { value: customer_id })
+      runtime.dispatch_flat("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
+                                                    customer_id: { value: customer_id })
+      runtime.dispatch_flat("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
+                                                    customer_id: { value: customer_id })
     end
 
     it "dispatches when the where clause holds" do
       runtime = boot_fanout
       open_two_accounts_for(runtime, "c1")
 
-      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
+      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
 
       expect(runtime.reactions).to include(
         hash_including(policy: "NotifyOnFlag", on: "Flagged", trigger: "Fanout::Customer.Acknowledge",
@@ -274,7 +274,7 @@ RSpec.describe "a policy" do
       runtime = boot_fanout
       open_two_accounts_for(runtime, "c1")
 
-      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "low" })
+      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "low" })
 
       expect(runtime.reactions).to be_empty
       expect(Fanout::Customer.find("c1").risk[:value]).to eq("low")
@@ -285,9 +285,9 @@ RSpec.describe "a policy" do
       open_two_accounts_for(runtime, "c1")
       # A third account, a different customer — proves the fan-out is
       # scoped by the query's own where, not "every Account that exists".
-      runtime.dispatch("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+      runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
 
-      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
+      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
 
       review_reactions = runtime.reactions.select { |r| r[:policy] == "ReviewOnFlag" }
       expect(review_reactions.size).to eq(2)
@@ -313,7 +313,7 @@ RSpec.describe "a policy" do
       registry.bluebook("Fanout").policies.find { |p| p.name == "ReviewOnFlag" }
               .instance_variable_set(:@for_each, "Account.NoSuchQuery")
 
-      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
+      runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
 
       review = runtime.reactions.find { |r| r[:policy] == "ReviewOnFlag" }
       expect(review).to include(delivered: false)

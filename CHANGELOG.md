@@ -7,6 +7,25 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Removed (1.5.0): command facts as loose keyword arguments to
+`dispatch`.** Deprecated in 1.3.x, gone here: `dispatch(verb, to:, with:,
+saga_correlation:)` takes no `**legacy_args` any more, and neither does
+`dispatch_port(domain, aggregate, port, operation, to:, with:, flat:)`.
+A loose fact is now refused by Ruby itself, by name — "unknown keywords:
+:name, :pizza". Pass the receiver's identity in `to:` and the command's
+facts in `with:`. Code holding a bag of DATA rather than written keywords
+— corpus JSON, a decoded webhook, the CLI and JSON doors, a reaction with
+no `with:` projection — calls `Dispatcher#dispatch_flat(verb, args)` (or
+`dispatch_port(..., flat: args)`), which is the wire form and is NOT
+going anywhere; it routes exactly as the keyword door did.
+`Invocation.from_call`'s own `legacy:` parameter is `flat:` now, the same
+rename all the way down through `Routing.payload`, because that is what
+it always was once the keyword spelling was gone. With no caller left,
+`Hecks::Deprecation`, `bin/codemod_legacy_dispatch_args` and its recorder
+go too — the codemod's whole job was draining this one deprecation, and
+the next deprecation can lift the helper back out of this commit's
+parent.
+
 ## [1.4.0] - 2026-09-19
 
 141 commits since v1.3.0. `rust/host` gains the console's own `/api/*`

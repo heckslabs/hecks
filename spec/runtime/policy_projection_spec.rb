@@ -122,14 +122,14 @@ RSpec.describe "a policy's trigger projection" do
 
   let(:runtime) do
     boot_projection.tap do |bound|
-      bound.dispatch("Projecting::Permit.Grant", code: { value: "p-1" }, holder: { value: "h-1" })
-      bound.dispatch("Projecting::Permit.Grant", code: { value: "p-2" }, holder: { value: "h-1" })
-      bound.dispatch("Projecting::Permit.Grant", code: { value: "p-3" }, holder: { value: "h-2" })
+      bound.dispatch_flat("Projecting::Permit.Grant", code: { value: "p-1" }, holder: { value: "h-1" })
+      bound.dispatch_flat("Projecting::Permit.Grant", code: { value: "p-2" }, holder: { value: "h-1" })
+      bound.dispatch_flat("Projecting::Permit.Grant", code: { value: "p-3" }, holder: { value: "h-2" })
     end
   end
 
   def report(breach = "b-1", holder: "h-1")
-    runtime.dispatch("Projecting::Breach.Report", ref: { value: breach },
+    runtime.dispatch_flat("Projecting::Breach.Report", ref: { value: breach },
                      holder: { value: holder }, summary: { text: "took the van" })
   end
 

@@ -64,7 +64,7 @@ RSpec.describe "every refusal the corpus provokes" do
             if (question = step["query"])
               runtime.query(question, **args)
             else
-              runtime.dispatch(step["verb"], **args)
+              runtime.dispatch_flat(step["verb"], **args)
             end
           rescue StandardError => e
             verb_or_query = step.key?("verb") ? step["verb"] : step["query"]

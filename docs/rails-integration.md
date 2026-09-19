@@ -142,7 +142,7 @@ looks like, without the caller pre-converting it:
 ```ruby
 def run(command, args)
   identity = { @ir.identified_by => @id }
-  @state = @dispatcher.dispatch("#{fqn}.#{command.hecks_name}", **identity,
+  @state = @dispatcher.dispatch_flat("#{fqn}.#{command.hecks_name}", **identity,
                                  **args.to_h.transform_keys(&:to_sym)).instance.state
   self
 end

@@ -111,21 +111,21 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   end
 
   def seed(runtime)
-    runtime.dispatch("HopChain::Client.Register", name: { value: "Acme" })
-    runtime.dispatch("HopChain::Client.Register", name: { value: "Zombie Corp" })
-    runtime.dispatch("HopChain::Client.Churn", name: { value: "Zombie Corp" })
+    runtime.dispatch_flat("HopChain::Client.Register", name: { value: "Acme" })
+    runtime.dispatch_flat("HopChain::Client.Register", name: { value: "Zombie Corp" })
+    runtime.dispatch_flat("HopChain::Client.Churn", name: { value: "Zombie Corp" })
 
-    runtime.dispatch("HopChain::Engagement.Start", client: "Acme", reference: { value: "e-1" })
-    runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-1" })
-    runtime.dispatch("HopChain::Engagement.Start", client: "Zombie Corp", reference: { value: "e-2" })
-    runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-2" })
+    runtime.dispatch_flat("HopChain::Engagement.Start", client: "Acme", reference: { value: "e-1" })
+    runtime.dispatch_flat("HopChain::Engagement.Demo", reference: { value: "e-1" })
+    runtime.dispatch_flat("HopChain::Engagement.Start", client: "Zombie Corp", reference: { value: "e-2" })
+    runtime.dispatch_flat("HopChain::Engagement.Demo", reference: { value: "e-2" })
 
-    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-1", number: { value: "P-1" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-1" })
-    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-2" })
-    runtime.dispatch("HopChain::Proposal.Draft", number: { value: "P-3" })
-    runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-3" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", engagement: "e-1", number: { value: "P-1" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-1" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-2" })
+    runtime.dispatch_flat("HopChain::Proposal.Draft", number: { value: "P-3" })
+    runtime.dispatch_flat("HopChain::Proposal.Send", number: { value: "P-3" })
   end
 
   def ids(runtime, query) = runtime.query(query).map { |r| r[:id] }

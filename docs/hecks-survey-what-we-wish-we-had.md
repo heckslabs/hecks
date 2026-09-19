@@ -90,7 +90,7 @@ cross-process. **Real, verified streaming.**
 ```ruby
 adapter "LogConsolidation" do
   driving on interval "5s" do |clock|
-    dispatch "…::Consolidation.Consolidate", consolidation_id: "log"
+    dispatch_flat "…::Consolidation.Consolidate", consolidation_id: "log"
   end
 end
 ```

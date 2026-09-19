@@ -108,10 +108,10 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   end
 
   def open_two_accounts_for(runtime, customer_id)
-    runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
-                                             customer_id: { value: customer_id })
-    runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
-                                             customer_id: { value: customer_id })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
+                                                  customer_id: { value: customer_id })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
+                                                  customer_id: { value: customer_id })
   end
 
   # Mirrors `Replay.call`'s own snapshot-before-dispatch — the real
@@ -128,14 +128,14 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
                                           end }
 
     mark = runtime.reactions.size
-    result = runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })
+    result = runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })
     Hecks::Fuzzing::Replay.fan_out_findings(runtime, snapshot, result.events, runtime.reactions[mark..])
   end
 
   it "recomputes the SAME row-id set the real dispatch actually fanned out over" do
     runtime = boot_fanout
     open_two_accounts_for(runtime, "c1")
-    runtime.dispatch("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
 
     findings = flag(runtime, "c1", "high")
 
@@ -159,7 +159,7 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   it "excludes another customer's account from the expected set, matching the real query's own where" do
     runtime = boot_fanout
     open_two_accounts_for(runtime, "c1")
-    runtime.dispatch("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
 
     findings = flag(runtime, "c1", "high")
 

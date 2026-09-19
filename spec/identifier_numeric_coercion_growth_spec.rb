@@ -74,7 +74,7 @@ RSpec.describe "identity coercion on a numeric identified_by field" do
   it "creates a record whose identity field is genuinely numeric, not a type mismatch" do
     runtime = boot_numeric_identity
 
-    expect { runtime.dispatch("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 }) }
+    expect { runtime.dispatch_flat("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 }) }
       .not_to raise_error
 
     cycle = repository_for(runtime).find("1")
@@ -83,9 +83,9 @@ RSpec.describe "identity coercion on a numeric identified_by field" do
 
   it "dispatches a SECOND command against the same numeric-identity record without a false TypeMismatch" do
     runtime = boot_numeric_identity
-    runtime.dispatch("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 })
+    runtime.dispatch_flat("NumericIdentityGrowth::SleepCycle.StartCycle", cycle_number: { value: 1 })
 
-    expect { runtime.dispatch("NumericIdentityGrowth::SleepCycle.AdvanceStage", cycle_number: 1) }
+    expect { runtime.dispatch_flat("NumericIdentityGrowth::SleepCycle.AdvanceStage", cycle_number: 1) }
       .not_to raise_error
   end
 end

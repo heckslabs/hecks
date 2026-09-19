@@ -84,11 +84,11 @@ RSpec.describe Hecks::Facade::CliRunner do
 
     it "routes SafeDepositBox.Visit.Annotate with aggregate and entity receivers outside its facts" do
       banking = banking_runtime
-      banking.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      banking.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      banking.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
+      banking.dispatch_flat("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
                                                        box_number: { value: 12 }, size: { value: "medium" })
-      banking.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
+      banking.dispatch_flat("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
                                                            box_number: { value: 12 },
                                                            date: { value: "2026-01-05" }, sequence: { value: 1 })
 

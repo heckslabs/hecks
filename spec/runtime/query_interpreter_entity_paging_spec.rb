@@ -99,12 +99,12 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
 
   let(:runtime) do
     boot.tap do |bound|
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b1" }, featured_price: { cents: 500 })
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b2" }, featured_price: { cents: 100 })
-      bound.dispatch("EntityPaging::Board.Register", name: { value: "b3" }, featured_price: { cents: 300 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b1" }, featured_price: { cents: 500 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b2" }, featured_price: { cents: 100 })
+      bound.dispatch_flat("EntityPaging::Board.Register", name: { value: "b3" }, featured_price: { cents: 300 })
 
       [10, 20, 30, 40, 50].each do |cents|
-        bound.dispatch("EntityPaging::Board.AddItem", name: { value: "b1" }, price: { cents: cents })
+        bound.dispatch_flat("EntityPaging::Board.AddItem", name: { value: "b1" }, price: { cents: cents })
       end
     end
   end

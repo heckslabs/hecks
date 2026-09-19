@@ -137,7 +137,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     RUBY
 
     real_runtime = Hecks.boot(dir, install_facade: false)
-    real_runtime.dispatch("SmokeWidget::Item.Add", name: { value: "smoke-test" })
+    real_runtime.dispatch_flat("SmokeWidget::Item.Add", name: { value: "smoke-test" })
     repository = real_runtime.registry.repository("SmokeWidget", real_runtime.registry.bluebook("SmokeWidget").aggregate("Item"))
     expect(repository.all.size).to eq(1)
 

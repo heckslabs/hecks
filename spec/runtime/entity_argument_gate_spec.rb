@@ -31,7 +31,7 @@ RSpec.describe "an entity command's own argument gate" do
   end
 
   def open_widget(runtime)
-    runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "w1" }, amount: { value: 1 },
+    runtime.dispatch_flat("DispatchOrder::Widget.Open", label: { value: "w1" }, amount: { value: 1 },
                      part_sequence: { value: 1 }, part_note: { value: "first" })
   end
 
@@ -40,7 +40,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" }, bogus_arg: 123)
     end.to raise_error(Hecks::Runtime::UnknownArgument, /bogus_arg/)
   end
@@ -50,7 +50,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
     end.to raise_error(Hecks::Runtime::AbsentArgument, /note/)
 
     # **The regression itself** — confirm the refusal actually happened before
@@ -68,7 +68,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" })
     end.not_to raise_error
   end
@@ -78,7 +78,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Touch", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Touch", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "touched" }, sneaky: "x")
     end.to raise_error(Hecks::Runtime::UnknownArgument, /sneaky/)
   end

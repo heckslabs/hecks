@@ -461,7 +461,7 @@ Governance.authorize_transition!(
 )
 
 Runtime::Caller.as(role: "Customer registrar") do
-  dispatcher.dispatch("Customers::Customer.Register", **args)
+  dispatcher.dispatch_flat("Customers::Customer.Register", **args)
 end
 ```
 
@@ -812,7 +812,7 @@ identities.identity.register
 and the runtime enriches the command:
 
 ```ruby
-dispatcher.dispatch(
+dispatcher.dispatch_flat(
   "Identities::Identity.Register",
   identity_id: { value: uuid_adapter.generate }
 )
@@ -1290,7 +1290,7 @@ identity = identities.lookup_external(
 )
 
 Hecks.as_caller(role: governance.role_for(identity)) do
-  runtime.dispatch("Billing::Invoice.Refund", **args)
+  runtime.dispatch_flat("Billing::Invoice.Refund", **args)
 end
 ```
 

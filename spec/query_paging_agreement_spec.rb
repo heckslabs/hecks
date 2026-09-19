@@ -73,7 +73,7 @@ RSpec.describe "limit and offset on one query" do
   let(:runtime) do
     boot_pages.tap do |bound|
       %w[t-1 t-2 t-3 t-4 t-5].each do |number|
-        bound.dispatch("Paging::Ticket.Draw", number: { value: number })
+        bound.dispatch_flat("Paging::Ticket.Draw", number: { value: number })
       end
     end
   end

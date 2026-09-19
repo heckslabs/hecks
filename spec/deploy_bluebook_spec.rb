@@ -31,7 +31,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       database: { value: "Postgres" },
       web:      { value: "None" }
     }.merge(overrides)
-    dispatcher.dispatch("Deploy::LambdaTarget.Declare", **args)
+    dispatcher.dispatch_flat("Deploy::LambdaTarget.Declare", **args)
   end
 
   it "accepts a fully-specified, in-range target" do

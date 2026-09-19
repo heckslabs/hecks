@@ -62,17 +62,17 @@ RSpec.describe "FreezeAccountsOnSuspension" do
 
   it "freezes every open account the suspended customer holds, and only theirs" do
     runtime = build
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
-                                                   name:      { given: "Ada", family: "Lovelace" },
-                                                   email:     { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0001" },
+                                                        name:      { given: "Ada", family: "Lovelace" },
+                                                        email:     { address: "ada@example.com" })
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-2" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-2" },
                                                kind: { name: "savings" }, daily_limit: { cents: 10_000 })
 
-    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
-                                                  standing:  { value: "chargeback investigation" })
+    runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
+                                                       standing:  { value: "chargeback investigation" })
 
     fan = runtime.reactions.select { |r| r[:policy] == "FreezeAccountsOnSuspension" }
     expect(fan.map { |r| r[:for_row] }).to contain_exactly("acct-1", "acct-2")
@@ -89,14 +89,14 @@ RSpec.describe "FreezeAccountsOnSuspension" do
   # at all) refused every row with `does not declare standing`.
   it "hands the trigger the row and nothing else, so the event's own fields never reach it" do
     runtime = build
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
-                                                   name:      { given: "Ada", family: "Lovelace" },
-                                                   email:     { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0001" },
+                                                        name:      { given: "Ada", family: "Lovelace" },
+                                                        email:     { address: "ada@example.com" })
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
-    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
-                                                  standing:  { value: "chargeback investigation" })
+    runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
+                                                       standing:  { value: "chargeback investigation" })
 
     fan = runtime.reactions.select { |r| r[:policy] == "FreezeAccountsOnSuspension" }
     expect(fan.filter_map { |r| r[:reason] }).to be_empty
@@ -105,15 +105,15 @@ RSpec.describe "FreezeAccountsOnSuspension" do
   it "Account.OpenForCustomer answers correctly on its own — the for_each target, scoped to ONE customer, " \
      "ready for whichever gap closes first" do
     runtime = build
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
-                                                   name:      { given: "Ada", family: "Lovelace" },
-                                                   email:     { address: "ada@example.com" })
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0002" },
-                                                   name:      { given: "Grace", family: "Hopper" },
-                                                   email:     { address: "grace@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0001" },
+                                                        name:      { given: "Ada", family: "Lovelace" },
+                                                        email:     { address: "ada@example.com" })
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0002" },
+                                                        name:      { given: "Grace", family: "Hopper" },
+                                                        email:     { address: "grace@example.com" })
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Open", customer: "CUST-0002", number: { value: "acct-2" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "CUST-0002", number: { value: "acct-2" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     rows = runtime.query("Banking::Account.OpenForCustomer", reference: { value: "CUST-0001" })
