@@ -99,9 +99,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
-                      args.identity_id.check_invariants()?;
-              crate::kernel::check_role_via(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::identity::identity::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::identity::identity::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::identity::identity::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::identity::identity::RegisterArgs::from_json(v)?; args.identity_id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::identity::identity::RegisterArgs| Ok(()) })?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -113,12 +111,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(facts_json)?;
-                      args.key.check_invariants()?;
-                      args.issuer.check_invariants()?;
-                      args.subject.check_invariants()?;
-              crate::kernel::check_role_via(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
-              crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::identity::externalidentifier::LinkArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::identity::externalidentifier::LinkArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::identity::externalidentifier::LinkArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(v)?; args.key.check_invariants()?; args.issuer.check_invariants()?; args.subject.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::identity::externalidentifier::LinkArgs| { crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?; Ok(()) } })?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }], &args);

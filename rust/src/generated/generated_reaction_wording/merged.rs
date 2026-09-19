@@ -99,9 +99,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::generated_reaction_wording::desk::OpenArgs::from_json(facts_json)?;
-                      args.code.check_invariants()?;
-              crate::kernel::check_reference(&store.parcel, &args.parcel, "Parcel", "code")?;
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_reaction_wording::desk::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_reaction_wording::desk::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_reaction_wording::desk::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_reaction_wording::desk::OpenArgs::from_json(v)?; args.code.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::generated_reaction_wording::desk::OpenArgs| { crate::kernel::check_reference(&store.parcel, &args.parcel, "Parcel", "code")?; Ok(()) } })?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "parcel", as_name: "parcel", target: "GeneratedReactionWording::Parcel" }], &args);
@@ -112,21 +110,9 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CloseArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "desk", "code"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Close",
-        unknown: &unknown,
-        declared: &[],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::desk::Desk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Close", aggregate: "Desk", identity: "code.value" }.render_args()))?, };
-              let args = crate::generated::generated_reaction_wording::desk::CloseArgs::from_json(facts_json)?;
+              if let Some(route) = route { route.require_depth(0)?; }
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_reaction_wording::desk::CloseArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_reaction_wording::desk::CloseArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_reaction_wording::desk::CloseArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_reaction_wording::desk::CloseArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_reaction_wording::desk::CloseArgs| Ok(()) })?;
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::generated_reaction_wording::desk::Desk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Close", aggregate: "Desk", identity: "code.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedReactionWording::Desk", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -138,8 +124,7 @@ if !unknown.is_empty() {
               let route = invocation.route();
               let facts_json = invocation.facts();
               if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::generated_reaction_wording::parcel::OpenArgs::from_json(facts_json)?;
-                      args.code.check_invariants()?;
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_reaction_wording::parcel::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_reaction_wording::parcel::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_reaction_wording::parcel::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_reaction_wording::parcel::OpenArgs::from_json(v)?; args.code.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_reaction_wording::parcel::OpenArgs| Ok(()) })?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -150,22 +135,9 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AnnotateArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["note", "id", "parcel", "code"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Annotate",
-        unknown: &unknown,
-        declared: &["note"],
-    }.render_args()));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::parcel::Parcel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Annotate", aggregate: "Parcel", identity: "code.value" }.render_args()))?, };
-              let args = crate::generated::generated_reaction_wording::parcel::AnnotateArgs::from_json(facts_json)?;
-                      if let Some(v) = &args.note { v.check_invariants()?; }
+              if let Some(route) = route { route.require_depth(0)?; }
+              let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_reaction_wording::parcel::AnnotateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_reaction_wording::parcel::AnnotateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_reaction_wording::parcel::AnnotateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_reaction_wording::parcel::AnnotateArgs::from_json(v)?; if let Some(v) = &args.note { v.check_invariants()?; } Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_reaction_wording::parcel::AnnotateArgs| Ok(()) })?;
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::generated_reaction_wording::parcel::Parcel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Annotate", aggregate: "Parcel", identity: "code.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedReactionWording::Parcel", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

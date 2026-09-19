@@ -739,36 +739,11 @@ pub fn generate(
                             .collect::<Vec<_>>()
                             .join(", "),
                         unrouted_supported,
-                        // BUG#38 — see `EntityCommandEntry`'s own
-                        // identical field, above. `None` when `unrouted_
-                        // supported` is false: the ROUTED-only shape
-                        // never calls `extract_id` against raw
-                        // `facts_json`, so there is no race to close.
-                        structural_precheck: if unrouted_supported {
-                            let identity_heads: Vec<String> = entity
-                                .get("identified_by")
-                                .map(Json::each)
-                                .unwrap_or(&[])
-                                .iter()
-                                .chain(nested_identified_by.iter())
-                                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
-                                .collect();
-                            let allowlist = crate::json_codec::command_argument_allowlist(
-                                aggregate, command, &process_managers, &identity_heads,
-                            );
-                            let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-                            Some(crate::json_codec::structural_precheck(
-                                &format!(
-                                    "{nested_name_ident}{}NestedEntityArgs",
-                                    crate::naming::rust_ident(nested_command_name)
-                                ),
-                                nested_command_name,
-                                cmd_attrs,
-                                Some(&allowlist),
-                            ))
-                        } else {
-                            None
-                        },
+                        // ARGUMENT GATES — no `structural_precheck` field any more
+                        // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
+                        // this command's own generated gate functions (`json_codec::emit_
+                        // argument_gates`) and the kernel calls them in vocabulary order,
+                        // ahead of identity resolution.
                     });
                 }
             }
@@ -872,38 +847,11 @@ pub fn generate(
                         .map(Json::to_s)
                         .collect::<Vec<_>>()
                         .join(", "),
-                    // BUG#38/#136 (qa/bluebook/quality_control.bluebook)
-                    // — the SAME allowlist `commands::emit_entity_
-                    // command`'s own `Args::from_json` call already
-                    // builds (`extra_identity_heads:` included), run
-                    // through `json_codec::structural_precheck` so
-                    // `registry.rs`'s router can run the identical
-                    // unknown/absent-argument gate a second time,
-                    // standalone, against raw `facts_json`, BEFORE the
-                    // route-less `None` arm resolves `extract_id` — and
-                    // (BUG#136) that same `None` arm now ALSO reruns the
-                    // full `Args::from_json` itself, discarded, ahead of
-                    // `extract_id`, so a declared identity-echo
-                    // attribute's own VO-level coercion runs before
-                    // identity resolution too — see `EntityCommandEntry::
-                    // structural_precheck`'s own header for the full
-                    // reasoning.
-                    structural_precheck: {
-                        let entity_identity_heads: Vec<String> = identified_by
-                            .iter()
-                            .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
-                            .collect();
-                        let allowlist = crate::json_codec::command_argument_allowlist(
-                            aggregate, command, &process_managers, &entity_identity_heads,
-                        );
-                        let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-                        Some(crate::json_codec::structural_precheck(
-                            &format!("{entity_name_ident}{}EntityArgs", crate::naming::rust_ident(entity_command_name)),
-                            entity_command_name,
-                            cmd_attrs,
-                            Some(&allowlist),
-                        ))
-                    },
+                    // ARGUMENT GATES — no `structural_precheck` field any more
+                    // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
+                    // this command's own generated gate functions (`json_codec::emit_
+                    // argument_gates`) and the kernel calls them in vocabulary order,
+                    // ahead of identity resolution.
                 });
             }
         }
@@ -1010,6 +958,15 @@ pub fn generate(
                 ),
             );
             puts_blank(&mut out);
+            // THE ARGUMENT GATES (roadmap D2) — one generated function
+            // per declared argument-gate step, called in vocabulary order
+            // by `kernel::decode_aggregate_arguments`; see
+            // `json_codec::emit_argument_gates`' own header.
+            puts_str(
+                &mut out,
+                &json_codec::emit_argument_gates(&args_struct, command_name, cmd_attrs, Some(&allowlist)),
+            );
+            puts_blank(&mut out);
 
             let creates = crate::shared::creates_owner(aggregate, command, &value_objects_by_name);
             let identity = mutations::identity_components(aggregate, command);
@@ -1023,40 +980,11 @@ pub fn generate(
                 continue;
             }
 
-            // BUG#23 (qa/bluebook/quality_control.bluebook) — the SAME
-            // `allowlist` this command's own `emit_from_json_flat` call
-            // above already built, run through `json_codec::structural_
-            // precheck` so `registry.rs`'s router can run the identical
-            // unknown/absent-argument gate a second time, standalone,
-            // against raw `facts_json`, BEFORE `id_line` resolves — see
-            // that function's own header for the full reasoning.
-            // Computed here, into a plain local, rather than inline
-            // inside the `CommandEntry` literal below: `args_struct` is
-            // moved into that literal's own `args_struct` field, and
-            // struct-literal field initializers evaluate in the order
-            // written, so borrowing it again in a LATER field expression
-            // would use it after that move. `None` for a CREATING
-            // command: `id_line` (registry.rs's own `if c.creates {
-            // ... } else { ... }`) resolves no IDENTITY at all there —
-            // a creating command's own identity comes from its declared
-            // attributes, never from `facts_json` — so there is no
-            // identity-resolution-before-structural-checks race for this
-            // fix to close there. BUG#56 (qa/bluebook/quality_control.
-            // bluebook) later gave a creating command's own `id_line` a
-            // real body too — an eager `route.require_depth(0)?`
-            // precheck — but that validates `route`, a piece of data
-            // entirely separate from `facts_json`, so it still cannot
-            // race this field's own check.
-            let structural_precheck = if creates {
-                None
-            } else {
-                Some(json_codec::structural_precheck(
-                    &args_struct,
-                    command_name,
-                    cmd_attrs,
-                    Some(&allowlist),
-                ))
-            };
+            // ARGUMENT GATES — no `structural_precheck` field any more
+            // (roadmap D2): `registry.rs` builds `kernel::ArgumentGates` out of
+            // this command's own generated gate functions (`json_codec::emit_
+            // argument_gates`) and the kernel calls them in vocabulary order,
+            // ahead of identity resolution.
 
             registry_commands.push(CommandEntry {
                 verb: format!("{domain_name}::{agg_name}.{command_name}"),
@@ -1093,7 +1021,6 @@ pub fn generate(
                     &value_objects_by_name,
                 ),
                 role: command.get("role").map(Json::to_s),
-                structural_precheck,
             });
         }
 

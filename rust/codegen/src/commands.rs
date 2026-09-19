@@ -1104,6 +1104,20 @@ pub fn emit_entity_command(
             let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &entity_identity_heads);
             crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
         },
+        // THE ARGUMENT GATES (roadmap D2) — `kernel::decode_entity_
+        // arguments` calls these in `EntityStep::ORDER`; see
+        // `json_codec::emit_argument_gates`' own header.
+        {
+            let entity_identity_heads: Vec<String> = entity
+                .get("identified_by")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                .collect();
+            let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &entity_identity_heads);
+            crate::json_codec::emit_argument_gates(&args_struct_name, &qualified_command_name, attrs, Some(&allowlist))
+        },
         entity_dispatch_fn,
     ]
     .join("\n\n")
@@ -1360,6 +1374,27 @@ pub fn emit_nested_entity_command(
             );
             let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &identity_heads);
             crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
+        },
+        // THE ARGUMENT GATES (roadmap D2) — see the one-hop entity
+        // command's own identical call, above.
+        {
+            let mut identity_heads: Vec<String> = entity
+                .get("identified_by")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                .collect();
+            identity_heads.extend(
+                nested
+                    .get("identified_by")
+                    .map(Json::each)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|p| p.to_s().split('.').next().unwrap_or("").to_string()),
+            );
+            let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &identity_heads);
+            crate::json_codec::emit_argument_gates(&args_struct_name, &qualified_command_name, attrs, Some(&allowlist))
         },
         nested_dispatch_fn,
     ]
