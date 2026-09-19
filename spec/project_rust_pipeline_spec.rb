@@ -75,10 +75,22 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", :io do
   # `roster` is the one member whose policy carries a real `where`
   # (`OnSeatAssignedHonorFront`), so it pins `where_ast` end to end.
   PARITY_DOMAINS = {
-    "examples/pizzas"     => %w[pizzas meta],
-    "examples/banking"    => %w[banking governance identity meta],
-    "examples/roster"     => %w[roster meta],
-    "examples/compliance" => %w[compliance governance meta]
+    "examples/pizzas"                    => %w[pizzas meta],
+    "examples/banking"                   => %w[banking governance identity meta],
+    "examples/roster"                    => %w[roster meta],
+    "examples/compliance"                => %w[compliance governance meta],
+    # docs/decisions/0058 — the `uses_embryonaut_bluebook` counterpart to
+    # `examples/banking`'s own `uses_framework` proof: a VENDORED package
+    # (widgets, attached the same `Kernel.load`-into-registry way a
+    # framework member is) instead of a framework member shipped inside
+    # this gem. Catches the same class of default-vs-opt-in divergence
+    # `bin/project_rust`'s own header names — this is the fixture that
+    # first found the opt-in Rust-native pipeline had NO support at all
+    # for this attachment mechanism (only `uses_framework`), closed
+    # alongside adding this line (`rust/parser/src/parse/hecksagon.rs`'s
+    # `vendored_bluebook_names`, `rust/project_rust_pipeline.rb`'s
+    # `uses_embryonaut_bluebook_names` chapter loop).
+    "examples/embryonaut_vendoring_demo" => %w[embryonaut_vendoring_demo widgets meta]
   }.freeze
 
   IGNORED_BASENAMES = %w[manifest.json].freeze

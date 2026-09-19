@@ -125,12 +125,17 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
 }
 
 /// `hecks-parse resolve --chapter <Name> <file.hecksagon>` — `{"domain":
-/// "<Name>", "uses_framework": [...]}`. STAGE 8: real, not a stub —
-/// `parse::chapter::resolve_uses_framework` walks every top-level
-/// `Hecks.hecksagon "..." do ... end` block in the file (fail-closed
-/// gated, exactly like `chapter`'s own `.hecksagon` handling), applies
-/// only the block whose own declared name matches `--chapter`, and
-/// returns every `uses_framework "X"` argument it names, in file order.
+/// "<Name>", "uses_framework": [...], "uses_embryonaut_bluebook": [...]}`.
+/// STAGE 8: real, not a stub — `parse::chapter::
+/// resolve_hecksagon_dependencies` walks every top-level `Hecks.hecksagon
+/// "..." do ... end` block in the file (fail-closed gated, exactly like
+/// `chapter`'s own `.hecksagon` handling), applies only the block whose
+/// own declared name matches `--chapter`, and returns every
+/// `uses_framework "X"` and `uses_embryonaut_bluebook "X"` argument it
+/// names, each in file order — a vendored package attaches onto the
+/// same registry the same `Kernel.load` way a framework member does
+/// (`lib/hecks/embryonaut_bluebook.rb`'s own header), so the opt-in
+/// pipeline orchestration needs both facts from the one scan.
 ///
 /// `--chapter` is REQUIRED, a deliberate departure from the plan's own
 /// original `hecks-parse resolve <file.hecksagon>` sketch (no chapter
@@ -163,13 +168,28 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 
     let source = fs::read_to_string(path)
         .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
-    let names = parse::chapter::resolve_uses_framework(&chapter_name, path, &source)?;
+    let (framework_names, vendored_names) =
+        parse::chapter::resolve_hecksagon_dependencies(&chapter_name, path, &source)?;
 
     let value = emit::JsonValue::Object(vec![
         ("domain".to_string(), emit::JsonValue::String(chapter_name)),
         (
             "uses_framework".to_string(),
-            emit::JsonValue::Array(names.into_iter().map(emit::JsonValue::String).collect()),
+            emit::JsonValue::Array(
+                framework_names
+                    .into_iter()
+                    .map(emit::JsonValue::String)
+                    .collect(),
+            ),
+        ),
+        (
+            "uses_embryonaut_bluebook".to_string(),
+            emit::JsonValue::Array(
+                vendored_names
+                    .into_iter()
+                    .map(emit::JsonValue::String)
+                    .collect(),
+            ),
         ),
     ]);
     println!("{}", emit::write(&value));

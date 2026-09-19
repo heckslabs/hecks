@@ -738,6 +738,7 @@ The example domains this README draws from:
 - **chess** — A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.
 - **compliance** — Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.
 - **directory** — A staff directory: members once addressed by the name they walked in with, now by the email that actually identifies them one person to one row.
+- **embryonaut_vendoring_demo** — The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through uses_embryonaut_bluebook, exercising the same dispatch-table merge uses_framework already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.
 - **pizzas** — Put toppings on a pizza and sell it to a customer.
 - **roster** — A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.
 <!-- generated:end -->
