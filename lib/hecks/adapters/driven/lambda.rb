@@ -39,14 +39,12 @@ module Hecks
           else
             aggregate.name
           end
-        region =
-          if settings.key?(:region)
-            settings[:region]
-          elsif settings.key?("region")
-            settings["region"]
-          else
-            "us-east-1"
-          end
+        region = setting(settings, :region, "us-east-1")
+        # NAMED, WHEN THIS DEPLOYMENT'S FUNCTION ISN'T `hecks-<domain>`
+        # — `Client`'s own comment has the real case that needs it.
+        # Absent (every domain whose stack name was never pinned), the
+        # computation below is exactly as it was.
+        function = setting(settings, :function, nil)
         # TWO DIFFERENT "domain"s, deliberately not conflated: `domain`
         # (this aggregate's OWN bluebook name — "Identity", "Governance")
         # only ever prefixes the instances lookup, since that's how
@@ -78,7 +76,7 @@ module Hecks
         # root-basename heuristic stays as the local-boot fallback,
         # unchanged.
         function_domain = ENV["DOMAIN_NAME"] || (root ? File.basename(root) : domain)
-        @client = Client.new(domain: function_domain, region: region)
+        @client = Client.new(domain: function_domain, region: region, function: function)
         @prefix = "#{domain}::#{aggregate.hecks_name}#"
       end
 
@@ -104,6 +102,17 @@ module Hecks
       # durable store — rust/host's rehydrate-and-replay journal, Phase
       # 1 — there is no local write-ahead log for `recover!` to replay),
       # `append`/`project` raise rather than silently no-op.
+
+      # A `.world` block's settings arrive symbol-keyed from the DSL and
+      # string-keyed from a round-tripped export, so every read has to
+      # accept both — one helper rather than the same five lines per
+      # key.
+      def setting(settings, key, fallback)
+        return settings[key] if settings.key?(key)
+        return settings[key.to_s] if settings.key?(key.to_s)
+
+        fallback
+      end
 
       private
 

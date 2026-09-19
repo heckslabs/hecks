@@ -196,19 +196,21 @@ deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecks/deploy", __dir__))
 begin
   target = deploy_dispatcher.dispatch(
     "Deploy::LambdaTarget.Declare",
-    domain:   { value: declared_domain_name },
-    region:   { value: deploy_settings[:region] },
-    memory:   { value: deploy_settings.fetch(:memory, 512) },
-    timeout:  { value: deploy_settings.fetch(:timeout, 10) },
-    # "Postgres" — Embryonaut's own live choice, and every domain
-    # declared before this setting existed — unless a domain's own
-    # deployed_to("AwsLambda") names "Aurora" explicitly.
-    database: { value: deploy_settings.fetch(:database, "Postgres") },
-    # "None" — every domain declared before this setting existed,
-    # Embryonaut included (its own public web UI is the separate,
-    # pre-existing lambda_handler.rb-file-presence mechanism, not this
-    # attribute) — unless a domain names "Rust" explicitly.
-    web: { value: deploy_settings.fetch(:web, "None") }
+    with: {
+      domain:   { value: declared_domain_name },
+      region:   { value: deploy_settings[:region] },
+      memory:   { value: deploy_settings.fetch(:memory, 512) },
+      timeout:  { value: deploy_settings.fetch(:timeout, 10) },
+      # "Postgres" — Embryonaut's own live choice, and every domain
+      # declared before this setting existed — unless a domain's own
+      # deployed_to("AwsLambda") names "Aurora" explicitly.
+      database: { value: deploy_settings.fetch(:database, "Postgres") },
+      # "None" — every domain declared before this setting existed,
+      # Embryonaut included (its own public web UI is the separate,
+      # pre-existing lambda_handler.rb-file-presence mechanism, not this
+      # attribute) — unless a domain names "Rust" explicitly.
+      web: { value: deploy_settings.fetch(:web, "None") }
+    }
   ).instance
 rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "#{world_file}'s deployed_to(\"AwsLambda\") is invalid: #{e.message}"

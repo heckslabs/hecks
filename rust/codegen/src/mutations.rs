@@ -653,8 +653,25 @@ fn emit_mutation_line_body(
                         let entity_lit = naming::ruby_inspect_string(entity_name);
                         let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
                         let identity_lit = naming::ruby_inspect_string(&identity_reading);
+                        // BUG#143 — `Rendering.describe`'s own single-field
+                        // unwrap (rendering.rb), matched here so `format!`
+                        // renders the SAME bare scalar Ruby's own
+                        // `RefusalWording.render`'s "offered" arm does, the
+                        // identical fix `entity_list_replace_guard` (BUG#33,
+                        // above) already applies to the sibling whole-list
+                        // `:set` REPLACE guard. `{id_rhs}` alone Debug-prints
+                        // the WHOLE identity value object (`SlipReference {
+                        // value: "juliet" }`), not the bare `"juliet"` a
+                        // reader (and `bin/rust_conformance`'s own
+                        // byte-exact comparison) expects. `id_vo` here is
+                        // `entity_identity_mint`'s own return — this branch
+                        // only runs inside its `if let Some((id_attr,
+                        // id_vo))`, so it is already guaranteed exactly one
+                        // attribute; no fallback arm is needed.
+                        let offered_field = naming::rust_ident_field(crate::attr::name(&id_vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+                        let offered_expr = format!("{id_rhs}.{offered_field}");
                         collision_guard = format!(
-                            "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ let offered = format!(\"{{:?}}\", {id_rhs}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }}\n        "
+                            "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ let offered = format!(\"{{:?}}\", {offered_expr}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }}\n        "
                         );
                     }
                 }

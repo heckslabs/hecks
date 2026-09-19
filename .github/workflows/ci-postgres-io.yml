@@ -20,6 +20,7 @@ on:
 jobs:
   rspec_postgres_io:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See ci.yml's `rspec` job's own comment — cache-warming push doesn't
     # need this job (it keeps no runtime-log cache of its own).

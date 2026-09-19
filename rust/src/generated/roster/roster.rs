@@ -1748,7 +1748,7 @@ pub fn dispatch_enlist(
         ],
         None,
         |record| {
-        if record.crew.iter().any(|e| e.id == args.id.clone()) { let offered = format!("{:?}", args.id.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Member", aggregate: "Roster", identity: "id.value", offered: &[offered.as_str()] }.render_args())); }
+        if record.crew.iter().any(|e| e.id == args.id.clone()) { let offered = format!("{:?}", args.id.clone().value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Member", aggregate: "Roster", identity: "id.value", offered: &[offered.as_str()] }.render_args())); }
         record.crew.push(Member { id: args.id.clone(), age: args.age.clone(), rank: Rank::Hand, status: "active".to_string() });
             Ok(())
         },

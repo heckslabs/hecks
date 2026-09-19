@@ -63,9 +63,9 @@ Nothing at the call site names an account. Clearing the case is the
 whole act, and the account exists afterwards:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "hd-1" },
-                 name: { given: "Annie", family: "Easley" },
-                 email: { address: "annie@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "hd-1" },
+                                                       name: { given: "Annie", family: "Easley" },
+                                                       email: { address: "annie@example.com" } })
 kase = Banking::OnboardingCase.open!(customer: "hd-1", reference: { value: "hd-c1" },
                                     account_number: { value: "hd-a1" })
 kase.clear!

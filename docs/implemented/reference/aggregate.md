@@ -530,7 +530,7 @@ A genuinely multi-field value object still refuses the bare form —
 `pattern:`/`admits:`/`one_of:` above already refuse:
 
 ```ruby
-runtime.dispatch("Banking::Account.Credit", number: "ag-a1", amount: 100, narrative: "Deposit")  # ~> TypeMismatch: pass its fields as an object
+runtime.dispatch("Banking::Account.Credit", to: "ag-a1", with: { amount: 100, narrative: "Deposit" })  # ~> TypeMismatch: pass its fields as an object
 ```
 
 ## invariant

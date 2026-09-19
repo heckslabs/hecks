@@ -1753,7 +1753,7 @@ pub fn dispatch_member(
         ],
         None,
         |record| {
-        if record.members.iter().any(|e| e.position == args.position.clone()) { let offered = format!("{:?}", args.position.clone()); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Member", aggregate: "ValueObject", identity: "position.value", offered: &[offered.as_str()] }.render_args())); }
+        if record.members.iter().any(|e| e.position == args.position.clone()) { let offered = format!("{:?}", args.position.clone().value); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs { entity: "Member", aggregate: "ValueObject", identity: "position.value", offered: &[offered.as_str()] }.render_args())); }
         record.members.push(Member { position: args.position.clone(), pairs: Vec::new() });
             Ok(())
         },

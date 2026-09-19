@@ -136,7 +136,7 @@ module Hecks
           creating.each do |command|
             args = Synthesizer.args_for(chapter, aggregate, command, created)
             begin
-              result = dispatcher.dispatch("#{domain}::#{aggregate.name}.#{command.hecks_name}", **args)
+              result = dispatcher.dispatch_flat("#{domain}::#{aggregate.name}.#{command.hecks_name}", args)
               created[aggregate.name] = result.instance.id
             rescue StandardError => e
               failures << Failure.new(domain: domain, aggregate: aggregate.name, command: command.hecks_name,
@@ -146,7 +146,7 @@ module Hecks
 
             noncreating.each do |nc_command|
               nc_args = Synthesizer.args_for(chapter, aggregate, nc_command, created).merge(id: created[aggregate.name])
-              dispatcher.dispatch("#{domain}::#{aggregate.name}.#{nc_command.hecks_name}", **nc_args)
+              dispatcher.dispatch_flat("#{domain}::#{aggregate.name}.#{nc_command.hecks_name}", nc_args)
             rescue StandardError => e
               failures << Failure.new(domain: domain, aggregate: aggregate.name, command: nc_command.hecks_name,
                                       error: "#{e.class}: #{e.message}")
