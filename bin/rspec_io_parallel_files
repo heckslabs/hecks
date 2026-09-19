@@ -54,8 +54,8 @@
 
 #
 # The list is committed (.github/postgres_io_spec_files.txt) and the shards
-# read that file: the dry run costs 26-48s on a CI runner, and every shard
-# used to pay it before running a single example. `--write FILE` refreshes
+# read that file instead of each paying the dry run's own 26-48s cost on a
+# CI runner before running a single example. `--write FILE` refreshes
 # the committed list; `--check FILE` is what CI's postgres_io_file_list job
 # runs, once, off the shards' critical path — a stale list fails there
 # instead of an io spec silently never running.
@@ -107,6 +107,12 @@ end
 warn "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a matching example " \
      "(#{data['examples'].size} examples total) under `#{tag_args.join(' ')}`"
 
+# Formats one mismatch section of the `--check` report: a heading followed
+# by its paths, each indented four spaces.
+#
+# @param heading [String] label describing what the listed paths were found to be
+# @param paths [Array<String>] spec file paths to list, one per line
+# @return [String] the heading line and its indented paths, joined with newlines
 def named(heading, paths)
   "  #{heading}:\n    #{paths.join("\n    ")}"
 end

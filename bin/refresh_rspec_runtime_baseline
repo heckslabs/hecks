@@ -15,9 +15,9 @@
 #   .github/rspec_runtime_baseline.log        (from both `rspec-runtime-group-N`)
 #   .github/postgres_io_runtime_baseline.log  (from every `postgres-io-runtime-group-N` leg)
 # Runner seconds, not a laptop's: subprocess-heavy specs run ~2.7x slower on
-# a runner, relative to the rest of the suite, than locally (PR #688's run),
-# which a local baseline cannot see. Only a successful run is read, and a
-# family is written only when every one of its legs uploaded a log — a
+# a runner, relative to the rest of the suite, than locally (measured on a
+# real CI run), which a local baseline cannot see. Only a successful run
+# is read, and a family is written only when every one of its legs uploaded a log — a
 # partial set would give the missing legs' files the average and quietly
 # skew the split. Postgres-io legs run only in the merge queue or on a PR
 # labeled `full-ci`.
@@ -44,6 +44,10 @@ RUNTIME_LINE = %r{\A(?<file>spec/\S+_spec\.rb):(?<seconds>\d+(?:\.\d+)?(?:e-?\d+
 
 # How many legs a family has is whatever its workflow's own matrix says —
 # a number copied here would go stale the day a matrix is resized.
+#
+# @param workflow [String] the workflow YAML file's basename, under `.github/workflows`
+# @param job [String] the job key within that workflow
+# @return [Integer] the number of entries in that job's `strategy.matrix.group` list
 def matrix_legs(workflow, job)
   require "yaml"
   YAML.load_file(File.join(ROOT, ".github/workflows", workflow)).dig("jobs", job, "strategy", "matrix", "group").size
@@ -57,6 +61,12 @@ FAMILIES = {
   "postgres-io-runtime-group" => { legs: POSTGRES_IO_LEGS, baseline: ".github/postgres_io_runtime_baseline.log" }
 }.freeze
 
+# Parses `spec/…_spec.rb:<seconds>` lines out of one or more RSpec
+# runtime-logger files and formats them for the committed baseline.
+#
+# @param paths [Array<String>] runtime-logger output file paths to read and merge
+# @return [Array<String>] `"spec/…_spec.rb:<seconds>"` lines, seconds rounded to 2 decimal
+#   places, sorted; a spec file appearing in more than one path keeps the last-read value
 def baseline_lines(paths)
   seconds_by_file = paths.flat_map { |path| File.readlines(path) }.filter_map do |line|
     match = RUNTIME_LINE.match(line.strip) or next
@@ -65,11 +75,21 @@ def baseline_lines(paths)
   seconds_by_file.map { |file, seconds| format("%<file>s:%<seconds>.2f", file: file, seconds: seconds) }.sort
 end
 
+# Writes a family's baseline file and reports how many spec files it covers.
+#
+# @param relative [String] the baseline file's path, relative to `ROOT`
+# @param lines [Array<String>] the formatted runtime lines to write, one per line
+# @return [void]
 def write_baseline(relative, lines)
   File.write(File.join(ROOT, relative), "#{lines.join("\n")}\n")
   puts "wrote #{relative}: #{lines.size} spec files"
 end
 
+# Refuses to proceed unless the named GitHub Actions run concluded
+# successfully, so a baseline is never written from a red or cancelled run.
+#
+# @param run_id [String] the GitHub Actions run id to check
+# @return [void]
 def refuse_unless_successful!(run_id)
   out, status = Open3.capture2("gh", "run", "view", run_id, "-R", REPO, "--json", "conclusion")
   abort "bin/refresh_rspec_runtime_baseline: could not read run #{run_id}" unless status.success?
@@ -81,6 +101,11 @@ def refuse_unless_successful!(run_id)
         "refusing to write a baseline from anything but a successful run"
 end
 
+# Downloads a CI run's per-leg runtime-log artifacts and writes each
+# family's baseline whose full set of legs uploaded a log.
+#
+# @param run_id [String] the GitHub Actions run id to read runtime-log artifacts from
+# @return [void]
 def from_run(run_id)
   refuse_unless_successful!(run_id)
   dir = File.join(ROOT, "tmp/ci-runtime-#{run_id}")
@@ -101,6 +126,11 @@ def from_run(run_id)
   abort "bin/refresh_rspec_runtime_baseline: run #{run_id} had no complete artifact family — nothing written" if written.zero?
 end
 
+# Runs the local `rspec` job's own spec set under `parallel_rspec` and
+# writes the `rspec-runtime-group` baseline from its runtime log.
+#
+# @param workers [String, Integer] the number of parallel_tests workers to run under
+# @return [void]
 def from_local(workers)
   raw = "tmp/rspec_runtime_baseline.raw.log"
   FileUtils.mkdir_p(File.join(ROOT, "tmp"))

@@ -21,20 +21,24 @@ module Hecks
         # drifted before — an adapter that accepts what the reference says
         # matches nothing, or orders what it refuses to order, shows up
         # here as a finding no self-referential adapter spec could see.
-        # M23 — `Replay` now runs the native and reference engines
-        # independently (each in its own begin/rescue — see that file's own
-        # comment at the capture site), so this property can tell apart what
-        # used to be indistinguishable: "both engines refused" (fine — the
-        # ask was genuinely bad, nothing to compare) from "one refused and
-        # the other did not" (a real divergence — the two engines disagree
-        # about whether the ask was even valid, never mind what it answers).
-        # `native_refused`/`reference_refused` are read by key presence, not
-        # truthiness — `Replay` only ever adds `:error`/`:reference_error`
-        # to an entry when that side actually raised, so an absent key is an
-        # unambiguous "this side answered." A read-model ask (no reference
-        # twin attempted at all, `asked[:query]` without "::") is skipped
-        # entirely, same as always — there is no second engine to disagree
-        # with.
+        # M23 — `Replay` runs the native and reference engines independently
+        # (each in its own begin/rescue — see that file's own comment at the
+        # capture site), so this property can tell apart "both engines
+        # refused" (fine — the ask was genuinely bad, nothing to compare)
+        # from "one refused and the other did not" (a real divergence — the
+        # two engines disagree about whether the ask was even valid, never
+        # mind what it answers). `native_refused`/`reference_refused` are
+        # read by key presence, not truthiness — `Replay` only ever adds
+        # `:error`/`:reference_error` to an entry when that side actually
+        # raised, so an absent key is an unambiguous "this side answered." A
+        # read-model ask (no reference twin attempted at all, `asked[:query]`
+        # without "::") is skipped entirely, same as always — there is no
+        # second engine to disagree with.
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every native/reference query answer, and every
+        #   refusal of one, agrees; otherwise a message naming the offending query, its
+        #   args, and how the two engines disagreed
         def query_answers_match_reference(history)
           offenders = history.fetch(:queries).filter_map do |asked|
             next unless asked[:query].is_a?(String) && asked[:query].include?("::")
@@ -83,6 +87,11 @@ module Hecks
         # `skipped`/`expected` across method boundaries as params/returns
         # for a sequence that's only ever computed once, in this order.
         # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every paged query's real answer matches an
+        #   independent order/offset/limit recomputation over its eligible rows;
+        #   otherwise a message naming the query, its args, and the two answers
         def paging_offset_partitions_correctly(history)
           bluebooks = history.fetch(:bluebooks)
 
@@ -119,6 +128,13 @@ module Hecks
         # corpus site yet, and the "one many-side head, one aggregate,
         # no FK-join" shape #query_eligible_rows assumes doesn't hold for
         # one.
+        #
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain,
+        #   keyed by domain name
+        # @param verb [String] the asked verb, `"Domain::Aggregate.Query"`
+        # @return [Bluebook::Query, nil] the declared query, or nil if `verb` names an
+        #   entity-level query path, or a domain, aggregate, or query not found among
+        #   `bluebooks`
         def query_for_verb(bluebooks, verb)
           domain, aggregate_name, query_path = Naming.split_verb(verb)
           return nil unless query_path && !query_path.include?(".")
@@ -128,6 +144,9 @@ module Hecks
           aggregate&.query(query_path)
         end
 
+        # Independently recomputes which of an aggregate's own stored rows a
+        # query's `wheres` admit.
+        #
         # A query's own rows — unlike #eligible_rows (a ReadModel's
         # reduced/grouped many-side head, possibly FK-joined against a
         # root), a Query always asks about its own owning aggregate
@@ -149,6 +168,18 @@ module Hecks
         # nil, and declared every genuinely-eligible row ineligible — a
         # false property violation against a correct runtime answer,
         # reproducible on an untouched main with this same 4-step script.
+        #
+        # @param instances [Hash{String => Hash}] `history[:instances]`, or an
+        #   `:instances_at` snapshot from a replayed query entry
+        # @param domain [String] the domain name the target aggregate belongs to
+        # @param aggregate_name [String] the target aggregate's own declared name
+        # @param wheres [Array<QuerySpecification::Common::WhereClause>] the clauses
+        #   every returned row must satisfy
+        # @param args [Hash] the query's own call args, for a clause whose value is a
+        #   Symbol naming one
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain, keyed
+        #   by domain name; needed only to resolve a `/` hop clause
+        # @return [Array<Hash>] each admitted row's own state, merged with its `id:`
         def query_eligible_rows(instances, domain, aggregate_name, wheres, args, bluebooks: {})
           aggregate = bluebooks[domain]&.aggregate(aggregate_name)
           prefix = "#{domain}::#{aggregate_name}#"
@@ -166,6 +197,9 @@ module Hecks
           end
         end
 
+        # Resolves one hop of a `/`-chained clause into a local `in` clause against
+        # the target aggregate's own ids.
+        #
         # `Runtime::ReferenceHop#fold`, independently restated over the
         # replay's own `:instances_at` snapshot instead of live
         # repositories — the same shape every other recompute in this
@@ -180,6 +214,20 @@ module Hecks
         # live fold builds. A clause with no `/`, or one whose head this
         # aggregate's declarations cannot resolve, passes through
         # untouched and evaluates locally as it always did.
+        #
+        # @param instances [Hash{String => Hash}] `history[:instances]`, or an
+        #   `:instances_at` snapshot from a replayed query entry
+        # @param domain [String] the domain name `aggregate` belongs to
+        # @param aggregate [Bluebook::Aggregate, nil] the aggregate `clause` is
+        #   evaluated against; nil skips hop resolution entirely
+        # @param clause [QuerySpecification::Common::WhereClause] the clause to resolve
+        # @param args [Hash] the query's own call args, passed through to the inner
+        #   hop's own `query_eligible_rows` recursion
+        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain, keyed
+        #   by domain name
+        # @return [QuerySpecification::Common::WhereClause] `clause` unchanged if it has
+        #   no resolvable hop head; otherwise a local `in` clause over the matching
+        #   target ids
         def resolve_hop_clause(instances, domain, aggregate, clause, args, bluebooks)
           return clause unless aggregate && QuerySpecification::HopPath.hop_head?(clause.field, aggregate.attributes)
 
@@ -194,9 +242,15 @@ module Hecks
           QuerySpecification::Common::WhereClause.new(field: hop.attribute.name, op: "in", value: ids)
         end
 
+        # Resolves a declared limit/offset value against the query's own call args.
+        #
         # `QueryInterpreter#resolve_query_value`, reproduced: a declared
         # limit/offset is either a literal or a Symbol naming an argument
         # the caller supplied.
+        #
+        # @param value [Integer, Symbol] the declared limit/offset value
+        # @param args [Hash] the query's own call args
+        # @return [Object] `value` unchanged if not a Symbol; otherwise `args[value]`
         def resolve_paging_value(value, args)
           value.is_a?(Symbol) ? args[value] : value
         end

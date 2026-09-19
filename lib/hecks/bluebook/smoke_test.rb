@@ -22,11 +22,15 @@ module Hecks
     # report, per created root; every failure is collected and reported
     # together rather than stopping at the first.
     #
-    # **What this cannot catch**: a call that dispatches cleanly but answers
-    # wrong — the read-model join bug this exact tool's own first user
-    # hit is the textbook case, a query that silently returned an empty
-    # array rather than raising. Smoke-testing proves nothing crashes;
-    # it does not prove the answer is the right one.
+    # ## What this cannot catch
+    #
+    # A call that dispatches cleanly but answers wrong — the read-model join
+    # bug this exact tool's own first user hit is the textbook case, a query
+    # that silently returned an empty array rather than raising.
+    # Smoke-testing proves nothing crashes; it does not prove the answer is
+    # the right one.
+    #
+    # ## False positives from a naive synthesizer
     #
     # A failure here is not necessarily a domain bug, either — it may
     # just be `Synthesizer`'s own naive values (0, an empty list,
@@ -82,6 +86,11 @@ module Hecks
       # measured, not hypothetical: it once left a stale `Widget` constant
       # that corrupted an unrelated spec's own unrelated use of the same
       # bare name.
+      #
+      # @param dir [String] path to a bootable hecks app directory — a saved
+      #   domain, or a throwaway one rendered into a temp dir for this purpose
+      # @return [Array<Failure>] every dispatch or query failure collected,
+      #   empty when `dir` declares no bluebook or nothing failed
       def call(dir)
         Dir.mktmpdir("hecks-smoke-") do |scratch|
           isolate!(dir, scratch)
@@ -105,6 +114,11 @@ module Hecks
       # excluded — those are earlier, superseded versions of the same
       # domain; smoke-testing the current declaration is the point, not
       # its whole history.
+      #
+      # @param dir [String] path to the source hecks app directory to isolate
+      # @param scratch [String] path to the throwaway directory to copy the
+      #   `.bluebook` files into
+      # @return [void]
       def isolate!(dir, scratch)
         source = Adapters::Folder.new.bluebook_directory(dir)
         target = File.join(scratch, "bluebook")
@@ -123,6 +137,14 @@ module Hecks
       # documents; splitting would turn that ordering into an implicit contract on
       # parameter/return passing instead of one visible sequence.
       # rubocop:disable-next Metrics/AbcSize
+      #
+      # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the
+      #   booted dispatcher to dispatch synthesized commands and queries through
+      # @param domain [String] the domain name to smoke-test, a key of
+      #   `dispatcher.registry.bluebooks`
+      # @return [Array<Failure>] every dispatch or query failure collected, in
+      #   declaration order; empty when `domain` names no loaded chapter or
+      #   nothing failed
       def smoke_domain(dispatcher, domain)
         chapter = dispatcher.registry.bluebook(domain)
         return [] unless chapter
@@ -156,7 +178,8 @@ module Hecks
 
         chapter.read_models.each do |model|
           root_id = created[model.reference_target]
-          next unless root_id # nothing was created for this root — nothing to smoke-test yet, not a failure
+          # Nothing was created for this root — nothing to smoke-test yet, not a failure.
+          next unless root_id
 
           dispatcher.query("#{domain}.#{model.query_name}", model.reference_name => root_id)
         rescue StandardError => e

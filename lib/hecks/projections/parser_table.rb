@@ -16,25 +16,47 @@ module Hecks
 
       module_function
 
+      # Projects the Rust parser's keyword and closed-set tables for one chapter.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project; the language's own
+      #   for the ordinary `bin/project_parser_table` run
+      # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
+      #   `Projector::Target` calling convention
+      # @return [String] the rendered Rust source
       def call(bluebook:, options: {}) = render(bluebook)
 
       module_function
 
-      # The chapter is handed over, not reached for. This used to open the
-      # grammar registry itself, which meant the projection could only ever
-      # project one chapter — the language's own. Taking it as an argument is
-      # what the projector protocol asks for, and it costs nothing.
+      # The chapter is handed over, not reached for — reaching for the grammar
+      # registry directly would pin the projection to one chapter, the language's
+      # own, and the projector protocol already hands over the chapter as an
+      # argument, at no cost.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to read the Syntax aggregate
+      #   from
+      # @return [Bluebook::Aggregate, nil] the chapter's `"Syntax"` aggregate, `nil` if
+      #   it declares none
       def syntax(bluebook) = bluebook.aggregate("Syntax")
 
       # Every cell as text — exactly spec/syntax_conformance_spec.rb's own
       # `rows` helper, reused rather than re-derived: a member's fields decode
       # back through typed literal decoding on the way out of reconstruction,
       # and this reads it back as what was written.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to read from
+      # @param name [String] the closed-set value object's name, such as `"Context"`
+      # @return [Array<Hash{Symbol => String}>] one row per declared member, every
+      #   field stringified
       def rows(bluebook, name)
         syntax(bluebook).value_objects.find { |vo| vo.hecks_name == name }
               .members.map { |row| row.to_h.transform_values(&:to_s) }
       end
 
+      # Reads one closed set's member names, for a Rust `&[&str]` constant.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to read from
+      # @param name [String] the closed-set value object's name
+      # @return [Array<String>] every declared member's `:name` field
       def closed_set_members(bluebook, name) = rows(bluebook, name).map { |row| row[:name] }
 
       KEYWORD_FIELDS  = %i[word context body inner opens fills status was resolves_via disambiguator].freeze
@@ -45,18 +67,34 @@ module Hecks
       # plain ASCII (a word, a context name, a digit, "true"/"false"), so this
       # only has to be safe against the two characters Rust string literals
       # themselves reserve.
+      #
+      # @param value [Object] the field value to render; stringified before escaping
+      # @return [String] a quoted Rust string literal
       def rust_string(value) = "\"#{value.to_s.gsub('\\', '\\\\\\\\').gsub('"', '\\"')}\""
 
+      # Renders one `KEYWORDS` table entry.
+      #
+      # @param row [Hash{Symbol => String}] one keyword row, keyed by `KEYWORD_FIELDS`
+      # @return [String] one `KeywordRow { ... },` line
       def keyword_row(row)
         fields = KEYWORD_FIELDS.map { |field| rust_string(row[field]) }
         "    KeywordRow { #{KEYWORD_FIELDS.zip(fields).map { |name, value| "#{name}: #{value}" }.join(', ')} },"
       end
 
+      # Renders one `ARGUMENTS` table entry.
+      #
+      # @param row [Hash{Symbol => String}] one argument row, keyed by `ARGUMENT_FIELDS`
+      # @return [String] one `ArgumentRow { ... },` line
       def argument_row(row)
         fields = ARGUMENT_FIELDS.map { |field| rust_string(row[field]) }
         "    ArgumentRow { #{ARGUMENT_FIELDS.zip(fields).map { |name, value| "#{name}: #{value}" }.join(', ')} },"
       end
 
+      # Renders one `pub static NAME: &[&str]` constant.
+      #
+      # @param name [String] the Rust constant's name
+      # @param values [Array<String>] the constant's member strings
+      # @return [String] the rendered `pub static` declaration
       def const_str_array(name, values)
         lines = values.map { |value| "    #{rust_string(value)}," }
         "pub static #{name}: &[&str] = &[\n#{lines.join("\n")}\n];\n"
@@ -66,10 +104,13 @@ module Hecks
       # now, dispatched (not merely declared) so their own `status`
       # really is a lifecycle. `SyntaxBoot.call` reads the still-static
       # seed rows (`KeywordSeed`/`ArgumentSeed`), dispatches each one
-      # through the real admission/lifecycle door, and hands back the
-      # exact same shape `rows` used to read straight off the closed set
-      # — symbol keys, string values, `status` included — so nothing
-      # else in this file needed to change.
+      # through the real admission/lifecycle door, and hands back rows in
+      # the same shape `rows` reads for every other closed set here —
+      # symbol keys, string values, `status` included — so nothing else
+      # in this file needs to change.
+      #
+      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @return [String] the rendered `KEYWORDS`/`ARGUMENTS`/closed-set Rust source
       def render(bluebook)
         table     = Hecks::Bluebook::MetaValidator::SyntaxBoot.call
         keywords  = table[:keywords]

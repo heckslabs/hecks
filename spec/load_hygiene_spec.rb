@@ -8,11 +8,11 @@ require "open3"
 #   2. The subsystem wrappers' require order is convenience, not load
 #      order — the whole framework loads with the wrappers reversed.
 #
-# Both used to be true only by accident of history: the flat require
-# list in lib/hecks.rb encoded the order files were added in, and
-# nothing would have named the moment a class-body constant reference
-# quietly made that order load-bearing again. Now this spec names it,
-# and the file it names is the one that grew the dependency.
+# Without this spec, both would hold only by accident of history: the flat
+# require list in lib/hecks.rb encodes the order files were added in, and
+# nothing would name the moment a class-body constant reference quietly
+# made that order load-bearing again. This spec names it, and the file it
+# names is the one that grew the dependency.
 RSpec.describe "load hygiene", :io do
   ROOT_DIR = File.expand_path("..", __dir__)
   LIB = File.join(ROOT_DIR, "lib")
@@ -72,10 +72,10 @@ RSpec.describe "load hygiene", :io do
     # a raw keywords here replaced a stringified keywords there and
     # surfaced as an order-dependent NoMethodError two files away ; a
     # corpus four levels deep in model_check_spec.rb collided with
-    # domain_refusal_spec's, invisible to an earlier version of this
-    # very check because that one only matched 2-space indent — a
-    # nested describe's constants sat one level deeper and were never
-    # scanned at all). Matched at any indentation now, for that reason.
+    # domain_refusal_spec's, invisible to a check that only matches
+    # 2-space indent — a nested describe's constants sit one level deeper
+    # and would go unscanned entirely). Matched at any indentation here,
+    # for that reason.
     # Same name, same value is harmless and allowed; same name,
     # different definition site with different content is the bug class.
     definitions = Hash.new { |h, k| h[k] = [] }

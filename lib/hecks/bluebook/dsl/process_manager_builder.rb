@@ -16,11 +16,14 @@ module Hecks
 
         include WordGate
 
+        # @param name [String] the process manager's own name, as written after `process_manager`
         def initialize(name)
           @name     = name
           @handlers = []
         end
 
+        # Records the event that begins a fresh instance of this process manager.
+        #
         # `starts_on Transfer::TransferRequested` — bare constant
         # accepted (ADR 0025, S6 — "events first-class"), resolved
         # through `ConstShim` the same way `on_impl`/`transition_impl`
@@ -31,11 +34,21 @@ module Hecks
         # a "." qualified one). A plain String still passes through
         # unchanged, both for `shadow_parse` and for any corpus site a
         # future pass hasn't migrated yet.
+        #
+        # @param event_ref [Symbol, String, Module] the event, as a bare constant (a
+        #   `ScopedConstant` module `ConstShim` resolves) or quoted text
+        # @return [void]
         def starts_on_impl(event_ref)
           @starts_on = Naming.event_name_ref(event_ref)
         end
 
+        # Records the event this process manager expects to close out its instance on.
+        #
         # `ends_on` — same reasoning as `starts_on_impl`, above.
+        #
+        # @param event_ref [Symbol, String, Module] the event, as a bare constant (a
+        #   `ScopedConstant` module `ConstShim` resolves) or quoted text
+        # @return [void]
         def ends_on_impl(event_ref)
           @ends_on = Naming.event_name_ref(event_ref)
         end
@@ -45,15 +58,18 @@ module Hecks
         # kind-driven coerce-and-assign with nothing else, executed by
         # `GenericDispatch`.
         #
-        # `starts_on`/`ends_on` used to be table-driven the same way,
-        # until ADR 0025 S6 gave each a second, `kind: "constant"`
-        # ArgumentSeed row (`starts_on Transfer::TransferRequested`) —
-        # `GenericDispatch::COERCE_BY_KIND` only knows `"text"`/
-        # `"symbol"`, and `shape_for` refuses to pick a `single_fill`
-        # shape at all once two Argument rows share a `fills:` target
-        # (`arguments.size == 1` below), so both words are hand-written
-        # again, `calls:`-routed like `transition` already is.
+        # `starts_on`/`ends_on` are hand-written rather than table-driven
+        # the same way, because ADR 0025 S6 gives each a second,
+        # `kind: "constant"` ArgumentSeed row (`starts_on
+        # Transfer::TransferRequested`) — `GenericDispatch::COERCE_BY_KIND`
+        # only knows `"text"`/`"symbol"`, and `shape_for` refuses to pick a
+        # `single_fill` shape at all once two Argument rows share a
+        # `fills:` target (`arguments.size == 1` below), so both words are
+        # `calls:`-routed like `transition` already is.
 
+        # Records one leg of this process manager's state machine: the event that takes it, the
+        # state(s) it applies from, and the dispatches (and optional compensation) it fires.
+        #
         # One state-machine vocabulary (S7, ADR 0025 — "events and
         # reactions"): the same word `Lifecycle#transition` already
         # carries, one level over — `transition "AccountDebited" =>
@@ -89,10 +105,18 @@ module Hecks
         # persistence/rehydration) needs no change at all: what changed
         # is how the declaration reaches that same shape, not the shape
         # a real run ever sees or persists.
-        # Renamed from `transition` — item #13's full metaprogrammed
-        # dispatch (slice 4c). Not bootstrap-reachable (checked
-        # directly — no core/attached chapter declares a ProcessManager
-        # of its own).
+        # Reached through `calls: "transition_impl"`. Not exercised during boot itself — checked
+        # directly, no core/attached chapter declares a `ProcessManager` of its own — though the
+        # (context, word) pair is still carried in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`
+        # unconditionally, along with every other `calls:`-routed row.
+        #
+        # @param mapping [Hash] one `event => target_state` pair plus a required `from:` key
+        #   naming the source state(s) (`String`, `Symbol`, or `Array<String, Symbol>`) this
+        #   transition applies from
+        # @yield the transition's dispatch body, `instance_eval`'d against a fresh `HandlerBuilder`
+        # @return [void]
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `mapping` names
+        #   no `from:`
         def transition_impl(mapping, &block)
           mapping = mapping.dup
           from    = mapping.delete(:from)
@@ -142,6 +166,14 @@ module Hecks
           end
         end
 
+        # Assembles the declared transitions into a `ProcessManager`, after validating them.
+        #
+        # @return [Bluebook::ProcessManager] the built process manager, with its own `states`
+        #   derived from the declared transitions
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `correlates_by`
+        #   is undeclared or names a whole field rather than one scalar, if `starts_on` is
+        #   undeclared, if no transition was declared, or if two transitions answer the same event
+        #   from the same source state
         def build
           validate!
 
@@ -155,6 +187,13 @@ module Hecks
           )
         end
 
+        # Evaluates a `process_manager` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the process manager's own name
+        # @yield the process manager's body, `instance_eval`'d against a new builder; may be
+        #   omitted
+        # @return [Bluebook::ProcessManager] the built process manager
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] see `#build`
         def self.build(name, &block)
           builder = new(name)
           builder.instance_eval(&block) if block
@@ -264,16 +303,19 @@ module Hecks
 
           include WordGate
 
+          # Starts this handler's own dispatch list empty.
           def initialize = @dispatches = []
 
+          # Records one command this transition dispatches, and, if given a block, the
+          # compensation that reverses it.
+          #
           # The command itself (ADR 0025, "events and reactions" — command
           # references become first-class), same shape and same reasons
           # as `PolicyBuilder#trigger`'s own header — bare constant live,
           # quoted text only under shadow-parsing (S0a's bridge; frozen
           # era text still writes `dispatch "Banking::Account.Debit"`).
           #
-          # Renamed from `dispatch` — item #13's full metaprogrammed
-          # dispatch (slice 4), same reasoning as trigger_impl above.
+          # Reached through `calls: "dispatch_impl"`.
           #
           # An optional block opens `compensates` on this dispatch
           # specifically — per-dispatch saga compensation, replacing a
@@ -287,6 +329,17 @@ module Hecks
           # (`SagaInterpreter`'s own `completed_compensations`) and
           # compensates only those, newest first, instead of trusting an
           # author's static list to be complete and correctly ordered.
+          #
+          # @param command_ref [Symbol, String, Module] the command, as a bare constant (a
+          #   `ScopedConstant` module `ConstShim` resolves) or, under shadow-parsing, quoted text
+          # @param with [Hash{Symbol => Object}, nil] a projection onto the command's own
+          #   arguments, the same `key => value` shape a policy's own `trigger ..., with:` takes;
+          #   `nil` forwards the triggering context verbatim
+          # @yield the dispatch's own `compensates` body, `instance_eval`'d against a
+          #   `DispatchBuilder`
+          # @return [Bluebook::DispatchSpec] the dispatch just recorded
+          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `command_ref`
+          #   is quoted text outside shadow-parsing
           def dispatch_impl(command_ref, with: nil, &block)
             if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
               raise InvalidProcessManager,
@@ -330,6 +383,17 @@ module Hecks
 
             include WordGate
 
+            # Records the command that reverses the dispatch this `compensates` block sits inside.
+            #
+            # @param command_ref [Symbol, String, Module] the compensating command, as a bare
+            #   constant (a `ScopedConstant` module `ConstShim` resolves) or, under shadow-parsing,
+            #   quoted text
+            # @param with [Hash{Symbol => Object}, nil] a projection onto the command's own
+            #   arguments, the same shape `HandlerBuilder#dispatch_impl`'s own `with:` takes; `nil`
+            #   forwards the triggering context verbatim
+            # @return [Bluebook::DispatchSpec] the compensating dispatch just recorded
+            # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `command_ref`
+            #   is quoted text outside shadow-parsing
             def compensates_impl(command_ref, with: nil)
               if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
                 raise InvalidProcessManager,

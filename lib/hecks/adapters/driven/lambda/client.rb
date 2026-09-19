@@ -9,6 +9,8 @@ module Hecks
       # domain-specific: neither caller needs to know an AWS SDK is
       # involved at all.
       #
+      # ## Resolving the function name
+      #
       # Function name is computed unless it is named — `"hecks-#{domain}"`,
       # lowercased, matches bin/project_deploy's own `stack_name`
       # exactly (bin/project_deploy: `stack_name = "hecks-#{domain_name}"`,
@@ -18,6 +20,8 @@ module Hecks
       # lowercased for every domain that deploys, so `.downcase` alone
       # reproduces the same string bin/project_deploy computes from the
       # directory.
+      #
+      # ## When the assumption breaks
       #
       # That assumption is not always true, and when it breaks nothing
       # about it is recoverable from here. `bin/project_deploy` honours
@@ -33,6 +37,8 @@ module Hecks
       # that does not exist — found live, and visible in the deployed
       # journal having never received a single row.
       #
+      # ## Naming it explicitly
+      #
       # So the name can be named, in the one place the rest of this
       # deployment is already described: the `.world`'s own
       # `persisted_by("Lambda")`/`dispatched_by("Lambda")` block, beside
@@ -40,6 +46,12 @@ module Hecks
       # is unchanged, which is every domain whose stack name was never
       # pinned.
       class Client
+        # @param domain [String, Symbol] the bluebook's own declared domain name; computes
+        #   the function name when `function` is not given
+        # @param region [String] the AWS region to invoke in
+        # @param function [String, Symbol, nil] an explicit Lambda function name, from a
+        #   `.world`'s `persisted_by("Lambda")`/`dispatched_by("Lambda")` block; nil computes
+        #   `"hecks-#{domain.downcase}"`
         def initialize(domain:, region:, function: nil)
           require "aws-sdk-lambda"
           @function_name = function.to_s.empty? ? "hecks-#{domain.to_s.downcase}" : function.to_s
@@ -48,21 +60,37 @@ module Hecks
 
         # The function this client actually invokes — read by
         # `Runtime::WiringError` messages and worth asserting on
-        # directly, since "which function did we call" is precisely the
-        # thing that used to be unanswerable from outside.
+        # directly, since "which function did we call" is otherwise
+        # unanswerable from outside.
         attr_reader :function_name
 
+        # Reads the whole domain's current state and event log from the remote function.
+        #
         # **The whole domain, every time** — matches dispatch::read's own
         # rehydrate-the-full-journal design (Phase 1, rust/host). No
-        # caching here, deliberately not even per-request: Lambda#all
-        # used to memoize this across calls, which silently served
-        # stale reads for a warm web process's whole lifetime once a
-        # write happened elsewhere — see Lambda#instances's own comment
-        # on the real, live bug that caught it.
+        # caching here, deliberately: memoizing this across calls once
+        # silently served stale reads for a warm web process's whole
+        # lifetime after a write happened elsewhere — see Lambda#instances's
+        # own comment on the real, live bug that caught it.
+        #
+        # @return [Hash{String => Object}] the parsed JSON response; the deployed function's
+        #   own top-level keys (`"instances"`, `"events"`, …)
+        # @raise [Runtime::WiringError] if the function reports a `functionError` (see
+        #   `invoke`)
         def read
           invoke({ "read" => true })
         end
 
+        # Dispatches one command to the remote function and returns its parsed response.
+        #
+        # @param verb [String] the fully-qualified verb to dispatch
+        # @param args [Hash] the command's declared arguments
+        # @param role [String, Symbol, nil] the role to dispatch as; omitted from the payload
+        #   when nil
+        # @return [Hash{String => Object}] the parsed JSON response, including a `"refusals"`
+        #   array and a `"mutations"` array
+        # @raise [Runtime::WiringError] if the function reports a `functionError` (see
+        #   `invoke`)
         def dispatch(verb, args, role: nil)
           payload = { "verb" => verb, "args" => args }
           payload["role"] = role if role

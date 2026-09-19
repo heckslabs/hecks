@@ -218,6 +218,18 @@ module Hecks
         # evaluation -- `attrs` wins over `state` in `fetch` (see below),
         # so the bound name shadows any same-named state/attrs field for
         # the span of this one call only ; nothing persists past it.
+        #
+        # @param node [BlockPredicate, Find] the node whose `param`/
+        #   `predicate` to bind and interpret
+        # @param element [Object] the one collection element to bind
+        #   `node.param` to
+        # @param state [Hash{Symbol => Object}] the record's own current
+        #   state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound
+        #   arguments
+        # @return [Object] `node.predicate` interpreted with `node.param`
+        #   bound to `element`
+        # @raise [EvaluationError] if `node.predicate` refuses to evaluate
         def interpret_with_element(node, element, state, attrs)
           Evaluator.interpret(node.predicate, state, attrs.merge(node.param.to_sym => element))
         end

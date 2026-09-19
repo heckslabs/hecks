@@ -127,6 +127,15 @@ module Hecks
       # `RoleAssignment`'s own `scope`, not just its `role_name`. See
       # `Runtime::Caller::Current`'s own header for why this lives here
       # rather than as a command-level DSL construct.
+      # @param role [String, Symbol] the role to check the caller against
+      # @param actor_id [String, nil] who is calling, checked against a real Governance
+      #   `RoleAssignment` when given; string-equality only against `role` when nil
+      # @param as_of [Integer, nil] Unix epoch seconds to check a matching `RoleAssignment`'s
+      #   own `starts_at` against; unchecked when nil
+      # @param scope [String, nil] the scope to check a matching `RoleAssignment`'s own
+      #   `scope` against; unchecked when nil
+      # @yield the code to run with this caller bound
+      # @return [Object] the block's result
       def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &)
         Caller.as(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &)
       end

@@ -17,13 +17,16 @@ module Hecks
   # nesting everything a chapter declares. It is deliberately not named
   # after this, its own output.
   #
-  # Before this, eighteen constructs each hand-wrote a `to_h` that said
-  # the same four things in the same order — read a field, recurse into a
-  # child, recurse into a list, or compute something — and the shape of a
-  # construct was knowable only by reading a method body. Declared, it is
-  # data: `ir_spec` can be walked by anything that wants to know what a
-  # construct carries, which is the whole point of hanging emission off
-  # the model rather than burying it.
+  # ## Why declared, not hand-written
+  #
+  # A hand-written `to_h` per construct would say the same four things in the
+  # same order — read a field, recurse into a child, recurse into a list, or
+  # compute something — leaving a construct's shape knowable only by reading a
+  # method body. Declared, it is data: `ir_spec` can be walked by anything
+  # that wants to know what a construct carries, which is the whole point of
+  # hanging emission off the model rather than burying it.
+  #
+  # ## Usage
   #
   #   include Hecks::IR            # an instance-shaped construct
   #
@@ -57,11 +60,20 @@ module Hecks
     #   extend  Hecks::IR   # class-shaped    — to_h is a class method
     #
     # Both get the same `emits_ir` and the same emission rules.
+    #
+    # Wires an instance-shaped construct's declaration and emission sides in.
+    #
+    # @param base [Class, Module] the includer
+    # @return [void]
     def self.included(base)
       base.extend(Declares)
       base.include(Emits)
     end
 
+    # Wires a class-shaped construct's declaration and emission sides in.
+    #
+    # @param base [Class, Module] the extender
+    # @return [void]
     def self.extended(base)
       base.extend(Declares)
       base.extend(Emits)
@@ -79,17 +91,36 @@ module Hecks
     # back — walking the superclass chain so an anonymous `Class.new(base)`
     # inherits its base's shape instead of redeclaring it.
     module Declares
+      # Records this construct's field -> emission-rule map.
+      #
+      # @param spec [Hash{Symbol => Symbol, Many, One, Proc}] each emitted key,
+      #   mapped to how it is produced: a Symbol is sent to the construct, `many`/
+      #   `one` recurse into nested constructs, and a Proc is instance-`exec`'d
+      # @return [void]
       def emits_ir(**spec)
         @ir_spec = spec
       end
 
+      # Marks a field as a list of nested constructs, each emitting itself.
+      #
+      # @param source [Symbol] the method that returns the list
+      # @return [Many] the wrapped source, for `emits_ir`
       def many(source) = Many.new(source)
+
+      # Marks a field as one nested construct, or nothing.
+      #
+      # @param source [Symbol] the method that returns the construct, or nil
+      # @return [One] the wrapped source, for `emits_ir`
       def one(source)  = One.new(source)
 
       # Walks the superclass chain so a `Class.new(ValueObject)` — which
       # is what every declared value object actually is — inherits the
       # shape its base declared, rather than each anonymous subclass
       # having to redeclare it.
+      #
+      # @return [Hash{Symbol => Symbol, Many, One, Proc}, nil] the field -> rule
+      #   map declared by `emits_ir`, inherited from the nearest superclass that
+      #   declared one; nil if nothing in the chain ever declared a shape
       def ir_spec
         return @ir_spec if defined?(@ir_spec) && @ir_spec
 

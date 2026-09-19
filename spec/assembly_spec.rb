@@ -80,9 +80,9 @@ RSpec.describe "a graph assembled from declarations" do
 
     # Every field the language declares is either assembled or named as derived.
     #
-    # This is the judge-coverage lesson, in the other direction. The judge used to
-    # carry a hand-written branch per category, and the price was fourteen verbs the
-    # language declared and the walk never offered — every rule hanging off them
+    # This is the judge-coverage lesson, in the other direction. A judge with a
+    # hand-written branch per category pays the same price — fourteen verbs the
+    # language declares and the walk never offers — every rule hanging off them
     # decoration, and nothing red, because a branch that does not exist cannot fail.
     # An assembler with a method per category is the same shape, so the table is
     # checked against the language rather than hand-kept: add a field to
@@ -173,12 +173,13 @@ RSpec.describe "a graph assembled from declarations" do
 
     # Every `derived:` claim is checked, and this is the hole it closes.
     #
-    # `derived:` used to be a list of names, which the coverage example above
-    # accepted without asking anything. So writing `derived: %i[version]` would have
-    # passed while dropping a chapter's version in silence — measured, not
-    # supposed: declaring a field in the language and calling it derived left the
-    # whole suite green, and only `spec/golden/ir` moved, which is regenerated on
-    # purpose and would have buried it.
+    # A bare `derived:` list of names is a promise with nobody holding it: the
+    # coverage example above only asks whether a field is accounted for. So
+    # writing `derived: %i[version]` would satisfy it while dropping a chapter's
+    # version in silence — measured, not supposed: declaring a field in the
+    # language and calling it derived left the whole suite green, and only
+    # `spec/golden/ir` moved, which is regenerated on purpose and would have
+    # buried it.
     #
     # A claim now has a kind, and every kind can fail.
     it "justifies every derived field with a claim that can be false" do
@@ -212,9 +213,9 @@ RSpec.describe "a graph assembled from declarations" do
         # "dispatch"), and naively stripping a trailing "s" mis-singularizes
         # anything `Naming.plural` pluralized with "es" (dispatch -> dispatches,
         # not dispatchs) — so this asks the pluralizer, the same one
-        # `Judge#collection_reader` used to name the field in the first
-        # place, which category name it belongs to, rather than guessing
-        # the word backward.
+        # `Judge#collection_reader` relies on to name the field in the
+        # first place, which category name it belongs to, rather than
+        # guessing the word backward.
         child = plan.names.find { |name| Hecks::Naming.plural(Hecks::Naming.snake(name)) == field.to_s }
         return nil if plan.category(child)&.parent == category
 

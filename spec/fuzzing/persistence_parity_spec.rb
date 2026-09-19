@@ -49,9 +49,11 @@ RSpec.describe Hecks::Fuzzing::PersistenceParity, :io do
   # overwrites the other's, so the first file's own `before(:all)`
   # (which runs later, at run time, reading the constant fresh) can end
   # up writing a completely different spec's own fixture text to disk.
-  # `spec/qa_sweep_persistence_parity_spec.rb`'s own `FIXTURE_HECKSAGON`
-  # collided with this file's exactly this way before both were renamed —
-  # confirmed live by the `Hecks::Bluebook::DSL::Malformed` it produced.
+  # `spec/qa_sweep_persistence_parity_spec.rb` once defined its own
+  # same-named `FIXTURE_HECKSAGON` and collided with this file's exactly
+  # this way — confirmed live by the `Hecks::Bluebook::DSL::Malformed` it
+  # produced — which is why both fixture constants now carry distinct,
+  # file-specific names instead.
   PERSISTENCE_PARITY_FIXTURE_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "PersistenceParityFixture" do
       vision "A trivially well-behaved fixture, authored only to prove Hecks::Fuzzing::PersistenceParity itself works — never examples/, so this spec never depends on this repository's own live corpus staying any particular shape."

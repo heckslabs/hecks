@@ -6,6 +6,8 @@ module Hecks
   # domain-agnostic chapters no single example owns, shared by reference
   # rather than copied into every domain that wants one.
   #
+  # ## Where it lives
+  #
   # Under `lib/`, not a top-level sibling — a real consumer (embryonaut)
   # vendors only `lib/` (`bin/vendor-hecks`, and this gem's own
   # `hecks.gemspec`, both glob `lib/**/*`), so a `framework/`
@@ -19,6 +21,8 @@ module Hecks
   # non-Ruby data a module owns lives inside `lib/` with the code that
   # reads it, not beside it.
   #
+  # ## Derived, not hand-listed
+  #
   # Derived from the directory, not hand-listed a second time — the same
   # reasoning `Assembly::CONTRACTS` gives for reading the language's own
   # fields from a table instead of restating them: a member added here
@@ -27,19 +31,13 @@ module Hecks
   # stale in silence. `spec/corpus_spec.rb`'s own `FRAMEWORK_MEMBERS`
   # glob is the precedent this mirrors.
   #
+  # ## Naming
+  #
   # Named by file stem, capitalized — `governance.bluebook` holds
   # `Hecks.bluebook "Governance"`, the same one-to-one spelling every
   # other chapter in this codebase already keeps between its filename
   # and its declared name.
   module Framework
-    ROOT = File.expand_path("framework/bluebook", __dir__).freeze
-
-    def self.members
-      Dir.glob(File.join(ROOT, "*.bluebook")).to_h do |path|
-        [Naming.pascal(File.basename(path, ".bluebook")), path]
-      end
-    end
-
     # Loaded from its own real path, always — never a copy. A domain
     # booted through `Fuzzing::IsolatedBoot`'s tmp-directory copy still
     # reaches the same `framework/bluebook/governance.bluebook` this
@@ -64,28 +62,36 @@ module Hecks
     # everywhere else too. See `examples/banking/bluebook/banking.hecksagon`
     # for the pattern — a real `.hecksagon` file can hold more than one
     # `Hecks.hecksagon` call, one per domain it wires.
-    # Idempotent, per registry — `uses_framework` is now called more than
-    # once for the same member within a single boot (S8: a domain
-    # attaching Governance for its own role check, plus a framework
-    # sibling attaching it too, e.g. `banking.hecksagon`'s Identity
-    # block). `Kernel.load` always re-executes the file, unlike
-    # `require`, so a second call would re-run `Hecks.bluebook
-    # "Governance"` a second time — and the self-hosting meta-domain
-    # records every declaration as a real dispatched command against its
-    # own ledger, so a second `Declare` for the same aggregate is a real
-    # `AlreadyExists`, not a no-op. Skipped once the member's bluebook is
-    # already registered in this registry — the same chapter, not merely
-    # a same-named one from a stale prior boot.
+    ROOT = File.expand_path("framework/bluebook", __dir__).freeze
+
+    # Every framework member available to attach, by declared name.
+    #
+    # @return [Hash{String => String}] each member's capitalized bluebook name,
+    #   mapped to the absolute path of its `.bluebook` file
+    def self.members
+      Dir.glob(File.join(ROOT, "*.bluebook")).to_h do |path|
+        [Naming.pascal(File.basename(path, ".bluebook")), path]
+      end
+    end
+
     # Every member whose own bluebook declares `provides capability` —
     # read off the member's real IR (each loaded into a scratch registry,
     # never the caller's), not off its name. Used where a check needs to
     # say which member would satisfy it (`refuse_ungoverned_roles!`'s own
     # suggestion, `Fuzzing::TargetCapabilities`).
+    #
+    # @param capability [String, Symbol] the capability name to look for
+    # @return [Array<String>] the names of every framework member that provides it,
+    #   sorted
     def self.providers_of(capability)
       members.keys.select { |name| chapter(name).provides?(capability) }.sort
     end
 
     # One member's chapter, built in isolation.
+    #
+    # @param name [String, Symbol] the member's name, such as `"Governance"`
+    # @return [Bluebook::Chapter] the member's chapter, loaded into a scratch registry
+    # @raise [Runtime::WiringError] if no framework member has that name
     def self.chapter(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
@@ -107,6 +113,23 @@ module Hecks
       registry.bluebook(name.to_s)
     end
 
+    # Idempotent, per registry — `uses_framework` is now called more than
+    # once for the same member within a single boot (S8: a domain
+    # attaching Governance for its own role check, plus a framework
+    # sibling attaching it too, e.g. `banking.hecksagon`'s Identity
+    # block). `Kernel.load` always re-executes the file, unlike
+    # `require`, so a second call would re-run `Hecks.bluebook
+    # "Governance"` a second time — and the self-hosting meta-domain
+    # records every declaration as a real dispatched command against its
+    # own ledger, so a second `Declare` for the same aggregate is a real
+    # `AlreadyExists`, not a no-op. Skipped once the member's bluebook is
+    # already registered in this registry — the same chapter, not merely
+    # a same-named one from a stale prior boot.
+    #
+    # @param name [String, Symbol] the member's name, such as `"Governance"`
+    # @return [Boolean, nil] true when this call loaded the member's bluebook, nil when
+    #   the current registry already held it
+    # @raise [Runtime::WiringError] if no framework member has that name
     def self.load!(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,

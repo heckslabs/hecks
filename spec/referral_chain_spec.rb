@@ -175,9 +175,9 @@ RSpec.describe "ReferralChain" do
   # #dry_run?'s own comment promises "if this were dispatched right now,
   # would it succeed" — but `CommandInterpreter#step_save` returns before
   # ever calling `resolve_state_references` when `ctx.dry_run` is set, so
-  # this was the one check real dispatch performs that a dry run silently
-  # skipped. Before the fix, `dry_run?` answered `true` for a `Reassign`
-  # naming no real Member — disagreeing with the real dispatch one line
+  # this is the one check real dispatch performs that a dry run would
+  # otherwise silently skip. Left unguarded, `dry_run?` would answer `true`
+  # for a `Reassign` naming no real Member — disagreeing with the real dispatch one line
   # below it, which has always correctly refused. The compiled Rust
   # conformance binary already refused this shape on both paths (its
   # `state_reference_checks` runs at the router, unconditionally, so it

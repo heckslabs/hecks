@@ -24,8 +24,8 @@ module Hecks
     class EntityInterpreter
       include Interpreting
       # The same payload gate aggregate commands and port operations already
-      # run — bug audit H1 (docs/audits/2026-08-10-main-bug-audit.md): this
-      # class used to run neither refuse_unknown_arguments nor
+      # run — bug audit H1 (docs/audits/2026-08-10-main-bug-audit.md): without
+      # this, this class runs neither refuse_unknown_arguments nor
       # refuse_absent_arguments, on a comment claiming "an entity inherits
       # its aggregate's own gate." Nothing on the entity dispatch path ever
       # ran one — confirmed live, `LedgerEntry.Reverse` accepted an
@@ -83,7 +83,19 @@ module Hecks
       # reads the declaring command — after `to:` is parsed, before the
       # facts are.
       Resolution = Data.define(:entity_names, :chain, :command_name, :command) do
+        # Resolves a dotted entity verb against `aggregate` into the entity
+        # chain it walks and the command it names.
+        #
         # Refuses UnknownVerb for an unknown entity or command.
+        #
+        # @param aggregate [Bluebook::Aggregate] the root aggregate the dotted verb
+        #   is resolved against
+        # @param dotted [String, Symbol] the entity verb, with the leading
+        #   "Domain::Aggregate." already stripped (e.g. `"Handler.Dispatch.Bind"`)
+        # @return [EntityInterpreter::Resolution] the resolved entity names, chain,
+        #   command name and command class
+        # @raise [Runtime::UnknownVerb] if `dotted` names no entity, or the located
+        #   entity declares no such command
         def self.of(aggregate, dotted)
           *entity_names, command_name = dotted.to_s.split(".")
           if entity_names.empty?
@@ -119,6 +131,9 @@ module Hecks
         private_class_method :walk
       end
 
+      # @param registry [Runtime::Registry] the booted registry this interpreter reads
+      # @param rules [Runtime::CommandRules] the shared rules engine (admissibility,
+      #   references, arithmetic, authorization, emission) dispatch runs through
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
@@ -136,6 +151,26 @@ module Hecks
       # `resolution` is #resolve's answer; `invocation` the
       # `Runtime::Invocation` `Dispatcher` built — `ctx.args` is its
       # `to_args`, `ctx.route` its `target`.
+      #
+      # @param domain [String, Symbol] the domain `aggregate` belongs to
+      # @param aggregate [Bluebook::Aggregate] the root aggregate owning the entity
+      #   chain the command targets
+      # @param resolution [EntityInterpreter::Resolution] the resolved entity chain
+      #   and command, as `Resolution.of` builds it
+      # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built for
+      #   this call
+      # @param dry_run [Boolean] whether to run every step through validation without
+      #   saving, emitting or enqueueing
+      # @return [Array(Runtime::Instance, Array<Runtime::Event>,
+      #   Runtime::DependencyPlanning::Plan, Ports::Persistence::Execution,
+      #   Array<Runtime::Outbox::Row>)] the settled parent aggregate instance, emitted
+      #   events, execution plan, persistence outcome and outbox rows — the last
+      #   three nil on a dry run, which skips save/emit/outbox
+      # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when a
+      #   given/ensures/invariant/authorization/admissibility rule refuses
+      # @raise [Runtime::StaleWrite] if concurrent writers beat this one through every
+      #   retry (`MAX_STALE_WRITE_RETRIES`)
+      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, aggregate, resolution, invocation, dry_run: false)
         chain        = resolution.chain
         entity       = chain.last
@@ -399,12 +434,12 @@ module Hecks
       end
 
       # `locate_chain`/`element_of`/`element_identity`/`apply_to_element` and
-      # their own helpers used to live here — moved to `Runtime::EntityElement`
-      # (see that file's own header) so `CommandInterpreter`'s own
-      # `delegate_to_entity` step can locate and mutate the same element the
-      # same way, against an aggregate record already held in memory. `call`,
-      # above, and every `step_*` method reach them through that module now;
-      # nothing about the steps themselves changed.
+      # their own helpers live in `Runtime::EntityElement`
+      # (see that file's own header), shared rather than kept here, so
+      # `CommandInterpreter`'s own `delegate_to_entity` step can locate and
+      # mutate the same element the same way, against an aggregate record
+      # already held in memory. `call`, above, and every `step_*` method
+      # reach them through that module.
     end
   end
 end

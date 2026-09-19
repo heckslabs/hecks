@@ -22,6 +22,10 @@ module Hecks
         # a coercion bug, a stale string surviving a rename, a default
         # that drifted from the declared set, would all show up here as a
         # value nothing upstream would have predicted.
+        #
+        # @param history [Hash] a replayed history, as returned by `Fuzzing::Replay.call`
+        # @return [true, String] true if every instance's lifecycle field holds a declared
+        #   state; otherwise a semicolon-joined message naming each offending instance
         def lifecycle_values_are_declared(history)
           bluebook = history.fetch(:bluebook)
           declared = {}

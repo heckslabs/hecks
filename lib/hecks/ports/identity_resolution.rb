@@ -19,8 +19,7 @@ module Hecks
 
       # Looks up the id of the identity an authenticated (issuer, subject) pair is linked to.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param issuer [String] the OIDC issuer that authenticated the caller
       # @param subject [String] the OIDC subject the issuer vouches for
       # @return [String, nil] the linked identity's id, usable as an `actor_id` for

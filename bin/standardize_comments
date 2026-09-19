@@ -617,7 +617,7 @@ module CommentStyle
 
         return [Violation.new(path, method.line, "undocumented_method", "##{method.name}")]
       end
-      return [] if doc.match?(/@api private|@private|:nodoc:|\(see [^)]+\)/)
+      return [] if doc.match?(/@api private|@private|:nodoc:|\(see (?:`[^`]+`|#\w)[^)]*\)\W*\z/m)
 
       tag_violations(method, doc)
     end

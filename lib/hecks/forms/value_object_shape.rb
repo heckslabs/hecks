@@ -18,6 +18,8 @@ module Hecks
       # every money-shaped VO in the corpus spells it exactly this way,
       # the two-attribute convention the language itself never enforces
       # but every real chapter follows.
+      # @param value_object [Bluebook::ValueObject] the value object to classify
+      # @return [Boolean] true if its attributes are exactly `cents` and `currency`
       def money?(value_object)
         value_object.attributes.map { |a| a.name.to_s }.sort == %w[cents currency]
       end
@@ -27,6 +29,10 @@ module Hecks
       # [[feedback_name_the_scalar_field]]'s own reasoning, shared here
       # rather than re-decided per caller. Returns the sole attribute,
       # or nil for anything else.
+      #
+      # @param value_object [Bluebook::ValueObject] the value object to inspect
+      # @return [Bluebook::Attribute, nil] its one declared attribute, or nil if
+      #   it declares zero or more than one
       def sole_attribute(value_object)
         return nil unless value_object.attributes.size == 1
 
@@ -38,6 +44,10 @@ module Hecks
       # money-shaped (money's own two members are handled by `money?`
       # instead, since which one governs ordering is a money-specific
       # decision, not a general "pick the first number" one).
+      #
+      # @param value_object [Bluebook::ValueObject] the value object to inspect
+      # @return [Bluebook::Attribute, nil] its first Integer- or Float-typed
+      #   attribute, or nil if it declares none
       def numeric_member(value_object)
         value_object.attributes.find { |a| %w[Integer Float].include?(a.type.to_s) }
       end

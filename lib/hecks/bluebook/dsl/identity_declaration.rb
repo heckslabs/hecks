@@ -23,6 +23,9 @@ module Hecks
       # against: AggregateBuilder's own `@value_objects + closed_sets`,
       # or EntityBuilder's owner's, since a piece mints none of its own.
       module IdentityDeclaration
+        # Records which of the three live `identified_by` forms a builder declared, deferring
+        # resolution until build time.
+        #
         # There are three live forms, deliberately distinguishable at the
         # declaration site:
         #
@@ -33,12 +36,12 @@ module Hecks
         # One symbol is retired: it cannot say whether the author means a
         # value concept or a field-shaped database key. Frozen source still
         # reaches the old interpretation through `legacy_identified_by`.
-        # Renamed from `identified_by` — item #13's full metaprogrammed
-        # dispatch (slice 4c), same shared-mixin shape `attribute_impl`
-        # already proved in slice 3: one renamed method, both Aggregate
-        # and Entity Keyword rows name it in `calls:`. Bootstrap-
-        # reachable (every self-hosted aggregate/entity declares an
-        # identity), so in BOOTSTRAP_CALLS_FALLBACK for both contexts.
+        # Both `AggregateBuilder` and `EntityBuilder` name this method in their Keyword rows'
+        # `calls:` column, so `GenericDispatch` forwards `identified_by` here unchanged, both
+        # after boot (reading the live grammar table) and during it
+        # (`GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`, which carries every `calls:`-routed row
+        # unconditionally, not a hand-picked bootstrap-reachable subset — though this one is
+        # exercised during boot too, since every self-hosted aggregate/entity declares an identity).
         # Dispatches across the three live forms documented above (value-
         # object + block, single type target, single/compound field
         # target), each an early return that sets exactly one pending
@@ -46,6 +49,20 @@ module Hecks
         # with-nil semantics and the shared `@name`/`identity_pool`
         # threaded back out as parameters, for no gain beyond what the
         # three-forms comment above already documents.
+        #
+        # @param targets [Array<Symbol, Module>] zero or more identity targets: a value-object
+        #   type (a bareword, resolved by `ConstShim` to a `Module`), one or more attribute-name
+        #   symbols for a field or compound key, or empty when `definition` is given
+        # @param as [Symbol, nil] the field name to mint for a value-object-type target; not
+        #   accepted with a field or compound-key target
+        # @yield a bespoke value-object body, `instance_eval`'d by `ValueObjectBuilder.build` to
+        #   mint the identity's own anonymous value object
+        # @return [Array<Symbol>, Array<String>, nil] `targets` when a compound key is declared,
+        #   the resolved identity paths from `legacy_identified_by` in shadow-parsing mode, or
+        #   `nil` otherwise; callers reach this through `GenericDispatch`, which discards it
+        # @raise [Bluebook::DSL::Malformed] if `identified_by` was already called, combines a
+        #   block with targets, names no identity, mixes a value-object type with field names,
+        #   passes `as:` with a field or compound key, or the block declares no attributes
         # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def identified_by_impl(*targets, as: nil, &definition)
           return legacy_identified_by(*targets, as: as, &definition) if MetaValidator.shadow_parsing?

@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/fuzzing"
 require "json"
 
-# The argument-gate ordering MATRIX (roadmap D2) — Ruby's half. One
+# The argument-gate ordering `MATRIX` (roadmap D2) — Ruby's half. One
 # generated table (`bin/argument_gate_matrix`, spec/corpus/
 # argument_gate_order/matrix.json) replaces the hand-written refusal-order
 # fixtures that each pinned one pair of argument gates on one command
@@ -31,7 +31,7 @@ require "json"
 RSpec.describe "the argument-gate ordering matrix" do
   MATRIX = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/argument_gate_order/matrix.json"))).freeze
 
-  # Every pair the MATRIX is expected to cover. Pinned as a set, not as
+  # Every pair the `MATRIX` is expected to cover. Pinned as a set, not as
   # counts: a regeneration that drops a whole pair (a domain's command
   # losing its `role`, say, or a generated "valid" value starting to fail
   # a domain's own invariant) fails here instead of quietly shrinking the

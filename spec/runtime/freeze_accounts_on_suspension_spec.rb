@@ -83,10 +83,11 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     expect(repository.find("acct-2").state[:status]).to eq("frozen")
   end
 
-  # **The refusal this used to assert**. `with: { account: :account }` is
-  # what closed it — without a projection the whole `CustomerSuspended`
-  # payload rode along, and `FreezeAccount` (which declares no arguments
-  # at all) refused every row with `does not declare standing`.
+  # **The refusal without a projection**. `with: { account: :account }`
+  # is what closes it — without a projection the whole `CustomerSuspended`
+  # payload would ride along, and `FreezeAccount` (which declares no
+  # arguments at all) would refuse every row with `does not declare
+  # standing`.
   it "hands the trigger the row and nothing else, so the event's own fields never reach it" do
     runtime = build
     runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "CUST-0001" },
@@ -118,14 +119,15 @@ RSpec.describe "FreezeAccountsOnSuspension" do
 
     rows = runtime.query("Banking::Account.OpenForCustomer", reference: { value: "CUST-0001" })
 
-    expect(rows.map { |row| row[:id] }).to eq(["acct-1"]) # not acct-2 — scoped to the right customer, not every open account
+    # not acct-2 — scoped to the right customer, not every open account
+    expect(rows.map { |row| row[:id] }).to eq(["acct-1"])
   end
 
   # The business rule itself, pinned independently of any reaction.
   #
-  # This used to dispatch `FreezeAccount` directly against a suspended
-  # customer's open account, to prove the given in isolation. That state
-  # is no longer reachable: the policy freezes every open account the
+  # Dispatching `FreezeAccount` directly against a suspended customer's
+  # open account, to prove the given in isolation, is not possible: that
+  # state is not reachable, since the policy freezes every open account the
   # moment its customer is suspended, `Account.Open` refuses a suspended
   # customer, and `Unfreeze` refuses one too — so "an open account
   # belonging to a suspended customer" cannot be constructed at all any

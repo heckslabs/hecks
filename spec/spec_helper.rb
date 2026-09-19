@@ -11,6 +11,8 @@ end
 require "hecks"
 require_relative "support/ci_skip_backstop"
 
+# Shared paths and boot helpers for specs that boot a real, in-memory registry
+# rather than loading a fixture domain from disk piecemeal.
 module InMemoryDomain
   ROOT             = File.expand_path("..", __dir__)
   PIZZAS_BLUEBOOK  = File.join(ROOT, "examples/pizzas/bluebook/pizzas.bluebook")
@@ -27,9 +29,15 @@ module InMemoryDomain
   # same as any other consumer would.
   ERA_PLUGIN = "hecks/ports/persistence/plugins/era".freeze
 
+  # Loads one or more bluebook files as a single chapter.
+  #
   # A chapter may reopen across several business-concept files. Load the set
   # inside the same deferred validation window Runtime::Loader uses, then judge
   # the completed chapter once rather than treating each file as a domain.
+  #
+  # @param path [String, Array<String>] a single file, or every file making up one chapter
+  # @return [Object] the judged chapter (when `path` is an Array), or the folder adapter's
+  #   own load result (when `path` is a single file or directory)
   def load_bluebook_files(path)
     if path.is_a?(Array)
       Hecks::Bluebook::MetaValidator.defer { path.each { |file| Kernel.load(file) } }
@@ -43,6 +51,10 @@ module InMemoryDomain
   end
   module_function :load_bluebook_files
 
+  # Boots a fresh, real registry with the Pizzas and Governance chapters wired
+  # to the Memory adapter — a minimal real domain, not a stub.
+  #
+  # @return [Hecks::Runtime::Registry] the booted, bound registry
   def boot_in_memory
     registry = Hecks::Runtime::Registry.new
 

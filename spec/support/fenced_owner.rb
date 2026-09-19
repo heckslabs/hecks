@@ -16,6 +16,8 @@ require "pg"
 # one line each; binding a real fenced owner is what keeps every one of
 # them booting the way a deployment does.
 #
+# ## Ownership
+#
 # The role owns the database (ALTER database ... OWNER TO): a PostgresEra
 # boot provisions — CREATE TABLE, CREATE POLICY, CREATE SCHEMA for a
 # `schema:` tenant — and an owner may, where a merely-CONNECTed role may
@@ -24,19 +26,29 @@ require "pg"
 # leaves it superuser-owned with create for nobody else (lineage_spec.rb's
 # own `before` comment found this first).
 #
-# One ROLE name for every caller, never dropped. `parallel_rspec` runs
+# ## One role, never dropped
+#
+# One `ROLE` name for every caller, never dropped. `parallel_rspec` runs
 # these files concurrently: creation is race-safe (the do block swallows
 # the loser's error — duplicate_object once the winner has committed,
 # unique_violation on pg_authid_rolname_index when both are still in
-# flight; see bin/qa_postgres_role), and a drop ROLE while another spec's
-# database still hangs off it would fail anyway. There is nothing to
-# clean — the role owns nothing once each disposable database is dropped.
+# flight; see bin/qa_postgres_role), and a `DROP ROLE` while another
+# spec's database still hangs off it would fail anyway. There is nothing
+# to clean — the role owns nothing once each disposable database is
+# dropped.
 module FencedOwner
   ROLE = "hecks_spec_owner".freeze
 
+  # Builds a connection URL for `database` as the fenced owner role.
+  #
+  # @param database [String] the disposable database's name
+  # @return [String] a `postgres://` URL connecting as `ROLE` to `database`
   def self.url(database) = "postgres://#{ROLE}@localhost/#{database}"
 
   # After create database, on the ambient admin connection.
+  #
+  # @param database [String] the disposable database's name, already created
+  # @return [void]
   def self.own!(database)
     admin = PG.connect(dbname: "postgres")
     admin.exec(<<~SQL)
@@ -51,6 +63,9 @@ module FencedOwner
   end
 
   # After a `DROP SCHEMA public CASCADE; CREATE SCHEMA public` scrub.
+  #
+  # @param database [String] the database whose `public` schema to reassign
+  # @return [void]
   def self.own_public!(database)
     db = PG.connect(dbname: database)
     db.exec("ALTER SCHEMA public OWNER TO #{ROLE}")

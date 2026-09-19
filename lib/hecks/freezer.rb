@@ -8,7 +8,7 @@ module Hecks
   # Hash a field holds stays mutable, so a caller reaches straight
   # through and edits in place. Each fix looked complete and none was.
   #
-  # What should be frozen, and why it is not everything:
+  # ## What should be frozen, and why it is not everything
   #
   #   a value object has no identity to change over. `with` already
   #   answers a new one rather than mutating, so freezing it through is
@@ -33,6 +33,10 @@ module Hecks
     # Numbers, symbols, nil and booleans are already immediate or frozen;
     # a Value froze itself when it was built. What is left is the mutable
     # trio, and each has to be walked rather than topped.
+    #
+    # @param held [Object] any domain value
+    # @return [Object] `held`, recursively frozen if it is a Hash, Array, or
+    #   String; returned unchanged otherwise
     def deep(held)
       case held
       when Hash   then held.each_value { |inner| deep(inner) }.freeze
@@ -45,11 +49,20 @@ module Hecks
     # The question a gate asks, rather than the act. Answers false for the
     # first thing that is reachable and mutable, which is what makes a
     # failure message worth reading.
+    #
+    # @param held [Object] any domain value
+    # @return [Boolean] true if `held` and everything reachable from it is frozen
     def deeply_frozen?(held) = unfrozen_within(held).nil?
 
     # The path to the first mutable thing reachable from `held`, or nil.
     # A path rather than a boolean because "something in this event is
     # mutable" is not an actionable sentence.
+    #
+    # @param held [Object] any domain value
+    # @param path [Array<String>] the owner path accumulated by the recursive
+    #   walk so far; callers pass nothing and get the default
+    # @return [String, nil] the dotted path (Hash keys, Array indices, or
+    #   `"(the value itself)"`) to the first mutable value found, or nil if none
     def unfrozen_within(held, path = [])
       return (path.empty? ? "(the value itself)" : path.join(".")) unless immune?(held) || held.frozen?
 
@@ -62,6 +75,9 @@ module Hecks
     # Immediates are frozen in every Ruby that matters, but asking
     # `frozen?` of them and trusting the answer has bitten enough people
     # that it is worth being explicit.
+    #
+    # @param held [Object] any domain value
+    # @return [Boolean] true if `held` is nil, true, false, a Numeric, or a Symbol
     def immune?(held) = held.nil? || held == true || held == false || held.is_a?(Numeric) || held.is_a?(Symbol)
   end
 end

@@ -9,17 +9,21 @@ module RuboCop
       # shared, mutable state with no per-thread or mutex-guarded
       # isolation at all.
       #
+      # ## The bug this follows up on
+      #
       # This is the mechanical follow-up to a real bug already fixed here
       # (see `dispatcher.rb`'s own `#reenter` comment, and
-      # `spec/runtime/dispatcher_spec.rb`): `@reaction_depth` used to be a
-      # plain ivar on `Dispatcher`, so two threads' concurrent top-level
-      # dispatches corrupted each other's view of "how deep into a
+      # `spec/runtime/dispatcher_spec.rb`): a plain `@reaction_depth` ivar on
+      # `Dispatcher` let two threads' concurrent top-level
+      # dispatches corrupt each other's view of "how deep into a
       # reaction cascade am I". The fix moved that one ivar to
       # `Thread.current[:hecks_reaction_depth]`. This cop exists so the
       # next plain ivar someone adds to either class gets flagged before
       # it becomes the next instance of the same bug, rather than after.
       #
-      # **Scoped narrowly on purpose** — by class name
+      # ## Scoped narrowly on purpose
+      #
+      # By class name
       # (`Hecks::Runtime::Dispatcher`/`Hecks::Runtime::Registry`), not by
       # blanket-flagging every ivar mutation in the codebase. Most classes
       # in this codebase are not shared across threads (a fresh value
@@ -29,7 +33,9 @@ module RuboCop
       # same reasoning `.rubocop.yml`'s own header gives for every other
       # cop in this repo.
       #
-      # What counts as "PLAIN": `@ivar = ...`, `@ivar ||= ...`, `@ivar +=
+      # ## What counts as "plain"
+      #
+      # `@ivar = ...`, `@ivar ||= ...`, `@ivar +=
       # ...`, `@ivar << ...`, `@ivar[k] = v`. `initialize` is exempt — an
       # ivar being set up for the first time, before any other thread can
       # possibly hold a reference to this object, is not the hazard (see
@@ -67,6 +73,10 @@ module RuboCop
 
         RESTRICT_ON_SEND = [:<<, :[]=].freeze
 
+        # Flags a plain `@ivar = ...` assignment inside a thread-shared class.
+        #
+        # @param node [RuboCop::AST::IvasgnNode] the ivar-assignment node being visited
+        # @return [void]
         def on_ivasgn(node)
           # A plain `@x = 1` parses as `(ivasgn :@x (int 1))` — two
           # children. The commissioner also visits the bare `(ivasgn :@x)`
@@ -79,6 +89,11 @@ module RuboCop
           check(node, node.children.first)
         end
 
+        # Flags a plain `@ivar += ...` (or similar) compound assignment inside a
+        # thread-shared class.
+        #
+        # @param node [RuboCop::AST::OpAsgnNode] the compound-assignment node being visited
+        # @return [void]
         def on_op_asgn(node)
           # `@x += 1` parses as `(op_asgn (ivasgn :@x) :+ (int 1))` — the
           # target is an `ivasgn` node carrying just the name (no value
@@ -89,10 +104,19 @@ module RuboCop
           check(node, ivar_node.children.first)
         end
 
+        # Flags a plain `@ivar ||= ...` assignment inside a thread-shared class.
+        #
+        # @param node [RuboCop::AST::OrAsgnNode] the `||=` assignment node being visited
+        # @return [void]
         def on_or_asgn(node)
           on_op_asgn(node)
         end
 
+        # Flags a plain `@ivar << ...` or `@ivar[k] = v` mutation inside a thread-shared
+        # class.
+        #
+        # @param node [RuboCop::AST::SendNode] the `<<` or `[]=` send node being visited
+        # @return [void]
         def on_send(node)
           return unless RESTRICT_ON_SEND.include?(node.method_name)
 

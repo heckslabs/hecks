@@ -7,9 +7,9 @@ require "spec_helper"
 # (`MetaValidator.grammar_registry`), and every dispatch that touches an
 # entity nested under an aggregate (a `ValueObject`'s own `Member`, and each
 # `Member`'s own `Pair` — S17, ADR 0026) re-saves the whole parent
-# aggregate, because an entity has no storage of its own. PR #738 added a
-# 128-row `member` table to `vocabulary.bluebook` and, without a fix, that
-# alone tripled one aggregate's own save time (6.7s -> 18.2s) by re-encoding
+# aggregate, because an entity has no storage of its own. A 128-row
+# `member` table added to `vocabulary.bluebook`, without a fix, alone
+# tripled one aggregate's own save time (6.7s -> 18.2s) by re-encoding
 # an aggregate whose own state kept growing, on every one of ~1,160 extra
 # saves.
 #
@@ -28,7 +28,7 @@ require "spec_helper"
 # single aggregate (`ValueObject`, S17's own Member/Pair table) ~5,271.
 # Both budgets below give real headroom for organic corpus growth (a new
 # vocabulary table, another attached chapter) while still catching a
-# regression on PR #738's own scale.
+# regression at that 128-row member table's own scale.
 RSpec.describe "grammar boot save budget" do
   # The same reset/restore shape `fixpoint_spec.rb`'s own "registry and the
   # installed door agree from bind" example and `syntax_boot_memo_spec.rb`'s

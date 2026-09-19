@@ -3,8 +3,8 @@ require_relative "qa_ledger_fixture"
 require "pathname"
 require "tmpdir"
 
-# **The `bin/qa_tick` fixture, shared** — extracted from what used to be one
-# `qa_tick_spec.rb` (2026-09-18, following the same reasoning
+# **The `bin/qa_tick` fixture, shared** — split out of one `qa_tick_spec.rb`
+# (2026-09-18, following the same reasoning
 # `spec/support/qa_sweep_all_fixture.rb`'s own header already spells
 # out): the file's own 4 examples took 128s together, each a real
 # subprocess spawning `bin/qa_pr_check`, `bin/qa_sweep --all`, and
@@ -109,6 +109,12 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
     FileUtils.remove_entry(@origin) if @origin
   end
 
+  # Runs `git` inside the throwaway `@repo` checkout, as the fixture's own
+  # committer identity.
+  #
+  # @param args [Array<String>] the `git` subcommand and its arguments
+  # @return [Boolean] true once the command exits successfully
+  # @raise [RuntimeError] if the command exits with a non-zero status
   def git(*args)
     system("git", "-c", "user.name=spec", "-c", "user.email=spec@example.com", *args, chdir: @repo,
            out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
@@ -117,10 +123,19 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
   # `QA_GENERATED_DOMAINS_PER_TICK=0` — the generated-domains step runs
   # from the real checkout's dials, which a throwaway tick must not spend
   # minutes generating and building against; zero is its own "off" path.
+  #
+  # @return [Array(String, String, Process::Status)] `bin/qa_tick`'s
+  #   captured stdout, stderr and exit status
   def tick
     @ledger.run("qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
   end
 
+  # Boots the fixture ledger in-process, briefly, purely to write `Target`
+  # rows down.
+  #
+  # @param targets [Hash{String => String}] target reference to its domain's
+  #   path, relative to `InMemoryDomain::ROOT`
+  # @return [void]
   def identify!(targets)
     @ledger.boot
     targets.each do |reference, path|

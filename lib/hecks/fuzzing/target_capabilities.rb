@@ -3,26 +3,30 @@ module Hecks
     # What a sweep target can actually be checked for, read off the
     # filesystem — never off a stored list.
     #
-    # `bin/qa_sweep` used to decide its one comparison mode inline: "is
-    # there a Cargo feature named after this directory? then
-    # `:differential`, else `:ruby_only`", and a separate hand-typed abort
-    # for `--persistence-parity` ("does any .hecksagon bind PostgresEra?").
-    # Every further mode the practice adds (era boundary, concurrency, a
-    # WASM front) would have grown one more inline `if`, each one a
+    # `bin/qa_sweep` does not decide its comparison modes with inline
+    # conditionals — "is there a Cargo feature named after this directory?
+    # then `:differential`, else `:ruby_only`", a separate hand-typed abort
+    # for `--persistence-parity` ("does any .hecksagon bind PostgresEra?"),
+    # and so on for every further mode the practice adds (era boundary,
+    # concurrency, a WASM front) — because each such inline `if` is a
     # policy decision hiding in a script. This module is those decisions
     # as data: `MODE_REQUIREMENTS` says which capabilities each mode
     # needs, `infer` says which capabilities a target's own directory
     # actually has, and `resolve` is the one rule that joins them —
     # `modes_to_run = enabled ∩ eligible`.
     #
-    # Inference decides; a stored list only records. `Target.capabilities`
-    # (qa/bluebook/quality_control.bluebook, once PR-1's era lands) is
-    # written by the runner from exactly this inference at release time
-    # so `Target.EligibleFor(mode)` can audit the rotation from the
-    # ledger alone — but the runner re-infers every sweep, because a
-    # stored list that lags yesterday's Cargo feature is precisely the
-    # "quiet divergence" (the chapter's own opening comment) this whole
-    # practice exists to hunt. Nothing here ever reads the ledger.
+    # ## Inference decides; a stored list only records
+    #
+    # `Target.capabilities` (qa/bluebook/quality_control.bluebook, once
+    # PR-1's era lands) is written by the runner from exactly this
+    # inference at release time so `Target.EligibleFor(mode)` can audit
+    # the rotation from the ledger alone — but the runner re-infers every
+    # sweep, because a stored list that lags yesterday's Cargo feature is
+    # precisely the "quiet divergence" (the chapter's own opening comment)
+    # this whole practice exists to hunt. Nothing here ever reads the
+    # ledger.
+    #
+    # ## Regex provenance
     #
     # Every regex is one the harness already owned, moved here rather than
     # re-derived, and each one's provenance is named beside it so a
@@ -121,10 +125,19 @@ module Hecks
       # exists because that pass pays for real Postgres I/O per dispatch).
       DEFERRED_MODES = %i[persistence_parity adapter_parity_postgres era_boundary concurrency].freeze
 
+      # Reads a target directory to find out which capabilities it actually has.
+      #
       # Sorted, plain strings — comma-joined by the runner into the
       # `Target.Release(capabilities:)` value object and printed verbatim
       # on the `resolved modes:` line, so the same spelling is what a
       # human reads, what `--all` parses back, and what the ledger stores.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param rust_dir [String] path to the Rust project root, checked for a matching
+      #   Cargo feature; defaults to this repo's own `rust/` directory
+      # @return [Array<String>] the target's capabilities, sorted; a subset of
+      #   `sqlite`, `rust`, `postgres_era`, `translations`, `governance`, `role_gated`,
+      #   `tenant`, `sagas`
       def infer(domain_path, rust_dir: File.expand_path("../../../rust", __dir__))
         capabilities = %w[sqlite]
         capabilities << "rust" if rust_feature?(domain_path, rust_dir)
@@ -137,6 +150,12 @@ module Hecks
         capabilities.sort
       end
 
+      # Answers whether `mode` can run against a target with `capabilities`.
+      #
+      # @param mode [Symbol, String] a key of `MODE_REQUIREMENTS`, such as `:differential`
+      # @param capabilities [Array<String>] the target's capabilities, as `infer` returns
+      # @return [Boolean] whether `capabilities` covers every capability `mode` requires
+      # @raise [ArgumentError] if `mode` names no entry in `MODE_REQUIREMENTS`
       def eligible?(mode, capabilities)
         required = MODE_REQUIREMENTS.fetch(mode.to_sym) { raise ArgumentError, "unknown sweep mode #{mode.inspect}" }
         (required - capabilities).empty?
@@ -146,12 +165,26 @@ module Hecks
       # on, in the dial's own declaration order — that order is preserved
       # so the printed line reads the same way the dial does. Then the
       # single exclusion named on `MODE_REQUIREMENTS`.
+      #
+      # @param enabled [Array<Symbol, String>] modes turned on, in the dial's own
+      #   declaration order
+      # @param capabilities [Array<String>] the target's capabilities, as `infer` returns
+      # @return [Array<Symbol>] `enabled`'s eligible modes, in `enabled`'s order, with
+      #   `:ruby_only` dropped whenever `:differential` is also eligible
       def resolve(enabled, capabilities)
         resolved = enabled.map(&:to_sym).select { |mode| eligible?(mode, capabilities) }
         resolved.delete(:ruby_only) if resolved.include?(:differential)
         resolved
       end
 
+      # Answers whether `rust_dir`'s Cargo.toml declares a feature named after
+      # `domain_path`'s own directory.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory;
+      #   its basename, lowercased, is the feature name looked up
+      # @param rust_dir [String] path to the Rust project root (holds `Cargo.toml`)
+      # @return [Boolean] whether a matching Cargo feature is declared; false if
+      #   `rust_dir` has no `Cargo.toml`
       def rust_feature?(domain_path, rust_dir)
         cargo_toml = File.join(rust_dir, "Cargo.toml")
         return false unless File.file?(cargo_toml)
@@ -161,10 +194,17 @@ module Hecks
         features.match?(/^#{Regexp.escape(feature)}\s*=\s*\[\]/)
       end
 
+      # Answers whether any `.hecksagon` under `domain_path` attaches a member
+      # that provides authorization.
+      #
       # The capability label stays "governance" — it is the value
       # `bin/qa_sweep` writes into the QualityControl ledger's
       # `Target.capabilities`, and renaming it is a ledger change, not
       # part of dropping the name check.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @return [Boolean] whether the domain attaches a member that provides the
+      #   `Bluebook::Capabilities::AUTHORIZATION` capability
       def authorization_attached?(domain_path)
         attached = Dir.glob(File.join(domain_path, "**", "*.hecksagon"))
                       .flat_map { |path| File.read(path).scan(FRAMEWORK_ATTACHED).flatten }.uniq
@@ -172,6 +212,13 @@ module Hecks
         attached.intersect?(providers)
       end
 
+      # Answers whether any file under `domain_path` matching `glob` contains `pattern`.
+      #
+      # @param domain_path [String] filesystem path to the target domain's directory
+      # @param glob [String] a `Dir.glob` pattern relative to `domain_path`, such as
+      #   `"*.bluebook"`
+      # @param pattern [Regexp] the pattern each matching file's contents is tested against
+      # @return [Boolean] whether any matching file's contents match `pattern`
       def any_file?(domain_path, glob, pattern)
         Dir.glob(File.join(domain_path, "**", glob)).any? { |path| File.read(path).match?(pattern) }
       end

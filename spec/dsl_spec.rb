@@ -39,8 +39,9 @@ RSpec.describe "the DSL surface" do
 
       # The fields the sets cases below mutate. A mutation must name a field
       # the aggregate declares (AggregateBuilder#seal_mutation_targets), so the
-      # fixture declares them instead of mutating into a void — which is what it
-      # used to do, silently, while asserting the mutation had been recorded.
+      # fixture declares them instead of mutating into a void, which would
+      # otherwise happen silently, while still asserting the mutation had
+      # been recorded.
       attribute :status,  Tag
       attribute :balance, Size
       attribute :lives,   Size
@@ -376,9 +377,9 @@ RSpec.describe "the DSL surface" do
     end
 
     # A piece is reached through its aggregate, so a command on one addresses
-    # the aggregate and never the piece. This used to be described as "a
-    # reference to an entity rather than an aggregate head", which is not what
-    # it checks: `CommandBuilder#reference_to` only sets `references` when the
+    # the aggregate and never the piece. Describing this as "a reference to an
+    # entity rather than an aggregate head" is not accurate to what it checks:
+    # `CommandBuilder#reference_to` only sets `references` when the
     # target names the owner, so the only thing that can reach here is a piece's
     # command naming itself.
     it "refuses an entity command that names itself as its root" do
@@ -443,16 +444,16 @@ RSpec.describe "the DSL surface" do
 
     # The exact case seal_defaults' own comment names — an inline closed
     # set (`one_of(...)` in the type position) synthesises its value
-    # object through `closed_sets`, not `@value_objects`, and used to be
-    # invisible to this exact check: `attribute :cover, one_of("covered",
-    # "open"), default: "open"` built cleanly and then refused every
-    # create at dispatch, the same silent-then-loud failure the
-    # block-declared case above is already sealed against.
-    # A name declared twice used to survive into the IR as two distinct
-    # attributes sharing one name — every downstream reader that finds
-    # an attribute by name (a mutation target, a query field, `Instance
-    # #[]`) silently sees only the first, the second permanently
-    # unreachable and yet still real IR, checked by nothing.
+    # object through `closed_sets`, not `@value_objects`, and would
+    # otherwise be invisible to this exact check: `attribute :cover,
+    # one_of("covered", "open"), default: "open"` would build cleanly and
+    # then refuse every create at dispatch, the same silent-then-loud
+    # failure the block-declared case above is already sealed against.
+    # A name declared twice would otherwise survive into the IR as two
+    # distinct attributes sharing one name — every downstream reader that
+    # finds an attribute by name (a mutation target, a query field,
+    # `Instance#[]`) would silently see only the first, the second
+    # permanently unreachable and yet still real IR, checked by nothing.
     it "refuses an attribute name declared twice" do
       expect do
         build_aggregate("DupAttr") do
@@ -623,10 +624,10 @@ RSpec.describe "the DSL surface" do
       )
     end
 
-    # L7 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — `to_h`'s own
-    # `members:` emission used to call `.to_s` on every member field value,
-    # so `minor_units: 2` (a genuine Integer, `currency.members` above
-    # proves it) crossed the wire as the string `"2"` — indistinguishable
+    # L7 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — calling `.to_s`
+    # on every member field value in `to_h`'s own `members:` emission
+    # would make `minor_units: 2` (a genuine Integer, `currency.members`
+    # above proves it) cross the wire as the string `"2"` — indistinguishable
     # from a member some other row spelled as text. Only the field name is
     # a Ruby symbol that has to become a string for the wire; the value's
     # own type is real information (`Bluebook::Attribute#to_h`'s own
@@ -881,9 +882,10 @@ RSpec.describe "the DSL surface" do
     end
 
     it "gathers includes declared before the reference, in either order" do
-      # `many:` is decided by comparing each include against the reference, so
-      # this used to be refused. The includes are resolved at build now, which
-      # removes the rule rather than moving it.
+      # `many:` is decided by comparing each include against the reference,
+      # so declaring an include before the reference would be refused if
+      # order mattered at declare time. The includes are resolved at build
+      # instead, which removes the ordering rule rather than moving it.
       before = build_bluebook("EitherWay") do
         read_model("Portfolio") do
           description "a portfolio"
@@ -1021,10 +1023,10 @@ RSpec.describe "the DSL surface" do
                          /reference cycle: (Rider -> Bicycle -> Rider|Bicycle -> Rider -> Bicycle)/)
     end
 
-    # S9, ADR 0025 — an owned piece's own reference_to used to feed no
-    # edge into this same check at all (only AggregateBuilder#reference_to
-    # ever populated @reference_targets), so a ring closing through a
-    # contained entity built cleanly, invisibly, the same shape this
+    # S9, ADR 0025 — an owned piece's own reference_to would feed no
+    # edge into this same check at all if only AggregateBuilder#reference_to
+    # populated @reference_targets, so a ring closing through a
+    # contained entity would build cleanly, invisibly, the same shape this
     # check already refuses when the ring is direct.
     it "refuses a reference cycle that closes through an owned entity" do
       expect do
@@ -1149,9 +1151,9 @@ RSpec.describe "the DSL surface" do
     # `Assembly::Build`/a hand-rolled hash-to-object rebuild does) rather
     # than through the DSL can carry a nil `correlates_by`; the DSL itself
     # always refuses to mint one without it (`ProcessManagerBuilder#build`,
-    # "declares no correlates_by"). `to_h` used to spell that absent case
-    # as `""`, indistinguishable on the wire from a genuinely empty name,
-    # and read back as the wrong non-nil `:""` rather than `nil`.
+    # "declares no correlates_by"). Spelling that absent case as `""` in
+    # `to_h` would be indistinguishable on the wire from a genuinely empty
+    # name, and would read back as the wrong non-nil `:""` rather than `nil`.
     it "a process manager's absent correlates_by survives to_h as nil, not an empty string" do
       expect(Hecks::Bluebook::ProcessManager.new(name: "Untethered").to_h[:correlates_by]).to be_nil
     end
@@ -1486,7 +1488,7 @@ RSpec.describe "the DSL surface" do
       # already a scalar id the moment it is stored (`reference_to`
       # mints a bare attribute, never a nested object), so there is
       # nothing to unwrap and it resolves to its own name unchanged.
-      # This used to refuse; ADR 0025 admits it on purpose.
+      # ADR 0025 deliberately admits this rather than refusing it.
       it "admits a reference — already a scalar, nothing to derive" do
         bluebook = build_bluebook("Refs") do
           aggregate "Team" do
@@ -1858,8 +1860,8 @@ RSpec.describe "the DSL surface" do
         end
       end.lifecycle
 
-      # "z" admits neither declared "Advance" transition — this used to
-      # silently fall back to the first one ("b"), a wrong answer for a
+      # "z" admits neither declared "Advance" transition — silently
+      # falling back to the first one ("b") would be a wrong answer for a
       # state no transition actually admits, rather than the loud
       # refusal every real dispatch path gets from
       # CommandRules::Admissibility#admissible_transition.
@@ -2032,8 +2034,8 @@ RSpec.describe "the DSL surface" do
     end
 
     # **The query seal** — the same gate sets gets, closing the same silence.
-    # Every case here used to build cleanly and answer wrongly forever: a
-    # where over an undeclared field matches nothing on every adapter, an
+    # Without it, every case here would build cleanly and answer wrongly
+    # forever: a where over an undeclared field matches nothing on every adapter, an
     # ordered comparator over text is answered differently per adapter (the
     # reference interpreter quietly matches no rows; SQL compares
     # lexicographically), a :symbol naming no argument resolves to nil, and a

@@ -126,7 +126,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
       end
     RUBY
 
-    # Living inside the real repo ROOT, exactly `qa_sweep_all_fixture.rb`'s
+    # Living inside the real repo `ROOT`, exactly `qa_sweep_all_fixture.rb`'s
     # own reasoning — `bin/qa_sweep` resolves a `Target`'s own `path` as
     # `File.join(ROOT, target_path)` against the real repository root.
     @ineligible_dir = Dir.mktmpdir("qa_sweep_persistence_parity_spec_target-", InMemoryDomain::ROOT)
@@ -195,8 +195,8 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
   # children are spawned with `out: log, err: log` (`spawn_sweep_child`'s
   # own comment) — a single, non-`--all` invocation of this script keeps
   # the two streams separate, exactly as `Open3.capture3` hands them back.
-  # `--all --persistence-parity` used to abort ("does not combine with
-  # --all"). It is a legitimate combination now — see `bin/qa_sweep`'s own
+  # `--all --persistence-parity` is a legitimate combination, not an abort
+  # ("does not combine with --all") — see `bin/qa_sweep`'s own
   # comment on `force_parity_wave` — but not "narrow every child to only
   # this one mode" (that would abort the `ineligible` target here
   # individually, one operational error per target that can't be compared

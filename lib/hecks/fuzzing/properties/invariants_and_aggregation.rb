@@ -280,6 +280,11 @@ module Hecks
         # of count/median, nest_rows in place of recompute_median.
         # rubocop:disable-next Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/PerceivedComplexity
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every eligible group_by report answer matches
+        #   an independent recompute; otherwise a semicolon-joined message naming each
+        #   offending query
         def group_by_matches_recompute(history)
           bluebook = history.fetch(:bluebook)
 

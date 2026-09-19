@@ -12,12 +12,12 @@ module Hecks
     # dependency on when Governance's bluebook loads relative to this
     # adapter, only that it has by the time `holds_role?` is called.
     #
-    # An active assignment, not merely a historical one : `RoleAssignment`
-    # answers with every assignment an actor has ever held
-    # (`AssignmentsForActor`'s own description — "currently or
-    # historically") and leaves `ends_at` for the caller to read, the
-    # same deferral `Governance::RoleTransition.Allowed` makes for the
-    # same reason. This is that caller.
+    # An active assignment, not merely a past one — `RoleAssignment`
+    # answers with every assignment an actor has ever held, current or
+    # past (`AssignmentsForActor`'s own description covers both), and
+    # leaves `ends_at` for the caller to read, the same deferral
+    # `Governance::RoleTransition.Allowed` makes for the same reason.
+    # This is that caller.
     module GovernanceAuthorization
       module_function
 
@@ -29,6 +29,18 @@ module Hecks
       # resolved from `Ports::Clock.now`, called by the caller at the
       # door, never by this adapter — see `Ports::Clock`'s own header
       # for why the dispatch path must not consult the clock itself.
+      #
+      # @param registry [Runtime::Registry] the booted registry, to resolve the authorization
+      #   provider's verb
+      # @param actor_id [String] the actor whose grants are checked, compared as a String
+      # @param role [String, Symbol] the role name to look for, compared as a String
+      # @param as_of [Integer, nil] Unix epoch seconds; a grant whose `starts_at` is later, or
+      #   does not parse as a time, does not count. nil skips the `starts_at` check
+      # @param scope [String, nil] the scope the caller acts in; nil skips the scope check
+      # @return [Boolean] true if at least one live grant of `role` to `actor_id` passes the
+      #   `as_of` and `scope` checks
+      # @raise [Runtime::WiringError] if the loaded chapters providing `"authorization"` are
+      #   not exactly one (see `provided_verb`)
       def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
         rows = Runtime::Dispatcher.new(registry).query(
           provided_verb(registry, :assignments),
@@ -48,6 +60,11 @@ module Hecks
       # in gets the pre-scope behavior: any live assignment for the role
       # authorizes, everywhere. A caller that does state one only
       # authorizes against an assignment granted for that scope.
+      #
+      # @param row [Hash{Symbol => Object}] one `RoleAssignment` row as
+      #   `Runtime::Dispatcher#query` returns it; `:scope` holds a `{value: String}` Hash
+      # @param scope [String, nil] the scope to check against; nil accepts any scope
+      # @return [Boolean] true if `scope` is nil, or the row's own scope matches it
       def in_scope?(row, scope)
         scope.nil? || row[:scope][:value] == scope.to_s
       end
@@ -59,6 +76,12 @@ module Hecks
       # Fails closed : a `starts_at` that does not parse is treated as
       # not-yet-started rather than silently ignored, the same direction
       # every other check in this method already fails.
+      #
+      # @param row [Hash{Symbol => Object}] one `RoleAssignment` row as
+      #   `Runtime::Dispatcher#query` returns it; `:starts_at` holds a `{value: String}` Hash
+      # @param as_of [Integer, nil] Unix epoch seconds to compare against; nil accepts any row
+      # @return [Boolean] true if `as_of` is nil, or the row's `starts_at` parses and is at or
+      #   before `as_of`; false if `starts_at` does not parse as a time
       def started?(row, as_of)
         return true if as_of.nil?
 
@@ -67,11 +90,23 @@ module Hecks
         false
       end
 
+      # Answers whether one role may act as another.
+      #
       # **The other half** — may role X act as role Y. `RoleTransition.Allowed`
       # is identified by the exact pair, so at most one row ever comes
       # back ; still read as `.any?` rather than trusting that structurally,
       # the same defensiveness `holds_role?` already has to have anyway
       # since `AssignmentsForActor` can return several.
+      #
+      # @param registry [Runtime::Registry] the booted registry, to resolve the authorization
+      #   provider's verb
+      # @param from_role [String, Symbol] the role the caller holds, compared as a String
+      # @param to_role [String, Symbol] the role the caller wants to act as, compared as a
+      #   String
+      # @return [Boolean] true if a live (not ended) allowance lets `from_role` act as
+      #   `to_role`
+      # @raise [Runtime::WiringError] if the loaded chapters providing `"authorization"` are
+      #   not exactly one (see `provided_verb`)
       def authorized_as?(registry, from_role:, to_role:)
         rows = Runtime::Dispatcher.new(registry).query(
           provided_verb(registry, :transitions),
@@ -87,6 +122,14 @@ module Hecks
       # against a caller-supplied guess. `nil` for no live assignment at
       # all — the caller's own fallback (an aggregate's own role field,
       # a default) is domain-specific and does not belong here.
+      #
+      # @param registry [Runtime::Registry] the booted registry, to resolve the authorization
+      #   provider's verb
+      # @param actor_id [String] the actor to look up, compared as a String
+      # @return [String, nil] the role name of the actor's first live (not ended) grant, or
+      #   nil if it has none
+      # @raise [Runtime::WiringError] if the loaded chapters providing `"authorization"` are
+      #   not exactly one (see `provided_verb`)
       def live_role_for(registry, actor_id:)
         rows = Runtime::Dispatcher.new(registry).query(
           provided_verb(registry, :assignments),
@@ -102,6 +145,14 @@ module Hecks
       # loaded chapter declares it (Governance's, in every boot today).
       # Exactly one provider, the same "the runtime will not choose for
       # you" rule `Ports::Authorization.adapter` applies to adapters.
+      #
+      # @param registry [Runtime::Registry] the booted registry to search for the
+      #   `"authorization"` provider
+      # @param key [Symbol] which declared verb to read — `:assignments`, `:grant`, or
+      #   `:transitions`
+      # @return [String] the fully-qualified verb the loaded chapter provides for `key`
+      # @raise [Runtime::WiringError] if the loaded chapters providing `"authorization"` are
+      #   not exactly one
       def provided_verb(registry, key)
         providers = registry.authorization_providers
         unless providers.size == 1

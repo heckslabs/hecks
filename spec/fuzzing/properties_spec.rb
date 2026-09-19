@@ -162,7 +162,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
         # both `error:` and `reference_error:` present, the shape `Replay`
         # itself now builds when each engine is run independently and both
         # happen to raise (see that file's own comment on why a single
-        # shared begin/rescue used to make this indistinguishable from the
+        # shared begin/rescue would make this indistinguishable from the
         # one-sided case below).
         { query: "Pizzas::Order.Expensive", args: {}, error: "refused", reference_error: "refused" },
         { query: "Pizzas.some_read_model", args: {}, rows: [] }
@@ -256,9 +256,9 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
 
     # HopChain::Proposal.PricedAboveViaEngagement — real fixture corpus,
     # `where :"engagement/client/status" => "active"; order_by :number;
-    # limit 1` — a `/` hop clause, which the recompute used to dig as a
-    # local dotted path (nil for every row, 0 eligible) and so falsely
-    # flagged the runtime's own correct answer the first time a
+    # limit 1` — a `/` hop clause, which the recompute digging as a
+    # local dotted path (nil for every row, 0 eligible) would falsely
+    # flag the runtime's own correct answer, as it did the first time a
     # generated sequence ever built the full chain (bin/fuzz fixtures,
     # seed 1 — reproducible on an untouched checkout; see
     # `Properties#query_eligible_rows`'s own comment). Every field in
@@ -482,7 +482,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     # The single most important check on BUG#5's own fix (see the PR
     # description this test rides in on): a fix broad enough to stop
     # false-positiving on a correct VO-typed append must not also go
-    # blind to a genuinely WRONG one. Same shape as the passing example
+    # blind to a genuinely wrong one. Same shape as the passing example
     # right above — same `before`, same `args`, the identical `821`
     # BUG#5's own fix now coerces to `{ value: 821 }` — except the real
     # dispatch's own `after` claims `{ value: 999 }` landed instead, a
@@ -590,9 +590,9 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       # The real regression, pinned exactly as bin/fuzz found it: a
       # domain under fuzz commonly composes more than one bluebook
       # (Expression loads before Translation here) — a genuine given
-      # refusal from a non-first domain used to read as "no declared
-      # command resolves that verb," purely because command_for_verb only
-      # ever consulted whichever bluebook happened to load first, never
+      # refusal from a non-first domain would read as "no declared
+      # command resolves that verb," purely because command_for_verb would
+      # only consult whichever bluebook happened to load first, never
       # the refusing verb's own domain.
       bluebooks = bluebooks_for(PROPERTIES_GRAMMAR)
       # Expression loads first — the shape the bug needed. Governance
