@@ -321,28 +321,44 @@ module RustProjection
           # command's own generated `dispatch_*` runs the same
           # `require_depth(0)?` INTERNALLY, but only once this router has
           # already called it — far too late.
-          # ROUTE DEPTH, EAGERLY, FOR EVERY AGGREGATE COMMAND — Ruby's own
-          # `Invocation.route` (invocation.rb) validates `to:` inside
-          # `Invocation.from_call`, strictly before `@commands.call` opens
-          # `CommandInterpreter::DISPATCH_ORDER` at all, so an explicit
-          # wrong-depth route refuses `TypeMismatch` on its OWN terms
-          # ahead of every argument gate. A CREATING command already
-          # emitted exactly this line (BUG#56); an ACTING one used to fold
-          # the same check into `id_line`, which now runs AFTER the gates
-          # (see `gates_line`), so the check is hoisted here for both
-          # rather than moving with it.
+          # ROUTE DEPTH FOR EVERY AGGREGATE COMMAND, CONDITIONALLY EAGER
+          # (BUG#141/BUG#123, qa/bluebook/quality_control.bluebook) —
+          # Ruby's own `Invocation.route` (invocation.rb) validates `to:`
+          # inside `Invocation.from_call`, strictly before `@commands.
+          # call` opens `CommandInterpreter::DISPATCH_ORDER` at all, so an
+          # explicit wrong-depth route refuses `TypeMismatch` on its OWN
+          # terms ahead of every argument gate — but ONLY for the LEGACY/
+          # flat-facts shape. `Invocation.facts_for`'s own `with:`-shaped
+          # validation (`refuse_unknown_facts!`/`refuse_absent_facts!`)
+          # runs BEFORE `route(to)` when `with:` was given (`from_call`'s
+          # own docstring: "facts first (`with:` checks), then `to:`" for
+          # an `:aggregate` receiver) — the legacy shape's own `facts_for`
+          # is a silent no-op, which is the ONLY reason `route(to)` reads
+          # as "eager" there at all.
           #
-          # ONE SHAPE THIS STILL DOES NOT REPRODUCE, unchanged by D2 and
-          # pre-existing: on Ruby's EXPLICIT-envelope form
-          # (`dispatch(verb, to:, with:)`, `:aggregate` receiver),
-          # `Invocation.offered_facts` runs its OWN `with:`-strictness —
-          # unknown then absent — BEFORE `route(to)`, so a call that is
-          # both wrong-depth AND carries an undeclared `with:` key refuses
-          # `UnknownArgument` there. Rust parses the routing envelope in
-          # `CommandInvocation::from_json` before any of this, so it
-          # refuses the route first. Every corpus and matrix step uses the
-          # loose-keyword form, where Ruby validates `to:` first and the
-          # two agree.
+          # THIS IS THE EXACT GAP D2 (#751) LEFT OPEN AND DOCUMENTED (this
+          # comment used to read "ONE SHAPE THIS STILL DOES NOT REPRODUCE
+          # ... pre-existing ... every corpus and matrix step uses the
+          # loose-keyword form, where Ruby validates to: first and the two
+          # agree") — that fixture gap is exactly why D2's own broad "route
+          # depth, eagerly, for every aggregate command" landed with a
+          # real regression nothing caught: `with:`-shaped facts that are
+          # ALSO wrong (an undeclared key, say) alongside a wrong-depth
+          # `to:` now refuse `TypeMismatch` in Rust where Ruby refuses
+          # `UnknownArgument`/`AbsentArgument` first. `CommandInvocation::
+          # explicit_with()` (rust/src/kernel/routing.rs) is the one bit
+          # of runtime information needed to replicate BOTH orders
+          # correctly, per call, instead of picking one fixed order for
+          # every call — `route_precheck_line` (this same text D2 already
+          # had) now runs AFTER `gates_expr` for an explicit `with:` call,
+          # BEFORE it otherwise, inside `args_line`'s own `if invocation.
+          # explicit_with() { ... } else { ... }` (below, once `gates_
+          # expr` is built). DELIBERATELY NOT a blanket reorder the other
+          # way either — BUG#4 (PR #529) and BUG#38's own first attempt
+          # (PR #610) each already tried a fixed reorder and were reverted
+          # once widened fuzz found Ruby's real order is itself
+          # conditional; this is a per-call runtime branch on the actual
+          # call shape, same as those two corrections needed to become.
           route_precheck_line = "if let Some(route) = route { route.require_depth(0)?; }"
           not_found_expr = "crate::kernel::Refusal::NotFound(#{acting_no_identity_args})"
           # IDENTITY RESOLUTION IS PART OF HYDRATE, AND NOW RUNS AFTER
@@ -387,7 +403,17 @@ module RustProjection
           # router level instead of inside the generated `dispatch_*`
           # function. They are done borrowing it well before `dispatch_
           # call` takes its own `&mut`.
-          gates_line = "let args = crate::kernel::decode_aggregate_arguments(facts_json, &#{emit_argument_gates_literal("#{mod_path}::#{c[:args_struct]}", c[:invariant_check_lines], emit_role_check(c[:role], c[:name]), c[:reference_checks].map { |check| emit_reference_check(check) })})?;"
+          gates_expr = "crate::kernel::decode_aggregate_arguments(facts_json, &#{emit_argument_gates_literal("#{mod_path}::#{c[:args_struct]}", c[:invariant_check_lines], emit_role_check(c[:role], c[:name]), c[:reference_checks].map { |check| emit_reference_check(check) })})?"
+          # BUG#141/BUG#123 — see `route_precheck_line`'s own header,
+          # above, for the full reasoning. A single `if invocation.
+          # explicit_with() { ... } else { ... }` EXPRESSION (its value
+          # bound to `args`) rather than two separately-ordered
+          # statements, so exactly one of the two orders ever actually
+          # runs per call — never both, never a redundant second route
+          # check.
+          args_line =
+            "let args = if invocation.explicit_with() { let args = #{gates_expr}; #{route_precheck_line} args } " \
+            "else { #{route_precheck_line} #{gates_expr} };"
           # ANGLE-8's write-side tenant boundary (PR #595) — COMPUTED right
           # after the plain existence checks above, matching Ruby's own
           # `resolve_state_references` order (`validate_reference_values`
@@ -455,8 +481,7 @@ module RustProjection
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  route_precheck_line,
-                  gates_line,
+                  args_line,
                   # IDENTITY AFTER THE GATES — `id_line`'s own comment,
                   # above; `extra_lines` reads a creating command's bare
                   # identity-extra heads, identity too, so it moves with it.
