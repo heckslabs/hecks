@@ -8,6 +8,14 @@ module Hecks
       # everything ambiguous left unresolved for a human.
       module Differ
         # Diff two bluebook IRs into the edge's declarations.
+        #
+        # @param held_bluebook [Bluebook::Chapter] the bluebook IR for the held (source) era
+        # @param current_bluebook [Bluebook::Chapter] the bluebook IR for the current
+        #   (destination) era
+        # @return [Hash{Symbol => Object}] `:aggregates` (Array of `ScaffoldedAggregate`,
+        #   only aggregates with a rename or a rule), `:retired` (Array of vanished aggregate
+        #   names with no successor) and `:unclaimed` (Array of vanished aggregate names left
+        #   ambiguous)
         def diff(held_bluebook, current_bluebook)
           held_shapes = projections(held_bluebook)
           current_shapes = projections(current_bluebook)
@@ -27,17 +35,34 @@ module Hecks
           { aggregates: aggregates, retired: matched[:retired], unclaimed: matched[:unclaimed] }
         end
 
+        # Projects a bluebook's storage shape and indexes it by aggregate name.
+        #
+        # @param bluebook [Bluebook::Chapter] the bluebook IR to project
+        # @return [Hash{String => Hash}] `Runtime::StorageShape.project(bluebook)`'s
+        #   aggregate Hashes, keyed by their own `"name"`
         def projections(bluebook)
           Runtime::StorageShape.project(bluebook)["aggregates"].to_h { |shape| [shape["name"], shape] }
         end
 
+        # Pairs each current aggregate with its held-era counterpart by name or by exact
+        # shape match, and sorts every unmatched held aggregate into retired or unclaimed.
+        #
         # A vanished aggregate whose full shape reappears under exactly one
-        # new name was renamed. `retired` is only confident when nothing
+        # new name is treated as a rename. `retired` is only confident when nothing
         # remains it could plausibly have become — a vanished aggregate
         # beside an unmatched new one might be a rename-plus-reshape, and
         # writing `retired` there would be a guess that strands data.
         # Anything ambiguous stays unclaimed, and the coverage gate names
         # it until a human decides.
+        #
+        # @param held_shapes [Hash{String => Hash}] held-era aggregate shapes, from
+        #   `projections`
+        # @param current_shapes [Hash{String => Hash}] current-era aggregate shapes, from
+        #   `projections`
+        # @return [Hash{Symbol => Object}] `:pairs` (Hash of current name to held name or
+        #   nil); the vanished held names with no confident rename go to `:retired` when no
+        #   current aggregate appeared unmatched at all, otherwise to `:unclaimed`, the other
+        #   key always `[]`
         def match_aggregates(held_shapes, current_shapes)
           pairs = {}
           current_shapes.each_key { |name| pairs[name] = held_shapes.key?(name) ? name : nil }
@@ -67,6 +92,12 @@ module Hecks
         # new type name: a retype. Anything else: unresolved, carrying its
         # type-compatible candidates (an empty list is the arrow toward
         # compute, or drop).
+        #
+        # @param held_shape [Hash] the held-era aggregate's projected shape
+        # @param current_shape [Hash] the current-era aggregate's projected shape
+        # @return [Array<Hash{Symbol => Object}>] rule Hashes with `:kind` (`:rename`,
+        #   `:move`, `:retype` or `:unresolved`) plus `:from`/`:to`, or `:from`/`:candidates`
+        #   for `:unresolved`
         def attribute_rules(held_shape, current_shape)
           rules = []
           rules << identity_hint(held_shape, current_shape)
@@ -91,8 +122,16 @@ module Hecks
           rules
         end
 
+        # Finds attributes whose type's own name changed with its member structure unchanged.
+        #
         # retype pass: same attribute name, same member structure, the
         # type's own name changed
+        #
+        # @param held_attrs [Hash{String => Hash}] held-era attribute shapes by name
+        # @param current_attrs [Hash{String => Hash}] current-era attribute shapes by name
+        # @return [Array<Hash{Symbol => String}>] `{kind: :retype, from:, to:}` Hashes, one
+        #   per attribute name present in both with the same container shape but a different
+        #   type name
         def retype_rules(held_attrs, current_attrs)
           (held_attrs.keys & current_attrs.keys).filter_map do |name|
             held = held_attrs[name]
@@ -105,6 +144,15 @@ module Hecks
           end
         end
 
+        # Matches each vanished path against the appeared paths with the same signature,
+        # appending a rename, move or unresolved rule to `rules` for each.
+        #
+        # @param rules [Array<Hash>] the rules accumulated so far; appended to in place
+        # @param vanished [Hash{String => Object}] held paths absent (or retyped away) from
+        #   `current_attrs`, mapped to their type signature
+        # @param appeared [Hash{String => Object}] current paths with no held counterpart,
+        #   mapped to their type signature
+        # @return [void]
         def resolve_vanished_rules!(rules, vanished, appeared)
           vanished.each do |path, signature|
             matches = appeared.select { |_, candidate| candidate == signature }.keys
@@ -125,6 +173,12 @@ module Hecks
         # and members that vanished (or changed type) inside a kept
         # attribute — mirroring exactly what EraGuard will demand coverage
         # for.
+        #
+        # @param held_attrs [Hash{String => Hash}] held-era attribute shapes by name
+        # @param current_attrs [Hash{String => Hash}] current-era attribute shapes by name
+        # @param retyped [Array<String>] type names `retype_rules` already accounted for
+        # @return [Hash{String => Object}] bare or dotted paths mapped to their held type
+        #   signature
         def vanished_paths(held_attrs, current_attrs, retyped)
           paths = {}
           held_attrs.each do |name, held|
@@ -146,6 +200,13 @@ module Hecks
           paths
         end
 
+        # The mirror of `vanished_paths`: current paths a held shape does not account for.
+        #
+        # @param held_attrs [Hash{String => Hash}] held-era attribute shapes by name
+        # @param current_attrs [Hash{String => Hash}] current-era attribute shapes by name
+        # @param retyped [Array<String>] type names `retype_rules` already accounted for
+        # @return [Hash{String => Object}] bare or dotted paths mapped to their current type
+        #   signature
         def appeared_paths(held_attrs, current_attrs, retyped)
           paths = {}
           current_attrs.each do |name, current|
@@ -173,24 +234,51 @@ module Hecks
         # `check_identity_unchanged!` is the real gate this only hints
         # toward, the same "tool proactively guides you" pattern the
         # generic unresolved message already gives unfed fields.
+        #
+        # @param held_shape [Hash] the held-era aggregate's projected shape
+        # @param current_shape [Hash] the current-era aggregate's projected shape
+        # @return [Hash{Symbol => Object}, nil] an `:unresolved` rule Hash when the declared
+        #   identity path changed; nil when it did not
         def identity_hint(held_shape, current_shape)
           return if held_shape["identity"] == current_shape["identity"]
 
           { kind: :unresolved, from: :identity, candidates: [] }
         end
 
+        # Widens an unmatched-signature vanished path's candidates to appeared paths that at
+        # least share its scalar/member shape, for the human to choose among.
+        #
+        # @param appeared [Hash{String => Object}] current paths with no held counterpart,
+        #   mapped to their type signature
+        # @param signature [Object] the vanished path's own type signature
+        # @return [Array<String>] appeared paths whose `scalar_of` matches `signature`'s
         def compatible_candidates(appeared, signature)
           appeared.select { |_, candidate| scalar_of(candidate) == scalar_of(signature) }.keys
         end
 
+        # Reduces a type signature to its member structure, ignoring the container type's
+        # own name — what two differently-named but structurally identical types share.
+        #
+        # @param signature [Hash, Object] a type signature, as `projections` shapes it
+        # @return [Array, Object] the container's `"members"` Array when `signature` is a
+        #   Hash (a value object or entity type); `signature` itself for a scalar
         def scalar_of(signature) = signature.is_a?(Hash) ? signature["members"] : signature
 
+        # Maps a value-object or entity attribute's own member names to their type signatures.
+        #
+        # @param attribute [Hash] an attribute shape, as `projections` shapes it
+        # @return [Hash{String => Object}] member name to type signature; `{}` for a scalar
+        #   attribute
         def members_of(attribute)
           return {} unless container?(attribute)
 
           attribute["type"]["members"].to_h { |member| [member["name"], member["type"]] }
         end
 
+        # Reports whether an attribute's type is a value object or entity, not a scalar.
+        #
+        # @param attribute [Hash] an attribute shape, as `projections` shapes it
+        # @return [Boolean] true when the attribute's `"type"` is itself a Hash
         def container?(attribute) = attribute["type"].is_a?(Hash)
       end
     end

@@ -5,11 +5,11 @@ require_relative "../../ports/authentication"
 module Hecks
   module Adapters
     # **Google's own OIDC handshake** — the `authentication` port's one real
-    # implementation today, moved here from being hand-rolled per-app
-    # (an embryonaut_console `google_auth.rb` used to do exactly this;
-    # any hecks-based app gets Google sign-in for free now, the
+    # implementation today, factored out of being hand-rolled per-app
+    # (an embryonaut_console `google_auth.rb` once did exactly this by
+    # hand); any hecks-based app gets Google sign-in for free now, the
     # same "one adapter, reusable everywhere" value every other adapter
-    # in this directory already has).
+    # in this directory already has.
     #
     # `oauth2` does only the authorization-code exchange (no Rack
     # middleware, no Omniauth strategy indirection) ; `google-id-token`
@@ -34,6 +34,11 @@ module Hecks
 
       module_function
 
+      # Builds a fresh `OAuth2::Client` configured for Google's own endpoints.
+      #
+      # @return [OAuth2::Client] a client configured with the app's client id/secret from
+      #   `ENV` and Google's authorize/token URLs
+      # @raise [KeyError] if `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` is unset
       def client
         require "oauth2"
         OAuth2::Client.new(
@@ -44,9 +49,16 @@ module Hecks
         )
       end
 
+      # Builds the Google sign-in URL a browser goes to, with a fresh CSRF state.
+      #
       # The URL to send a browser to, carrying a fresh CSRF `state` the
       # caller is responsible for stashing (a session, typically) and
       # checking again in `verify`.
+      #
+      # @return [Array(String, String)] the authorization URL, then the fresh `state`
+      #   value embedded in it
+      # @raise [KeyError] if `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` or
+      #   `GOOGLE_REDIRECT_URI` is unset
       def authorization_url
         state = SecureRandom.hex(24)
         url = client.auth_code.authorize_url(
@@ -57,6 +69,9 @@ module Hecks
         [url, state]
       end
 
+      # Exchanges an authorization code for a Hash of verified claims, confirming the CSRF
+      # state along the way.
+      #
       # Exchanges `code` for tokens, verifies the returned ID token's
       # signature and claims against Google's own JWKS, and confirms
       # `state` matches what `authorization_url` handed out — a
@@ -67,6 +82,19 @@ module Hecks
       # the raw token, never anything a caller would need to re-verify
       # itself. `email_verified` rides along because a caller granting
       # access off this email needs to know Google actually checked it.
+      #
+      # @param code [String] the authorization code Google sent back
+      # @param state [String, nil] the state parameter Google returned
+      # @param expected_state [String, nil] the state `authorization_url` handed out before
+      #   the redirect
+      # @return [Hash{Symbol => Object}] the verified claims: `issuer:` and `subject:`
+      #   (String), `email:` (String, or nil if the token carries none) and
+      #   `email_verified:` (Boolean)
+      # @raise [Ports::Authentication::ValidationError] if either state is nil or the two
+      #   differ, the code exchange fails, the response has no ID token, or the ID token
+      #   does not verify
+      # @raise [KeyError] if `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` or
+      #   `GOOGLE_REDIRECT_URI` is unset, or the verified token lacks an `iss` or `sub` claim
       def verify(code:, state:, expected_state:)
         # **Both gems, before anything else** — not staggered further down
         # this method: the rescue clause below names GoogleIDToken

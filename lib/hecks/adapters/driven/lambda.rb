@@ -29,6 +29,16 @@ module Hecks
 
       attr_reader :aggregate
 
+      # Resolves which Lambda function's Store to read from and builds the client that
+      # reads it.
+      #
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose records this adapter reads
+      # @param settings [Hash{Symbol, String => Object}] world settings for the binding:
+      #   `domain` (prefixes the instances lookup; default the aggregate's own name),
+      #   `region` (default `"us-east-1"`) and `function` (the function name, when it is not
+      #   `hecks-<domain>`), each read under a Symbol or a String key
+      # @param root [String, nil] the boot's own project directory, used with `DOMAIN_NAME`
+      #   to resolve which function to call; nil falls further back to `domain`
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         domain =
@@ -80,16 +90,40 @@ module Hecks
         @prefix = "#{domain}::#{aggregate.hecks_name}#"
       end
 
+      # Looks up the current record for one aggregate identity, reading the Lambda's own
+      # Store fresh on every call.
+      #
+      # @param id [String, Object] the aggregate identity, compared as `id.to_s`
+      # @return [Runtime::Instance, nil] the decoded record, or nil when no record has that id
       def find(id)
         instances[id.to_s]
       end
 
+      # Lists every stored record, in id order unless an ordering attribute is given.
+      #
+      # @param order_by [String, Symbol, nil] attribute (or dotted value-object path) to sort
+      #   by; nil orders by id alone
+      # @param direction [Symbol, String] `:asc` or `:desc`
+      # @return [Array<Runtime::Instance>] the decoded records, `[]` when the Store holds none
+      #   with this aggregate's own prefix
+      # @raise [Runtime::WiringError] if `order_by` names no attribute of the aggregate
       def all(order_by: nil, direction: :asc)
         InMemoryOrdering.ordered(instances.values, aggregate: @aggregate, order_by: order_by, direction: direction)
       end
 
+      # Counts the records currently held for this aggregate.
+      #
+      # @return [Integer] number of records
       def count = instances.size
 
+      # Answers a declared query by filtering, ordering and paging the held records in Ruby.
+      #
+      # @param specification [QuerySpecification::Common::Options] the declared query
+      # @param args [Hash{Symbol => Object}] values for the specification's symbolic operands
+      # @param context [Hash] execution context from `Ports::Query.execute`; accepted for the
+      #   port's call shape and not read
+      # @return [Array<Runtime::Instance>] the matching records, `[]` when none match
+      # @raise [Runtime::WiringError] if a where clause uses an operation no comparator handles
       def query(specification, args = {}, context: {})
         Ports::Query::InMemory.execute(instances.values, specification, args)
       end
@@ -103,10 +137,17 @@ module Hecks
       # 1 — there is no local write-ahead log for `recover!` to replay),
       # `append`/`project` raise rather than silently no-op.
 
+      # Reads a world setting under either a Symbol or a String key, with a fallback.
+      #
       # A `.world` block's settings arrive symbol-keyed from the DSL and
       # string-keyed from a round-tripped export, so every read has to
       # accept both — one helper rather than the same five lines per
       # key.
+      #
+      # @param settings [Hash] the world settings Hash to read from
+      # @param key [Symbol] the setting name, tried as itself and as `key.to_s`
+      # @param fallback [Object] the value to return when neither key is present
+      # @return [Object] the setting's value, or `fallback` when absent
       def setting(settings, key, fallback)
         return settings[key] if settings.key?(key)
         return settings[key.to_s] if settings.key?(key.to_s)
@@ -121,8 +162,8 @@ module Hecks
       # held by the registry `RUNTIME = Hecks.boot(...)` builds once
       # per Lambda web process — WebFunction's own top-level constant,
       # reused warm across every HTTP request that process serves, not
-      # rebuilt per request the way a memoize-for-one-request comment
-      # here used to assume). A real, live bug caught this: a mutation
+      # rebuilt per request the way memoizing here would wrongly assume).
+      # A real, live bug caught this: a mutation
       # dispatched fine (RemoteDispatcher always calls the dispatch
       # Lambda fresh) and the very next `.all` on the same warm
       # container kept returning the state from before that mutation,

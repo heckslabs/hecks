@@ -16,6 +16,10 @@ module Hecks
         include RuleReference
         include WordGate
 
+        # @param name [String] the value object's name, as written after `value_object`
+        # @param owner_value_objects [Array<Bluebook::ValueObject>] the owning aggregate's other
+        #   value objects, built so far, that this one's `invariant` references may resolve
+        #   against
         def initialize(name, owner_value_objects: [])
           @name       = name
           @invariants = []
@@ -46,7 +50,11 @@ module Hecks
         # still needs to read it. `block_given?` is what tells the two
         # calling shapes apart: the type-position form
         # (`one_of("a", "b")`) never passes a block, only the wrapper does.
-        # Renamed from `one_of` — item #13's full metaprogrammed dispatch
+        # Declares this value object as a closed set, either from bare values or (under
+        # shadow-parsing) a legacy `do ... end` wrapper of `member` lines.
+        #
+        # Answers the `one_of` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch
         # (slice 5). Same name as `AttributeCollector#one_of_impl`'s own
         # — required for the `super(*values)` call below to keep
         # resolving; see that method's own comment. Reached directly
@@ -54,6 +62,13 @@ module Hecks
         # block-wrapper form has its own row, distinct from "Type"'s),
         # not through the Type-position fallback this word's other
         # context uses.
+        #
+        # @param values [Array<String, Symbol>] permitted values, given bare (no block); at
+        #   least one is required
+        # @yield a legacy `member` wrapper body; only read under shadow-parsing
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if given no values and no block, or a block outside
+        #   shadow-parsing
         def one_of_impl(*values, &block)
           unless block
             # No values, no block is the scalar spelling — nonsensical, not
@@ -83,9 +98,16 @@ module Hecks
           instance_eval(&block)
         end
 
-        # Renamed from `member` — item #13's full metaprogrammed dispatch
-        # (slice 4c). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # Declares one member row of a closed set, one value per attribute.
+        #
+        # Answers the `member` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch (slice 4c). Bootstrap-reachable, in
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param fields [Hash{Symbol => Object}] each declared attribute's name mapped to this
+        #   member's value for it
+        # @return [Array<Hash{Symbol => Object}>] every member declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `fields` is empty
         def member_impl(**fields)
           raise Malformed, "#{@name} declared an empty member" if fields.empty?
 
@@ -105,9 +127,20 @@ module Hecks
         # the referencing value object's own build time, against
         # whatever sibling value objects the aggregate has already
         # built, the same ordering rule `given` carries.
-        # Renamed from `invariant` — item #13's full metaprogrammed
-        # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # Declares a rule this value object's own value must satisfy, or references one a sibling
+        # value object on the same aggregate already declared.
+        #
+        # Answers the `invariant` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch (slice 4b). Bootstrap-reachable, in
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param description [String] the rule's description; also the name a sibling value
+        #   object references it by when no block is given
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if given a block whose source cannot be extracted or
+        #   uses a pattern construct engines disagree on, or given no block and no sibling value
+        #   object on this aggregate declares a rule with this description
         def invariant_impl(description, &predicate)
           return reference_named_invariant(description) unless predicate
 
@@ -134,6 +167,12 @@ module Hecks
 
         public
 
+        # Assembles the declared attributes, invariants and members into a `ValueObject`.
+        #
+        # @return [Bluebook::ValueObject] the built value object; `closed_set` is true when any
+        #   member was declared
+        # @raise [Bluebook::DSL::Malformed] if `one_of:` was declared on an attribute alongside
+        #   other attributes on the same value object
         def build
           if @inline_closed_set_field && attributes.size > 1
             raise Malformed,
@@ -149,6 +188,15 @@ module Hecks
           )
         end
 
+        # Evaluates a `value_object` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the value object's name
+        # @param owner_value_objects [Array<Bluebook::ValueObject>] the owning aggregate's other
+        #   value objects, for `invariant` references to resolve against
+        # @yield the value object body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::ValueObject] the built value object
+        # @raise [Bluebook::DSL::Malformed] if the body declares a rule extraction cannot read,
+        #   `one_of:` on more than one attribute, or uses a word the grammar does not admit
         def self.build(name, owner_value_objects: [], &block)
           builder = new(name, owner_value_objects: owner_value_objects)
           builder.instance_eval(&block) if block

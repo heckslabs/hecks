@@ -13,6 +13,9 @@ module Hecks
 
         include WordGate
 
+        # @param name [String, Symbol] the aggregate's name in the destination era
+        # @param was [String, Symbol, nil] the aggregate's earlier name, when renamed
+        # @raise [Bluebook::DSL::Malformed] if `name` is empty
         def initialize(name, was: nil)
           raise Malformed, "an aggregate translation needs a name" if name.to_s.empty?
 
@@ -28,14 +31,23 @@ module Hecks
           @backfills = []
         end
 
-        # Renamed from `rename`/`move`/`convert`/`retype`/`compute`/
-        # `rekey`/`backfill` (all seven below) — item #13's full
+        # Declares a field rename with no other change: same path, new name.
+        #
+        # Answers the `rename` word (and, via the same table rows, its
+        # siblings `move`/`convert`/`retype`/`compute`/
+        # `rekey`/`backfill` below) through the table's `calls:` column —
+        # item #13's full
         # metaprogrammed dispatch (slice 4c). Not bootstrap-reachable
         # (translation.bluebook describes its own structure with
         # aggregate/entity/attribute, never with these — they're
         # words for real, user-authored `.translation` files only,
         # loaded after the grammar table exists), so none need a
-        # BOOTSTRAP_CALLS_FALLBACK entry.
+        # `BOOTSTRAP_CALLS_FALLBACK` entry.
+        #
+        # @param old_name [Symbol, String] the field's name in the held era
+        # @param to [Symbol, String] the field's name in the destination era
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `old_name` or `to` is empty
         def rename_impl(old_name, to:)
           raise Malformed, "a rename needs a source name" if old_name.to_s.empty?
           raise Malformed, "a rename needs a destination name (to:)" if to.to_s.empty?
@@ -43,6 +55,13 @@ module Hecks
           @renames[old_name.to_sym] = to.to_sym
         end
 
+        # Declares a field moved to a different path, name unchanged.
+        #
+        # @param old_path [String, Symbol] the field's path in the held era; dotted reaches a
+        #   value-object member
+        # @param to [String, Symbol] the field's path in the destination era
+        # @return [Array<Bluebook::TranslationMove>] every move declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `old_path` or `to` is empty
         def move_impl(old_path, to:)
           raise Malformed, "a move needs a destination path (to:)" if to.to_s.empty?
           raise Malformed, "a move needs a source path" if old_path.to_s.empty?
@@ -50,10 +69,21 @@ module Hecks
           @moves << TranslationMove.new(old_path.to_s, to.to_s)
         end
 
+        # Declares an exhaustive value-to-value mapping for a field with nothing structural in
+        # common with its replacement.
+        #
         # A value with nothing structural in common with its replacement
         # — declared as an exhaustive table, not computed, so every value
         # that can appear in old data has a named destination. Paths
         # follow `move`'s convention: dotted reaches a value-object member.
+        #
+        # @param old_path [String, Symbol] the field's path in the held era
+        # @param to [String, Symbol] the field's path in the destination era
+        # @param values [Hash] every old value mapped to its destination value
+        # @return [Array<Bluebook::TranslationConvert>] every convert declared so far, this one
+        #   last
+        # @raise [Bluebook::DSL::Malformed] if `old_path` or `to` is empty, or `values` is nil
+        #   or empty
         def convert_impl(old_path, to:, values:)
           raise Malformed, "a convert needs a destination path (to:)" if to.to_s.empty?
           raise Malformed, "a convert needs a source path" if old_path.to_s.empty?
@@ -70,10 +100,18 @@ module Hecks
         # coerce-and-append with nothing else, now executed by
         # `GenericDispatch`.
 
+        # Declares that a type's name changed while its member structure stayed the same.
+        #
         # A value object's or entity's own type name changed, member
         # structure unchanged. The stored data never carries the type
         # name, so nothing moves — this declares that the pair of names
         # means the same shape, which is what lets the era diff accept it.
+        #
+        # @param old_type [String, Symbol] the type's name in the held era
+        # @param to [String, Symbol] the type's name in the destination era
+        # @return [Array<Bluebook::TranslationRetype>] every retype declared so far, this one
+        #   last
+        # @raise [Bluebook::DSL::Malformed] if `old_type` or `to` is empty
         def retype_impl(old_type, to:)
           raise Malformed, "a retype needs a source type name" if old_type.to_s.empty?
           raise Malformed, "a retype needs a destination type name (to:)" if to.to_s.empty?
@@ -81,10 +119,19 @@ module Hecks
           @retypes << TranslationRetype.new(old_type.to_s, to.to_s)
         end
 
+        # Declares a field computed by a hand-written Postgres SQL expression.
+        #
         # A computed transform whose only implementation is the SQL
         # expression itself — Postgres-only by construction. The scaffold
         # never proposes one; a human writes it, and the audit's
         # human-sampled review is its only verification.
+        #
+        # @param old_path [String, Symbol] the source field's path in the held era
+        # @param to [String, Symbol] the field's path in the destination era
+        # @param sql [String] the Postgres SQL expression computing the destination value
+        # @return [Array<Bluebook::TranslationCompute>] every compute declared so far, this one
+        #   last
+        # @raise [Bluebook::DSL::Malformed] if `old_path`, `to`, or `sql` is empty
         def compute_impl(old_path, to:, sql:)
           raise Malformed, "a compute needs a destination path (to:)" if to.to_s.empty?
           raise Malformed, "a compute needs a source path" if old_path.to_s.empty?
@@ -93,6 +140,9 @@ module Hecks
           @computes << TranslationCompute.new(old_path.to_s, to.to_s, sql.to_s)
         end
 
+        # Declares a hand-written Postgres SQL expression that recomputes the aggregate's own
+        # identity.
+        #
         # The aggregate's own identity, changing what it's computed from —
         # not a field crossing a boundary (`move`), not a value's own
         # transform (`compute`): the record's key. No path arguments,
@@ -101,12 +151,19 @@ module Hecks
         # SQL-only, Postgres-only, human-reviewed-sample-is-the-only-
         # verification shape `compute` already has, and for the same
         # reason: there is nothing in-process to check this against.
+        #
+        # @param sql [String] the Postgres SQL expression computing the destination identity
+        # @return [Array<Bluebook::TranslationRekey>] every rekey declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `sql` is empty
         def rekey_impl(sql:)
           raise Malformed, "a rekey needs its sql: expression" if sql.to_s.empty?
 
           @rekeys << TranslationRekey.new(sql.to_s)
         end
 
+        # Declares a newly added, required attribute and the default existing records read
+        # until a real value is written.
+        #
         # A newly added, required attribute — the addition-side sibling of
         # `drop`. Nothing to rename, move, or convert from, since old data
         # never held this field at all; `default` is what an existing
@@ -118,6 +175,12 @@ module Hecks
         # `EraGuard.refuse_unsafe_addition!` asks for when a non-optional
         # attribute with no default: could leave an existing record with
         # the field genuinely absent.
+        #
+        # @param name [String, Symbol] the new attribute's name
+        # @param default [Object] the value an existing record reads until it is written for real
+        # @return [Array<Bluebook::TranslationBackfill>] every backfill declared so far, this
+        #   one last
+        # @raise [Bluebook::DSL::Malformed] if `name` is empty or `default` is nil
         def backfill_impl(name, default:)
           raise Malformed, "a backfill needs a name" if name.to_s.empty?
           raise Malformed, "a backfill needs a default: value" if default.nil?
@@ -125,33 +188,45 @@ module Hecks
           @backfills << TranslationBackfill.new(name.to_sym, default)
         end
 
+        # Always refuses to boot: marks a field the scaffold could not decide a rule for.
+        #
         # The scaffold writes this where it cannot decide; a file carrying
         # one can only boot into this refusal — never a guess.
         #
-        # Renamed from `unresolved` — item #13's full metaprogrammed
+        # Answers the `unresolved` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4). Builds its own message with real branching
         # (empty vs. named candidates, a special :identity case), not a
-        # fixed string a boolean `refuses:` flag could express — reached
-        # through `calls:` instead, like `attribute`/`role`. Not
+        # fixed string a boolean `refuses:` flag could express. Not
         # bootstrap-reachable: translation.bluebook (loaded during
         # bootstrap, to describe the translation DSL itself) never
         # writes `unresolved` — that word is only ever used by real,
         # user-authored `.translation` files, loaded well after the
-        # grammar table exists — so no BOOTSTRAP_CALLS_FALLBACK entry is
+        # grammar table exists — so no `BOOTSTRAP_CALLS_FALLBACK` entry is
         # needed here (checked directly, not assumed).
+        #
+        # @param name [String, Symbol] the unresolved field's name, or `:identity` for an
+        #   unresolved identity change
+        # @param candidates [Array<String, Symbol>] paths the scaffold considered but could not
+        #   choose between; empty when it found none
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] always
         def unresolved_impl(name, candidates: [])
           raise Malformed, unresolved_message(name, candidates)
         end
 
-        # `method_missing`/`respond_to_missing?` used to be hand-written
-        # here, giving a hand-typed "must be rename, move, convert, ..."
-        # list on every genuinely undefined call — WordGate (`include`d
-        # above) now answers the same question off the self-hosted
-        # grammar table instead, the exact "hardcoded legal-word list"
-        # this whole arc's item #13 exists to close. A word admitted
-        # elsewhere in the grammar but not in this context still gets a
-        # richer, table-driven refusal than the old generic one did.
+        # `method_missing`/`respond_to_missing?` answer off the self-hosted
+        # grammar table (via the `include`d `WordGate`, above), giving a
+        # richer, table-driven "must be rename, move, convert, ..." refusal
+        # on a genuinely undefined call than a hand-typed list could —
+        # the exact "hardcoded legal-word list" this whole arc's item #13
+        # exists to close. A word admitted
+        # elsewhere in the grammar but not in this context still gets that
+        # richer refusal.
 
+        # Assembles the declared rules into a `TranslationAggregate`.
+        #
+        # @return [Bluebook::TranslationAggregate] the built per-aggregate translation
         def build
           TranslationAggregate.new(
             name: @name, was: @was, renames: @renames, moves: @moves, converts: @converts,
@@ -199,6 +274,10 @@ module Hecks
 
         include WordGate
 
+        # @param domain [String, Symbol] the domain this translation carries forward
+        # @param from [String, Symbol] the origin era
+        # @param to [String, Symbol] the destination era
+        # @raise [Bluebook::DSL::Malformed] if `domain`, `from`, or `to` is empty
         def initialize(domain, from:, to:)
           raise Malformed, "a translation names no domain" if domain.to_s.empty?
           raise Malformed, "#{domain}'s translation says nothing about its origin era (from:)" if from.to_s.empty?
@@ -211,38 +290,64 @@ module Hecks
           @retired    = []
         end
 
-        # Renamed from `aggregate` — item #13's full metaprogrammed
+        # Declares one aggregate's own translation rules.
+        #
+        # Answers the `aggregate` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4c). Not bootstrap-reachable — this "Translation"
         # -context `aggregate` (opens a TranslationAggregateBuilder) is a
         # different (context, word) pair than "Bluebook"-context
         # `aggregate` (the one translation.bluebook itself is described
-        # with), so it's never used to describe the language's own
+        # with), so it never describes the language's own
         # translation chapter.
+        #
+        # @param name [String, Symbol] the aggregate's name in the destination era
+        # @param was [String, Symbol, nil] the aggregate's earlier name, when renamed
+        # @yield the aggregate's own translation body, evaluated against a
+        #   `TranslationAggregateBuilder`
+        # @return [Array<Bluebook::TranslationAggregate>] every aggregate translation declared
+        #   so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `name` is empty, or any rule in the body fails
+        #   its own checks
         def aggregate_impl(name, was: nil, &block)
           builder = TranslationAggregateBuilder.new(name, was: was)
           builder.instance_eval(&block) if block
           @aggregates << builder.build
         end
 
-        # `retired` — item #13's full metaprogrammed dispatch, slice 2
-        # (whole-project table-unification survey): an aggregate that is
-        # gone outright — not renamed. The deliberate alternative to a
-        # bogus `was:` claim on an unrelated aggregate. Same shape
-        # `TranslationAggregateBuilder#drop` is, now executed by
-        # `GenericDispatch`.
+        # `retired` (an aggregate that is gone outright, not renamed — the
+        # deliberate alternative to a bogus `was:` claim on an unrelated
+        # aggregate, the same shape `TranslationAggregateBuilder#drop` is)
+        # is executed straight off the grammar table by `GenericDispatch` —
+        # item #13's full metaprogrammed dispatch, slice 2 (whole-project
+        # table-unification survey) — so no hand-written method answers it here.
 
-        # `method_missing`/`respond_to_missing?` — same removal as
-        # TranslationAggregateBuilder's own, one level up: WordGate
-        # (`include`d above) answers off the self-hosted grammar table
-        # now instead of a hand-typed "it declares aggregate blocks and
-        # retired aggregates" message.
+        # `method_missing`/`respond_to_missing?` answer off the self-hosted
+        # grammar table (via the `include`d `WordGate`, above, the same
+        # mechanism `TranslationAggregateBuilder`'s own comment describes
+        # one level up) instead of a hand-typed "it declares aggregate
+        # blocks and retired aggregates" message.
 
+        # Assembles the declared era pair, aggregates and retirements, judged by the translation
+        # language.
+        #
+        # @return [Bluebook::Translation] the translation, returned once the language accepts it
+        # @raise [Bluebook::DSL::Malformed] if the translation language refuses the declaration
         def build
           MetaValidator.call_translation(
             Translation.new(domain: @domain, from: @from, to: @to, aggregates: @aggregates, retired: @retired)
           )
         end
 
+        # Evaluates a `.translation` file's top-level block against a fresh builder.
+        #
+        # @param domain [String, Symbol] the domain this translation carries forward
+        # @param from [String, Symbol] the origin era
+        # @param to [String, Symbol] the destination era
+        # @yield the translation body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::Translation] the judged translation
+        # @raise [Bluebook::DSL::Malformed] if the body fails any check, or the translation
+        #   language refuses the declaration
         def self.build(domain, from:, to:, &block)
           builder = new(domain, from: from, to: to)
           builder.instance_eval(&block) if block

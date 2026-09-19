@@ -14,18 +14,32 @@ module Hecks
         include QuerySpecification::Common::DSL
         include WordGate
 
+        # @param name [String] the read model's name, as written after `read_model`
         def initialize(name)
           @name = name
         end
 
+        # Sets the human-readable description shown for this read model.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def description(value)
           # moved to the language: ProjectionText / purpose, on Projection.Declare
           @description = value
         end
 
-        # Renamed from `reference_to` — item #13's full metaprogrammed
+        # Declares the single-row aggregate this read model is projected onto.
+        #
+        # Answers the `reference_to` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the field's name on the output row; nil derives it from `type`
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if a reference is already declared
         def reference_to_impl(type, as: nil)
           raise Malformed, "#{@name} already has a projection reference" if @reference_target
 
@@ -33,22 +47,27 @@ module Hecks
           @reference_name   = (as || Naming.snake(@reference_target)).to_sym
         end
 
+        # Declares one aggregate head this read model reads alongside its reference (or, with no
+        # reference, one of the several heads it reads independently).
+        #
         # Order-independent. `many:` is decided by comparing the included type
-        # against the reference target, so this used to refuse an include
-        # declared before the reference — a rule guarding an implementation
-        # limitation rather than a truth about read models. The includes are
-        # collected raw and resolved at build, when the reference is known, so
-        # there is no rule left to enforce.
-        # Renamed from `include`/`group_by` — item #13's full
+        # against the reference target, at build time when the reference is known — the includes
+        # are collected raw here and resolved then, so declaration order carries no rule.
+        #
+        # Answers the `include` word (and, via the same table row, `group_by`'s
+        # sibling context) through the table's `calls:` column — item #13's full
         # metaprogrammed dispatch (slice 4c). `include` is bootstrap-
         # reachable (every core chapter's own `read_model` names which
-        # aggregates it includes with it — a first grep dismissed this
-        # as `Module#include` noise and was wrong; the cold-boot test
-        # after this rename caught it directly), so it's in
-        # BOOTSTRAP_CALLS_FALLBACK; `group_by` is not (no core read_model
+        # aggregates it includes with it), so it's in
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`; `group_by` is not (no core read_model
         # groups). The class-level `include WordGate` this file's own
         # class body uses is `Module#include`, a different receiver,
         # unaffected by renaming this instance method either way.
+        #
+        # @param type [Module, Symbol, String] the included aggregate, written as a bare constant
+        # @param as [Symbol, nil] the field's name on the output row; nil derives it from `type`
+        # @return [Array<Array>] every include declared so far, this one last, each a
+        #   `[demodulised_type, as]` pair
         def include_impl(type, as: nil)
           @includes ||= []
           @includes << [Naming.demodulise(type), as]
@@ -96,6 +115,19 @@ module Hecks
         # not this `Struct`) — found directly by reproducing "undefined
         # method `new' for module WhereClause" against a real corpus load,
         # not guessed.
+        #
+        # Declares a filter, on the reference row by default or on one many-side included
+        # aggregate when `on:` names it.
+        #
+        # @param positional [Hash{Symbol => Object}] at most one Hash of field-to-value filters,
+        #   given positionally (`where(status: "disputed")`)
+        # @param on [Module, Symbol, String, nil] the many-side aggregate this filter targets,
+        #   written as a bare constant; nil targets the reference row
+        # @param rest [Hash{Symbol => Object}] further field-to-value filters given as keyword
+        #   arguments, merged with `positional`
+        # @return [Array<QuerySpecification::Common::WhereClause>] every clause declared so far,
+        #   this call's clauses last
+        # @raise [ArgumentError] if more than one positional Hash is given
         def where_impl(*positional, on: nil, **rest)
           raise ArgumentError, "wrong number of arguments (given #{positional.size}, expected 1)" if positional.size > 1
 
@@ -108,18 +140,42 @@ module Hecks
           end
         end
 
+        # Declares the sort order, on the reference row by default or on one many-side included
+        # aggregate when `on:` names it.
+        #
+        # @param field [Symbol, String] the field to sort by
+        # @param direction [Symbol] `:asc` or `:desc`
+        # @param on [Module, Symbol, String, nil] the many-side aggregate this ordering targets;
+        #   nil targets the reference row
+        # @return [QuerySpecification::Common::OrderBy] the stored ordering
         def order_by_impl(field, direction = :asc, on: nil)
           @order_by = QuerySpecification::Common::OrderBy.new(field: field, direction: direction, target: resolve_target(on))
         end
 
+        # Declares a row limit, on the reference row by default or on one many-side included
+        # aggregate when `on:` names it.
+        #
+        # @param value [Integer] the maximum number of rows
+        # @param on [Module, Symbol, String, nil] the many-side aggregate this limit targets;
+        #   nil targets the reference row
+        # @return [QuerySpecification::Common::LimitSpec] the stored limit
         def limit_impl(value, on: nil)
           @limit = QuerySpecification::Common::LimitSpec.new(value: value, target: resolve_target(on))
         end
 
+        # Declares a row offset, on the reference row by default or on one many-side included
+        # aggregate when `on:` names it.
+        #
+        # @param value [Integer] the number of rows to skip
+        # @param on [Module, Symbol, String, nil] the many-side aggregate this offset targets;
+        #   nil targets the reference row
+        # @return [QuerySpecification::Common::OffsetSpec] the stored offset
         def offset_impl(value, on: nil)
           @offset = QuerySpecification::Common::OffsetSpec.new(value: value, target: resolve_target(on))
         end
 
+        # Nests the single eligible many-side collection's own rows under one level per field.
+        #
         # Names which of the eligible head's own fields to nest its rows
         # under — one level per field, the leaf being that row with the
         # named fields removed (they're already spent, as the keys that
@@ -127,6 +183,10 @@ module Hecks
         # `seal_query_options` already enforces for where/order_by/etc
         # applies here too (`seal_group_by`) — grouping is a question
         # about one collection's own rows, same as those are.
+        #
+        # @param fields [Array<Symbol, String>] the fields to nest by, outermost first
+        # @return [Array<Hash{Symbol => Symbol}>] the stored group-by rows, one `{field:}` Hash
+        #   per field
         def group_by_impl(*fields)
           # Hash rows, `{field:}`, not bare symbols — same shape
           # `aggregate_heads` already uses for exactly the reason it
@@ -168,16 +228,22 @@ module Hecks
         # same shape as `count`, above (a bare, kind-driven coerce-and-
         # assign).
 
-        # `reference_to` is now optional — a read model with no root is a
+        # `reference_to` is optional — a read model with no root is a
         # bulk one: every `include`d head reads its own aggregate whole
         # (no FK match against a root that doesn't exist), and dispatch
-        # takes no id argument at all. This used to be required, on the
-        # assumption a read model was always "one root record's own
-        # cross-aggregate view" — true of every real corpus report so
-        # far, but not a truth about read models themselves: `group_by`'s
+        # takes no id argument at all. Not every read model is "one root
+        # record's own cross-aggregate view": `group_by`'s
         # own real use (nesting an aggregate's own whole table by its own
         # field values) has no root to speak of. Still needs to describe
         # something — zero includes and no reference is refused.
+        #
+        # Assembles the declared reference, includes and filtering into a `ReadModel`.
+        #
+        # @return [Bluebook::ReadModel] the built read model
+        # @raise [Bluebook::DSL::Malformed] if the body declares neither a reference nor any
+        #   include, `cursor`, an `on:` naming no many-side included aggregate, an untargeted
+        #   option with more than one many-side head, `group_by`/`count`/`median` with more than
+        #   one many-side head, both `count` and `median`, or either together with `group_by`
         def build
           if !@reference_target && Array(@includes).empty?
             raise Malformed,
@@ -200,6 +266,12 @@ module Hecks
                         count: @count, median_field: @median_field)
         end
 
+        # Evaluates a `read_model` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the read model's name
+        # @yield the read model body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::ReadModel] the built read model
+        # @raise [Bluebook::DSL::Malformed] if the body fails any of `build`'s own checks
         def self.build(name, &block)
           builder = new(name)
           builder.instance_eval(&block) if block

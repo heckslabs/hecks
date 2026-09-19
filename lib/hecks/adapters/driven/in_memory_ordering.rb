@@ -16,10 +16,23 @@ module Hecks
     module InMemoryOrdering
       module_function
 
+      # Sorts a decoded-record Array by a declared attribute, or leaves it alone when no
+      # ordering is given, with identity (`id`) as the tie-break.
+      #
       # order_by is a runtime value (an HTTP query param, in the
       # console's case), not framework-authored bluebook source — see
       # postgres.rb's own all for the full reasoning. Whitelisted the
       # identical way before FieldPath.dig ever runs.
+      #
+      # @param records [Array<Runtime::Instance>] the records to sort; not mutated
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose attributes `order_by` is
+      #   checked against
+      # @param order_by [String, Symbol, nil] attribute (or dotted value-object path) to sort
+      #   by; nil returns `records` unchanged
+      # @param direction [Symbol, String] `:asc` or `:desc`
+      # @return [Array<Runtime::Instance>] `records` in the requested order, or unchanged
+      #   when `order_by` is nil
+      # @raise [Runtime::WiringError] if `order_by` names no attribute of `aggregate`
       def ordered(records, aggregate:, order_by:, direction:)
         return records unless order_by
 
@@ -36,6 +49,14 @@ module Hecks
         end
       end
 
+      # Resolves the dotted path to walk when sorting by a declared field, picking a
+      # value object's numeric member (or its sole attribute, or the `value` convention)
+      # when the field itself names a value object rather than a scalar.
+      #
+      # @param aggregate [Bluebook::Aggregate] the aggregate `field` is declared on
+      # @param field [String, Symbol] the attribute (or dotted value-object path) to sort by
+      # @return [String] the dotted path to dig a record with, unchanged from `field` when it
+      #   already names a path, or names a scalar attribute, or names no attribute at all
       def sortable_path(aggregate, field)
         name, *path = field.to_s.split(".")
         return field.to_s unless path.empty?

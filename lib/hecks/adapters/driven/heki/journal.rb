@@ -6,6 +6,11 @@ module Hecks
       # The append-only journal beside the snapshot: one JSON line per
       # entry, fsynced on append, replayed over the snapshot on read.
       module Journal
+        # Reads the whole journal back in append order, for `AppendOnly#recover!` to replay.
+        #
+        # @return [Array<Ports::Persistence::Entry>] every journalled entry, state decoded
+        #   through the state codec; `[]` when the journal file does not exist or is empty
+        # @raise [Malformed] if a journal line is not valid JSON
         def entries
           return [] unless File.exist?(@journal_path)
 
@@ -46,6 +51,9 @@ module Hecks
         # once. A crash before `write` completes leaves the journal
         # fully intact and the prior snapshot untouched, exactly today's
         # existing crash-recovery guarantee.
+        #
+        # @return [void]
+        # @raise [Malformed] if the snapshot or journal file is corrupt
         def compact!
           with_lock do
             current = replay_journal(read_snapshot)

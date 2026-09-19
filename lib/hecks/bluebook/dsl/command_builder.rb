@@ -29,6 +29,19 @@ module Hecks
         UNSET = Object.new.freeze
         private_constant :UNSET
 
+        # @param name [String] the command's name, as written after `command`
+        # @param owner [String, nil] name of the aggregate or entity this command belongs to
+        # @param from [String, Symbol, Array<String, Symbol>, nil] the lifecycle state(s) this
+        #   command guards from; nil admits from any state
+        # @param named_givens [Hash{String => Bluebook::Given}] the owner's own given pool, for
+        #   bare `given` references to resolve against
+        # @param owner_attributes [Array<Bluebook::Attribute>] the owner's own attributes, for
+        #   implicit `sets`/`state` resolution
+        # @param owner_constructs [Array<Bluebook::ValueObject, Bluebook::Entity>] the owner's
+        #   own value objects and entities, for an `append:` element type to resolve against
+        # @param entity_shared_givens [Hash{String => Bluebook::Given}] a sibling piece's own
+        #   entity-level given pool, for a piece-owned command's bare reference; empty for an
+        #   aggregate-owned command
         def initialize(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [],
                        entity_shared_givens: {})
           @name              = name
@@ -63,7 +76,10 @@ module Hecks
         # exactly the failure mode `reference_to`'s own duplicate guard
         # (below) already exists to prevent for a command's root.
         #
-        # Renamed from `role` — item #13's full metaprogrammed dispatch
+        # Sets the command's one responsibility role, refusing a second declaration.
+        #
+        # Answers the `role` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch
         # (slice 4). This is a uniqueness gate on prior state (`@role`
         # already set), not a pure function of the argument's own value —
         # a genuinely different shape than a plain fill, so it stays
@@ -71,6 +87,10 @@ module Hecks
         # was in slice 3. Bootstrap-reachable (every self-hosted command
         # declares a role), so also named in
         # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param value [String, Symbol] the role's name
+        # @return [Object] `value` as stored
+        # @raise [Bluebook::DSL::Malformed] if a role is already declared
         def role_impl(value)
           if @role
             raise Malformed,
@@ -82,23 +102,49 @@ module Hecks
           @role = value
         end
 
+        # Sets the human-readable description shown for this command.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def goal(value) = @goal = value
 
-        # See AggregateBuilder#provenance's own comment — identical shape,
+        # Names where a concept adopted from a canonical source came from.
+        #
+        # See `AggregateBuilder#provenance_impl`'s own comment — identical shape,
         # one level down.
-        # Renamed from `provenance` — item #13's full metaprogrammed
+        #
+        # Answers the `provenance` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4c). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param from [Object] the canonical source, captured exactly as written
+        # @return [Object] `from` as stored
         def provenance_impl(from:) = @provenance = from
 
+        # Declares the aggregate this command acts on (with no `as:`), or a cross-reference to
+        # another aggregate (with `as:`).
+        #
         # `optional:` rides here as well as on a plain attribute : `as:` makes a
         # reference into a named argument, and a named argument is exactly the kind
         # of fact that may or may not be given. The meta-domain's Verb.Declare
         # points at the Entity a command belongs to — and most commands belong to no
         # entity at all.
-        # Renamed from `reference_to` — item #13's full metaprogrammed
+        #
+        # Answers the `reference_to` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the attribute's name for a cross-reference; nil declares the
+        #   root this command acts on instead, unless `type` is a different aggregate than the
+        #   owner
+        # @param optional [Boolean] whether the reference may be absent
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if the command already acts on a root, or (for a
+        #   cross-reference) `as` is already declared
         def reference_to_impl(type, as: nil, optional: false)
           demodulised = Naming.demodulise(type)
           # moved to the language: given "a command names what it acts on", on Verb.ActsOn
@@ -131,19 +177,32 @@ module Hecks
 
         public
 
+        # Declares a precondition this command requires, or references one the owning aggregate
+        # (or a sibling piece) already declared.
+        #
         # No block is a reference, not a fresh declaration (S10, ADR
         # 0025 — "a precondition shared across commands is declared
         # once. An aggregate declares it by name and commands
         # reference it"): the same word, the same shape
-        # (`AggregateBuilder#given`, block required there), so naming a
+        # (`AggregateBuilder#given_impl`, block required there), so naming a
         # precondition back is spelled exactly like declaring one would
         # be, minus the block — one idea, one word, never a second
         # spelling ("requires"/"precondition") for "use the one already
         # named". Resolved against whatever the owning aggregate has
-        # declared so far — see `AggregateBuilder#command`'s own
+        # declared so far — see `AggregateBuilder#command_impl`'s own
         # comment on why that means declaration order matters here.
-        # Renamed from `given` — item #13's full metaprogrammed dispatch
-        # (slice 4b), same reasoning as reference_to_impl above.
+        #
+        # Answers the `given` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch
+        # (slice 4b), same reasoning as `reference_to_impl` above.
+        #
+        # @param description [String] the rule's description; also the name the owning
+        #   aggregate's rule is referenced by when no block is given
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if given a block whose source cannot be extracted, or
+        #   given no block and the description names no precondition the owner (or a sibling
+        #   piece under the same aggregate) declares
         def given_impl(description, &predicate)
           return reference_named_given(description) unless predicate
 
@@ -179,11 +238,19 @@ module Hecks
 
         public
 
+        # Declares a postcondition, checked against the settled record after the command's own
+        # mutations apply.
+        #
         # The postcondition — a given for the far side of the mutations,
         # evaluated against the settled record with `old` naming the state
         # as it stood before them: `ensures("...") { old.balance.cents ==
         # balance.cents + amount.cents }`. Same extraction, same Rule
-        # shape, same refusal form; EnsuresNotMet instead of GivenNotMet.
+        # shape, same refusal form; `EnsuresNotMet` instead of `GivenNotMet`.
+        #
+        # @param description [String] the rule's description
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if the block's source could not be extracted
         def ensures(description, &predicate)
           @ensures << build_rule(Given, description, predicate, owner_name: @name, word: "ensures",
                                   extraction_failure: "a postcondition is carried as text, and this one has none")
@@ -205,8 +272,8 @@ module Hecks
         # Vendored addition, not (yet) upstream hecks (migration plan
         # task 4, i106 in-DSL math): `multiply:`/`clamp:` -- per-tick organ
         # math (miette's body/organs/bluebook: strength decays ×0.98,
-        # weight/strength clamp to [0, 1]) that used to be shell-side awk
-        # and moved into the bluebook itself. `multiply:` mirrors
+        # weight/strength clamp to [0, 1]), moved into the bluebook itself
+        # from shell-side awk. `multiply:` mirrors
         # increment/decrement's shape exactly (a Numeric amount, applied
         # by CommandRules::Arithmetic -- see that file's own comment on
         # the matching Float-support widening this required). `clamp:`
@@ -235,7 +302,7 @@ module Hecks
         # boolean occurrences of the bare-positional-second-arg shape
         # anywhere in the corpus). Folded into `to:` itself rather than
         # given its own mutation op -- semantically identical, same
-        # UNSET-sentinel discipline the `to: false` fix already
+        # `UNSET`-sentinel discipline the `to: false` fix already
         # established (a positional `false` must read as "set to
         # false," not "absent," same as the keyword form). Only applied
         # when `to:` itself was not also given, so an explicit `to:`
@@ -262,15 +329,38 @@ module Hecks
         KWARG_TO_OP = { to: :set, append: :append, increment: :increment, decrement: :decrement,
                         multiply: :multiply, clamp: :clamp, remove: :remove }.freeze
 
-        # Renamed from `sets` — item #13's full metaprogrammed dispatch
+        # Declares one mutation this command applies to `target`, its op selected by whichever
+        # single keyword (or the omitted, self-referential form) names a source.
+        #
+        # Answers the `sets` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch
         # (slice 4c). The `KWARG_TO_OP` op-selection mapping is already
-        # table-verified (`Argument#selects`), but the REST (UNSET-
+        # table-verified (`Argument#selects`), but the REST (`UNSET`-
         # sentinel discipline, redundant-spelling refusal, omittable-
         # `to:` fallback, one-mutation-only refusal, the position-
         # preserving `resolve_*!` reinsertion) is keyed off runtime
         # state, not a pure function of a static row — stays hand-
         # written, reached through `calls:` like everything else here.
-        # Bootstrap-reachable, in BOOTSTRAP_CALLS_FALLBACK.
+        # Bootstrap-reachable, in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param target [Symbol, String] the field this mutation writes
+        # @param positional_to [Object] a bare positional value, folded into `to:` when `to:`
+        #   itself is not given; the corpus's only real use is a boolean shorthand
+        #   (`sets :deployed, true`)
+        # @param to [Object] the value or field reference to set `target` to; a Symbol equal to
+        #   `target` is redundant and refused, and omitting `to:` entirely means the same thing
+        # @param append [Object] a Hash of fields for a new list element, or a bare value for the
+        #   one-field shorthand
+        # @param increment [Object] the amount to add to `target`'s current value
+        # @param decrement [Object] the amount to subtract from `target`'s current value
+        # @param multiply [Object] the amount to multiply `target`'s current value by
+        # @param clamp [Array(Object, Object)] the `[min, max]` pair to bound `target`'s current
+        #   value to
+        # @param remove [Object] the value to remove from `target`'s own list, by equality
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `to:` redundantly repeats `target`, or more than
+        #   one of `to:`/`append:`/`increment:`/`decrement:`/`multiply:`/`clamp:`/`remove:` (or
+        #   the folded `positional_to`) is given
         def sets_impl(target, positional_to = UNSET, to: UNSET, append: UNSET,
                       increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
           # moved to the language: given "a mutation names a target", on Verb.Change
@@ -307,20 +397,34 @@ module Hecks
           @mutations << Mutation.new(target: target.to_sym, op: op, source: normalize_append_source(op, source))
         end
 
-        # Legacy under shadow-parsing (S0a's own bridge) — frozen era text
-        # minted before this rename still parses; live source refuses it,
+        # Refuses the retired `then_set` spelling, except while shadow-parsing frozen era text,
+        # where it is read as the legacy mutation shape.
+        #
+        # Legacy under shadow-parsing (S0a's own bridge) — frozen era
+        # text still parses under it; live source refuses it,
         # naming the replacement.
-        # Renamed from `then_set` — item #13's full metaprogrammed
-        # dispatch (slice 5). Not bootstrap-reachable. Now has its own
+        #
+        # Answers the `then_set` word — item #13's full metaprogrammed
+        # dispatch (slice 5). Not bootstrap-reachable. Has its own
         # dedicated, `status: "deprecated"` Keyword row (syntax.bluebook)
         # rather than living only as `sets`'s own `was:` — see that
         # row's own comment for why.
+        #
+        # @param target [Symbol, String] the field this mutation writes
+        # @param positional_to [Object] a bare positional value, folded into `to:`
+        # @param kwargs [Hash] forwarded to `legacy_then_set` under shadow-parsing; must be
+        #   empty otherwise
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] outside shadow-parsing, always; under
+        #   shadow-parsing, if `legacy_then_set` names no operation or more than one
         def then_set_impl(target, positional_to = UNSET, **)
           return legacy_then_set(target, positional_to, **) if MetaValidator.shadow_parsing?
 
           raise Malformed, "#{@name}'s then_set is gone — sets is the word now"
         end
 
+        # Declares one event this command announces to the outside.
+        #
         # No raise here. "an event is named" is declared in the language itself —
         # language/bluebook/behavior.bluebook, on Command.Announce — and MetaValidator is what
         # enforces it. This is the first rule to move across rather than be
@@ -341,6 +445,10 @@ module Hecks
         # are accepted in live source until a full corpus migration
         # lands and the same refusal this file's `reference_to`/
         # `trigger_impl` already carry can be added here safely.
+        #
+        # @param event_name [String, Symbol, Module] the event, quoted text or a bare constant
+        #   such as `Account::AccountFrozen`
+        # @return [Array<String>] every event declared so far, this one last
         def emits(event_name)
           @emits << Naming.event_ref(event_name)
         end
@@ -349,11 +457,21 @@ module Hecks
         # append: { ply: state(:ply), knights: state(:knights) }` copies
         # what the record holds now into the new element; `sets :last,
         # to: state(:current)` copies one field onto another. A bare
-        # Symbol always names an argument (see `resolve_append_fields!`),
+        # Symbol always names an argument (`resolve_append_fields!`'s own
+        # comment has the full account),
         # so without this a command could not snapshot its own state at
         # all. `Literal::StateRef`'s own comment has the wire spelling.
+        #
+        # References the record's own current field as a mutation source, as opposed to a
+        # bare Symbol, which names an argument.
+        #
+        # @param name [Symbol, String] the field to read from the pre-dispatch record
+        # @return [StateRef] the wrapped reference
         def state(name) = StateRef.new(name.to_sym)
 
+        # Declares a synchronous, atomic delegation of this command's own dispatch to one
+        # nested entity command.
+        #
         # The synchronous cousin of `trigger` — an aggregate-level command
         # that hands its own dispatch to one nested entity command, checked
         # and applied within the same atomic dispatch rather than a second
@@ -417,12 +535,19 @@ module Hecks
         # `meta_validator/shapes.rb#mutation`, `assembly/marks.rb#mutation`)
         # now check for `:delegate` alongside it, each with a comment
         # pointing back here.
-        # Renamed from `delegates_to` to `delegates_to_impl` on declaration
-        # — matches `sets_impl`/`given_impl`/`reference_to_impl`'s own
+        # Answers the `delegates_to` word through the table's `calls:`
+        # column — matches `sets_impl`/`given_impl`/`reference_to_impl`'s own
         # convention (language/bluebook/syntax.bluebook's own Keyword row
         # for this word names `calls: "delegates_to_impl"`), the same
         # `word`-vs-`_impl` split every hand-written (not yet item-#13-
         # generic-dispatch-migrated) DSL word here already follows.
+        #
+        # @param target [String, Symbol] the delegated command, dotted `"Entity.Command"`
+        # @param with [Hash{Symbol => Symbol, Object}] projects this command's own arguments
+        #   onto the target's; a Symbol value names one of this command's own arguments,
+        #   anything else is a literal
+        # @return [Array<Bluebook::Mutation>] every mutation declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `target` is not `"Entity.Command"` shaped
         def delegates_to_impl(target, with: {})
           entity_name, _dot, command_name = target.to_s.rpartition(".")
           if entity_name.empty? || command_name.empty?
@@ -434,6 +559,8 @@ module Hecks
           @mutations << Mutation.new(target: target.to_s, op: :delegate, source: with)
         end
 
+        # Declares that this command amends a past event, rather than rewriting it.
+        #
         # A command declaring what past fact it amends — the append-only
         # answer to "what if this record's history turns out to have been
         # wrong": never rewrite the original event (the log stays exactly
@@ -473,6 +600,18 @@ module Hecks
         # a real runtime consumer exists) — so coercing it to a String here
         # keeps it out of that machinery entirely rather than silently
         # miscategorised as an unresolvable argument reference.
+        #
+        # @param event [String, Symbol, Module] the event this command corrects, quoted text or
+        #   a bare constant
+        # @param as [Symbol, nil] binds the located instance under this label, for a
+        #   `given`/`ensures` to reference; nil declares no binding
+        # @param reason [String, nil] why the correction is being made, carried as audit data;
+        #   required, non-blank
+        # @param reverses [Boolean] true to auto-derive the corrective `sets` from the original
+        #   event's own mutations, checked once every sibling command is known; mutually
+        #   exclusive with an explicit `sets` on the same command
+        # @return [Array<Bluebook::Mutation>] every mutation declared so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if `reason` is nil or blank
         def corrects_impl(event, as: nil, reason: nil, reverses: false)
           if reason.to_s.strip.empty?
             raise Malformed,
@@ -489,6 +628,13 @@ module Hecks
         # `corrects` name a command and an event, never a field.
         FIELD_EFFECTS = %i[set append remove increment decrement multiply clamp].freeze
 
+        # Resolves implicit attributes, refuses conflicting mutations, and assembles the
+        # declared rules and effects into a `Command`.
+        #
+        # @return [Bluebook::Command] the built command
+        # @raise [Bluebook::DSL::Malformed] if the same field is written twice, an argument or
+        #   state source names an undeclared field, or a delegating command also declares its
+        #   own mutations or events
         def build
           resolve_implicit_attributes!
           refuse_duplicate_targets!
@@ -516,6 +662,21 @@ module Hecks
           )
         end
 
+        # Evaluates a `command` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the command's name
+        # @param owner [String, nil] name of the aggregate or entity this command belongs to
+        # @param from [String, Symbol, Array<String, Symbol>, nil] the lifecycle state(s) this
+        #   command guards from
+        # @param named_givens [Hash{String => Bluebook::Given}] the owner's own given pool
+        # @param owner_attributes [Array<Bluebook::Attribute>] the owner's own attributes
+        # @param owner_constructs [Array<Bluebook::ValueObject, Bluebook::Entity>] the owner's
+        #   own value objects and entities
+        # @param entity_shared_givens [Hash{String => Bluebook::Given}] a sibling piece's own
+        #   entity-level given pool
+        # @yield the command body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::Command] the built command
+        # @raise [Bluebook::DSL::Malformed] if the body fails any check `#build` raises
         def self.build(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [],
                        entity_shared_givens: {}, &block)
           builder = new(name, owner: owner, from: from, named_givens: named_givens,
@@ -660,8 +821,8 @@ module Hecks
           # A symbol naming its own target — never a literal that merely
           # spells the same word. `sets :moved, to: "moved"` (a chess rook
           # recording that it has moved, into a closed set whose member is
-          # literally "moved") used to read as the shorthand and import
-          # the owner's `moved` attribute onto the command — a phantom
+          # literally "moved") must not read as the shorthand and import
+          # the owner's `moved` attribute onto the command — that would add a phantom
           # argument nothing ever passes, harmless at runtime only
           # because the owner's default filled it, and a real, silent
           # divergence for every projection that reads the command's
@@ -724,7 +885,7 @@ module Hecks
           return if self_ref_fields.empty?
 
           present = self_ref_fields.filter_map { |field| attributes.find { |attr| attr.name == field } }
-          return if present.size == self_ref_fields.size # already fully declared — nothing to resolve
+          return if present.size == self_ref_fields.size # already declared, nothing to resolve
 
           anchor = present.empty? ? attributes.length : present.map { |attr| attributes.index(attr) }.min
           attributes.reject! { |attr| present.include?(attr) }

@@ -36,26 +36,64 @@ module Hecks
       # identity to change over — `with` already answers a new one rather
       # than mutating — so freezing it through is what it always claimed
       # to be.
+      #
+      # @param value_object [Bluebook::ValueObject] the declared type this instance is one of
+      # @param fields [Hash] the type's fields, keyed by name (String or Symbol); deep-frozen
+      #   and stored with Symbol keys
       def initialize(value_object, fields)
         @value_object = value_object
         @fields       = Freezer.deep(fields.transform_keys(&:to_sym))
         freeze
       end
 
+      # Reads the declared type's own name.
+      #
+      # @return [String] the value object's `hecks_name`
       def type_name = @value_object.hecks_name
+
+      # Reads one field.
+      #
+      # @param field [String, Symbol] the field name; `:value` reads the sole field of a
+      #   single-attribute value object, whatever it is actually named
+      # @return [Object, nil] the field's coerced value; nil if the field is not held
       def [](field) = @fields[resolve_field(field)]
+
+      # Answers whether this value object holds the named field.
+      #
+      # @param field [String, Symbol] the field name; `:value` resolves the same way `[]` does
+      # @return [Boolean] true when the field is held
       def key?(field) = @fields.key?(resolve_field(field))
       def to_h = @fields.transform_values { |value| self.class.materialize(value) }
+
+      # Renders this value object as JSON, through the same shape `to_h` builds.
+      #
+      # @return [String] a JSON object of the materialized fields
       def to_json(*) = JSON.generate(to_h)
 
       def ==(other)
         other.is_a?(self.class) && other.type_name == type_name && other.to_h == to_h
       end
 
+      # Builds a new value object of the same type with one field replaced, re-validated.
+      #
+      # @param field [String, Symbol] the field to replace; `:value` resolves the same way
+      #   `[]` does
+      # @param value [Object] the field's new, uncoerced value
+      # @return [Runtime::Value] a new instance of the same type, with `field` replaced
+      # @raise [Runtime::TypeMismatch] if the new fields do not satisfy the type's declared
+      #   shape (an unknown field, a missing required one, a wrong numeric type, …)
+      # @raise [Runtime::InvariantViolation] if the new fields violate one of the type's own
+      #   invariants, or are not a member of its closed set
       def with(field, value)
         self.class.build(@value_object, @fields.merge(resolve_field(field) => value))
       end
 
+      # Recursively converts a `Runtime::Value` (and any nested inside a Hash or Array) to
+      # plain data.
+      #
+      # @param value [Object] the value to materialize; anything that is not a `Runtime::Value`,
+      #   Array or Hash passes through unchanged
+      # @return [Object] `value` with every nested `Runtime::Value` replaced by its own `to_h`
       def self.materialize(value)
         case value
         when self then value.to_h
@@ -77,6 +115,12 @@ module Hecks
       # used only for a `group_by`-declared head's own rows — grouping
       # needs a real scalar to key by regardless, so a report already
       # asking for that gets the unwrap for free.
+      #
+      # @param value [Object] the value to materialize; anything that is not a `Runtime::Value`,
+      #   Array or Hash passes through unchanged
+      # @return [Object] `value` with every nested `Runtime::Value` replaced by its own sole
+      #   field's value (recursively unwrapped), or by its own `Hash` of fields when it has
+      #   more than one
       def self.materialize_unwrapped(value)
         case value
         when self
@@ -112,6 +156,12 @@ module Hecks
       # started guessing domain semantics would need to keep guessing
       # forever, once per shape of "gone" any caller ever invents. The
       # caller filters and sorts the result; this only groups it.
+      #
+      # @param rows [Array<Runtime::Value>] a `list_of` attribute's own elements, in append order
+      # @param key [Symbol] the method to call on each row to find "the same logical thing"
+      #   across entries (typically a field reader)
+      # @return [Array<Runtime::Value>] one row per distinct `key` value, each the latest row
+      #   that had it
       def self.latest_by(rows, key)
         rows.to_h { |row| [row.public_send(key), row] }.values
       end

@@ -18,6 +18,22 @@ module Hecks
         include RuleReference
         include WordGate
 
+        # @param name [String] the entity's name, as written after `entity`
+        # @param owner_value_objects [Array<Bluebook::ValueObject>] the owning aggregate's value
+        #   objects, threaded through unchanged for this piece's `identified_by` to resolve
+        #   against
+        # @param owner_named_givens [Hash{String => Bluebook::Given}] the aggregate-wide,
+        #   cross-entity given pool, shared and written through by `given_impl`
+        # @param identity_name_prefix [String, nil] the prefix a synthesized identity value
+        #   object's name takes; nil derives it from `name`
+        # @param identity_value_object_installer [#call, nil] called with a synthesized value
+        #   object to install it onto the owning aggregate; nil when there is none
+        # @param aggregate_name [String, nil] the root aggregate's name, for chapter-wide given
+        #   keys; nil derives it from `name`
+        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
+        #   the chapter-wide, entity-scoped given pool, shared and written through
+        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide bare given
+        #   references, appended to when this piece's own reference cannot resolve yet
         def initialize(name, owner_value_objects: [], owner_named_givens: {},
                        identity_name_prefix: nil, identity_value_object_installer: nil,
                        aggregate_name: nil, chapter_entity_named_givens: {}, chapter_entity_pending_givens: [])
@@ -61,16 +77,31 @@ module Hecks
           @pending_queries  = []
         end
 
+        # Sets the human-readable description shown for this entity.
+        #
+        # @param value [String] the description text
+        # @return [String] the description as stored
         def description(value) = @description = value
 
+        # Declares a reference from this piece to another aggregate's identity.
+        #
         # The same field AggregateBuilder's own reference_to builds — a
         # piece can hold a reference to another root exactly the way its
         # own head can (Card.assignee_id, a Team's own id), just never
         # to another piece, since there's no cross-piece addressing
         # anywhere in this language to resolve one against.
-        # Renamed from `reference_to` — item #13's full metaprogrammed
+        #
+        # Answers the `reference_to` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable, in
-        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
+        #   constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the reference may be absent
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if `as` (or the derived name) is already declared
         def reference_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           relationship_attribute(target, :reference_to,
@@ -86,6 +117,14 @@ module Hecks
         # `*_impl` to match AggregateBuilder's own siblings, item #13's
         # full metaprogrammed dispatch convention.
         # rubocop:disable Naming/PredicatePrefix
+        # Declares a list-typed relationship to another entity, referenced by its plural name.
+        #
+        # @param type [Module, Symbol, String] the related entity's plural name, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param options [Hash] must be empty; kept only to name which unsupported keyword was
+        #   given in the refusal message
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if any keyword argument is given
         def has_many_impl(type, as: nil, **options)
           unless options.empty?
             raise Malformed,
@@ -97,12 +136,24 @@ module Hecks
                                  as || Naming.snake(plural).to_sym, list: true)
         end
 
+        # Declares a single-valued relationship to another entity.
+        #
+        # @param type [Module, Symbol, String] the related entity, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the relationship may be absent
+        # @return [void]
         def has_one_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           relationship_attribute(target, :has_one, as || Naming.snake(target).to_sym, optional: optional)
         end
         # rubocop:enable Naming/PredicatePrefix
 
+        # Declares a single-valued relationship to the entity that owns this one.
+        #
+        # @param type [Module, Symbol, String] the owning entity, a bare constant
+        # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
+        # @param optional [Boolean] whether the relationship may be absent
+        # @return [void]
         def belongs_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           relationship_attribute(target, :belongs_to, as || Naming.snake(target).to_sym, optional: optional)
@@ -117,22 +168,39 @@ module Hecks
         # (`identified_by :branch_code, :box_number`), which a piece may
         # declare for the same reason a head may.
 
+        # Queues a command declared on this piece, built later once every sibling has been seen.
+        #
         # `from:` — see `AggregateBuilder#command`'s own comment; the
         # same guard, checked against this piece's own lifecycle field
         # (S10, ADR 0025 — a piece's own state machine is checkable the
         # same way a head's is).
-        # Renamed from `command`/`query`/`entity`/`lifecycle` (all below)
-        # — item #13's full metaprogrammed dispatch (slice 4c), same
+        #
+        # Answers the `command` word through the table's `calls:` column,
+        # along with its siblings `query`/`entity`/`lifecycle` below —
+        # item #13's full metaprogrammed dispatch (slice 4c), same
         # reasoning as AggregateBuilder's own siblings: bootstrap-
-        # reachable, in BOOTSTRAP_CALLS_FALLBACK.
+        # reachable, in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        #
+        # @param name [String] the command's name
+        # @param from [String, Symbol, Array<String, Symbol>, nil] the lifecycle state(s) this
+        #   command guards from; nil admits from any state
+        # @yield the command body, evaluated against a `CommandBuilder` once drained
+        # @return [Array<Array>] every pending command queued so far, this one last
         def command_impl(name, from: nil, &block)
           @pending_commands << [name, from, block]
         end
 
+        # Queues a query declared on this piece, built later once every sibling has been seen.
+        #
+        # @param name [String] the query's name
+        # @yield the query body, evaluated against a `QueryBuilder` once drained
+        # @return [Array<Array>] every pending query queued so far, this one last
         def query_impl(name, &block)
           @pending_queries << [name, block]
         end
 
+        # Queues a piece nested inside this one, built later once every sibling has been seen.
+        #
         # S17, ADR 0026 — a piece nested inside a piece. "A `Dispatch`
         # [has] no life outside its `Handler`" (the ADR's own words) —
         # the same reason `Member` nests inside `ValueObject`, one level
@@ -144,10 +212,20 @@ module Hecks
         # piece's already does (`AggregateBuilder#entity`'s own comment
         # names this pool ; there is exactly one of them, however deep
         # the nesting goes).
+        # @param name [String] the nested piece's name
+        # @yield the piece body, evaluated against an `EntityBuilder` once drained
+        # @return [Array<Array>] every pending piece queued so far, this one last
         def entity_impl(name, &block)
           @pending_entities << [name, block]
         end
 
+        # Declares this piece's own state machine.
+        #
+        # @param field [Symbol, String] the attribute the state machine lives on
+        # @param default [String, Symbol] the state a new record starts in
+        # @yield the lifecycle body of `transition` rows, evaluated against a `LifecycleBuilder`
+        # @return [Bluebook::Lifecycle] the built state machine
+        # @raise [Bluebook::DSL::Malformed] if two transitions for one command overlap
         def lifecycle_impl(field, default:, &)
           @lifecycle = LifecycleBuilder.build(field, default: default, &)
         end
@@ -170,8 +248,12 @@ module Hecks
         # (`CommandBuilder#reference_named_given`) still reads whatever
         # `@named_givens` holds at the command's own build time, not by
         # magic.
-        # Renamed from `given` — item #13's full metaprogrammed dispatch
-        # (slice 4b), same reasoning as reference_to_impl above.
+        # Declares a rule this piece's own commands must satisfy, or references one a sibling
+        # piece anywhere in the chapter already declared.
+        #
+        # Answers the `given` word through the table's `calls:` column —
+        # item #13's full metaprogrammed dispatch
+        # (slice 4b), same reasoning as `reference_to_impl` above.
         #
         # Bare — no block — references another piece's own declaration,
         # anywhere in the chapter, not just a sibling under this same
@@ -203,6 +285,19 @@ module Hecks
         # way `admits:` shipped textual before its own constant-bridge
         # existed, revisited only if a genuine, separate need for
         # constant-addressed pieces shows up later.
+        #
+        # @param description [String] the rule's description; also the name a sibling piece
+        #   references it by when no block is given
+        # @param declared_by [String, nil] disambiguates which piece's own rule to reference,
+        #   as `"Aggregate.Entity"`, when more than one shares `description`; only meaningful
+        #   with no block
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if given a block whose source cannot be extracted;
+        #   given no block, the description is immediately ambiguous between more than one
+        #   already-loaded piece with no `declared_by` to disambiguate; an unresolved reference
+        #   defers instead, and may still raise once the whole chapter has loaded, if it then
+        #   resolves to none or more than one candidate
         def given_impl(description, declared_by: nil, &predicate)
           return reference_named_chapter_entity_given(description, declared_by: declared_by) unless predicate
 
@@ -242,13 +337,28 @@ module Hecks
         # piece yet; if that need shows up, it is `given`'s own
         # cross-entity write-through pattern to extend, not a reason to
         # invent a second one here speculatively.
-        # Renamed from `invariant` — item #13's full metaprogrammed
-        # dispatch (slice 4b), same reasoning as given_impl above.
+        # Declares a rule every instance of this piece must satisfy.
+        #
+        # Answers the `invariant` word through the table's `calls:`
+        # column — item #13's full metaprogrammed
+        # dispatch (slice 4b), same reasoning as `given_impl` above.
+        #
+        # @param description [String] the rule's description
+        # @yield the predicate body; evaluated for its extracted source, never called directly
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if the block's source could not be extracted
         def invariant_impl(description, &predicate)
           @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
                                      extraction_failure: "it would be a rule the IR cannot carry")
         end
 
+        # Assembles the declared attributes, relationships, nested constructs and rules into an
+        # `Entity`.
+        #
+        # @return [Bluebook::Entity] the built piece
+        # @raise [Bluebook::DSL::Malformed] if identity resolution, a lifecycle guard on a
+        #   command with no lifecycle, a lifecycle-field mutation outside a transition, or a
+        #   synthesized closed set colliding with one the aggregate already holds fails
         def build
           drain_pending!
           resolve_pending_identity!
@@ -268,6 +378,26 @@ module Hecks
           )
         end
 
+        # Evaluates an `entity` block against a fresh builder and returns what it built.
+        #
+        # @param name [String] the entity's name
+        # @param owner_value_objects [Array<Bluebook::ValueObject>] the owning aggregate's value
+        #   objects, for `identified_by` to resolve against
+        # @param owner_named_givens [Hash{String => Bluebook::Given}] the aggregate-wide,
+        #   cross-entity given pool
+        # @param identity_name_prefix [String, nil] the prefix a synthesized identity value
+        #   object's name takes
+        # @param identity_value_object_installer [#call, nil] called to install a synthesized
+        #   value object onto the owning aggregate
+        # @param aggregate_name [String, nil] the root aggregate's name, for chapter-wide given
+        #   keys
+        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
+        #   the chapter-wide, entity-scoped given pool
+        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide bare given
+        #   references
+        # @yield the entity body, evaluated with the builder as `self`; may be omitted
+        # @return [Bluebook::Entity] the built piece
+        # @raise [Bluebook::DSL::Malformed] if the body fails any check `#build` raises
         def self.build(name, owner_value_objects: [], owner_named_givens: {},
                        identity_name_prefix: nil, identity_value_object_installer: nil,
                        aggregate_name: nil, chapter_entity_named_givens: {}, chapter_entity_pending_givens: [], &block)

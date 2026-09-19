@@ -24,6 +24,21 @@ module Hecks
       module Ordering
         module_function
 
+        # Orders an Array of rows by the declared order, with identity as the total-order
+        # tiebreaker.
+        #
+        # @param rows [Array<Object>] the rows to order; any shape `identity` and the block
+        #   can read (a `Runtime::Instance`, a plain Hash row, …)
+        # @param order_by [QuerySpecification::Common::OrderBy, nil] the declared order;
+        #   nil orders by identity alone
+        # @param null_semantics [QuerySpecification::Common::NullSemantics, nil] where a
+        #   nil-valued row sorts, passed to `NullPolicy.order`; nil uses its native default
+        # @param identity [Proc] yields a row, returns its comparable identity value, used
+        #   as the stable tiebreaker
+        # @yieldparam row [Object] one row being ordered
+        # @yieldreturn [Object, nil] the row's comparable value for `order_by`'s field
+        # @return [Array<Object>] `rows`, ordered by `order_by` then identity (identity
+        #   alone when `order_by` is nil)
         def apply(rows, order_by, null_semantics = nil, identity:, &value_of)
           # Stable, because sort_by is not : two rows whose identity ties would
           # otherwise swap arbitrarily, and a tier meant to remove store-dependence

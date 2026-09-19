@@ -16,6 +16,7 @@ module Hecks
     # `validate_expect!` (private, below) is where a malformed or empty
     # `expect` is refused at build time rather than silently passing later.
     class TestCaseBuilder
+      # @param description [String] the `test "description" do ... end` text
       def initialize(description)
         @description   = description
         @tests_command = nil
@@ -26,19 +27,49 @@ module Hecks
         @expect        = {}
       end
 
+      # Names the command or query this test case exercises.
+      #
+      # @param command [String, Symbol] the verb's name, bare or dotted-qualified
+      # @param on [String, Symbol, nil] the aggregate the verb is scoped to, when `command`
+      #   is bare and the domain declares more than one aggregate of that verb name;
+      #   `nil` when `command` is already dotted or unambiguous
+      # @param kind [Symbol] `:command` or `:query`, which runner (`Expectations#run_command`
+      #   / `#run_query`) this test is checked against
+      # @return [void]
       def tests(command, on: nil, kind: :command)
         @tests_command = command
         @on_aggregate  = on
         @kind          = kind
       end
 
+      # Records one setup dispatch to run, in order, before the tested verb.
+      #
+      # @param command [String, Symbol] the setup command's name
+      # @param kwargs [Hash{Symbol => Object}] the command's facts, passed through as `args`
+      # @return [void]
       def setup(command, **kwargs)
         @setups << TestSetup.new(command: command, args: kwargs)
       end
 
+      # Merges facts into the tested verb's own arguments.
+      #
+      # @param kwargs [Hash{Symbol => Object}] facts merged into the existing input
+      # @return [Hash{Symbol => Object}] the input Hash after the merge
       def input(**kwargs)  = @input.merge!(kwargs)
+
+      # Merges assertions the test must satisfy after the tested verb runs.
+      #
+      # @param kwargs [Hash{Symbol => Object}] expectations merged into the existing set;
+      #   recognised keys include `ok:`, `refused:`, `emits:`, `count:`, and any field name
+      # @return [Hash{Symbol => Object}] the expectation Hash after the merge
       def expect(**kwargs) = @expect.merge!(kwargs)
 
+      # Builds the `TestCase` this block declared, refusing one with no tested verb or no
+      # `expect`.
+      #
+      # @return [Behaviors::TestCase] the built test case
+      # @raise [Malformed] if `tests` was never called, or `validate_expect!` refuses the
+      #   declared expectation
       def build
         unless @tests_command
           raise Malformed, "test #{@description.inspect} never calls `tests` — " \
@@ -84,6 +115,9 @@ module Hecks
     # `vision`/`loads`/`test` calls and builds a `BehaviorsSuite` (ir.rb),
     # refusing to build one missing either `vision` or `loads` (`#build`).
     class BehaviorsBuilder
+      # @param name [String] the suite's name, as passed to `Hecks.behaviors`
+      # @param source_path [String] the `.behaviors` file's own path; `loads` resolves
+      #   against its directory, and it is kept for error messages
       def initialize(name, source_path:)
         @name        = name
         @source_path = source_path
@@ -93,21 +127,44 @@ module Hecks
         @tests       = []
       end
 
+      # Records the suite's one-line vision statement.
+      #
+      # @param text [String] what this suite is examples of
+      # @return [String] `text`, unchanged
       def vision(text) = @vision = text
 
+      # Records which files this suite boots before running its tests, resolved to
+      # absolute paths.
+      #
       # Relative to this `.behaviors` file, never to the filesystem's cwd
       # or a same-stem convention — scope is a fact this file declares,
       # not one a runner infers.
+      #
+      # @param paths [Array<String>] file paths, relative to this `.behaviors` file
+      # @return [void]
       def loads(*paths)
         @loads = paths.map { |path| File.expand_path(path, @source_dir) }
       end
 
+      # Declares one test case, evaluating its block against a fresh `TestCaseBuilder`.
+      #
+      # @param description [String] the case's description
+      # @yield the block declaring `tests`, `setup`, `input` and `expect`, evaluated
+      #   against a `TestCaseBuilder`
+      # @return [void]
+      # @raise [Malformed] if the block's own `build` refuses it (no tested verb, or an
+      #   invalid `expect`)
       def test(description, &block)
         builder = TestCaseBuilder.new(description)
         builder.instance_eval(&block) if block
         @tests << builder.build
       end
 
+      # Builds the `BehaviorsSuite` this block declared, refusing one with no `vision` or
+      # no `loads`.
+      #
+      # @return [Behaviors::BehaviorsSuite] the built suite
+      # @raise [Malformed] if `vision` or `loads` was never called
       def build
         unless @vision
           raise Malformed, "#{@source_path}: no `vision \"...\"` — say in one line " \
@@ -122,6 +179,16 @@ module Hecks
                            tests: @tests, path: @source_path)
       end
 
+      # Builds a `BehaviorsSuite` from `Hecks.behaviors "Name" do ... end`'s own block, in
+      # one call.
+      #
+      # @param name [String] the suite's name
+      # @param source_path [String] the `.behaviors` file's own path
+      # @yield the block declaring `vision`, `loads` and each `test`, evaluated against
+      #   the new builder
+      # @return [Behaviors::BehaviorsSuite] the built suite
+      # @raise [Malformed] if the block declares no `vision`, no `loads`, a test with no
+      #   tested verb, or a test with an invalid `expect`
       def self.build(name, source_path:, &block)
         builder = new(name, source_path: source_path)
         builder.instance_eval(&block) if block

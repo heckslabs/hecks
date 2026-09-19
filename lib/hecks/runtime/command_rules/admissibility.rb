@@ -37,6 +37,9 @@ module Hecks
         # identifying the field, so a rule that reads it fails loud
         # instead of quietly wrong.
         class GuardState
+          # @param instance [Runtime::Instance, Object] the record a rule reads; anything that
+          #   does not respond to `aggregate` (an entity's own pre-mutation view) degrades to
+          #   reading only `instance`'s own keys, with no declared or projected fields known
           def initialize(instance)
             @instance = instance
             @declared = instance.respond_to?(:aggregate) ? instance.aggregate.attributes.to_h { |a| [a.name, a] } : {}
@@ -55,8 +58,21 @@ module Hecks
             @projected = owner.respond_to?(:projected_fields) ? owner.projected_fields.to_h { |f| [f.name, f] } : {}
           end
 
+          # Answers whether a rule may read this name at all: a declared attribute, a
+          # `projects`-maintained field, or a key the wrapped instance already holds.
+          #
+          # @param name [String, Symbol] the field name a rule references
+          # @return [Boolean] true when the field is declared, projected, or already present
           def key?(name) = @declared.key?(name.to_sym) || @projected.key?(name.to_sym) || @instance.key?(name)
 
+          # Reads one field the way a `given`/`ensures`/`invariant` rule sees it.
+          #
+          # @param name [String, Symbol] the field name a rule references
+          # @return [Object, nil] the instance's own value when the key is already present;
+          #   nil for a declared-but-absent optional attribute or an undeclared name
+          # @raise [Runtime::AttributeAbsent] if a non-optional declared attribute is absent
+          #   from the instance (a record predating that attribute)
+          # @raise [Runtime::ProjectionAbsent] if a `projects`-maintained field is absent
           def [](name)
             return @instance[name] if @instance.key?(name)
 
@@ -82,6 +98,9 @@ module Hecks
         end
         private_constant :GuardState
 
+        # Refuses the command unless every declared `given` holds, then checks its lifecycle
+        # guard.
+        #
         # `domain:` is only needed to dereference a reference-typed field
         # (`customer.status`) — see References#dereference. `owner` is the
         # declaring aggregate/entity when `subject` carries one (an
@@ -101,7 +120,7 @@ module Hecks
         # found this — TypeError, not a refusal. Command-level
         # dereferencing is the one thing that is supposed to override
         # its own source argument for exactly this reason; args still
-        # wins over stored owner state (unchanged from before this fix).
+        # wins over stored owner state.
         # `parent:` is an entity command's own parent aggregate record
         # (EntityInterpreter's `ctx.instance` — "the parent aggregate
         # record", its own doc comment) — the entity's containment, not a
@@ -109,9 +128,9 @@ module Hecks
         # `dereference`'s attribute scan the way `owner`'s do. Hydrated
         # the same shape regardless: the parent's own state, merged so
         # the dereferenced hash wins over the raw reference it replaces
-        # (ADR 0025 dropped the `_id` suffix that used to keep the two
+        # (ADR 0025 dropped the `_id` suffix that once kept the two
         # apart by name, so `parent.state.merge(dereference(...))` is
-        # now load-bearing, not redundant) — plus its own references
+        # load-bearing, not redundant) — plus its own references
         # dereferenced one level in, so `parent.customer.status` (a
         # parent aggregate reaching its own customer) resolves the same
         # way `account.customer.status` does for a command-level reference.
@@ -122,13 +141,37 @@ module Hecks
         # `enforce_ensures`, below — it is a fresh local binding a
         # `corrects` command introduces, not a real argument/state field
         # a caller could collide with by accident.
+        #
+        # @param subject [Runtime::Instance, Object] the record a `given` reads: the aggregate
+        #   instance for a command, an entity's pre-mutation view for an entity command
+        # @param command [Bluebook::Command] the command being admitted; its `givens` are
+        #   evaluated in order
+        # @param args [Hash{Symbol => Object}] the command's normalized arguments
+        # @param domain [String] name of `command`'s domain, for dereferencing a
+        #   reference-typed argument
+        # @param declaring [Bluebook::Aggregate, Bluebook::Entity, nil] the construct that
+        #   declares `command`'s lifecycle guard, if any; nil skips the lifecycle check
+        # @param parent [Runtime::Instance, nil] an entity command's own parent aggregate
+        #   record; nil for an aggregate command
+        # @param correction [Hash{Symbol => Object}] `{as_name => payload}` bindings a
+        #   `corrects` mutation already located, merged in last
+        # @return [void]
+        # @raise [Runtime::GivenNotMet] if any declared `given` does not hold
+        # @raise [Runtime::LifecycleRefused] if `declaring` is given and the command's `from`
+        #   guard does not admit the subject's current lifecycle state
+        # @raise [Runtime::AttributeAbsent] if a `given` reads a non-optional declared
+        #   attribute absent from the subject (a record predating that attribute)
+        # @raise [Runtime::ProjectionAbsent] if a `given` reads a `projects`-maintained field
+        #   that is absent
+        # @raise [Bluebook::Expression::EvaluationError] if evaluating a `given` hits a
+        #   runtime type fault (not a domain refusal)
         def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil, correction: {})
           state = GuardState.new(subject)
           # A rule may only read within its own aggregate boundary (S12,
-          # ADR 0025) — `subject`'s own stored references are no longer
-          # dereferenced here at all. What used to be a live query against
-          # another aggregate's own repository is now just `subject`'s own
-          # state: a `projects :customer_status, from: :"customer.status"`
+          # ADR 0025) — `subject`'s own stored references are never
+          # dereferenced here. What a live query against another
+          # aggregate's own repository would answer is already just
+          # `subject`'s own state: a `projects :customer_status, from: :"customer.status"`
           # field is a regular stored attribute, already present in
           # `subject`/`state` with no hydration step needed. `dereference`
           # is still called on `command`/`args`, below — that is a
@@ -186,10 +229,28 @@ module Hecks
         # survive a restart the way the Rust kernel's persisted
         # `emitted_<event>` flag does. The in-process log is the fallback
         # only for an adapter that records no readable history.
+        #
+        # @param domain [String] name of the aggregate's domain
+        # @param aggregate [Bluebook::Aggregate] the aggregate whose history is judged
+        # @return [Array<Runtime::Event>] the aggregate's durably recorded events when the
+        #   adapter keeps one, otherwise the registry's in-process event log
         def correction_history(domain, aggregate)
           @registry.repository(domain, aggregate).events || @registry.event_log
         end
 
+        # Locates the event each `corrects` mutation names, refusing if the record never
+        # emitted it, and returns the `as:`-bound bindings for `given`/`ensures` to read.
+        #
+        # @param instance [Runtime::Instance] the record being corrected
+        # @param aggregate [Bluebook::Aggregate] the aggregate `instance` belongs to
+        # @param command [Bluebook::Command] the command being admitted; its `:corrects`
+        #   mutations name the events to locate
+        # @param domain [String] name of `aggregate`'s domain
+        # @return [Hash{Symbol => Object}] `{as_name => payload}`, one entry per `:corrects`
+        #   mutation that named an `as:`; `{}` when the command corrects nothing, or names
+        #   nothing as
+        # @raise [Runtime::NothingToCorrect] if the record has never emitted an event a
+        #   `:corrects` mutation names
         def enforce_correction_target(instance, aggregate, command, domain:)
           bindings = {}
           command.mutations.each do |mutation|
@@ -213,6 +274,9 @@ module Hecks
           bindings
         end
 
+        # Refuses the command unless its `from:` lifecycle guard admits the subject's current
+        # state.
+        #
         # Lifecycle state as a command guard (S10, ADR 0025) — `command
         # "Debit", from: "open"` checked here, folded into the same
         # dispatch step `given` already runs at (both are preconditions,
@@ -222,6 +286,15 @@ module Hecks
         # `admissible_transition`, right below, for the transition this
         # is deliberately not reusing (its own `StateTransition#target`
         # is required, and a guard-only command has none to give it).
+        #
+        # @param declaring [Bluebook::Aggregate, Bluebook::Entity] the construct whose
+        #   `lifecycle` names the field this guard reads
+        # @param command [Bluebook::Command] the command being admitted; nothing is checked
+        #   when it declares no `from:`
+        # @param subject [Runtime::Instance, Object] the record whose lifecycle field is read
+        # @return [void]
+        # @raise [Runtime::LifecycleRefused] if the command declares `from:` and the
+        #   subject's current lifecycle state is not among the allowed states
         def enforce_lifecycle_guard(declaring, command, subject)
           return unless command.from
 
@@ -232,12 +305,10 @@ module Hecks
           # Routed through RefusalWording's own "transition_blocked"
           # template — the same one #admissible_transition, right below,
           # already raises LifecycleRefused through for the same
-          # refusal class. This used to hand-roll its own wording
-          # inline ("...only runs from..." vs. the template's "...moves
-          # it only from...") — two shapes for one refusal kind, so
-          # anything string-matching a LifecycleRefused message (a
-          # property, a spec, a caller) had to know both existed rather
-          # than one.
+          # refusal class, rather than hand-rolling its own wording
+          # inline. One shape for one refusal kind, so anything
+          # string-matching a LifecycleRefused message (a
+          # property, a spec, a caller) only has to know one.
           raise LifecycleRefused,
                 RefusalWording.render_site("LifecycleRefused", "transition_blocked",
                                            command: command.hecks_name, field: lifecycle.field,
@@ -245,6 +316,8 @@ module Hecks
                                            allowed: Array(command.from))
         end
 
+        # Refuses the command unless every declared `ensures` holds against the settled record.
+        #
         # The far side of the contract: evaluated against the settled record
         # — after mutations and the lifecycle move, before anything persists
         # — with `old` carrying the state as the givens saw it. Injected into
@@ -258,6 +331,27 @@ module Hecks
         # Not new to ensures — `given` lives under the same rule — but an
         # ensures is more likely to collide, since it typically re-reads a
         # field the command just took in to mutate it.
+        #
+        # @param subject [Runtime::Instance, Object] the settled record an `ensures` reads
+        # @param command [Bluebook::Command] the command being admitted; its `ensures` are
+        #   evaluated in order
+        # @param args [Hash{Symbol => Object}] the command's normalized arguments
+        # @param old [Hash, Object] the state as the givens saw it, before this command's own
+        #   mutations; always wins over a same-named state field
+        # @param domain [String] name of `command`'s domain, for dereferencing a
+        #   reference-typed argument
+        # @param parent [Runtime::Instance, nil] an entity command's own parent aggregate
+        #   record; nil for an aggregate command
+        # @param correction [Hash{Symbol => Object}] `{as_name => payload}` bindings a
+        #   `corrects` mutation already located, merged in alongside `old`
+        # @return [void]
+        # @raise [Runtime::EnsuresNotMet] if any declared `ensures` does not hold
+        # @raise [Runtime::AttributeAbsent] if an `ensures` reads a non-optional declared
+        #   attribute absent from the subject
+        # @raise [Runtime::ProjectionAbsent] if an `ensures` reads a `projects`-maintained
+        #   field that is absent
+        # @raise [Bluebook::Expression::EvaluationError] if evaluating an `ensures` hits a
+        #   runtime type fault (not a domain refusal)
         def enforce_ensures(subject, command, args, old:, domain:, parent: nil, correction: {})
           state = GuardState.new(subject)
           # S12, ADR 0025 — same boundary reasoning as enforce_givens
@@ -286,6 +380,9 @@ module Hecks
           end
         end
 
+        # Refuses the command unless every declared aggregate and entity invariant holds
+        # against the settled record.
+        #
         # The aggregate boundary, checked after every command, before
         # save (S10, ADR 0025 — "Rules") — the same point `enforce_
         # ensures` already checks at, and for the same reason: an
@@ -300,11 +397,26 @@ module Hecks
         # invariant" to check the piece's own view against.
         #
         # No `dereference` (S12, ADR 0025) — an invariant may only read
-        # `subject`'s own boundary, same rule `enforce_givens`/
-        # `enforce_ensures` now hold to. No invariant in the corpus has
-        # ever read across a `reference_to` (verified before this
-        # change), so this is not a migration, just closing the same
-        # capability off here that was already unused.
+        # `subject`'s own boundary, the same rule `enforce_givens`/
+        # `enforce_ensures` hold to. No invariant in the corpus reads
+        # across a `reference_to` (confirmed by inspecting every one),
+        # so this closes off a capability that was already unused, not
+        # a migration.
+        #
+        # @param subject [Runtime::Instance] the settled aggregate record; an entity command
+        #   passes its parent record, never the element
+        # @param aggregate [Bluebook::Aggregate] the aggregate whose `invariants` are checked
+        # @param domain [String] name of `aggregate`'s domain, threaded through to
+        #   `check_entity_invariants`
+        # @return [void]
+        # @raise [Runtime::InvariantViolation] if an aggregate invariant, or a nested entity's
+        #   own invariant, does not hold
+        # @raise [Runtime::AttributeAbsent] if an invariant reads a non-optional declared
+        #   attribute absent from the subject
+        # @raise [Runtime::ProjectionAbsent] if an invariant reads a `projects`-maintained
+        #   field that is absent
+        # @raise [Bluebook::Expression::EvaluationError] if evaluating an invariant hits a
+        #   runtime type fault (not a domain refusal)
         def enforce_invariants(subject, aggregate, domain:)
           state = GuardState.new(subject)
           attrs = {}
@@ -338,6 +450,16 @@ module Hecks
         # matching list attribute) is a static-analysis gap for a
         # future gate, not a runtime concern here — `next` past it
         # rather than raising mid-enforcement for an unrelated command.
+        #
+        # @param owner_construct [Bluebook::Aggregate, Bluebook::Entity] the construct whose
+        #   `entities` are checked
+        # @param owner_instance [Runtime::Instance] the settled record holding each entity's
+        #   own list attribute
+        # @param domain [String] name of the owning aggregate's domain; read through to a
+        #   deeper recursive call, though no invariant may itself dereference
+        # @return [void]
+        # @raise [Runtime::InvariantViolation] if any entity element, at any nesting depth,
+        #   fails one of its own declared invariants
         def check_entity_invariants(owner_construct, owner_instance, domain:)
           owner_construct.entities.each do |entity|
             next if entity.invariants.empty?
@@ -364,6 +486,19 @@ module Hecks
           end
         end
 
+        # Finds the lifecycle transition this command moves the subject through, refusing when
+        # none of the command's declared transitions admits its current state.
+        #
+        # @param declaring [Bluebook::Aggregate, Bluebook::Entity] the construct whose
+        #   `lifecycle` declares the transition table
+        # @param command [Bluebook::Command] the command being dispatched
+        # @param subject [Runtime::Instance, Object] the pre-mutation record, read for its
+        #   current lifecycle field value
+        # @return [Bluebook::StateTransition, nil] nil when `declaring` has no lifecycle, or
+        #   the command names none of its transitions; otherwise the one admitted transition
+        #   (unconstrained, or whose `from:` includes the subject's current state)
+        # @raise [Runtime::LifecycleRefused] if the command names transitions but none is
+        #   admitted from the subject's current state
         def admissible_transition(declaring, command, subject)
           lifecycle = declaring.lifecycle
           return nil unless lifecycle

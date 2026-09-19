@@ -26,7 +26,9 @@ module Hecks
       # in `qa/adapters/github_ci_webhook.rb`, the subclass of this file
       # that actually knows what a `QualityControl::Clearance` is.
       #
-      # A plain rack app (`#call(env)`) — no Sinatra, no Rails — the same
+      # ## A plain rack app
+      #
+      # `#call(env)` — no Sinatra, no Rails — the same
       # shape `Hecks::Forms::App` (lib/hecks/forms/app.rb) already
       # established for the one other HTTP-facing surface this library
       # ships. `rack` is a lazy Gemfile dependency for exactly the reason
@@ -37,7 +39,9 @@ module Hecks
       # `rack` installed, the same "opt in by requiring the file at all"
       # contract `hecks/forms.rb` already has for `Forms::App`.
       #
-      # **Subclass responsibility**: implement `#handle_event(event, action,
+      # ## Subclass responsibility
+      #
+      # Implement `#handle_event(event, action,
       # payload)`, returning `[http_status, response_body_hash]`. Called
       # only after the signature has verified and the body has parsed as
       # JSON — a subclass never has to re-check either. `event` is
@@ -79,12 +83,22 @@ module Hecks
         # or wherever it keeps one — rather than this class reaching into
         # the environment itself and hiding that requirement inside a
         # default.
+        # @param secret [String] the webhook secret GitHub signs deliveries with, such as
+        #   `ENV.fetch("GITHUB_WEBHOOK_SECRET")`
+        # @raise [ArgumentError] if `secret` is nil or empty
         def initialize(secret:)
           raise ArgumentError, "no webhook secret configured" if secret.to_s.empty?
 
           @secret = secret
         end
 
+        # Verifies a webhook delivery's signature, unwraps its envelope, and hands the
+        # event off to `#handle_event`, as a Rack app.
+        #
+        # @param env [Hash] the Rack request environment
+        # @return [Array(Integer, Hash, Array<String>)] a Rack response triple: status,
+        #   headers (always `{"content-type" => "application/json"}`), and a one-element
+        #   body Array holding the JSON-generated response
         def call(env)
           request = Rack::Request.new(env)
           return respond(405, error: "MethodNotAllowed", message: "POST only") unless request.post?

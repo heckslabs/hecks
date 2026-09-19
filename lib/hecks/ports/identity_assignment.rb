@@ -27,8 +27,8 @@ module Hecks
       # No adapter, spec double or caller of this port ships in this repository, so every
       # shape below other than `registry` is adapter-defined: the port forwards it untouched.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry — resolves the adapter and is
+      #   forwarded to it as well
       # @param agg_name [Object] adapter-defined, forwarded unchanged; names the aggregate
       #   whose identity field is being assigned
       # @param field_name [Object] adapter-defined, forwarded unchanged; names the identity

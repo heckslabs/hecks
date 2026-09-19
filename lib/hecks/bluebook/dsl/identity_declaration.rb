@@ -33,12 +33,16 @@ module Hecks
         # One symbol is retired: it cannot say whether the author means a
         # value concept or a field-shaped database key. Frozen source still
         # reaches the old interpretation through `legacy_identified_by`.
-        # Renamed from `identified_by` — item #13's full metaprogrammed
-        # dispatch (slice 4c), same shared-mixin shape `attribute_impl`
+        # Records the construct's identity as one of the three live forms, resolved later by
+        # `resolve_pending_identity!`.
+        #
+        # Answers the `identified_by` word through the table's `calls:`
+        # column — item #13's full metaprogrammed dispatch (slice 4c), same
+        # shared-mixin shape `attribute_impl`
         # already proved in slice 3: one renamed method, both Aggregate
         # and Entity Keyword rows name it in `calls:`. Bootstrap-
         # reachable (every self-hosted aggregate/entity declares an
-        # identity), so in BOOTSTRAP_CALLS_FALLBACK for both contexts.
+        # identity), so in `BOOTSTRAP_CALLS_FALLBACK` for both contexts.
         # Dispatches across the three live forms documented above (value-
         # object + block, single type target, single/compound field
         # target), each an early return that sets exactly one pending
@@ -46,6 +50,17 @@ module Hecks
         # with-nil semantics and the shared `@name`/`identity_pool`
         # threaded back out as parameters, for no gain beyond what the
         # three-forms comment above already documents.
+        #
+        # @param targets [Array<Module, Symbol, String>] a single bare value-object type, or one
+        #   or more field names; empty when `definition` is given instead
+        # @param as [Symbol, nil] the identity field's name, valid only with a single type target
+        # @yield a bespoke value-object body, evaluated when `targets` is empty; exclusive with
+        #   `targets`
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if identity is already declared, both a type/block and
+        #   field names are given, no target or block is given, `as:` is given with a compound
+        #   key or a field target, or a block declares no attributes or cannot be read as a
+        #   value-object definition
         # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def identified_by_impl(*targets, as: nil, &definition)
           return legacy_identified_by(*targets, as: as, &definition) if MetaValidator.shadow_parsing?
