@@ -145,7 +145,7 @@ module Hecks
           raise Malformed, "#{self}.has_#{category} needs readable_by: (the Governance role a read must hold)" unless readable_by
 
           Hecks.current_registry.add_pending_privacy_marking(
-            domain: @fqn, attribute_path: @path.join("."), category: category, role_required: readable_by
+            domain: @fqn, attribute_path: @path.join("."), category: category, readable_by: readable_by
           )
           nil
         end
