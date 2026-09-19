@@ -76,6 +76,24 @@ module Hecks
           self
         end
 
+        # Declares one of this aggregate's own attributes sensitive — the same
+        # `.hecksagon`-time fact `Facade::Surface::AggregateDoor#mark_sensitive` records
+        # when the constant it's called on happens to already be a real, installed door
+        # instead of this parse-time stand-in. A real method for the same reason `#port`
+        # above is: its shape has nothing to do with `Bind`.
+        #
+        # @param attribute_path [String] the dotted path within this aggregate, e.g.
+        #   `"attendee.medications"`
+        # @param category [String] the marking's own sensitivity category, e.g. `"phi"`
+        # @param role_required [String] the Governance role a read must hold, unredacted
+        # @return [Bluebook::DSL::BindingProxy] this proxy, so further binds can chain
+        def mark_sensitive(attribute_path, category:, role_required:)
+          Hecks.current_registry.add_pending_privacy_marking(
+            domain: @fqn, attribute_path: attribute_path, category: category, role_required: role_required
+          )
+          self
+        end
+
         def method_missing(verb, *args, **kwargs, &block)
           @collector << Bind.new(
             aggregate: @fqn,
