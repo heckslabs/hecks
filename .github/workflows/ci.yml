@@ -197,48 +197,68 @@ name: CI
 # `main` runs before this split — the largest single job in the
 # workflow by a wide margin.
 
-# A PULL REQUEST RUNS THE LIGHT SET; THE MERGE QUEUE RUNS EVERYTHING —
-# added 2026-09-14. Every change reaches main only through the merge
-# queue, and a `merge_group` run already tests the PR merged onto main's
-# current tip with every job below, so a full PR-level run was a second,
-# earlier copy of the same work. Measured over 37 merges the night this
-# was added: 3 in 4 queue runs overlapped another run and queued for
-# runners (median 318s overlapped vs 263s alone, tail to 586s), and the
-# PR run itself (median 285s) sat in front of every queue entry.
+# EVERY PULL REQUEST RUNS THE FULL JOB SET — restored 2026-09-18,
+# reversing PR #666's "light PR set" (which ran only `rspec` and
+# `checks_static` on `pull_request` and left the Rust, Postgres-io,
+# fuzzing, codegen-drift and `runtime_changed`/`stress_concurrency` jobs
+# to `merge_group` or a `full-ci` label). There is now exactly ONE rule
+# for what a job runs on, and it is the one this file had before #666:
+# everything runs on `pull_request` and on `merge_group`; the
+# cache-warming `push` below is the only event anything skips.
 #
-# ON `pull_request`, ONLY `rspec` (both shards + attestation) AND
-# `checks_static` RUN. The Rust, Postgres-io, fuzzing and codegen-drift
-# jobs and `runtime_changed`/`stress_concurrency` skip. Their required-
-# check wrapper jobs already report success on a skipped `_impl` (the
-# `success || skipped` step each one carries), so the ruleset's nine
-# required contexts still report on the PR and auto-merge still enqueues
-# it. Nothing reaches main less tested: the queue run is unchanged.
+# WHY IT CAME BACK: the light set moved the first honest signal from the
+# PR to the merge queue, and the queue is the worst place to learn a job
+# fails. A failure only a Rust/Postgres/fuzz/drift job catches was
+# invisible on the PR, so a PR went green, got queued — and the queue run,
+# the first run to execute that job, failed and EJECTED the batch. Four
+# PRs (#737, #739, #742 among them) were queued green and ejected by a
+# failure their own PR run had never executed. Every ejection costs the
+# whole batch's queue run, not just the guilty PR, so the runner minutes
+# #666 saved on the PR came back — plus a human round trip — the moment
+# anything was actually wrong.
 #
-# THE `full-ci` LABEL puts a PR back on the full set — for a long-lived
-# or experimental PR that wants Rust/Postgres/fuzz signal without going
-# through the queue. `labeled` is in the trigger types so adding it
-# starts a new run right away (the concurrency group below cancels the
-# light run it supersedes). Any other label also re-runs the light set,
-# which is harmless; skipping that run instead would let a cancelled
-# real run be replaced by an all-skipped green one.
+# THE TRADE IS DELIBERATE. #666's measurement stands: on the Free plan's
+# 20-concurrent-runner cap, 3 in 4 queue runs overlapped another run
+# (median 318s overlapped vs 263s alone, tail to 586s), and a full PR run
+# is a second, earlier copy of the queue's work. That duplication is the
+# price of catching breakage on the PR, where one author fixes it, instead
+# of in the queue, where it ejects other people's work. If runner
+# contention becomes the binding constraint again, narrow the work itself
+# (per-path skip gates like `postgres_io_relevant_changed`, which cost no
+# signal) rather than gating whole lineages on an event.
+#
+# NO `full-ci` LABEL ANY MORE. Nothing in this file or ci-checks.yml reads
+# a label; the label is what put a PR back on the full set, and every PR
+# is on the full set now. `labeled` is out of the trigger types below for
+# the same reason — it existed only so adding that label started a full
+# run immediately.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
   merge_group:
-  # Cache-warming only — see the top-of-file comment. Every job below
-  # except `rspec_postgres_io_parallel_shard` (the matrix doing the real
-  # work — see its own header comment) and the `rspec_postgres_io_parallel`
-  # aggregator that now sits above it (unconditional `if: always()`, not
-  # a push exemption, but the practical effect on this trigger is the
-  # same: it runs) skips this event via its own
-  # `if: github.event_name != 'push'`.
+  # Cache-warming only — see the top-of-file comment. THE ONLY EVENT
+  # ANYTHING SKIPS, now that the light PR set is gone. `rspec_postgres_io_
+  # parallel_shard` (the matrix doing the real work — see its own header
+  # comment) is the one job that runs here, via its own
+  # `github.event_name == 'push' ||` exemption; every other job either
+  # carries `if: github.event_name != 'push'` or, for the reusable-workflow
+  # calls, reports `skipped` because every job inside the called file
+  # carries it. The required-check wrappers then skip too — each one
+  # names `push` as the event its call is allowed to skip on (the
+  # `rspec_postgres_io_parallel` wrapper needs no such clause: its call
+  # succeeds here rather than skipping, because the shard above runs).
   push:
     branches: [main]
 
-# CANCEL A SUPERSEDED PR RUN — Phase 1 of the CI speed effort. A second
-# push to the same PR used to leave the stale run's jobs (up to 18 of
-# them) still occupying runner slots against the org's 20-concurrent-
-# runner ceiling, queueing whatever else needed to start. Grouped by PR
+# CANCEL A SUPERSEDED PR RUN — Phase 1 of the CI speed effort, and the
+# thing that keeps the full PR set affordable (2026-09-18: it matters
+# more now than it did under the light set, since a superseded PR run
+# again holds the whole set, not four jobs). A second push to the same PR
+# used to leave the stale run's jobs — 15 to 25 of them on a measured
+# full run, depending on how many Postgres-io shards the per-path gate
+# lets through — still occupying runner slots against the org's
+# 20-concurrent-runner ceiling, queueing whatever else needed to start.
+# Verified still in force for `pull_request` after the light set was
+# removed; nothing about this group needed changing. Grouped by PR
 # number for `pull_request` (so two pushes to the SAME PR share a group
 # and the older one is cancelled); grouped by `github.ref` otherwise —
 # `merge_group`'s own `gh-readonly-queue/...` ref is already unique per
@@ -273,8 +293,8 @@ jobs:
     needs: rspec_impl
     # RUNS ONLY TO FAIL — 2026-09-14. A job skipped by its own `if:` needs
     # no runner and reports to a required status check as passing (the
-    # same way `rspec_fuzzing`, a required check, has been skipped on every
-    # plain pull request since PR #666 without blocking a merge). So each
+    # same way `rspec_fuzzing`, a required check, is skipped on the
+    # cache-warming `push` run without blocking anything). So each
     # of these nine-context wrappers now runs only when its `_impl` came
     # back as something OTHER than success or skipped — and then its step
     # fails — instead of spending a runner slot on every run to print
@@ -290,7 +310,10 @@ jobs:
     # that is `push` (every ci-rspec.yml job skips there; on a PR or the
     # queue the attestation job always runs). Anywhere else the wrapper runs
     # and fails, printing the result. Each wrapper below carries its own
-    # call's condition; spec/ci_summary_jobs_spec.rb pins the shape.
+    # call's condition — `push` for seven of the eight, and NO tolerated
+    # skip at all for `rspec_postgres_io_parallel`, whose call has no event
+    # it legitimately skips on (see that job's own header for why);
+    # spec/ci_summary_jobs_spec.rb pins both shapes.
     if: always() && !(needs.rspec_impl.result == 'success' || (needs.rspec_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
@@ -366,13 +389,13 @@ jobs:
 
     needs: rspec_postgres_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_postgres_io_impl.result == 'success' || (needs.rspec_postgres_io_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
+    if: always() && !(needs.rspec_postgres_io_impl.result == 'success' || (needs.rspec_postgres_io_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
       - name: rspec_postgres_io_impl passed (or was correctly gated off)
         env:
           RESULT: ${{ needs.rspec_postgres_io_impl.result }}
-          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' }}
         run: |
           echo "rspec_postgres_io_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
@@ -382,8 +405,6 @@ jobs:
   # attestation step (Phase 7 only covers the `rspec`/`checks` lineages),
   # so ci-postgres-io.yml's own `on.workflow_call` declares no secrets.
   rspec_postgres_io_impl:
-    # Light PR set — see the comment above `on:`.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-postgres-io.yml
 
   # REUSABLE-WORKFLOW SPLIT, group 2 (part 3 of 3) — `postgres_io_relevant_
@@ -400,38 +421,51 @@ jobs:
   # already requires (see ci-postgres-io-parallel.yml's own header for why
   # the actual work now lives in that reusable-workflow file instead of a
   # same-named job here). Reports success if the reusable-workflow call
-  # below succeeded, OR was itself skipped (i.e. `postgres_io_relevant_
-  # changed`, now inside that file, gated it off — `.result` reads
-  # `"skipped"` in that case, not `"success"`, so it's checked explicitly
-  # below rather than relied on to just work), failure otherwise. `if:
-  # always()` is required here — without it, the default implicit
-  # `success()` job condition would itself skip THIS job whenever the call
-  # below was skipped OR failed, collapsing "correctly gated off" and "a
-  # shard actually failed" into the same non-answer, which a required
-  # check can't afford.
+  # below succeeded, failure otherwise. `if: always()` is required here —
+  # without it, the default implicit `success()` job condition would itself
+  # skip THIS job whenever the call below failed, which a required check
+  # can't afford.
+  #
+  # THE ONLY WRAPPER THAT TOLERATES NO SKIP AT ALL — the other seven each
+  # name the event under which their call legitimately skips (`push`, for
+  # every one of them; see `rspec`'s own `if:` comment above). This call
+  # has no such event: `rspec_postgres_io_parallel_impl` carries no `if:`
+  # of its own, and `postgres_io_relevant_changed` — the skip gate inside
+  # ci-postgres-io-parallel.yml — is itself ungated, so it always runs and
+  # the call always reports `success`, even on a change that gates all
+  # eight shards off. Confirmed live, not assumed: merge_group run
+  # 35411612796 gated all 8 shards off (`postgres_io_relevant_changed`
+  # success, `rspec_postgres_io_parallel_shard` skipped) and THIS wrapper
+  # was itself skipped — which under the condition in force at the time
+  # can only mean the call reported `success`.
+  #
+  # (An earlier version of this comment claimed a gated-off call reads
+  # `"skipped"`. That was true while this job's `needs:`
+  # pointed straight at the shard matrix — an all-skipped matrix IS
+  # skipped — and stopped being true when the reusable-workflow split put
+  # a job that always runs in front of it.) So a `skipped` here means the
+  # call was prevented from running by something nobody intended, and the
+  # wrapper fails, same as it already did on `merge_group` before the
+  # light PR set was removed. spec/ci_summary_jobs_spec.rb pins the shape.
   rspec_postgres_io_parallel:
     runs-on: ubuntu-latest
 
     needs: rspec_postgres_io_parallel_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_postgres_io_parallel_impl.result == 'success' || (needs.rspec_postgres_io_parallel_impl.result == 'skipped' && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci'))))
+    if: always() && needs.rspec_postgres_io_parallel_impl.result != 'success'
 
     steps:
-      - name: rspec_postgres_io_parallel_impl passed (or was correctly gated off)
+      - name: rspec_postgres_io_parallel_impl passed
         env:
           RESULT: ${{ needs.rspec_postgres_io_parallel_impl.result }}
-          SKIP_EXPECTED: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') }}
         run: |
-          echo "rspec_postgres_io_parallel_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
+          echo "rspec_postgres_io_parallel_impl: $RESULT (this call is never expected to skip)" >&2
           exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-postgres-io-parallel.yml's
   # own header. No `secrets:` block, same reasoning as `rspec_postgres_io_
   # impl` above: this lineage never ran the HMAC attestation step either.
   rspec_postgres_io_parallel_impl:
-    # Light PR set — see the comment above `on:`. `!= 'pull_request'`
-    # (not `== 'merge_group'`) keeps the cache-warming `push` run.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
 
   # REUSABLE-WORKFLOW SPLIT, group 3 (part 1 of 4) — 4 independently-
@@ -479,13 +513,13 @@ jobs:
 
     needs: rspec_rust_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_io_impl.result == 'success' || (needs.rspec_rust_io_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
+    if: always() && !(needs.rspec_rust_io_impl.result == 'success' || (needs.rspec_rust_io_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
       - name: rspec_rust_io_impl passed (or was correctly gated off)
         env:
           RESULT: ${{ needs.rspec_rust_io_impl.result }}
-          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' }}
         run: |
           echo "rspec_rust_io_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
@@ -494,8 +528,6 @@ jobs:
   # No `secrets:` block, same reasoning as `rspec_postgres_io_impl`: this
   # lineage never ran the HMAC attestation step either.
   rspec_rust_io_impl:
-    # Light PR set — see the comment above `on:`.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-io.yml
     # PHASE 8, GHCR BINARY CACHE — a reusable workflow's own jobs can
     # only use what the calling job's `permissions:` grants; ci-rust-
@@ -520,8 +552,8 @@ jobs:
     runs-on: ubuntu-latest
 
     # See `rspec` job's own comment above — cache-warming push doesn't
-    # need this job. Light PR set — see the comment above `on:`.
-    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # need this job.
+    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -563,8 +595,8 @@ jobs:
     runs-on: ubuntu-latest
 
     # See `rspec` job's own comment above — cache-warming push doesn't
-    # need this job. Light PR set — see the comment above `on:`.
-    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # need this job.
+    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -590,13 +622,13 @@ jobs:
 
     needs: rspec_rust_parser_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_parser_impl.result == 'success' || (needs.rspec_rust_parser_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
+    if: always() && !(needs.rspec_rust_parser_impl.result == 'success' || (needs.rspec_rust_parser_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
       - name: rspec_rust_parser_impl passed (or was correctly gated off)
         env:
           RESULT: ${{ needs.rspec_rust_parser_impl.result }}
-          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' }}
         run: |
           echo "rspec_rust_parser_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
@@ -605,8 +637,6 @@ jobs:
   # header. No `secrets:` block — this lineage never ran the HMAC
   # attestation step.
   rspec_rust_parser_impl:
-    # Light PR set — see the comment above `on:`.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-parser.yml
     # PHASE 8, GHCR BINARY CACHE — see rspec_rust_io_impl's own comment.
     permissions:
@@ -622,13 +652,13 @@ jobs:
 
     needs: rspec_rust_codegen_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_codegen_impl.result == 'success' || (needs.rspec_rust_codegen_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
+    if: always() && !(needs.rspec_rust_codegen_impl.result == 'success' || (needs.rspec_rust_codegen_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
       - name: rspec_rust_codegen_impl passed (or was correctly gated off)
         env:
           RESULT: ${{ needs.rspec_rust_codegen_impl.result }}
-          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' }}
         run: |
           echo "rspec_rust_codegen_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
@@ -637,8 +667,6 @@ jobs:
   # header. No `secrets:` block, same reasoning as `rspec_rust_parser_
   # impl` above.
   rspec_rust_codegen_impl:
-    # Light PR set — see the comment above `on:`.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-codegen.yml
     # PHASE 8, GHCR BINARY CACHE — see rspec_rust_io_impl's own comment.
     permissions:
@@ -654,13 +682,13 @@ jobs:
 
     needs: rspec_rust_host_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
-    if: always() && !(needs.rspec_rust_host_impl.result == 'success' || (needs.rspec_rust_host_impl.result == 'skipped' && (github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')))))
+    if: always() && !(needs.rspec_rust_host_impl.result == 'success' || (needs.rspec_rust_host_impl.result == 'skipped' && (github.event_name == 'push')))
 
     steps:
       - name: rspec_rust_host_impl passed (or was correctly gated off)
         env:
           RESULT: ${{ needs.rspec_rust_host_impl.result }}
-          SKIP_EXPECTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+          SKIP_EXPECTED: ${{ github.event_name == 'push' }}
         run: |
           echo "rspec_rust_host_impl: $RESULT (a skip is expected on ${{ github.event_name }} here: $SKIP_EXPECTED)" >&2
           exit 1
@@ -669,16 +697,14 @@ jobs:
   # header. No `secrets:` block, same reasoning as the other 3 rust
   # lineages above.
   rspec_rust_host_impl:
-    # Light PR set — see the comment above `on:`.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     uses: ./.github/workflows/ci-rust-host.yml
 
   rspec_fuzzing:
     runs-on: ubuntu-latest
 
     # See `rspec` job's own comment above — cache-warming push doesn't
-    # need this job. Light PR set — see the comment above `on:`.
-    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    # need this job.
+    if: github.event_name != 'push'
 
     # POSTGRES, BECAUSE TWO FUZZING SPECS ARE `io: true` AND NEED IT —
     # spec/fuzzing/concurrent_dispatch_spec.rb ("with a real, disposable
@@ -741,8 +767,7 @@ jobs:
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job (and `stress_concurrency` below then also skips,
     # via its own `needs:`, with no `if:` of its own required for that).
-    # Light PR set — see the comment above `on:`.
-    if: github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    if: github.event_name != 'push'
 
     outputs:
       touched: ${{ steps.diff.outputs.touched }}

@@ -152,11 +152,10 @@ you the prose lied.
 **Rust.** `rust/` is a second dispatch runtime, generated from the same
 canonical IR and checked against Ruby continuously
 (`spec/codegen_parity_spec.rb`, `spec/rust_conformance_spec.rb`). You
-don't need a Rust toolchain to contribute Ruby-only changes — the merge
-queue builds and runs the conformance suite before anything lands. (A
-pull request's own CI runs only the core spec shards and static checks;
-add the `full-ci` label to a PR to get the Rust, Postgres-io, fuzzing
-and codegen-drift jobs on it too.) If you do touch anything
+don't need a Rust toolchain to contribute Ruby-only changes — your pull
+request's own CI builds and runs the conformance suite, and the merge
+queue runs it again against main's current tip before anything lands. If
+you do touch anything
 that changes what gets generated (`rust/project/*.rb`,
 `bin/project_rust`, the kernel's hand-written half under
 `rust/src/kernel/`), and you have `cargo` installed, run it yourself
