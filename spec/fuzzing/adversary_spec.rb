@@ -3,7 +3,7 @@ require "json"
 require "hecks/fuzzing"
 
 # The adversarial layer (lib/hecks/fuzzing/sequence_generator/adversary.rb)
-# — three claims, each checked against REAL generated sequences rather
+# — three claims, each checked against real generated sequences rather
 # than a stub: it is exactly as deterministic per seed as the rest of the
 # generator, it is genuinely opt-in (off means byte-identical output and
 # no extra RNG draw), and every mutation kind produces the documented
@@ -18,7 +18,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   LEDGER_ORDERING   = File.join(InMemoryDomain::ROOT, "qa/stress_domains/ledger_ordering")
 
   # Every `[step, mutation]` pair across a handful of seeds, grouped by
-  # mutation kind — `adversarial: 1.0` so every command step that CAN be
+  # mutation kind — `adversarial: 1.0` so every command step that can be
   # mutated is, which is what makes "each kind appears" a fact about the
   # layer rather than about luck.
   def mutations_over(domain_path, seeds:, fraction: 1.0, steps: 25)
@@ -63,9 +63,9 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
 
   describe "both replay paths receive the same bytes" do
     # `Replay.call` reads `step["args"]`; the Rust bridge sends
-    # `JSON.generate({"steps" => steps})`. Both read the SAME `args` the
+    # `JSON.generate({"steps" => steps})`. Both read the same `args` the
     # generator's own inline dispatch already ran — so the mutation's
-    # fingerprint has to be IN `args` (not in metadata only), and the
+    # fingerprint has to be in `args` (not in metadata only), and the
     # step has to survive a JSON round-trip unchanged.
     it "puts every mutation's fingerprint in the step's own args, and the step round-trips through JSON" do
       steps = described_class.generate(PIZZAS, seed: 5, steps: 25, adversarial: 1.0)
@@ -175,8 +175,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       end
     end
 
-    # A LOWER FRACTION HERE, ON PURPOSE — this mutation needs a PRIOR
-    # append to have SUCCEEDED under the same parent (that is what fills
+    # **A lower fraction here, on purpose** — this mutation needs a prior
+    # append to have succeeded under the same parent (that is what fills
     # the pool it replays from), and at `adversarial: 1.0` nearly every
     # append is itself mutated and refused first. 0.3 is the dial
     # `bin/qa_sweep` runs at; deterministic per seed, so "found within

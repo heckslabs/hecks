@@ -20,39 +20,39 @@ RSpec.describe "sets arithmetic" do
 
   it "increments from the declared default, and keeps counting" do
     runtime = boot_till
-    runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
-    runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 2_500 })
+    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
+    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 2_500 })
 
     expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 12_500)
   end
 
   it "decrements, and the running balance is exact" do
     runtime = boot_till
-    runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
-    runtime.dispatch("TillRoom::Till.PayOut", number: { value: "till-1" }, amount: { cents: 2_500 })
+    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
+    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("TillRoom::Till.PayOut", number: { value: "till-1" }, amount: { cents: 2_500 })
 
     expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 7_500)
   end
 
   it "increments by a literal when the bluebook says a number" do
     runtime = boot_till
-    runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch("TillRoom::Till.Bump", number: { value: "till-1" })
+    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
+    runtime.dispatch_flat("TillRoom::Till.Bump", number: { value: "till-1" })
 
     expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 500)
   end
 
   it "refuses a non-Integer amount loudly, leaving the balance untouched" do
     runtime = boot_till
-    runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
+    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
 
-    # Refused at the payload gate as a DOMAIN refusal, not deep in a predicate
+    # Refused at the payload gate as a domain refusal, not deep in a predicate
     # as an EvaluationError — the latter is not in DOMAIN_REFUSALS, so it used
     # to be recorded beside genuine refusals while actually being a crash.
-    expect { runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: "lots" }) }
+    expect { runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: "lots" }) }
       .to raise_error(Hecks::Runtime::TypeMismatch,
                       'Money.cents expects Integer, got "lots"')
 
@@ -61,9 +61,9 @@ RSpec.describe "sets arithmetic" do
 
   it "writes an appended literal as itself, beside the argument fields" do
     runtime = boot_till
-    runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
-    runtime.dispatch("TillRoom::Till.PayOut", number: { value: "till-1" }, amount: { cents: 2_500 })
+    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
+    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("TillRoom::Till.PayOut", number: { value: "till-1" }, amount: { cents: 2_500 })
 
     expect(TillRoom::Till.find("till-1").marks.map(&:to_h)).to eq([
                                                                     { amount: 10_000, direction: "in" },
@@ -71,7 +71,7 @@ RSpec.describe "sets arithmetic" do
                                                                   ])
   end
 
-  # A mutation names a target — but must the target EXIST?
+  # A mutation names a target — but must the target exist?
   #
   # The language says only `given("a mutation names a target") { !target.value
   # .to_s.empty? }`. Non-emptiness, nothing more. So a sets naming a field
@@ -125,7 +125,7 @@ RSpec.describe "sets arithmetic" do
               reference_to Widget
               attribute :nickname, Label
 
-              # :nickname is NOT an attribute of Widget — :label is the only one.
+              # :nickname is not an attribute of Widget — :label is the only one.
               sets :nickname
 
               emits "WidgetRenamed"

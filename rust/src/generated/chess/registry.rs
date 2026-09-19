@@ -86,9 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::chess::game::StartArgs::from_json(facts_json)?;
-                      args.label.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::StartArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::StartArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::StartArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::StartArgs::from_json(v)?; args.label.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::StartArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::StartArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::StartArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::StartArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::StartArgs::from_json(v)?; args.label.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::StartArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -99,29 +97,8 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("PlacePieceArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "kind", "color", "square", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "PlacePiece does not declare {} — it takes id, kind, color, square",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["color", "id", "kind", "square"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "PlacePiece"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, kind, color, square"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("PlacePiece acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::PlacePieceArgs::from_json(facts_json)?;
-                      args.id.check_invariants()?;
-                      args.square.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::PlacePieceArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::PlacePieceArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::PlacePieceArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::PlacePieceArgs::from_json(v)?; args.id.check_invariants()?; args.square.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::PlacePieceArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::PlacePieceArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::PlacePieceArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::PlacePieceArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::PlacePieceArgs::from_json(v)?; args.id.check_invariants()?; args.square.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::PlacePieceArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "PlacePiece", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -132,29 +109,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("MovePieceArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "destination", "by", "outcome", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "MovePiece does not declare {} — it takes id, destination, by, outcome",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by", "destination", "id", "outcome"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "MovePiece"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, destination, by, outcome"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("MovePiece acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::MovePieceArgs::from_json(facts_json)?;
-                      args.id.check_invariants()?;
-                      args.destination.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::MovePieceArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::MovePieceArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::MovePieceArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::MovePieceArgs::from_json(v)?; args.id.check_invariants()?; args.destination.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::MovePieceArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::MovePieceArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::MovePieceArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::MovePieceArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::MovePieceArgs::from_json(v)?; args.id.check_invariants()?; args.destination.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::MovePieceArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "MovePiece", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -165,28 +121,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CapturePieceArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "by", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CapturePiece does not declare {} — it takes id, by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "CapturePiece"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CapturePiece acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::CapturePieceArgs::from_json(facts_json)?;
-                      args.id.check_invariants()?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::CapturePieceArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::CapturePieceArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::CapturePieceArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::CapturePieceArgs::from_json(v)?; args.id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::CapturePieceArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::CapturePieceArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::CapturePieceArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::CapturePieceArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::CapturePieceArgs::from_json(v)?; args.id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::CapturePieceArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "CapturePiece", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -197,27 +133,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AdvanceTurnArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["turn", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AdvanceTurn does not declare {} — it takes turn",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["turn"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AdvanceTurn"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "turn"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AdvanceTurn acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::AdvanceTurnArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::AdvanceTurnArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::AdvanceTurnArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::AdvanceTurnArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::AdvanceTurnArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::AdvanceTurnArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::AdvanceTurnArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::AdvanceTurnArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::AdvanceTurnArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::AdvanceTurnArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::AdvanceTurnArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AdvanceTurn", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -228,27 +145,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareCheckArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareCheck does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclareCheck"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareCheck acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::DeclareCheckArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclareCheckArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclareCheckArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclareCheckArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclareCheckArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclareCheckArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclareCheckArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclareCheckArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclareCheckArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclareCheckArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclareCheckArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclareCheck", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -259,27 +157,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareCheckmateArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareCheckmate does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclareCheckmate"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareCheckmate acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::DeclareCheckmateArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclareCheckmateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclareCheckmateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclareCheckmateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclareCheckmateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclareCheckmateArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclareCheckmateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclareCheckmateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclareCheckmateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclareCheckmateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclareCheckmateArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclareCheckmate", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -290,27 +169,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclareStalemateArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareStalemate does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclareStalemate"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareStalemate acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::DeclareStalemateArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclareStalemateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclareStalemateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclareStalemateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclareStalemateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclareStalemateArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclareStalemateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclareStalemateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclareStalemateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclareStalemateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclareStalemateArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclareStalemate", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -321,27 +181,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ResignArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Resign does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Resign"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Resign acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::ResignArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::ResignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::ResignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::ResignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::ResignArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::ResignArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::ResignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::ResignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::ResignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::ResignArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::ResignArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Resign", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -352,27 +193,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("OfferDrawArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "OfferDraw does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "OfferDraw"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("OfferDraw acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::OfferDrawArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::OfferDrawArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::OfferDrawArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::OfferDrawArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::OfferDrawArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::OfferDrawArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::OfferDrawArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::OfferDrawArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::OfferDrawArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::OfferDrawArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::OfferDrawArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "OfferDraw", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -383,27 +205,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AcceptDrawArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AcceptDraw does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AcceptDraw"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AcceptDraw acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::AcceptDrawArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::AcceptDrawArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::AcceptDrawArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::AcceptDrawArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::AcceptDrawArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::AcceptDrawArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::AcceptDrawArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::AcceptDrawArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::AcceptDrawArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::AcceptDrawArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::AcceptDrawArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AcceptDraw", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -414,27 +217,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclineDrawArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclineDraw does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclineDraw"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclineDraw acts on an existing Game — pass label.value:".to_string()))?, };
-              let args = crate::generated::chess::game::DeclineDrawArgs::from_json(facts_json)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclineDrawArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclineDrawArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclineDrawArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclineDrawArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclineDrawArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::DeclineDrawArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::DeclineDrawArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::DeclineDrawArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::DeclineDrawArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::DeclineDrawArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclineDraw", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -445,28 +229,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("PieceMoveEntityArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "destination", "by", "outcome", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Move does not declare {} — it takes id, destination, by, outcome",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by", "destination", "id", "outcome"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Move"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, destination, by, outcome"),
-    ])));
-}
- } let _args_precheck = crate::generated::chess::game::PieceMoveEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::chess::game::PieceMoveEntityArgs::from_json(facts_json)?;
-                      args.id.check_invariants()?;
-                      args.destination.check_invariants()?;
+              if let Some(route) = route { route.require_depth(1)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::PieceMoveEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::PieceMoveEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::PieceMoveEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::PieceMoveEntityArgs::from_json(v)?; args.id.check_invariants()?; args.destination.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::PieceMoveEntityArgs| Ok(()) })?;
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -477,27 +242,9 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("PieceCaptureEntityArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "by", "label"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Capture does not declare {} — it takes id, by",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["by", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Capture"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, by"),
-    ])));
-}
- } let _args_precheck = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(facts_json)?;
-                      args.id.check_invariants()?;
+              if let Some(route) = route { route.require_depth(1)?; }
+              let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::chess::game::PieceCaptureEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::chess::game::PieceCaptureEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::chess::game::PieceCaptureEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(v)?; args.id.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::chess::game::PieceCaptureEntityArgs| Ok(()) })?;
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Chess::Game", &parent_id) { command_deref.push(("parent", parent_node)); }

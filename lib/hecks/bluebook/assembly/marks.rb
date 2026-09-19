@@ -6,10 +6,10 @@ module Hecks
       # `to_h` spells things as text so the export stands on its own, and every
       # one of those spellings has to come back apart here. This is the same family
       # of work `MetaValidator::Shapes` does for the reconstruction — the difference
-      # is that Shapes rebuilds HASHES and this rebuilds OBJECTS, so it has to
+      # is that Shapes rebuilds hashes and this rebuilds objects, so it has to
       # recover types rather than just strings.
       #
-      # ENCODING LOSSES ARE THE LARGEST FAMILY OF BUG IN THIS CODEBASE, and every
+      # Encoding losses are the LARGEST family of bug in this codebase, and every
       # member has the same shape: reading an object where `to_h` holds a spelling.
       # So each method below names the spelling it inverts.
       module Marks
@@ -27,7 +27,7 @@ module Hecks
             type:         target ? Reference.new(target) : type,
             list:         field[:list] ? true : false,
             default:      field[:default],
-            # The LAST place optionality can be dropped, and the one that was
+            # The last place optionality can be dropped, and the one that was
             # dropping it. Every bluebook in the registry is the round-trip
             # product — MetaValidator dispatches the declaration in and reads it
             # back — so a fact this constructor does not carry is a fact the
@@ -35,9 +35,9 @@ module Hecks
             # wrote it.
             optional:     field[:optional] ? true : false,
             pattern:      field[:pattern],
-            # THE SAME LESSON, ONE FACT LATER. `admits` is not on `to_h` — the
+            # **The same lesson, one fact later**. `admits` is not on `to_h` — the
             # wire does not carry it, on purpose — but it must still survive the
-            # round trip, because the grammar registry keeps the ASSEMBLED graph
+            # round trip, because the grammar registry keeps the assembled graph
             # and downstream projections read the link off that. Dropped here, the
             # language could not say `admits` about itself no matter how plainly
             # the source wrote it, which is word for word what the note above
@@ -52,15 +52,15 @@ module Hecks
         # both — `Aggregate.Attribute` and `Command.Argument` are separate verbs.
         def shape_field(field) = attribute(field)
 
-        # ONE PART OF AN IDENTITY. It goes in as a row so the language can hold an
+        # One part of an identity. It goes in as a row so the language can hold an
         # ordered list of them, and comes back out as the path it always was —
         # a String, because `identity_paths` splits paths and never symbols.
         def identity_path(part) = part[:value].to_s
 
-        # A member's fields — an OPEN MAP, which is why Member is its own root in
+        # A member's fields — an open map, which is why Member is its own root in
         # the language and why the pairs arrive as a list rather than a value object.
         #
-        # The values are UNMARKED, because `ValueObject#to_h` spells them with `to_s`
+        # The values are unmarked, because `ValueObject#to_h` spells them with `to_s`
         # and the language stores them as text: `member code: "JPY", minor_units: 0`
         # came back with a minor_units of "0", and a closed set that admits the string
         # would refuse the number the caller passes.
@@ -69,7 +69,7 @@ module Hecks
         end
 
         # A read model's gathered head. The keys must be symbols whichever way the
-        # declaration arrived, and `as` must be one too: it NAMES the reader the
+        # declaration arrived, and `as` must be one too: it names the reader the
         # projection answers to, and `ReadModel#to_h` spells it `to_s`.
         def head(row)
           row.to_h { |key, value| [key.to_sym, key.to_sym == :as ? value.to_sym : value] }
@@ -118,8 +118,8 @@ module Hecks
 
         # `Mutation#to_h` branches on the operation, so this does too.
         #
-        # An APPEND binds several fields at once, each either an ARGUMENT (a
-        # Symbol, wearing its colon) or a LITERAL — the distinction that is the
+        # An append binds several fields at once, each either an argument (a
+        # Symbol, wearing its colon) or a literal — the distinction that is the
         # whole reason `append: { direction: "out" }` was once indistinguishable
         # from an argument named `out`.
         def mutation(change)
@@ -127,7 +127,7 @@ module Hecks
           op     = change[:op].to_sym
 
           # `:delegate`/`:corrects` (CommandBuilder#delegates_to's and
-          # #corrects_impl's own comments) ride the SAME multi-binding
+          # #corrects_impl's own comments) ride the same multi-binding
           # shape `:append` does.
           return Mutation.new(target: target, op: op, source: appended(change[:fields])) if [:append, :delegate,
                                                                                              :corrects].include?(op)
@@ -139,7 +139,7 @@ module Hecks
           Array(fields).to_h { |field, source| [field.to_sym, read(source)] }
         end
 
-        # A SET reads one thing, and `classified_source` said which: an argument by
+        # A set reads one thing, and `classified_source` said which: an argument by
         # name, or a literal by value.
         def classified(source)
           return nil if source.nil?
@@ -151,7 +151,7 @@ module Hecks
           end
         end
 
-        # EVERY LITERAL FIELD ON THE WIRE, read back — one spelling, one reader.
+        # Every literal field on the wire, read back — one spelling, one reader.
         #
         # A where-clause value, a saga's argument bindings, an append binding, a
         # limit: all of them ride Literal's self-describing form, so all of them
@@ -159,7 +159,7 @@ module Hecks
         # that disagreed about quoted strings and numbers, and which one a call
         # site got was a coin toss the comments had to keep apologising for.
         #
-        # AN OBJECT LITERAL is the one that bit. A saga leg binds `narrative: {
+        # An object literal is the one that bit. A saga leg binds `narrative: {
         # text: "transfer out" }` — a value object's fields written inline — and
         # `to_s` on a Hash used to be its inspect form, so it came back as text.
         # Read as a string it reached the runtime as `"{:text=>\"transfer out\"}"`,
@@ -171,10 +171,10 @@ module Hecks
         def read(value) = Literal.read(value)
 
         # `target:` (ADR 0055) — read straight off the wire, unconverted:
-        # it's already the bare aggregate-name STRING `WhereClause#to_h`/
+        # it's already the bare aggregate-name string `WhereClause#to_h`/
         # `OrderBy#to_h`/`LimitSpec#to_h` wrote (`resolve_target`'s own
         # `Naming.demodulise` already ran once, at DSL-build time; this is
-        # the REPLAY path every real boot actually goes through, reading
+        # the replay path every real boot actually goes through, reading
         # that same wire shape back — see this class's own header). Absent
         # from `clause`/`declared` entirely on older wire data that never
         # declared `on:` — `clause[:target]`/`declared[:target]` reads
@@ -200,7 +200,7 @@ module Hecks
           QuerySpecification::Common::LimitSpec.new(value: read(declared[:value]), target: declared[:target])
         end
 
-        # EVERY OTHER SPECIFICATION OPTION, from one table.
+        # Every other specification option, from one table.
         #
         # Each entry names the struct and which of its members carry a value that
         # rode Literal's spelling rather than plain text. A

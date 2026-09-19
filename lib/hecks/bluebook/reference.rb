@@ -2,15 +2,15 @@ module Hecks
   module Bluebook
     # An attribute that points at another aggregate's head.
     #
-    # This used to be the STRING `"Reference<Customer>"`, minted by
+    # This used to be the string `"Reference<Customer>"`, minted by
     # `AggregateBuilder#reference_to` and `CommandBuilder#cross_reference` from
     # a real constant that had just been handed in, and then parsed back apart
     # by a regex in the command interpreter, by string equality in the read-model
     # interpreter and the SQLite adapter, and by `delete_prefix` in the bluebook
     # builder. Five readers of a spelling one writer invented.
     #
-    # It holds the TARGET instead, and answers `resolve` with the target's
-    # Aggregate. Resolution is LAZY and deliberately so: `reference_to
+    # It holds the target instead, and answers `resolve` with the target's
+    # Aggregate. Resolution is lazy and deliberately so: `reference_to
     # Customer` may name an aggregate declared lower in the file — banking's
     # Account points at Customer and survives only because Customer happens to
     # be written above — so the edge cannot be resolved at declaration time.
@@ -34,7 +34,7 @@ module Hecks
       end
 
       # The Aggregate this points at, or nil when the target belongs to
-      # ANOTHER domain — a cross-domain target may legitimately not be loaded,
+      # another domain — a cross-domain target may legitimately not be loaded,
       # the same reading `across` policies get.
       def resolve
         unless declared_in
@@ -51,13 +51,13 @@ module Hecks
       def to_s = "Reference<#{@target_name}>"
       def inspect = "#<Reference #{@target_name}>"
 
-      # VALUE EQUALITY, not identity — without this, two references to
-      # the SAME target, parsed from two SEPARATE bluebook reads (era
+      # Value equality, not identity — without this, two references to
+      # the same target, parsed from two separate bluebook reads (era
       # N's own boot and a held era's own shadow reconstruction,
       # coverage_check.rb's own comparison), are different objects and
       # compare unequal by Ruby's default `==`. `EraGuard::ShapeDiff
       # #diff_type`'s `held_type != current_type` check then reads as
-      # true for EVERY reference_to attribute on EVERY mint, regardless
+      # true for every reference_to attribute on every mint, regardless
       # of whether the reference actually changed — a real refusal for
       # attributes nothing about. `declared_in` (which aggregate carries
       # this reference) is deliberately excluded: the same reference
@@ -65,7 +65,7 @@ module Hecks
       # from separately-parsed bluebooks with structurally different
       # (if same-shaped) owning aggregates, and `declared_in` is a
       # cross-reference for `resolve`, not part of what this attribute
-      # itself IS.
+      # itself is.
       def ==(other) = other.is_a?(Reference) && target_name == other.target_name
       alias eql? ==
       def hash = [self.class, target_name].hash

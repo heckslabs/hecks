@@ -76,6 +76,51 @@ trap 'rm -rf "$WORKDIR"' EXIT
 
 cd "$ROOT"
 
+# TAG-ONLY PUSHES SKIP THE SUITE — a tag introduces no new code; every
+# commit it names either already went through this exact hook on
+# whatever branch push actually landed it, or reached `main` through a
+# merge CI itself gated. Re-running the full ~70s local suite on every
+# release tag (`bin/release_gem`'s own prerequisite) added nothing but
+# wait — the content was already checked and cannot change underneath
+# an existing tag.
+#
+# STDIN, NOT $1/$2 — pre-push's positional args are the remote name and
+# URL; which refs are actually moving arrives one line per ref on
+# stdin, `<local-ref> <local-oid> <remote-ref> <remote-oid>`. This hook
+# never read it before this — confirmed by grep, every push, tag
+# included, paid the full suite unconditionally, so `git push origin
+# v1.4.0` and `git push origin main` cost the identical ~70s.
+#
+# ONLY SKIP IF *EVERY* PUSHED REF IS A TAG WHOSE COMMIT IS ALREADY
+# REACHABLE FROM SOME REMOTE-TRACKING BRANCH — not "any tag push",
+# which would let an unverified commit ride in disguised as a tag.
+# `git branch -r --contains <sha>` answers "did a branch push already
+# carry this exact commit past this same hook (or CI)"; a push mixing
+# a tag with a branch, or tagging a commit no remote branch has ever
+# carried, falls through to the full suite below exactly as before —
+# a false negative here just means paying for a suite run that turns
+# out to be redundant, never the reverse.
+TAG_SKIP_INELIGIBLE="$WORKDIR/tag_skip_ineligible"
+PUSHED_REFS=$(cat)
+if [ -n "$PUSHED_REFS" ]; then
+  printf '%s\n' "$PUSHED_REFS" | while IFS=' ' read -r local_ref local_oid _remote_ref _remote_oid; do
+    case "$local_ref" in
+      refs/tags/*)
+        if git branch -r --contains "$local_oid" 2>/dev/null | grep -q .; then
+          continue
+        fi
+        ;;
+    esac
+    : >"$TAG_SKIP_INELIGIBLE"
+    break
+  done
+
+  if [ ! -e "$TAG_SKIP_INELIGIBLE" ]; then
+    printf '[pre-push] every pushed ref is a tag on an already-verified commit — skipping the local suite.\n\n'
+    exit 0
+  fi
+fi
+
 # Runs one check in the background, capturing its combined output to
 # "$WORKDIR/<id>.log" and its exit code to "$WORKDIR/<id>.exit". The
 # whole function call is what gets backgrounded by the caller (`&`); this

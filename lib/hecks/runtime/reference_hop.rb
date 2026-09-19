@@ -13,12 +13,12 @@ module Hecks
     # answers a hop for free, with no per-engine code and no way for
     # one engine to forget it.
     #
-    # A hop's own filtering never happens here — RESOLVING one hop
+    # A hop's own filtering never happens here — resolving one hop
     # means running one ordinary, adapter-agnostic query against the
-    # hop's TARGET aggregate (through the same Ports::Query boundary
+    # hop's target aggregate (through the same Ports::Query boundary
     # any other query goes through), and folding the ids it answers
     # back in as a local membership check. A multi-hop chain resolves
-    # from the FAR END inward: `fold` only ever peels off the head hop
+    # from the far end inward: `fold` only ever peels off the head hop
     # (QuerySpecification::HopPath.next_hop, the one-step primitive),
     # and hands everything still left in the tail to a recursive
     # `apply` call — so hop 2, hop 3, and so on each get resolved by
@@ -63,12 +63,12 @@ module Hecks
         QuerySpecification::Common::WhereClause.new(field: hop.attribute.name, op: "in", value: ids)
       end
 
-      # Every id the inner clause admits on the hop's TARGET — one
+      # Every id the inner clause admits on the hop's target — one
       # whole, ordinary query against the target's own repository,
       # through the very same Ports::Query boundary the outer ask
       # uses, so a hop is answered by whatever engine the target
       # aggregate is actually bound to (which may not be the engine
-      # the OUTER aggregate is bound to at all) rather than by a
+      # the outer aggregate is bound to at all) rather than by a
       # second reading of the comparators.
       def matching_ids(domain, target, wheres, args, registry:)
         spec       = apply(QuerySpecification::Common::Options.new(wheres: wheres), args,
@@ -81,7 +81,7 @@ module Hecks
       end
 
       # Never returned to a caller that might call an IR-level method
-      # (`to_h`, …) whose OWN internal `wheres` read would resolve
+      # (`to_h`, …) whose own internal `wheres` read would resolve
       # against the original object, not this override — the exact
       # caution TenantScope::Scoped's own comment gives, for the exact
       # same reason: SimpleDelegator only intercepts calls made

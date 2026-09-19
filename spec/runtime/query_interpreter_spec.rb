@@ -4,7 +4,7 @@ require "tempfile"
 # `QueryInterpreter#call`/`#reference_call` build every returned row as
 # `{ id: record.id }.merge(record.state)` (or `r.state` for `Instance` —
 # the `interpret`/`reference_interpret` in-memory paths). Merging `state`
-# LAST let a declared attribute literally named `id` (real corpus now:
+# last let a declared attribute literally named `id` (real corpus now:
 # BurningManPrep's `Item`, `attribute :id, ItemId`) clobber the correctly
 # bare `record.id` with that attribute's own wrapped value object — the
 # exact bug `Facade::Handle#to_h` already had (see handle_spec.rb), just
@@ -76,7 +76,7 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
 
   it "returns a bare id, not the wrapped value object, off the in-memory query path" do
     runtime = boot
-    runtime.dispatch("Thingy::Thing.Mint", id: { value: "t1" }, name: { value: "goggles" })
+    runtime.dispatch_flat("Thingy::Thing.Mint", id: { value: "t1" }, name: { value: "goggles" })
 
     rows = runtime.query("Thingy::Thing.Everywhere")
 

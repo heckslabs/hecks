@@ -14,7 +14,7 @@ RSpec.describe Hecks::Naming do
     )
   end
 
-  # NOT IN THE JSON CONTRACT — that file's keys are pinned above for
+  # Not in the JSON CONTRACT — that file's keys are pinned above for
   # Rust parity, and `words` is a Ruby-side reading aid (the glossary's
   # headwords), not a rule the runtime derives identities from.
   describe ".words" do
@@ -94,9 +94,9 @@ RSpec.describe Hecks::Naming do
     end
   end
 
-  # NOT in the shared contract above, the same way `.plural` beside it in the
+  # Not in the shared contract above, the same way `.plural` beside it in the
   # source is not : both are used to derive one aggregate's name from
-  # another's, which the SAME naming rule (`snake`, `reference_key`, …)
+  # another's, which the same naming rule (`snake`, `reference_key`, …)
   # is checked against everywhere else, so a divergence here would already
   # surface downstream rather than silently. Kept as its own direct
   # spec because `has_many`/`has_one`/`belongs_to` must resolve
@@ -112,7 +112,7 @@ RSpec.describe Hecks::Naming do
       expect(described_class.singularize("Boards")).to eq("Board")
     end
 
-    # `.plural`'s OWN second rule adds "es" (not bare "s") after
+    # `.plural`'s own second rule adds "es" (not bare "s") after
     # s/x/z/ch/sh — `has_many Boxes` must undo exactly that, or a real
     # aggregate named Box resolves to a phantom "Boxe" nothing declares.
     it "undoes plural's -es rule for a word ending in s/x/z/ch/sh" do

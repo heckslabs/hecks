@@ -1,8 +1,8 @@
 module Hecks
   module Fuzzing
-    # THE ONE DECLARED SET OF FIELDS THAT LEAVE A COMPARISON — partition,
+    # The one declared set of FIELDS that leave a comparison — partition,
     # not filter. Every comparison in lib/hecks/fuzzing that drops a field
-    # before comparing two histories names a GROUP here instead of writing
+    # before comparing two histories names a group here instead of writing
     # its own literal `except(...)` list, so the reason for dropping a field
     # is written exactly once, beside the field.
     #
@@ -10,10 +10,10 @@ module Hecks
     # a literal except-list naming any of these fields anywhere under
     # lib/hecks/fuzzing fails the build (the tolerance must be declared
     # here, not re-derived at a call site), and every declared field must
-    # actually be PRODUCED where its group says — a field nothing emits any
+    # actually be produced where its group says — a field nothing emits any
     # more is a stale tolerance and fails too.
     #
-    # Groups are keyed by the SHAPE the field rides on, since the same name
+    # Groups are keyed by the shape the field rides on, since the same name
     # can be compared on one surface and dropped on another:
     #
     # - `query_row`  — one entry of `Replay.call`'s `:queries`.

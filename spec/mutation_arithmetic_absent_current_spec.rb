@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # CommandRules::Arithmetic's `current ||= 0` (`#arithmetic`/`#multiply`)
-# only ever produced a genuine zero when `amount` was ALSO plain — a
+# only ever produced a genuine zero when `amount` was also plain — a
 # VO-typed attribute with no declared `default:` (genuinely absent, never
 # set) hit a misleading refusal on its very first increment/decrement/
 # multiply: "increment needs an Integer, got 500" — true of nothing.
@@ -16,7 +16,7 @@ require "spec_helper"
 # multiply, by unwrapping `amount`'s own single numeric field rather than
 # refusing on it.
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
-  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
@@ -95,31 +95,31 @@ RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
   let(:runtime) { boot { ArithmeticAbsentCurrent::Wallet.persisted_by("Memory") } }
 
   it "increment wraps the raw result back into the declared VO type" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Deposit", label: "w1", amount: { cents: 500 })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Deposit", label: "w1", amount: { cents: 500 })
 
     expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: 500)
   end
 
   it "decrement wraps the raw result back into the declared VO type" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Withdraw", label: "w1", amount: { cents: 500 })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Withdraw", label: "w1", amount: { cents: 500 })
 
     expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: -500)
   end
 
   it "multiply wraps the raw result back into the declared VO type" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Scale", label: "w1", factor: { cents: 7 })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Scale", label: "w1", factor: { cents: 7 })
 
     expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: 0)
   end
 
   it "refuses rather than guesses when the source value has more than one numeric field" do
-    runtime.dispatch("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
+    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
 
     expect do
-      runtime.dispatch("ArithmeticAbsentCurrent::Wallet.IncrementAmbiguous", label: "w1", pair: { a: 1, b: 2 })
+      runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.IncrementAmbiguous", label: "w1", pair: { a: 1, b: 2 })
     end.to raise_error(Hecks::Runtime::TypeMismatch)
   end
 end

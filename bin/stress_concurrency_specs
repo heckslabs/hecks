@@ -1,15 +1,15 @@
 #!/usr/bin/env ruby
 
-# WHY A SINGLE `rspec` RUN IS NOT ENOUGH FOR THIS CLASS OF BUG: every spec
+# Why a single `rspec` run is not enough for this class of bug: every spec
 # below proves a thread-safety property by forcing one specific
 # interleaving (a `Queue`-based rendezvous, a `Mutex`-guarded "first
-# arrival wins" gate) — real, but only as good as the ONE schedule the
+# arrival wins" gate) — real, but only as good as the one schedule the
 # Ruby VM/OS actually hands it on a given run. A race that needs, say,
 # thread A's `Thread.current[...]` write to land between thread B's read
 # and its own write can pass every single time on a quiet CI box with two
 # threads and no contention, and still be exactly the M20 bug
 # (dispatcher.rb's `#reenter`, fixed by moving `@reaction_depth` off a
-# plain ivar onto `Thread.current`) if a THIRD thread happens to be
+# plain ivar onto `Thread.current`) if a third thread happens to be
 # running at the same time, or the scheduler happens to preempt at a
 # different instruction. GVL-level thread scheduling in CircleCI/GitHub
 # Actions containers is also famously more deterministic (often
@@ -18,16 +18,16 @@
 # in the first place despite `dispatcher_spec.rb`'s own sibling specs
 # passing green on every PR.
 #
-# THIS SCRIPT'S ANSWER: run the same specs many times, EACH RUN WITH A
-# DIFFERENT RANDOM SEED (RSpec's own `--seed` reorders example execution,
+# **This script's answer**: run the same specs many times, each run with a
+# different random seed (RSpec's own `--seed` reorders example execution,
 # which — combined with Ruby's own green-thread scheduler — changes which
-# thread gets CPU time when) AND, by default, several copies running
-# CONCURRENTLY as separate OS processes (`--parallel`), so the box is
+# thread gets CPU time when) and, by default, several copies running
+# concurrently as separate OS processes (`--parallel`), so the box is
 # under genuine CPU/scheduler contention while each copy's own threads
 # race — closer to "several Puma workers under load" than "one lonely
 # rspec process with two threads and nothing else to do."
 #
-# NOT A REPLACEMENT for the specs themselves — a script that finds nothing
+# Not a replacement for the specs themselves — a script that finds nothing
 # new here proves only "not in THIS many tries," never "impossible." See
 # the bottom of this file for how this is meant to be wired into CI: a
 # repeat/matrix step on PRs touching lib/hecks/runtime/, not a replacement
@@ -39,7 +39,7 @@ require "fileutils"
 
 ROOT = File.expand_path("..", __dir__)
 
-# THE KNOWN THREAD-SAFETY SPECS — not "every spec that happens to use
+# **The known thread-safety specs** — not "every spec that happens to use
 # `Thread.new`", but specifically the ones proving a shared-mutable-state
 # race is actually closed:
 #
@@ -67,16 +67,16 @@ ROOT = File.expand_path("..", __dir__)
 # fixture setup that spins up a thread for unrelated reasons and prove
 # nothing about races. A glob here would trade a short, legible list for
 # noise.
-# SPLIT IN TWO, NOT ONE LIST — discovered the hard way running this
+# Split in two, not one list — discovered the hard way running this
 # script's own first draft: `postgres_concurrent_dispatch_spec.rb` targets
-# ONE hardcoded database name (`DATABASE = "hecks_concurrency_gap_spec"`)
+# one hardcoded database name (`DATABASE = "hecks_concurrency_gap_spec"`)
 # that its own `before(:all)` drops and recreates. That's fine for a
-# single `rspec` process — but run several `--parallel` COPIES of this
+# single `rspec` process — but run several `--parallel` copies of this
 # script's own batch at once against a real, reachable Postgres and they
 # all fight over that same physical database: one copy's `before(:all)`
 # calling `DROP DATABASE ... WITH (FORCE)` while another copy is
 # mid-transaction against it is a real `PG::ConnectionBad` ("server closed
-# the connection unexpectedly") that has NOTHING to do with the
+# the connection unexpectedly") that has nothing to do with the
 # application-level race the spec is actually proving — a false alarm
 # from this script's own harness, not a finding. The Gemfile's own comment
 # on `parallel_tests` already named this exact gap ("parallelizing
@@ -87,7 +87,7 @@ ROOT = File.expand_path("..", __dir__)
 # So: the two in-process specs (no shared external resource — pure
 # `Thread`s against one in-memory `Registry`) are genuinely safe to run as
 # several concurrent OS processes, and get the real `--parallel` treatment
-# below. The Postgres spec runs its own repeat loop ONE PROCESS AT A TIME,
+# below. The Postgres spec runs its own repeat loop one process at a time,
 # always — still repeated `runs` times with a varied `--seed` each time
 # (which does exercise different interleavings inside that one process's
 # own two `Dispatcher`s), just never overlapped with a copy of itself.
@@ -139,7 +139,7 @@ until ARGV.empty?
 end
 
 # `CI=true` — spec_helper.rb only un-excludes `io: true` examples (the
-# Postgres spec above) when `ENV["CI"]` is set OR `--tag io` is passed
+# Postgres spec above) when `ENV["CI"]` is set or `--tag io` is passed
 # explicitly; setting it here means this script exercises all three specs
 # by default the same way a real CI run would, while the Postgres one
 # still self-skips cleanly via `PostgresProbe.available?` if this machine
@@ -153,10 +153,10 @@ def run_once(spec_files, seed, label:)
 end
 
 def run_batch(spec_files, seeds, label:)
-  # ONE THREAD PER RSPEC PROCESS IN THIS BATCH, not `Process.spawn`
+  # One thread per RSpec process in this batch, not `Process.spawn`
   # directly — `Open3.capture2e` already spawns a real child process per
   # call (a genuinely separate OS process, its own Ruby VM, its own GVL),
-  # so running several of THOSE calls concurrently from Ruby `Thread`s is
+  # so running several of those calls concurrently from Ruby `Thread`s is
   # enough to have `parallel` real processes running at once; the
   # coordinating threads here are just waiting on `Process.wait`
   # underneath `capture2e`, not doing any of the actual work themselves.

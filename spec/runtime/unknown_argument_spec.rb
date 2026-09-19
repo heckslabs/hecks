@@ -2,7 +2,7 @@ require "spec_helper"
 
 # A command takes the arguments it declares, and no others.
 #
-# `normalize_args` walked the command's DECLARED attributes over a copy of the
+# `normalize_args` walked the command's declared attributes over a copy of the
 # payload, so anything the command did not declare simply rode along untouched
 # and was never looked at again. A misspelled argument was accepted in silence
 # and did nothing.
@@ -30,22 +30,22 @@ RSpec.describe "an argument a command does not declare" do
   it "is refused, and names itself" do
     runtime = boot_till
 
-    expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }, nonsense: 1) }
+    expect { runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" }, nonsense: 1) }
       .to raise_error(Hecks::Runtime::UnknownArgument, /nonsense/)
   end
 
   it "is refused even when every declared argument is also present" do
     runtime = boot_till
-    runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
+    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
 
-    expect { runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 500 }, sneaky: "x") }
+    expect { runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 500 }, sneaky: "x") }
       .to raise_error(Hecks::Runtime::UnknownArgument, /sneaky/)
   end
 
   it "names every unknown argument at once, not just the first" do
     runtime = boot_till
 
-    expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }, one: 1, two: 2) }
+    expect { runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" }, one: 1, two: 2) }
       .to raise_error(Hecks::Runtime::UnknownArgument, /one.*two|two.*one/)
   end
 
@@ -55,7 +55,7 @@ RSpec.describe "an argument a command does not declare" do
     # declared attribute, and refusing them would refuse every dispatch there is.
     runtime = boot_till
 
-    expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }) }.not_to raise_error
-    expect { runtime.dispatch("TillRoom::Till.Bump", number: { value: "till-1" }) }.not_to raise_error
+    expect { runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" }) }.not_to raise_error
+    expect { runtime.dispatch_flat("TillRoom::Till.Bump", number: { value: "till-1" }) }.not_to raise_error
   end
 end

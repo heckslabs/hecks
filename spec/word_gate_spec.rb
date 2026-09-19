@@ -2,9 +2,9 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/codemod"
 
-# THE RUBY-SIDE `word_gate` — item #13 of the whole-project table-
+# The Ruby-side `word_gate` — item #13 of the whole-project table-
 # unification survey, and the first slice of it: Ruby's own DSL
-# builders now consult the SAME self-hosted grammar table Rust's own
+# builders now consult the same self-hosted grammar table Rust's own
 # parser `word_gate` already reads (`rust/parser/src/parse/mod.rs`),
 # instead of falling straight through to Ruby's generic
 # `NoMethodError`. Proven behaviorally here rather than just by the
@@ -113,15 +113,16 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
      "MetaValidator.bootstrapping? gate RuleReference#lookup already relies on, " \
      "since the grammar table this module reads does not exist yet while it is " \
      "still being built" do
-    expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
-    Hecks::Bluebook::MetaValidator.grammar_registry # already booted; still true off-bootstrap
+    # bootstrapping? is nil, not false, in a process that has never booted the
+    # grammar — which is this example whenever the seed runs it first.
+    Hecks::Bluebook::MetaValidator.grammar_registry
     expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
   end
 
   describe "the bootstrap-window fallback's own-context-first precedence" do
     # BOOTSTRAP_CALLS_FALLBACK's values are always method-name Symbols in
     # real use, never `false` — but the lookup that finds them must not
-    # rely on that: it has to pick the own-context entry whenever ONE
+    # rely on that: it has to pick the own-context entry whenever one
     # exists, never quietly prefer "Type"'s entry just because the
     # own-context value happens to look falsy. A minimal class stands in
     # for a real builder, with a fallback table rigged so the own-context

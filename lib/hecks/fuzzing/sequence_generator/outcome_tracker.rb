@@ -35,25 +35,25 @@ module Hecks
             end
           @entity_known_ids[key] << new_id
 
-          # THE CALLER-SUPPLIED IDENTITY TUPLE, kept whole — every mapped
+          # The caller-supplied identity tuple, kept whole — every mapped
           # identity argument and the exact value this step offered for it
           # — so the adversarial duplicate-identity mutation (BUG#13's own
           # shape, `Folder.AddSlip` twice under the same `reference`) can
-          # offer it AGAIN later against the same parent, composite
-          # identities included (BUG#13's fix explicitly did NOT cover
+          # offer it again later against the same parent, composite
+          # identities included (BUG#13's fix explicitly did not cover
           # those; this is how a sequence gets to ask).
           return if populator[:identity_arguments].empty?
 
           @appended_identities[key] << populator[:identity_arguments].to_h { |name| [name.to_s, args[name.to_s]] }
         end
 
-        # A GRANT THIS SEQUENCE MADE FOR REAL — the authorization provider's
+        # A grant this sequence made for real — the authorization provider's
         # declared `grant:` verb (`Governance::RoleAssignment.Assign` in
         # every boot today) succeeded with these exact args, so `actor_id` now holds
         # `role_name` in this boot's own store, on both replay sides. The
         # `actor_known` caller shape (adversary.rb) replays that identity
         # against a command gated on the same role: the one way a
-        # generated step reaches `holds_role?`'s AUTHORIZED branch rather
+        # generated step reaches `holds_role?`'s authorized branch rather
         # than only its refusing one.
         def record_grant(args)
           role  = ValueGenerator.scalar_of(args["role_name"]).to_s
@@ -61,7 +61,7 @@ module Hecks
           @granted[role] << actor unless role.empty? || actor.empty?
         end
 
-        # THE POOL AN APPENDED ELEMENT LANDS IN — the aggregate's own
+        # The pool an appended element lands in — the aggregate's own
         # identity, then one scalar per owning hop (an aggregate-level
         # append has none; `Board.AddCard` has `Board`'s own `number`,
         # read straight back off the args this step addressed it by).
@@ -82,18 +82,18 @@ module Hecks
           "#{aggregate_name}.#{chain_names.join('.')}##{scalars.join('/')}"
         end
 
-        # THE SCALAR THIS STEP'S OWN AGGREGATE IDENTITY RESOLVES TO, from the
+        # The scalar this step's own aggregate identity resolves to, from the
         # args a creating (or entity-populating) command actually
-        # dispatched — a SINGLE declared head (or the untyped default
+        # dispatched — a single declared head (or the untyped default
         # `:id`) reads straight off its own top-level arg the way this
         # always has (`ValueGenerator.scalar_of`, opening the identity value
-        # object). A genuinely COMPOSITE identity (`composite_identity?`,
+        # object). A genuinely composite identity (`composite_identity?`,
         # shared with StepBuilder#add_identity! — see its own comment) has
         # no such top-level arg at all: `add_identity!` deliberately leaves
         # a composite creating command's own individually-declared fields
         # alone rather than forcing a synthetic `id` neither the bluebook
         # nor the command ever declared, so this joins those fields itself,
-        # in the SAME declaration order `Runtime::Identity.of` joins them
+        # in the same declaration order `Runtime::Identity.of` joins them
         # at dispatch (`Naming.identity`, `Naming::IDENTITY_JOIN`) — which
         # is exactly what makes the result usable later as the bare `id:`
         # a composite Revoke/act-again command expects (`Identity.from`'s

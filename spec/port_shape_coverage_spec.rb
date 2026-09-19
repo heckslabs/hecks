@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# A PORT GENERATOR LEARNS BY EXAMPLE, and the examples are only as good
+# A port generator learns by example, and the examples are only as good
 # as what they cover. Every real gap `bin/project_rust` hit while
 # building the Rust port turned out to be a shape neither example
 # domain exercised: composite identity that's actually dispatchable
@@ -12,13 +12,13 @@ require "spec_helper"
 # Banking's own exported IR and checks it against the list of
 # structural shapes a second runtime has to handle differently —
 # not every DSL keyword (`spec/syntax_conformance_spec.rb` already
-# holds those to the language), but every SHAPE OF IR a port's
+# holds those to the language), but every shape of IR a port's
 # generator branches on. Both directions matter, the same as
 # `ModelCheck::ALLOWED_FINDINGS`: a shape Banking stops exercising
 # is a regression; a shape found missing has to be added to Banking,
 # or named here as a deliberate, accepted gap — never silently absent.
 RSpec.describe "the shapes a port generator needs Banking to exercise" do
-  # Booted ONCE per file, not per example — every example here only reads
+  # Booted once per file, not per example — every example here only reads
   # the exported IR back out (`ir`, `all_value_objects`, `all_attributes`
   # below), nothing dispatches a command, so a shared registry is safe.
   before(:context) do
@@ -59,10 +59,10 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
   it "declares a composite identity with a BARE component that IS a declared attribute" do
     # The shape Statement.account_id is — not dotted into a value object,
     # resolved the same way Runtime::Identity.from resolves any identity
-    # head that's a real attribute: read directly, no walk. The OTHER bare
-    # shape (a component that ISN'T a declared attribute at all —
+    # head that's a real attribute: read directly, no walk. The other bare
+    # shape (a component that isn't a declared attribute at all —
     # `owner_id`, language/bluebook/behavior.bluebook's own polymorphic
-    # parent-tracking) is real but deliberately NOT required of Banking:
+    # parent-tracking) is real but deliberately not required of Banking:
     # nothing in a business domain plausibly needs "this identity
     # component means whichever of two types declared it," the exact
     # reason the self-hosted grammar needed it in the first place.

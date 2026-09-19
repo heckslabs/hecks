@@ -2,16 +2,16 @@ require "spec_helper"
 
 # A reaction has two ways to not happen, and they are not the same thing.
 #
-# The domain REFUSING (a given not met, a lifecycle move not admitted, a
+# The domain refusing (a given not met, a lifecycle move not admitted, a
 # cross-domain target not loaded in this deployment) is a fact worth recording :
 # the command that emitted the event still stands, and the log says why.
 #
-# The runtime BREAKING (a NoMethodError in an interpreter, a NameError from a
+# The runtime breaking (a NoMethodError in an interpreter, a NameError from a
 # missing constant) is a defect. It once had two wrong homes in a row : first
 # a blanket `rescue StandardError` that wrote it as `delivered: false` beside
 # every legitimate refusal, so a crashed runtime read as normal operation ;
 # then, after that was narrowed to DOMAIN_REFUSALS alone, nothing caught it at
-# all, so it propagated straight through the ALREADY-SUCCEEDED triggering
+# all, so it propagated straight through the already-succeeded triggering
 # command's own `dispatch` call and blew that up too. Neither is right : a
 # defect is now caught (so the triggering command's success stands), but
 # recorded distinguishably (`defect: true`, the error's own class) rather than

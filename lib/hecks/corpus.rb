@@ -1,7 +1,7 @@
 require_relative "fuzzing/target_capabilities"
 
 module Hecks
-  # THE CORPUS, DISCOVERED — every place in this repo that holds a real
+  # **The corpus, discovered** — every place in this repo that holds a real
   # domain, named once.
   #
   # This used to be spelled out separately by every consumer that walks
@@ -20,7 +20,7 @@ module Hecks
 
     Member = Struct.new(:stem, :kind, :path)
 
-    # ONE DOMAIN PER DIRECTORY — its bluebooks sit in `<dir>/bluebook/`
+    # **One domain per directory** — its bluebooks sit in `<dir>/bluebook/`
     # or directly in `<dir>` (see `bluebook_files`). Stemmed by directory.
     DIRECTORY_KINDS = {
       example:   "examples/*",
@@ -28,7 +28,7 @@ module Hecks
       semantics: "spec/corpus/semantics/domains/*"
     }.freeze
 
-    # ONE CHAPTER PER FILE. Stemmed by the path below the glob's fixed
+    # **One chapter per file**. Stemmed by the path below the glob's fixed
     # prefix, so a nested fixture keeps its subdirectory (`eras/base`)
     # and never collides with a same-named file elsewhere in the kind.
     FILE_KINDS = {
@@ -42,7 +42,7 @@ module Hecks
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
-    # WHERE A BLUEBOOK THE SWEEP DOES NOT BOOT GOES INSTEAD. Not a filter:
+    # Where a bluebook the sweep does not boot goes instead. Not a filter:
     # nothing leaves `sweepable_domains` without naming the check that owns
     # it, and spec/corpus_accounting_spec.rb proves each destination exists
     # and actually exercises what is routed to it.
@@ -51,11 +51,11 @@ module Hecks
     #                        (`names: :each_file`) or the given text
     #   check: :gitignored — `destination` holds the ignore rule `names`,
     #                        and nothing matching is committed
-    #   check: :gap        — NO check exercises these yet. Listed so the
+    #   check: :gap        — no check exercises these yet. Listed so the
     #                        gap is visible; the accounting spec keeps it
     #                        pending and fails the moment one appears.
     #
-    # ORDERED — a bluebook belongs to the FIRST route it matches, so a
+    # Ordered — a bluebook belongs to the first route it matches, so a
     # specific destination sits above the catch-all for its shape.
     Route = Struct.new(:pattern, :check, :destination, :names, :why)
 
@@ -83,7 +83,7 @@ module Hecks
       # while dispatch coerces, so checkout_fixture's VO-reading given
       # reads as wrongly admitted.
       Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web.rs", "checkout_fixture",
-                "the Rust host's checkout fixture, pinned by its web tests")
+                "the Rust host's checkout fixture, pinned by its web and /api tests")
     ].freeze
 
     module_function
@@ -111,7 +111,7 @@ module Hecks
       DIRECTORY_KINDS.key?(member.kind) ? bluebook_dir(member.path) : member.path
     end
 
-    # WHERE A DOMAIN PATH KEEPS ITS BLUEBOOKS — `<domain>/bluebook/*.bluebook`
+    # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`
     # (every example and stress domain), or the directory itself
     # (`qa/bluebook`). `nil` when neither holds a bluebook.
     def bluebook_files(domain_path)
@@ -133,34 +133,34 @@ module Hecks
       ROUTES.find { |route| route.pattern.match?(relative_path) }
     end
 
-    # WHAT bin/model_check AND spec/model_check_spec.rb WALK — every kind,
+    # What bin/model_check and spec/model_check_spec.rb walk — every kind,
     # less the language (examined as one judged chapter, not file by file)
     # and deploy chapters (the SAM projector's own inputs), and less any
-    # member a ROUTE already sends to a destination of its own: the
+    # member a route already sends to a destination of its own: the
     # broken-on-purpose model_check fixtures must produce their findings
-    # THERE, so a clean-corpus gate here would be the wrong check for them.
+    # there, so a clean-corpus gate here would be the wrong check for them.
     MODEL_CHECK_KINDS = %i[example grammar framework qa stress fixture].freeze
 
     def model_check_members(root: ROOT)
       members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
     end
 
-    # THE LEDGER SWEEPS ITSELF — its own chapter is a domain like any
+    # **The ledger sweeps itself** — its own chapter is a domain like any
     # other, and the one rotation member that is neither an example nor a
     # stress domain.
     ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
 
-    # WHAT THE QA ROTATION IS MADE OF — every example and stress domain
+    # What the QA rotation is made of — every example and stress domain
     # this repository owns, plus the ledger, as `reference => repo-relative
     # path`: exactly the shape `Target.path` is stored in.
     #
-    # DERIVED, BECAUSE THE HAND-KEPT VERSION SILENTLY WENT STALE.
+    # Derived, because the hand-kept version silently went stale.
     # `bin/qa_seed_targets` carried a literal list naming three of the
     # thirteen stress domains; the other ten were authored, argued for in
     # their own NOTES.md, several promoted by `bin/qa_generated_domains
     # --promote` — and never swept once, because a `Target` row is what
     # puts a domain in the rotation and nothing tied that list to the
-    # corpus. Promotion only ever PRINTED the `target.identify` line for a
+    # corpus. Promotion only ever printed the `target.identify` line for a
     # human to run.
     def rotation_targets(root: ROOT)
       members(:example, :stress, root: root)
@@ -168,8 +168,8 @@ module Hecks
         .merge(ROTATION_LEDGER)
     end
 
-    # EVERY BOOTABLE DOMAIN IN THE PROJECT, not a hand-kept list — any
-    # directory holding a `.bluebook` no ROUTE sends elsewhere, a
+    # Every bootable domain in the project, not a hand-kept list — any
+    # directory holding a `.bluebook` no route sends elsewhere, a
     # `bluebook/` folder standing for the domain directory around it.
     def sweepable_domains(root = ROOT)
       Dir.chdir(root) do
@@ -189,7 +189,7 @@ module Hecks
       File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
     end
 
-    # ── THE RUST-FACING CORPUS ─────────────────────────────────────────
+    # ── The Rust-facing corpus ─────────────────────────────────────────
     #
     # Every Rust-facing list (the fuzz bridge, the codegen drift check,
     # rust coverage, codegen parity) used to be typed out by hand, and
@@ -226,9 +226,9 @@ module Hecks
                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot")
     }.freeze
 
-    # SHRINK-ONLY. A generated module `bin/rust_coverage` still reports a
-    # GAP for. `bin/corpus --rust-coverage` requires each of these to
-    # still FAIL, so an entry that starts passing breaks the build until
+    # **Shrink-only**. A generated module `bin/rust_coverage` still reports a
+    # gap for. `bin/corpus --rust-coverage` requires each of these to
+    # still fail, so an entry that starts passing breaks the build until
     # it is deleted here.
     RUST_COVERAGE_PENDING = {}.freeze
 
@@ -247,7 +247,7 @@ module Hecks
 
     # Every in-repo domain directory whose name is a Cargo feature, sorted
     # by path. When the module is already generated, its metadata.rs stamp
-    # decides which directory it came from — a directory NAME alone is not
+    # decides which directory it came from — a directory name alone is not
     # enough: spec/fixtures/qa_discover_external_domains vendors a second
     # `examples/pizzas` that no Cargo feature was ever generated from.
     def rust_domains(root: ROOT)
@@ -266,7 +266,7 @@ module Hecks
       features.include?(feature) && (source.nil? || source == dir.delete_prefix("#{root}/"))
     end
 
-    # WHERE A GENERATED MODULE CAME FROM, read off the stamp bin/project_rust
+    # Where a generated module came from, read off the stamp bin/project_rust
     # writes into its metadata.rs — `examples/pizzas`, `/abs/path/embryonaut`,
     # `the self-hosted language (lib/hecks/language/bluebook)`, with any
     # ` (uses_framework "X")` suffix dropped. `nil` when not generated.
@@ -293,7 +293,7 @@ module Hecks
                                      .select { |stem| modules.include?(stem) && !generated?(stem, root: root) }
     end
 
-    # THE REGENERATION ORDER the drift check runs. Sorted by path, so
+    # The regeneration order the drift check runs. Sorted by path, so
     # which domain runs last — and so wins Cargo's `default`, mod.rs's cfg
     # comments and the shared framework modules' attribution stamp — is a
     # fact of the sorted list, not a hand-picked order. (The old hand list

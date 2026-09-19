@@ -283,10 +283,10 @@ way, by its fully qualified verb, naming the box's whole composite
 identity every time:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.LogVisit",
+runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit",
                   branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                   date: { value: "2026-01-05" }, sequence: { value: 1 })
-runtime.dispatch("Banking::SafeDepositBox.LogVisit",
+runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit",
                   branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                   date: { value: "2026-01-05" }, sequence: { value: 2 }, note: { text: "Second visit, same day" })
 
@@ -314,7 +314,7 @@ language reaches anything nested: a dotted verb, carrying every
 identity in play:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Visit.Annotate",
+runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate",
                   branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                   date: { value: "2026-01-05" }, sequence: { value: 1 },
                   note: { text: "Flagged for a follow-up" })
@@ -334,7 +334,7 @@ the box right but name a visit that never happened and you get
 `NotFound` naming the entity, not the box:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Visit.Annotate", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, date: { value: "2026-01-05" }, sequence: { value: 99 }, note: { text: "x" })   # ~> NotFound: no Visit with date.value, sequence.value
+runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, date: { value: "2026-01-05" }, sequence: { value: 99 }, note: { text: "x" })   # ~> NotFound: no Visit with date.value, sequence.value
 ```
 
 Get the box's OWN identity wrong instead — a branch and number nothing
@@ -342,7 +342,7 @@ was ever rented under — and the runtime never gets as far as looking
 at `visits` at all:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Visit.Annotate", branch_code: { value: "DOWNTOWN" }, box_number: { value: 999 }, date: { value: "2026-01-05" }, sequence: { value: 1 }, note: { text: "x" })   # ~> NotFound: no SafeDepositBox with branch_code.value, box_number.value
+runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate", branch_code: { value: "DOWNTOWN" }, box_number: { value: 999 }, date: { value: "2026-01-05" }, sequence: { value: 1 }, note: { text: "x" })   # ~> NotFound: no SafeDepositBox with branch_code.value, box_number.value
 ```
 
 Two different `NotFound`s, naming two different things, because a
@@ -355,7 +355,7 @@ the piece's.
 on the aggregate, appending to `keys`:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.IssueKey",
+runtime.dispatch_flat("Banking::SafeDepositBox.IssueKey",
                   branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })
 ```
 
@@ -370,7 +370,7 @@ belongs to the piece holding the field, not the aggregate that
 contains it.)
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return",
+runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return",
                   branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })
 
 box = Banking::SafeDepositBox.find("DOWNTOWN:12")
@@ -383,7 +383,7 @@ before, but because `admissible_transition` re-checks the key's
 current state every time, and that state changed underneath it:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })   # ~> LifecycleRefused: Return refused — status is "returned", and Return moves it only from "issued"
+runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })   # ~> LifecycleRefused: Return refused — status is "returned", and Return moves it only from "issued"
 ```
 
 The event it would have announced never happens; the ones that already

@@ -5,7 +5,7 @@ require_relative "../../rust/project/fielded"
 
 # `fielded_capable_nested?`/`emit_closed_set_fielded_impl` — a real,
 # previously-invisible gap: `fielded.rb`'s three "is this attribute a
-# nested value object" sites excluded EVERY closed-set VO from a
+# nested value object" sites excluded every closed-set VO from a
 # `Fielded` impl at all, so a `given` clause naming a closed-set-typed
 # attribute (`processor: Processor`, a `one_of:` VO) could never resolve
 # it — no domain in the corpus (banking/pizzas/compliance) ever declared
@@ -15,7 +15,7 @@ require_relative "../../rust/project/fielded"
 # resolve \"processor\" — no such attribute or argument" even though the
 # aggregate held a real, rehydrated `processor` value the whole time.
 #
-# A MULTI-field closed set (Syntax::Keyword/Argument-shaped) stays
+# A multi-field closed set (Syntax::Keyword/Argument-shaped) stays
 # excluded on purpose — no proven need, and `Field::Nested` has nothing
 # to point at for a shape with no single obvious field.
 RSpec.describe RustProjection::Projector do

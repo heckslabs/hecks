@@ -2,7 +2,7 @@ require "tempfile"
 require "prism"
 require_relative "postgres_probe"
 
-# EXECUTABLE DOCUMENTATION — a guide's fenced examples are extracted and
+# **Executable documentation** — a guide's fenced examples are extracted and
 # run against the real runtime, so a guide that lies goes red in CI. The
 # same covenant everything else in this codebase lives under: a
 # declaration nothing reads cannot disagree with anything, and prose is
@@ -31,13 +31,13 @@ require_relative "postgres_probe"
 #   Kernel.load(...)
 #   -->
 #
-# Two claim markers, both required to sit on a SINGLE-LINE expression
+# Two claim markers, both required to sit on a single-line expression
 # (the transform must preserve the file's line count so a failure names
 # the guide's real line):
 #
 #   expr   # => expected      asserted with == against the expected
 #                             text evaluated in the same binding
-#   expr   # ~> Klass: text   the expression MUST refuse — class name
+#   expr   # ~> Klass: text   the expression must refuse — class name
 #                             (demodulized) and message substring both
 #                             checked; not raising is the failure
 #
@@ -57,7 +57,7 @@ module Doctest
 
   # Shared with every other Postgres spec via support/postgres_probe.rb —
   # a real `PG.connect` round trip asking the identical question, not a
-  # copy of the probe itself. A METHOD, not a constant — this module gets
+  # copy of the probe itself. A method, not a constant — this module gets
   # `require_relative`d unconditionally by every doctest-running spec, so
   # a constant here would connect on every `bundle exec rspec`, `io: true`
   # excluded or not. Both callers below already only reach this from
@@ -141,13 +141,13 @@ module Doctest
 
   # The chapter names a guide declares — the collision gate reads these,
   # because facade constants install onto Object and are never
-  # uninstalled: two guides INVENTING the same domain would silently
+  # uninstalled: two guides inventing the same domain would silently
   # rebind to whichever booted last, under random spec order.
   #
   # Only `Hecks.bluebook "Name" do ... end` counts as inventing one — a
   # guide that instead Kernel.loads a real corpus file (examples/pizzas,
   # examples/banking) and wires it with its own `hecksagon`/`world`
-  # block never writes that chapter's OWN `Hecks.bluebook` line itself
+  # block never writes that chapter's own `Hecks.bluebook` line itself
   # (that line lives inside the loaded file, invisible to this scan), so
   # two guides sharing one real corpus example this way is safe and
   # deliberately not flagged: both boot the identical file into their
@@ -166,11 +166,11 @@ module Doctest
     session.call
   end
 
-  # A guide runs as WAVES: each run of declaration blocks boots one
+  # A guide runs as waves: each run of declaration blocks boots one
   # session, and the usage blocks after it run against that boot. A
   # later declaration block starts the next wave — the README's shape,
   # where two independent narratives share one file. Locals persist
-  # across waves (one shared binding), but a new wave's boot REBINDS the
+  # across waves (one shared binding), but a new wave's boot rebinds the
   # runtime, so a guide reaches back to an earlier wave's domain at its
   # own peril.
   class Session
@@ -234,7 +234,7 @@ module Doctest
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
-    # Marker lines are rewritten IN PLACE — one line stays one line, so
+    # Marker lines are rewritten in place — one line stays one line, so
     # every backtrace and failure names the guide's true line number.
     def transform(block)
       block.code.each_line.with_index.map do |line, index|

@@ -2,19 +2,19 @@ require "spec_helper"
 require "tempfile"
 
 # M17 (docs/audits/2026-08-10-main-bug-audit.md,
-# docs/audits/2026-08-11-bug-triage.md) — a COMPOSITE identity
+# docs/audits/2026-08-11-bug-triage.md) — a composite identity
 # (`identified_by :row, :column`, more than one head) has no single
 # `identified_by` for `Instance#materialize_identity!` to fall back to
 # `:id` for (`Behaviour::Identified#derive_identity` sets it nil the
 # moment there's more than one head). `refuse_unknown_arguments`
 # (`command_interpreter/argument_gate.rb`) already treats every
-# identity head as an implicit "addressing" argument, legal on ANY
+# identity head as an implicit "addressing" argument, legal on any
 # command whether or not that command redeclares it as its own
 # attribute — so a creating command can legitimately receive `row`/
 # `column` in its payload (enough for `Identity.of` to derive the
 # record's id) without ever declaring them as command attributes or
 # `sets`-ing them into state. Before this fix, that left both heads
-# persisted as `nil`: the record was correctly ADDRESSED but did not
+# persisted as `nil`: the record was correctly addressed but did not
 # know its own name.
 RSpec.describe Hecks::Runtime::Instance do
   def boot(source, hecksagon_name, &binds)
@@ -86,8 +86,8 @@ RSpec.describe Hecks::Runtime::Instance do
   it "fills both composite identity heads from args, not nil, when the creating command never redeclares them" do
     runtime = boot_composite_identity
 
-    runtime.dispatch("CompositeIdentityGrowth::Plot.PlantCrop",
-                     row: { value: 3 }, column: { value: 5 }, crop: "wheat")
+    runtime.dispatch_flat("CompositeIdentityGrowth::Plot.PlantCrop",
+                          row: { value: 3 }, column: { value: 5 }, crop: "wheat")
 
     plot = repository_for(runtime).all.first
     expect(plot).not_to be_nil
@@ -100,8 +100,8 @@ RSpec.describe Hecks::Runtime::Instance do
 
   it "still lets a SECOND command address the same record by its composite identity" do
     runtime = boot_composite_identity
-    runtime.dispatch("CompositeIdentityGrowth::Plot.PlantCrop",
-                     row: { value: 3 }, column: { value: 5 }, crop: "wheat")
+    runtime.dispatch_flat("CompositeIdentityGrowth::Plot.PlantCrop",
+                          row: { value: 3 }, column: { value: 5 }, crop: "wheat")
 
     plot = repository_for(runtime).all.first
     expect(plot.id).to include("3").and include("5")

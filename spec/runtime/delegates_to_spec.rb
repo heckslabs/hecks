@@ -6,7 +6,7 @@ require "spec_helper"
 # persistence, the two properties neither `trigger` nor a saga's own
 # `dispatches` can give (both commit the triggering command first and
 # rescue the target's own refusal). See spec/word_coverage_spec.rb's own
-# EXEMPT entry for `delegates_to` — this file is that word's real,
+# exempt entry for `delegates_to` — this file is that word's real,
 # running, dispatch-level coverage.
 RSpec.describe "an aggregate command that delegates_to one nested entity command" do
   DELEGATES_TO_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
@@ -37,8 +37,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
   it "mutates the target entity and emits its own event, in ONE dispatch that never names the entity" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     result = runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b1", with: { id: { value: "p1" }, to: { file: 5, rank: 5 } })
 
@@ -46,22 +46,22 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     expect(square(runtime, name: "b1").to_h).to eq(file: 5, rank: 5)
   end
 
-  # A REAL BUG, found live building this fixture's own downstream
+  # A real bug, found live building this fixture's own downstream
   # consumer (a chess domain): `with:` only remaps what it names, and a
   # first draft of `step_delegate_to_entity` built `target_args` from
-  # `with:` ALONE — so a policy reacting to the delegated command's own
+  # `with:` alone — so a policy reacting to the delegated command's own
   # emitted event, trying to re-locate Board by its own identity
   # (`name`, never named in `with: { id:, to: }`), found nothing and its
   # reaction was rescued and recorded rather than raised (the same
-  # commit-then-react shape every OTHER policy reaction has). Fixed by
+  # commit-then-react shape every other policy reaction has). Fixed by
   # starting `target_args` from a copy of the delegating command's own
   # already-resolved args, so ambient context a caller never had to
   # name explicitly still flows through, same as a direct entity
   # dispatch always would.
   it "carries the delegating command's own ambient args through to the target's own emitted event" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b4", with: { id: { value: "p1" }, to: { file: 5, rank: 5 } })
 
@@ -72,8 +72,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
   it "raises the target's own refusal AS the delegating command's own refusal — synchronously, not recorded and swallowed" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     expect do
       runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b2", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
@@ -82,8 +82,8 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
   it "persists nothing from a refused delegation — the failed attempt leaves the piece exactly where it was" do
     runtime = boot
-    runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
-    runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
+    runtime.dispatch_flat("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
+    runtime.dispatch_flat("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     begin
       runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b3", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })

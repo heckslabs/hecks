@@ -1,27 +1,27 @@
 module Hecks
   module Bluebook
     module DSL
-      # `identified_by` — SHARED by AggregateBuilder and EntityBuilder
+      # `identified_by` — shared by AggregateBuilder and EntityBuilder
       # only (S9, ADR 0025 — "EntityBuilder's duplicate identified_by and
       # resolve_pending_identity! go"): a piece's own identity cannot
       # spell differently from its aggregate's, and until this slice it
       # was hand-duplicated onto both rather than shared.
       #
-      # A SEPARATE MODULE from AttributeCollector on purpose — every
+      # A separate module from AttributeCollector on purpose — every
       # `attribute()`-taking builder (Command, Query, PortOperation,
-      # ValueObject, ...) `include`s that one too, and none of THEM
+      # ValueObject, ...) `include`s that one too, and none of them
       # declares an identity of its own ; folding `identified_by` in
       # there made it answer for six builders that never earned the
       # word (`syntax_conformance_spec.rb` catches exactly this — a
       # builder answering a method the grammar never grants it).
       #
-      # Requires its includer to ALSO `include AttributeCollector`
+      # Requires its includer to also `include AttributeCollector`
       # (for `attributes`/`resolve_identity_field!`/`resolve_identity_
-      # type!`, still declared there since every includer of THAT
+      # type!`, still declared there since every includer of that
       # module needs them) and to supply `identity_pool` (private) —
       # the value-object list a bare field's own type resolves
       # against: AggregateBuilder's own `@value_objects + closed_sets`,
-      # or EntityBuilder's OWNER's, since a piece mints none of its own.
+      # or EntityBuilder's owner's, since a piece mints none of its own.
       module IdentityDeclaration
         # There are three live forms, deliberately distinguishable at the
         # declaration site:
@@ -33,9 +33,9 @@ module Hecks
         # One symbol is retired: it cannot say whether the author means a
         # value concept or a field-shaped database key. Frozen source still
         # reaches the old interpretation through `legacy_identified_by`.
-        # RENAMED FROM `identified_by` — item #13's full metaprogrammed
+        # Renamed from `identified_by` — item #13's full metaprogrammed
         # dispatch (slice 4c), same shared-mixin shape `attribute_impl`
-        # already proved in slice 3: ONE renamed method, both Aggregate
+        # already proved in slice 3: one renamed method, both Aggregate
         # and Entity Keyword rows name it in `calls:`. Bootstrap-
         # reachable (every self-hosted aggregate/entity declares an
         # identity), so in BOOTSTRAP_CALLS_FALLBACK for both contexts.
@@ -67,15 +67,15 @@ module Hecks
                   &definition
                 )
               rescue NameError => e
-                # A REMOVED SPELLING MUST REFUSE LOUDLY, not degrade into a raw
+                # A removed spelling must refuse loudly, not degrade into a raw
                 # Ruby error — the one contract `EraGuard.shadow_parse` leans
                 # on to know a normal parse genuinely could not read this text
                 # (only `Malformed` triggers its shadow-mode retry, era_guard.rb's
-                # own comment). The OLD `identified_by { name.value }` — a block
-                # whose text was NEVER CALLED, only extracted (legacy_
+                # own comment). The old `identified_by { name.value }` — a block
+                # whose text was never called, only extracted (legacy_
                 # identified_by, below) — is exactly this shape: read under the
-                # CURRENT grammar it is instead instance_eval'd as a value-object
-                # DEFINITION, and a bare identifier like `name` inside it resolves
+                # current grammar it is instead instance_eval'd as a value-object
+                # definition, and a bare identifier like `name` inside it resolves
                 # to nothing WordGate#method_missing recognizes, so Ruby itself
                 # raises NameError. Left uncaught, that NameError skipped
                 # shadow_parse's rescue entirely and reached callers as a raw
@@ -124,9 +124,9 @@ module Hecks
 
         private
 
-        # RESOLVES whichever of the three `identified_by` shapes is
+        # Resolves whichever of the three `identified_by` shapes is
         # pending, against `identity_pool` — the includer's own private
-        # hook. Called at BUILD time, not at `identified_by`'s own call
+        # hook. Called at build time, not at `identified_by`'s own call
         # time — see `AttributeCollector#resolve_identity_field!`'s own
         # comment on why.
         def resolve_pending_identity!
@@ -161,8 +161,8 @@ module Hecks
           raise Malformed, "#{@name} declares identified_by more than once"
         end
 
-        # LEGACY — the two removed spellings (a value object + as:, and the
-        # multi-line block), kept alive ONLY for `EraGuard.shadow_parse`
+        # Legacy — the two removed spellings (a value object + as:, and the
+        # multi-line block), kept alive only for `EraGuard.shadow_parse`
         # (S0a, ADR 0025) to still make sense of frozen era text that used
         # them; unreachable outside `MetaValidator.shadow_parsing?`.
         def legacy_identified_by(*targets, as:, &path)

@@ -1175,6 +1175,14 @@ module RustProjection
                             ),
                             command_name: command[:name].to_s, absent_argument_check: true,
                             interleave_checks: true, aggregates_by_name: aggregates_by_name),
+        # THE ARGUMENT GATES (roadmap D2) — `kernel::decode_entity_
+        # arguments` calls these in `EntityStep::ORDER`; see
+        # `emit_argument_gates`' own header (json_codec.rb).
+        emit_argument_gates(args_struct_name, command[:name].to_s, command[:attributes],
+                            command_argument_allowlist(
+                              parent_aggregate, command, process_managers,
+                              extra_identity_heads: entity[:identified_by].map { |path| path.split(".").first }
+                            )),
         entity_dispatch_fn,
       ].join("\n\n")
     end
@@ -1403,6 +1411,13 @@ module RustProjection
                             ),
                             command_name: command[:name].to_s, absent_argument_check: true,
                             interleave_checks: true, aggregates_by_name: aggregates_by_name),
+        # THE ARGUMENT GATES (roadmap D2) — see the one-hop entity
+        # command's own identical call, above.
+        emit_argument_gates(args_struct_name, command[:name].to_s, command[:attributes],
+                            command_argument_allowlist(
+                              parent_aggregate, command, process_managers,
+                              extra_identity_heads: (entity[:identified_by] + nested[:identified_by]).map { |path| path.split(".").first }
+                            )),
         nested_dispatch_fn,
       ].join("\n\n")
     end

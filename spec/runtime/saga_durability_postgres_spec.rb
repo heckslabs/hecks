@@ -2,11 +2,11 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
 
-# The SAME end-to-end proof `saga_durability_spec.rb` runs against
+# The same end-to-end proof `saga_durability_spec.rb` runs against
 # SqlitePersistence, run again against Postgres — the production-urgent
 # adapter this whole arc started from (Banking's own real `Settlement`/
 # `ExternalSettlement`, deployed on Lambda, Phase 1's own subject).
-# Kept as a SEPARATE, io:true-gated file rather than folded into the
+# Kept as a separate, io:true-gated file rather than folded into the
 # unconditional spec, matching every other Postgres-vs-everything-else
 # split in this suite (postgres_era_spec.rb itself, banking_matrix_spec.rb).
 RSpec.describe "durable saga/process-manager state, against Postgres", :io do
@@ -69,12 +69,12 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
   end
 
   def stuck_wire(runtime)
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
-    runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })
-    runtime.dispatch("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
-    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
-    runtime.dispatch("Wire::Wire.Ask",
-                     reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "left" })
+    runtime.dispatch_flat("Wire::Drawer.Open", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Drawer.Put",  number: { value: "left" }, amount: { cents: 10_000 })
+    runtime.dispatch_flat("Wire::Drawer.Shut", number: { value: "right" })
+    runtime.dispatch_flat("Wire::Wire.Ask",
+                          reference: { value: "wire-1" }, amount: { cents: 2_500 }, source: "left", destination: "right")
     runtime
   end
 

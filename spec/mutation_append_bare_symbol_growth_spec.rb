@@ -17,8 +17,8 @@ require "tempfile"
 # way an explicit `append: { value: :bare_symbol }` already would — the
 # `:value` name mirrors `MutationApplier#appended`'s own single-field
 # value-object scalar-unwrap convention. This spec boots with
-# meta-validation ON (no ENV override) so both the runtime dispatch path
-# AND the meta-validator's own Judge path (`Readings#mutation_rows`) are
+# meta-validation on (no ENV override) so both the runtime dispatch path
+# and the meta-validator's own Judge path (`Readings#mutation_rows`) are
 # exercised for real, not just one of the two.
 RSpec.describe "mutation op append, bare-symbol shorthand" do
   def boot(source, hecksagon_name, &binds)
@@ -94,8 +94,8 @@ RSpec.describe "mutation op append, bare-symbol shorthand" do
 
   it "appends the bare value as the sole :value field of the list element" do
     runtime = boot_mutation_append_bare_symbol
-    runtime.dispatch("MutationAppendBareSymbolGrowth::Widget.Open", id: { value: "w1" })
-    runtime.dispatch("MutationAppendBareSymbolGrowth::Widget.Tag", id: "w1", tag: "fragile")
+    runtime.dispatch_flat("MutationAppendBareSymbolGrowth::Widget.Open", id: { value: "w1" })
+    runtime.dispatch_flat("MutationAppendBareSymbolGrowth::Widget.Tag", id: "w1", tag: "fragile")
 
     widget = widget_repository(runtime).find("w1")
     expect(widget[:tags].map { |t| t[:value] }).to eq(["fragile"])
@@ -103,9 +103,9 @@ RSpec.describe "mutation op append, bare-symbol shorthand" do
 
   it "appends a second element independently, position preserved" do
     runtime = boot_mutation_append_bare_symbol
-    runtime.dispatch("MutationAppendBareSymbolGrowth::Widget.Open", id: { value: "w2" })
-    runtime.dispatch("MutationAppendBareSymbolGrowth::Widget.Tag", id: "w2", tag: "fragile")
-    runtime.dispatch("MutationAppendBareSymbolGrowth::Widget.Tag", id: "w2", tag: "urgent")
+    runtime.dispatch_flat("MutationAppendBareSymbolGrowth::Widget.Open", id: { value: "w2" })
+    runtime.dispatch_flat("MutationAppendBareSymbolGrowth::Widget.Tag", id: "w2", tag: "fragile")
+    runtime.dispatch_flat("MutationAppendBareSymbolGrowth::Widget.Tag", id: "w2", tag: "urgent")
 
     widget = widget_repository(runtime).find("w2")
     expect(widget[:tags].map { |t| t[:value] }).to eq(["fragile", "urgent"])

@@ -3,8 +3,8 @@ require "hecks/fuzzing"
 
 # Declared properties over generated histories — the other half of
 # property-based testing the fuzzer was missing. Two directions, as
-# usual: the standard battery HOLDS over real generated sequences
-# (below), and each property actually FIRES against a hand-built
+# usual: the standard battery holds over real generated sequences
+# (below), and each property actually fires against a hand-built
 # history that violates it — a property nothing can ever fail is
 # decoration, the same lesson the coverage gates state for
 # declarations.
@@ -24,16 +24,16 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
   # own `TaggedList.AddTag` append target fields are bare Strings, so it
   # never exercised `recompute_append`'s own type-aware coercion at all.
   PROPERTIES_NESTED_PIECES = File.join(ROOT_DIR, "qa/stress_domains/nested_pieces")
-  # The self-hosted META-domain — Expression + Translation, in that load
-  # order — used ONLY to pin the multi-bluebook regression below. A real
+  # The self-hosted meta-domain — Expression + Translation, in that load
+  # order — used only to pin the multi-bluebook regression below. A real
   # `bin/fuzz` run against this domain (Expression loads first) is what
   # found it: every genuine `Translation::Map.Seal` refusal read as
   # unresolvable because `command_for_verb` only ever consulted whichever
   # bluebook happened to load first.
   PROPERTIES_GRAMMAR = File.join(ROOT_DIR, "lib/hecks/grammar")
 
-  # `adapter:` only ever changes WHICH REPOSITORY the replayed steps run
-  # against (IsolatedBoot's own rebind) — sequence GENERATION itself stays
+  # `adapter:` only ever changes which repository the replayed steps run
+  # against (IsolatedBoot's own rebind) — sequence generation itself stays
   # Memory always (SequenceGenerator's own job is discovering a valid step
   # list, not observing storage behavior, so paying Sqlite's real-file cost
   # there buys nothing; see isolated_boot.rb's own `adapter:` doc).
@@ -158,8 +158,8 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     it "query_answers_match_reference passes agreement, refusals, and read-model asks through" do
       history = { queries: [
         { query: "Pizzas::Order.Expensive", args: {}, rows: [{ id: "M" }], reference_rows: [{ id: "M" }] },
-        # BOTH engines refused, in agreement — not a finding. Modeled with
-        # BOTH `error:` and `reference_error:` present, the shape `Replay`
+        # Both engines refused, in agreement — not a finding. Modeled with
+        # both `error:` and `reference_error:` present, the shape `Replay`
         # itself now builds when each engine is run independently and both
         # happen to raise (see that file's own comment on why a single
         # shared begin/rescue used to make this indistinguishable from the
@@ -171,13 +171,13 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.query_answers_match_reference(history)).to be(true)
     end
 
-    # M23 — the property this feeds needs to be ABLE to fail on a
+    # M23 — the property this feeds needs to be able to fail on a
     # refusal-shaped divergence, not just a differing row set. Before the
     # fix, `Replay` shared one begin/rescue across both engines: whichever
     # engine raised first (always the native one, since it runs first)
-    # discarded any record of the OTHER engine ever having been asked at
+    # discarded any record of the other engine ever having been asked at
     # all, so an entry like this — one engine refusing where the other
-    # answers — could never even be CONSTRUCTED from a real run, let alone
+    # answers — could never even be constructed from a real run, let alone
     # checked. This proves the property itself, fed the shape `Replay` can
     # now actually produce, correctly names it.
     it "query_answers_match_reference names a refusal-shaped divergence — one engine refused, the other didn't" do
@@ -202,7 +202,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
 
     it "replay_is_deterministic names a real divergence — a genuinely different step count" do
       # Not a manufactured non-determinism (the runtime does not have
-      # one to hand) — a wrong claim that two DIFFERENT step lists are
+      # one to hand) — a wrong claim that two different step lists are
       # "the same replay" is exactly what this property exists to catch,
       # so this proves the comparison itself is sensitive to real drift.
       first  = Hecks::Fuzzing::Replay.call(PROPERTIES_PIZZAS, [])
@@ -256,8 +256,8 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
 
     # HopChain::Proposal.PricedAboveViaEngagement — real fixture corpus,
     # `where :"engagement/client/status" => "active"; order_by :number;
-    # limit 1` — a `/` HOP clause, which the recompute used to dig as a
-    # LOCAL dotted path (nil for every row, 0 eligible) and so falsely
+    # limit 1` — a `/` hop clause, which the recompute used to dig as a
+    # local dotted path (nil for every row, 0 eligible) and so falsely
     # flagged the runtime's own correct answer the first time a
     # generated sequence ever built the full chain (bin/fuzz fixtures,
     # seed 1 — reproducible on an untouched checkout; see
@@ -265,8 +265,8 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     # the chain is a single-attribute value object (Name/Reference/
     # Number, each `{value}`), so this also pins that shape ordering and
     # paging through the recompute. Two directions, same snapshot shape:
-    # the recompute must ACCEPT the answer when the hop's far end
-    # genuinely holds, and still NAME a violation when it doesn't.
+    # the recompute must accept the answer when the hop's far end
+    # genuinely holds, and still name a violation when it doesn't.
     it "paging_offset_partitions_correctly resolves a / hop clause the way the live fold does, and passes the answer" do
       instances = {
         "HopChain::Client#juliet"      => { name: { value: "juliet" }, status: "active" },
@@ -367,7 +367,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(result).to include("NotifyOnDebit").and include("WRONG")
     end
 
-    # ALL FOUR SagaInterpreter#dispatch_args BRANCHES, in one entry —
+    # All four SagaInterpreter#dispatch_args branches, in one entry —
     # literal (`narrative:`), correlation-head (`transfer:`),
     # current-event-payload (`amount:`), and saga-memory-fallback
     # (`number:`, absent from event_payload, present only in memory) —
@@ -452,13 +452,13 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     # `PROPERTIES_ENTITY_MUTATIONS`' own `TaggedList.AddTag` (bare-String
     # target fields throughout), the first corpus site to combine
     # entity-owned `:append` with a VO-typed appended field. `821`, a
-    # BARE scalar arg — `ValueGenerator#object_for`'s own
+    # bare scalar arg — `ValueGenerator#object_for`'s own
     # `BARE_SCALAR_PROBABILITY` branch, the exact shape seed 2 generated
     # — is what the real dispatch's own `Interpreting#
     # coerce_declared_arguments` coerces to `CardSequence`'s sole
     # attribute (`{ value: 821 }`) before `EntityElement#
     # appended_to_element` ever runs; this pins that recomputing
-    # independently lands on the SAME coerced, materialized shape,
+    # independently lands on the same coerced, materialized shape,
     # rather than comparing the raw `821` against it.
     it "mutations_match_recompute passes an entity-owned append whose target field is itself " \
        "value-object-typed (BUG#5)" do
@@ -481,7 +481,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
 
     # The single most important check on BUG#5's own fix (see the PR
     # description this test rides in on): a fix broad enough to stop
-    # false-positiving on a CORRECT VO-typed append must not ALSO go
+    # false-positiving on a correct VO-typed append must not also go
     # blind to a genuinely WRONG one. Same shape as the passing example
     # right above — same `before`, same `args`, the identical `821`
     # BUG#5's own fix now coerces to `{ value: 821 }` — except the real
@@ -508,8 +508,8 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     # `:set` — item #ANGLE (Ruby self-correctness track, docs/decisions/
     # 0056). `NestedPieces::Workspace.Board.Label` (`sets :label`, no
     # `append:`/`remove:`/`multiply:`/`clamp:`) is the real corpus site:
-    # an entity-owned PLAIN set, coerced through `EntityElement#apply_to_
-    # element`'s `:set` branch (entity_element.rb), the SAME shape a
+    # an entity-owned plain set, coerced through `EntityElement#apply_to_
+    # element`'s `:set` branch (entity_element.rb), the same shape a
     # generated sequence against `qa/stress_domains/nested_pieces`
     # already exercises via "the standard battery, over real generated
     # sequences" above (seed 2's own mutation trace is exactly this
@@ -558,7 +558,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       # typed on Credit directly any more (Account.given, referenced
       # back) — but still a real entry in Credit.givens either way,
       # which is the only thing this property reads. "the account is
-      # open" (this test's own text before S10) is GONE from Credit
+      # open" (this test's own text before S10) is gone from Credit
       # entirely now — S10 made it a lifecycle guard, `from: "open"`,
       # which raises LifecycleRefused, never GivenNotMet, so it could
       # not stand in for "a real given" here even unchanged.
@@ -569,7 +569,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to be(true)
     end
 
-    # A `delegates_to` DOOR refuses with its TARGET's own given, in the
+    # A `delegates_to` door refuses with its target's own given, in the
     # door's name — `Roster.Retire` is a pure passthrough to
     # `Member.Retire`, and "a front-row holder may not retire" is Retire's.
     # Found live mining chess's history: every refused move through a
@@ -587,18 +587,18 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     end
 
     it "guard_refusals_are_declared resolves a refusal against ITS OWN domain, not just the first-loaded one" do
-      # THE REAL REGRESSION, pinned exactly as bin/fuzz found it: a
+      # The real regression, pinned exactly as bin/fuzz found it: a
       # domain under fuzz commonly composes more than one bluebook
       # (Expression loads before Translation here) — a genuine given
-      # refusal from a NON-first domain used to read as "no declared
+      # refusal from a non-first domain used to read as "no declared
       # command resolves that verb," purely because command_for_verb only
       # ever consulted whichever bluebook happened to load first, never
-      # the refusing verb's OWN domain.
+      # the refusing verb's own domain.
       bluebooks = bluebooks_for(PROPERTIES_GRAMMAR)
       # Expression loads first — the shape the bug needed. Governance
       # loads last — both Expression's and Translation's hecksagons now
       # `uses_framework "Governance"` (S8: `role` is only real access
-      # control once Governance can check it), attached AFTER either
+      # control once Governance can check it), attached after either
       # chapter itself, since `uses_framework` runs from inside their
       # own hecksagon blocks.
       expect(bluebooks.keys).to eq(%w[Expression Translation Governance])
@@ -668,10 +668,10 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     end
 
     it "sagas_rehydrate_cleanly names a memory that does not survive its own checkpoint round-trip" do
-      # A bare Symbol LEAF — `deep_copy`'s own JSON round-trip (the exact
+      # A bare Symbol leaf — `deep_copy`'s own JSON round-trip (the exact
       # write/read a real `save_saga`/`each_saga` adapter performs) reads
       # a Symbol value back as a String, so this is corruption the
-      # durable path would introduce on a REAL restart, not a
+      # durable path would introduce on a real restart, not a
       # hypothetical one.
       history = { bluebook:       bluebook_for(PROPERTIES_BANKING),
                   saga_instances: { "Onboarding" => { "corr-1" => { state: "screening", memory: { kind: :wire } } } } }
@@ -776,10 +776,10 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     end
 
     # AccountsByKind — real corpus, group_by :kind, :number, rootless. The
-    # instances here supply :kind/:number as BARE strings rather than real
+    # instances here supply :kind/:number as bare strings rather than real
     # Kind{name}/Number{value} VOs — Value.materialize_unwrapped is a no-op
     # on an already-bare String either way (the `when self` single-VO-
-    # unwrap branch only ever fires on a REAL Value instance), so this
+    # unwrap branch only ever fires on a real Value instance), so this
     # exercises the grouping/nesting recomputation itself without needing
     # to hand-construct real Value objects for a hand-built history — the
     # single-VO unwrap is ReadModelInterpreter's own spec's job, not this

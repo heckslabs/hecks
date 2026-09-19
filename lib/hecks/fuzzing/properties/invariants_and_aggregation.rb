@@ -14,11 +14,11 @@ module Hecks
       # (#check_piece_invariants, #eligible_rows, #nest_rows,
       # #recompute_median) each leans on.
       module InvariantsAndAggregation
-        # EVERY STORED RECORD STILL SATISFIES ITS OWN AGGREGATE'S DECLARED
-        # INVARIANTS — Admissibility#enforce_invariants (command_rules/
-        # admissibility.rb) checks these AFTER every command's mutations,
-        # BEFORE save, the same point `ensures` is checked. Nothing until
-        # now re-checked a record AFTER a whole replay finished, independent
+        # Every stored record still satisfies its own aggregate's declared
+        # invariants — Admissibility#enforce_invariants (command_rules/
+        # admissibility.rb) checks these after every command's mutations,
+        # before save, the same point `ensures` is checked. Nothing until
+        # now re-checked a record after a whole replay finished, independent
         # of whichever call site was supposed to have refused a violation
         # in the first place — a record failing its own declared invariant
         # here is proof a violating write landed anyway: the call site
@@ -27,9 +27,9 @@ module Hecks
         #
         # `history[:instances]` entries are already plain, symbol-keyed
         # state Hashes (Replay.call's own `record.state`) — called against
-        # Evaluator.call the SAME way ValueObject::Builder#build already
+        # Evaluator.call the same way ValueObject::Builder#build already
         # does for a VO's own invariants (value/coercion.rb), no GuardState
-        # wrapper needed the way enforce_invariants' own LIVE call uses one
+        # wrapper needed the way enforce_invariants' own live call uses one
         # (GuardState exists for `parent.`/projected-field dereferencing
         # mid-dispatch; a stored record's own scalar fields need none of
         # that to re-check a same-aggregate invariant against itself).
@@ -39,8 +39,8 @@ module Hecks
         #
         # Entity#invariants (round 7) closes here too, not for free —
         # `stored_records_satisfy_declared_invariants` only ever checked
-        # the AGGREGATE's own flat state; a piece's own invariant is
-        # checked against every ELEMENT of a `list_of` field, a genuinely
+        # the aggregate's own flat state; a piece's own invariant is
+        # checked against every element of a `list_of` field, a genuinely
         # different walk `check_piece_invariants` below makes,
         # independently of `Admissibility#check_entity_invariants` (the
         # live enforcement path this property exists to catch drifting
@@ -70,11 +70,11 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # A PIECE'S OWN INVARIANT, checked against every element a
-        # `list_of` field holds — the SAME lookup `Admissibility#
+        # A piece's own invariant, checked against every element a
+        # `list_of` field holds — the same lookup `Admissibility#
         # check_entity_invariants` makes (`owner.attributes.find { |a|
         # a.list? && a.type.to_s == entity.hecks_name }`), independently
-        # reapplied here against a STORED record's own plain Hash state
+        # reapplied here against a stored record's own plain Hash state
         # rather than a live `Instance`.
         def check_piece_invariants(owner_construct, owner_state, key)
           owner_construct.entities.each do |entity|
@@ -99,23 +99,23 @@ module Hecks
           nil
         end
 
-        # A SAGA INSTANCE'S OWN CHECKPOINT SURVIVES BEING WRITTEN AND READ
-        # BACK — the durability contract `SagaInterpreter#checkpoint` makes
+        # A saga instance's own checkpoint survives being written and read
+        # back — the durability contract `SagaInterpreter#checkpoint` makes
         # (`state:` plus a `deep_copy`d `memory:`, handed to whatever
         # adapter answers `save_saga`) and `Registry#rehydrate_sagas!`
         # promises to restore on the next boot (`each_saga` yielding
         # `[pm, correlation, state, memory]` back into `saga_instances`).
-        # `Replay` captures the LIVE store already materialised the same
+        # `Replay` captures the live store already materialised the same
         # way `checkpoint` itself does (`Value.materialize`, not raw
         # `Runtime::Value`s — see its own comment); this property pushes
-        # that captured memory through the SAME `JSON.generate` then
+        # that captured memory through the same `JSON.generate` then
         # `JSON.parse(symbolize_names: true)` round-trip `checkpoint`'s own
         # `deep_copy` performs (mirrored here rather than called — a
         # private instance method with no registry to hand it) and checks
         # it comes back byte-identical. A memory holding anything that
         # round-trip cannot carry faithfully — a bare Symbol leaf, a
         # non-JSON type a future field introduces — is corruption the
-        # durable path would introduce on a REAL restart, caught here
+        # durable path would introduce on a real restart, caught here
         # without needing one.
         #
         # `declares_state?` (Behaviour::ProcessManager) is the other half:
@@ -150,11 +150,11 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # A `for_each` POLICY DISPATCHES EXACTLY ONCE PER ROW ITS DECLARED
-        # QUERY ANSWERS — never once for the triggering event regardless of
+        # A `for_each` policy dispatches exactly once per row its declared
+        # query answers — never once for the triggering event regardless of
         # row count, never skipping a matched row, never firing on a row a
-        # concurrent mutation only made match AFTER the fact. `Replay`
-        # computes the expected row-id set INDEPENDENTLY, at the same
+        # concurrent mutation only made match after the fact. `Replay`
+        # computes the expected row-id set independently, at the same
         # instant the real dispatch runs (`Replay.expected_fan_out_rows`,
         # the query oracle's own shape aimed at fan-out: two engines
         # compared, never one graded against itself), and records it
@@ -183,21 +183,21 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # A `count`/`median` REPORT'S REDUCED SCALAR MATCHES THE SAME
-        # REDUCTION DONE INDEPENDENTLY, over the SAME eligible rows —
+        # A `count`/`median` report's reduced scalar matches the same
+        # reduction done independently, over the same eligible rows —
         # `ReadModelInterpreter#project`'s own FK-join (root first, then
         # each many-side head matched against it) and `#median` (odd →
         # the true middle, even → the average of the two middles as a
         # Float, empty → `nil`; `count` is the filtered length, empty →
         # `0`), reproduced here in plain Ruby against `history[:instances]`
         # rather than a live registry — `FieldPath.dig` +
-        # `Ports::Query::InMemory.comparable`/`.holds?` are the SAME two
+        # `Ports::Query::InMemory.comparable`/`.holds?` are the same two
         # calls the interpreter itself makes to read a field and judge a
         # `where`, called here rather than re-derived, so this oracle
         # cannot drift from what "read a field" or "a clause holds" mean
         # without the interpreter drifting the identical way.
         #
-        # Only a report whose `:query` is answered by the SAME bluebook
+        # Only a report whose `:query` is answered by the same bluebook
         # `history[:bluebook]` carries (the bare `Domain.report_name`
         # form, `domain == bluebook.name`) is checked — the same "only
         # what we have the grammar for" scope `lifecycle_values_are_declared`
@@ -206,7 +206,7 @@ module Hecks
         # ("only a report answered by this bluebook, only a count/median
         # report, only one with a reduced many-side head") each gating the
         # next, ending in one independent recomputation compared against
-        # the live answer. The guards are what make this oracle SCOPED
+        # the live answer. The guards are what make this oracle scoped
         # correctly, not incidental complexity — narrower than "every
         # branch reads as its own precondition."
         # rubocop:disable-next Metrics/CyclomaticComplexity
@@ -239,14 +239,14 @@ module Hecks
         end
 
         # `aggregation_matches_recompute`'s own shape, extended from
-        # reducing a many-side head to a scalar (count/median) to NESTING
+        # reducing a many-side head to a scalar (count/median) to nesting
         # it — `ReadModelInterpreter#group_by_target`/`#nest`, reproduced
         # here in plain Ruby against `history[:instances]` the same way
         # `eligible_rows` already reproduces the FK-join and `where`
         # narrowing count/median share. `Value.materialize_unwrapped` is
-        # the SAME call `#project` makes before nesting (a single-field
+        # the same call `#project` makes before nesting (a single-field
         # value object recurses to its bare scalar — a real grouping key
-        # has to BE one) — called here rather than re-derived, so this
+        # has to be one) — called here rather than re-derived, so this
         # oracle cannot drift from what "the group key" means without the
         # interpreter drifting the identical way.
         #
@@ -298,17 +298,17 @@ module Hecks
           end
         end
 
-        # THE ELIGIBLE ROWS a `count`/`median` head reduces — every
+        # The eligible rows a `count`/`median` head reduces — every
         # instance of the reduced head's own aggregate, FK-matched against
         # the report's root reference (if it has one; a rootless report has
         # none to match) exactly the way `ReadModelInterpreter#reference_fields`
         # finds the matching attribute, then narrowed by the report's own
-        # `where` clauses via the SAME `InMemory.holds?` the interpreter's
+        # `where` clauses via the same `InMemory.holds?` the interpreter's
         # `execute` calls.
         def eligible_rows(bluebook, instances, domain, model, reduced_head, args)
           aggregate = bluebook.aggregate(reduced_head[:aggregate])
           prefix = "#{domain}::#{reduced_head[:aggregate]}#"
-          # `id:` MERGED IN, the same `record.to_h` (`@state.merge(id:
+          # `id:` merged in, the same `record.to_h` (`@state.merge(id:
           # @id)`) every live head row carries — count/median never read
           # it, but group_by_matches_recompute's own independent nesting
           # does, the same way ReadModelInterpreter#row(record) = record.

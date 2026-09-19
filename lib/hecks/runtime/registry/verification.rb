@@ -21,11 +21,11 @@ module Hecks
               # A domain-level default (§0) — `persisted_by "Heki"` bare,
               # applying to whichever aggregates don't override it — names
               # no aggregate of its own, so there's nothing to look up in
-              # the bluebook for THIS row specifically. Still validate its
+              # the bluebook for this row specifically. Still validate its
               # own adapter/verb shape (the same reason
               # `verify_default_adapter!` checks the framework-wide
               # default the same way, aggregate-less). Coverage of real
-              # aggregates that only resolve THROUGH this default comes
+              # aggregates that only resolve through this default comes
               # from their own dispatch-time `BindingPolicy.resolve` —
               # deliberately not required to be exhaustive here, the same
               # leniency this method already extended to any aggregate
@@ -78,8 +78,8 @@ module Hecks
                 "and cannot satisfy #{bind.verb}"
         end
 
-        # THE METHOD CONTRACT A `.port` FILE'S `verb`/`signal` NEVER
-        # CARRIED — an adapter can name the right port, satisfy the right
+        # The method contract a `.port` file's `verb`/`signal` never
+        # carried — an adapter can name the right port, satisfy the right
         # verb, and admit every `.world` setting `check_settings` checks,
         # and still be missing the one method a live dispatch will
         # actually call. `answers` is optional per port (an empty list is
@@ -99,7 +99,7 @@ module Hecks
                 "#{answers.map(&:inspect).join(', ')}"
         end
 
-        # THE NINE SINGLETON PORTS' OWN GAP — `persistence`, `projection`
+        # **The nine singleton ports' own gap** — `persistence`, `projection`
         # and `loading` are per-aggregate bindings, checked above through
         # every real `bind` a hexagon declares; a singleton port
         # (`clock`, `authorization`, …) is never bound to an aggregate at
@@ -108,9 +108,9 @@ module Hecks
         # already refuses zero or multiple implementations, live, at
         # first dispatch — that stays exactly as-is here (0 or 2+ is
         # ambiguity, not a method-contract question, and asserting every
-        # declared port MUST have exactly one adapter would wrongly
+        # declared port must have exactly one adapter would wrongly
         # refuse a boot that simply never wires a port it doesn't use).
-        # This only ever tightens the ONE case those checks don't cover:
+        # This only ever tightens the one case those checks don't cover:
         # exactly one adapter, wired, missing a method `answers` names.
         PER_AGGREGATE_PORTS = %w[persistence projection loading].freeze
 
@@ -158,13 +158,13 @@ module Hecks
 
         private
 
-        # `role` IS REAL ACCESS CONTROL ONLY WHEN GOVERNANCE CAN CHECK IT
-        # AGAINST SOMETHING — a command that declares a role but whose
+        # `role` is real access control only when governance can check it
+        # against something — a command that declares a role but whose
         # domain never attaches Governance would leave that role forever
         # unchecked, exactly the defect ADR 0025 §9 names ("role gates
         # access control by exact string equality ... Governance ...
-        # connected to none of it"). Checked here, at `verify!` — RECOVERED
-        # and MOVED, not new: this used to run per-block, at HECKSAGON
+        # connected to none of it"). Checked here, at `verify!` — recovered
+        # and moved, not new: this used to run per-block, at hecksagon
         # build time (Bluebook::DSL::HecksagonBuilder#build), which broke
         # the moment a domain could be split across multiple hecksagon
         # blocks (base + an `environments/<name>.hecksagon` overlay,
@@ -172,14 +172,14 @@ module Hecks
         # the recovery provenance): every block but the one declaring
         # `uses_framework "Governance"` would be refused there, even
         # though `Registry#add_hecksagon` merges every block for a domain
-        # into ONE Hecksagon before anything ever dispatches against it.
-        # Checking the MERGED result once, here, after every file for
+        # into one Hecksagon before anything ever dispatches against it.
+        # Checking the merged result once, here, after every file for
         # this domain has loaded, is both more permissive (no need to
         # repeat `uses_framework` in every file) and strictly more
         # correct (a check against an incomplete, not-yet-merged
         # hecksagon can never see the real final shape).
         #
-        # A PROVIDER IS RECOGNISED BY ITS DECLARATION, NOT ITS NAME —
+        # A provider is RECOGNISED by its declaration, not its name —
         # `authorization_provider_for` answers for the domain's own
         # chapter too, so Governance (which declares `provides
         # "authorization"`) passes here because of what it declares, and
@@ -210,7 +210,7 @@ module Hecks
           providers.map { |name| "uses_framework #{name.inspect}" }.join(" or ")
         end
 
-        # Every command this domain declares, an aggregate's own AND every
+        # Every command this domain declares, an aggregate's own and every
         # entity nested inside one — the same reach `refuse_role_mismatch`
         # itself needs at dispatch time, just walked ahead of time here.
         def commands_in(bluebook_ir)
@@ -230,7 +230,7 @@ module Hecks
         # 0025 named for an unchecked `role`, here applied to saga
         # durability instead.
         #
-        # A WARNING, NOT A REFUSAL — unlike `refuse_ungoverned_roles!`,
+        # A warning, not a refusal — unlike `refuse_ungoverned_roles!`,
         # running sagas on a store with no `save_saga` is legitimate on
         # purpose in a fast in-memory test/dev boot (this project's own
         # `saga_durability_spec.rb` boots a process manager on `Memory`
@@ -238,13 +238,13 @@ module Hecks
         # refusing the boot outright would break a choice an author made
         # deliberately. What a deploy needs is for the gap to be loud and
         # undeniable, not for local dev/test to become impossible.
-        # THE OUTBOX'S TWIN OF `warn_undurable_sagas!` — a domain that
+        # The outbox's twin of `warn_undurable_sagas!` — a domain that
         # declares anything a commit could owe a reaction to (a policy
         # listening to one of its events, or a process manager) but is
         # bound to an adapter with no outbox (`AppendOnly#outbox?`) gets
         # reactions the pre-outbox way: run inline, lost on a crash
         # between commit and reaction. A warning, not a refusal, for the
-        # reason `warn_undurable_sagas!` gives — and Memory HAS an outbox
+        # reason `warn_undurable_sagas!` gives — and Memory has an outbox
         # (in-process, like everything else it holds), so a dev/test
         # boot stays quiet; this speaks up for the file/remote adapters
         # that persist state durably but hand reactions to nothing.

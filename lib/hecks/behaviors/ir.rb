@@ -2,7 +2,7 @@
 #
 # The `.behaviors` authoring surface's own IR — plain Structs, holding
 # exactly what `Hecks.behaviors "Name" do ... end` collected. Deliberately
-# NOT part of `Hecks::IR`/`emits_ir` — a behaviors suite is never
+# not part of `Hecks::IR`/`emits_ir` — a behaviors suite is never
 # collected into a domain Registry (see `Hecks.behaviors`), never
 # dispatched through MetaValidator, and carries none of the self-hosted
 # round-trip machinery a real bluebook construct does. It is a test

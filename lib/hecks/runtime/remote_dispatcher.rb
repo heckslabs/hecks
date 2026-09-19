@@ -9,19 +9,19 @@ require_relative "../ports/persistence/remote_runtime"
 
 module Hecks
   module Runtime
-    # THE WRITE-SIDE HALF OF LAMBDA ROUTING — `Runtime::Loader.boot`
-    # constructs this INSTEAD OF `Dispatcher` when the booted domain's
+    # **The write-side half of lambda routing** — `Runtime::Loader.boot`
+    # constructs this instead of `Dispatcher` when the booted domain's
     # own `.world` declares Lambda routing (see loader.rb's own
     # `dispatcher_class_for`). Matches `Dispatcher`'s public shape
-    # closely enough that everything built ON TOP of a dispatcher —
+    # closely enough that everything built on top of a dispatcher —
     # `Handle`, `AggregateDoor`, `Facade::Surface` — needs no changes
     # at all: `Handle#run`'s entire contract is
-    # `@dispatcher.dispatch("#{fqn}.#{command}", **identity, **args).instance.state`,
+    # `@dispatcher.dispatch("#{fqn}.#{command}", to: @id, with: args).instance.state`,
     # and both classes answer that identically.
     #
-    # READS DELEGATE, WRITES DON'T. `query`/`reference_query` hand off
-    # to a REAL `Dispatcher` built over the SAME registry — since that
-    # registry's own repositories are ALREADY Lambda-backed
+    # **Reads delegate, writes don't**. `query`/`reference_query` hand off
+    # to a real `Dispatcher` built over the same registry — since that
+    # registry's own repositories are already Lambda-backed
     # (`Adapters::Lambda`, `persisted_by("Lambda")`, Phase 2's other
     # half), the inherited query machinery (`QueryInterpreter`,
     # `Ports::Query::InMemory.execute`) works completely unchanged, no
@@ -37,30 +37,39 @@ module Hecks
 
       attr_reader :registry
 
-      def initialize(registry, region: "us-east-1")
+      def initialize(registry, region: "us-east-1", function: nil)
         @registry = registry
         # `File.basename(registry.root)`, not `bluebooks.keys.first` —
         # matches `Adapters::Lambda`'s own function-name resolution
         # exactly (see its own comment on why: one merged Lambda per
         # deploy, not one per attached chapter, and `root` is the one
         # signal every bluebook in this registry shares regardless of
-        # which one attached it) — INCLUDING that same adapter's own
+        # which one attached it) — including that same adapter's own
         # `ENV["DOMAIN_NAME"]`-first fix: `root` is always `/var/task`
         # inside a deployed Lambda, giving "task" instead of the real
         # domain name (a real, live AccessDeniedException on
         # "hecks-task" caught this).
-        @client = Adapters::Lambda::Client.new(domain: ENV["DOMAIN_NAME"] || File.basename(registry.root), region: region)
-        # READ-SIDE DELEGATE ONLY (see class comment) — never dispatched
+        # `function:` — the `.world`'s own `dispatched_by("Lambda")`
+        # naming of which function this is, for a deployment whose stack
+        # name isn't `hecks-<domain>` (Client's own comment has the real
+        # case). Absent, the resolution above is unchanged.
+        @client = Adapters::Lambda::Client.new(domain: ENV["DOMAIN_NAME"] || File.basename(registry.root),
+                                               region: region, function: function)
+        # Read-side delegate only (see class comment) — never dispatched
         # through; a real Dispatcher's own `query`/`reference_query`
         # already resolve generically via `registry.repository(...)`,
         # so building one here reuses that instead of duplicating it.
         @local = Dispatcher.new(registry)
       end
 
-      # Same deprecation as `Dispatcher#dispatch` — loose keyword facts warn;
-      # `to:`/`with:` do not.
+      # Same shape as `Dispatcher#dispatch_flat` — everything but
+      # `saga_correlation:` is forwarded through unread, `to:`/`with:`
+      # included, and lifted out downstream by whichever path actually
+      # dispatches (`@local.dispatch_flat` locally, the flat wire form
+      # remotely). Not the strict `to:`/`with:`-only door `Dispatcher#
+      # dispatch` is — see that class's own comment for why this file
+      # never had one.
       def dispatch(verb, saga_correlation: nil, **args)
-        Dispatcher.deprecate_loose_facts(args.except(:to, :with))
         dispatch_flat(verb, args.merge(saga_correlation: saga_correlation))
       end
 
@@ -70,20 +79,20 @@ module Hecks
         saga_correlation = args.delete(:saga_correlation)
         domain, aggregate_name, = Naming.split_verb(verb) ||
                                   raise(UnknownVerb,
-                                        RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
+                                        RefusalWording.render_site("UnknownVerb", "not_fully_qualified", verb: verb))
         aggregate = @registry.bluebook(domain)&.aggregate(aggregate_name) ||
                     raise(UnknownVerb,
-                          RefusalWording.render("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name.inspect))
+                          RefusalWording.render_site("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name))
 
-        # NOT EVERY AGGREGATE IN A LAMBDA-ROUTED DOMAIN IS ITSELF
-        # LAMBDA-BOUND — Member's real name->email rekey carries a
+        # Not every aggregate in a lambda-routed domain is itself
+        # lambda-bound — Member's real name->email rekey carries a
         # `compute` rule (era_check.rb's own `check_compute_rules!`),
         # which can only ever run against Postgres, permanently. Its
-        # OWN `.hecksagon` bind stays "Postgres" even when
+        # own `.hecksagon` bind stays "Postgres" even when
         # `dispatched_by("Lambda")` is on for everything else — checked
-        # here by real CAPABILITY (`Ports::Persistence::RemoteRuntime`,
+        # here by real capability (`Ports::Persistence::RemoteRuntime`,
         # §1), not by comparing the adapter's own name to the string
-        # "Lambda" — a bind resolves to whatever adapter CLASS actually
+        # "Lambda" — a bind resolves to whatever adapter class actually
         # backs it, and only a class shaped like "the real interpreter
         # lives behind a call boundary" forwards here; anything else
         # (Postgres, Memory, any future local adapter) falls through to
@@ -100,14 +109,14 @@ module Hecks
         refusal = response.fetch("refusals", []).find { |r| r["verb"] == verb }
         raise RemoteRefusal, "#{verb} refused: #{refusal['error']}" if refusal
 
-        # THIS STEP'S OWN mutations — `mutations` is one entry per
+        # This step's own mutations — `mutations` is one entry per
         # replayed step (rust/host's rehydrate-and-replay design,
         # Phase 1), so `.last` is exactly the step just dispatched.
         # Matched by fully-qualified aggregate name, not just "the
-        # first mutation" — a command whose reaction ALSO mutates a
+        # first mutation" — a command whose reaction also mutates a
         # different aggregate (a policy, a saga leg) puts more than
         # one mutation in the same step, and the direct effect of
-        # THIS verb is the one this dispatch's own caller expects
+        # this verb is the one this dispatch's own caller expects
         # `.instance` to be.
         fqn = "#{domain}::#{aggregate.hecks_name}"
         mutation = response.fetch("mutations", []).last&.find { |m| m["aggregate"] == fqn } ||
@@ -123,9 +132,9 @@ module Hecks
       def query(verb, **args)           = @local.query(verb, **args)
       def reference_query(verb, **args) = @local.reference_query(verb, **args)
 
-      # THE FULL DOMAIN'S EVENT HISTORY, on every call — `{"read":
+      # The full domain's event history, on every call — `{"read":
       # true}` replays the whole journal (Phase 1's `dispatch::read`),
-      # so its own `events` array already IS the complete log, the
+      # so its own `events` array already is the complete log, the
       # same thing `@registry.event_log` would answer for a local
       # dispatch. Not cached: `AggregateDoor.events`/`Handle#events`
       # are not called in this codebase's own hot paths today: if that

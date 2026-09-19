@@ -7,7 +7,7 @@ require_relative "../../ports/query/in_memory"
 module Hecks
   module Runtime
     class CommandRules
-      # A reference must point at something that EXISTS.
+      # A reference must point at something that exists.
       #
       # `reference_to Customer` is the one guarantee an aggregate reference is
       # for, and it was declared 14 times across banking and enforced nowhere :
@@ -16,7 +16,7 @@ module Hecks
       # no corpus step ever passed a dangling reference.
       module References
         # Resolved here rather than in coercion because coercion is pure — it
-        # holds no repository. A reference INTO ANOTHER DOMAIN is left alone : a
+        # holds no repository. A reference into another domain is left alone : a
         # cross-domain target may legitimately not be loaded, which is the same
         # reading `across` policies already get.
         #
@@ -83,7 +83,7 @@ module Hecks
                 "#{attribute.type.target_name} identity, got nil"
         end
 
-        # The reference RESOLVES itself — through the chapter's own IR, so the
+        # The reference resolves itself — through the chapter's own IR, so the
         # bluebook's declared heads are the index. This used to regex the target's
         # name out of "Reference<Customer>" and then search
         # `registry.bluebook(domain).aggregates` for it — and later reached the
@@ -101,33 +101,33 @@ module Hecks
             next if @registry.repository(domain, target).find(key)
 
             raise NotFound,
-                  RefusalWording.render("NotFound", "reference_target_missing",
-                                        target: target.name, heads: target.identity_heads.join(", "),
-                                        key: key.inspect)
+                  RefusalWording.render_site("NotFound", "reference_target_missing",
+                                             target: target.name, heads: target.identity_heads.join(", "),
+                                             key: key)
           end
         end
 
-        # ANGLE-8's OWN WRITE-SIDE HALF of `TenantScope.apply` (runtime/
-        # tenant_scope.rb) — the QUERY-side mechanism this mirrors. That
+        # Angle-8's own write-side half of `TenantScope.apply` (runtime/
+        # tenant_scope.rb) — the query-side mechanism this mirrors. That
         # module turns a declared `authorize policy, tenant: :field` into a
-        # synthetic where-clause checked against the CALLER's own supplied
+        # synthetic where-clause checked against the caller's own supplied
         # tenant argument; there is no caller-identity/session system this
-        # runtime has to check a WRITE's caller against (TenantScope's own
+        # runtime has to check a write's caller against (TenantScope's own
         # header names that as a separate, still-open gap), so this checks
-        # the one thing that IS available without one: whether the record
+        # the one thing that is available without one: whether the record
         # being written and the record it references agree about which
         # tenant they belong to. `lib/hecks/fuzzing/properties/guards.rb`'s
         # `commands_respect_tenant_scope` states the identical claim,
         # read off `history[:instances]` after the fact — this is what
-        # makes that claim hold BY CONSTRUCTION (a refused write is never
+        # makes that claim hold by construction (a refused write is never
         # stored) rather than merely checked for regression.
         #
         # Hooked into `resolve_state_references` rather than a new
         # DISPATCH_ORDER step deliberately: that method already walks
-        # every `reference_to`-typed attribute against the SETTLED,
+        # every `reference_to`-typed attribute against the settled,
         # post-mutation state (the same moment `commands_respect_tenant_
         # scope` itself inspects), already resolves the referenced record
-        # through the repository right above, and already runs from BOTH
+        # through the repository right above, and already runs from both
         # `CommandInterpreter#step_save` and `EntityInterpreter#step_save`
         # — one change, both interpreters covered, no new vocabulary step
         # to keep in sync with `Vocabulary::AggregateDispatchOrder`/
@@ -152,20 +152,20 @@ module Hecks
             next if target_tenant == own_tenant
 
             raise Unauthorized,
-                  RefusalWording.render("Unauthorized", "cross_tenant_reference",
-                                        aggregate: construct.hecks_name, field: own_tenant_field,
-                                        tenant: Rendering.describe(state[own_tenant_field]),
-                                        attribute: attribute.name, target: target.name,
-                                        target_field: target_tenant_field,
-                                        other: Rendering.describe(record.state[target_tenant_field]))
+                  RefusalWording.render_site("Unauthorized", "cross_tenant_reference",
+                                             aggregate: construct.hecks_name, field: own_tenant_field,
+                                             tenant: Rendering.describe(state[own_tenant_field]),
+                                             attribute: attribute.name, target: target.name,
+                                             target_field: target_tenant_field,
+                                             other: Rendering.describe(record.state[target_tenant_field]))
           end
         end
 
-        # THE FIELD AN AGGREGATE'S OWN QUERY NAMES AS TENANT-SCOPING — the
+        # The field an aggregate's own query names as tenant-scoping — the
         # exact same lookup `Fuzzing::Properties::Guards#tenant_field_for`
         # already established for the property that found this gap, reused
         # here rather than reinvented: an aggregate's own declared tenant
-        # field is whichever field ONE OF ITS OWN queries names in
+        # field is whichever field one of its own queries names in
         # `authorize policy, tenant: :field`. `nil` for a construct that
         # declares no such query — not every aggregate is tenant-scoped,
         # and an entity never declares a query of its own at all today
@@ -177,25 +177,25 @@ module Hecks
           authorization&.tenant&.to_sym
         end
 
-        # `value` is the referenced record's own id, EXACTLY as `Identity.of`
+        # `value` is the referenced record's own id, exactly as `Identity.of`
         # would build it for that record — a bare scalar for a single-field
         # identity (the overwhelming common case; Banking's own plain
         # `reference_to Customer` holds one already, so `Value.
         # materialize_unwrapped` is a no-op passthrough here), or a
         # `Naming.identity`-joined string for a compound one
         # (`belongs_to Translation, as: :translation_ref` — Translation's
-        # own `identified_by :domain, :from, :to`, THREE fields). Before
+        # own `identified_by :domain, :from, :to`, three fields). Before
         # this, plain `value.to_s` on that compound case's own coerced
         # Value hit Ruby's default `Object#to_s` (a raw, run-to-run-random
         # memory address) instead of joining the record's real id — found
         # live via bin/fuzz on the self-hosted "translation" domain
-        # (replay_is_deterministic), the SAME class of gap `Identity.from`
+        # (replay_is_deterministic), the same class of gap `Identity.from`
         # already had for a compound `identified_by`'s own bare (undotted)
         # attribute paths. `materialize_unwrapped` recurses a multi-
         # attribute value object to a plain Hash keyed by attribute name,
         # in declaration order — `Naming.identity` on `.values` reproduces
         # the identical join `Identity.of` itself would produce for the
-        # SAME fields.
+        # same fields.
         def reference_key(value)
           unwrapped = Value.materialize_unwrapped(value)
           return Naming.identity(unwrapped.values).to_s if unwrapped.is_a?(Hash)
@@ -203,35 +203,35 @@ module Hecks
           unwrapped.to_s
         end
 
-        # A COMMAND ARGUMENT's own related record, reachable by name from
+        # A command argument's own related record, reachable by name from
         # `given`/`ensures` — `disputed_by.status`, say, `CardPayment
         # .Dispute`'s own fresh `Reference<Customer>` argument — without
         # teaching the pure expression evaluator anything about
-        # repositories. The lookup happens HERE, once, before evaluation;
+        # repositories. The lookup happens here, once, before evaluation;
         # `Resolver#lookup` just digs into a plain Hash exactly as it
         # always has.
         #
-        # `owner` NARROWED TO `command` ONLY (S12, ADR 0025 — "rules
+        # `owner` narrowed to `command` only (S12, ADR 0025 — "rules
         # confined to their own aggregate boundary"): dereferencing the
-        # DECLARING aggregate/entity's own STORED `reference_to` used to
+        # declaring aggregate/entity's own stored `reference_to` used to
         # be the other half of this method's job — a live query against
         # another aggregate's own repository, every time a `given`/
         # `ensures`/`invariant` ran. That half is gone; a cross-aggregate
-        # fact a rule needs now has to be a `projects`-maintained LOCAL
+        # fact a rule needs now has to be a `projects`-maintained local
         # field (`AggregateBuilder#projects_impl`'s own comment), already
         # present in `subject`'s own state, no hydration needed. A
-        # reference-typed COMMAND ARGUMENT stays in bounds, though — the
+        # reference-typed command argument stays in bounds, though — the
         # ADR's own boundary list names "its command arguments" as
         # readable, and nothing is stored yet for a fresh argument to
-        # project from; resolving it once here, synchronous with THIS
+        # project from; resolving it once here, synchronous with this
         # command's own admission, is a different shape from a live query
-        # against an ALREADY-PERSISTED reference. `enforce_givens`/
+        # against an already-persisted reference. `enforce_givens`/
         # `enforce_ensures` are this method's only two remaining callers,
         # both passing `command`/`args`, never a `subject`'s own
         # aggregate — verified before this comment was written, not
         # assumed.
         #
-        # RECURSES into what it finds, so a chain deeper than one hop
+        # Recurses into what it finds, so a chain deeper than one hop
         # still resolves in one pass. Depth-bounded rather than cycle-
         # detected — nothing in this corpus dots more than two hops on a
         # fresh argument, and a bound is simpler than tracking visited

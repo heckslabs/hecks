@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# THE PRIMARY/DRIVING PORT, END TO END — an adapter outside the bluebook
+# **The primary/driving port, end to end** — an adapter outside the bluebook
 # calls PortOperationInterpreter (through Dispatcher#dispatch_port), never
 # the domain itself. What this proves: the payload gate and coercion run the
 # same as a command's, the emitted event carries the operation's own
@@ -21,13 +21,13 @@ RSpec.describe "a port operation, dispatched" do
         uses_framework "Governance"
         Payments::Payment.persisted_by("Memory")
 
-        # THE PRIMARY PORT — called by an adapter outside the bluebook
+        # **The primary port** — called by an adapter outside the bluebook
         # entirely (a Stripe webhook, in the design this came out of). No
         # given, no sets: this is the boundary translating an external
         # fact into our own vocabulary, not a place business rules live.
         # Those stay on ConfirmReceipt/RejectPayment, reached only through
         # a policy. Declared here, in the hecksagon, not the bluebook — the
-        # boundary between the domain and its adapters IS what a hecksagon
+        # boundary between the domain and its adapters is what a hecksagon
         # already is for every other port.
         Payments::Payment.port "PaymentGateway" do
           operation "Receive" do
@@ -52,7 +52,7 @@ RSpec.describe "a port operation, dispatched" do
   end
 
   def open_payment(dispatcher, id: "P1", cents: 4200)
-    dispatcher.dispatch("Payments::Payment.Open", payment_id: { value: id }, amount: { cents: cents })
+    dispatcher.dispatch_flat("Payments::Payment.Open", payment_id: { value: id }, amount: { cents: cents })
   end
 
   it "gates unknown arguments the same way a command does" do
@@ -144,7 +144,7 @@ RSpec.describe "a port operation, dispatched" do
     open_payment(dispatcher)
 
     expect do
-      dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Nonsense", payment_id: "P1")
+      dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Nonsense", flat: { payment_id: "P1" })
     end.to raise_error(Hecks::Runtime::UnknownVerb)
   end
 
@@ -153,16 +153,16 @@ RSpec.describe "a port operation, dispatched" do
     open_payment(dispatcher)
 
     expect do
-      dispatcher.dispatch_port("Payments", "Payment", "Nonsense", "Receive", payment_id: "P1")
+      dispatcher.dispatch_port("Payments", "Payment", "Nonsense", "Receive", flat: { payment_id: "P1" })
     end.to raise_error(Hecks::Runtime::UnknownVerb)
   end
 
-  # THE SAME OPERATION, BY VERB — the wire spelling `Dispatcher#dispatch`
+  # **The same operation, by verb** — the wire spelling `Dispatcher#dispatch`
   # itself now resolves ("Domain::Aggregate.Port.Operation", the same
   # shape an entity command already uses, ports checked first). Not a
   # second implementation: `dispatch` delegates to the identical
   # `@port_ops` primitive `dispatch_port` calls, so everything above
-  # already proves the behavior — this proves the DOOR, the one a
+  # already proves the behavior — this proves the door, the one a
   # differential-parity script (`spec/corpus/*.json`'s flat `{"verb",
   # "args"}` steps, `bin/rust_conformance`'s own oracle) can actually
   # reach, since neither carries a domain/aggregate/port/operation
@@ -189,7 +189,7 @@ RSpec.describe "a port operation, dispatched" do
       open_payment(dispatcher)
 
       expect do
-        dispatcher.dispatch("Payments::Payment.PaymentGateway.Nonsense", payment_id: "P1")
+        dispatcher.dispatch_flat("Payments::Payment.PaymentGateway.Nonsense", payment_id: "P1")
       end.to raise_error(Hecks::Runtime::UnknownVerb, /PaymentGateway has no operation "Nonsense"/)
     end
 
@@ -198,7 +198,7 @@ RSpec.describe "a port operation, dispatched" do
       open_payment(dispatcher)
 
       expect do
-        dispatcher.dispatch("Payments::Payment.NoSuchThing.Whatever", payment_id: "P1")
+        dispatcher.dispatch_flat("Payments::Payment.NoSuchThing.Whatever", payment_id: "P1")
       end.to raise_error(Hecks::Runtime::UnknownVerb, /Payment has no entity "NoSuchThing"/)
     end
   end

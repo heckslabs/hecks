@@ -69,11 +69,11 @@ module RustProjection
                               fields.sort_by(|a, b| a.0.cmp(&b.0));
                           }
                           let offered = offered.to_json_string();
-                          return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-                              ("name", #{type_name.inspect}),
-                              ("description", #{rust_string_literal(inv[:description])}),
-                              ("offered", offered.as_str()),
-                          ])));
+                          return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+                              name: #{type_name.inspect},
+                              description: #{rust_string_literal(inv[:description])},
+                              offered: offered.as_str(),
+                          }.render_args()));
                       }
                   }
         RUST

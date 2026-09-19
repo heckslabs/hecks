@@ -5,12 +5,12 @@ require_relative "../../runtime/value"
 module Hecks
   module Fuzzing
     class SequenceGenerator
-      # THE ARGUMENT SHAPES THE RUBY/RUST DIVERGENCES WERE ACTUALLY FOUND
-      # THROUGH, injected on purpose, on every domain.
+      # The argument shapes the Ruby/Rust divergences were actually found
+      # through, injected on purpose, on every domain.
       #
       # Ten bugs in one QA session (BUG#7–#16, `QualityControl`'s own
       # ledger) clustered in a handful of mechanisms — and several were
-      # only ever reachable because ONE domain happened to declare the
+      # only ever reachable because one domain happened to declare the
       # argument that tripped them: `Roster::Roster.Mark`'s own `to:`
       # collided with the dispatcher's routing `to:` (BUG#7), a present-
       # but-null `to:` was misread as a routing envelope (BUG#16), a blank
@@ -20,28 +20,28 @@ module Hecks
       # in the rotation could ever have found any of those, because
       # nothing generated ever produced the shape. This module produces
       # them — for a configurable fraction of command steps, chosen and
-      # parameterised from the SAME seeded RNG the rest of the generator
+      # parameterised from the same seeded RNG the rest of the generator
       # already draws from, so `generate(domain, seed:, steps:,
       # adversarial:)` stays exactly as reproducible per seed as it was.
       #
-      # OPT-IN, BY CONSTRUCTION. `adversarial: 0.0` (the default) returns
+      # **Opt-in, by construction**. `adversarial: 0.0` (the default) returns
       # before drawing a single random number, so every pinned seed in
       # spec/fuzzing, spec/rust_conformance_fuzz_spec.rb, bin/fuzz and
       # bin/generate produces byte-for-byte what it produced before this
       # module existed. `bin/qa_sweep` turns it on (reading
       # `QualityControlDials::ADVERSARIAL_FRACTION`) — that script is the
-      # one place a mutated step's own divergence is a FINDING rather than
+      # one place a mutated step's own divergence is a finding rather than
       # a red CI gate.
       #
-      # ONE MUTATION PER STEP, applied in `StepBuilder#build_command_step`
-      # after the arguments and identity are built and BEFORE the step's
+      # One mutation per step, applied in `StepBuilder#build_command_step`
+      # after the arguments and identity are built and before the step's
       # own inline dispatch — so the generator's own `known_ids` tracking
-      # sees what really happened, and so the returned step's `args` ARE
+      # sees what really happened, and so the returned step's `args` are
       # the mutated bytes both `Fuzzing::Replay` (Ruby) and the compiled
       # conformance binary (Rust) later receive. The step carries an
       # `"adversarial"` key naming what was done (`mutation`, the bug
       # class it exercises, and the exact sub-shape), which `bin/qa_sweep`
-      # prints on a FOUND SOMETHING report so the agent logging the Bug
+      # prints on a found something report so the agent logging the Bug
       # can name the mechanism, not guess it. Both replay paths ignore
       # the key: `Replay.call` reads only verb/query/dry_run/args/role,
       # and `kernel/cli.rs` reads step keys by name.
@@ -72,19 +72,19 @@ module Hecks
         VALUE_OBJECT_SHAPES = %w[null empty_object].freeze
 
         # BUG#7/#8/#14's class — an unknown key, a type-mismatched declared
-        # key and an absent required key in the SAME step, so both engines
+        # key and an absent required key in the same step, so both engines
         # have to pick which refusal wins; and each pair, so the ordering
         # of any two is observable on a command too small for all three.
         #
-        # THE SECOND ROW REACHES FURTHER DOWN `DISPATCH_ORDER`
+        # The second row reaches further down `DISPATCH_ORDER`
         # (lib/hecks/vocabulary.rb): `nonexistent` addresses an id nothing
         # holds (a `hydrate`-stage NotFound), `lifecycle` aims a
         # transition-guarded command at a real record (an
-        # `admissible_transition`-stage refusal, IF the record's state
+        # `admissible_transition`-stage refusal, if the record's state
         # refuses it), `role` binds a caller whose role the command does
         # not name (the `refuse_role_mismatch` stage no generated step
         # had ever reached). Paired with an argument-stage fault each,
-        # so the ordering of an EARLY stage against a LATE one is
+        # so the ordering of an early stage against a late one is
         # observable — BUG#13 (ledger_ordering's own NOTES.md) was
         # exactly an argument-invariant-vs-entity-existence ordering
         # split, and nothing generated had ever asked the question on
@@ -94,8 +94,8 @@ module Hecks
           nonexistent+mismatch nonexistent+unknown lifecycle+mismatch role+absent role+nonexistent
         ].freeze
 
-        # ITEM 2 OF THE DETECTION PLAN (ANGLE-5) — A DRAWN CALLER ON A
-        # ROLE-GATED COMMAND. `refuse_role_mismatch` is a `DISPATCH_ORDER`
+        # Item 2 of the detection plan (angle-5) — a drawn caller on a
+        # role-gated command. `refuse_role_mismatch` is a `DISPATCH_ORDER`
         # step both engines implement (`command_rules/authorization.rb`,
         # `rust/src/kernel/repository.rs check_role`) and both replay doors
         # already read (`Fuzzing::Replay` binds `Hecks.as_caller` from a
@@ -109,14 +109,14 @@ module Hecks
         #   absent_on_gated no caller at all on a gated command — the
         #                   unchecked default, recorded so the step reads
         #                   as a deliberate control, not an omission
-        #   actor_known     the role PLUS an actor this same sequence
+        #   actor_known     the role plus an actor this same sequence
         #                   already granted it to (the authorization
         #                   provider's declared `grant:` verb succeeded
         #                   earlier — `catalog[:grant_verbs]`) —
         #                   the real `holds_role?` lookup, both sides
         #   actor_unknown   the role plus an actor nothing granted —
         #                   `holds_role?` must refuse on both
-        # A SEPARATE LAYER FROM `KINDS`, with its own probability
+        # a separate layer from `KINDS`, with its own probability
         # (`role_draw:` — `QualityControlDials::ROLE_DRAW_PROBABILITY`):
         # a caller composes with any argument mutation above rather than
         # competing with it for the one-mutation-per-step slot, and draws
@@ -126,7 +126,7 @@ module Hecks
         UNKNOWN_ROLE  = "Nobody the domain names".freeze
 
         # BUG#11 — an entity command two or more hops deep. Not a mutation
-        # of arguments but a PREFERENCE (picker.rb weights these up when
+        # of arguments but a preference (picker.rb weights these up when
         # adversarial) plus an addressing coin: flat one-head-per-hop args
         # (what every other generated entity step uses) or the routed
         # `to: { aggregate:, entities: [...] }` envelope BUG#11's own fix
@@ -136,7 +136,7 @@ module Hecks
         DEEP_ENTITY_WEIGHT = 4
 
         # BUG#13's mutation is only ever applicable on a step whose
-        # parent ALREADY holds an element this same sequence appended —
+        # parent already holds an element this same sequence appended —
         # a rare moment (an append has to have succeeded first, and most
         # mutated appends are refused), so when it is on offer it is
         # weighted up the same way the picker weights an unexercised
@@ -147,10 +147,10 @@ module Hecks
 
         def adversarial? = @adversarial.positive?
 
-        # `[]` — and NO RNG DRAW — when adversarial mode is off. Otherwise
+        # `[]` — and no RNG draw — when adversarial mode is off. Otherwise
         # the deep-entity addressing note (every deep step, when
         # adversarial), then with probability `@adversarial` exactly one
-        # mutation among those applicable to THIS step's own command.
+        # mutation among those applicable to this step's own command.
         def adversarial_mutations!(args, entry, catalog)
           return [] unless adversarial?
 
@@ -176,7 +176,7 @@ module Hecks
 
           heads   = [entry[:aggregate], *entry[:chain]].map { |construct| (construct.identified_by || :id).to_s }
           scalars = heads.map { |head| ValueGenerator.scalar_of(args[head]) }
-          # The heads leave the flat args — this is the CLEAN routed
+          # The heads leave the flat args — this is the clean routed
           # caller BUG#11's own spec pins (`to: {...}, note: {...}`) —
           # unless the command itself declares an attribute of that name
           # (chess's `Piece.Move` declares `id` as a fact too), which
@@ -236,7 +236,7 @@ module Hecks
 
         def blank_identity_applicable?(args, entry, catalog) = blank_identity_targets(args, entry, catalog).any?
 
-        # The identity heads THIS step supplies itself: a creating
+        # The identity heads this step supplies itself: a creating
         # aggregate command's own (every part of a composite), and an
         # append's caller-supplied entity identity arguments (an entity is
         # "created" by its append, and BUG#15's blank-identity question
@@ -344,8 +344,8 @@ module Hecks
           precedence_shapes_for(args, entry).any?
         end
 
-        # EVERY SHAPE WHOSE EVERY PART THIS STEP CAN CARRY. `nonexistent`
-        # and `lifecycle` need a command that ACTS on a record (a creating
+        # Every shape whose every part this step can carry. `nonexistent`
+        # and `lifecycle` need a command that acts on a record (a creating
         # step has no addressed id to point elsewhere, and no state to be
         # in) and flat addressing (`deep_entity_addressing!`'s routed `to:`
         # envelope owns the ids then); `lifecycle` additionally needs a
@@ -401,14 +401,14 @@ module Hecks
             applied << "unknown"
           end
           apply_late_stage_parts!(wanted, args, entry, detail, applied, catalog)
-          # Reported as what was ACTUALLY done — a command with a single
+          # Reported as what was actually done — a command with a single
           # attribute cannot carry both a dropped and a corrupted one.
           detail.merge("shape" => applied.sort.join("+"))
         end
 
-        # The three parts that reach PAST the argument gate — see
+        # The three parts that reach past the argument gate — see
         # `PRECEDENCE_SHAPES`' own second row. `nonexistent` re-addresses
-        # the step's LAST hop (the entity element for an entity command,
+        # the step's last hop (the entity element for an entity command,
         # the aggregate itself otherwise) to an id nothing holds;
         # `lifecycle` mutates nothing (the record's own state is what
         # refuses, or doesn't) and is recorded so the pairing is visible;
@@ -433,7 +433,7 @@ module Hecks
           applied << "role"
         end
 
-        # ── ANGLE-5: a drawn caller on a role-gated command ──────────────
+        # ── Angle-5: a drawn caller on a role-gated command ──────────────
 
         def role_draw? = @role_draw.positive?
 
@@ -491,7 +491,7 @@ module Hecks
           end
         end
 
-        # A GRANT AIMED AT A ROLE SOME COMMAND ACTUALLY DECLARES. Left to
+        # A grant aimed at a role some command actually declares. Left to
         # `ValueGenerator`, `Assign`'s `role_name` is random text
         # ("hotel"), which no command is gated on — so a granted actor
         # could never satisfy `holds_role?` for anything, and the

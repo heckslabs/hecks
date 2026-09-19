@@ -2,7 +2,7 @@ require "spec_helper"
 require "json"
 require "tmpdir"
 
-# THE DOMAIN-FACING VERB. `Projector.call(name, bluebook:, options:)` has
+# **The domain-facing verb**. `Projector.call(name, bluebook:, options:)` has
 # existed since §30 but nothing could reach it from a booted domain — the
 # chapter module closed over the one Bluebook every projector wants
 # and never handed it out, so each bin/ projector rebuilt a Registry and
@@ -23,7 +23,7 @@ RSpec.describe "Domain.project" do
       expect(domain.project(Hecks::Projections::IR)).to eq(bluebook.to_h)
     end
 
-    # The constant spelling is ADDED surface, not a replacement — every
+    # The constant spelling is added surface, not a replacement — every
     # Projector.call(:ir, ...) written before it keeps working, and the
     # two must not be allowed to mean different things.
     it "takes the bare symbol form, and both answer identically" do
@@ -38,7 +38,7 @@ RSpec.describe "Domain.project" do
 
   describe "options" do
     # `project` knows `out:` and nothing else — everything remaining is
-    # the TARGET's own vocabulary, so a projector can grow an option
+    # the target's own vocabulary, so a projector can grow an option
     # without this method learning about it.
     it "passes unknown keywords through to the projector untouched" do
       projected = domain.project(Hecks::Projections::OIDC, audience: "https://api.example.com")
@@ -87,11 +87,11 @@ RSpec.describe "Domain.project" do
     expect(domain).not_to respond_to(:to_ir)
   end
 
-  # PER-CONSTRUCT PROJECTION, and the fail-quiet it closed.
+  # Per-construct projection, and the fail-quiet it closed.
   #
   # Every construct emits its own IR (Hecks::IR), so an aggregate is
   # a legitimate thing to project. But `bluebook:` was only ever a
-  # parameter NAME — nothing checked what arrived — and a chapter-scoped
+  # parameter name — nothing checked what arrived — and a chapter-scoped
   # projector handed an aggregate did not crash: `StorageShape.project`
   # reads `domain["aggregates"] || []`, a key an aggregate's IR does not
   # carry, and answered `{"name" => "Order", "aggregates" => []}`.
@@ -118,7 +118,7 @@ RSpec.describe "Domain.project" do
     end
   end
 
-  # THE TREE CASE, which the output contract was designed for and left
+  # The tree case, which the output contract was designed for and left
   # unimplemented until a projection genuinely emitted one.
   describe "emits: :files" do
     it "writes a tree and answers with the paths, rather than one JSON blob" do
@@ -142,7 +142,7 @@ RSpec.describe "Domain.project" do
       end
     end
 
-    # The kind is DECLARED, never inferred: a Hash of path => contents and
+    # The kind is declared, never inferred: a Hash of path => contents and
     # a Hash that merely holds strings are the same object to Ruby.
     it "asks the projection what it emits rather than inspecting the artifact" do
       expect(Hecks::Projector.emits_for(:reference)).to eq(:files)
@@ -151,7 +151,7 @@ RSpec.describe "Domain.project" do
   end
 
   describe "capabilities" do
-    # `requires:` names a MODULE, not a shape word. The capabilities were
+    # `requires:` names a module, not a shape word. The capabilities were
     # already real — Hecks::IR is the ability to emit IR, and
     # Behaviour::Chapter the ability to answer as a chapter — so a
     # projection names what it needs rather than a symbol standing in
@@ -161,7 +161,7 @@ RSpec.describe "Domain.project" do
       expect { Object.const_get("Pizzas::Order").project(Hecks::Projections::IR) }.not_to raise_error
     end
 
-    # A class-shaped construct EXTENDS its capabilities rather than
+    # A class-shaped construct extends its capabilities rather than
     # including them. `is_a?` consults the singleton chain, so one check
     # covers both shapes — asserting otherwise is what showed the second
     # check was dead.
@@ -193,7 +193,7 @@ RSpec.describe "Domain.project" do
 
   # The registry-first path stays available and is what anything
   # order-sensitive should use — Facade::Namespace.install warns and
-  # KEEPS a pre-existing constant rather than clobbering it, so a domain
+  # keeps a pre-existing constant rather than clobbering it, so a domain
   # named `Set` never gets a constant at all, and a prior boot's module
   # can linger on Object.
   it "agrees with calling the registry directly, without any constant" do

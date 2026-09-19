@@ -87,26 +87,26 @@ RSpec.describe "relationship cardinality and traversal" do
   let(:runtime) { boot_relationship_semantics }
 
   before do
-    runtime.dispatch("RelationshipSemantics::Owner.Register", number: "owner-1")
-    runtime.dispatch("RelationshipSemantics::Customer.Register", number: "customer-1")
-    runtime.dispatch("RelationshipSemantics::Customer.Register", number: "customer-2")
-    runtime.dispatch("RelationshipSemantics::Customer.Suspend", number: "customer-2")
+    runtime.dispatch_flat("RelationshipSemantics::Owner.Register", number: "owner-1")
+    runtime.dispatch_flat("RelationshipSemantics::Customer.Register", number: "customer-1")
+    runtime.dispatch_flat("RelationshipSemantics::Customer.Register", number: "customer-2")
+    runtime.dispatch_flat("RelationshipSemantics::Customer.Suspend", number: "customer-2")
   end
 
   it "treats a has_many query hop as an existential traversal" do
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "RelationshipSemantics::Team.Form",
       number:    "team-mixed",
       owner:     "owner-1",
       customers: %w[customer-1 customer-2]
     )
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "RelationshipSemantics::Team.Form",
       number:    "team-suspended",
       owner:     "owner-1",
       customers: %w[customer-2]
     )
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "RelationshipSemantics::Team.Form",
       number:    "team-empty",
       owner:     "owner-1",
@@ -122,7 +122,7 @@ RSpec.describe "relationship cardinality and traversal" do
 
   it "requires one identity for a required to-one relationship" do
     expect do
-      runtime.dispatch(
+      runtime.dispatch_flat(
         "RelationshipSemantics::Team.FormWithoutOwner",
         number:    "team-orphaned",
         customers: []
@@ -134,7 +134,7 @@ RSpec.describe "relationship cardinality and traversal" do
   end
 
   it "allows an absent optional to-one and an empty has_many" do
-    team = runtime.dispatch(
+    team = runtime.dispatch_flat(
       "RelationshipSemantics::Team.Form",
       number:    "team-empty",
       owner:     "owner-1",
@@ -146,7 +146,7 @@ RSpec.describe "relationship cardinality and traversal" do
   end
 
   it "hydrates a has_many handle accessor without changing raw identity access" do
-    runtime.dispatch(
+    runtime.dispatch_flat(
       "RelationshipSemantics::Team.Form",
       number:    "team-handles",
       owner:     "owner-1",

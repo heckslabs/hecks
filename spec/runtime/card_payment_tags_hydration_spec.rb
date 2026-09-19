@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# ADR 0047 — regression coverage against the REAL, shipped corpus command
+# ADR 0047 — regression coverage against the real, shipped corpus command
 # the bug was traced against (`Banking::CardPayment.Authorize`'s own bare
 # `sets :tags`, `list_of(Tag)`), not just the synthetic fixture in
 # spec/runtime/entity_list_mutations_spec.rb. Deliberately its own file,
@@ -24,11 +24,11 @@ RSpec.describe "Banking::CardPayment.Authorize's own bare-sets tags list" do
 
   it "hydrates tags into real Value instances, not raw Hashes" do
     runtime = boot_banking
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 1_000 })
-    runtime.dispatch("Banking::CardPayment.Authorize", account: "a1", authorisation: { value: "auth-1" },
+    runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a1", authorisation: { value: "auth-1" },
                                                         amount: { cents: 500 }, merchant: { value: "Shop" },
                                                         tags: [{ value: "high_risk" }, { value: "urgent" }])
 
@@ -40,13 +40,13 @@ RSpec.describe "Banking::CardPayment.Authorize's own bare-sets tags list" do
 
   it "now enforces Tag's own pattern/invariant on a bare-sets tags argument" do
     runtime = boot_banking
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 1_000 })
 
     expect do
-      runtime.dispatch("Banking::CardPayment.Authorize", account: "a1", authorisation: { value: "auth-2" },
+      runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a1", authorisation: { value: "auth-2" },
                                                           amount: { cents: 500 }, merchant: { value: "Shop" },
                                                           tags: [{ value: "" }])
     end.to raise_error(Hecks::Runtime::TypeMismatch)
@@ -54,11 +54,11 @@ RSpec.describe "Banking::CardPayment.Authorize's own bare-sets tags list" do
 
   it "still answers the Flagged named query (contains? tolerates real Value elements same as Hashes)" do
     runtime = boot_banking
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c1", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 1_000 })
-    runtime.dispatch("Banking::CardPayment.Authorize", account: "a1", authorisation: { value: "auth-1" },
+    runtime.dispatch_flat("Banking::CardPayment.Authorize", account: "a1", authorisation: { value: "auth-1" },
                                                         amount: { cents: 500 }, merchant: { value: "Shop" },
                                                         tags: [{ value: "high_risk" }])
 

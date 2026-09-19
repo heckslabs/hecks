@@ -22,9 +22,9 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "savings" }, daily_limit: { cents: 10_000 })
     end.not_to raise_error
   end
@@ -33,9 +33,9 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "gold" }, daily_limit: { cents: 10_000 })
     end.to raise_error(Hecks::Runtime::InvariantViolation,
                        'AccountKind admits "current", "savings", "reserve" — got "gold"')
@@ -44,7 +44,7 @@ RSpec.describe "one_of" do
   # This used to reach the door through EmailAddress, whose rule was the
   # hand-rolled invariant `address.include?("@")`. That rule is a declared
   # `pattern:` now, so the example moved to CustomerNumber, a value object
-  # that still HAD an invariant with nothing else guarding it — otherwise
+  # that still had an invariant with nothing else guarding it — otherwise
   # the test would have kept its name and quietly stopped testing
   # invariants at all.
   #
@@ -59,9 +59,9 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "current" }, daily_limit: { cents: -1 })
     end.to raise_error(Hecks::Runtime::InvariantViolation,
                        'DailyLimit invariant violated — a daily limit is non-negative (given {"cents":-1})')
@@ -71,16 +71,16 @@ RSpec.describe "one_of" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register",
-                       reference: { value: "CUST-0009" },
-                       name:      { given: "No", family: "Route" },
-                       email:     { address: "nowhere" })
+      runtime.dispatch_flat("Banking::Customer.Register",
+                            reference: { value: "CUST-0009" },
+                            name:      { given: "No", family: "Route" },
+                            email:     { address: "nowhere" })
     end.to raise_error(Hecks::Runtime::TypeMismatch,
                        'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end
 
   # L6 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — `Admission#admit_member`
-  # checked only the closed set's DISCRIMINANT column (the first declared
+  # checked only the closed set's discriminant column (the first declared
   # attribute), so a multi-column `member` row — `StatementFrequency`
   # (examples/banking/bluebook/statements.bluebook), a real member of this
   # very corpus, not a synthetic fixture — was admitted the instant its

@@ -2,18 +2,18 @@ require "spec_helper"
 require "hecks/fuzzing"
 
 # `Replay.fan_out_findings` cannot be exercised through `Replay.call`
-# itself — that needs a domain PATH to boot fresh from disk
+# itself — that needs a domain path to boot fresh from disk
 # (`IsolatedBoot`), and `for_each` has no on-disk fixture yet (the same
 # "Rust parser does not build where/for_each" reason `spec/runtime/
-# policy_spec.rb` builds its own Fanout domain INLINE — see that file's
+# policy_spec.rb` builds its own Fanout domain inline — see that file's
 # own header). So this spec builds the identical inline runtime and
 # calls the oracle directly against real dispatches, proving the
-# INDEPENDENT recomputation (`Ports::Query::InMemory` against the live
+# independent recomputation (`Ports::Query::InMemory` against the live
 # repository) actually agrees with what `PolicyInterpreter#deliver_for_each`
 # really dispatched — the same two-engines-compared shape
 # `query_answers_match_reference` already trusts, aimed at fan-out.
 RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
-  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
@@ -108,15 +108,15 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   end
 
   def open_two_accounts_for(runtime, customer_id)
-    runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
-                                             customer_id: { value: customer_id })
-    runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
-                                             customer_id: { value: customer_id })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
+                                                  customer_id: { value: customer_id })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
+                                                  customer_id: { value: customer_id })
   end
 
   # Mirrors `Replay.call`'s own snapshot-before-dispatch — the real
-  # `deliver_for_each` runs its query synchronously, inside this SAME
-  # dispatch, so the oracle has to read the SAME "before this step"
+  # `deliver_for_each` runs its query synchronously, inside this same
+  # dispatch, so the oracle has to read the same "before this step"
   # state the real query read, not whatever the fan-out's own dispatched
   # commands (`Account.Review`) already mutated by the time this method
   # gets to look.
@@ -128,14 +128,14 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
                                           end }
 
     mark = runtime.reactions.size
-    result = runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })
+    result = runtime.dispatch_flat("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })
     Hecks::Fuzzing::Replay.fan_out_findings(runtime, snapshot, result.events, runtime.reactions[mark..])
   end
 
   it "recomputes the SAME row-id set the real dispatch actually fanned out over" do
     runtime = boot_fanout
     open_two_accounts_for(runtime, "c1")
-    runtime.dispatch("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
 
     findings = flag(runtime, "c1", "high")
 
@@ -159,7 +159,7 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   it "excludes another customer's account from the expected set, matching the real query's own where" do
     runtime = boot_fanout
     open_two_accounts_for(runtime, "c1")
-    runtime.dispatch("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+    runtime.dispatch_flat("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
 
     findings = flag(runtime, "c1", "high")
 

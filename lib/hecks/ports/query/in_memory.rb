@@ -27,7 +27,7 @@ module Hecks
           field   = declared.order_by&.field
           matched = Ordering.apply(matched, declared.order_by, declared.null_semantics,
                                    identity: ->(record) { record.id.to_s }) { |record| comparable(FieldPath.dig(record, field)) }
-          # OFFSET FIRST, THEN LIMIT — the order SQL means by `LIMIT n
+          # **Offset first, then limit** — the order SQL means by `LIMIT n
           # OFFSET m`, which is what `SqlQueryBuilder` emits and therefore
           # what every SQL-backed aggregate already answers. Written the
           # other way round here, and the two engines disagreed on the
@@ -38,7 +38,7 @@ module Hecks
           #
           # It gets worse the further you page, which is the case nobody
           # writing the first page ever sees: at `limit 10, offset 10`,
-          # taking ten and then dropping ten leaves NOTHING, so page two
+          # taking ten and then dropping ten leaves nothing, so page two
           # of a memory-backed query came back empty however many rows
           # were really there.
           matched = matched.drop(resolve(declared.offset.value, args).to_i) if declared.offset
@@ -50,7 +50,7 @@ module Hecks
         # QuerySpecification::Common::Comparison — this module and
         # Runtime::QueryInterpreter used to carry a copy each, and the two
         # drifted (see that file's own comment for what it cost). What
-        # stays here is how a value is REACHED for this path: a registry
+        # stays here is how a value is reached for this path: a registry
         # arrives as an argument rather than as instance state, and the
         # field is dug through FieldPath before it arrives.
         def holds?(clause, held, args, registry: nil)

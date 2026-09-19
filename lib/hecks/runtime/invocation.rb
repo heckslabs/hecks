@@ -5,10 +5,10 @@ require_relative "../rendering"
 
 module Hecks
   module Runtime
-    # ONE DISPATCH, AS DATA — the verb, the receiver it is addressed to
+    # **One dispatch, as data** — the verb, the receiver it is addressed to
     # (`target`, a `Routing::Envelope` or nil), and every fact the caller did
     # or did not offer. Built once per dispatch by `Invocation.from_call`, the
-    # ONLY place the runtime interprets the shape of a call (`to:` vs `with:`
+    # only place the runtime interprets the shape of a call (`to:` vs `with:`
     # vs the flat facts hash `dispatch_flat` carries, a port operation's
     # reference attribute
     # lifted into `to:`). `Runtime::Routing.envelope`/`.payload` delegate here
@@ -25,7 +25,7 @@ module Hecks
     # always were), a flat facts hash keeps whatever key the wire used. Undeclared keys a caller offered are kept too — refusing them is
     # still `refuse_unknown_arguments`' job, a dispatch step, not this one.
     #
-    # PR I1 CHANGES NO BEHAVIOR: every interpreter still reads `ctx.args`,
+    # PR I1 changes no behavior: every interpreter still reads `ctx.args`,
     # which is `#to_args` — the same Hash `Routing.payload` used to return.
     # Roadmap I2 moves the Ruby `decode_arguments` step onto `facts` itself.
     Invocation = Data.define(:verb, :target, :facts)
@@ -66,7 +66,7 @@ module Hecks
       def null?(name)    = fact(name).equal?(Null)
       def absent?(name)  = fact(name).equal?(Absent)
 
-      # A Present fact's value; nil for an explicit Null. RAISES KeyError for
+      # A Present fact's value; nil for an explicit Null. Raises KeyError for
       # an Absent fact — "never offered" has no value, and answering nil
       # would re-conflate it with an explicit null, the very ambiguity this
       # type exists to remove. Ask `absent?`/`present?` first.
@@ -78,7 +78,7 @@ module Hecks
         end
       end
 
-      # THE FLAT ARGS HASH, byte for byte what `Routing.payload` returned
+      # The flat args hash, byte for byte what `Routing.payload` returned
       # before this type existed: offered keys in offered order, Absent keys
       # omitted, Null keys mapped to nil. A fresh Hash every call.
       def to_args
@@ -90,7 +90,7 @@ module Hecks
       end
 
       class << self
-        # THE ONE READING OF A CALL'S SHAPE. `receiver:` picks which of the
+        # **The one reading of a call's shape**. `receiver:` picks which of the
         # three dispatch shapes this is, because each has always checked its
         # parts in its own order and a malformed call's refusal depends on
         # that order:
@@ -160,13 +160,13 @@ module Hecks
 
         private
 
-        # THE PORT OPERATION SHAPE — formerly `Dispatcher#port_invocation`.
+        # **The port operation shape** — formerly `Dispatcher#port_invocation`.
         #
         # A Reference-typed attribute naming the owning aggregate is routing,
-        # not a fact: lifted OUT of the flat facts into `to:` when no `to:`
+        # not a fact: lifted out of the flat facts into `to:` when no `to:`
         # was given. A `to:`-declared operation carries no Reference
         # attribute at all (PortOperationBuilder#initialize's own comment),
-        # so its receiver is READ — not removed — from the plain attribute
+        # so its receiver is read — not removed — from the plain attribute
         # named for the owner's first `identified_by` field: that attribute
         # is still a declared external fact `refuse_absent_arguments`
         # expects to find (Rust's own comment: "declare only external facts
@@ -231,7 +231,7 @@ module Hecks
         # `with:` is deliberately strict: a caller choosing the explicit
         # envelope cannot smuggle receiver identity back into the payload,
         # and may not mix it with a flat facts hash. Without `with:`
-        # (nil or false) the flat facts ARE the facts, unread —
+        # (nil or false) the flat facts are the facts, unread —
         # whether `to:` was given never enters this decision (BUG#17).
         def offered_facts(declaring, with:, flat:)
           if with && !flat.empty?
@@ -256,9 +256,9 @@ module Hecks
           return if unknown.empty?
 
           raise UnknownArgument,
-                RefusalWording.render("UnknownArgument", "unknown_args",
-                                      command: declaring.hecks_name, unknown: unknown.join(", "),
-                                      declared: declared_reading(declared))
+                RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                           command: declaring.hecks_name, unknown: unknown,
+                                           declared: declared)
         end
 
         def refuse_absent_facts!(declaring, offered, declared)
@@ -266,12 +266,10 @@ module Hecks
           return if absent.empty?
 
           raise AbsentArgument,
-                RefusalWording.render("AbsentArgument", "absent_args",
-                                      command: declaring.hecks_name, absent: absent.sort.join(", "),
-                                      declared: declared_reading(declared))
+                RefusalWording.render_site("AbsentArgument", "absent_args",
+                                           command: declaring.hecks_name, absent: absent,
+                                           declared: declared)
         end
-
-        def declared_reading(declared) = declared.empty? ? "none" : declared.join(", ")
       end
     end
   end

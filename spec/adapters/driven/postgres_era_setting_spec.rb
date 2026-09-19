@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 
 # `PostgresEra.setting` is the shared two-spelling settings digger four
 # call sites in postgres_era.rb (database, schema, domain, era) all read
-# through — deliberately NOT `io: true`: it touches no database at all,
+# through — deliberately not `io: true`: it touches no database at all,
 # so it runs in the ordinary local loop rather than only under Postgres.
 #
 # The bug this guards against: `settings[:x] || settings["x"]` silently

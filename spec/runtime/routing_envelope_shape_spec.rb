@@ -2,7 +2,7 @@ require "spec_helper"
 
 # BUG#7 (found live by `bin/qa_sweep`, `examples/roster` fuzz seed 1,
 # step 9 — `Mark`'s 6th refusal in the sequence) — `Routing.envelope`'s
-# non-Hash branch used to accept ANY Ruby object as a ready-made
+# non-Hash branch used to accept any Ruby object as a ready-made
 # aggregate identity scalar (`to.is_a?(Hash) ? parse_envelope_hash(to)
 # : [to, []]`, unconditionally), looser than Rust's own hand-written
 # mirror of this exact boundary (`rust/src/kernel/routing.rs#
@@ -16,8 +16,8 @@ require "spec_helper"
 # Fuzzing::Replay`/`StepBuilder` all dispatch a generated step's flat
 # args Hash via `runtime.dispatch(verb, **symbolize(args))`. Ruby's own
 # keyword-argument binding steals a `to` key out of that flat Hash into
-# `Dispatcher#dispatch`'s own `to:` (ROUTING) parameter before the
-# command's own `to:` (DOMAIN) argument is ever assembled — completely
+# `Dispatcher#dispatch`'s own `to:` (routing) parameter before the
+# command's own `to:` (domain) argument is ever assembled — completely
 # invisible for every other domain in this corpus, none of which name an
 # attribute `to`, `with`, or `saga_correlation`. A fuzzer-corrupted,
 # out-of-range Integer offered for `Mark`'s own `to` was accepted here
@@ -48,7 +48,7 @@ RSpec.describe "Routing.envelope's non-Hash branch" do
 
   let(:runtime) { boot_roster }
 
-  before { runtime.dispatch("Roster::Roster.Open", name: { value: "juliet india hotel" }) }
+  before { runtime.dispatch_flat("Roster::Roster.Open", name: { value: "juliet india hotel" }) }
 
   it "refuses a non-string, non-Hash scalar as TypeMismatch, not as an absent domain argument" do
     # Exactly seed 1 / step 9's generated payload — a bare, corrupted,
@@ -58,9 +58,9 @@ RSpec.describe "Routing.envelope's non-Hash branch" do
     # exactly what steals a domain-declared `to` into the routing
     # parameter instead of the command payload.
     expect do
-      runtime.dispatch("Roster::Roster.Mark",
-                       to:   -1_267_650_600_228_229_401_496_703_205_376,
-                       name: "juliet india hotel")
+      runtime.dispatch_flat("Roster::Roster.Mark",
+                            to:   -1_267_650_600_228_229_401_496_703_205_376,
+                            name: "juliet india hotel")
     end.to raise_error(Hecks::Runtime::TypeMismatch, /to: must be a string aggregate identity or an entity route/)
   end
 
@@ -72,7 +72,7 @@ RSpec.describe "Routing.envelope's non-Hash branch" do
 
   it "still refuses an unrecognized Hash-shaped envelope key exactly as before" do
     expect do
-      runtime.dispatch("Roster::Roster.Mark", to: { value: 0 }, name: "juliet india hotel")
+      runtime.dispatch_flat("Roster::Roster.Mark", to: { value: 0 }, name: "juliet india hotel")
     end.to raise_error(Hecks::Runtime::TypeMismatch, "to: does not recognize value")
   end
 end

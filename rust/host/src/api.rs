@@ -35,6 +35,7 @@ use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::presentation;
+use crate::presentation_write;
 use crate::ui_schema;
 use crate::web::{percent_decode, respond};
 use serde_json::{json, Map, Value};
@@ -73,8 +74,8 @@ pub async fn route(
         // below and for the same reason: a Settings-screen save has to
         // be visible on this app's very next request, not after a
         // restart.
-        ("GET", "/api/ui-schema") => match presentation::load(client).await {
-            Ok(config) => ok(&ui_schema::build(domain_ir, &config)),
+        ("GET", "/api/ui-schema") => match presentation::load(client, wasm_path, config).await {
+            Ok(presentation) => ok(&ui_schema::build(domain_ir, &presentation)),
             Err(e) => internal_error(&e.to_string()),
         },
 
@@ -82,8 +83,8 @@ pub async fn route(
         // QUERY — a pure structural fact with no presentation opinion
         // in it, which the Settings screen's own list_query picker and
         // the table's live query picker both read.
-        ("GET", "/api/schema") => match presentation::load(client).await {
-            Ok(config) => ok(&ui_schema::schema(domain_ir, &config)),
+        ("GET", "/api/schema") => match presentation::load(client, wasm_path, config).await {
+            Ok(presentation) => ok(&ui_schema::schema(domain_ir, &presentation)),
             Err(e) => internal_error(&e.to_string()),
         },
 
@@ -91,12 +92,14 @@ pub async fn route(
         // save has to be visible on the very next request, which is
         // the same reason app.rb calls `PresentationConfig.load` per
         // request rather than caching it in a constant.
-        ("GET", "/api/presentation") => match presentation::load(client).await {
-            Ok(config) => ok(&config),
+        ("GET", "/api/presentation") => match presentation::load(client, wasm_path, config).await {
+            Ok(presentation) => ok(&presentation),
             Err(e) => internal_error(&e.to_string()),
         },
 
-        ("PUT", "/api/presentation") => not_implemented(PRESENTATION_WRITE_REFUSAL),
+        ("PUT", "/api/presentation") => {
+            presentation_save(domain_ir, raw_body, client, wasm_path, config, invoker).await
+        }
 
         // EVERYTHING ELSE UNDER `/api/` IS A COLLECTION ROUTE —
         // `/api/:coll` and `/api/:coll/:id`, the two the Ruby engine
@@ -118,8 +121,10 @@ pub async fn route(
                 .collect();
 
             match (method, segments.as_slice()) {
-                ("GET", [collection]) => collection_index(domain_ir, collection, query, client, wasm_path).await,
-                ("GET", [collection, id]) => record_show(domain_ir, collection, id, client, wasm_path).await,
+                ("GET", [collection]) => {
+                    collection_index(domain_ir, collection, query, client, wasm_path, config).await
+                }
+                ("GET", [collection, id]) => record_show(domain_ir, collection, id, client, wasm_path, config).await,
                 ("POST", [collection]) => {
                     collection_create(domain_ir, collection, raw_body, client, wasm_path, config, invoker).await
                 }
@@ -152,8 +157,9 @@ async fn collection_index(
     params: &HashMap<String, String>,
     client: &Mutex<Client>,
     wasm_path: &Path,
+    lineage: &LineageConfig,
 ) -> Value {
-    let config = match presentation::load(client).await {
+    let config = match presentation::load(client, wasm_path, lineage).await {
         Ok(config) => config,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -180,8 +186,15 @@ async fn collection_index(
 
 /// `GET /api/:coll/:id` — one record's full state, or the Ruby
 /// engine's own `Runtime::NotFound` message, verbatim.
-async fn record_show(domain_ir: &Value, collection: &str, id: &str, client: &Mutex<Client>, wasm_path: &Path) -> Value {
-    let config = match presentation::load(client).await {
+async fn record_show(
+    domain_ir: &Value,
+    collection: &str,
+    id: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    lineage: &LineageConfig,
+) -> Value {
+    let config = match presentation::load(client, wasm_path, lineage).await {
         Ok(config) => config,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -360,7 +373,7 @@ async fn collection_create(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
-    let presentation = match presentation::load(client).await {
+    let presentation = match presentation::load(client, wasm_path, config).await {
         Ok(presentation) => presentation,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -426,7 +439,7 @@ async fn command_route(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
-    let presentation = match presentation::load(client).await {
+    let presentation = match presentation::load(client, wasm_path, config).await {
         Ok(presentation) => presentation,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -887,40 +900,72 @@ fn me(session: Option<&Session>) -> Value {
     })
 }
 
-// PUT /api/presentation IS DELIBERATELY NOT PORTED, AND SAYS SO.
+/// `PUT /api/presentation` — `app.rb`'s own `put "/api/presentation"`,
+/// contract for contract: the WHOLE config replaced at once, validated
+/// against this domain's real live shape before anything is written,
+/// and answered with the RELOADED config rather than the submitted one.
+///
+/// FOUR ANSWERS, EACH ONE THE RUBY ENGINE'S OWN:
+///   - 200 with `json(PresentationConfig.load)` on a save.
+///   - 400 `MalformedBody` for a body that isn't a JSON object at all —
+///     `parsed_body`'s answer everywhere else in this file, and the one
+///     case Ruby's own `parsed_body` never reaches because Sinatra has
+///     already failed.
+///   - 422 `{"error": "Malformed", "message": ...}` for a config that
+///     breaks one of `PresentationConfig.validate!`'s rules, message
+///     for message.
+///   - 422 with the kernel's own `kind`/`error` for a real domain
+///     refusal — a tone that got past validation, a row that was never
+///     Declared — the same `domain_refusal` shape every dispatching
+///     route here uses.
+///
+/// And one answer that is NOT Ruby's, for a case Ruby cannot be in:
+/// 501, unchanged, when this host's kernel carries no ConsoleSettings
+/// chapter at all. That is asked of the kernel, never assumed.
+#[allow(clippy::too_many_arguments)]
+async fn presentation_save(
+    domain_ir: &Value,
+    raw_body: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
+    let submitted = match parsed_body(raw_body) {
+        Ok(submitted) => submitted,
+        Err(refusal) => return refusal,
+    };
+
+    match presentation_write::save(domain_ir, &submitted, client, wasm_path, config, invoker).await {
+        Ok(saved) => ok(&saved),
+        Err(presentation_write::SaveRefusal::NoKernel) => not_implemented(PRESENTATION_WRITE_REFUSAL),
+        Err(presentation_write::SaveRefusal::Malformed(message)) => refusal(422, "Malformed", &message),
+        Err(presentation_write::SaveRefusal::Domain(result)) => domain_refusal(&result),
+        Err(presentation_write::SaveRefusal::Internal(message)) => internal_error(&message),
+    }
+}
+
+// WHAT A HOST WITH NO CONSOLESETTINGS CHAPTER STILL SAYS.
 //
-// The Ruby engine's write path (`PresentationConfig.save!`) validates
-// the whole submitted config against the live domain IR and then
-// dispatches a dozen real `ConsoleSettings::*` commands — Declare,
-// SetTone, SetAttention, ReplaceColumns, ReplaceDetailFields,
-// ReplacePreconditions, ReplaceStats — through a runtime that has that
-// chapter booted. This host does not have it booted and cannot: its
-// `.wasm` kernel is the consuming domain's own, and ConsoleSettings
-// has never been compiled into it (the consuming app pins that chapter
-// to Ruby's Postgres adapter permanently — see presentation.rs's own
-// header for why, in the app's own words).
+// This refusal used to be the whole route, on the premise that this
+// crate could never have that chapter: "its `.wasm` kernel is the
+// consuming domain's own, and ConsoleSettings has never been compiled
+// into it." The second half was wrong. `uses_framework
+// "ConsoleSettings"` pulls the chapter into the same registry
+// `bin/project_rust` generates from, and `merged.rs` folds its three
+// aggregates into the one `Store` the single `.wasm` carries — the
+// same way Governance and Identity are already in there, confirmed
+// against the real deployed artifact's own strings.
 //
-// So the write would have to be one of: (a) hand-rolled SQL appending
-// to Ruby's era journal and upserting its head snapshot, with the
-// aggregate's own invariants — `tone` is a `one_of`, a state must be
-// Declared before it is styled — simply not run; (b) a second store
-// (S3, a config table) that Ruby's own console would then not read,
-// splitting one config in two; or (c) compiling ConsoleSettings into
-// this domain's kernel and migrating the existing rows into this
-// crate's flat journal, which is a real deployment decision with a
-// data migration attached, not a code change.
-//
-// (a) and (b) are both "write it somewhere and hope" — this file
-// refuses instead. The READ path above is complete and live, so every
-// console screen that only READS presentation config works here
-// today; only the Settings screen's save does not, and it says which
-// of the three decisions is outstanding rather than 404-ing as if the
-// route had never existed.
+// So the route dispatches for real now, and this stays for the case it
+// was always truly about: a domain whose kernel genuinely has no such
+// chapter. It says which decision is outstanding — attach it — rather
+// than 404-ing as if the route had never existed.
 const PRESENTATION_WRITE_REFUSAL: &str =
-    "this host serves the console's presentation config read-only: it has no ConsoleSettings kernel to \
-     dispatch StateStyle/Collection/Overview commands through, and writing the rows behind its back would \
-     skip the invariants those commands enforce. Save from the Ruby console engine, or decide to move \
-     ConsoleSettings into this domain's own kernel.";
+    "this host's kernel carries no ConsoleSettings chapter, so it has no StateStyle/Collection/Overview \
+     commands to dispatch, and writing the rows behind its back would skip the invariants those commands \
+     enforce. Attach it with `uses_framework \"ConsoleSettings\"` in this domain's own .hecksagon and \
+     rebuild the kernel, or save from the Ruby console engine instead.";
 
 // ---- response envelopes — app.rb's own `json`/`halt` shapes ---------
 
@@ -1484,13 +1529,191 @@ mod tests {
             .expect("valid IR")
     }
 
+    /// `checkout_fixture` attaches ConsoleSettings the way a real
+    /// console app does (`uses_framework "ConsoleSettings"` in its own
+    /// `.hecksagon`), so its `.wasm` carries that chapter's kernel —
+    /// which is the whole premise of `PUT /api/presentation`. Built by
+    /// `bin/project_wasm spec/fixtures/rust_host/checkout_fixture`,
+    /// same as `web.rs`'s own checkout routes already use.
+    fn console_fixture() -> (std::path::PathBuf, Value) {
+        let dist = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist");
+        let ir = serde_json::from_str(
+            &std::fs::read_to_string(dist.join("checkout_fixture.ir.json"))
+                .expect("bin/project_wasm writes checkout_fixture.ir.json beside the wasm"),
+        )
+        .expect("valid IR");
+        (dist.join("checkout_fixture.wasm"), ir)
+    }
+
+    /// Every real state styled — `missing_state_entries` refuses a save
+    /// that leaves one out, in both engines. `Registration` declares no
+    /// lifecycle at all and so has nothing to style, which is exactly
+    /// the case that check must not fire on.
+    fn every_state_styled() -> Value {
+        json!({"states": {"Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}}}})
+    }
+
+    #[tokio::test]
+    async fn the_presentation_config_is_saved_and_read_back_through_the_kernels_own_commands() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_save").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "CheckoutFixture",
+            1,
+            &["Event", "Registration", "StateStyle", "Collection", "Overview"],
+        )
+        .await;
+        let (wasm, ir) = console_fixture();
+        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
+        let invoker = crate::lambda_client::NeverInvoker;
+
+        // Nothing saved yet — every section empty, the same answer the
+        // Ruby engine gives a console that has never saved.
+        let before = presentation::load(&client, &wasm, &lineage).await.expect("a config");
+        assert_eq!(before, json!({"states": {}, "collections": {}, "overview": {}}));
+
+        let mut submitted = every_state_styled();
+        submitted["states"]["Event"]["open"] = json!({"tone": "good", "attention": true, "label": "Open for signups"});
+        submitted["collections"] = json!({
+            "Event": {
+                "label": "Sessions",
+                "nav_order": 1,
+                "columns": ["slug", {"field": "name", "sortable": true, "head": "Title"}, "__state__"],
+                "detail_fields": [{"field": "price", "display": "mono"}],
+                "field_formats": {"capacity": "percent"},
+                "identity": {"field": "slug", "strategy": "slug", "source": "name", "pad": 3},
+                "noun_sing": "session"
+            }
+        });
+        submitted["overview"] = json!({"stats": [{"label": "Open", "collection": "events",
+                                                  "where": {"state": "open"}}]});
+
+        let saved = presentation_save(&ir, &submitted.to_string(), &client, &wasm, &lineage, &invoker).await;
+        assert_eq!(saved["statusCode"], 200, "{saved}");
+        let stored = body(&saved);
+
+        // THE RESPONSE IS THE RELOADED CONFIG, not the submitted one —
+        // app.rb returns `json(PresentationConfig.load)` after a save.
+        assert_eq!(stored["states"]["Event"]["open"]["tone"], "good");
+        assert_eq!(stored["states"]["Event"]["open"]["attention"], json!(true));
+        // A field this chapter does not model individually still
+        // round-trips, through `extra_json`.
+        assert_eq!(stored["states"]["Event"]["open"]["label"], "Open for signups");
+        assert_eq!(stored["states"]["Event"]["closed"]["tone"], "muted");
+        assert!(stored["states"].get("Registration").is_none(), "a lifecycle-less aggregate is styled by nothing");
+        assert_eq!(stored["collections"]["Event"]["label"], "Sessions");
+        assert_eq!(stored["collections"]["Event"]["nav_order"], json!(1));
+        assert_eq!(stored["collections"]["Event"]["noun_sing"], "session");
+        assert_eq!(stored["collections"]["Event"]["columns"][1]["sortable"], json!(true));
+        assert_eq!(stored["collections"]["Event"]["columns"][1]["head"], "Title");
+        assert_eq!(stored["collections"]["Event"]["identity"]["pad"], json!(3));
+        assert_eq!(stored["collections"]["Event"]["field_formats"], json!({"capacity": "percent"}));
+        assert_eq!(stored["overview"]["stats"][0]["where"], json!({"state": "open"}));
+
+        // …and a FRESH read agrees with the save's own answer, which is
+        // what proves the rows are really in the kernel's own store and
+        // not just in the response this call happened to build.
+        assert_eq!(presentation::load(&client, &wasm, &lineage).await.expect("a config"), stored);
+
+        // SAVING AGAIN IS SAFE — every present field is re-dispatched,
+        // and a row that already exists is a `Set*`, never a second
+        // `Declare` (which would refuse `AlreadyExists`).
+        let again = presentation_save(&ir, &submitted.to_string(), &client, &wasm, &lineage, &invoker).await;
+        assert_eq!(again["statusCode"], 200, "{again}");
+        assert_eq!(body(&again), stored);
+    }
+
+    #[tokio::test]
+    async fn a_config_that_breaks_a_rule_refuses_422_malformed_and_writes_nothing() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_malformed").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "CheckoutFixture",
+            1,
+            &["Event", "Registration", "StateStyle", "Collection", "Overview"],
+        )
+        .await;
+        let (wasm, ir) = console_fixture();
+        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
+        let invoker = crate::lambda_client::NeverInvoker;
+
+        let mut bad = every_state_styled();
+        bad["states"]["Event"]["open"] = json!({"tone": "chartreuse"});
+
+        let refused = presentation_save(&ir, &bad.to_string(), &client, &wasm, &lineage, &invoker).await;
+
+        assert_eq!(refused["statusCode"], 422, "{refused}");
+        assert_eq!(body(&refused)["error"], "Malformed");
+        assert_eq!(
+            body(&refused)["message"],
+            "Event.open's tone \"chartreuse\" isn't one of good, warn, danger, muted, accent"
+        );
+
+        // NOTHING WRITTEN — `validate` runs before the first dispatch,
+        // which is the whole reason it is a separate pass.
+        assert_eq!(
+            presentation::load(&client, &wasm, &lineage).await.expect("a config"),
+            json!({"states": {}, "collections": {}, "overview": {}})
+        );
+    }
+
+    #[tokio::test]
+    async fn a_body_that_is_not_json_at_all_is_a_400_before_anything_is_validated() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_bad_body").await;
+        crate::dispatch::tests::provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event"]).await;
+        let (wasm, ir) = console_fixture();
+        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
+
+        let refused = presentation_save(
+            &ir,
+            "not json",
+            &client,
+            &wasm,
+            &lineage,
+            &crate::lambda_client::NeverInvoker,
+        )
+        .await;
+
+        assert_eq!(refused["statusCode"], 400, "{refused}");
+        assert_eq!(body(&refused)["error"], "MalformedBody");
+    }
+
+    /// The old 501, still the answer for the case it was always really
+    /// about: banking's kernel carries no ConsoleSettings chapter, and
+    /// this ASKS it rather than inferring it from anything else.
+    #[tokio::test]
+    async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_no_chapter").await;
+        crate::dispatch::tests::provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let wasm = crate::dispatch::tests::wasm_path();
+        let ir = banking_ir();
+        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
+
+        let refused = presentation_save(
+            &ir,
+            r#"{"states":{}}"#,
+            &client,
+            &wasm,
+            &lineage,
+            &crate::lambda_client::NeverInvoker,
+        )
+        .await;
+
+        assert_eq!(refused["statusCode"], 501, "{refused}");
+        assert_eq!(body(&refused)["error"], "NotImplemented");
+        assert!(
+            body(&refused)["message"].as_str().expect("a message").contains("ConsoleSettings"),
+            "the refusal has to name what is missing: {refused}"
+        );
+    }
+
     #[tokio::test]
     async fn a_record_is_created_then_commanded_then_read_back_through_the_api_routes() {
         let client = crate::dispatch::tests::scratch_db("rust_host_api_write_routes").await;
         crate::dispatch::tests::provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
         let wasm = crate::dispatch::tests::wasm_path();
         let ir = banking_ir();
-        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1) };
+        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
         let invoker = crate::lambda_client::NeverInvoker;
 
         let created = collection_create(
@@ -1510,9 +1733,9 @@ mod tests {
         assert_eq!(record["reference"]["value"], "CUST-9001");
 
         // …and it is there to read, both ways.
-        let index = collection_index(&ir, "customers", &params(&[]), &client, &wasm).await;
+        let index = collection_index(&ir, "customers", &params(&[]), &client, &wasm, &lineage).await;
         assert_eq!(body(&index).as_array().expect("an array").len(), 1);
-        let shown = record_show(&ir, "customers", "CUST-9001", &client, &wasm).await;
+        let shown = record_show(&ir, "customers", "CUST-9001", &client, &wasm, &lineage).await;
         assert_eq!(body(&shown)["id"], "CUST-9001");
 
         // A command against it, named the snake_case way

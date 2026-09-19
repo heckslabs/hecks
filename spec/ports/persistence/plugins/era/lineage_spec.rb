@@ -3,20 +3,20 @@ require "hecks/ports/persistence/plugins/era"
 
 # M27 (docs/audits/2026-08-10-main-bug-audit.md,
 # docs/audits/2026-08-11-bug-triage.md) — `Lineage#translate` applied
-# `@renames` SEQUENTIALLY, in-place, against the same hash it was still
+# `@renames` sequentially, in-place, against the same hash it was still
 # reading from: `state[new_name] = state.delete(old_name)` per rule, one
-# rule at a time. A SWAP (`rename :a, to: :b` alongside `rename :b,
+# rule at a time. A swap (`rename :a, to: :b` alongside `rename :b,
 # to: :a`) on `{a: 1, b: 2}` used to produce `{a: 1}` — the first rule
 # wrote over `:b`'s real value before the second rule ever got to read
 # it, so `b`'s original value (2) vanished outright. Layer 2 audits the
-# COMPILED SQL against this exact reference transform (`layer_two.rb`),
+# compiled SQL against this exact reference transform (`layer_two.rb`),
 # so the bug wasn't merely wrong — it was self-consistent: the SQL and
-# this Ruby reference AGREED on the lossy answer, and a mint holding a
+# this Ruby reference agreed on the lossy answer, and a mint holding a
 # genuine data-losing rename sailed through silently.
 #
-# The fix computes the full old-name -> value mapping FIRST (a
+# The fix computes the full old-name -> value mapping first (a
 # snapshot untouched by either pass), removes every old key, and only
-# THEN writes every new key — so a rename never reads a key this same
+# then writes every new key — so a rename never reads a key this same
 # pass already wrote to, and a swap or a longer chain applies as one
 # simultaneous permutation rather than a sequence of edits each
 # stepping on the last.
@@ -51,10 +51,10 @@ RSpec.describe "Lineage#translate — simultaneous rename application" do
 
   it "a chain into a fresh name (a->b, b->c) moves a's value to c and drops the ORIGINAL b, simultaneously" do
     # Simultaneous semantics: this is a permutation computed against the
-    # state as it stood BEFORE the edge ran, not a sequential replay —
+    # state as it stood before the edge ran, not a sequential replay —
     # "b" no longer exists as a source by the time "b -> c" would apply
-    # sequentially, but it's still evaluated against the ORIGINAL
-    # snapshot, so the ORIGINAL b's value (2) is what ends up at c only
+    # sequentially, but it's still evaluated against the original
+    # snapshot, so the original b's value (2) is what ends up at c only
     # if a rule renamed b (it does here), not a's value laundered
     # through it.
     lineage = Hecks::Ports::Persistence::Lineage.new({ a: :b, b: :c })

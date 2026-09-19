@@ -289,6 +289,13 @@ pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_mana
 /// refuse_absent_arguments`, generated: every declared non-optional name
 /// the caller's JSON never mentions, SORTED, refused as `AbsentArgument`
 /// through the same wording site, before any field is built.
+///
+/// V3 — THE TYPED DOOR, byte-identical to what the Ruby generator emits.
+/// `RefusalSite::...render` is private to the generated vocabulary module
+/// now, so the only way in is the site's own `<Variant>Args` struct:
+/// leaving an argument out does not compile, and the "none" reading of an
+/// empty `declared` list is `render_args`' business (that argument's own
+/// `Vocabulary::RefusalSiteArgument` row), not this emitter's.
 fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String {
     let mut required: Vec<String> = attributes.iter().filter(|a| !crate::attr::optional(a)).map(|a| naming::rust_field(crate::attr::name(a))).collect();
     required.sort();
@@ -296,33 +303,34 @@ fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String
         return String::new();
     }
     let declared: Vec<String> = attributes.iter().map(|a| crate::attr::name(a).to_string()).collect();
-    let reading = if declared.is_empty() { "none".to_string() } else { declared.join(", ") };
     format!(
-        "let absent: Vec<&str> = [{}].into_iter().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[\n        (\"command\", {}),\n        (\"absent\", absent.join(\", \").as_str()),\n        (\"declared\", {}),\n    ])));\n}}\n",
+        "let absent: Vec<&str> = [{}].into_iter().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {{\n        command: {},\n        absent: &absent,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
         required.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
         naming::ruby_inspect_string(command_name),
-        naming::ruby_inspect_string(&reading),
+        declared.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
     )
 }
 
-/// Mirrors `json_codec.rb#emit_unknown_argument_check`'s own fallback,
-/// added the same time and for the same reason (that method's own
-/// comment, quoted here): `declared_names.join(", ")` used to be
-/// spliced straight into the template, correct for every command with
-/// at least one attribute but rendering the empty string — and trailing
-/// the sentence off mid-clause, "Close does not declare parcel — it
-/// takes " — for a command that declares NONE. `declared_reading`'s own
-/// "none" fallback (argument_gate.rb) never reached this path, because
-/// this check builds its wording directly rather than through
-/// `RefusalSite::UnknownArgumentUnknownArgs.render` the way
-/// `emit_absent_argument_check` (above) already does. Found live via
+/// Mirrors `json_codec.rb#emit_unknown_argument_check`. It used to splice
+/// `declared_names.join(", ")` straight into a hand-written `format!` of
+/// the template's own text — correct for every command with at least one
+/// attribute, but rendering the empty string, and trailing the sentence
+/// off mid-clause ("Close does not declare parcel — it takes ") for a
+/// command that declares NONE. `declared_reading`'s own "none" fallback
+/// (argument_gate.rb) never reached this path at all. Found live via
 /// `bin/qa_generated_domains` (BUG#134).
+///
+/// V3 retires the whole class rather than that one instance: no join, no
+/// sort, no "none" and no template text here any more — both lists go
+/// over RAW to `UnknownArgumentUnknownArgsArgs::render_args`, which reads
+/// the same `Vocabulary::RefusalSiteArgument` rows Ruby's own
+/// `RefusalWording.render_site` does.
 fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declared_names: &[String]) -> String {
-    let reading = if declared_names.is_empty() { "none".to_string() } else { declared_names.join(", ") };
     format!(
-        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    return Err(crate::kernel::Refusal::UnknownArgument(format!(\n        \"{command_name} does not declare {{}} — it takes {}\",\n        unknown.join(\", \")\n    )));\n}}\n",
+        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();\n    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {{\n        command: {},\n        unknown: &unknown,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
         known_keys.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
-        reading,
+        naming::ruby_inspect_string(command_name),
+        declared_names.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
     )
 }
 
@@ -352,28 +360,38 @@ pub fn unknown_and_absent_argument_checks(command_name: &str, attributes: &[Json
     check
 }
 
-/// Port of `json_codec.rb#structural_precheck` (BUG#23, qa/bluebook/
-/// quality_control.bluebook) — object-shape check, then
-/// `unknown_and_absent_argument_checks` above: the IDENTICAL text
-/// `emit_from_json_skeleton`'s own preamble builds for a command's
-/// top-level Args struct. Exposed (`pub`) so `registry.rs` can run this
-/// SAME check directly against `facts_json`, standalone, BEFORE an
-/// acting aggregate command's own `id_line`/`extract_id` resolves at
-/// all — see that file's own header for the full reasoning:
-/// `id_line` used to run BEFORE `Args::from_json` (the ONE place these
-/// structural checks lived), so a malformed `id`/`to:` short-circuited
-/// dispatch before a missing OTHER argument was ever checked, and Ruby/
-/// Rust refused different KINDS for the identical malformed command.
-/// `absent_argument_check` is always `true` here — every real caller
-/// (an acting aggregate command's own top-level args, `domain_
-/// generator.rs`'s `registry_commands`) already passes it that way to
-/// `emit_from_json_flat` too.
-pub fn structural_precheck(struct_name: &str, command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>) -> String {
+/// Port of `json_codec.rb#emit_argument_gates` (roadmap D2) — one
+/// generated function per declared argument-gate step, emitted beside a
+/// command's own `from_json` so `kernel::decode_aggregate_arguments`/
+/// `decode_entity_arguments` can call them in `AggregateStep::ORDER`/
+/// `EntityStep::ORDER`. Replaces the standalone `structural_precheck`
+/// the router used to splice ahead of `id_line`/`extract_id`: the same
+/// checks are the steps themselves now, and identity resolution runs
+/// after every gate, which is Ruby's own order. See the Ruby half's own
+/// header for the full argument, including why `from_json` keeps its
+/// internal preamble for every OTHER caller.
+pub fn emit_argument_gates(struct_name: &str, command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>) -> String {
+    let unknown = match unknown_argument_allowlist {
+        Some(_) => unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, false),
+        None => String::new(),
+    };
+    let absent = emit_absent_argument_check(command_name, attributes);
+
     format!(
-        "{}{}",
-        emit_object_shape_check(struct_name),
-        unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, true)
+        "impl {struct_name} {{\n{}\n\n{}\n\n{}\n}}\n",
+        argument_gate_fn("decode_arguments", &emit_object_shape_check(struct_name)),
+        argument_gate_fn("refuse_unknown_arguments", &unknown),
+        argument_gate_fn("refuse_absent_arguments", &absent),
     )
+}
+
+/// One gate function — port of `json_codec.rb#argument_gate_fn`. An empty
+/// body still gets its own function (the kernel's loop calls every
+/// declared step for every command) and names its parameter `_v` so an
+/// empty one never warns.
+fn argument_gate_fn(name: &str, body: &str) -> String {
+    let parameter = if body.is_empty() { "_v" } else { "v" };
+    format!("    pub fn {name}({parameter}: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {{\n{body}        Ok(())\n    }}")
 }
 
 /// `interleave_checks`/`aggregates_by_name` — port of `json_codec.rb#
@@ -679,7 +697,10 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
         .collect();
 
     let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
-    let admitted = rows.iter().map(|(_v, raw)| naming::ruby_inspect_string(raw)).collect::<Vec<_>>().join(", ");
+    // V3 — the member list goes over RAW; `admitted`'s own
+    // `Vocabulary::RefusalSiteArgument` row is what quotes and joins it,
+    // inside `InvariantViolationClosedSetMemberArgs::render_args`.
+    let admitted = format!("[{}]", rows.iter().map(|(_v, raw)| naming::ruby_inspect_string(raw)).collect::<Vec<_>>().join(", "));
     // BUG#14 — the SAME "numeric_field" wording `required_field_expr`
     // already gives every OTHER composite field's own missing-key case
     // ("{type}.{field} expects {expected}, got nil"), resolved here at
@@ -693,7 +714,7 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
             ("TmplKind", name),
             ("\"tmpl_field_name\"", naming::ruby_inspect_string(&field_name)),
             ("\"tmpl_closed_set_type\"", naming::ruby_inspect_string(&type_name)),
-            ("\"tmpl_closed_set_admitted\"", naming::ruby_inspect_string(&admitted)),
+            ("[\"tmpl_closed_set_member_a\"]", admitted),
             ("\"tmpl_null_field_message\"", naming::ruby_inspect_string(&null_message)),
         ],
         &[

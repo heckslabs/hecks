@@ -19,7 +19,7 @@ RSpec.describe "Banking across persistence adapters" do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # ONE FIXTURE BOOT, DECLARED WHOLE — every aggregate's persisted_by/
+  # One fixture boot, declared whole — every aggregate's persisted_by/
   # projected_by pairing has to be read alongside the same `projected`
   # flag deciding whether that pairing applies at all; splitting this
   # into smaller methods would mean threading `adapter`/`projected`/
@@ -100,7 +100,7 @@ RSpec.describe "Banking across persistence adapters" do
         end
       else
         begin
-          runtime.dispatch(step.fetch("verb"), **args)
+          runtime.dispatch_flat(step.fetch("verb"), **args)
         rescue StandardError => e
           refusals << { verb: step.fetch("verb"), error: e.message }
         end
@@ -139,13 +139,13 @@ RSpec.describe "Banking across persistence adapters" do
   AUTHORITATIVE_ADAPTERS.each do |adapter|
     it "keeps the same account result through #{adapter}" do
       runtime = boot(adapter)
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
+      runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
                                                    email: { address: "ada@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
+      runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
 daily_limit: { cents: 1_000 })
-      runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" },
+      runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" },
 narrative: { text: "Opening" })
-      runtime.dispatch("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" },
+      runtime.dispatch_flat("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" },
 narrative: { text: "Lunch" })
 
       account = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account")).find("a")
@@ -158,9 +158,9 @@ narrative: { text: "Lunch" })
 
   it "reads the projection after catch-up and keeps all three stores in parity" do
     runtime = boot("Heki", projected: true)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
+    runtime.dispatch_flat("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
 email: { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
+    runtime.dispatch_flat("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
 daily_limit: { cents: 1_000 })
 
     before = runtime.query("Banking.customer_portfolio", customer: "c")
@@ -168,7 +168,7 @@ daily_limit: { cents: 1_000 })
       Hecks::Ports::Projection.worker(runtime.registry, "Banking", aggregate)
     end
     workers.each(&:catch_up!)
-    # WHICH REPOSITORY, not which methods. `read_repository` hands back the
+    # Which repository, not which methods. `read_repository` hands back the
     # authoritative store whenever the projection is judged stale, and Heki
     # answers `query_read_model` too — so `respond_to` passed either way and
     # a projection silently declining to serve would have read as success.

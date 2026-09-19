@@ -13,7 +13,7 @@ module Hecks
     class Instance
       attr_reader :aggregate, :id
       attr_accessor :state
-      # OUT-OF-BAND ADAPTER BOOKKEEPING, NOT DOMAIN STATE — the optimistic-
+      # **Out-of-band adapter bookkeeping, not domain state** — the optimistic-
       # concurrency version a CAS-capable adapter (Postgres today) stamps
       # on a record it reads/writes, so a later `save` can assert "commit
       # only if nobody has written since". Deliberately absent from
@@ -25,19 +25,40 @@ module Hecks
       # ADR) for the full mechanism.
       attr_accessor :version
 
-      # `args:` — THE ORIGINAL COMMAND PAYLOAD, offered only by a fresh
+      # `args:` — the original command payload, offered only by a fresh
       # creation (`CommandInterpreter#hydrate_legacy_creation`/
       # `#hydrate_complete_state`/`#hydrate_prior_or_initial`, each already
       # holding it when they mint a brand-new record). See
       # `materialize_identity!` for why a composite identity needs it.
-      def initialize(aggregate:, id:, state: nil, args: nil)
+      #
+      # `hydrate:` — ON BY DEFAULT, and every existing caller keeps getting
+      # exactly what it always got: `state` re-walked through
+      # `hydrate_with_defaults` (declared defaults filled, every attribute
+      # re-coerced through `Value.for_attribute`, an entity list's every
+      # element rebuilt and re-validated). `false` is for exactly one
+      # caller (`Adapters::Memory#build_instance`, judge-bootstrapping
+      # only — see its own header) that already knows `state` needs none
+      # of that: it is a shallow dup of an ALREADY-hydrated, ALREADY-
+      # validated live `Instance`'s own state, not a raw value pulled off
+      # a wire. Skipping the re-walk is what turns a `list_of` entity's Nth
+      # save from O(N) (re-hydrating every element saved so far, for every
+      # save) into O(1) — the quadratic cost `Adapters::Memory`'s own
+      # header traces start to finish. `CodecBoundary.check_state!` still
+      # runs either way ; only the re-hydration is skipped.
+      def initialize(aggregate:, id:, state: nil, args: nil, hydrate: true)
         @aggregate = aggregate
         @id        = id
         # Inside a persistence adapter call this refuses undecoded stored
         # state (Ports::Persistence::CodecBoundary); everywhere else, no-op.
         Ports::Persistence::CodecBoundary.check_state!(aggregate, state) if state
-        @state     = state ? self.class.hydrate_with_defaults(aggregate, state) : self.class.defaults(aggregate)
-        @version   = nil
+        @state = if !hydrate
+                   state || self.class.defaults(aggregate)
+                 elsif state
+                   self.class.hydrate_with_defaults(aggregate, state)
+                 else
+                   self.class.defaults(aggregate)
+                 end
+        @version = nil
         materialize_identity!(args)
       end
 
@@ -57,7 +78,7 @@ module Hecks
 
       def self.defaults(aggregate)
         state = aggregate.attributes.to_h do |attr|
-          # FROZEN, like a list that has had something appended to it.
+          # Frozen, like a list that has had something appended to it.
           # An untouched list is the easiest one to miss and the easiest
           # to mutate: nothing has replaced it yet, so a caller pushing
           # into it writes straight into the aggregate's own state.
@@ -97,7 +118,7 @@ module Hecks
         @state.key?(name) || super
       end
 
-      # `id: @id` LAST, not first — see Facade::Handle#to_h's own comment
+      # `id: @id` last, not first — see Facade::Handle#to_h's own comment
       # for the full story (the same fix, landed there first): an
       # aggregate free to declare its own attribute literally named `id`
       # (BurningManPrep's `Item`, `attribute :id, ItemId`) has that
@@ -106,15 +127,15 @@ module Hecks
       # the correct bare identity. `@id` merged last always wins.
       def to_h = @state.merge(id: @id)
 
-      # A COPY A MUTATION MAY TOUCH. Every adapter but Memory hands `find`
+      # A copy a mutation may touch. Every adapter but Memory hands `find`
       # a freshly-decoded Instance already; Memory's holds the record it
-      # eventually saves — the SAME state Hash, aliased. Before `ensures`
+      # eventually saves — the same state Hash, aliased. Before `ensures`
       # existed, nothing could refuse between apply_mutations and save, so
       # that aliasing was invisible: a dispatch either ran to completion or
       # raised before touching state at all. `ensures` is the first refusal
-      # to sit AFTER mutation, and it found the bug the moment it did — an
+      # to sit after mutation, and it found the bug the moment it did — an
       # in-memory record left half-mutated by a dispatch that then refused.
-      # `command_interpreter`/`entity_interpreter` hydrate an EXISTING
+      # `command_interpreter`/`entity_interpreter` hydrate an existing
       # record through this, never through the adapter's own return value
       # directly, so a refused ensures leaves the stored record untouched
       # regardless of which adapter is holding it.
@@ -131,13 +152,13 @@ module Hecks
 
       private
 
-      # M17 — a COMPOSITE identity (`identity_heads.size > 1`, e.g.
+      # M17 — a composite identity (`identity_heads.size > 1`, e.g.
       # `identified_by :branch_code, :box_number`) has no single
       # `identified_by` to fall back to `:id` for — `@aggregate.identified_by`
       # is nil the moment there is more than one head (`Behaviour::Identified
       # #derive_identity`), so the single-head branch below never runs for
       # it at all. A creating command that declares those heads as ordinary
-      # attributes but doesn't ALSO `sets` them (redundant with the identity
+      # attributes but doesn't also `sets` them (redundant with the identity
       # the command's own args already named) used to persist every head as
       # nil — the id correctly named the record, but the record's own
       # attributes forgot what named it.
@@ -146,7 +167,7 @@ module Hecks
       # same reason the single-head branch below won't guess a multi-path
       # identifier from its joined string: `@id` is a display key, not a
       # reversible serialization, and a composite's own separator can
-      # collide with a part's own text. `args` is only offered by a FRESH
+      # collide with a part's own text. `args` is only offered by a fresh
       # creation (`Instance.new`'s own `args:` comment); an existing record
       # read back from storage has no args to lean on, and doesn't need
       # one since a correctly-persisted record already carries its own

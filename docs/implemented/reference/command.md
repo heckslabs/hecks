@@ -154,7 +154,7 @@ Names who calls this command — "Compliance officer", "Back office". Optional: 
 a caller who states nothing is not refused:
 
 ```ruby
-runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "cm-a1" })
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "cm-a1" })
 Banking::Account.find("cm-a1").status  # => "frozen"
 ```
 
@@ -165,7 +165,7 @@ Hecks.as_caller(role: "Teller") { runtime.dispatch("Banking::Account.Unfreeze", 
 ```
 
 ```ruby
-Hecks.as_caller(role: "Compliance officer") { runtime.dispatch("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }
+Hecks.as_caller(role: "Compliance officer") { runtime.dispatch_flat("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }
 Banking::Account.find("cm-a1").status  # => "open"
 ```
 

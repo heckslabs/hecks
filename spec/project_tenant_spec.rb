@@ -18,8 +18,8 @@ RSpec.describe "bin/project_tenant", :io do
   # top-level constant" gate.
   SCRIPT = File.join(InMemoryDomain::ROOT, "bin/project_tenant").freeze
   DB = "hecks_project_tenant_spec".freeze
-  # What the generated overlay actually binds: the database BY URL, as a
-  # NON-superuser owner — the ambient dev/CI user is a superuser, which
+  # What the generated overlay actually binds: the database by URL, as a
+  # non-superuser owner — the ambient dev/CI user is a superuser, which
   # PostgresEra refuses to boot as (BUG#24; see support/fenced_owner.rb).
   DB_URL = FencedOwner.url(DB)
 

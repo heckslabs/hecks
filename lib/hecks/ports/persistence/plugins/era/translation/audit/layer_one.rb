@@ -8,11 +8,18 @@ module Hecks
     module Audit
       # Layer 1 — from the bluebook alone: every translated state must
       # pass the new era's types, value-object invariants, and lifecycle.
-      # This is also where a NEW, stricter invariant that old records
+      # This is also where a new, stricter invariant that old records
       # violate surfaces — there is no "grandfather old records"
       # construct, and the remedy is relaxing the invariant or explicit
       # remediation, never a translation rule.
       module LayerOne
+        # Hydrates every translated state as a current-era instance and records each one
+        # the era's types, invariants or lifecycle refuse.
+        #
+        # @param violations [Array<String>] collector this method appends messages to
+        # @param aggregate [Bluebook::Aggregate] the current era's IR for the aggregate
+        # @param after [Hash{String => Hash}] translated state per record id, as parsed JSON
+        # @return [void]
         def layer_one!(violations, aggregate, after)
           after.each do |id, state|
             symbolized = JSON.parse(JSON.generate(state), symbolize_names: true)
@@ -25,7 +32,7 @@ module Hecks
             # legitimately declared just as a `from:` (a terminal
             # transition's source, never anyone's target) is real and
             # reachable but invisible to it. `ModelCheck.full_states`
-            # is the full declared set (default, every target, AND
+            # is the full declared set (default, every target, and
             # every from) that `fuzzing/properties.rb`'s own replay
             # check already uses for this identical question — see its
             # comment on this same hole.

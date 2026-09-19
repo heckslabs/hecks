@@ -1,10 +1,10 @@
 require "spec_helper"
 
 # H1 (docs/audits/2026-08-10-main-bug-audit.md) — an entity command used to
-# run NEITHER `refuse_unknown_arguments` NOR `refuse_absent_arguments` at
+# run neither `refuse_unknown_arguments` nor `refuse_absent_arguments` at
 # all, on a comment claiming it "inherits its aggregate's own gate."
 # Nothing on the entity dispatch path ever ran one: a bogus argument was
-# accepted outright, and a command that both declares an argument AND
+# accepted outright, and a command that both declares an argument and
 # `sets` a field from it (`Advance`'s own `note`, below) silently wrote
 # `nil` over the stored value when that argument was simply omitted —
 # persisted data loss, no refusal. `EntityInterpreter` now `include`s the
@@ -31,7 +31,7 @@ RSpec.describe "an entity command's own argument gate" do
   end
 
   def open_widget(runtime)
-    runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "w1" }, amount: { value: 1 },
+    runtime.dispatch_flat("DispatchOrder::Widget.Open", label: { value: "w1" }, amount: { value: 1 },
                      part_sequence: { value: 1 }, part_note: { value: "first" })
   end
 
@@ -40,7 +40,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" }, bogus_arg: 123)
     end.to raise_error(Hecks::Runtime::UnknownArgument, /bogus_arg/)
   end
@@ -50,11 +50,11 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
     end.to raise_error(Hecks::Runtime::AbsentArgument, /note/)
 
-    # THE REGRESSION ITSELF — confirm the refusal actually happened before
-    # any mutation, not just that SOME exception was raised. Before this
+    # **The regression itself** — confirm the refusal actually happened before
+    # any mutation, not just that some exception was raised. Before this
     # fix, the dispatch above was accepted and overwrote `parts[0].note`
     # with nil (`sets :note`'s bare self-referential form reads
     # `args[:note]` unconditionally).
@@ -68,7 +68,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" })
     end.not_to raise_error
   end
@@ -78,7 +78,7 @@ RSpec.describe "an entity command's own argument gate" do
     open_widget(runtime)
 
     expect do
-      runtime.dispatch("DispatchOrder::Widget.Part.Touch", label: { value: "w1" }, sequence: { value: 1 },
+      runtime.dispatch_flat("DispatchOrder::Widget.Part.Touch", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "touched" }, sneaky: "x")
     end.to raise_error(Hecks::Runtime::UnknownArgument, /sneaky/)
   end

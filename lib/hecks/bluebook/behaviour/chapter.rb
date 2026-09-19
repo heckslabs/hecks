@@ -3,17 +3,17 @@ require_relative "traits"
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT A CHAPTER DOES. The declared half is the roll-call of what a
+      # **What a chapter does**. The declared half is the roll-call of what a
       # bluebook holds; these are the finders over it, plus `verbs` — the
       # chapter's own list of every dispatchable name, which is derived
       # from the aggregates rather than declared anywhere.
       module Chapter
         include Owns
 
-        # THE HOOK THE GENERATED CONSTRUCTOR CALLS. Three things a
-        # declaration does not state: that a chapter is the ROOT of the
+        # The hook the generated constructor calls. Three things a
+        # declaration does not state: that a chapter is the root of the
         # owner chain (nothing declares it, it is what having no owner
-        # MEANS), the ports table — which a `.hecksagon` fills later, so
+        # means), the ports table — which a `.hecksagon` fills later, so
         # the bluebook cannot declare it — and stamping its own children,
         # the same act an Aggregate performs one level down.
         def settle
@@ -28,7 +28,7 @@ module Hecks
         def read_model(named) = @read_models.find { |model| model.name == named.to_s || model.query_name == named.to_s }
         def port(named)       = @ports_by_name[named.to_s]
 
-        # WHAT THIS CHAPTER DECLARED IT PROVIDES — `{ key => local verb }`
+        # What this chapter declared it provides — `{ key => local verb }`
         # for one capability, or nil when it declares none. Read by
         # everything that used to recognise the Governance chapter by its
         # name (`Registry#authorization_provider_for`).
@@ -46,7 +46,7 @@ module Hecks
           local && "#{name}::#{local}"
         end
 
-        # A PORT IS DECLARED IN THE HECKSAGON, not the bluebook — so it
+        # A port is declared in the hecksagon, not the bluebook — so it
         # attaches after the chapter already exists, the same way an
         # aggregate's own ports do.
         def add_port(port)

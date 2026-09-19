@@ -68,7 +68,7 @@ module Hecks
         end
       end
 
-      # Every non-creating command, EXCEPT a lifecycle transition that does
+      # Every non-creating command, except a lifecycle transition that does
       # not apply from the record's current state — the same rule
       # `Rules#admissible_transition` enforces at dispatch, read here so a
       # link that would only refuse is never offered in the first place.
@@ -78,7 +78,7 @@ module Hecks
 
         items = commands.map do |cmd|
           # L12 — the id is free-form (S3): percent-encoded as the query
-          # VALUE (a raw `&` here would smuggle a second bogus query
+          # value (a raw `&` here would smuggle a second bogus query
           # parameter), then the assembled href is attribute-escaped as
           # usual.
           href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?to=#{Escape.url(id)}"

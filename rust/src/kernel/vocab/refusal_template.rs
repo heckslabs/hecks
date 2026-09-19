@@ -260,14 +260,1026 @@ impl RefusalSite {
         RefusalSite::ALL.iter().copied().find(|row| row.site() == name)
     }
 
-    /// `RefusalWording.render`: replace every `{key}` marker, in the
-    /// order given. A template is read, never evaluated.
-    pub fn render(&self, values: &[(&str, &str)]) -> String {
+    /// `RefusalWording.substitute`: replace every `{key}` marker, in the
+    /// order given. A template is read, never evaluated. Private: call
+    /// sites go through a site's typed `<Variant>Args::render_args`,
+    /// which formats and supplies every declared argument.
+    fn render(&self, values: &[(&str, &str)]) -> String {
         let mut text = self.template().to_string();
         for (key, value) in values {
             text = text.replace(&format!("{{{key}}}"), value);
         }
         text
+    }
+}
+
+/// Ruby's `#inspect` of a name, as a refusal quotes it: `{:?}` on a
+/// `&str`, the quoting every kernel call site used before
+/// RefusalSiteArgument existed.
+fn quoted(text: &str) -> String {
+    format!("{text:?}")
+}
+
+/// A list argument, written the way its RefusalSiteArgument row says:
+/// sorted first (before quoting), each item quoted, then joined; an
+/// empty list reads `when_empty`.
+fn list(items: &[&str], sorted: bool, inspect: bool, separator: &str, when_empty: &str) -> String {
+    let mut items = items.to_vec();
+    if sorted {
+        items.sort_unstable();
+    }
+    if items.is_empty() {
+        return when_empty.to_string();
+    }
+    let write = |item: &&str| if inspect { quoted(item) } else { item.to_string() };
+    items.iter().map(write).collect::<Vec<_>>().join(separator)
+}
+
+/// `RefusalSite::NotFoundCreatingNoIdentity`'s arguments — `RefusalWording.render_site("NotFound", "creating_no_identity", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundCreatingNoIdentityArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub identity: &'a str,
+}
+
+impl NotFoundCreatingNoIdentityArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::NotFoundCreatingNoIdentity.render(&[
+            ("command", self.command),
+            ("aggregate", self.aggregate),
+            ("identity", self.identity),
+        ])
+    }
+}
+
+/// `RefusalSite::AlreadyExistsCreatingDuplicate`'s arguments — `RefusalWording.render_site("AlreadyExists", "creating_duplicate", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct AlreadyExistsCreatingDuplicateArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub identity: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl AlreadyExistsCreatingDuplicateArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::AlreadyExistsCreatingDuplicate.render(&[
+            ("command", self.command),
+            ("aggregate", self.aggregate),
+            ("identity", self.identity),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::AlreadyExistsEntityDuplicate`'s arguments — `RefusalWording.render_site("AlreadyExists", "entity_duplicate", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct AlreadyExistsEntityDuplicateArgs<'a> {
+    /// scalar
+    pub entity: &'a str,
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub identity: &'a str,
+    /// list, joined ", ", empty reads ""
+    pub offered: &'a [&'a str],
+}
+
+impl AlreadyExistsEntityDuplicateArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let offered_text = list(self.offered, false, false, ", ", "");
+        RefusalSite::AlreadyExistsEntityDuplicate.render(&[
+            ("entity", self.entity),
+            ("aggregate", self.aggregate),
+            ("identity", self.identity),
+            ("offered", offered_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::NotFoundActingNoIdentity`'s arguments — `RefusalWording.render_site("NotFound", "acting_no_identity", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundActingNoIdentityArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub identity: &'a str,
+}
+
+impl NotFoundActingNoIdentityArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::NotFoundActingNoIdentity.render(&[
+            ("command", self.command),
+            ("aggregate", self.aggregate),
+            ("identity", self.identity),
+        ])
+    }
+}
+
+/// `RefusalSite::NotFoundRecordMissing`'s arguments — `RefusalWording.render_site("NotFound", "record_missing", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundRecordMissingArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub identity: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl NotFoundRecordMissingArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::NotFoundRecordMissing.render(&[
+            ("aggregate", self.aggregate),
+            ("identity", self.identity),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::NotFoundEntityParentNoIdentity`'s arguments — `RefusalWording.render_site("NotFound", "entity_parent_no_identity", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundEntityParentNoIdentityArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub entity: &'a str,
+    /// scalar
+    pub identity: &'a str,
+}
+
+impl NotFoundEntityParentNoIdentityArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::NotFoundEntityParentNoIdentity.render(&[
+            ("command", self.command),
+            ("aggregate", self.aggregate),
+            ("entity", self.entity),
+            ("identity", self.identity),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbEntityUnknown`'s arguments — `RefusalWording.render_site("UnknownVerb", "entity_unknown", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbEntityUnknownArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar, quoted
+    pub entity: &'a str,
+}
+
+impl UnknownVerbEntityUnknownArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let entity_text = quoted(self.entity);
+        RefusalSite::UnknownVerbEntityUnknown.render(&[
+            ("aggregate", self.aggregate),
+            ("entity", entity_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::NotFoundEntityElementNoIdentity`'s arguments — `RefusalWording.render_site("NotFound", "entity_element_no_identity", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundEntityElementNoIdentityArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub entity: &'a str,
+    /// scalar
+    pub identity: &'a str,
+}
+
+impl NotFoundEntityElementNoIdentityArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::NotFoundEntityElementNoIdentity.render(&[
+            ("command", self.command),
+            ("entity", self.entity),
+            ("identity", self.identity),
+        ])
+    }
+}
+
+/// `RefusalSite::NotFoundEntityElementMissing`'s arguments — `RefusalWording.render_site("NotFound", "entity_element_missing", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundEntityElementMissingArgs<'a> {
+    /// scalar
+    pub entity: &'a str,
+    /// scalar
+    pub identity: &'a str,
+    /// scalar
+    pub wants: &'a str,
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub parent_id: &'a str,
+}
+
+impl NotFoundEntityElementMissingArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::NotFoundEntityElementMissing.render(&[
+            ("entity", self.entity),
+            ("identity", self.identity),
+            ("wants", self.wants),
+            ("aggregate", self.aggregate),
+            ("parent_id", self.parent_id),
+        ])
+    }
+}
+
+/// `RefusalSite::NotFoundReferenceTargetMissing`'s arguments — `RefusalWording.render_site("NotFound", "reference_target_missing", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundReferenceTargetMissingArgs<'a> {
+    /// scalar
+    pub target: &'a str,
+    /// scalar
+    pub heads: &'a str,
+    /// scalar, quoted
+    pub key: &'a str,
+}
+
+impl NotFoundReferenceTargetMissingArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let key_text = quoted(self.key);
+        RefusalSite::NotFoundReferenceTargetMissing.render(&[
+            ("target", self.target),
+            ("heads", self.heads),
+            ("key", key_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::NotFoundReadModelReferenceMissing`'s arguments — `RefusalWording.render_site("NotFound", "read_model_reference_missing", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct NotFoundReadModelReferenceMissingArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl NotFoundReadModelReferenceMissingArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::NotFoundReadModelReferenceMissing.render(&[
+            ("aggregate", self.aggregate),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchReadModelObjectReference`'s arguments — `RefusalWording.render_site("TypeMismatch", "read_model_object_reference", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchReadModelObjectReferenceArgs<'a> {
+    /// scalar
+    pub query: &'a str,
+    /// scalar
+    pub field: &'a str,
+}
+
+impl TypeMismatchReadModelObjectReferenceArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchReadModelObjectReference.render(&[
+            ("query", self.query),
+            ("field", self.field),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbNoQuery`'s arguments — `RefusalWording.render_site("UnknownVerb", "no_query", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbNoQueryArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar, quoted
+    pub query: &'a str,
+}
+
+impl UnknownVerbNoQueryArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let query_text = quoted(self.query);
+        RefusalSite::UnknownVerbNoQuery.render(&[
+            ("aggregate", self.aggregate),
+            ("query", query_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbEntityQueryMissing`'s arguments — `RefusalWording.render_site("UnknownVerb", "entity_query_missing", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbEntityQueryMissingArgs<'a> {
+    /// scalar
+    pub entity: &'a str,
+    /// scalar, quoted
+    pub query: &'a str,
+}
+
+impl UnknownVerbEntityQueryMissingArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let query_text = quoted(self.query);
+        RefusalSite::UnknownVerbEntityQueryMissing.render(&[
+            ("entity", self.entity),
+            ("query", query_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbEntityHoldsNoList`'s arguments — `RefusalWording.render_site("UnknownVerb", "entity_holds_no_list", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbEntityHoldsNoListArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub entity: &'a str,
+}
+
+impl UnknownVerbEntityHoldsNoListArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::UnknownVerbEntityHoldsNoList.render(&[
+            ("aggregate", self.aggregate),
+            ("entity", self.entity),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbEntityNoCommand`'s arguments — `RefusalWording.render_site("UnknownVerb", "entity_no_command", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbEntityNoCommandArgs<'a> {
+    /// scalar
+    pub entity: &'a str,
+    /// scalar, quoted
+    pub command: &'a str,
+}
+
+impl UnknownVerbEntityNoCommandArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let command_text = quoted(self.command);
+        RefusalSite::UnknownVerbEntityNoCommand.render(&[
+            ("entity", self.entity),
+            ("command", command_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbAggregateNoCommand`'s arguments — `RefusalWording.render_site("UnknownVerb", "aggregate_no_command", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbAggregateNoCommandArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar, quoted
+    pub command: &'a str,
+}
+
+impl UnknownVerbAggregateNoCommandArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let command_text = quoted(self.command);
+        RefusalSite::UnknownVerbAggregateNoCommand.render(&[
+            ("aggregate", self.aggregate),
+            ("command", command_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbPortNoOperation`'s arguments — `RefusalWording.render_site("UnknownVerb", "port_no_operation", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbPortNoOperationArgs<'a> {
+    /// scalar
+    pub port: &'a str,
+    /// scalar, quoted
+    pub operation: &'a str,
+}
+
+impl UnknownVerbPortNoOperationArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let operation_text = quoted(self.operation);
+        RefusalSite::UnknownVerbPortNoOperation.render(&[
+            ("port", self.port),
+            ("operation", operation_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbNoDomain`'s arguments — `RefusalWording.render_site("UnknownVerb", "no_domain", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbNoDomainArgs<'a> {
+    /// scalar, quoted
+    pub domain: &'a str,
+    /// scalar
+    pub verb: &'a str,
+}
+
+impl UnknownVerbNoDomainArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let domain_text = quoted(self.domain);
+        RefusalSite::UnknownVerbNoDomain.render(&[
+            ("domain", domain_text.as_str()),
+            ("verb", self.verb),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbNoReadModel`'s arguments — `RefusalWording.render_site("UnknownVerb", "no_read_model", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbNoReadModelArgs<'a> {
+    /// scalar
+    pub domain: &'a str,
+    /// scalar, quoted
+    pub query: &'a str,
+}
+
+impl UnknownVerbNoReadModelArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let query_text = quoted(self.query);
+        RefusalSite::UnknownVerbNoReadModel.render(&[
+            ("domain", self.domain),
+            ("query", query_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbNotFullyQualified`'s arguments — `RefusalWording.render_site("UnknownVerb", "not_fully_qualified", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbNotFullyQualifiedArgs<'a> {
+    /// scalar, quoted
+    pub verb: &'a str,
+}
+
+impl UnknownVerbNotFullyQualifiedArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let verb_text = quoted(self.verb);
+        RefusalSite::UnknownVerbNotFullyQualified.render(&[
+            ("verb", verb_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownVerbNoAggregate`'s arguments — `RefusalWording.render_site("UnknownVerb", "no_aggregate", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownVerbNoAggregateArgs<'a> {
+    /// scalar
+    pub domain: &'a str,
+    /// scalar, quoted
+    pub aggregate: &'a str,
+}
+
+impl UnknownVerbNoAggregateArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let aggregate_text = quoted(self.aggregate);
+        RefusalSite::UnknownVerbNoAggregate.render(&[
+            ("domain", self.domain),
+            ("aggregate", aggregate_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::LifecycleRefusedTransitionBlocked`'s arguments — `RefusalWording.render_site("LifecycleRefused", "transition_blocked", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct LifecycleRefusedTransitionBlockedArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub field: &'a str,
+    /// scalar
+    pub current: &'a str,
+    /// list, quoted, joined " or ", empty reads ""
+    pub allowed: &'a [&'a str],
+}
+
+impl LifecycleRefusedTransitionBlockedArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let allowed_text = list(self.allowed, false, true, " or ", "");
+        RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
+            ("command", self.command),
+            ("field", self.field),
+            ("current", self.current),
+            ("allowed", allowed_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchValueObjectShape`'s arguments — `RefusalWording.render_site("TypeMismatch", "value_object_shape", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchValueObjectShapeArgs<'a> {
+    /// scalar
+    pub name: &'a str,
+    /// scalar
+    pub r#type: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl TypeMismatchValueObjectShapeArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchValueObjectShape.render(&[
+            ("name", self.name),
+            ("type", self.r#type),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchReferenceWrongShape`'s arguments — `RefusalWording.render_site("TypeMismatch", "reference_wrong_shape", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchReferenceWrongShapeArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub attribute: &'a str,
+    /// scalar
+    pub offered: &'a str,
+    /// scalar
+    pub known_by: &'a str,
+}
+
+impl TypeMismatchReferenceWrongShapeArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchReferenceWrongShape.render(&[
+            ("command", self.command),
+            ("attribute", self.attribute),
+            ("offered", self.offered),
+            ("known_by", self.known_by),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchMultiFieldScalar`'s arguments — `RefusalWording.render_site("TypeMismatch", "multi_field_scalar", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchMultiFieldScalarArgs<'a> {
+    /// scalar
+    pub r#type: &'a str,
+}
+
+impl TypeMismatchMultiFieldScalarArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchMultiFieldScalar.render(&[
+            ("type", self.r#type),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchCompositeIdentity`'s arguments — `RefusalWording.render_site("TypeMismatch", "composite_identity", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchCompositeIdentityArgs<'a> {
+    /// scalar
+    pub r#type: &'a str,
+}
+
+impl TypeMismatchCompositeIdentityArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchCompositeIdentity.render(&[
+            ("type", self.r#type),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchNumericField`'s arguments — `RefusalWording.render_site("TypeMismatch", "numeric_field", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchNumericFieldArgs<'a> {
+    /// scalar
+    pub r#type: &'a str,
+    /// scalar
+    pub field: &'a str,
+    /// scalar
+    pub expected: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl TypeMismatchNumericFieldArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchNumericField.render(&[
+            ("type", self.r#type),
+            ("field", self.field),
+            ("expected", self.expected),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchNonFiniteField`'s arguments — `RefusalWording.render_site("TypeMismatch", "non_finite_field", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchNonFiniteFieldArgs<'a> {
+    /// scalar
+    pub r#type: &'a str,
+    /// scalar
+    pub field: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl TypeMismatchNonFiniteFieldArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchNonFiniteField.render(&[
+            ("type", self.r#type),
+            ("field", self.field),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchIntegerRange`'s arguments — `RefusalWording.render_site("TypeMismatch", "integer_range", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchIntegerRangeArgs<'a> {
+    /// scalar
+    pub r#type: &'a str,
+    /// scalar
+    pub field: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl TypeMismatchIntegerRangeArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchIntegerRange.render(&[
+            ("type", self.r#type),
+            ("field", self.field),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchPatternMismatch`'s arguments — `RefusalWording.render_site("TypeMismatch", "pattern_mismatch", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchPatternMismatchArgs<'a> {
+    /// scalar
+    pub r#type: &'a str,
+    /// scalar
+    pub field: &'a str,
+    /// scalar
+    pub pattern: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl TypeMismatchPatternMismatchArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchPatternMismatch.render(&[
+            ("type", self.r#type),
+            ("field", self.field),
+            ("pattern", self.pattern),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchArithmeticAmount`'s arguments — `RefusalWording.render_site("TypeMismatch", "arithmetic_amount", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchArithmeticAmountArgs<'a> {
+    /// scalar
+    pub op: &'a str,
+    /// scalar
+    pub target: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl TypeMismatchArithmeticAmountArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchArithmeticAmount.render(&[
+            ("op", self.op),
+            ("target", self.target),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchArithmeticCurrent`'s arguments — `RefusalWording.render_site("TypeMismatch", "arithmetic_current", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchArithmeticCurrentArgs<'a> {
+    /// scalar
+    pub op: &'a str,
+    /// scalar
+    pub target: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl TypeMismatchArithmeticCurrentArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchArithmeticCurrent.render(&[
+            ("op", self.op),
+            ("target", self.target),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::TypeMismatchArithmeticSharedField`'s arguments — `RefusalWording.render_site("TypeMismatch", "arithmetic_shared_field", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct TypeMismatchArithmeticSharedFieldArgs<'a> {
+    /// scalar
+    pub op: &'a str,
+    /// scalar
+    pub target: &'a str,
+}
+
+impl TypeMismatchArithmeticSharedFieldArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::TypeMismatchArithmeticSharedField.render(&[
+            ("op", self.op),
+            ("target", self.target),
+        ])
+    }
+}
+
+/// `RefusalSite::UnknownArgumentUnknownArgs`'s arguments — `RefusalWording.render_site("UnknownArgument", "unknown_args", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownArgumentUnknownArgsArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// list, sorted, joined ", ", empty reads ""
+    pub unknown: &'a [&'a str],
+    /// list, joined ", ", empty reads "none"
+    pub declared: &'a [&'a str],
+}
+
+impl UnknownArgumentUnknownArgsArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let unknown_text = list(self.unknown, true, false, ", ", "");
+        let declared_text = list(self.declared, false, false, ", ", "none");
+        RefusalSite::UnknownArgumentUnknownArgs.render(&[
+            ("command", self.command),
+            ("unknown", unknown_text.as_str()),
+            ("declared", declared_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::AbsentArgumentAbsentArgs`'s arguments — `RefusalWording.render_site("AbsentArgument", "absent_args", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct AbsentArgumentAbsentArgsArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// list, sorted, joined ", ", empty reads ""
+    pub absent: &'a [&'a str],
+    /// list, joined ", ", empty reads "none"
+    pub declared: &'a [&'a str],
+}
+
+impl AbsentArgumentAbsentArgsArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let absent_text = list(self.absent, true, false, ", ", "");
+        let declared_text = list(self.declared, false, false, ", ", "none");
+        RefusalSite::AbsentArgumentAbsentArgs.render(&[
+            ("command", self.command),
+            ("absent", absent_text.as_str()),
+            ("declared", declared_text.as_str()),
+        ])
+    }
+}
+
+/// `RefusalSite::InvariantViolationClosedSetMember`'s arguments — `RefusalWording.render_site("InvariantViolation", "closed_set_member", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct InvariantViolationClosedSetMemberArgs<'a> {
+    /// scalar
+    pub r#type: &'a str,
+    /// list, quoted, joined ", ", empty reads ""
+    pub admitted: &'a [&'a str],
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl InvariantViolationClosedSetMemberArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let admitted_text = list(self.admitted, false, true, ", ", "");
+        RefusalSite::InvariantViolationClosedSetMember.render(&[
+            ("type", self.r#type),
+            ("admitted", admitted_text.as_str()),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::InvariantViolationValueObjectInvariant`'s arguments — `RefusalWording.render_site("InvariantViolation", "value_object_invariant", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct InvariantViolationValueObjectInvariantArgs<'a> {
+    /// scalar
+    pub name: &'a str,
+    /// scalar
+    pub description: &'a str,
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl InvariantViolationValueObjectInvariantArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", self.name),
+            ("description", self.description),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::InvariantViolationAdmitsDeclaredSet`'s arguments — `RefusalWording.render_site("InvariantViolation", "admits_declared_set", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct InvariantViolationAdmitsDeclaredSetArgs<'a> {
+    /// scalar
+    pub name: &'a str,
+    /// scalar
+    pub admits: &'a str,
+    /// list, quoted, joined ", ", empty reads ""
+    pub admitted: &'a [&'a str],
+    /// scalar
+    pub offered: &'a str,
+}
+
+impl InvariantViolationAdmitsDeclaredSetArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        let admitted_text = list(self.admitted, false, true, ", ", "");
+        RefusalSite::InvariantViolationAdmitsDeclaredSet.render(&[
+            ("name", self.name),
+            ("admits", self.admits),
+            ("admitted", admitted_text.as_str()),
+            ("offered", self.offered),
+        ])
+    }
+}
+
+/// `RefusalSite::InvariantViolationUndeclaredSet`'s arguments — `RefusalWording.render_site("InvariantViolation", "undeclared_set", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct InvariantViolationUndeclaredSetArgs<'a> {
+    /// scalar
+    pub name: &'a str,
+    /// scalar
+    pub admits: &'a str,
+}
+
+impl InvariantViolationUndeclaredSetArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::InvariantViolationUndeclaredSet.render(&[
+            ("name", self.name),
+            ("admits", self.admits),
+        ])
+    }
+}
+
+/// `RefusalSite::UnauthorizedTenantRequired`'s arguments — `RefusalWording.render_site("Unauthorized", "tenant_required", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnauthorizedTenantRequiredArgs<'a> {
+    /// scalar
+    pub query: &'a str,
+    /// scalar
+    pub field: &'a str,
+}
+
+impl UnauthorizedTenantRequiredArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::UnauthorizedTenantRequired.render(&[
+            ("query", self.query),
+            ("field", self.field),
+        ])
+    }
+}
+
+/// `RefusalSite::UnauthorizedRoleMismatch`'s arguments — `RefusalWording.render_site("Unauthorized", "role_mismatch", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnauthorizedRoleMismatchArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub role: &'a str,
+    /// scalar
+    pub caller_role: &'a str,
+}
+
+impl UnauthorizedRoleMismatchArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::UnauthorizedRoleMismatch.render(&[
+            ("command", self.command),
+            ("role", self.role),
+            ("caller_role", self.caller_role),
+        ])
+    }
+}
+
+/// `RefusalSite::UnauthorizedCrossTenantReference`'s arguments — `RefusalWording.render_site("Unauthorized", "cross_tenant_reference", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnauthorizedCrossTenantReferenceArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub field: &'a str,
+    /// scalar
+    pub tenant: &'a str,
+    /// scalar
+    pub attribute: &'a str,
+    /// scalar
+    pub target: &'a str,
+    /// scalar
+    pub target_field: &'a str,
+    /// scalar
+    pub other: &'a str,
+}
+
+impl UnauthorizedCrossTenantReferenceArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::UnauthorizedCrossTenantReference.render(&[
+            ("aggregate", self.aggregate),
+            ("field", self.field),
+            ("tenant", self.tenant),
+            ("attribute", self.attribute),
+            ("target", self.target),
+            ("target_field", self.target_field),
+            ("other", self.other),
+        ])
+    }
+}
+
+/// `RefusalSite::AttributeAbsentAbsentRead`'s arguments — `RefusalWording.render_site("AttributeAbsent", "absent_read", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct AttributeAbsentAbsentReadArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub field: &'a str,
+}
+
+impl AttributeAbsentAbsentReadArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::AttributeAbsentAbsentRead.render(&[
+            ("aggregate", self.aggregate),
+            ("field", self.field),
+        ])
+    }
+}
+
+/// `RefusalSite::ProjectionAbsentAbsentRead`'s arguments — `RefusalWording.render_site("ProjectionAbsent", "absent_read", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct ProjectionAbsentAbsentReadArgs<'a> {
+    /// scalar
+    pub aggregate: &'a str,
+    /// scalar
+    pub field: &'a str,
+    /// scalar
+    pub reference: &'a str,
+    /// scalar
+    pub remote_field: &'a str,
+}
+
+impl ProjectionAbsentAbsentReadArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::ProjectionAbsentAbsentRead.render(&[
+            ("aggregate", self.aggregate),
+            ("field", self.field),
+            ("reference", self.reference),
+            ("remote_field", self.remote_field),
+        ])
     }
 }
 
@@ -300,5 +1312,237 @@ mod tests {
                 "{site:?} left an unrendered placeholder behind: {rendered:?}"
             );
         }
+    }
+
+    #[test]
+    fn render_args_matches_ruby_render_site() {
+        assert_eq!(
+            NotFoundCreatingNoIdentityArgs { command: "command \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"" }.render_args(),
+            "command \"x\" creates a aggregate \"x\" — pass identity \"x\":"
+        );
+        assert_eq!(
+            AlreadyExistsCreatingDuplicateArgs { command: "command \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: "offered \"x\"" }.render_args(),
+            "command \"x\" creates a aggregate \"x\" that already exists — identity \"x\" offered \"x\""
+        );
+        assert_eq!(
+            AlreadyExistsEntityDuplicateArgs { entity: "entity \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: &[] }.render_args(),
+            "a entity \"x\" already exists on aggregate \"x\" — identity \"x\" "
+        );
+        assert_eq!(
+            AlreadyExistsEntityDuplicateArgs { entity: "entity \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: &["only \"one\""] }.render_args(),
+            "a entity \"x\" already exists on aggregate \"x\" — identity \"x\" only \"one\""
+        );
+        assert_eq!(
+            AlreadyExistsEntityDuplicateArgs { entity: "entity \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: &["zeta", "alpha", "mid"] }.render_args(),
+            "a entity \"x\" already exists on aggregate \"x\" — identity \"x\" zeta, alpha, mid"
+        );
+        assert_eq!(
+            NotFoundActingNoIdentityArgs { command: "command \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"" }.render_args(),
+            "command \"x\" acts on an existing aggregate \"x\" — pass identity \"x\":"
+        );
+        assert_eq!(
+            NotFoundRecordMissingArgs { aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: "offered \"x\"" }.render_args(),
+            "no aggregate \"x\" with identity \"x\" offered \"x\""
+        );
+        assert_eq!(
+            NotFoundEntityParentNoIdentityArgs { command: "command \"x\"", aggregate: "aggregate \"x\"", entity: "entity \"x\"", identity: "identity \"x\"" }.render_args(),
+            "command \"x\" acts on a aggregate \"x\"'s entity \"x\" — pass identity \"x\":"
+        );
+        assert_eq!(
+            UnknownVerbEntityUnknownArgs { aggregate: "aggregate \"x\"", entity: "entity \"x\"" }.render_args(),
+            "aggregate \"x\" has no entity \"entity \\\"x\\\"\""
+        );
+        assert_eq!(
+            NotFoundEntityElementNoIdentityArgs { command: "command \"x\"", entity: "entity \"x\"", identity: "identity \"x\"" }.render_args(),
+            "command \"x\" acts on one entity \"x\" — pass identity \"x\":"
+        );
+        assert_eq!(
+            NotFoundEntityElementMissingArgs { entity: "entity \"x\"", identity: "identity \"x\"", wants: "wants \"x\"", aggregate: "aggregate \"x\"", parent_id: "parent_id \"x\"" }.render_args(),
+            "no entity \"x\" with identity \"x\" wants \"x\" on aggregate \"x\" parent_id \"x\""
+        );
+        assert_eq!(
+            NotFoundReferenceTargetMissingArgs { target: "target \"x\"", heads: "heads \"x\"", key: "key \"x\"" }.render_args(),
+            "no target \"x\" with heads \"x\" \"key \\\"x\\\"\""
+        );
+        assert_eq!(
+            NotFoundReadModelReferenceMissingArgs { aggregate: "aggregate \"x\"", offered: "offered \"x\"" }.render_args(),
+            "no aggregate \"x\" with reference offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchReadModelObjectReferenceArgs { query: "query \"x\"", field: "field \"x\"" }.render_args(),
+            "query \"x\" refused — a reference is an id, and field \"x\" arrived as an object"
+        );
+        assert_eq!(
+            UnknownVerbNoQueryArgs { aggregate: "aggregate \"x\"", query: "query \"x\"" }.render_args(),
+            "aggregate \"x\" has no query \"query \\\"x\\\"\""
+        );
+        assert_eq!(
+            UnknownVerbEntityQueryMissingArgs { entity: "entity \"x\"", query: "query \"x\"" }.render_args(),
+            "entity \"x\" has no query \"query \\\"x\\\"\""
+        );
+        assert_eq!(
+            UnknownVerbEntityHoldsNoListArgs { aggregate: "aggregate \"x\"", entity: "entity \"x\"" }.render_args(),
+            "aggregate \"x\" holds no list of entity \"x\""
+        );
+        assert_eq!(
+            UnknownVerbEntityNoCommandArgs { entity: "entity \"x\"", command: "command \"x\"" }.render_args(),
+            "entity \"x\" has no command \"command \\\"x\\\"\""
+        );
+        assert_eq!(
+            UnknownVerbAggregateNoCommandArgs { aggregate: "aggregate \"x\"", command: "command \"x\"" }.render_args(),
+            "aggregate \"x\" has no command \"command \\\"x\\\"\""
+        );
+        assert_eq!(
+            UnknownVerbPortNoOperationArgs { port: "port \"x\"", operation: "operation \"x\"" }.render_args(),
+            "port \"x\" has no operation \"operation \\\"x\\\"\""
+        );
+        assert_eq!(
+            UnknownVerbNoDomainArgs { domain: "domain \"x\"", verb: "verb \"x\"" }.render_args(),
+            "no domain \"domain \\\"x\\\"\" loaded (verb verb \"x\")"
+        );
+        assert_eq!(
+            UnknownVerbNoReadModelArgs { domain: "domain \"x\"", query: "query \"x\"" }.render_args(),
+            "domain \"x\" has no read model \"query \\\"x\\\"\""
+        );
+        assert_eq!(
+            UnknownVerbNotFullyQualifiedArgs { verb: "verb \"x\"" }.render_args(),
+            "\"verb \\\"x\\\"\" is not a fully-qualified verb (Domain::Aggregate.Command)"
+        );
+        assert_eq!(
+            UnknownVerbNoAggregateArgs { domain: "domain \"x\"", aggregate: "aggregate \"x\"" }.render_args(),
+            "domain \"x\" has no aggregate \"aggregate \\\"x\\\"\""
+        );
+        assert_eq!(
+            LifecycleRefusedTransitionBlockedArgs { command: "command \"x\"", field: "field \"x\"", current: "current \"x\"", allowed: &[] }.render_args(),
+            "command \"x\" refused — field \"x\" is current \"x\", and command \"x\" moves it only from "
+        );
+        assert_eq!(
+            LifecycleRefusedTransitionBlockedArgs { command: "command \"x\"", field: "field \"x\"", current: "current \"x\"", allowed: &["only \"one\""] }.render_args(),
+            "command \"x\" refused — field \"x\" is current \"x\", and command \"x\" moves it only from \"only \\\"one\\\"\""
+        );
+        assert_eq!(
+            LifecycleRefusedTransitionBlockedArgs { command: "command \"x\"", field: "field \"x\"", current: "current \"x\"", allowed: &["zeta", "alpha", "mid"] }.render_args(),
+            "command \"x\" refused — field \"x\" is current \"x\", and command \"x\" moves it only from \"zeta\" or \"alpha\" or \"mid\""
+        );
+        assert_eq!(
+            TypeMismatchValueObjectShapeArgs { name: "name \"x\"", r#type: "type \"x\"", offered: "offered \"x\"" }.render_args(),
+            "name \"x\" is a type \"x\" — pass its fields as an object, not offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchReferenceWrongShapeArgs { command: "command \"x\"", attribute: "attribute \"x\"", offered: "offered \"x\"", known_by: "known_by \"x\"" }.render_args(),
+            "command \"x\" refused — a reference is an id, and attribute \"x\" arrived as offered \"x\"known_by \"x\""
+        );
+        assert_eq!(
+            TypeMismatchMultiFieldScalarArgs { r#type: "type \"x\"" }.render_args(),
+            "type \"x\" has multiple fields and cannot stand in for a scalar"
+        );
+        assert_eq!(
+            TypeMismatchCompositeIdentityArgs { r#type: "type \"x\"" }.render_args(),
+            "type \"x\" is a composite identity — an identity must have exactly one field"
+        );
+        assert_eq!(
+            TypeMismatchNumericFieldArgs { r#type: "type \"x\"", field: "field \"x\"", expected: "expected \"x\"", offered: "offered \"x\"" }.render_args(),
+            "type \"x\".field \"x\" expects expected \"x\", got offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchNonFiniteFieldArgs { r#type: "type \"x\"", field: "field \"x\"", offered: "offered \"x\"" }.render_args(),
+            "type \"x\".field \"x\" must be a finite number, got offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchIntegerRangeArgs { r#type: "type \"x\"", field: "field \"x\"", offered: "offered \"x\"" }.render_args(),
+            "type \"x\".field \"x\" must fit in a 64-bit integer, got offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchPatternMismatchArgs { r#type: "type \"x\"", field: "field \"x\"", pattern: "pattern \"x\"", offered: "offered \"x\"" }.render_args(),
+            "type \"x\".field \"x\" must match pattern \"x\", got offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchArithmeticAmountArgs { op: "op \"x\"", target: "target \"x\"", offered: "offered \"x\"" }.render_args(),
+            "op \"x\" of target \"x\" needs an Integer, got offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchArithmeticCurrentArgs { op: "op \"x\"", target: "target \"x\"", offered: "offered \"x\"" }.render_args(),
+            "op \"x\" of target \"x\" needs an Integer target \"x\", got offered \"x\""
+        );
+        assert_eq!(
+            TypeMismatchArithmeticSharedFieldArgs { op: "op \"x\"", target: "target \"x\"" }.render_args(),
+            "op \"x\" of target \"x\" needs a value object with one shared Integer field"
+        );
+        assert_eq!(
+            UnknownArgumentUnknownArgsArgs { command: "command \"x\"", unknown: &[], declared: &[] }.render_args(),
+            "command \"x\" does not declare  — it takes none"
+        );
+        assert_eq!(
+            UnknownArgumentUnknownArgsArgs { command: "command \"x\"", unknown: &["only \"one\""], declared: &["only \"one\""] }.render_args(),
+            "command \"x\" does not declare only \"one\" — it takes only \"one\""
+        );
+        assert_eq!(
+            UnknownArgumentUnknownArgsArgs { command: "command \"x\"", unknown: &["zeta", "alpha", "mid"], declared: &["zeta", "alpha", "mid"] }.render_args(),
+            "command \"x\" does not declare alpha, mid, zeta — it takes zeta, alpha, mid"
+        );
+        assert_eq!(
+            AbsentArgumentAbsentArgsArgs { command: "command \"x\"", absent: &[], declared: &[] }.render_args(),
+            "command \"x\" was not given  — it takes none"
+        );
+        assert_eq!(
+            AbsentArgumentAbsentArgsArgs { command: "command \"x\"", absent: &["only \"one\""], declared: &["only \"one\""] }.render_args(),
+            "command \"x\" was not given only \"one\" — it takes only \"one\""
+        );
+        assert_eq!(
+            AbsentArgumentAbsentArgsArgs { command: "command \"x\"", absent: &["zeta", "alpha", "mid"], declared: &["zeta", "alpha", "mid"] }.render_args(),
+            "command \"x\" was not given alpha, mid, zeta — it takes zeta, alpha, mid"
+        );
+        assert_eq!(
+            InvariantViolationClosedSetMemberArgs { r#type: "type \"x\"", admitted: &[], offered: "offered \"x\"" }.render_args(),
+            "type \"x\" admits  — got offered \"x\""
+        );
+        assert_eq!(
+            InvariantViolationClosedSetMemberArgs { r#type: "type \"x\"", admitted: &["only \"one\""], offered: "offered \"x\"" }.render_args(),
+            "type \"x\" admits \"only \\\"one\\\"\" — got offered \"x\""
+        );
+        assert_eq!(
+            InvariantViolationClosedSetMemberArgs { r#type: "type \"x\"", admitted: &["zeta", "alpha", "mid"], offered: "offered \"x\"" }.render_args(),
+            "type \"x\" admits \"zeta\", \"alpha\", \"mid\" — got offered \"x\""
+        );
+        assert_eq!(
+            InvariantViolationValueObjectInvariantArgs { name: "name \"x\"", description: "description \"x\"", offered: "offered \"x\"" }.render_args(),
+            "name \"x\" invariant violated — description \"x\" (given offered \"x\")"
+        );
+        assert_eq!(
+            InvariantViolationAdmitsDeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"", admitted: &[], offered: "offered \"x\"" }.render_args(),
+            "name \"x\" admits admits \"x\" —  — got offered \"x\""
+        );
+        assert_eq!(
+            InvariantViolationAdmitsDeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"", admitted: &["only \"one\""], offered: "offered \"x\"" }.render_args(),
+            "name \"x\" admits admits \"x\" — \"only \\\"one\\\"\" — got offered \"x\""
+        );
+        assert_eq!(
+            InvariantViolationAdmitsDeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"", admitted: &["zeta", "alpha", "mid"], offered: "offered \"x\"" }.render_args(),
+            "name \"x\" admits admits \"x\" — \"zeta\", \"alpha\", \"mid\" — got offered \"x\""
+        );
+        assert_eq!(
+            InvariantViolationUndeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"" }.render_args(),
+            "name \"x\" admits admits \"x\", which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"
+        );
+        assert_eq!(
+            UnauthorizedTenantRequiredArgs { query: "query \"x\"", field: "field \"x\"" }.render_args(),
+            "query \"x\" declares authorize with tenant: field \"x\" — pass field \"x\": to name which field \"x\" this ask is scoped to"
+        );
+        assert_eq!(
+            UnauthorizedRoleMismatchArgs { command: "command \"x\"", role: "role \"x\"", caller_role: "caller_role \"x\"" }.render_args(),
+            "command \"x\" refused — role: role \"x\", and the caller stated caller_role \"x\""
+        );
+        assert_eq!(
+            UnauthorizedCrossTenantReferenceArgs { aggregate: "aggregate \"x\"", field: "field \"x\"", tenant: "tenant \"x\"", attribute: "attribute \"x\"", target: "target \"x\"", target_field: "target_field \"x\"", other: "other \"x\"" }.render_args(),
+            "aggregate \"x\" field \"x\" is tenant \"x\", but attribute \"x\" names a target \"x\" whose own target_field \"x\" is other \"x\" — a cross-tenant reference"
+        );
+        assert_eq!(
+            AttributeAbsentAbsentReadArgs { aggregate: "aggregate \"x\"", field: "field \"x\"" }.render_args(),
+            "aggregate \"x\" field \"x\" is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :field \"x\", default: ...), or declare it optional: true"
+        );
+        assert_eq!(
+            ProjectionAbsentAbsentReadArgs { aggregate: "aggregate \"x\"", field: "field \"x\"", reference: "reference \"x\"", remote_field: "remote_field \"x\"" }.render_args(),
+            "aggregate \"x\" field \"x\" is not yet projected on this record — declared via projects :field \"x\", but no rebuild sweep has populated it. Run the sweep, or read reference \"x\".remote_field \"x\" directly if this rule cannot wait"
+        );
     }
 }

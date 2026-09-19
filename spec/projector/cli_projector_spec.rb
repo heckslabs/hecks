@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# A BLUEBOOK, PROJECTED AS ITS OWN COMMAND-LINE SURFACE.
+# A bluebook, projected as its own command-line surface.
 #
 # Against banking and pizzas, not the chapter this was written beside — the
 # same discipline the docs projector spec keeps, and it earned it twice here:
@@ -17,7 +17,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
 
-      # PORTS ARE PROJECTED TOO (`CliProjector#port_spec`), and neither
+      # Ports are projected too (`CliProjector#port_spec`), and neither
       # banking nor pizzas' own `.bluebook` declares one — a port lives in
       # the hecksagon, the boundary file, same as `spec/
       # port_operation_interpreter_spec.rb` sets one up. Skipping this
@@ -69,7 +69,7 @@ RSpec.describe Hecks::Projector::CliProjector do
     expect(banking[:verbs]["account.freeze_account"][:kind]).to eq(:command)
   end
 
-  # THE COLLISION THAT DECIDED THE SHAPE. Banking declares a command
+  # **The collision that decided the shape**. Banking declares a command
   # `Account.Open` and a query `Account.Open`; the language namespaces them and
   # a flat subcommand list cannot. Refusing would make banking uncallable, so
   # questions live under `ask` and the ambiguity cannot arise.
@@ -81,7 +81,7 @@ RSpec.describe Hecks::Projector::CliProjector do
   end
 
   describe "the arguments" do
-    # A CLI HANDS EVERYTHING OVER AS A STRING, so the declared type is the
+    # A CLI hands everything over as a string, so the declared type is the
     # only honest way to know what to send. Guessing from the value would send
     # the Integer 99 for a version string of "99".
     it "carries each field's declared type" do
@@ -97,8 +97,8 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(option(banking, "customer.register", "email.address")[:pattern]).to be_a(String)
     end
 
-    # NESTED TWO DEEP, WHICH A SINGLE LEVEL GOT WRONG. `Pizza` holds a `Price`,
-    # so stopping at one level produced `pizza.price_cents` and sent the STRING
+    # Nested two deep, which a single level got wrong. `Pizza` holds a `Price`,
+    # so stopping at one level produced `pizza.price_cents` and sent the string
     # "1500" where `{ cents: 1500 }` belonged — and the runtime took it, per
     # qa/FINDINGS.md #2. Measured against a real store before it was fixed.
     it "recurses through a value object that holds another" do
@@ -129,7 +129,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(annotate[:arguments].map { |argument| argument[:path] }).not_to include("date", "sequence")
     end
 
-    # A PORT IS A VERB TOO (`CliProjector#port_spec`) — it never had its own
+    # A port is a verb too (`CliProjector#port_spec`) — it never had its own
     # receiver-argument code, it shares `command_spec`'s via
     # `receiver_options`, because a port operation always addresses an
     # aggregate record exactly the way a non-creating command does. This is
@@ -168,7 +168,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:usage]).to include("freeze")
     end
 
-    # THE SHORT SPELLING, WHERE IT CANNOT BE AMBIGUOUS. `pizzas create_pizza`
+    # The short spelling, where it cannot be ambiguous. `pizzas create_pizza`
     # rather than `pizzas order.create_pizza`; the aggregate is worth typing
     # only when two of them declare the same word.
     it "shortens a verb no other aggregate declares, and keeps both spellings" do
@@ -200,7 +200,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(help).to include("status is not open")
     end
 
-    # WITHOUT `ask:` A QUESTION'S HELP PRINTS THE COMMAND THAT SHARES ITS NAME.
+    # Without `ask:` a question's help prints the command that shares its name.
     it "picks the namespace the caller asked about" do
       question = described_class.call(bluebook: registry.bluebook("Banking"),
                                       options:  { verb: "account.open", ask: true })[:usage]

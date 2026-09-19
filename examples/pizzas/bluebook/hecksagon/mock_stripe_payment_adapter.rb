@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# A DRIVING ADAPTER, standing in for a real Stripe webhook handler — the
+# A driving adapter, standing in for a real Stripe webhook handler — the
 # same role a Rails controller would play (see docs/rails-integration.md's
 # "Rails is a driving adapter, not a special one"), reduced to what's
 # needed to demonstrate the shape without a real Stripe account. Boots
@@ -9,7 +9,7 @@
 #
 #   examples/pizzas/bluebook/hecksagon/mock_stripe_payment_adapter.rb
 #
-# LIVES BESIDE pizzas.hecksagon, DELIBERATELY — a `.hecksagon` file
+# Lives beside pizzas.hecksagon, deliberately — a `.hecksagon` file
 # declares a port; a `hecksagon/` folder beside it holds the driving
 # adapters that actually call one, the same pairing
 # `lib/hecks/adapters/driven/` already has with `.adapter` files,
@@ -30,8 +30,8 @@ DOMAIN  = File.expand_path("../..", __dir__)
 RUNTIME = Hecks.boot(DOMAIN)
 
 # Unique per run — this script is meant to be re-run freely, and identity
-# here is never minted (see command_interpreter.rb's own "NOTHING IS
-# MINTED"), so a repeat name is a repeat record, refused as AlreadyExists.
+# here is never minted (see command_interpreter.rb's own "nothing is
+# minted"), so a repeat name is a repeat record, refused as AlreadyExists.
 NAME = "StripeDemoMargherita-#{Process.pid}-#{rand(10_000)}".freeze
 
 # Set the stage: an order that's actually purchasable — Purchase's own
@@ -42,14 +42,16 @@ order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
 
 puts "Before payment: #{order.status}, customer=#{order.customer_name.inspect}"
 
-# THE WEBHOOK — a real handler would verify a Stripe signature here and
+# **The webhook** — a real handler would verify a Stripe signature here and
 # pull these fields out of event.data.object; a reference is always a bare
 # id (never an object), matching every other reference in this language.
 RUNTIME.dispatch_port(
   "Pizzas", "Order", "PaymentGateway", "Receive",
-  name:          NAME,
-  customer_name: { value: "Chris" },
-  amount:        { cents: 1200 }
+  flat: {
+    name:          NAME,
+    customer_name: { value: "Chris" },
+    amount:        { cents: 1200 }
+  }
 )
 
 sold = Order.find(NAME)

@@ -1,6 +1,6 @@
 module Hecks
   module Fuzzing
-    # A value that is DELIBERATELY THE WRONG SHAPE for the attribute it is handed
+    # A value that is deliberately the wrong shape for the attribute it is handed
     # to — the sibling of ValueGenerator, which only ever builds values that satisfy
     # a declared type.
     #
@@ -14,7 +14,7 @@ module Hecks
     # Rendering's whole story), and no generated value
     # could ever have produced it.
     #
-    # These are expected to be REFUSED, and that is the point : a refusal is an
+    # These are expected to be refused, and that is the point : a refusal is an
     # answer, and its wording is pinned byte-for-byte. The bugs live in
     # the sentence, not in the happy path.
     module InvalidValueGenerator
@@ -37,7 +37,7 @@ module Hecks
         build(kind, attribute, aggregate, random: random)
       end
 
-      # Only the confusions that MEAN anything for this attribute. Offering
+      # Only the confusions that mean anything for this attribute. Offering
       # `scalar_for_object` for a plain Integer would just be a second spelling of
       # `numeral_string`, and a kind that cannot be wrong for the attribute it is
       # handed teaches the corpus nothing.
@@ -60,16 +60,16 @@ module Hecks
         end
       end
 
-      # A bare scalar where a value object is declared. A SINGLE-FIELD value object
+      # A bare scalar where a value object is declared. A single-field value object
       # legitimately accepts one (that is the standing-in rule every domain relies
-      # on), so the interesting case is a value object with SEVERAL fields, where a
+      # on), so the interesting case is a value object with several fields, where a
       # scalar cannot stand for anything and the refusal has to say so.
       def scalar_for(attribute, aggregate, random:)
         value_object = aggregate.value_object(attribute.type.to_s)
         sole = value_object&.sole_attribute
         return "a bare scalar" unless sole
 
-        # One field, so a scalar is legal — corrupt the FIELD's own type instead,
+        # One field, so a scalar is legal — corrupt the field's own type instead,
         # which is still a shape the attribute cannot accept.
         { sole.name.to_s => ["nested", "array"] }
       end

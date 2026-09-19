@@ -10,7 +10,7 @@ module Hecks
       # (#query_for_verb, #query_eligible_rows, #resolve_hop_clause) other
       # property modules in this directory also call.
       module Querying
-        # THE QUERY ORACLE — differential testing within the one runtime,
+        # The query oracle — differential testing within the one runtime,
         # the shape the retired cross-runtime harness should always have
         # been. Every generated ask was answered twice at the same instant
         # (Replay records both): once through whatever the aggregate is
@@ -18,17 +18,17 @@ module Hecks
         # a SQL binding would compile it), once through the reference
         # interpreter's own evaluation. The two are separate, live
         # implementations of the same comparator vocabulary, and they have
-        # drifted before — an adapter that ACCEPTS what the reference says
+        # drifted before — an adapter that accepts what the reference says
         # matches nothing, or orders what it refuses to order, shows up
         # here as a finding no self-referential adapter spec could see.
         # M23 — `Replay` now runs the native and reference engines
-        # INDEPENDENTLY (each in its own begin/rescue — see that file's own
+        # independently (each in its own begin/rescue — see that file's own
         # comment at the capture site), so this property can tell apart what
         # used to be indistinguishable: "both engines refused" (fine — the
         # ask was genuinely bad, nothing to compare) from "one refused and
         # the other did not" (a real divergence — the two engines disagree
-        # about whether the ask was even VALID, never mind what it answers).
-        # `native_refused`/`reference_refused` are read by KEY PRESENCE, not
+        # about whether the ask was even valid, never mind what it answers).
+        # `native_refused`/`reference_refused` are read by key presence, not
         # truthiness — `Replay` only ever adds `:error`/`:reference_error`
         # to an entry when that side actually raised, so an absent key is an
         # unambiguous "this side answered." A read-model ask (no reference
@@ -59,16 +59,16 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # THE SAME "TWO ENGINES, COMPARED" SHAPE query_answers_match_reference
+        # The same "two engines, compared" shape query_answers_match_reference
         # already uses, aimed squarely at Query#options' offset/limit pair —
-        # but recomputed from history[:instances] directly, a THIRD,
+        # but recomputed from history[:instances] directly, a third,
         # independent computation, rather than comparing QueryInterpreter's
         # own native and reference paths against each other (which could
         # share the identical bug neither implementation happened to hit —
-        # see #4's own fix, which touched BOTH #interpret and
+        # see #4's own fix, which touched both #interpret and
         # #reference_interpret at once). `order_by` declared alongside
         # `offset` or `limit` names a genuinely paged query. Ports::Query::
-        # Ordering.apply is the SAME engine QueryInterpreter#ordered calls,
+        # Ordering.apply is the same engine QueryInterpreter#ordered calls,
         # reused here rather than re-derived, so this oracle cannot drift
         # from what "in order" means without the interpreter drifting the
         # identical way — only the offset-then-limit .drop/.first slice
@@ -112,7 +112,7 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # THE DECLARED Query ITSELF, resolved from a replayed verb — the
+        # The declared Query itself, resolved from a replayed verb — the
         # same shape #command_for_verb resolves a command by, one
         # construct over. Entity-level queries (a dotted query_path) are
         # out of scope here — paging on an entity's own list has no real
@@ -128,24 +128,24 @@ module Hecks
           aggregate&.query(query_path)
         end
 
-        # A QUERY'S OWN ROWS — unlike #eligible_rows (a ReadModel's
+        # A query's own rows — unlike #eligible_rows (a ReadModel's
         # reduced/grouped many-side head, possibly FK-joined against a
-        # root), a Query always asks about its OWN owning aggregate
+        # root), a Query always asks about its own owning aggregate
         # directly ; no join, no reference_target. `id:` merged in the
         # same way #eligible_rows' own rows are, since a stable sort
         # (Ordering.apply's own `identity:`) and the real answer's own
         # `record.state.merge(id: record.id)` both need it.
-        # `bluebooks:` — needed ONLY to recognise and resolve a `/` HOP
+        # `bluebooks:` — needed only to recognise and resolve a `/` hop
         # clause (`engagement/client/status`, hop_chain.bluebook's own
-        # PricedAboveViaEngagement): a hop's head names one of the OWNING
+        # PricedAboveViaEngagement): a hop's head names one of the owning
         # aggregate's declared references, and only the declaration graph
         # can say which attribute that is and which aggregate it targets.
         # A local clause never consults it. Latent gap this closed, found
         # by the fuzzer itself the first time a generated sequence ever
-        # built a full hop chain AND had its paged query answer a row
+        # built a full hop chain and had its paged query answer a row
         # (seed 1, the moment scalar_value_objects.bluebook joined the
         # fixtures corpus and shifted every seeded draw): the recompute
-        # dug `engagement/client/status` as a LOCAL dotted path, found
+        # dug `engagement/client/status` as a local dotted path, found
         # nil, and declared every genuinely-eligible row ineligible — a
         # false property violation against a correct runtime answer,
         # reproducible on an untouched main with this same 4-step script.
@@ -173,7 +173,7 @@ module Hecks
         # would be checking the runtime against itself). One hop peels
         # off the head (`HopPath.next_hop`, the identical one-step
         # primitive the live fold uses), the inner clause recurses
-        # through `query_eligible_rows` against the TARGET's own
+        # through `query_eligible_rows` against the target's own
         # snapshot rows (so a multi-hop tail resolves hop by hop, exactly
         # as the live path's own recursion does), and the ids that
         # answered fold back as the same local `in` membership clause the

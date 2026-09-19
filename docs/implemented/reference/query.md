@@ -268,7 +268,7 @@ a `Sighting` says anything about duty:
 
 ```ruby
 runtime.query("QueryReference::Sighting.ByOffDutyWarden")  # => []
-runtime.dispatch("QueryReference::Warden.StandDown", warden: "w-1")
+runtime.dispatch_flat("QueryReference::Warden.StandDown", warden: "w-1")
 runtime.query("QueryReference::Sighting.ByOffDutyWarden").map { |row| row[:tag][:value] }  # => ["s-1", "s-2"]
 ```
 

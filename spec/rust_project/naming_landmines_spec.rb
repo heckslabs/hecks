@@ -8,7 +8,7 @@ require_relative "../../rust/project/naming"
 # handling and .inspect-based description embedding could silently
 # produce Rust source that fails to compile, for two independent
 # reasons this file tests directly (fast, no `cargo build` needed to
-# prove the STRING-LEVEL fix is right -- the io-tagged spec alongside
+# prove the string-level fix is right -- the io-tagged spec alongside
 # this one, domain_feature_exclusivity_spec.rb, additionally proves
 # the real end-to-end build).
 #
@@ -16,7 +16,7 @@ require_relative "../../rust/project/naming"
 # Rust keyword or a reserved Cargo.toml key, BUG#124) are the shared
 # `Hecks::Bluebook::ModelCheck.rust_reserved_name_findings` check now, and
 # are pinned by spec/model_check_spec.rb's "Rust reserved names" table.
-# This file keeps only the identifier-SHAPE and escaping rules.
+# This file keeps only the identifier-shape and escaping rules.
 RSpec.describe RustProjection::Projector do
   describe ".valid_domain_mod_name?" do
     it "accepts ordinary lowercase domain names" do
@@ -57,9 +57,9 @@ RSpec.describe RustProjection::Projector do
       expect(described_class.rust_ident_field("code")).to eq("code")
     end
 
-    # THE SAME LANDMINE CLASS AS BUG#124's aggregate-name collision, at
+    # The same landmine class as BUG#124's aggregate-name collision, at
     # the struct-field site: crate/self/super/Self cannot be rescued by
-    # a raw identifier AT ALL (not a matter of position) -- per the Rust
+    # a raw identifier at all (not a matter of position) -- per the Rust
     # reference's own RAW_IDENTIFIER grammar, `r#crate` etc. are not
     # valid raw-identifier syntax, full stop. Refuse loudly rather than
     # silently emit that broken syntax.
@@ -75,7 +75,7 @@ RSpec.describe RustProjection::Projector do
 
     # Ruby's own String#inspect escapes a literal #{ / #@ as \#{ / \#@
     # (Ruby-source-safety escaping -- meaningful only when the inspected
-    # text is later re-read as a RUBY double-quoted string) and a
+    # text is later re-read as a Ruby double-quoted string) and a
     # control character as bare \uXXXX (Ruby's own escape, missing
     # Rust's required braces). Neither is a legal Rust escape.
     # rust_string_literal must do neither.
@@ -105,7 +105,7 @@ RSpec.describe RustProjection::Projector do
       expect(described_class.rust_string_literal(plain)).to eq(plain.inspect)
     end
 
-    # THE REAL PROOF, NOT JUST A STRING COMPARISON -- feed rustc the
+    # The real proof, not just a string comparison -- feed rustc the
     # exact landmine inputs (a literal #{, #@, and a control character)
     # run through the real function, and confirm the resulting .rs file
     # actually compiles. io: true -- a real rustc subprocess, same

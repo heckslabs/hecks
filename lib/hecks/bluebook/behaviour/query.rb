@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT A QUERY DOES beyond holding its declared shape.
+      # What a query does beyond holding its declared shape.
       module Query
         def attribute(named) = @attributes.find { |a| a.name == named.to_sym }
       end

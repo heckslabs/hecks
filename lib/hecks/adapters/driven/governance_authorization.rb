@@ -2,17 +2,17 @@ require "time"
 
 module Hecks
   module Adapters
-    # THE `authorization` PORT, FULFILLED BY GOVERNANCE — same registry,
+    # **The `authorization` port, fulfilled by governance** — same registry,
     # same boot, so "ask Governance" is a dispatch against records
     # already sitting in the store this adapter is handed, not a bridge
     # to a second runtime. `Runtime::Dispatcher.new(registry)` is cheap
     # to build fresh per call (`Registry#capability_graph`'s own
     # neighbor, `#repository`, does the same kind of on-demand build) —
     # nothing here holds one across calls, so there is no boot-order
-    # dependency on WHEN Governance's bluebook loads relative to this
+    # dependency on when Governance's bluebook loads relative to this
     # adapter, only that it has by the time `holds_role?` is called.
     #
-    # AN ACTIVE ASSIGNMENT, not merely a historical one : `RoleAssignment`
+    # An active assignment, not merely a historical one : `RoleAssignment`
     # answers with every assignment an actor has ever held
     # (`AssignmentsForActor`'s own description — "currently or
     # historically") and leaves `ends_at` for the caller to read, the
@@ -21,7 +21,7 @@ module Hecks
     module GovernanceAuthorization
       module_function
 
-      # `as_of` and `scope` are BOTH optional, same opt-in shape
+      # `as_of` and `scope` are both optional, same opt-in shape
       # `refuse_role_mismatch` already gives `actor_id` itself — an
       # unbound `as_of` skips the `starts_at` check and an unbound
       # `scope` skips the `scope` check, exactly the behavior before
@@ -43,20 +43,20 @@ module Hecks
         end
       end
 
-      # `scope` UNCHECKED WHEN NOT STATED, same as every other opt-in
+      # `scope` unchecked when not stated, same as every other opt-in
       # field here — a caller that never says which scope it is acting
       # in gets the pre-scope behavior: any live assignment for the role
       # authorizes, everywhere. A caller that does state one only
-      # authorizes against an assignment granted for THAT scope.
+      # authorizes against an assignment granted for that scope.
       def in_scope?(row, scope)
         scope.nil? || row[:scope][:value] == scope.to_s
       end
 
-      # `starts_at` IS A FREE-TEXT STRING in the bluebook (`Timestamp`'s
+      # `starts_at` is a free-text string in the bluebook (`Timestamp`'s
       # only invariant is "present", not any particular format) — parsed
       # here with `Time.parse` rather than compared lexically, since
       # nothing guarantees every caller writes it zero-padded ISO 8601.
-      # FAILS CLOSED : a `starts_at` that does not parse is treated as
+      # Fails closed : a `starts_at` that does not parse is treated as
       # not-yet-started rather than silently ignored, the same direction
       # every other check in this method already fails.
       def started?(row, as_of)
@@ -67,7 +67,7 @@ module Hecks
         false
       end
 
-      # THE OTHER HALF — may role X act as role Y. `RoleTransition.Allowed`
+      # **The other half** — may role X act as role Y. `RoleTransition.Allowed`
       # is identified by the exact pair, so at most one row ever comes
       # back ; still read as `.any?` rather than trusting that structurally,
       # the same defensiveness `holds_role?` already has to have anyway
@@ -81,7 +81,7 @@ module Hecks
         rows.any? { |row| row[:ends_at].nil? }
       end
 
-      # THE ROLE ITSELF, not just a yes/no about one — the same
+      # The role itself, not just a yes/no about one — the same
       # `AssignmentsForActor` query `holds_role?` runs, just returning
       # the live (non-revoked) row's `role_name` instead of comparing it
       # against a caller-supplied guess. `nil` for no live assignment at
@@ -97,7 +97,7 @@ module Hecks
         live && live[:role_name][:value]
       end
 
-      # THE VERB, READ FROM THE PROVIDER'S OWN DECLARATION — `provides
+      # The verb, read from the provider's own declaration — `provides
       # "authorization", assignments: ..., transitions: ...` on whichever
       # loaded chapter declares it (Governance's, in every boot today).
       # Exactly one provider, the same "the runtime will not choose for

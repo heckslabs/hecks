@@ -2,12 +2,12 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # THE RUST PARSER'S KEYWORD TABLE, projected from the chapter's own
-    # Syntax aggregate — "the parser's grammar knowledge is DERIVED from
+    # The Rust parser's keyword table, projected from the chapter's own
+    # Syntax aggregate — "the parser's grammar knowledge is derived from
     # hecks's self-description, not hand-typed a second time", which
     # is the anti-drift idea the whole Rust-parser plan rests on.
     #
-    # A REGISTERED TARGET NOW, rather than a module living inside its own
+    # A registered target now, rather than a module living inside its own
     # bin/ script. It was already a projection in everything but call
     # shape; this only stops it being a fifth way of spelling one.
     module ParserTable
@@ -20,7 +20,7 @@ module Hecks
 
       module_function
 
-      # THE CHAPTER IS HANDED OVER, not reached for. This used to open the
+      # The chapter is handed over, not reached for. This used to open the
       # grammar registry itself, which meant the projection could only ever
       # project one chapter — the language's own. Taking it as an argument is
       # what the projector protocol asks for, and it costs nothing.
@@ -64,7 +64,7 @@ module Hecks
 
       # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax
       # now, dispatched (not merely declared) so their own `status`
-      # really is a lifecycle. `SyntaxBoot.call` reads the STILL-STATIC
+      # really is a lifecycle. `SyntaxBoot.call` reads the still-static
       # seed rows (`KeywordSeed`/`ArgumentSeed`), dispatches each one
       # through the real admission/lifecycle door, and hands back the
       # exact same shape `rows` used to read straight off the closed set

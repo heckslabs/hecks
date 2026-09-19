@@ -86,10 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              if let Some(route) = route { route.require_depth(0)?; }
-              let args = crate::generated::lease_clock::lease::RegisterArgs::from_json(facts_json)?;
-                      args.key.check_invariants()?;
-              crate::kernel::check_role_via(Some("Operator"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::RegisterArgs::from_json(v)?; args.key.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::RegisterArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::RegisterArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::RegisterArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::RegisterArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::RegisterArgs::from_json(v)?; args.key.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "Register", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::RegisterArgs| Ok(()) })? };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -100,31 +97,8 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AcquireArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["holder", "now", "expiry", "id", "lease", "key"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Acquire does not declare {} — it takes holder, now, expiry",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["expiry", "holder", "now"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Acquire"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "holder, now, expiry"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Acquire acts on an existing Lease — pass key.value:".to_string()))?, };
-              let args = crate::generated::lease_clock::lease::AcquireArgs::from_json(facts_json)?;
-                      args.holder.check_invariants()?;
-                      args.now.check_invariants()?;
-                      args.expiry.check_invariants()?;
-              crate::kernel::check_role_via(Some("Client"), "Acquire", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::AcquireArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::AcquireArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::AcquireArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::AcquireArgs::from_json(v)?; args.holder.check_invariants()?; args.now.check_invariants()?; args.expiry.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Client"), "Acquire", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::AcquireArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::AcquireArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::AcquireArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::AcquireArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::AcquireArgs::from_json(v)?; args.holder.check_invariants()?; args.now.check_invariants()?; args.expiry.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Client"), "Acquire", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::AcquireArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Acquire", aggregate: "Lease", identity: "key.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -135,30 +109,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("RenewArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["now", "expiry", "id", "lease", "key"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Renew does not declare {} — it takes now, expiry",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["expiry", "now"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Renew"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "now, expiry"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Renew acts on an existing Lease — pass key.value:".to_string()))?, };
-              let args = crate::generated::lease_clock::lease::RenewArgs::from_json(facts_json)?;
-                      args.now.check_invariants()?;
-                      args.expiry.check_invariants()?;
-              crate::kernel::check_role_via(Some("Client"), "Renew", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::RenewArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::RenewArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::RenewArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::RenewArgs::from_json(v)?; args.now.check_invariants()?; args.expiry.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Client"), "Renew", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::RenewArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::RenewArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::RenewArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::RenewArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::RenewArgs::from_json(v)?; args.now.check_invariants()?; args.expiry.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Client"), "Renew", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::RenewArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Renew", aggregate: "Lease", identity: "key.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -169,20 +121,8 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReleaseArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["id", "lease", "key"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Release does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Release acts on an existing Lease — pass key.value:".to_string()))?, };
-              let args = crate::generated::lease_clock::lease::ReleaseArgs::from_json(facts_json)?;
-              crate::kernel::check_role_via(Some("Client"), "Release", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::ReleaseArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::ReleaseArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::ReleaseArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::ReleaseArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Client"), "Release", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::ReleaseArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::ReleaseArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::ReleaseArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::ReleaseArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::ReleaseArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Client"), "Release", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::ReleaseArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Release", aggregate: "Lease", identity: "key.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -193,29 +133,8 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReapArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["now", "id", "lease", "key"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Reap does not declare {} — it takes now",
-        unknown.join(", ")
-    )));
-}
-let absent: Vec<&str> = ["now"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Reap"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "now"),
-    ])));
-}
- }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reap acts on an existing Lease — pass key.value:".to_string()))?, };
-              let args = crate::generated::lease_clock::lease::ReapArgs::from_json(facts_json)?;
-                      args.now.check_invariants()?;
-              crate::kernel::check_role_via(Some("Operator"), "Reap", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::ReapArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::ReapArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::ReapArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::ReapArgs::from_json(v)?; args.now.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "Reap", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::ReapArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::lease_clock::lease::ReapArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::lease_clock::lease::ReapArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::lease_clock::lease::ReapArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::lease_clock::lease::ReapArgs::from_json(v)?; args.now.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Operator"), "Reap", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::lease_clock::lease::ReapArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::lease_clock::lease::Lease::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Reap", aggregate: "Lease", identity: "key.value" }.render_args()))?, };
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LeaseClock::Lease", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

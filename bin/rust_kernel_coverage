@@ -1,24 +1,24 @@
 #!/usr/bin/env ruby
 
-# THE MECHANICAL, COMMENT-TAG-FREE HALF OF THE GUARANTEE.
+# The mechanical, comment-tag-free half of the guarantee.
 # bin/project_kernel_capabilities generates the ENUM half — the compiler
 # already refuses to build once `rust/src/kernel/expr.rs`'s
 # `dispatch_operator` stops being exhaustive over a regenerated
 # `OperatorCategory`/`AttributeShape`. But an enum variant existing is
 # not the same claim as "a human wrote the real interpretation logic for
-# it" — a freshly-added variant could be routed to an EMPTY file, or to
+# it" — a freshly-added variant could be routed to an empty file, or to
 # no file at all, and `cargo build` would still fail loudly (an
 # unresolved `pub mod`) long before this script ever runs. What this
-# script checks is narrower and comes FIRST, chronologically: for every
+# script checks is narrower and comes first, chronologically: for every
 # capability the live Ruby grammar admits right now, does
 # `rust/src/kernel/<category>/<name>.rs` exist at all?
 #
-# NO COMMENT TAG, ON PURPOSE. An earlier design for this kind of check
+# **No comment tag, on purpose**. An earlier design for this kind of check
 # might scan each Rust file for a marker comment naming which capability
 # it implements — but a comment can be pasted into the wrong file, left
 # behind after the logic it described was deleted, or simply never
-# written. A missing FILE at the conventional path cannot lie either way
-# — its absence structurally IS "nobody has implemented this yet," the
+# written. A missing file at the conventional path cannot lie either way
+# — its absence structurally is "nobody has implemented this yet," the
 # same reasoning `rust/project/domain_generator.rb`'s own generated
 # `mod.rs` "one #[cfg(feature = ...)] per domain directory found on disk"
 # scan already relies on for a different question ("does this domain
@@ -31,11 +31,11 @@
 # either the generator or from `bin/ir --meta` itself.
 #
 # `QueryComparator` (rust/src/kernel/query_comparators.rs,
-# QuerySpecification::Common::COMPARATORS) is DELIBERATELY ABSENT from
+# QuerySpecification::Common::COMPARATORS) is deliberately absent from
 # the `rows` below, and that absence is itself the finding worth writing
-# down: this script's whole question is "does a hand-written FILE exist
+# down: this script's whole question is "does a hand-written file exist
 # at the conventional path for this capability," and `QueryComparator`
-# has no per-variant files to exist AT — it is ONE flat file, enum and
+# has no per-variant files to exist at — it is one flat file, enum and
 # interpretation together (query_comparators.rs's own header — no longer
 # bin/project_kernel_capabilities-generated as of the ad hoc single-
 # comparator filter step landing; see that script's header for where the
@@ -46,10 +46,10 @@
 # would either always read OK (checking a fact `cargo` already checks) or
 # would have to invent a same-shaped-but-meaningless per-variant file
 # just to have something to check — exactly the "forced into existence"
-# this whole family of scripts exists to avoid. A REAL dispatch site for
-# this enum now exists (`kernel/cli.rs`'s ad hoc "query" step, the OBJECT
-# form) — but only for that one narrow shape; a NAMED/declared bluebook
-# query (the STRING form of the same step) is still exactly the gap
+# this whole family of scripts exists to avoid. A real dispatch site for
+# this enum now exists (`kernel/cli.rs`'s ad hoc "query" step, the object
+# form) — but only for that one narrow shape; a named/declared bluebook
+# query (the string form of the same step) is still exactly the gap
 # bin/rust_coverage's job, not this script's, tracks under `query`'s own
 # "whole_kind" gap class, and stays that way.
 #

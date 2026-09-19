@@ -9,7 +9,7 @@ require_relative "../../rust/project/queries"
 # (lib/hecks/literal.rb), which already round-trips Integer/Float/String/
 # Bool/nil correctly; nobody had re-earned the refusal since. No real
 # corpus query currently declares gt/gte/lt/lte (or eq/ne) against a
-# NUMERIC-kind field with a literal value rather than a caller-bound
+# numeric-kind field with a literal value rather than a caller-bound
 # Symbol arg (confirmed: every real corpus numeric comparison — balance
 # gt/gte/lt/lte, pizza.price_cents.cents lt — uses an `Arg`), so this was
 # entirely latent, real but unexercised by codegen_parity_spec's own

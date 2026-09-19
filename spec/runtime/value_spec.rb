@@ -2,7 +2,7 @@ require "hecks"
 
 RSpec.describe Hecks::Runtime::Value do
   describe ".latest_by" do
-    # A REAL list_of FIELD, not a synthetic array — `toppings` grows by
+    # A real list_of field, not a synthetic array — `toppings` grows by
     # plain append (`AddTopping`), the exact shape `.latest_by` exists
     # for: nothing here erases the earlier "Basil, amount 3" when
     # "Basil, amount 5" gets added later, so reading the field's own
@@ -10,11 +10,12 @@ RSpec.describe Hecks::Runtime::Value do
     let(:runtime) { boot_in_memory }
 
     def pizza_toppings
-      pizza = runtime.dispatch("Pizzas::Order.CreatePizza", name:  { value: "Margherita" },
-                                                            pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-      runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
-      runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 5 })
-      runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 1 })
+      pizza = runtime.dispatch_flat("Pizzas::Order.CreatePizza",
+                                    name:  { value: "Margherita" },
+                                    pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 3 })
+      runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Basil" }, amount: { value: 5 })
+      runtime.dispatch_flat("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 1 })
       repository.find(pizza.id).state[:toppings]
     end
 
@@ -45,7 +46,7 @@ RSpec.describe Hecks::Runtime::Value do
       expect(rows.map(&:to_h)).to eq(original.map(&:to_h))
     end
 
-    # THE ACTUAL SHAPE THIS EXISTS FOR — an append-only sentinel field
+    # **The actual shape this exists for** — an append-only sentinel field
     # (BurningManPrep's own `List#placements`, `position == -1` meaning
     # "removed"), proving the split holds: `.latest_by` only groups,
     # the caller supplies every bit of meaning on top.

@@ -16,7 +16,7 @@ module Hecks
     # hiding that behind a form); a row of ready-made links for any
     # closed-set parameter, since a caller filtering by an enum should not
     # have to fill in a form to get a link they could just click; a filter
-    # FORM for everything else, which — being a GET form — produces
+    # form for everything else, which — being a GET form — produces
     # exactly the same kind of link on submit; and the results table once
     # a request actually supplies parameters.
     module QueryFormRenderer
@@ -60,7 +60,7 @@ module Hecks
 
       # The one enum-shaped parameter (if there is one) rendered as literal,
       # clickable links — no form to fill in for "show me the suspended
-      # ones". Capped at the FIRST closed-set field on purpose: a second one
+      # ones". Capped at the first closed-set field on purpose: a second one
       # would mean a cross product of links, which reads as noise rather
       # than help. A query with more than one is still fully reachable
       # through the filter form below.

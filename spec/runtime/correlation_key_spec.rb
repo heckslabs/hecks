@@ -51,8 +51,8 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
             invariant("an alarm is labeled") { !value.to_s.empty? }
           end
 
-          # NEVER DECLARES `code` — the argument this leg's dispatch binds
-          # is `label`, a DIFFERENT name entirely. Nothing about this
+          # Never declares `code` — the argument this leg's dispatch binds
+          # is `label`, a different name entirely. Nothing about this
           # command's own declaration has anything to do with a sighting.
           command "Open" do
             attribute :label, AlarmLabel
@@ -66,7 +66,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
           ends_on   "AlarmOpened"
 
           transition "SightingRaised" => "watching", from: "watching" do
-            # A LITERAL, wholly unconnected to the sighting's code — this leg
+            # A literal, wholly unconnected to the sighting's code — this leg
             # passes nothing correlation-shaped at all. AlarmOpened's payload
             # carries `label`, never `code`, so the payload-lookup tier finds
             # nothing here on purpose. Nor does the own-reference-key
@@ -83,7 +83,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
 
   it "still ends the right instance, correlated by the stamp alone" do
     runtime = boot_beacon
-    runtime.dispatch("Beacon::Sighting.Raise", code: { value: "smoke-1" })
+    runtime.dispatch_flat("Beacon::Sighting.Raise", code: { value: "smoke-1" })
 
     expect(runtime.sagas).to include(
       hash_including(process_manager: "Watch", instance: "smoke-1", born: true)

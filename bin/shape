@@ -5,12 +5,12 @@
 # bump/no-bump question can be answered by diffing two of these directly.
 #
 # Goes through the projector registry (`Projections::Shape`) rather than
-# calling `StorageShape.project` directly, so there is ONE definition of
+# calling `StorageShape.project` directly, so there is one definition of
 # what this projection is — the same one `Pizzas.project(Projections::Shape)`
 # answers from a console. Output is unchanged either way.
 #
-# The registry/loading dance below is NOT part of that: it turns a FILE
-# PATH into one bluebook without booting a domain, which is upstream of
+# The registry/loading dance below is not part of that: it turns a file
+# path into one bluebook without booting a domain, which is upstream of
 # projection and is duplicated near-verbatim across six bin/ scripts
 # (merge_tail, reattest_era, backfill_era_projections, scaffold_translation,
 # translation_audit, and this one). Worth extracting on its own terms;

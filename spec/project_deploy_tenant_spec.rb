@@ -2,18 +2,18 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
-# THE RUST/LAMBDA SIDE OF MULTI-TENANT HOSTING — see bin/project_deploy's
+# **The Rust/lambda side of multi-tenant hosting** — see bin/project_deploy's
 # own header comment on `--tenant`/`--schema` for the full reasoning:
 # rust/host already isolates by HECKS_SCHEMA (main.rs sets `SET
 # search_path` from it at boot, journal.rs/dispatch.rs already assume a
 # schema-isolated shared instance), and `deployed_to("AwsLambda")
 # { schema "..." }` was already a real, generated setting for Shared
-# database mode. `--tenant` is the missing per-TENANT generation step —
+# database mode. `--tenant` is the missing per-tenant generation step —
 # the exact same "one deploy per tenant" shape Runtime::TenantCheck's
 # own header describes for the Ruby side, applied to CloudFormation
 # generation instead of a Ruby boot.
 #
-# STRUCTURAL, not deployed-to-real-AWS — the same bar
+# Structural, not deployed-to-real-AWS — the same bar
 # project_deploy_contract_spec.rb's own header already holds this
 # script to: there's nothing to require, so this runs it as a real
 # subprocess and reads back what it actually generated.
@@ -82,7 +82,7 @@ RSpec.describe "bin/project_deploy --tenant", :io do
         bloom_template = File.read(File.join(root, "deploy", bloom_stack, "template.yaml"))
 
         expect(acme_template).to include("HECKS_SCHEMA: acme_schema")
-        # DEFAULTED — --schema omitted for bloom, falls back to the
+        # Defaulted — --schema omitted for bloom, falls back to the
         # tenant slug itself, the same default bin/project_tenant's own
         # Ruby-side generator uses.
         expect(bloom_template).to include("HECKS_SCHEMA: bloom")
@@ -90,7 +90,7 @@ RSpec.describe "bin/project_deploy --tenant", :io do
         expect(acme_template).not_to include("HECKS_SCHEMA: bloom")
         expect(bloom_template).not_to include("HECKS_SCHEMA: acme_schema")
 
-        # TWO GENUINELY SEPARATE STACKS — different logical ids, so a
+        # **Two genuinely separate stacks** — different logical ids, so a
         # real `sam deploy` of both stands up two independent Lambdas,
         # not one overwriting the other.
         expect(acme_template).to include("FunctionName: hecks-#{acme_stack}")

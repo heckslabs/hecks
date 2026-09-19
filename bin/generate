@@ -4,10 +4,10 @@
 # the same generator bin/fuzz drives, exposed standalone so a sequence
 # can be inspected or saved without running the property battery.
 #
-#   bin/generate <domain> [--seed N] [--steps N] [--adversarial FRACTION]
+#   bin/generate <domain> [--seed N] [--steps N] [--adversarial fraction]
 #
 # `--adversarial` — the same option `bin/qa_sweep` runs with by default
-# (sequence_generator/adversary.rb); pass the fraction a FOUND SOMETHING
+# (sequence_generator/adversary.rb); pass the fraction a found something
 # report's own `reproduce:` line names to see that exact sequence,
 # mutations and all. Off (0) unless given, so a plain call still prints
 # what it always did.

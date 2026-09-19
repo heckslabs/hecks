@@ -12,7 +12,7 @@
 # caller decides where a generated file lands and git decides whether it
 # drifted.
 #
-# EVERY FAILURE IS A SENTENCE, NOT A BACKTRACE, and not silence. A misspelled
+# Every failure is a sentence, not a backtrace, and not silence. A misspelled
 # aggregate used to print nothing and exit 0 — the silent-wrong-answer shape
 # this repository has already been bitten by twice in its query engine. An
 # agent calling this cannot tell an empty document from an empty domain, so it
@@ -23,19 +23,19 @@ require "hecks"
 
 ROOT = File.expand_path("..", __dir__)
 
-# EVERY DIRECTORY `Hecks.boot` WOULD ACCEPT. Derived by walking for `.bluebook`
+# **Every directory `Hecks.boot` would accept**. Derived by walking for `.bluebook`
 # files rather than hand-listed, for the reason `Framework.members` gives about
 # its own directory: a list somebody maintains is a list that goes stale the
 # first time a domain lands and nobody remembers it.
 #
-# EXCLUSIONS MATCH THE RELATIVE PATH, NOT THE ABSOLUTE ONE. Written the other
+# Exclusions match the relative path, not the absolute one. Written the other
 # way first and it answered with nothing at all: this checkout is a worktree
 # under `/private/tmp`, so a `path.include?("/tmp/")` meant to skip build
 # output matched every file in the repository. A substring test against an
 # absolute path is a test against wherever somebody happened to clone.
 IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 
-# FOUND BY THEIR WIRING, NOT BY THEIR CHAPTERS. Globbing `*.bluebook` finds
+# Found by their wiring, not by their chapters. Globbing `*.bluebook` finds
 # every chapter in the repository and most of them are not domains you can
 # boot — era translations, the language's own self-hosted grammar, and
 # `spec/fixtures`, which holds a dozen unrelated chapters in one directory and
@@ -52,11 +52,11 @@ def domains
      .uniq.sort
 end
 
-# STANDING IN A DOMAIN IS ENOUGH. `Adapters::Folder#domain_root` walks up for
+# **Standing in a domain is enough**. `Adapters::Folder#domain_root` walks up for
 # the nearest `.hecksagon`, so inside `examples/banking` — or anywhere under it
 # — the path can be left off entirely.
 #
-# WHICH MAKES THE FIRST ARGUMENT AMBIGUOUS, and the rule is: a directory is a
+# Which makes the first argument ambiguous, and the rule is: a directory is a
 # domain, anything else is an aggregate name. `bin/docs Account` from inside
 # banking asks for the Account section; `bin/docs examples/banking` asks for
 # the whole of banking. Nothing in this corpus names an aggregate after a
@@ -85,7 +85,7 @@ rescue StandardError => e
   abort "cannot read #{path}: #{e.message.lines.first.strip}"
 end
 
-# The domain's OWN chapter, not a framework member it attached — insertion
+# The domain's own chapter, not a framework member it attached — insertion
 # order, the same distinction `Runtime::Loader.dispatcher_for` draws.
 bluebook = runtime.registry.bluebooks.values.first
 abort "#{path} loaded no bluebook" unless bluebook

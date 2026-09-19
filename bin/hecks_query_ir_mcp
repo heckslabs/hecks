@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# AN MCP SERVER exposing Hecks::QueryIR's two queries as tools,
+# An MCP server exposing Hecks::QueryIR's two queries as tools,
 # so a coding agent calls them directly instead of shelling out to
 # `bin/query_ir` and parsing text. Hand-rolled JSON-RPC 2.0 over
 # stdio, no gem dependency — the same shape the earlier (unpushed,
@@ -9,7 +9,7 @@
 # one line out: newline-delimited JSON, the MCP stdio transport's own
 # framing, flushed after every write.
 #
-# Registered in .mcp.json. All query logic AND text formatting live in
+# Registered in .mcp.json. All query logic and text formatting live in
 # Hecks::QueryIR (lib/hecks/query_ir.rb) — this file is
 # JSON-RPC plumbing only, so the CLI and the MCP tool can never answer
 # the same question two different ways.

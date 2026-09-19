@@ -3,11 +3,11 @@ require "hecks/bluebook/synthesizer"
 require "tmpdir"
 
 RSpec.describe Hecks::Bluebook::Synthesizer do
-  # A REAL, LOADED CHAPTER — the whole point of testing this against
+  # **A real, loaded chapter** — the whole point of testing this against
   # actual IR rather than a hand-built double: `pizzas.bluebook`
   # already exercises a closed set (`Size`), a plain multi-field value
   # object (`Topping`), and — the case that first exposed a real gap
-  # here — a value object whose OWN field is ANOTHER value object
+  # here — a value object whose own field is another value object
   # (`Pizza.price_cents: Price`, not a raw primitive).
   let(:chapter) do
     registry = Hecks::Runtime::Registry.new
@@ -54,7 +54,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
       expect(value).to eq({ name: "smoke-test", amount: 0 })
     end
 
-    # THE BUG THIS ONCE HAD: `Pizza.price_cents` is typed `Price`, not
+    # **The bug this once had**: `Pizza.price_cents` is typed `Price`, not
     # `Integer` — another value object, nested. A first version treated
     # anything non-primitive as an opaque marker string, so this came
     # back as `{price_cents: "smoke-test", size: "smoke-test"}` instead
@@ -74,7 +74,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
     # `AddTopping` addresses Order by a bare self-reference (no `as:`),
     # which never becomes a declared attribute at all — the caller
     # (`SmokeTest`) supplies that separately via `id:`. What `args_for`
-    # DOES own is a real CROSS-aggregate reference, tested here against
+    # does own is a real cross-aggregate reference, tested here against
     # a small hand-built domain for full certainty about the shape.
     around do |example|
       @root = Dir.mktmpdir("hecks-synth-")

@@ -12,7 +12,7 @@ module Hecks
       # typed Value. Extended into Value, so every method here reads as
       # `Value.for`, `Value.build`, … — `self` is the Value class.
       module Coercion
-        # THE FOUR SHAPES AN ATTRIBUTE'S VALUE CAN TAKE — named here because
+        # The four SHAPES an attribute's value can take — named here because
         # `for_attribute` immediately below is the one place that actually
         # branches on all four, and nowhere else in the language collects
         # them into a single closed list. `Attribute#list?`/`#optional?`
@@ -23,7 +23,7 @@ module Hecks
         # below — but the branch is exactly as real, so it gets a name here
         # too rather than staying anonymous.
         #
-        # A SECOND RUNTIME'S KERNEL PORTS THIS METHOD BY HAND (rust/src/
+        # A second runtime's kernel ports this method by hand (rust/src/
         # kernel/attribute_shapes/*.rs — one file per name in this array,
         # generated into a Rust enum by bin/project_kernel_capabilities so
         # every match over it is compiler-checked exhaustive). If a fifth
@@ -49,13 +49,13 @@ module Hecks
         # recursively via `build`) with `scalar` as what's left once
         # neither of those applies (the raw value, passed through
         # unchanged).
-        # `boundary: false` is the QUERY door (`QueryInterpreter#normalize_args`):
+        # `boundary: false` is the query door (`QueryInterpreter#normalize_args`):
         # a query attribute's declared type names the argument for callers and
         # generators, never a runtime shape — comparison unwraps both sides
         # itself, so a `reference: {value: ...}` offered against a `String`
         # query field is the documented allowance (see banking's own
         # `Account.OpenForCustomer`), not a C3.8 mismatch.
-        # `argument: true` is the COMMAND/ENTITY/PORT argument door only
+        # `argument: true` is the command/entity/port argument door only
         # (`Interpreting#normalize_args`, every command/entity/port
         # dispatch): the one place a nil for a non-optional attribute is
         # the caller leaving a required argument empty (C3.7), absorbed
@@ -66,9 +66,9 @@ module Hecks
         # legitimate "absent is not empty" value the aggregate's own
         # attribute may hold. `QueryInterpreter#normalize_args` never
         # passes `argument: true` — a null required value-object-typed
-        # QUERY argument is checked, and refused, entirely on its own
+        # query argument is checked, and refused, entirely on its own
         # side (`null_vo_argument!`, query_interpreter.rb) precisely so
-        # it does NOT reach this default-absorbing fallback (QualityControl
+        # it does not reach this default-absorbing fallback (QualityControl
         # BUG#36 — a query's own null VO argument must refuse regardless
         # of any default, unlike a command's).
         def for_attribute(aggregate, attribute, value, boundary: true, argument: false)
@@ -78,12 +78,12 @@ module Hecks
           return hydrate_entity_list(aggregate, attribute, value) if attribute.list? # :list
           return value unless aggregate.respond_to?(:value_object)
 
-          # THE SET THE ATTRIBUTE NAMES IS CHECKED WHERE THE ATTRIBUTE IS KNOWN.
+          # The set the attribute names is checked where the attribute is known.
           # `build` below sees only the value object, never which attribute asked
           # for it, so a command argument's `admits:` has to be read here — this
           # is the door every argument and every head field comes through.
           #
-          # AFTER coercion, not before: a scalar arrives wrapped in whatever holder
+          # After coercion, not before: a scalar arrives wrapped in whatever holder
           # its type names (`{value: "append"}` for an OpName), and checking the
           # raw payload would be checking the envelope.
           value_object = value_object_for(aggregate, attribute.type)
@@ -99,12 +99,12 @@ module Hecks
           coerced
         end
 
-        # NIL IS NOT A VALUE FOR A NON-OPTIONAL ARGUMENT (C3.7/C3.8). An
+        # NIL is not a value for a non-optional argument (C3.7/C3.8). An
         # `optional:` attribute and a load from the store pass nil through
         # as they always did; a command argument offered as null for a
         # required attribute is
         # refused as the field the caller left empty — a value object is
-        # BUILT from no fields, so its first required field refuses with
+        # built from no fields, so its first required field refuses with
         # exactly the wording the Rust side's `from_json` gives it
         # ("Money.cents expects Integer, got nil"), and a bare scalar
         # refuses through `check_bare_primitive`'s own wording. Lists and
@@ -112,7 +112,7 @@ module Hecks
         # relationship, `validate_relationship_cardinality`'s business).
         # The `attribute.nil?`/`value.nil?` branch of `for_attribute`,
         # pulled out on its own — an unknown attribute has no shape left
-        # to branch on, and a nil VALUE is either an ordinary absence
+        # to branch on, and a nil value is either an ordinary absence
         # (state assembly, hydration, a query ask) or, at the argument
         # door only, `nil_argument`'s own C3.7 refusal.
         private def nil_or_missing(aggregate, attribute, value, argument)
@@ -129,12 +129,12 @@ module Hecks
           return build(value_object, {}, aggregate) if value_object
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "numeric_field",
-                                      type: aggregate.hecks_name, field: attribute.name,
-                                      expected: attribute.type, offered: "nil")
+                RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                           type: aggregate.hecks_name, field: attribute.name,
+                                           expected: attribute.type, offered: "nil")
         end
 
-        # A BARE PRIMITIVE IS TYPE-CHECKED AT THE BOUNDARY TOO (C3.8,
+        # A bare primitive is type-checked at the boundary too (C3.8,
         # docs/semantics/bluebook-semantics.md) — the same two predicates a
         # value object's own fields get, so wrong-typed caller input is a
         # TypeMismatch refusal here, never an evaluation fault later. Its
@@ -187,20 +187,20 @@ module Hecks
           Naming.identity(parts)
         end
 
-        # A COMMAND MAY REDECLARE A `reference_to` FIELD under its OWN,
+        # A command may redeclare a `reference_to` field under its own,
         # differently-named single-attribute value object (`attribute
         # :venue, VenueHandle; sets :venue`, not `reference_to Venue` —
         # QualityControl BUG#121, `qa/stress_domains/generated_revalued_
         # shape`'s own `Hangar.Repoint`) instead of naming the target's
         # own identity field(s) directly. `identity_part`'s path walk
         # above only ever matches an incoming shape that already uses the
-        # TARGET's own field names (or IS the target's own identity value
+        # target's own field names (or is the target's own identity value
         # object, `direct_identity_head`) — an ad hoc wrapper around a
-        # bare scalar under some OTHER field name (`VenueHandle`'s own
+        # bare scalar under some other field name (`VenueHandle`'s own
         # `value`, not `Venue`'s own `code`) fails every path lookup, and
         # used to fall through to the unresolved `return value` above,
-        # storing the WRAPPED Value. That leaves ONE reference field on
-        # ONE aggregate holding two different shapes depending on which
+        # storing the wrapped Value. That leaves one reference field on
+        # one aggregate holding two different shapes depending on which
         # command last wrote it — `Open`'s own bare `reference_to Venue`
         # argument was never wrapped in the first place (the top guard
         # clause passes a bare scalar straight through), so it always
@@ -208,7 +208,7 @@ module Hecks
         # comment promises ("canonical target identities, not Ruby Value
         # wrappers") — while `Repoint` silently kept the wrapper instead.
         #
-        # Unambiguous only when BOTH sides admit exactly one scalar: the
+        # Unambiguous only when both sides admit exactly one scalar: the
         # target names exactly one identity path (`paths.one?` — a
         # compound identity has no single field either side could stand
         # in for) and the offered value is itself a single-attribute
@@ -275,14 +275,14 @@ module Hecks
 
           # Vendored addition, not (yet) upstream hecks (migration
           # plan task 5): a bare scalar auto-wraps into a single-field
-          # value object's sole attribute -- the SAME shape
+          # value object's sole attribute -- the same shape
           # #from_identifier already establishes for identity coercion
           # (`build(value_object, { fields.first.name => identifier }) if
-          # fields.size == 1`), made consistent here for MUTATION
+          # fields.size == 1`), made consistent here for mutation
           # coercion too. Real, corpus-wide gap: a synthesised single-
           # field wrapper (Part 3a's bare-primitive auto-synthesis, the
           # norm for a VO-typed aggregate field) is exactly the shape
-          # #rewrap_arithmetic_result hands back a raw scalar RESULT to
+          # #rewrap_arithmetic_result hands back a raw scalar result to
           # -- without this, every phantom-field increment/multiply on a
           # single-field-wrapped attribute refused with "pass its fields
           # as an object, not <scalar>" the instant it tried to re-wrap
@@ -293,27 +293,27 @@ module Hecks
           return { value_object.attributes.first.name => value } if value_object.attributes.size == 1
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "value_object_shape",
-                                      name: name, type: value_object.hecks_name,
-                                      offered: Rendering.describe(value))
+                RefusalWording.render_site("TypeMismatch", "value_object_shape",
+                                           name: name, type: value_object.hecks_name,
+                                           offered: Rendering.describe(value))
         end
 
         # `build`'s own recursive twin of `for_attribute`'s single-level
-        # normalization — a value object's OWN composite-typed fields
+        # normalization — a value object's own composite-typed fields
         # (`Pizza.price_cents`, a `Price`) never otherwise pass back
         # through `fields_for`, so a bare scalar or partial Hash for one
-        # of THOSE sails past the outer VO's own shape check (`Pizza`
+        # of those sails past the outer VO's own shape check (`Pizza`
         # itself has two fields, so nothing unwraps there) and lands
         # stored one field down exactly as handed in — found live: once
         # the fuzzer actually generated the bare-scalar shape
-        # `fields_for` has accepted at the TOP level since 86727afd, a
+        # `fields_for` has accepted at the top level since 86727afd, a
         # nested `Price` stored as a raw Integer broke every later
         # dotted-path read (`pizza.price_cents.cents`) expecting one
         # more level of Hash.
         #
         # Stays a plain Hash, never a nested `Value` — `Value#with`'s own
         # header and `materialize_unwrapped`'s comment already depend on
-        # a value-object-typed field of ANOTHER value object staying a
+        # a value-object-typed field of another value object staying a
         # plain Hash once stored, and this does not change that; it only
         # makes sure that Hash has the shape its own type declares.
         # `aggregate` is the one thing `build` didn't used to need — a
@@ -321,12 +321,12 @@ module Hecks
         # value_object(name)`, so callers with no aggregate in reach
         # (`Value#with`, always re-setting an already-scalar arithmetic
         # field) simply skip this and keep their prior behavior.
-        # RECURSES INTO EACH NESTED FIELD'S OWN VALIDATION TOO, not only its
+        # Recurses into each nested field's own validation too, not only its
         # shape — found live alongside the shape bug this method's header
         # already describes: a nested `Price`/`Size` (a value-object-typed
-        # field of ANOTHER value object, e.g. `Pizza.price_cents`,
+        # field of another value object, e.g. `Pizza.price_cents`,
         # `Pizza.size`) had its Hash shape normalized here but never ran
-        # `validate!` — `build`, below, only ever validated the OUTER value
+        # `validate!` — `build`, below, only ever validated the outer value
         # object's own direct fields, so a negative `price_cents.cents` or an
         # out-of-`one_of` `size.value` sailed through a `Pizza`-typed command
         # argument untouched, while the exact same nested type declared as a
@@ -341,10 +341,10 @@ module Hecks
           value_object.attributes.each do |attribute|
             next unless fields.key?(attribute.name)
 
-            # A LIST MEMBER READ BACK FROM THE STORE hydrates like a top-level
+            # A list member read back from the store hydrates like a top-level
             # list — `list_of(Entity)` elements get their fields coerced,
             # `list_of(ValueObject)` elements become Values — so a value object
-            # holding a list loads into the SAME shape the live dispatch that
+            # holding a list loads into the same shape the live dispatch that
             # wrote it held. Found by PR A3 (every adapter through the state
             # codec): chess-style `sets :positions, append: { pieces:
             # state(:pieces) }` snapshots read back from Heki/Sqlite/Postgres
@@ -378,14 +378,14 @@ module Hecks
           end
         end
 
-        # THE FULL DOOR A VALUE OBJECT'S OWN FIELDS PASS THROUGH — shared by
+        # The full door a value object's own fields pass through — shared by
         # `build` (the outer value object) and `normalize_composite_fields`
         # (every nested one), so a nested `Price`/`Size` is refused exactly
         # the same way, with exactly the same wording, as the identical type
         # declared directly on a command.
         def validate!(value_object, fields)
           # C6.3 (docs/semantics/bluebook-semantics.md) — a value object is
-          # validated on CONSTRUCTION FROM INPUT only; state read back from
+          # validated on construction from input only; state read back from
           # the store is trusted as it was written, so tightening an
           # invariant never makes an old record unreadable (migration is
           # the era system's job). `hydrate` — the one load door — sets
@@ -403,9 +403,9 @@ module Hecks
             next if Bluebook::Expression::Evaluator.call_rule(invariant, fields)
 
             raise InvariantViolation,
-                  RefusalWording.render("InvariantViolation", "value_object_invariant",
-                                        name: value_object.hecks_name, description: invariant.description,
-                                        offered: canonical_fields(fields))
+                  RefusalWording.render_site("InvariantViolation", "value_object_invariant",
+                                             name: value_object.hecks_name, description: invariant.description,
+                                             offered: canonical_fields(fields))
           end
         end
 
@@ -416,7 +416,7 @@ module Hecks
           new(value_object, fields)
         end
 
-        # STATE ARRIVES DECODED OR NOT AT ALL (Phase 2, Track A, PR A4).
+        # State arrives decoded or not at all (Phase 2, Track A, PR A4).
         # Every persistence adapter reads through `Ports::Persistence::
         # StateCodec.decode` (A3), which symbolizes every top-level key, and
         # the runtime's own callers (entity elements, the remote dispatcher's
@@ -454,18 +454,18 @@ module Hecks
 
         def trusting_stored_state? = Thread.current[TRUSTED_LOAD_KEY] == true
 
-        # QualityControl BUG#125 — the ONE narrow door `check_scalar_shapes`
+        # QualityControl BUG#125 — the one narrow door `check_scalar_shapes`
         # keeps open, now that a non-string scalar is otherwise refused for a
         # String-typed field. `MetaValidator::Judge#send_to` — the single
         # choke point every one of the language's own self-hosted dispatches
         # goes through while walking a bluebook's declarations into the
         # "Bluebook" meta-domain — wraps itself in this, and nothing else
         # does. `Judge#appends`' generic `POSITION` handling
-        # (judge.rb#appends) keys purely off a field being NAMED "position",
+        # (judge.rb#appends) keys purely off a field being named "position",
         # the convention every other append list actually uses it for
         # (ValueObject::Member, ProcessManager::Handler, ... — all really
         # `Position`/Integer-typed); `Normalise`'s own `NormalisationRule`
-        # happens to ALSO name its own domain field "position"
+        # happens to also name its own domain field "position"
         # (bluebook.bluebook), but declares it `RuleText` (String) — so the
         # same walk-index substitution (`Judge#v(index)`) hands it a raw
         # Integer too, on every domain's very first boot (the language
@@ -475,19 +475,19 @@ module Hecks
         # `ELSEWHERE`/`derived` field spliced straight from
         # `Expression::CanonicalForm.table` (assembly/contracts.rb), so the
         # judged record holding the Integer is discarded whole — this is a
-        # walk-index/domain-field NAME COLLISION inside `Judge#appends`, not
+        # walk-index/domain-field name collision inside `Judge#appends`, not
         # a genuine semantic need for `position` to arrive numeric. Fixing
-        # THAT collision at its own root is a separate, larger change to
+        # that collision at its own root is a separate, larger change to
         # self-hosted bootstrap mechanics that every domain's boot depends
         # on; this flag only ever loosens scalar-shape checking for the
-        # META-grammar's OWN value objects (RuleText, BluebookName, Position,
+        # meta-grammar's own value objects (RuleText, BluebookName, Position,
         # …) that Judge itself constructs while walking a bluebook's
-        # declarations — never for a REAL domain's own declared value
+        # declarations — never for a real domain's own declared value
         # objects (PieceId, Money, …), which Judge never dispatches commands
         # against. `offer` (judge.rb) already converts a `TypeMismatch` here
         # into a recorded refusal rather than letting it propagate, but
         # `MetaValidator.call` raises the instant `refusals` is non-empty
-        # (meta_validator.rb) — so, unexempted, this would fail EVERY
+        # (meta_validator.rb) — so, unexempted, this would fail every
         # domain's boot, not just the language's own bootstrap. Composite
         # shapes (Array/Hash) stay refused unconditionally, bootstrap or not
         # — nothing Judge does ever legitimately needs those for a scalar
@@ -506,7 +506,7 @@ module Hecks
 
         # `Value.identifier` used to live here: hand it a one-field value object
         # and it opened it, so `identified_by :number` could pass for an identity
-        # and the runtime would guess which field was meant. THAT GUESS IS GONE.
+        # and the runtime would guess which field was meant. That guess is gone.
         # An identity names its field — `identified_by :number` — and the
         # path is what reaches the scalar. A declaration that names no field is
         # refused when the bluebook loads, so nothing has to be unwrapped later.
@@ -515,12 +515,12 @@ module Hecks
         # into a column or a message, where there is no path to consult.
 
         # `Value.reference_id` lived here, opening a reference to find the id
-        # inside it. A reference IS the id now — refused at the payload gate if it
+        # inside it. A reference is the id now — refused at the payload gate if it
         # arrives as anything else — so there is nothing left to open. The comment
-        # it carried said retiring it meant changing how references are STORED ;
+        # it carried said retiring it meant changing how references are stored ;
         # that is what happened.
 
-        # A REFERENCE IS AN ID, SO ANYTHING ELSE IS NOT ONE.
+        # A reference is an ID, so anything else is not one.
         #
         # Nothing coerces a reference — `for_attribute` misses on
         # "Reference<Account>", which is no value object's name, and hands the
@@ -529,10 +529,10 @@ module Hecks
         # refused, so whatever the first caller wrote became the shape.
         #
         # This is that place. It sits at the payload gate rather than inside
-        # coercion because the sentence names the COMMAND, and `for_attribute`
+        # coercion because the sentence names the command, and `for_attribute`
         # never learns which command it is serving.
         #
-        # WIDENED PAST THE OBJECT SHAPE BY BUG#27 (QualityControl ledger,
+        # Widened past the object shape by BUG#27 (QualityControl ledger,
         # found live on `qa/stress_domains/referral_chain`'s `Member.Join`/
         # `Referral.Issue`). A bare Boolean, Array, or `null` used to sail
         # through here untouched — nothing but Hash/Value ever refused —
@@ -549,23 +549,23 @@ module Hecks
         # (`normalize_args`, `Vocabulary::AggregateDispatchOrder`/
         # `EntityDispatchOrder`), strictly before `resolve_references` ever
         # receives a value to look up — so the two engines now agree on
-        # BOTH kind and order, not just kind.
+        # both kind and order, not just kind.
         #
-        # `nil` STAYS LEGITIMATE for a `reference_to ..., optional: true`
+        # `nil` stays legitimate for a `reference_to ..., optional: true`
         # argument (`Improvement.Open`'s own `reference_to Angle, optional:
         # true` — `qa/bluebook/quality_control.bluebook`): the caller
         # genuinely may have nothing to name yet, and `nil_argument`
         # (interpreting.rb) already passes an optional reference's `nil`
-        # through untouched. A REQUIRED reference offered as `null` is a
-        # caller leaving a required argument empty in every OTHER sense
-        # this runtime already refuses (C3.7) — refusing it HERE, rather
+        # through untouched. A required reference offered as `null` is a
+        # caller leaving a required argument empty in every other sense
+        # this runtime already refuses (C3.7) — refusing it here, rather
         # than falling through to `resolve_references`' own nil-skip and
         # then whatever the command's `given` happens to say, is what
         # actually names the empty argument instead of something else.
         #
         # A `has_many` reference's own Array shape is still never refused
-        # by ITS wrapper (`Array(value).find { ... }` only inspects the
-        # list's ELEMENTS) — a reference is never a scalar list-of-lists
+        # by its wrapper (`Array(value).find { ... }` only inspects the
+        # list's elements) — a reference is never a scalar list-of-lists
         # today, and inventing a rule for a shape the language cannot
         # declare is how decoration gets written. `reference_list` (below)
         # already owns "not an Array at all" for that case.
@@ -583,13 +583,13 @@ module Hecks
           end
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "reference_wrong_shape",
-                                      command: command.hecks_name, attribute: attribute.name,
-                                      offered: reference_shape_description(offered),
-                                      known_by: known_by(attribute))
+                RefusalWording.render_site("TypeMismatch", "reference_wrong_shape",
+                                           command: command.hecks_name, attribute: attribute.name,
+                                           offered: reference_shape_description(offered),
+                                           known_by: known_by(attribute))
         end
 
-        # "an object" for the Hash/Value shape — the ORIGINAL wording this
+        # "an object" for the Hash/Value shape — the original wording this
         # method always gave, pinned byte for byte by
         # `spec/runtime/reference_shape_spec.rb`, kept unchanged by BUG#27's
         # widening. `Rendering.describe` for everything else: `true`,
@@ -608,8 +608,8 @@ module Hecks
         # article-choosing rule. Silent when the target is another chapter's,
         # where this runtime cannot see what it is known by.
         #
-        # EVERY HEAD, because a caller has to pass every one. This read
-        # `identified_by`, which is the SINGLE head and is nil the moment an
+        # Every head, because a caller has to pass every one. This read
+        # `identified_by`, which is the single head and is nil the moment an
         # identity has two parts — so a composite target fell through the guard
         # and the refusal went silent exactly where it had the most to say. A
         # single-path target reads as it always did.
@@ -626,7 +626,7 @@ module Hecks
           fields = value.to_h
           return fields.values.first if fields.size == 1
 
-          raise TypeMismatch, RefusalWording.render("TypeMismatch", "multi_field_scalar", type: value.type_name)
+          raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "multi_field_scalar", type: value.type_name)
         end
 
         def from_identifier(aggregate, attribute, identifier)
@@ -639,29 +639,29 @@ module Hecks
             return build(value_object, { field.name => coerce_identifier(field, identifier) })
           end
 
-          raise TypeMismatch, RefusalWording.render("TypeMismatch", "composite_identity", type: value_object.hecks_name)
+          raise TypeMismatch, RefusalWording.render_site("TypeMismatch", "composite_identity", type: value_object.hecks_name)
         end
 
         # Vendored fix, not (yet) upstream hecks (migration plan
-        # task 9): `identifier` here is always the DERIVED IDENTITY
-        # STRING -- `Identity.of`/`Identity.from` intentionally return
+        # task 9): `identifier` here is always the derived identity
+        # string -- `Identity.of`/`Identity.from` intentionally return
         # one (correct for naming a repository key), and
         # `Runtime::Instance#materialize_identity!` calls `from_identifier`
         # with exactly that string on every fresh hydration -- but when
-        # the identity field's OWN declared type is Integer/Float (not
+        # the identity field's own declared type is Integer/Float (not
         # the overwhelmingly common String), seeding it straight from
         # that string round-trips a correctly-derived identity back in
-        # as the WRONG Ruby type -- and #build's own
+        # as the wrong Ruby type -- and #build's own
         # `check_numeric_fields` (added specifically to catch a genuine
-        # CALLER mismatch) then refused the runtime's OWN internal
+        # caller mismatch) then refused the runtime's own internal
         # identity seed instead, on every dispatch, valid input or not.
         #
-        # Reuses THIS SAME FILE's own `NUMERIC` table (declared-type ->
+        # Reuses this same file's own `NUMERIC` table (declared-type ->
         # expected-Ruby-class, already read by `check_numeric_fields`)
-        # to decide WHICH declared types need converting, and
+        # to decide which declared types need converting, and
         # Kernel#Integer/#Float to do the converting. A genuinely
         # malformed identifier (should never happen, since an identity
-        # is always derived FROM a correctly-typed field in the first
+        # is always derived from a correctly-typed field in the first
         # place, but this stays defensive rather than assume it) passes
         # back unconverted, and `check_numeric_fields` refuses it
         # exactly as it always has -- preserving its real job of
@@ -683,21 +683,21 @@ module Hecks
           JSON.generate(fields.sort_by { |name, _| name.to_s }.to_h)
         end
 
-        # A field declared Integer or Float must ARRIVE as one.
+        # A field declared Integer or Float must arrive as one.
         #
         # Without this a String sails into a numeric field and the failure surfaces
         # later, inside a predicate, as `positive? expects a number, got "three"` —
-        # an EvaluationError, which is NOT a domain refusal. So the runtime broke
+        # an EvaluationError, which is not a domain refusal. So the runtime broke
         # where the domain should have said no, and the run contract recorded the
         # crash beside genuine refusals as though the domain had judged it.
         #
         # C3.8 — the boundary check for an attribute whose type is a bare
         # primitive rather than a value object: `Integer`/`Float` by exact
         # numeric class (`NUMERIC`), `String`/booleans by rejecting only a
-        # composite shape (`COMPOSITE_SHAPES`) — NOT the same as
+        # composite shape (`COMPOSITE_SHAPES`) — not the same as
         # `check_scalar_shapes` holds a value object's own `String` field to
         # any more (QualityControl BUG#125 tightened that one to also refuse
-        # a non-string scalar; a BARE `String` argument here still admits
+        # a non-string scalar; a bare `String` argument here still admits
         # any other scalar, left exactly as it was — a bare-primitive
         # attribute was never part of BUG#125's own investigation or fix,
         # and whether it needs the same tightening, and against what real
@@ -716,9 +716,9 @@ module Hecks
                      end
           if mistyped
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "numeric_field",
-                                        type: owner.hecks_name, field: attribute.name,
-                                        expected: type, offered: Rendering.describe(value))
+                  RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                             type: owner.hecks_name, field: attribute.name,
+                                             expected: type, offered: Rendering.describe(value))
           end
 
           check_numeric_bounds(owner.hecks_name, attribute.name, value)
@@ -733,24 +733,24 @@ module Hecks
         private def check_numeric_bounds(type_name, field_name, given)
           if given.is_a?(Integer) && !INT64_RANGE.cover?(given)
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "integer_range",
-                                        type: type_name, field: field_name, offered: Rendering.describe(given))
+                  RefusalWording.render_site("TypeMismatch", "integer_range",
+                                             type: type_name, field: field_name, offered: Rendering.describe(given))
           end
           return unless given.is_a?(Float) && !given.finite?
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "non_finite_field",
-                                      type: type_name, field: field_name, offered: Rendering.describe(given))
+                RefusalWording.render_site("TypeMismatch", "non_finite_field",
+                                           type: type_name, field: field_name, offered: Rendering.describe(given))
         end
 
-        # QualityControl BUG#41 — A VALUE OBJECT REFUSES A KEY IT DOES NOT
-        # DECLARE, the same way a command's own payload does
+        # QualityControl BUG#41 — a value object refuses a key it does not
+        # declare, the same way a command's own payload does
         # (`CommandInterpreter::ArgumentGate#refuse_unknown_arguments`,
-        # argument_gate.rb) — reusing that method's EXACT refusal wording
+        # argument_gate.rb) — reusing that method's exact refusal wording
         # (`UnknownArgument unknown_args`, refusal_wording.rb:
         # "{command} does not declare {unknown} — it takes {declared}")
         # rather than inventing a new template, because every generated
-        # Rust value-object `from_json` already renders THIS refusal
+        # Rust value-object `from_json` already renders this refusal
         # through that identical site: `rust/project/json_codec.rb`'s
         # `emit_unknown_argument_check` (mirrored byte-for-byte in
         # `rust/codegen/src/json_codec.rs`) emits `v.unknown_keys(&[...])`
@@ -762,21 +762,21 @@ module Hecks
         #
         # Ruby never had an equivalent check anywhere in this `validate!`
         # door before now — `fields[attribute.name]` reads only the
-        # DECLARED attributes, so any other key a caller's Hash carried
+        # declared attributes, so any other key a caller's Hash carried
         # was silently ignored. `fields` here only ever holds what a
         # caller (or `for_attribute`'s own recursive coercion) offered
-        # for THIS value object — built by `fields_for`'s plain
+        # for this value object — built by `fields_for`'s plain
         # key-symbolizing (never a Hash the runtime pads with bookkeeping
         # keys of its own; confirmed by reading every call site that
         # reaches `validate!`) — so there is nothing legitimate here to
         # exempt.
         #
-        # CHECKED FIRST, before `check_required_fields` and everything
+        # Checked first, before `check_required_fields` and everything
         # after it — matching Rust's own `from_json`, which checks
         # `unknown_keys` before reading a single declared field. So a
-        # Hash offering BOTH an unrecognized key and a missing required
+        # Hash offering both an unrecognized key and a missing required
         # one (BUG#41's own second demonstration case: `label: {extra:
-        # "bogus"}` — unknown AND missing `value`) refuses the same
+        # "bogus"}` — unknown and missing `value`) refuses the same
         # UnknownArgument on both engines, not two different refusal
         # kinds for one malformed call.
         private def check_unknown_fields(value_object, fields)
@@ -786,18 +786,18 @@ module Hecks
 
           declared = value_object.attributes.map(&:name)
           raise UnknownArgument,
-                RefusalWording.render("UnknownArgument", "unknown_args",
-                                      command: value_object.hecks_name, unknown: unknown.join(", "),
-                                      declared: declared.empty? ? "none" : declared.join(", "))
+                RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                           command: value_object.hecks_name, unknown: unknown,
+                                           declared: declared)
         end
 
-        # C3.7 — A VALUE OBJECT IS A TYPED FIELD PRODUCT: every non-optional
+        # C3.7 — a value object is a typed field product: every non-optional
         # field arrives, or construction refuses. A missing field and a null
         # one are the same absence (`fields[name]` reads nil for both), worded
         # as the type mismatch it is — "{type}.{field} expects {expected}, got
         # nil" — the identical string the Rust side's generated `from_json`
         # gives the same input, so the corpus can pin it on both. Checked
-        # first among the FIELD-CONTENT checks (after `check_unknown_fields`'s
+        # first among the field-content checks (after `check_unknown_fields`'s
         # own structural gate above, BUG#41): an invariant reading a field
         # that never arrived is exactly the thing that used to answer
         # "invariant violated" (or nothing at all — `ToppingName`'s
@@ -810,13 +810,13 @@ module Hecks
             next unless fields[attribute.name].nil?
 
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "numeric_field",
-                                        type: value_object.hecks_name, field: attribute.name,
-                                        expected: attribute.type, offered: "nil")
+                  RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                             type: value_object.hecks_name, field: attribute.name,
+                                             expected: attribute.type, offered: "nil")
           end
         end
 
-        # Checked BEFORE invariants, because an invariant reading a mistyped field
+        # Checked before invariants, because an invariant reading a mistyped field
         # is exactly the thing that used to explode.
         NUMERIC = { "Integer" => Integer, "Float" => Numeric }.freeze
         private def check_numeric_fields(value_object, fields)
@@ -829,9 +829,9 @@ module Hecks
 
             unless given.is_a?(expected)
               raise TypeMismatch,
-                    RefusalWording.render("TypeMismatch", "numeric_field",
-                                          type: value_object.hecks_name, field: attribute.name,
-                                          expected: attribute.type, offered: Rendering.describe(given))
+                    RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                               type: value_object.hecks_name, field: attribute.name,
+                                               expected: attribute.type, offered: Rendering.describe(given))
             end
 
             # PRD 05 (numeric-boundary-coverage) — `given.is_a?(expected)`
@@ -849,8 +849,8 @@ module Hecks
             # storage, where `JSON.generate`/`#to_json` raises
             # `JSON::GeneratorError: NaN/Infinity not allowed in JSON` the
             # moment anything tries to persist or replay it — again a raw
-            # crash, not a refusal. `-0.0` is deliberately NOT refused
-            # here: it IS finite, round-trips through JSON as `-0.0`
+            # crash, not a refusal. `-0.0` is deliberately not refused
+            # here: it is finite, round-trips through JSON as `-0.0`
             # cleanly (confirmed empirically), and is a legitimate,
             # meaningful float value (a signed zero), not a corruption
             # risk — only NaN and +/-Infinity are.
@@ -859,16 +859,16 @@ module Hecks
         end
 
         # A field declared `String` (or a boolean) must not arrive as a
-        # COMPOSITE — an Array or a Hash (or a nested Value) standing in for
+        # composite — an Array or a Hash (or a nested Value) standing in for
         # what has to be a leaf scalar. A `String` field, further, must not
-        # arrive as any OTHER non-composite scalar either (Integer, Float,
+        # arrive as any other non-composite scalar either (Integer, Float,
         # true/false) — QualityControl BUG#125, matching Rust's generated
         # `from_json`, which requires a JSON string node for a String-typed
         # field unconditionally and refuses anything else, including a JSON
         # number or boolean. Ruby used to tolerate exactly that (found live:
         # `Chess::Piece.Capture`'s `PieceId`, String-typed, offered a bignum
         # `id` — Ruby let it pass and failed later on an unrelated field,
-        # Rust refused on `id` itself, immediately) — no longer, EXCEPT
+        # Rust refused on `id` itself, immediately) — no longer, except
         # inside `judge_bootstrapping?` (above), the one caller genuinely
         # relying on the old leniency; see that flag's own comment for why.
         #
@@ -881,7 +881,7 @@ module Hecks
         # scalar field, of any declared type, can ever legitimately be
         # handed an Array or a Hash — that shape is always wrong, and always
         # was: `InvalidValueGenerator#array_for_scalar`'s own corruption is
-        # deliberately built to be REFUSED (see that file's header), and
+        # deliberately built to be refused (see that file's header), and
         # until this check existed it sailed straight through for a
         # String/boolean field the way it never could for an Integer/Float
         # one (`check_numeric_fields` above already catches an Array offered
@@ -903,16 +903,16 @@ module Hecks
             next unless composite || non_string_scalar
 
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "numeric_field",
-                                        type: value_object.hecks_name, field: attribute.name,
-                                        expected: attribute.type, offered: Rendering.describe(given))
+                  RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                             type: value_object.hecks_name, field: attribute.name,
+                                             expected: attribute.type, offered: Rendering.describe(given))
           end
         end
 
-        # A field declared with a PATTERN must match it.
+        # A field declared with a pattern must match it.
         #
         # Beside check_numeric_fields and for the same reason : a value that does
-        # not look like what it claims to be is the DOMAIN saying no, and it should
+        # not look like what it claims to be is the domain saying no, and it should
         # say so here rather than let the wrong shape travel on and surface as a
         # broken predicate later.
         #
@@ -929,9 +929,9 @@ module Hecks
             next if given.is_a?(String) && Regexp.new(pattern).match?(given)
 
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "pattern_mismatch",
-                                        type: value_object.hecks_name, field: attribute.name,
-                                        pattern: pattern, offered: Rendering.describe(given))
+                  RefusalWording.render_site("TypeMismatch", "pattern_mismatch",
+                                             type: value_object.hecks_name, field: attribute.name,
+                                             pattern: pattern, offered: Rendering.describe(given))
           end
         end
       end

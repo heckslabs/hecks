@@ -9,6 +9,10 @@ module Hecks
       class Specification < Common::Options
         attr_reader :joins
 
+        # @param joins [Array<Hash{Symbol => Object}>] one row per projected aggregate head,
+        #   keyed `:aggregate` (String target name), `:as` (Symbol output name) and `:many`
+        #   (Boolean), as `ReadModelBuilder` builds them
+        # @param ** [Hash] the shared query options, passed to `Common::Options#initialize`
         def initialize(joins: [], **)
           super(**)
           @joins = joins
