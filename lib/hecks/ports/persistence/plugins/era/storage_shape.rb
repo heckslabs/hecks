@@ -12,22 +12,22 @@ module Hecks
     # the declared routing `version:` — is excluded, so editing behavior
     # never bumps an era and editing shape always does.
     #
-    # Three attribute facts on the wire are constraints on PERSISTED
-    # VALUES, not behavior, and are still excluded — each decided, not
+    # Three attribute facts on the wire are constraints on persisted
+    # values, not behavior, and are still excluded — each decided, not
     # overlooked:
     #
     #   `optional`  — required-ness is enforced at dispatch; stored rows
     #                 are never re-validated on read, so flipping it
     #                 strands nothing already written. Excluded.
-    #   `pattern`   — same argument: a fact about what may be WRITTEN
+    #   `pattern`   — same argument: a fact about what may be written
     #                 next, not about what was stored. Excluded.
     #   `admits`    — the sharpest of the three: narrowing a closed set
-    #                 CAN strand stored rows outside it, and the wire
-    #                 carries only the set's NAME, so a set whose members
+    #                 can strand stored rows outside it, and the wire
+    #                 carries only the set's name, so a set whose members
     #                 changed under a stable name is invisible even to a
     #                 projection that included the fact (the same lesson
     #                 recursive value-object drift taught). Excluded, and
-    #                 NAMED as a gap: constraint tightening has no
+    #                 named as a gap: constraint tightening has no
     #                 translation-rule vocabulary to acknowledge it yet,
     #                 so including it would mint era bumps nothing can
     #                 explain. When the translation language grows a
@@ -53,7 +53,7 @@ module Hecks
 
       def same?(held, current) = project(held) == project(current)
 
-      # The canonical serialization the Ruby scaffold hashes at MINT time
+      # The canonical serialization the Ruby scaffold hashes at mint time
       # — the one moment identity is computed. Nothing ever recomputes a
       # stored era name to verify it, so this form can evolve freely.
       def canonical(bluebook) = JSON.generate(project(bluebook))
@@ -65,7 +65,7 @@ module Hecks
 
       # The version of the canonical serialization above. Minted-once
       # means a stored name stays valid across form changes — but only
-      # if each name records WHICH form minted it, so v1-named and
+      # if each name records which form minted it, so v1-named and
       # v2-named eras coexist legibly. Stored beside every minted hash
       # (names.tsv fourth field / hecks_eras.canon_form); bump this in
       # the same change that alters project/canonical output.
@@ -74,7 +74,7 @@ module Hecks
       def project_aggregate(aggregate)
         {
           "name"            => aggregate["name"],
-          # The declared identity paths, AS A LIST, in declaration order —
+          # The declared identity paths, as a list, in declaration order —
           # order is semantic (the paths join in order to form the id).
           # No "id" fallback: an aggregate that declares nothing has [],
           # and that is a real declared state, distinct from an aggregate

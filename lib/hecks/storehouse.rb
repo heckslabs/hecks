@@ -8,18 +8,18 @@ require_relative "projector"
 require_relative "runtime/errors"
 
 module Hecks
-  # THE BUS, NOT A DOOR — `docs/hecks-survey-what-we-wish-we-had.md` and
+  # The bus, not a door — `docs/hecks-survey-what-we-wish-we-had.md` and
   # `docs/future-features.md` both name the sibling project's own
   # "Storehouse" the single highest-priority gap this repo had: "no
-  # per-command tool... the bluebook IS the contract, the [door] just
-  # projects it." This module IS that bus, borrowing its name too — the
+  # per-command tool... the bluebook is the contract, the [door] just
+  # projects it." This module is that bus, borrowing its name too — the
   # dispatch/query/state/... surface below is a pure function of a
   # `Runtime::Dispatcher` plus plain Ruby arguments, no IO, no protocol
-  # awareness. `bin/hecks_mcp_door` is ONE projection of it — MCP over
+  # awareness. `bin/hecks_mcp_door` is one projection of it — MCP over
   # stdio — not the whole thing; a plain CLI door, an HTTP door, a second
   # transport of any shape, would sit beside it on the exact same bus,
   # sharing the same audit log and caller-identity handling, without
-  # ever needing to speak MCP. (This module used to BE named `McpDoor`
+  # ever needing to speak MCP. (This module used to be named `McpDoor`
   # and live under `Facade` — that conflated the bus with its one built
   # transport; this file is the rename, not a rewrite.)
   #
@@ -30,21 +30,21 @@ module Hecks
   #   dispatch — issue a command (dry_run: preview, steps: batch)
   #   query    — ask a question
   #   state    — read what is actually stored, no verb involved
-  #   events   — what HAPPENED, with payloads, to one record — not just its
-  #              current state; events THIS BUS witnessed, sourced from
+  #   events   — what happened, with payloads, to one record — not just its
+  #              current state; events this bus witnessed, sourced from
   #              its own audit log, not a full event-sourcing replay
   #   history  — the full append-only journal, not just current state
   #   behaviors — run a domain's hand-curated `.behaviors` examples
   #   follow   — tail this bus's own dispatch/query/state audit log
   #
-  # `dispatch`/`query`/`state` EACH TAKE A `summary` — the survey's "every
+  # `dispatch`/`query`/`state` each take a `summary` — the survey's "every
   # audit row carries human intent for free" — and `dispatch`/`query`
   # additionally take an optional `source:` (`SOURCE_TAGS`, the survey's
-  # `SourceTag`: who is calling) AND an optional `role:`/`actor_id:` —
+  # `SourceTag`: who is calling) and an optional `role:`/`actor_id:` —
   # a real caller identity, bound for the call's duration via `Hecks.
   # as_caller`, checked against a `role`-gated command's own declared
   # role (`CommandRules::Authorization`) rather than merely documented by
-  # `describe`. `dispatch` REQUIRES it for any command that declares a
+  # `describe`. `dispatch` requires it for any command that declares a
   # role — `require_caller_for_role_gated!` refuses an unbound dispatch
   # against one rather than silently running it unchecked; `query`'s own
   # authorization runs on a separate mechanism (`Runtime::TenantScope`)
@@ -54,21 +54,21 @@ module Hecks
   # header for what that does and does not guarantee. Every call through
   # those three, plus a dry run, is appended to a per-domain JSONL audit
   # log (`record!`) `follow` tails back — a record of what the caller
-  # SAID it was, not independently verified identity. `catalog`/
+  # said it was, not independently verified identity. `catalog`/
   # `describe`/`validate`/`domains`/`history`/`behaviors`/`events` need
   # neither — they change nothing and commit nothing to any log.
   #
-  # A CALLER HANDS IN AN ALREADY-BOOTED `runtime`, the same division of
+  # A caller hands in an already-booted `runtime`, the same division of
   # labor `Facade::CliRunner` already keeps against `bin/run`: booting a
   # domain from a path is IO the calling `bin/` script owns, this stays a
   # pure function of a `Runtime::Dispatcher` plus plain Ruby arguments —
   # no different from `CliRunner.call(runtime:, argv:)` itself.
   # `validate` and `domains` are the two exceptions: `validate`'s whole
   # job is to attempt the boot and report whether it survived, so it
-  # takes the domain PATH instead and boots it; `domains` has no
+  # takes the domain path instead and boots it; `domains` has no
   # domain to be handed one of yet, that's what it's answering.
   #
-  # NO NEW VOCABULARY otherwise. Every method here composes doors that
+  # No new vocabulary otherwise. Every method here composes doors that
   # already exist — `Projector.call(:cli, ...)` for verb/question alias
   # resolution (the identical table `CliRunner` itself resolves against),
   # `Projector.call(:docs, ...)` for `describe`, `Facade::JsonDoor` for
@@ -82,21 +82,21 @@ module Hecks
   module Storehouse
     module_function
 
-    # THE SAME CLOSED SET `docs/hecks-survey-what-we-wish-we-had.md`'s
-    # `SourceTag` names — WHO dispatched, not WHAT. Optional: a caller
+    # The same closed set `docs/hecks-survey-what-we-wish-we-had.md`'s
+    # `SourceTag` names — who dispatched, not what. Optional: a caller
     # that omits it gets `source: nil` recorded, honestly, rather than a
     # guessed default.
     SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
 
-    # THE BUS'S OWN AUDIT TRAIL — a JSONL file per domain, one line per
+    # The bus's own audit trail — a JSONL file per domain, one line per
     # `dispatch`/`query`/`state`/dry-run call, `follow` tails it back.
-    # `tmp/`, not the domain's own directory: this is the BUS's record
+    # `tmp/`, not the domain's own directory: this is the bus's record
     # of what was asked of it, not part of the domain's own persisted
     # state, and `tmp/` is already gitignored for exactly this kind of
     # local, disposable-but-useful-while-it-lasts file.
     LOG_ROOT = File.expand_path("../../tmp/storehouse", __dir__)
 
-    # THE ROOT EVERY `domain:`/`under:` MUST RESOLVE UNDER — the project
+    # The root every `domain:`/`under:` must resolve under — the project
     # directory by default, `HECKS_STOREHOUSE_ROOT` to widen or move it.
     # `Hecks.boot` `Kernel.load`s the `.hecksagon`/`.bluebook`/`.world`
     # files a domain path resolves to, and those are Ruby, not a data
@@ -108,7 +108,7 @@ module Hecks
     # project tree.
     BOOT_ROOT = File.expand_path(ENV["HECKS_STOREHOUSE_ROOT"] || File.expand_path("../..", __dir__))
 
-    # REFUSED, NOT SILENTLY CLAMPED — a path outside `BOOT_ROOT` is either
+    # Refused, not silently clamped — a path outside `BOOT_ROOT` is either
     # an honest mistake (a relative path typed against the wrong cwd) or
     # the exact thing this check exists to catch, and both deserve the
     # same clear refusal rather than a silent rewrite to something the
@@ -124,7 +124,7 @@ module Hecks
 
     # ── shared resolution helpers ────────────────────────────────────
 
-    # THE ONE BLUEBOOK A DOMAIN DIRECTORY BOOTS. Every `bin/*` script that
+    # The one bluebook a domain directory boots. Every `bin/*` script that
     # projects a whole-domain CLI or doc set makes this same assumption
     # (`Facade::CliRunner#call`'s own `bluebook = runtime.registry.
     # bluebooks.values.first`) — one `.hecksagon` names one chapter.
@@ -139,7 +139,7 @@ module Hecks
                                  "known: #{bluebook.aggregates.map(&:hecks_name).sort.join(', ')}"
     end
 
-    # THE SAME ALIAS TABLE `CliRunner` RESOLVES A TYPED WORD AGAINST — a
+    # The same alias table `CliRunner` resolves a typed word against — a
     # short name when it's unambiguous, the qualified `Aggregate.Verb`
     # form always. Shared here so `dispatch` and `query` (and their error
     # messages) never drift from what a human typing `bin/run` sees.
@@ -166,7 +166,7 @@ module Hecks
       raise Runtime::TypeMismatch, "source: #{source.inspect} is not one of #{SOURCE_TAGS.join(', ')}"
     end
 
-    # `actor_id` NAMES WHO, `role` NAMES WHAT THEY HOLD — `Hecks.
+    # `actor_id` names who, `role` names what they hold — `Hecks.
     # as_caller` requires the latter always, the former is additive
     # (`Runtime::Caller::Current`'s own shape). An `actor_id` with no
     # `role` would silently do nothing rather than bind a real caller,
@@ -178,7 +178,7 @@ module Hecks
       raise Runtime::TypeMismatch, "actor_id: requires role: too — a caller names WHO through WHICH role they hold"
     end
 
-    # BOUND FOR THE DURATION OF ONE CALL, THEN GONE — `Hecks.as_caller`
+    # Bound for the duration of one call, then gone — `Hecks.as_caller`
     # is itself a `Thread.current`-scoped `ensure`-guarded block, so
     # nothing here needs its own cleanup. `role: nil` yields unbound —
     # for `query`, exactly as before: `CommandRules::Authorization#
@@ -186,10 +186,10 @@ module Hecks
     # caller`), and query authorization runs on a wholly separate
     # mechanism (`authorize policy, tenant: :field`, checked against an
     # explicit `tenant:` argument — see `Runtime::TenantScope`), so
-    # binding a caller around a query has no effect on it TODAY; it is
+    # binding a caller around a query has no effect on it today; it is
     # still accepted here, for symmetry and for the audit log, against
     # the day a read model does check `Caller.current`. For `dispatch`,
-    # `require_caller_for_role_gated!` (below) now refuses BEFORE this
+    # `require_caller_for_role_gated!` (below) now refuses before this
     # is ever reached when the command declares a role and no caller is
     # bound — so an unbound `dispatch` here means either the command
     # declares no role at all, or a caller-side check let it through.
@@ -199,14 +199,14 @@ module Hecks
       Hecks.as_caller(role: role, actor_id: actor_id, &block)
     end
 
-    # THE FAIL-OPEN HALF `with_caller` ITSELF CANNOT CLOSE — ADR 0025's
-    # Governance RBAC work fixed WHAT a *bound* role is checked against
+    # The fail-open half `with_caller` itself cannot close — ADR 0025's
+    # Governance RBAC work fixed what a *bound* role is checked against
     # (a live `Governance::RoleAssignment` lookup instead of a bare
     # string match), but changed nothing about a caller who binds no
     # role at all: `refuse_role_mismatch` `return`s immediately when
     # `Caller.current` is nil, so a bus caller who simply omits `role:`
     # sails past a role-gated command unchecked, not denied. That is a
-    # property of THIS BUS choosing to dispatch unbound, not of the
+    # property of this bus choosing to dispatch unbound, not of the
     # domain rule — `bin/run`, the human CLI, has no such gap because a
     # human always dispatches through a real `Hecks.as_caller` binding
     # upstream of it. Refusing here, before `with_caller`/`dispatch` are
@@ -220,17 +220,17 @@ module Hecks
             "(role:/actor_id:) is bound; dispatching it unbound is refused, not silently unchecked"
     end
 
-    # `dry_run?` (Runtime::Dispatcher) understands only the OLD flat
+    # `dry_run?` (Runtime::Dispatcher) understands only the old flat
     # legacy args shape — no to:/with: envelope, `route:` never passed
     # (its own header explains why: built directly against
     # CommandInterpreter/EntityInterpreter's pre-envelope contract,
     # never updated because nothing else needed it to be — a real
     # record of history, not a defect this bus should paper over
     # silently). `Facade::CommandRequest`/`spec[:legacy_receiver]`
-    # already know how to NAME that same flat shape for every receiver
+    # already know how to name that same flat shape for every receiver
     # kind (a bare id under one string key for :aggregate, a
     # {aggregate:, entity:} pair of keys for :entity) — this is the one
-    # door back INTO it.
+    # door back into it.
     def flatten_legacy(envelope, receiver, legacy_receiver)
       facts = envelope[:with] || {}
       return facts unless envelope.key?(:to)
@@ -251,8 +251,8 @@ module Hecks
       File.join(LOG_ROOT, "#{domain_name.to_s.gsub(/[^A-Za-z0-9_-]/, '_')}.jsonl")
     end
 
-    # NEVER FAILS A REAL CALL BECAUSE ITS OWN AUDIT LOG COULDN'T BE
-    # WRITTEN — a full disk or a permissions problem is a `follow`
+    # Never fails a real call because its own audit log couldn't be
+    # written — a full disk or a permissions problem is a `follow`
     # feature going dark, not a reason to refuse the dispatch/query/
     # state call that was actually asked for.
     def record!(domain_name, tool:, summary:, source:, outcome:, verb: nil, role: nil, actor_id: nil)
@@ -269,9 +269,9 @@ module Hecks
 
     # ── the three that drive it ────────────────────────────────────────
 
-    # `dry_run: true` ANSWERS A DIFFERENT QUESTION than a real dispatch
+    # `dry_run: true` answers a different question than a real dispatch
     # does — "would this succeed", not "here is what happened" — so a
-    # domain refusal is the legitimate, complete ANSWER (`ok: true,
+    # domain refusal is the legitimate, complete answer (`ok: true,
     # would_succeed: false`), not a failed call. A malformed request
     # (unknown command, a bad args shape) is still a failed call
     # (`ok: false`) either way — it never reached the domain to be asked.
@@ -323,8 +323,8 @@ module Hecks
       ok(summary: summary, would_succeed: false, error: e.message)
     end
 
-    # ONE CALL, MANY STEPS — the survey's own `bin/run <domain> script`
-    # shape, so an agent issuing a known SEQUENCE of commands (open an
+    # One call, many steps — the survey's own `bin/run <domain> script`
+    # shape, so an agent issuing a known sequence of commands (open an
     # account, then fund it) pays one round trip instead of N. Every step
     # goes through `dispatch` itself — same resolution, same audit log
     # line per step, same summary/source stamped on all of them since
@@ -370,11 +370,11 @@ module Hecks
       ok(summary: summary, rows: rows.map { |row| Facade::JsonDoor.materialize(row) }).merge(verb: spec[:verb])
     end
 
-    # WHAT IS ACTUALLY STORED — no verb, no interpretation, the repository
+    # What is actually stored — no verb, no interpretation, the repository
     # itself. `id:` given answers one record (`NotFound` when it names
     # nothing); omitted answers every record the aggregate currently
     # holds. This is the difference `query` can't cover: a query answers a
-    # DECLARED question, and an aggregate that never declared "list
+    # declared question, and an aggregate that never declared "list
     # everything" has no query this could reuse.
     def state(runtime:, aggregate:, summary:, id: nil, source: nil)
       bluebook = bluebook_for(runtime)
@@ -405,7 +405,7 @@ module Hecks
 
     # ── the four zoom levels ─────────────────────────────────────────
 
-    # ZOOM LEVEL ZERO — every domain directory a root actually holds,
+    # Zoom level zero — every domain directory a root actually holds,
     # discovered rather than typed from memory. Every other tool takes
     # `domain:` as a directory it assumes the caller already knows; this
     # is how a caller who doesn't finds out. `Adapters::Folder#domain?`
@@ -422,7 +422,7 @@ module Hecks
       ok(under: under, domains: found.map { |name| File.join(under, name) })
     end
 
-    # ZOOM LEVEL ONE — every aggregate this domain declares, and every
+    # Zoom level one — every aggregate this domain declares, and every
     # command/query name each answers to, snake_cased exactly as
     # `dispatch`/`query` want it. Enough to pick a target; `describe` is
     # the next level down for what one of them actually takes.
@@ -439,7 +439,7 @@ module Hecks
       refused(e)
     end
 
-    # ZOOM LEVEL TWO — the exact same usage document a human gets from
+    # Zoom level two — the exact same usage document a human gets from
     # `bin/docs <domain> [aggregate]` (`Projector::DocsProjector`, the
     # identical projection `Surface::AggregateDoor#docs` calls one door
     # over): every command's arguments, the states it may be issued
@@ -454,19 +454,19 @@ module Hecks
       refused(e)
     end
 
-    # ZOOM LEVEL THREE — is the wiring sound at all: every bind names a
+    # Zoom level three — is the wiring sound at all: every bind names a
     # declared aggregate, every adapter satisfies the port it claims, the
     # default adapter is usable. `Registry#verify!` (`runtime/registry/
     # verification.rb`) is the one place this repo already answers that
     # question, and `Runtime::Loader.boot` already calls it as the last
-    # step of every boot — so THIS is the one method here that boots for
+    # step of every boot — so this is the one method here that boots for
     # itself rather than taking a `runtime:` already in hand, because a
     # runtime that successfully reached this line already answered the
-    # question. Given a domain PATH, not a booted runtime, deliberately:
+    # question. Given a domain path, not a booted runtime, deliberately:
     # asking "is this valid" about a domain that failed to boot at all
     # has to be askable without a runtime to hand it.
     #
-    # `deep: true` GOES PAST WIRING INTO LOGIC — `Bluebook::ModelCheck`,
+    # `deep: true` goes past wiring into logic — `Bluebook::ModelCheck`,
     # the lightweight-formal-methods leg (dead lifecycle transitions, a
     # saga state no handler chain reaches, a dispatch to nowhere). Opt-in
     # and separate from the base check on purpose: a wiring defect is
@@ -474,7 +474,7 @@ module Hecks
     # part of it can never fire" — two different questions, and the
     # first is far cheaper to ask on every boot.
     #
-    # ANY BOOT FAILURE ANSWERS THE QUESTION, not only `WiringError` — a
+    # Any boot failure answers the question, not only `WiringError` — a
     # domain path with no `.hecksagon`, a malformed bluebook, is just as
     # much "not valid" as a real wiring mismatch, and this tool exists
     # precisely so none of those ever cross a projection of this bus as
@@ -496,7 +496,7 @@ module Hecks
 
     # ── beyond the zoom levels ──────────────────────────────────────────
 
-    # THE FULL WRITE HISTORY, not just the current head — `bin/history`'s
+    # The full write history, not just the current head — `bin/history`'s
     # own logic, unchanged: an append-only-backed aggregate's `entries`,
     # every operation that ever touched it. An aggregate bound to a
     # non-append-only adapter (Memory, Postgres proper) answers an empty
@@ -519,11 +519,11 @@ module Hecks
       repository.entries.map { |entry| { operation: entry.operation, id: entry.id, state: Facade::JsonDoor.materialize(entry.state) } }
     end
 
-    # `.behaviors` FILES, RUN AND REPORTED — hand-curated examples of how
+    # `.behaviors` files, run and reported — hand-curated examples of how
     # to use a domain, in domain vocabulary (`docs/guides/behaviors.md`),
     # the survey's own "honest-refusal", generated-example-suite items.
     # `Hecks::Behaviors` boots each test fresh through `Hecks.boot_files`
-    # itself — `target:` names a `.behaviors` file OR a directory to
+    # itself — `target:` names a `.behaviors` file or a directory to
     # sweep, never a `runtime:`, the one other method here besides
     # `validate` that takes a path instead.
     def behaviors(target:)
@@ -547,7 +547,7 @@ module Hecks
         runs:        Array(result.runs).map { |run| { description: run.description, status: run.status, message: run.message } } }
     end
 
-    # A LIVE TAIL WITHOUT A LIVE PROCESS — `bin/hecks_mcp_door` (its
+    # A live tail without a live process — `bin/hecks_mcp_door` (its
     # transport of MCP-over-stdio) answers one request at a time, no push
     # channel to a client that only ever asks. This is the honest version
     # of the survey's `storehouse follow` for that shape: not a
@@ -571,17 +571,17 @@ module Hecks
       File.readlines(path).map { |line| JSON.parse(line, symbolize_names: true) }
     end
 
-    # WHAT ACTUALLY HAPPENED, with payloads — distinct from `state`
-    # (what's stored NOW) and `history` (append-only operation
-    # SNAPSHOTS, no payload). NOT a domain-wide event-sourcing replay:
+    # What actually happened, with payloads — distinct from `state`
+    # (what's stored now) and `history` (append-only operation
+    # snapshots, no payload). Not a domain-wide event-sourcing replay:
     # "one boot per call" means `runtime.events` is always empty except
     # during the very call that populated it, discarded the moment that
     # call returns — there is no cross-call in-memory log to read here.
-    # So this reads the SAME durable audit log `follow` already tails
+    # So this reads the same durable audit log `follow` already tails
     # (`record!` now stamps a successful dispatch's own announced
     # events onto its log line), reshaped: `follow` answers "what was
-    # CALLED, in order, across every tool"; this answers "what HAPPENED
-    # to one aggregate/record" — events THIS BUS witnessed, which is
+    # called, in order, across every tool"; this answers "what happened
+    # to one aggregate/record" — events this bus witnessed, which is
     # every real dispatch ever routed through it, but no more than that.
     # `aggregate:` narrows to one aggregate; `id:` (requires
     # `aggregate:` — an id alone is not unique across aggregates)
@@ -616,19 +616,19 @@ module Hecks
 
     # ── shared shape ────────────────────────────────────────────────────
 
-    # `Runtime::WiringError` BELONGS HERE TOO, alongside the true domain
-    # refusals — not because it IS one (it's a structural defect, not a
+    # `Runtime::WiringError` belongs here too, alongside the true domain
+    # refusals — not because it is one (it's a structural defect, not a
     # rule the caller broke), but because "this domain isn't wired to
     # answer what you're asking" (a `role:`+`actor_id:` caller reaching
     # an authorization port nothing implements, a dry run against a
     # port verb) is exactly the shape this bus promises never crashes
     # through it. `dry_run_outcome` already treats it this way locally;
-    # this makes every OTHER caller of `refusal_classes` do the same.
+    # this makes every other caller of `refusal_classes` do the same.
     def refusal_classes = [Runtime::NotFound, Runtime::TypeMismatch, Runtime::WiringError, *Runtime::DOMAIN_REFUSALS]
 
     def ok(**fields) = { ok: true }.merge(fields)
 
-    # AN HONEST REFUSAL, NOT A CRASH — the survey's own item #9: "an
+    # An honest refusal, not a crash — the survey's own item #9: "an
     # explicit, structured refusal a caller can act on" rather than a
     # stack trace an agent has to parse to find the one line that
     # mattered. The domain's own refusal text travels verbatim

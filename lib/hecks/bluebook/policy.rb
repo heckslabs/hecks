@@ -1,5 +1,5 @@
-# GENERATED — projected from the language's own Policy aggregate.
-# DO NOT EDIT: the holding half is rendered, and Behaviour::Policy
+# Generated — projected from the language's own Policy aggregate.
+# Do not edit: the holding half is rendered, and Behaviour::Policy
 # is where anything hand-written belongs.
 require_relative "behaviour/policy"
 
@@ -23,7 +23,7 @@ module Hecks
 
       attr_reader :name, :on_event, :trigger_command, :target_domain, :expect_undelivered, :where, :for_each, :with_spec
 
-      # AGGREGATE, DECLARED AND DELIBERATELY OFF THE WIRE
+      # Aggregate, declared and deliberately off the wire
       # the wire format is a pinned contract, and it does not carry
       # where a policy was written before the builder hoisted it
       attr_accessor :aggregate

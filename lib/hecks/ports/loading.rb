@@ -10,6 +10,7 @@ module Hecks
 
       module_function
 
+      # @return [Adapters::Folder] a fresh, unregistered Folder adapter
       def bootstrap = Adapters::Folder.new
     end
   end

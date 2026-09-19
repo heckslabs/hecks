@@ -29,8 +29,8 @@ module Hecks
               catalog_entities(domain_name, aggregate, entity_commands, entity_queries)
             end
 
-            # THE BARE DOMAIN FORM — "Domain.report_name", no "::" — the
-            # SAME shape `Dispatcher#query` itself branches on to route a
+            # The bare domain form — "Domain.report_name", no "::" — the
+            # same shape `Dispatcher#query` itself branches on to route a
             # read-model ask apart from an aggregate query. A report was
             # never in this catalog at all before: `aggregation_matches_
             # recompute` (count/median) has only ever been exercised by
@@ -52,7 +52,7 @@ module Hecks
             # from (adversary.rb `other_role`).
             roles: (creating + instance + entity_commands).filter_map { |e| e[:command].role }
                                                           .map(&:to_s).reject(&:empty?).uniq.sort,
-            # The GRANT verb every loaded authorization provider declares
+            # The grant verb every loaded authorization provider declares
             # (`provides "authorization", grant: ...`) — what the caller
             # draw steers at a declared role and records as a real grant.
             # Read off the declaration, never the literal Governance name.
@@ -64,7 +64,7 @@ module Hecks
             creatable: creating.to_set { |entry| entry[:aggregate].hecks_name } }
         end
 
-        # EVERY ENTITY, AT EVERY DEPTH — `Card` nested inside `Board`
+        # Every entity, at every depth — `Card` nested inside `Board`
         # inside `Workspace` (qa/stress_domains/nested_pieces) walks in
         # as `chain: [Board, Card]`, the exact hop list
         # `EntityInterpreter::Resolution.of` resolves the dotted verb
@@ -73,10 +73,10 @@ module Hecks
         # command (BUG#11's whole class) could never be generated at all
         # — the one shape the differential harness most needed to reach
         # was structurally absent from every sequence it ever produced.
-        # `entity:` stays the LAST hop (what every existing reader means
+        # `entity:` stays the last hop (what every existing reader means
         # by "the entity"); `chain:` is the whole path.
         #
-        # Entity QUERIES stay one hop deep, exactly as before — a nested
+        # Entity queries stay one hop deep, exactly as before — a nested
         # entity's query has no established wire spelling this generator
         # can vouch for, and nothing in the corpus declares one.
         def catalog_entities(domain_name, aggregate, entity_commands, entity_queries)
@@ -97,7 +97,7 @@ module Hecks
         end
 
         # Depth-first, parents before children, in declaration order — so
-        # the depth-1 entries land in `entity_commands` in EXACTLY the
+        # the depth-1 entries land in `entity_commands` in exactly the
         # order they always did (a pinned seed's picker pool is the same
         # pool it was), and a nested entity's own entries follow its
         # parent's.
@@ -115,16 +115,16 @@ module Hecks
         # (CommandInterpreter#entity_element) when the append's own field
         # mapping doesn't already assign it — the common case, predicted here.
         # A domain whose append explicitly assigns identity through a mapped
-        # argument is covered too, without guessing: whatever value THIS
-        # generator supplied for that argument at dispatch time IS the
+        # argument is covered too, without guessing: whatever value this
+        # generator supplied for that argument at dispatch time is the
         # identity, and gets recorded directly (see `record_outcome`).
         #
         # `owner_chain:` — `[]` for an aggregate-level append (`Board.AddList`,
-        # `Folder.AddSlip`), the entity path for an ENTITY-level one
+        # `Folder.AddSlip`), the entity path for an entity-level one
         # (`Board.AddCard` appending into `Board.cards`, owner_chain
         # `[Board]`) — so `record_outcome` can key the appended element
         # under the exact parent-plus-hops it landed beneath.
-        # `identity_arguments:` — EVERY identity head the mapping sources
+        # `identity_arguments:` — every identity head the mapping sources
         # from a command argument (a composite entity identity has several),
         # what the adversarial duplicate-identity mutation replays;
         # `identity_argument:` stays the single-head reading the existing

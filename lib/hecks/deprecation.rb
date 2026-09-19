@@ -1,13 +1,13 @@
-# Deprecation warnings this gem raises about its own API. NOT a singleton
+# Deprecation warnings this gem raises about its own API. Not a singleton
 # method on `Hecks` itself: the self-hosted language declares every word
 # that module answers (spec/syntax_conformance_spec.rb), and a warning
 # about an old call shape is not a word of the language — callers name
 # `Hecks::Deprecation.call` in full.
 module Hecks
-  # ONE WARNING PER CALL SITE, NAMING THE CALLER'S LINE — never a line
+  # One warning per call site, naming the caller's line — never a line
   # inside this gem. A deprecated shape usually reaches the runtime through
   # a forwarding door (`Hecks::Router`, a namespace shortcut, a
-  # `RemoteDispatcher`), so the site reported is the first frame OUTSIDE
+  # `RemoteDispatcher`), so the site reported is the first frame outside
   # `lib/hecks`, which is the line a reader can actually change.
   #
   #   Hecks::Deprecation.call(:legacy_dispatch_args, "pass facts in with:")
@@ -20,7 +20,7 @@ module Hecks
   #                              test suite, so no spec reintroduces it);
   #                              with a block, only where the block says so,
   #                              given the site, so a suite can raise on
-  #                              NEW sites while a known worklist warns
+  #                              new sites while a known worklist warns
   #   HECKS_SILENCE_DEPRECATIONS=1 — silent
   #   otherwise                — `Kernel#warn`, once per key and call site
   module Deprecation

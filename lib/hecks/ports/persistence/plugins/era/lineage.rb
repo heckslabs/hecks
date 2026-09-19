@@ -27,7 +27,7 @@ module Hecks
           from_declared(translation.for_aggregate(aggregate.name), aggregate.name)
         end
 
-        # One SPECIFIC edge's rules for one aggregate — what the mint
+        # One specific edge's rules for one aggregate — what the mint
         # path uses, where `for` would happily answer with whichever
         # edge in the registry mentioned the aggregate first.
         def self.from_declared(declared, aggregate_name)
@@ -63,10 +63,10 @@ module Hecks
         # before the general drift machinery says anything vaguer.
         def computes? = !@computes.empty?
 
-        # THE SINGLE SOURCE OF TRUTH for "does this edge rekey this
+        # The single source of truth for "does this edge rekey this
         # aggregate" — every consumer (coverage_check.rb's identity gate,
         # minter.rb's approval gate, layer_two.rb's audit, head_compiler.rb's
-        # SQL compilation) asks THIS, never re-derives it from `declared`
+        # SQL compilation) asks this, never re-derives it from `declared`
         # independently. One accessor to change if what a rekey rule means
         # ever needs to change, not four call sites in four files.
         def rekey? = !@rekeys.empty?
@@ -77,7 +77,7 @@ module Hecks
         # something this reader arbitrates).
         def rekey_sql = @rekeys.first&.sql
 
-        # The reference semantics for the five PORTABLE rule kinds —
+        # The reference semantics for the five portable rule kinds —
         # rename, move, convert, drop, and the aggregate-level `was:`.
         # `retype` moves nothing (stored state never carries a type name)
         # and `compute` is deliberately not applied here: its SQL is its
@@ -87,7 +87,7 @@ module Hecks
         def translate(entry)
           return entry unless entry.save? && entry.state
 
-          # Deep, not shallow: a move or convert reaches INTO a nested
+          # Deep, not shallow: a move or convert reaches into a nested
           # value-object hash, and a shallow dup would quietly mutate
           # the caller's copy of the original entry.
           state = deep_dup(entry.state)
@@ -95,7 +95,7 @@ module Hecks
           @moves.each { |move| apply_move(state, move) }
           @converts.each { |convert| apply_convert(state, convert) }
           @drops.each { |name| apply_drop(state, name) }
-          # LAST, and only where nothing already answered — a backfill
+          # Last, and only where nothing already answered — a backfill
           # fills the gap a rename/move/convert left untouched, never
           # overwrites a value that already made it across.
           @backfills.each { |backfill| state[backfill.name] = backfill.default unless state.key?(backfill.name) }
@@ -105,14 +105,14 @@ module Hecks
         # Whether this translation names `path` as an old key it accounts
         # for — the rename, move, or convert it came from, or an explicit
         # drop. `path` is a bare name ("cost") or a dotted value-object
-        # member ("price.currency"); a rule covering the WHOLE top-level
+        # member ("price.currency"); a rule covering the whole top-level
         # attribute (a rename, a top-level move/convert/drop) also covers
         # anything nested under it, since the whole value travels or goes
         # away together. Used to catch a field — or a value object's own
         # member — that vanished (or silently changed type) without
-        # anything explaining it, even when some OTHER field is covered.
+        # anything explaining it, even when some other field is covered.
         #
-        # `backfills` matches on the WHOLE name only, never a dotted
+        # `backfills` matches on the whole name only, never a dotted
         # prefix — a backfill names a top-level attribute that is new
         # outright (nothing to be a prefix of on the held side), unlike
         # every rule above it, which explains a path that existed and
@@ -121,7 +121,7 @@ module Hecks
         # One `||` chain over a closed, fixed set of rule kinds (renames,
         # moves, converts, drops, computes, backfills) — the same six this
         # file's other methods enumerate. Splitting each disjunct into its
-        # own predicate would scatter one question ("does ANY rule explain
+        # own predicate would scatter one question ("does any rule explain
         # this path") across six same-shaped methods with nothing else to
         # do.
         # rubocop:disable-next Metrics/CyclomaticComplexity
@@ -138,18 +138,18 @@ module Hecks
             @backfills.any? { |backfill| backfill.name.to_s == top }
         end
 
-        # THE DESTINATION-SIDE TWIN of `explains?` above, which only ever
-        # asks about a rule's SOURCE. `unsafe_additions` asks a different
+        # The destination-side twin of `explains?` above, which only ever
+        # asks about a rule's source. `unsafe_additions` asks a different
         # question — not "was this vanished path accounted for" but "does
         # an existing record end up with a value here" — and a move or
-        # convert whose `to:` lands a old field inside a BRAND-NEW
+        # convert whose `to:` lands a old field inside a brand-new
         # top-level attribute (`weight` becoming `contents.weight` when
         # `Contents` did not exist before) fills that attribute for an
         # existing record exactly as a `backfill` would, even though
         # nothing named `contents` explains any vanished path. `compute`
         # counts on the same terms `explains?` already grants it
         # elsewhere in this file — Postgres-only and audited, not
-        # actually applied by THIS method, the same gap the vanish side
+        # actually applied by this method, the same gap the vanish side
         # already lives with.
         #
         # `@renames.value?` belongs here too, and used to be missing: a
@@ -159,7 +159,7 @@ module Hecks
         # simpler than a move or convert, which both got their `fills?`
         # entry from the start), and its absence meant `unsafe_additions`
         # reported the new name as an unexplained required addition on
-        # EVERY rename-only edge, the single most common translation
+        # every rename-only edge, the single most common translation
         # shape there is. `explains?` already checked the source side
         # (`@renames.key?`); `fills?` is the symmetric destination-side
         # check that was never added alongside it.
@@ -173,7 +173,7 @@ module Hecks
             @backfills.any? { |backfill| backfill.name.to_s == path }
         end
 
-        # Whether a declared retype says the pair of TYPE names means the
+        # Whether a declared retype says the pair of type names means the
         # same shape — a value object or entity whose own name changed
         # with its members intact. Nothing in the stored data carries the
         # type name, so this never moves a value; it only satisfies the
@@ -193,25 +193,25 @@ module Hecks
         end
 
         # M27 (docs/audits/2026-08-10-main-bug-audit.md,
-        # docs/audits/2026-08-11-bug-triage.md) — SIMULTANEOUS, not
+        # docs/audits/2026-08-11-bug-triage.md) — simultaneous, not
         # sequential: `state[new] = state.delete(old)` per rename, run
-        # one rule at a time against the SAME hash it was reading from,
+        # one rule at a time against the same hash it was reading from,
         # loses data the instant one rule's destination is another
         # rule's source. A swap (`rename :a, to: :b` alongside
         # `rename :b, to: :a`) on `{a: 1, b: 2}` used to produce
         # `{a: 1}` — the first rule wrote `b: 1` over the real `b: 2`
         # before the second rule ever got a chance to read it, and the
         # value the whole edge was supposed to preserve (2, moved to
-        # `:a`) was gone. The standard fix: snapshot every rule's OLD
-        # key and value from `state` FIRST, then remove every old key
-        # and only THEN write every new key — a rename never reads a
+        # `:a`) was gone. The standard fix: snapshot every rule's old
+        # key and value from `state` first, then remove every old key
+        # and only then write every new key — a rename never reads a
         # key this same pass has already written to, so a swap or a
         # longer chain applies as one permutation, not a sequence of
         # edits each stepping on the last.
         def apply_renames(state, renames)
           snapshot = renames.filter_map { |old_name, new_name| [old_name, new_name, state[old_name]] if state.key?(old_name) }
           snapshot.each { |old_name, _new_name, _value| state.delete(old_name) }
-          # NOT combinable (Style/CombinableLoops is disabled repo-wide, see
+          # Not combinable (Style/CombinableLoops is disabled repo-wide, see
           # .rubocop.yml, for exactly this reason): a swap (:a<->:b) needs
           # every delete done before any write, or the first rename's write
           # becomes the second rename's delete target — see this method's
@@ -236,14 +236,14 @@ module Hecks
         end
 
         # A dotted path's first segment is a top-level (symbol) key; a
-        # second segment reaches into a value-object member by its STRING
-        # key — the spelling a RAW stored row carries. Translation runs on
-        # raw rows, BEFORE the state codec decodes anything (PR A3): its
+        # second segment reaches into a value-object member by its string
+        # key — the spelling a raw stored row carries. Translation runs on
+        # raw rows, before the state codec decodes anything (PR A3): its
         # only caller (`Translation::Audit::LayerTwo`) feeds it
         # head-snapshot rows straight out of `JSON.parse`, and the
         # PostgresEra head applies the same rules in SQL before
         # `PostgresEra#decode` ever sees the jsonb. Decode is always the
-        # LAST step, so an undeclared (retired) member this rule has to
+        # last step, so an undeclared (retired) member this rule has to
         # read is still exactly as it was written, and never something an
         # adapter's `entries` — decoded, deep-symbol — would be fed here.
         def apply_move(state, move)
@@ -290,8 +290,8 @@ module Hecks
           [value, true]
         end
 
-        # ADVERSARIAL FINDING, not a hypothetical: a destination whose
-        # top segment ALREADY holds a value — most commonly a reference,
+        # Adversarial finding, not a hypothetical: a destination whose
+        # top segment already holds a value — most commonly a reference,
         # stored as a bare scalar id — used to be silently clobbered with
         # an empty hash the moment a dotted destination needed to nest
         # under it (`state[top] ||= {}` only guards nil/false, so a

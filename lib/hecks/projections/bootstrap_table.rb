@@ -2,7 +2,7 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # THE BOOTSTRAP-WINDOW FALLBACKS, PROJECTED — lib/hecks/bluebook/dsl/
+    # The bootstrap-window fallbacks, projected — lib/hecks/bluebook/dsl/
     # bootstrap_table.rb rendered from the chapter's own Keyword rows.
     #
     #   Projector.call(:bootstrap_table, bluebook: <the Bluebook chapter>)
@@ -11,14 +11,14 @@ module Hecks
     # yet, so `WordGate#method_missing` and `RuleReference#lookup` cannot
     # read `calls:`/`resolves_via:`/`disambiguator:` off it. They used to
     # read two hand-kept Hashes instead, each "kept in sync by hand" with
-    # those columns. Kept in sync by hand meant a SUBSET: 48 of the 87 live
+    # those columns. Kept in sync by hand meant a subset: 48 of the 87 live
     # `calls:` rows, chosen word by word by grepping which ones the core
     # chapters happened to use during bootstrap. A partition, not a filter:
     # every live row now lands in the table, and the ones no bootstrap
     # chapter calls cost nothing — a builder with its own `def` never
     # reaches `method_missing` at all.
     #
-    # The table cannot be BUILT at boot for the same reason it exists: it
+    # The table cannot be built at boot for the same reason it exists: it
     # is read before the grammar it comes from has been assembled. So it is
     # committed, like lib/hecks/vocabulary.rb, and spec/bootstrap_table_
     # spec.rb re-projects it in memory and refuses a diff.
@@ -30,14 +30,14 @@ module Hecks
       class Conflict < StandardError; end
 
       HEADER = <<~RUBY.freeze
-        # GENERATED — projected from the language's own Keyword rows (the
+        # Generated — projected from the language's own Keyword rows (the
         # `calls:`, `resolves_via:` and `disambiguator:` columns of every
         # KeywordSeed under lib/hecks/language/).
         #
-        # DO NOT EDIT. spec/bootstrap_table_spec.rb re-projects this in memory
+        # Do not edit. spec/bootstrap_table_spec.rb re-projects this in memory
         # and refuses a diff — run bin/project_bootstrap_table instead.
         #
-        # Plain data, no requires: this is read WHILE the grammar table it was
+        # Plain data, no requires: this is read while the grammar table it was
         # projected from is still being built (`MetaValidator.bootstrapping?`).
       RUBY
 
@@ -55,7 +55,7 @@ module Hecks
       # `[context, word] => :method` — WordGate's own key order.
       #
       # An overloaded word has one row per argument shape, and they all
-      # name the same method. Two that DON'T would make the table keep
+      # name the same method. Two that don't would make the table keep
       # whichever came last, so that is refused instead.
       def calls(rows = live_keywords)
         rows.reject { |row| row[:calls].to_s.empty? }

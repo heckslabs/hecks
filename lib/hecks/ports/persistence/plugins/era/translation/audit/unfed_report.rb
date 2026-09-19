@@ -4,7 +4,7 @@ module Hecks
       # New-era attributes that nothing feeds: absent from every
       # translated state, produced by no rule, and carrying no default.
       # A report, not a violation — the remedy is a `default:` on the
-      # attribute, and the loud refusal for a REQUIRED one comes from
+      # attribute, and the loud refusal for a required one comes from
       # Layer 1 the moment an invariant reads it.
       module UnfedReport
         # `fed` build-up plus one ordered guard chain per attribute

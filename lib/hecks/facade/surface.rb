@@ -3,9 +3,9 @@ require_relative "surface/aggregate_door"
 
 module Hecks
   module Facade
-    # THE DOOR, WITHOUT THE CLASSES.
+    # The door, without the classes.
     #
-    # `Pizzas::Pizza.create_pizza(...)` is the public surface (HANDOVER rule 3),
+    # `Pizzas::Pizza.create_pizza(...)` is the public surface (handover rule 3),
     # and this is what serves it now : anonymous per-boot modules whose
     # singleton methods close over the dispatcher and dispatch by FQN — the
     # same shape `Router::NamespaceInstaller` proved. Nothing here is a domain
@@ -17,7 +17,7 @@ module Hecks
     # The hexagon-binding door rides along : `Pizzas::Pizza.persisted_by("Heki")`
     # in a `.hecksagon` file lands on the module's `method_missing`, which
     # records an `Bind` into whatever `HecksagonBuilder.collector` is open
-    # AT CALL TIME — so even a facade left over from a previous boot records
+    # at call time — so even a facade left over from a previous boot records
     # into the current builder, and a chapter with no constant at all falls
     # through to `ConstShim` → `BindingProxy`, which mints byte-identical binds.
     module Surface

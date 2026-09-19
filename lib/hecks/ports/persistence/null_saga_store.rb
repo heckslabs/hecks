@@ -1,7 +1,7 @@
 module Hecks
   module Ports
     module Persistence
-      # THE NO-OP SAGA STORE — what `Registry#saga_persistence` hands
+      # The no-op saga store — what `Registry#saga_persistence` hands
       # back for a domain whose resolved adapter doesn't implement the
       # (optional) saga-persistence capability: Memory, deliberately
       # (sagas stay in-memory-only, exactly as they always have), and

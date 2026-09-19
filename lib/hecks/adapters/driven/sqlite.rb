@@ -30,14 +30,14 @@ module Hecks
       def persistence_capabilities = [:atomic_put]
 
       def initialize(aggregate:, settings: {}, root: nil)
-        # LAZY, ON PURPOSE — a domain that never wires Sqlite should never
+        # Lazy, on purpose — a domain that never wires Sqlite should never
         # need the gem installed. `require "hecks"` alone must not
         # force a database client library nobody asked for.
         require "sqlite3"
 
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
-        # THE OPTIONAL saga-persistence capability's own scoping column
+        # The optional saga-persistence capability's own scoping column
         # (§2/§4) — falls back to the aggregate's own name for a
         # directly-instantiated adapter (specs), same fallback shape
         # Postgres's own @domain already uses.
@@ -67,9 +67,9 @@ module Hecks
         create_outbox_table!
       end
 
-      # RE-ENTRANT ON PURPOSE — `atomic_put` opens its own transaction
+      # Re-entrant on purpose — `atomic_put` opens its own transaction
       # and `Interpreting#run_dispatch_order` opens one around the whole
-      # save+emit pair; SQLite3 refuses a BEGIN inside a BEGIN, so the
+      # save+emit pair; SQLite3 refuses a begin inside a begin, so the
       # inner call joins the outer one instead. Same shape Postgres uses.
       def transaction(&)
         return yield if @db.transaction_active?
@@ -86,7 +86,7 @@ module Hecks
         Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
       end
 
-      # order_by IS A RUNTIME VALUE — see postgres.rb's own all for the
+      # order_by is a runtime value — see postgres.rb's own all for the
       # full reasoning; whitelisted the identical way before it ever
       # reaches order_expression.
       def all(order_by: nil, direction: :asc)
@@ -112,7 +112,7 @@ module Hecks
       def append(entry)
         @db.execute(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-          # `mirrors` (unlike `state`) is a NULLABLE column — an absent
+          # `mirrors` (unlike `state`) is a nullable column — an absent
           # mirrors hash must bind a real SQL NULL, not the four-character
           # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
           # check against it would never match. Same guard `postgres_era.rb`
@@ -208,24 +208,24 @@ module Hecks
         end
       end
 
-      # ── the OPTIONAL saga-persistence capability (§2) — reuses the
+      # ── the optional saga-persistence capability (§2) — reuses the
       # DDL every SQLite-backed aggregate table already lives beside
       # (`create_saga_table!`, `Sqlite::SchemaBuilder`, shared with D1).
-      # SQLite's `resolve_path` defaults to one `.db` file PER
-      # AGGREGATE unless a domain shares one `database` setting across
+      # SQLite's `resolve_path` defaults to one `.db` file per
+      # aggregate unless a domain shares one `database` setting across
       # its aggregates — since saga persistence resolves through
-      # whichever adapter instance backs the domain's FIRST aggregate
+      # whichever adapter instance backs the domain's first aggregate
       # (`Registry#saga_persistence`), this table ends up living inside
-      # THAT one aggregate's own file by default. Correct and durable
+      # that one aggregate's own file by default. Correct and durable
       # either way; a domain that wants an obviously-named saga store
       # already gets one by sharing `database` across its aggregates,
       # the recommended, common case.
-      # THE OUTBOX — see `Runtime::Outbox`. Rows land in the SAME
+      # The outbox — see `Runtime::Outbox`. Rows land in the same
       # database as this aggregate (the only way the enqueue shares the
       # save's transaction), keyed by the aggregate's storage name so an
       # adapter instance only ever reads back its own rows even when
       # several aggregates share one file. `INSERT OR IGNORE` on the
-      # UNIQUE delivery_id makes a re-enqueue of the same (event,
+      # unique delivery_id makes a re-enqueue of the same (event,
       # consumer) a no-op; `outbox_claim`'s `WHERE status = 'pending'`
       # is the compare-and-set that lets exactly one relay win a row.
       def outbox_enqueue(rows)
@@ -340,7 +340,7 @@ module Hecks
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 
-      # SQLite has no bare OFFSET — LIMIT -1 is its own documented
+      # SQLite has no bare offset — limit -1 is its own documented
       # unbounded spelling, exactly for this case.
       def unbounded_limit = " LIMIT -1"
 

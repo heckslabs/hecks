@@ -6,7 +6,7 @@ require_relative "../../../rendering"
 require_relative "../../../ports/query/in_memory"
 
 # The subclass needs its parent — and sqlite.rb requires this file at
-# its BOTTOM, after class Sqlite is defined, so the require cycle this
+# its bottom, after class Sqlite is defined, so the require cycle this
 # creates resolves correctly from either entry point.
 require_relative "../sqlite"
 
@@ -38,23 +38,23 @@ module Hecks
       # `Runtime::ReadModelInterpreter#project` (the in-process path) on
       # two counts, both fixed here to agree with it:
       #
-      # MISSING ROOT: the in-process path's own `fetch` refuses with
+      # Missing root: the in-process path's own `fetch` refuses with
       # `NotFound` when the reference argument names no record —
       # `query_read_model` used to answer a silent `{root: nil, ...}`
       # instead, the one path a caller could dispatch a read model
       # against a record that never existed and get back something that
-      # LOOKS like an empty report rather than the refusal every other
+      # looks like an empty report rather than the refusal every other
       # path gives.
       #
-      # CHAINED-INCLUDE JOIN SCOPE: a non-root head was always matched
-      # against the ROOT's own id, regardless of what it actually
+      # Chained-include join scope: a non-root head was always matched
+      # against the root's own id, regardless of what it actually
       # references — correct for a head that references the root
-      # directly, silently EMPTY for one that references another
+      # directly, silently empty for one that references another
       # included head instead (`Leaf` -> `Mid` -> `Root`, `Leaf` itself
       # has no attribute referencing `Root` at all, so `references`
       # was always `[]`). The in-process path's own root-first fix
-      # (`ReadModelInterpreter#project`'s "ROOT FIRST, ALWAYS" comment)
-      # already matches a head against ANY already-projected source, not
+      # (`ReadModelInterpreter#project`'s "root first, always" comment)
+      # already matches a head against any already-projected source, not
       # only the root — `select_related` now does the same: each head is
       # matched against every source resolved so far (root first, then
       # declared order — the same one-level-of-declaration-order
@@ -63,7 +63,7 @@ module Hecks
       def query_read_model(_domain, model, args, bluebook = nil)
         raise ArgumentError, "projection query needs its domain bluebook" unless bluebook
 
-        # The REFERENCE's own shape, read the same way ReadModelInterpreter
+        # The reference's own shape, read the same way ReadModelInterpreter
         # reads it — not the identity unwrap, which is gone : an identity is
         # declared as a path and followed.
         reference_id = args.fetch(model.reference_name).to_s
@@ -72,7 +72,7 @@ module Hecks
         # eligible in the same read model now.
         eligible = model.filtered_head_names
 
-        # ROOT FIRST, ALWAYS — see this method's own header. Mirrors
+        # Root first, always — see this method's own header. Mirrors
         # `ReadModelInterpreter#project`'s identical partition, for the
         # identical reason: a later head's own join has to be able to
         # match against a root (or another head) already resolved.
@@ -108,7 +108,7 @@ module Hecks
         row && projected_instance(aggregate, row)
       end
 
-      # Matched against EVERY source already projected (root first, then
+      # Matched against every source already projected (root first, then
       # declared order — see this class's own `query_read_model` header),
       # not only the root — a head whose own reference points at another
       # included head rather than the root directly used to match nothing
@@ -128,7 +128,7 @@ module Hecks
         end
         return [] if matches.empty?
 
-        # A REFERENCE COLUMN HOLDS THE ID, so it compares as itself. The
+        # A reference column holds the ID, so it compares as itself. The
         # `json_extract(col,'$.value') = ? OR col = ?` this replaced was
         # reading both shapes because both existed — one written by the
         # command path, one by older journals. There is one shape now.
@@ -154,7 +154,7 @@ module Hecks
         if (lifecycle = aggregate.lifecycle) && fields.none? { |name, _| name == lifecycle.field }
           fields << [lifecycle.field, nil]
         end
-        # `projects` FIELDS (S12, ADR 0025) NEED READING BACK TOO — `project`
+        # `projects` fields (S12, ADR 0025) need reading back too — `project`
         # (above) already writes one into its own column via `persisted_fields`
         # (`Codec#persisted_fields`, this class's own superclass module), but
         # this method built its own independent field list that never
@@ -167,7 +167,7 @@ module Hecks
         fields
       end
 
-      # Decoded through the state codec (PR A3) against the row's OWN
+      # Decoded through the state codec (PR A3) against the row's own
       # aggregate — see Codec#decode, including why a NULL projected-only
       # column reads back absent.
       def decode_fields(fields, aggregate, row)

@@ -7,7 +7,7 @@ module Hecks
       # Turns a declared adapter binding plus its world configuration into a
       # concrete repository. Selection policy stays out of adapter creation.
       #
-      # EVERY ADAPTER IT BUILDS IS GUARDED (`CodecBoundary.guard!`) before
+      # Every adapter it builds is guarded (`CodecBoundary.guard!`) before
       # anything else touches it — `recover!` included — so no adapter a
       # runtime reaches can build an `Instance` from undecoded state.
       module RepositoryFactory
@@ -20,8 +20,8 @@ module Hecks
           registry.check_settings(bind, settings)
           # The domain, the resolved era, and (for an old checkout) the era
           # that superseded it ride along after the declared-settings
-          # check: a lineage adapter journals per DOMAIN, writes into its
-          # own ERA's partition, and refuses to write at all once that era
+          # check: a lineage adapter journals per domain, writes into its
+          # own era's partition, and refuses to write at all once that era
           # is superseded (`PostgresEra#append`, BUG#24) — none of which a
           # world's settings carry.
           adapter = registry.adapter_class(bind.adapter)

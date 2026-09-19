@@ -19,9 +19,9 @@ module Hecks
         def to_h = @values
       end
 
-      # THE AGGREGATE-QUALIFIED MIRROR (#143) — a `.world` file's own
+      # The aggregate-qualified mirror (#143) — a `.world` file's own
       # `Pizzas::Order.charged_by("Stripe") do ... end` visually mirrors the
-      # SAME bind line the sibling `.hecksagon` file already writes
+      # same bind line the sibling `.hecksagon` file already writes
       # (`HecksagonBuilder`'s own `BindingProxy`), but `IR::World#for_verb`/
       # `#for_binding` key purely by verb and adapter name — the aggregate
       # qualifier is never read back out, it exists only for that visual
@@ -45,7 +45,7 @@ module Hecks
 
       # Parses a `.world` file's top-level DSL block into a `World` — a
       # domain's own `realm`/`latest` version markers plus its adapter bind
-      # SETTINGS, one entry per `verb("Adapter") do ... end` call (whether
+      # settings, one entry per `verb("Adapter") do ... end` call (whether
       # written bare or aggregate-qualified through `WorldConstProxy`'s
       # visual mirror of a sibling `.hecksagon` file's own bind).
       class WorldBuilder
@@ -58,7 +58,7 @@ module Hecks
           @settings = {}
         end
 
-        # RENAMED FROM `realm`/`latest` — item #13's full metaprogrammed
+        # Renamed from `realm`/`latest` — item #13's full metaprogrammed
         # dispatch (slice 5). Neither bootstrap-reachable (checked
         # directly). Reached through `WordGate#method_missing`'s new
         # `word_gate_dispatch`, called explicitly below since
@@ -83,7 +83,7 @@ module Hecks
 
         def respond_to_missing?(_name, _include_private = false) = true
 
-        # EXTRACTED from the old `method_missing` body (#143) so
+        # Extracted from the old `method_missing` body (#143) so
         # `WorldConstProxy`'s own aggregate-qualified verb calls
         # (`Pizzas::Order.charged_by(...)`) write into the exact same
         # place the bare top-level spelling (`charged_by(...)`) already

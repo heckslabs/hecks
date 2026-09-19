@@ -1,8 +1,8 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT A LIFECYCLE DOES. Its declared half is a field, a starting
-      # state and a transition list. Everything here READS that — which
+      # What a lifecycle does. Its declared half is a field, a starting
+      # state and a transition list. Everything here reads that — which
       # states exist, which transition a command takes, and how one
       # declared transition expands into the several rows the emission
       # carries when `from` names more than one source state.
@@ -21,7 +21,7 @@ module Hecks
 
         private
 
-        # ONE DECLARED TRANSITION IS SEVERAL ROWS when `from` names more
+        # One declared transition is several rows when `from` names more
         # than one source state — the emission carries them flat, so the
         # fan-out happens here rather than in whatever reads it.
         def expand(command, transition)
@@ -37,8 +37,8 @@ module Hecks
           return nil if matches.empty?
           return matches.first unless current_state
 
-          # NOT `|| matches.first` — that used to silently hand back an
-          # ARBITRARY declared transition for `command` whenever none of
+          # Not `|| matches.first` — that used to silently hand back an
+          # arbitrary declared transition for `command` whenever none of
           # them actually admitted `current_state`, picking a `target`
           # that command dispatch would in fact have refused (that
           # refusal is `CommandRules::Admissibility#admissible_transition`'s

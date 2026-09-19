@@ -9,17 +9,17 @@ require_relative "../ports/query/in_memory"
 
 module Hecks
   module Fuzzing
-    # A step list, replayed IN-PROCESS against a fresh boot — the same
+    # A step list, replayed in-process against a fresh boot — the same
     # copy-to-tmp-and-reset preamble SequenceGenerator#call uses, and the
     # same observable surface bin/run prints (instances, events,
     # refusals, reactions, sagas, queries), but returned as data rather
     # than JSON on stdout.
     #
-    # NOT what SequenceGenerator itself dispatches through while
+    # Not what SequenceGenerator itself dispatches through while
     # generating — that inline execution feeds the picker's own
     # known_ids tracking and stays exactly as it is. This exists for
-    # everything ELSE that needs "given a step list, boot fresh and tell
-    # me what happened": bin/fuzz recomputing a shrink candidate's TRUE
+    # everything else that needs "given a step list, boot fresh and tell
+    # me what happened": bin/fuzz recomputing a shrink candidate's true
     # event count (removing a step changes what the sequence actually
     # produces, so a shrunk candidate cannot reuse the original claim),
     # and the declared-property checks in properties.rb. Both want it
@@ -35,32 +35,32 @@ module Hecks
     module Replay
       module_function
 
-      # THE AD HOC FILTER'S OWN COMPARATOR ROSTER — read directly from
+      # The ad hoc filter's own comparator roster — read directly from
       # QuerySpecification::Common::COMPARATORS (the same nine names
       # Vocabulary::QueryComparator declares), never re-typed. A
       # declared bluebook query never sees an `op:` outside this set —
-      # `admits: "Vocabulary::QueryComparator"` refuses one at DECLARE
+      # `admits: "Vocabulary::QueryComparator"` refuses one at declare
       # time — but a `"filter"`-shaped query step (below) has no
       # declare-time gate at all, so this method gates it here instead.
       #
-      # NOT rust/src/kernel/query_comparators.rs's own ground truth —
+      # Not rust/src/kernel/query_comparators.rs's own ground truth —
       # that hand-maintained Rust enum is missing `none_in_state` (the
       # 9th comparator, added after the enum was written) and has
       # already drifted; do not treat it as authoritative until item #9
       # of the whole-project table-unification survey closes that gap.
       FILTER_COMPARATORS = Hecks::QuerySpecification::Common::COMPARATORS.map(&:to_s).freeze
 
-      # THE TWO CLASSES `#enforce_givens`/`#enforce_lifecycle_guard`
+      # The two classes `#enforce_givens`/`#enforce_lifecycle_guard`
       # themselves ever raise — see Admissibility's own doc comment,
-      # `command_rules/admissibility.rb`. Any OTHER DOMAIN_REFUSAL a step
+      # `command_rules/admissibility.rb`. Any other DOMAIN_REFUSAL a step
       # raises (TypeMismatch, EnsuresNotMet, InvariantViolation, ...)
-      # proves the guard itself did NOT fire, since it runs first in
+      # proves the guard itself did not fire, since it runs first in
       # DISPATCH_ORDER.
       GUARD_REFUSAL_CLASSES = [Runtime::GivenNotMet, Runtime::LifecycleRefused].freeze
 
       # One tightly ordered loop over steps, with several "oracle" snapshots
       # (reaction_mark, fan_out_snapshot, guard_check, mutation_trace) that
-      # must be taken at very specific points RELATIVE TO dispatch — see
+      # must be taken at very specific points relative to dispatch — see
       # fan_out_snapshot's own comment above for the real, previously-
       # shipped bug this exact before/after ordering fixes. Splitting this
       # into smaller methods would mean threading five-plus oracle-state
@@ -72,27 +72,27 @@ module Hecks
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/MethodLength
       # rubocop:disable-next Metrics/PerceivedComplexity
-      # `self_consistency:` — OFF by default, same "existing callers see no
+      # `self_consistency:` — off by default, same "existing callers see no
       # change" contract `adapter:` already has. `bin/qa_sweep` is the one
       # real caller that opts in (gated by `QualityControlDials::
       # SELF_CONSISTENCY_CHECKS`/`--self-consistency`): `bin/fuzz`,
       # `Properties.check`'s own callers, and every existing spec keep
       # calling this with no second axis of comparison at all, exactly as
-      # before. Computed HERE, not by a caller reading `runtime` back out
+      # before. Computed here, not by a caller reading `runtime` back out
       # afterward — `runtime` and the whole `IsolatedBoot` tmp directory
       # go out of scope the moment this method returns (see this file's
       # own header), so `Hecks::Fuzzing::SelfConsistency.check` has to run
       # while both are still alive, against the exact same repositories
       # this replay's own dispatch loop just wrote to.
       #
-      # `database:`/`schema:` — ONLY meaningful, and REQUIRED, for
+      # `database:`/`schema:` — only meaningful, and required, for
       # `adapter: :postgres_era` — see `IsolatedBoot#rebind_to_postgres_era!`'s
       # own header for why that one mode takes caller-owned connection
       # identity rather than a shared default the way `:postgres` does.
       # Forwarded straight through, unchanged, exactly like `adapter:`
       # itself already was.
       def call(domain_path, steps, adapter: :memory, database: nil, schema: nil, self_consistency: false)
-        # See isolated_boot.rb's own header: resets data/ AND rebinds
+        # See isolated_boot.rb's own header: resets data/ and rebinds
         # persistence to the chosen adapter (Memory by default), since a
         # Postgres-bound domain's real store lives outside the copied
         # directory and cannot be reached by resetting data/ alone.
@@ -108,7 +108,7 @@ module Hecks
           mutation_traces = []
           outbox_traces   = []
 
-          # EVERY AGGREGATE A `for_each` COULD EVER QUERY, resolved ONCE —
+          # Every aggregate a `for_each` could ever query, resolved once —
           # `[domain, aggregate_name]` pairs, gleaned from every loaded
           # bluebook's own fanning-out policies. Empty for every domain
           # with no `for_each` at all (every example this corpus ships
@@ -126,17 +126,17 @@ module Hecks
             args = (step["args"] || {}).transform_keys(&:to_sym)
 
             if (question = step["query"])
-              # THE AD HOC, SINGLE-COMPARATOR FILTER — a "query" step whose
+              # The ad hoc, single-comparator filter — a "query" step whose
               # own value is a Hash, not a name: `{aggregate:, field:, op:,
-              # value:}`, the SAME wire shape kernel/cli.rs's new object-
+              # value:}`, the same wire shape kernel/cli.rs's new object-
               # form "query" step reads on the Rust side (that file's own
               # header explains why this shape exists at all: it bypasses
               # the bluebook query DSL entirely, so it needs no generated
               # per-domain codegen to prove for real). Answered here by
-              # calling `Ports::Query::InMemory` DIRECTLY — the real
+              # calling `Ports::Query::InMemory` directly — the real
               # production comparator engine, not a second, hand-rewritten
               # copy of it — against the raw repository, never through
-              # `runtime.query`, which only ever resolves a NAMED, declared
+              # `runtime.query`, which only ever resolves a named, declared
               # ask.
               if question.is_a?(Hash)
                 begin
@@ -148,16 +148,16 @@ module Hecks
                 next
               end
 
-              # THE QUERY ORACLE — TWO INDEPENDENT ENGINES, EACH RUN AND
-              # CAUGHT ON ITS OWN, never a single shared `begin`/`rescue`
+              # The query oracle — two independent engines, each run and
+              # caught on its own, never a single shared `begin`/`rescue`
               # wrapping both calls. A shared begin/rescue meant `runtime.
-              # query` raising (native refuses) short-circuited BEFORE
+              # query` raising (native refuses) short-circuited before
               # `runtime.reference_query` ever ran at all — the entry
               # recorded only `error:`, with no `reference_rows` and no
               # record of what the reference interpreter would have
               # answered — and `runtime.reference_query` raising instead
               # (reference refuses, native already succeeded) landed in the
-              # SAME rescue, discarding the native `rows` this begin block
+              # same rescue, discarding the native `rows` this begin block
               # had already computed and recording the whole ask as an
               # ordinary refusal. Either way, "one engine refused and the
               # other did not" — a real divergence, exactly the shape a
@@ -202,20 +202,20 @@ module Hecks
 
             # `{"dry_run": verb, "args": …}` — `Dispatcher#dry_run?`: the command
             # evaluated hypothetically, nothing saved or emitted, no reaction.
-            # Recorded, never a refusal: a refused dry run is an ANSWER.
+            # Recorded, never a refusal: a refused dry run is an answer.
             #
-            # `dry_runs` STAYS EXACTLY `{verb:, ok:, error?:}` — the SAME
-            # shape it always had, and the SAME shape `kernel/cli.rs`'s own
+            # `dry_runs` stays exactly `{verb:, ok:, error?:}` — the same
+            # shape it always had, and the same shape `kernel/cli.rs`'s own
             # `dry_run` answers (`{"verb", "ok"}` or `{"verb", "ok": false,
             # "error"}`, that function's own doc comment) — `spec/rust_
             # conformance_spec.rb` compares this array against the compiled
             # binary's own verbatim, so it can never carry a key Rust's own
             # answer does not. The role-gated binding (`as_step_caller`,
-            # the SAME `role:`/`actor_id:` a real dispatch gets below) still
-            # applies to the dry-run call itself — only what gets RECORDED
+            # the same `role:`/`actor_id:` a real dispatch gets below) still
+            # applies to the dry-run call itself — only what gets recorded
             # about it is unchanged.
             #
-            # `dry_run_traces` — A SEPARATE, PARALLEL array (same order,
+            # `dry_run_traces` — a separate, parallel array (same order,
             # not merged into `dry_runs` above) carrying `before:`/`after:`
             # snapshots of the whole observable store (every instance, the
             # event count) on either side of the hypothetical call, so
@@ -239,32 +239,32 @@ module Hecks
             end
 
             begin
-              # THE FAN-OUT ORACLE'S OWN LOW-WATER MARK — taken before
-              # dispatch, so any reaction this ONE step's own announced
+              # The fan-out oracle's own low-water mark — taken before
+              # dispatch, so any reaction this one step's own announced
               # events produce (`reaction_log` grows in place, the same
               # Array `runtime.reactions` already exposes) can be sliced
-              # out after, and matched against an INDEPENDENT recomputation
+              # out after, and matched against an independent recomputation
               # of what a `for_each` policy should have fanned out over —
               # the query oracle's own shape (two engines, compared, never
               # one graded against itself), aimed at fan-out instead of a
               # named ask.
               reaction_mark = runtime.reactions.size
 
-              # THE OUTBOX ORACLE'S OWN LOW-WATER MARKS — taken before
+              # The outbox oracle's own low-water marks — taken before
               # dispatch, same idiom as `reaction_mark` right above:
               # `saga_log_mark` slices `runtime.sagas` (a single flat
               # array, safe to index into directly) the identical way
               # `reaction_mark` already slices `runtime.reactions`.
-              # `outbox_before_ids` is a SET OF delivery_ids, not a
+              # `outbox_before_ids` is a set of delivery_ids, not a
               # size — `runtime.outbox.rows` concatenates every bound
-              # repository's own array in a FIXED per-store order
+              # repository's own array in a fixed per-store order
               # (`Outbox::Relay#rows`, `stores.flat_map`), so a row a
-              # DIFFERENT step's dispatch enqueues into an
-              # earlier-iterated store would land in the MIDDLE of
+              # different step's dispatch enqueues into an
+              # earlier-iterated store would land in the middle of
               # that concatenated list, not at its tail — a plain
               # "grew from N to M, take the tail" slice (the shape
               # `reaction_mark`/`saga_log_mark` both get away with,
-              # since `reaction_log`/`saga_log` are each already ONE
+              # since `reaction_log`/`saga_log` are each already one
               # flat array irrespective of domain) would silently miss
               # or misattribute rows the moment more than one
               # repository has an outbox. `delivery_id` is unique per
@@ -276,12 +276,12 @@ module Hecks
               saga_log_mark      = runtime.sagas.size
               outbox_before_ids  = runtime.outbox.rows.map(&:delivery_id)
 
-              # THE SNAPSHOT A `for_each` QUERY WOULD HAVE SEEN — taken
-              # BEFORE this step's own dispatch, not after. The real
-              # `deliver_for_each` runs its query SYNCHRONOUSLY, inside
-              # this SAME dispatch, before this call even returns — so an
-              # oracle that re-reads the live repository AFTER `dispatch`
-              # answers sees whatever the fan-out's OWN dispatched
+              # The snapshot a `for_each` query would have seen — taken
+              # before this step's own dispatch, not after. The real
+              # `deliver_for_each` runs its query synchronously, inside
+              # this same dispatch, before this call even returns — so an
+              # oracle that re-reads the live repository after `dispatch`
+              # answers sees whatever the fan-out's own dispatched
               # commands already mutated (an Account a `Review` leg just
               # moved out of "open," say), not what the query actually
               # matched. A measured bug, not a hypothetical one — this
@@ -295,37 +295,37 @@ module Hecks
                   runtime.registry.repository(fdomain, aggregate).all.to_h { |record| [record.id, record.state.dup] }
               end
 
-              # THE GUARD ORACLE'S OWN PRE-DISPATCH READ — same idiom,
+              # The guard oracle's own pre-dispatch read — same idiom,
               # same placement, same reason as fan_out_snapshot right
               # above: `Admissibility#enforce_givens` (which itself calls
               # `#enforce_lifecycle_guard` when `declaring:` is passed)
-              # is called a SECOND time here, independently, against the
+              # is called a second time here, independently, against the
               # record exactly as CommandInterpreter#hydrate's own acting
               # branch would find it (`repository.find(id).dup` — the
               # identical three-tier id fallback, Identity.of/.from,
-              # reproduced read-only) — BEFORE this step's real dispatch
+              # reproduced read-only) — before this step's real dispatch
               # can mutate anything a cross-aggregate given dereferences
               # (`customer.status`). A pure predicate read, side-effect
               # free, so calling it twice changes nothing this step
               # itself observes.
               guard_check = build_guard_check(runtime, step["verb"], args)
 
-              # THE MUTATION ORACLE'S OWN PRE-DISPATCH READ — same
-              # idiom again: an ENTITY-DISPATCHED command's own
+              # The mutation oracle's own pre-dispatch read — same
+              # idiom again: an entity-dispatched command's own
               # `append`/`remove`/`multiply`/`clamp` mutations (S17's
               # fixture, spec/fixtures/entity_list_mutations, now a real
-              # bootable domain) act on the entity's OWN attributes, so
+              # bootable domain) act on the entity's own attributes, so
               # the element addressed by this step's own identity args
-              # is snapshotted BEFORE dispatch, materialized to plain
+              # is snapshotted before dispatch, materialized to plain
               # data — `nil` for anything out of scope (an aggregate-
               # level command, an entity command with no mutations at
               # all, or one whose identity args don't resolve).
               mutation_trace = build_mutation_trace(runtime, step["verb"], args)
 
-              # `role:`/`actor_id:` — OPTIONAL per-step keys, absent on every
+              # `role:`/`actor_id:` — optional per-step keys, absent on every
               # one of the 231 existing `spec/corpus/*.json` steps (their own
               # unwrapped `runtime.dispatch` call, unchanged, so nothing
-              # already pinned changes behavior). Binds the SAME ambient
+              # already pinned changes behavior). Binds the same ambient
               # caller `refuse_role_mismatch` reads (`Hecks.as_caller`,
               # `Runtime::Caller.as`) for exactly the one dispatch this
               # step makes, then unbinds — mirrors `Caller.as`'s own
@@ -338,8 +338,8 @@ module Hecks
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
 
-              # THE OUTBOX ORACLE'S OWN CAPTURE — every outbox row THIS
-              # STEP'S OWN dispatch newly wrote (across every bound
+              # The outbox oracle's own capture — every outbox row this
+              # step's own dispatch newly wrote (across every bound
               # repository, including any a reaction cascade touched —
               # `outbox_before_ids` was taken before `dispatch`, which
               # is the same call that runs the whole cascade
@@ -358,15 +358,15 @@ module Hecks
               end
 
               guard_checks << guard_check.merge(actual_refused: false, actual_kind: nil) if guard_check
-              # AFTER — only on SUCCESS ; a refused step mutated nothing,
+              # After — only on success ; a refused step mutated nothing,
               # so there is no "after" to compare (and #build_mutation_
               # trace already skipped anything with no mutations to
               # trace in the first place).
               mutation_traces << mutation_trace.merge(after: read_mutation_after(runtime, mutation_trace)) if mutation_trace
             rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-              # `kind:` — the RAISED CLASS, not re-derived from the message.
+              # `kind:` — the raised class, not re-derived from the message.
               # `GivenNotMet`/`EnsuresNotMet` share their exact wording
-              # ("<command> refused — <description>") with FOUR other
+              # ("<command> refused — <description>") with four other
               # refusal templates (Vocabulary's own LifecycleRefused/
               # TypeMismatch/Unauthorized entries) — a property that told
               # a guard refusal apart by pattern-matching the string alone
@@ -374,21 +374,21 @@ module Hecks
               # one of those. The class is unambiguous where the string
               # is not.
               refusals << { verb: step["verb"], error: e.message, kind: refusal_kind(e) }
-              # ONLY a refusal raised BY THE GUARD ITSELF counts here —
+              # Only a refusal raised by the guard itself counts here —
               # measured, not assumed: a step whose args were simply
               # incomplete (AbsentArgument, from normalize_args — which
-              # runs BEFORE enforce_givens in DISPATCH_ORDER) never
+              # runs before enforce_givens in DISPATCH_ORDER) never
               # reached the guard at all, and this oracle's own first
               # live run against real generated pizzas data caught
               # exactly that case as a false positive (a malformed-args
               # step the generator deliberately produces, `amount:`
               # dropped entirely) before this comment existed. Whether a
-              # refusal from a stage AFTER enforce_givens (TypeMismatch
+              # refusal from a stage after enforce_givens (TypeMismatch
               # on a mutation, EnsuresNotMet, InvariantViolation) proves
               # the guard passed can't be told apart from a same-shaped
-              # refusal from a stage BEFORE it by class alone (TypeMismatch
+              # refusal from a stage before it by class alone (TypeMismatch
               # can come from either), so anything that isn't one of the
-              # two guard classes is left OUT of guard_checks entirely —
+              # two guard classes is left out of guard_checks entirely —
               # inconclusive, not a claimed pass.
               if guard_check && GUARD_REFUSAL_CLASSES.include?(e.class)
                 guard_checks << guard_check.merge(actual_refused: true,
@@ -403,9 +403,9 @@ module Hecks
             { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload }
           end
 
-          # THE LIVE PROCESS-MANAGER STORE, materialised to inert data —
+          # The live process-manager store, materialised to inert data —
           # `{ pm_name => { correlation => { state:, memory: } } }`, the
-          # SAME shape SagaInterpreter#checkpoint hands its persistence
+          # same shape SagaInterpreter#checkpoint hands its persistence
           # adapter (state plus a `Value.materialize`d memory, which is
           # exactly what `deep_copy` there serialises). Captured here
           # because Replay returns the history, not the runtime, and the
@@ -413,7 +413,7 @@ module Hecks
           # property (Properties.sagas_rehydrate_cleanly) reads this rather
           # than reaching into a store the Memory rebind leaves as the
           # no-op NULL_SAGA_STORE. Materialised, not raw, so the history
-          # stays plain data AND the round-trip check sees exactly the
+          # stays plain data and the round-trip check sees exactly the
           # bytes a real adapter would have persisted.
           saga_instances = runtime.registry.saga_instances.each_with_object({}) do |(pm_name, conversations), out|
             out[pm_name] = conversations.each_with_object({}) do |(correlation, instance), rows|
@@ -427,16 +427,16 @@ module Hecks
           # Free: no second boot, just the object the first one already
           # built.
           #
-          # `bluebook:` (singular) stays the FIRST-loaded chapter — every
+          # `bluebook:` (singular) stays the first-loaded chapter — every
           # existing property scopes itself to "only what we have the
           # grammar for" against exactly this one, deliberately (see
           # lifecycle_values_are_declared's own comment). `bluebooks:`
-          # (plural) is the FULL map, keyed by domain name — a domain
+          # (plural) is the full map, keyed by domain name — a domain
           # under fuzz commonly composes more than one bluebook (banking
           # alone loads Banking + Governance + Identity), and a refusal
-          # or an event can legitimately come from ANY of them, not only
+          # or an event can legitimately come from any of them, not only
           # whichever one happened to load first. A property that needs
-          # to resolve a verb back to its OWN declaring bluebook — not
+          # to resolve a verb back to its own declaring bluebook — not
           # "the" bluebook — reads this instead.
           history = { instances: instances, events: events, refusals: refusals,
                       reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
@@ -447,9 +447,9 @@ module Hecks
                       bluebook: runtime.registry.bluebooks.values.first,
                       bluebooks: runtime.registry.bluebooks.dup }
 
-          # `runtime` IS STILL LIVE HERE — this is the one and only place
+          # `runtime` is still live here — this is the one and only place
           # it is. See `SelfConsistency`'s own header for why this needs
-          # to happen NOW, against the SAME registry/repositories this
+          # to happen now, against the same registry/repositories this
           # replay's own dispatch loop just populated, not a second boot.
           history[:self_consistency] = SelfConsistency.check(runtime, history) if self_consistency
 
@@ -466,13 +466,13 @@ module Hecks
         Hecks.as_caller(role: step["role"], actor_id: step["actor_id"], &)
       end
 
-      # THE GUARD ORACLE'S OWN RESOLUTION — "which record, if any, is
+      # The guard oracle's own resolution — "which record, if any, is
       # this step about, and would enforce_givens/enforce_lifecycle_guard
-      # have refused it against that record's PRE-DISPATCH state" —
+      # have refused it against that record's pre-dispatch state" —
       # reproduced read-only from already-public pieces
       # (Naming.split_verb, registry.bluebook/.aggregate/.command,
       # Runtime::Identity.of/.from, repository.find), the exact same
-      # three-tier fallback CommandInterpreter#hydrate's OWN acting
+      # three-tier fallback CommandInterpreter#hydrate's own acting
       # branch uses, minus its creating/duplicate-checking logic (a
       # creating command has no pre-existing record to snapshot, and
       # every real target this closes — Debit/CloseAccount/Credit/
@@ -489,21 +489,21 @@ module Hecks
       #
       # Never lets a resolution surprise (a malformed verb, a dangling
       # reference) become the step's own real dispatch outcome — this
-      # is a SEPARATE, best-effort read, not part of the step's own
+      # is a separate, best-effort read, not part of the step's own
       # control flow.
-      # THE SAME SHAPE `call`'s own end-of-replay block used to build
+      # The same shape `call`'s own end-of-replay block used to build
       # inline — every persisted record, keyed the way `query_eligible_rows`/
-      # `#eligible_rows` (properties.rb) already expect. Now ALSO called
-      # once PER QUERY STEP (see `call`, above), not only once at the very
-      # end: a query asked at step 1 of a script whose LATER steps go on
+      # `#eligible_rows` (properties.rb) already expect. Now also called
+      # once per query step (see `call`, above), not only once at the very
+      # end: a query asked at step 1 of a script whose later steps go on
       # to create more records was being checked, by every property that
-      # independently recomputes "the eligible rows," against the FINAL
-      # snapshot — the records that existed AFTER the whole replay, not
+      # independently recomputes "the eligible rows," against the final
+      # snapshot — the records that existed after the whole replay, not
       # the ones that existed when the query actually ran. Found live:
       # `Banking.accounts_by_kind`, asked as literally the first step of a
       # 3-step script, correctly answered against zero accounts (none
       # existed yet) while `group_by_matches_recompute`'s own independent
-      # recompute claimed "1 eligible row" — the ONE account the script's
+      # recompute claimed "1 eligible row" — the one account the script's
       # later two steps went on to create. Each query step now carries
       # its own `instances_at:` snapshot, taken at the moment it ran, so
       # every property that recomputes against "the eligible rows" reads
@@ -538,7 +538,7 @@ module Hecks
         command   = aggregate&.command(command_name)
         return nil unless aggregate && command && !command.creates?
 
-        # NOTHING TO CHECK, genuinely — not "nothing THIS reproduces yet".
+        # Nothing to check, genuinely — not "nothing THIS reproduces yet".
         # A transition-only guard (no per-command `from:`, no `given`,
         # only an aggregate `lifecycle do transition ... end` block
         # naming this command — `Admit`/`Reject`'s own shape) still
@@ -561,20 +561,20 @@ module Hecks
         recomputed_kind = begin
           rules.enforce_givens(record.dup, command, args, domain: domain_name, declaring: aggregate)
 
-          # A SECOND, SEPARATE DISPATCH_ORDER STEP — `enforce_givens`
-          # (just above) only ever checks a per-COMMAND `from:` clause
+          # A second, separate DISPATCH_ORDER step — `enforce_givens`
+          # (just above) only ever checks a per-command `from:` clause
           # (its own trailing `enforce_lifecycle_guard(declaring, ...)
           # if declaring` call) — the aggregate's own `lifecycle do
-          # transition "X" => Y, from: Z end` block is a WHOLLY separate
+          # transition "X" => Y, from: Z end` block is a wholly separate
           # method (`admissible_transition`), called as its own later
           # DISPATCH_ORDER step (`:enforce_givens` then
           # `:admissible_transition` — Vocabulary.symbols
           # ("AggregateDispatchOrder")), not reached from inside
           # `enforce_givens` at all. Missing this call meant a command
-          # declared with NO per-command `from:` of its own — every real
+          # declared with no per-command `from:` of its own — every real
           # transition-guarded command in this corpus, `Admit`/`Reject`
           # included — always recomputed "admitted" no matter the
-          # record's actual state, because the ONE check that would
+          # record's actual state, because the one check that would
           # have refused it was never run. Found live: `Expression::
           # Expression.Admit`, fuzzed against `lib/hecks/grammar`
           # (a domain the property's own hand-verification — Banking,
@@ -594,22 +594,22 @@ module Hecks
         nil
       end
 
-      # THE MUTATION ORACLE'S OWN PRE-DISPATCH READ — scoped, on
-      # purpose, to ENTITY-DISPATCHED commands only (a dotted
+      # The mutation oracle's own pre-dispatch read — scoped, on
+      # purpose, to entity-dispatched commands only (a dotted
       # command_name): the one place `append`/`remove`/`multiply`/
-      # `clamp` are known to act on an entity's OWN attributes
+      # `clamp` are known to act on an entity's own attributes
       # (spec/fixtures/entity_list_mutations' own TaggedList — `tags`
       # a value-object list, `count` a VO-typed scalar), never on
-      # ANOTHER nested entity list — so this never needs to reproduce
+      # another nested entity list — so this never needs to reproduce
       # `MutationApplier#entity_element`'s own auto-mint/collision logic
-      # (item 1's own fix) at all. An aggregate-level command whose OWN
-      # mutation appends an ENTITY (`Board.AddList`, `SafeDepositBox.
-      # LogVisit`) is a DIFFERENT, already-covered case — item 1's own
+      # (item 1's own fix) at all. An aggregate-level command whose own
+      # mutation appends an entity (`Board.AddList`, `SafeDepositBox.
+      # LogVisit`) is a different, already-covered case — item 1's own
       # collision property, not this one.
       #
       # `nil` for anything out of scope: an aggregate-level command, an
       # entity command with no mutations at all, or one whose identity
-      # args (parent OR element) don't resolve.
+      # args (parent or element) don't resolve.
       # Same shape as build_guard_check just above: one early-return chain
       # resolving the entity/element this step's args address (see the
       # comment above), each step depending on the previous one's
@@ -660,7 +660,7 @@ module Hecks
         nil
       end
 
-      # THE SAME ELEMENT, RE-LOCATED, AFTER dispatch — by identity, not
+      # The same element, re-located, after dispatch — by identity, not
       # position (an append could have changed the array's own length
       # or order relative to it). `nil` if it somehow vanished (not
       # expected for any op this fixture declares — none of them
@@ -681,10 +681,10 @@ module Hecks
         nil
       end
 
-      # THE FAN-OUT ORACLE — one finding per (event, for_each policy) this
+      # The fan-out oracle — one finding per (event, for_each policy) this
       # step's own announced events could have triggered, independent of
-      # `PolicyInterpreter#deliver_for_each`: the SAME `where` evaluator
-      # every given/ensures already runs through, but the QUERY answered
+      # `PolicyInterpreter#deliver_for_each`: the same `where` evaluator
+      # every given/ensures already runs through, but the query answered
       # by `Ports::Query::InMemory.holds?` directly against the live
       # repository (`Replay.run_filter`'s own idiom), never by calling
       # `QueryInterpreter` — sharing that call would make this oracle
@@ -699,7 +699,7 @@ module Hecks
       def fan_out_findings(runtime, snapshot, announced, reactions_since)
         announced.each_with_object([]) do |event, findings|
           # `event.aggregate` is domain-qualified ("Banking::Account" —
-          # see command_rules/emission.rb's own Event.new) — the SAME
+          # see command_rules/emission.rb's own Event.new) — the same
           # source `PolicyInterpreter#policies_for` reads, split the
           # same two ways: `Naming.demodulise` for the emitting
           # aggregate's bare name, plain `split("::")` for the domain.
@@ -731,8 +731,8 @@ module Hecks
         { policy: policy.name, on: event.name, expected_row_ids: expected, actual_row_ids: actual }
       end
 
-      # THE INDEPENDENT RECOMPUTATION — `policy.for_each`'s declared query,
-      # answered against the PRE-DISPATCH snapshot (see the snapshot's
+      # The independent recomputation — `policy.for_each`'s declared query,
+      # answered against the pre-dispatch snapshot (see the snapshot's
       # own comment at its capture site: the real fan-out's query runs
       # synchronously, before its own dispatched commands can mutate
       # anything the query would have matched, so this has to read the
@@ -760,24 +760,24 @@ module Hecks
         matched.keys.map(&:to_s).sort
       end
 
-      # Answers ONE ad hoc filter step for real — the mirror image of
+      # Answers one ad hoc filter step for real — the mirror image of
       # kernel/cli.rs's own `run_filter`, deliberately calling the exact
-      # SAME production module that method's Rust port stands in for
+      # same production module that method's Rust port stands in for
       # (`Ports::Query::InMemory`, lib/hecks/ports/query/in_memory.rb)
       # rather than re-deriving comparator behavior by hand. `field` walks
       # through `QuerySpecification::FieldPath.dig` (the same reading a
       # declared where-clause gets), `comparable`/`holds?` are the same
       # two calls `InMemory.execute` itself makes per candidate record —
       # this is that method's own filter/select step, inlined, because
-      # there is no DECLARED `Query` object here to hand `execute` (an ad
+      # there is no declared `Query` object here to hand `execute` (an ad
       # hoc filter has no `order_by`/`limit`/`offset` at all, so nothing
       # about `execute`'s own ordering/paging logic even applies).
       # Sorted by id ascending regardless — `Ports::Query::Ordering`'s own
       # header explains why an ask with no declared order still needs
       # this tier ("the identity tier is what makes an ask total").
-      # THE OUTCOME CLASS a recorded refusal row names (C8.2/C8.3,
+      # The outcome class a recorded refusal row names (C8.2/C8.3,
       # docs/semantics/bluebook-semantics.md): a domain refusal is its own
-      # class; an evaluation FAULT — the language refusing to interpret a
+      # class; an evaluation fault — the language refusing to interpret a
       # broken rule or input — is `"Fault"`, the same word the Rust kernel
       # emits (`Refusal::Fault`), never a refusal class and never a raw
       # Ruby exception name.
@@ -791,7 +791,7 @@ module Hecks
         op            = filter["op"].to_s
         value         = filter["value"]
 
-        # A malformed ad-hoc ask is a FAULT (C8.3), not a bare RuntimeError.
+        # A malformed ad-hoc ask is a fault (C8.3), not a bare RuntimeError.
         unless FILTER_COMPARATORS.include?(op)
           raise Bluebook::Expression::EvaluationError, "unknown query comparator #{op.inspect}"
         end
@@ -810,9 +810,9 @@ module Hecks
         matched.sort_by { |record| record.id.to_s }.map { |record| { id: record.id }.merge(record.state) }
       end
 
-      # The `refusals` entry's own "verb" column for a REFUSED ad hoc
+      # The `refusals` entry's own "verb" column for a refused ad hoc
       # filter — there is no real verb to report (a filter step carries
-      # none), so this builds the SAME descriptive label kernel/cli.rs's
+      # none), so this builds the same descriptive label kernel/cli.rs's
       # own `filter_label` builds from the same three raw fields, tolerant
       # of any of them being missing (Ruby's own nil-to-"" interpolation)
       # the same way that Rust port is.

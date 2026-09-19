@@ -16,9 +16,9 @@ module Hecks
 
         # Six operators, reduced to two primitives (less_than, equal) combined
         # with a small boolean algebra: compares_less_than/compares_equal choose
-        # which primitive(s) OR together, negated inverts the result.
+        # which primitive(s) or together, negated inverts the result.
         #
-        # READ, NOT RESTATED. This table is the checked-in projection of the
+        # Read, not restated. This table is the checked-in projection of the
         # grammar chapter's admitted set (bin/expression_projection), joined with
         # the algebra Vocabulary::Comparison declares. The evaluator cannot
         # boot the chapter that configures it — the Prism adapter normalises
@@ -65,8 +65,8 @@ module Hecks
           interpret(ast_cache[expr] ||= parse(expr), state, attrs)
         end
 
-        # THE RULE-SHAPED ENTRY — evaluates a Given/Invariant (anything
-        # answering `canonical` and `ast`) by walking its STRUCTURED form,
+        # The rule-shaped entry — evaluates a Given/Invariant (anything
+        # answering `canonical` and `ast`) by walking its structured form,
         # never re-parsing the text: the one parse happened at DSL-build
         # time behind `AstJson`, and `AstReader` turns that tree back into
         # the same nodes `parse` would have built (the equivalence is
@@ -87,18 +87,18 @@ module Hecks
           rule.ast ? AstReader.read_predicate(rule.ast) : parse(rule.canonical)
         end
 
-        # A refused `given`/`ensures`/`invariant` names its own DESCRIPTION
+        # A refused `given`/`ensures`/`invariant` names its own description
         # ("not already superseded") but, on its own, not what the block
         # actually evaluated to — the difference between "the rule is right
         # and my data is wrong" and "the rule is subtly wrong" is often just
         # seeing the two operands. Scoped to the single shape that has one
-        # honest answer: `expr`'s own TOP-LEVEL node is a bare `Compare` —
+        # honest answer: `expr`'s own top-level node is a bare `Compare` —
         # not `Or`/`And`/`Not` (which of several sub-comparisons would even
         # be "the" one at fault is genuinely ambiguous), `Include` (no
         # left/right to show), or `Resolve` (a bare boolean read, nothing to
         # compare against). Values are rendered with `Rendering.describe`,
         # the same house style every other refusal already prints a value
-        # through. Returns `nil` — not raised — on anything else, INCLUDING
+        # through. Returns `nil` — not raised — on anything else, including
         # an operand that itself fails to resolve (`EvaluationError`): a
         # missing diagnostic is a worse debugging experience than none, a
         # crash while building one is worse still.
@@ -122,8 +122,8 @@ module Hecks
           left, right = split_top_level(expr, "&&")
           return And.new(left: parse(left), right: parse(right)) if left
 
-          # Tried BEFORE `.include?`/comparisons, not after — `!` negates
-          # the WHOLE boolean expression that follows it (`!names.include?(x)`
+          # Tried before `.include?`/comparisons, not after — `!` negates
+          # the whole boolean expression that follows it (`!names.include?(x)`
           # means `!(names.include?(x))`, never "call .include? on the negated
           # receiver"), so the leading marker has to be stripped and the
           # remainder re-parsed before anything downstream gets a chance to
@@ -181,7 +181,7 @@ module Hecks
 
         # The algebra itself, on values already resolved — split out so a sign
         # test (SignTest#compares_via names an Operator symbol) can apply the
-        # SAME primitives compare() uses against the literal 0, rather than
+        # same primitives compare() uses against the literal 0, rather than
         # re-deriving positive?/negative?/zero? by hand a second time.
         def apply(comparator, lhs, rhs)
           result = (comparator.compares_less_than && less_than(lhs, rhs)) ||
@@ -215,13 +215,13 @@ module Hecks
           value.nil? ? "nil" : value.class.name
         end
 
-        # THE SAME MIS-SPLIT `Resolver.match_call` had (its own comment
+        # The same mis-split `Resolver.match_call` had (its own comment
         # has the full story), found here too by the same generator: a
-        # `.include?` needle can itself be — or contain — ANOTHER
+        # `.include?` needle can itself be — or contain — another
         # `.include?` call (`"".include?(arr.all? { |el| "".include?("")
         # }.to_s)`, a String built via `.to_s` off a block predicate
         # whose own body happens to include one) — `rindex` finds the
-        # INNERMOST occurrence, not the outermost this split actually
+        # innermost occurrence, not the outermost this split actually
         # needs. Fixed identically: try each occurrence left to right,
         # keep the first whose own balanced-paren match reaches the
         # string's last character — `Resolver.matching_paren` is reused
@@ -311,13 +311,13 @@ module Hecks
             # `{`/`}` depth -- vendored addition, not (yet) upstream
             # hecks (migration plan task 9): this method already
             # treats `(`/`)` as a grouping construct so an operator
-            # INSIDE a call's parens is never mistaken for a top-level
+            # inside a call's parens is never mistaken for a top-level
             # split point ; `{`/`}` needed the identical treatment the
             # moment `Bluebook::Expression::Resolver` grew block-taking
             # `.all?`/`.any?`/`.none? { |s| PREDICATE }` support (see
             # resolver.rb's own `BlockPredicate` addition) -- without
-            # this, an operator INSIDE the block's own predicate (e.g.
-            # `s.length > 0`) reads as a top-level split of the WHOLE
+            # this, an operator inside the block's own predicate (e.g.
+            # `s.length > 0`) reads as a top-level split of the whole
             # `value.split("::").all? { |s| s.length > 0 }` expression,
             # confirmed live via `Lexicon::Lexicon.Lookup`/`Query::Query.
             # Run` (the exact `Phrase` invariant this gap was found
@@ -329,7 +329,7 @@ module Hecks
             # a quoted literal either, so this sits beside the existing
             # paren-depth branch, not instead of it.
             #
-            # `[`/`]` -- the identical lesson a THIRD time (found live via
+            # `[`/`]` -- the identical lesson a third time (found live via
             # the type-directed bounded-exhaustive expression generator,
             # Phase 7 of the equivalence-gap plan): `Resolver::ArrayLiteral`
             # (`[a, b]`) can appear as a general sub-expression, not only
@@ -337,7 +337,7 @@ module Hecks
             # attribute or a synthesized literal is embedded anywhere else
             # -- and an element containing a top-level `+`/comparison of
             # its own (`[0, 0 + 0]`) used to read as a split point for
-            # THIS expression's own boolean/comparison grammar, exactly
+            # this expression's own boolean/comparison grammar, exactly
             # the way an un-tracked `{`/`}` once did for block predicates.
             elsif ["(", "{", "["].include?(char)
               depth += 1

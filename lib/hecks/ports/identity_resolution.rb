@@ -2,7 +2,7 @@ require_relative "../runtime/registry"
 
 module Hecks
   module Ports
-    # AN AUTHENTICATED (issuer, subject) PAIR, RESOLVED TO A STABLE
+    # An authenticated (issuer, subject) pair, resolved to a stable
     # `Identity` — the other half of the same symmetry `Authorization`
     # already has for Governance: one adapter registry-wide answers this
     # port, resolved the same zero/one/many way, so an application never
@@ -17,10 +17,19 @@ module Hecks
 
       module_function
 
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
+      # @param issuer [String] the OIDC issuer that authenticated the caller
+      # @param subject [String] the OIDC subject the issuer vouches for
+      # @return [Object, nil] the resolved Identity, or nil if this (issuer, subject) is unlinked
       def resolve(registry, issuer:, subject:)
         adapter(registry).resolve(registry, issuer: issuer, subject: subject)
       end
 
+      # Finds the single adapter bound to this port.
+      #
+      # @param registry [Runtime::Registry] the booted registry to search
+      # @return [Class] the adapter class implementing this port
+      # @raise [Runtime::WiringError] if zero or more than one adapter implements it
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

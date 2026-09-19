@@ -31,7 +31,7 @@ module Hecks
         load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter])
       end
 
-      # CHAPTERS FIRST, JUDGED ONCE, THEN EVERYTHING THAT READS THEM.
+      # Chapters first, judged once, then everything that reads them.
       # A chapter may be split across files (the language's own grammar is
       # nine), and judging file one before files two-through-nine exist
       # refuses references that are perfectly well declared a file later —
@@ -39,8 +39,8 @@ module Hecks
       # already places every `*.bluebook` ahead of hecksagons and worlds,
       # so the window ends at the last chapter pattern rather than at a
       # hand-written list this would otherwise have to keep in step.
-      # `environment:` — ONE MORE PAIR OF FILES, LOADED LAST, NOT A GLOB.
-      # RECOVERED, not new — see Runtime::Loader.boot's own comment for
+      # `environment:` — one more pair of files, loaded last, not a glob.
+      # Recovered, not new — see Runtime::Loader.boot's own comment for
       # the provenance. A caller passing `Hecks.boot(path, environment:
       # "production")` gets exactly `environments/production.hecksagon`
       # and `environments/production.world` loaded, whichever exist (a
@@ -53,7 +53,7 @@ module Hecks
       # globs (all non-recursive, none named `environments/*`), so this
       # is the only thing that ever reaches them. Loaded as genuine
       # `Hecks.hecksagon "SameDomain" do ... end` / `Hecks.world
-      # "SameDomain" do ... end` blocks — MERGED into the base file's
+      # "SameDomain" do ... end` blocks — merged into the base file's
       # own hecksagon/world (Registry#add_hecksagon / #add_world,
       # concatenate/override rather than replace), so an overlay can
       # rebind or add settings for anything the base file declared
@@ -73,7 +73,7 @@ module Hecks
         load_each(directory, [File.join("environments", "#{environment}.world")])
       end
 
-      # EVERY BLUEBOOK IN A FOLDER IS ONE DECLARATION SET. Individual files
+      # Every bluebook in a folder is one declaration set. Individual files
       # remain organized in the domain expert's language; the folder is the
       # unit callers load. Builders group declarations by the chapter name in
       # each file, so a folder may hold more than one chapter without a catalog.
@@ -84,7 +84,7 @@ module Hecks
         Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
       end
 
-      # THE EXPLICIT-FILE SIBLING OF `load_domain` — for a caller that names
+      # The explicit-file sibling of `load_domain` — for a caller that names
       # its own exact files rather than a directory to glob (`Loader.boot_files`,
       # behind `Hecks.boot_files`). No `Dir.glob`, no copying: every path here
       # is a real file on disk, wherever it actually lives, loaded in place —
@@ -93,7 +93,7 @@ module Hecks
       # tmpdir (see Loader.boot_files's own header for why that pattern is a
       # hazard, not a convenience).
       #
-      # ORDERED BY CATEGORY, NOT BY THE CALLER'S OWN LIST ORDER — same four
+      # Ordered by category, not by the caller's own list order — same four
       # groups `Vocabulary.fetch("LoadOrder")` walks a directory in
       # (bluebook chapters, translations, hecksagons, worlds), because a
       # hecksagon can reference a bluebook's own constants and must not load
@@ -138,11 +138,11 @@ module Hecks
         raise Errno::ENOENT, "no such domain directory: #{path}"
       end
 
-      # THE DOMAIN YOU ARE STANDING IN. Walks up from `from` — the way git
+      # The domain you are standing in. Walks up from `from` — the way git
       # finds `.git` — and answers the nearest directory a boot would accept,
       # or nil if there is not one above you.
       #
-      # MARKED BY A `.hecksagon`, NOT BY A `.bluebook`. Chapters are
+      # Marked by a `.hecksagon`, not by a `.bluebook`. Chapters are
       # everywhere: era translations, the language's own self-hosted grammar,
       # and `spec/fixtures`, which holds a dozen unrelated ones in a single
       # directory. A `.hecksagon` is the file that says "this is a domain, and
@@ -152,7 +152,7 @@ module Hecks
       # Both layouts, because `bluebook_directory` above accepts both: a
       # domain directory holding a `bluebook/` subdirectory (every example in
       # this corpus), or one holding the files directly.
-      # NORMALISED TO THE OUTER DIRECTORY. Standing in `examples/banking/bluebook`,
+      # Normalised to the outer directory. Standing in `examples/banking/bluebook`,
       # the `.hecksagon` is right there, so a plain walk stops on the
       # `bluebook/` directory itself. Both boot identically — `bluebook_directory`
       # accepts either and `Loader.boot` takes `File.dirname` of what it gets,

@@ -4,26 +4,26 @@ require_relative "../../ports/authentication"
 
 module Hecks
   module Adapters
-    # GOOGLE'S OWN OIDC HANDSHAKE — the `authentication` port's one real
+    # Google's own OIDC handshake — the `authentication` port's one real
     # implementation today, moved here from being hand-rolled per-app
     # (an embryonaut_console `google_auth.rb` used to do exactly this;
     # any hecks-based app gets Google sign-in for free now, the
     # same "one adapter, reusable everywhere" value every other adapter
     # in this directory already has).
     #
-    # `oauth2` does ONLY the authorization-code exchange (no Rack
+    # `oauth2` does only the authorization-code exchange (no Rack
     # middleware, no Omniauth strategy indirection) ; `google-id-token`
-    # does ONLY ID-token verification (signature checked against
+    # does only ID-token verification (signature checked against
     # Google's real, rotating JWKS — real, maintained code, never
     # hand-rolled here). Neither library decides what a verified
-    # (issuer, subject) MEANS — that's `Ports::IdentityResolution`'s
+    # (issuer, subject) means — that's `Ports::IdentityResolution`'s
     # job, called by whoever consumes this port's `verify`.
     #
-    # LAZY REQUIRES, same reasoning `Postgres.connect_for` already
+    # Lazy requires, same reasoning `Postgres.connect_for` already
     # holds itself to for `pg`: a domain that never binds
     # `authentication` to this adapter should never need these gems
-    # installed. This FILE loads in every boot (driven.rb's own
-    # unconditional require_relative list) ; the GEMS load only where
+    # installed. This file loads in every boot (driven.rb's own
+    # unconditional require_relative list) ; the gems load only where
     # a real handshake actually happens.
     #
     # `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` —
@@ -68,7 +68,7 @@ module Hecks
       # itself. `email_verified` rides along because a caller granting
       # access off this email needs to know Google actually checked it.
       def verify(code:, state:, expected_state:)
-        # BOTH GEMS, BEFORE ANYTHING ELSE — not staggered further down
+        # Both gems, before anything else — not staggered further down
         # this method: the rescue clause below names GoogleIDToken
         # ::ValidationError, and Ruby resolves that constant reference
         # at the moment an exception is being matched, not at parse

@@ -2,7 +2,7 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # THE ONE CHUNKED, LOCK-FREE, RESUMABLE BACKFILL LOOP — shared by
+        # The one chunked, lock-free, resumable backfill loop — shared by
         # `backfill_head_snapshot!` (era 1's existing one-shot blocking
         # backfill, retrofit) and every field-cache table's own initial
         # backfill (new). Governing principle 1 (docs/implemented/postgres-era-adapter-
@@ -13,37 +13,37 @@ module Hecks
         # a naive "populate every cache row in one statement" field-cache
         # backfill.
         #
-        # THE SHAPE: read one bounded chunk (real rows, real ordinals) with
+        # The shape: read one bounded chunk (real rows, real ordinals) with
         # a plain SELECT — no lock held across it, so an ordinary reader or
         # writer is never blocked by a backfill in progress — then upsert
-        # that chunk under the SAME transactionally-scoped advisory lock +
+        # that chunk under the same transactionally-scoped advisory lock +
         # ordinal-guard idiom `append`'s own snapshot upsert already uses
         # (`WHERE ordinal < EXCLUDED.ordinal`), then persist a cursor
         # before moving to the next chunk. Repeat until a chunk reads back
         # short of a full page — that page was the last one.
         #
-        # RESUMABLE, not merely restartable. A crash (or a second
+        # Resumable, not merely restartable. A crash (or a second
         # concurrent boot) mid-backfill leaves the cursor exactly where the
-        # last COMMITTED chunk left it — `hecks_backfill_progress` is
-        # updated in the SAME transaction as the chunk's own upsert, so
+        # last committed chunk left it — `hecks_backfill_progress` is
+        # updated in the same transaction as the chunk's own upsert, so
         # cursor and data can never observably disagree (see
         # `run_chunk!`). The next attempt reads that cursor and continues;
         # it does not rescan what a prior attempt already committed.
-        # RESTARTABLE would also be CORRECT here (every upsert is
+        # Restartable would also be correct here (every upsert is
         # idempotent and ordinal-guarded — rerunning an already-done chunk
         # from id 1 changes nothing) but wastes real work on a large
-        # table; resumability is what keeps a crash near the END of a
+        # table; resumability is what keeps a crash near the end of a
         # large backfill cheap to recover from instead of starting over.
         #
-        # THE LOCK KEY PREFIX is `hecks_field_cache:` — deliberately
+        # The lock key prefix is `hecks_field_cache:` — deliberately
         # disjoint from the three families already in use elsewhere in
         # this adapter (`hecks_ordinal:`, `hecks_eras:`,
         # `hecks_head_snapshot:` — see lineage.rb/head_compiler.rb/
-        # mint_transaction.rb/tail_merge.rb) so a backfill chunk NEVER
+        # mint_transaction.rb/tail_merge.rb) so a backfill chunk never
         # contends with a plain write, a mint, or a snapshot-table's own
-        # first-creation lock. It is held for exactly ONE CHUNK's own
+        # first-creation lock. It is held for exactly one chunk's own
         # transaction, never across the whole backfill — two concurrent
-        # backfillers of the SAME target simply take turns one chunk at a
+        # backfillers of the same target simply take turns one chunk at a
         # time rather than racing to duplicate work; neither blocks an
         # unrelated reader or writer for even an instant.
         module ResumableBackfill
@@ -69,20 +69,20 @@ module Hecks
           # not one — a head-snapshot row and a field-cache row carry
           # different columns (`state` jsonb vs. a single extracted
           # `value`), so there is no one generic "upsert this row" shape
-          # to share; only the LOOP, the lock, and the cursor are generic.
+          # to share; only the loop, the lock, and the cursor are generic.
           #
           #   source_sql.call(cursor) — given the last-processed id (nil
           #     before the first chunk), returns a SQL SELECT whose result
           #     has an `id` column (text, ordered ascending) plus whatever
           #     other columns `upsert` below needs. Must read `id >
           #     cursor` (or unconditional when cursor is nil), `ORDER BY
-          #     id`, `LIMIT CHUNK_SIZE` — the caller owns the actual
+          #     id`, `limit CHUNK_SIZE` — the caller owns the actual
           #     column list/source tables; this method only owns the loop,
           #     the lock, and the cursor.
           #
           #   upsert.call(rows) — given the PG::Result of one chunk's
           #     read, performs the actual guarded upsert into `target` and
-          #     returns nothing meaningful; runs INSIDE the same
+          #     returns nothing meaningful; runs inside the same
           #     transaction/advisory-lock scope as the cursor update below,
           #     so a crash between "wrote the chunk" and "advanced the
           #     cursor" is impossible — they commit together or not at
@@ -97,8 +97,8 @@ module Hecks
 
           private
 
-          # ONE CHUNK, ONE TRANSACTION, ONE SHORT-HELD LOCK. Re-reads
-          # progress AFTER acquiring the lock (not just before) — a second
+          # One chunk, one transaction, one short-held lock. Re-reads
+          # progress after acquiring the lock (not just before) — a second
           # concurrent booter may have already finished this exact chunk
           # (or the whole backfill) while this process was waiting for the
           # lock; without the re-read, it would redundantly reprocess a
@@ -128,7 +128,7 @@ module Hecks
 
               upsert.call(rows)
               completed = rows.ntuples < CHUNK_SIZE
-              # `PG::Result#[]` supports neither an out-of-range index NOR
+              # `PG::Result#[]` supports neither an out-of-range index nor
               # a negative one (unlike a plain Ruby Array) — same trap as
               # `backfill_progress` above, the explicit last-index form.
               last_cursor = rows[rows.ntuples - 1]["id"]
@@ -137,9 +137,9 @@ module Hecks
             completed
           end
 
-          # `PG::Result#[]` RAISES IndexError on an out-of-range index —
+          # `PG::Result#[]` raises IndexError on an out-of-range index —
           # unlike a plain Ruby Array, it does not return nil — so the
-          # ENTIRELY ORDINARY case of "no progress row exists yet" (every
+          # entirely ordinary case of "no progress row exists yet" (every
           # target's very first check) cannot be read via a bare `[0]`.
           # `ntuples.zero?` first, always.
           def backfill_progress(target)

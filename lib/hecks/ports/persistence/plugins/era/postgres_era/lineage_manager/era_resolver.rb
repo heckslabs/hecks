@@ -5,7 +5,7 @@ module Hecks
   module Adapters
     class PostgresEra
       module LineageManager
-        # The boot-time resolution: which era IS this checkout? First
+        # The boot-time resolution: which era is this checkout? First
         # boot holds era 1; a quiet reboot changes nothing; a
         # held-but-superseded shape boots read-only-toward-the-fence; an
         # unheld shape goes to the minter.
@@ -18,11 +18,11 @@ module Hecks
           # `ensure`. Splitting the branches into separate methods would
           # turn each `return` (which exits `check!`, closing `db`) into a
           # sentinel value threaded back up, obscuring the mutual
-          # exclusivity that IS the method's whole point.
+          # exclusivity that is the method's whole point.
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
             db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
-            # FIRST, before ensure_base! provisions or verifies anything —
+            # First, before ensure_base! provisions or verifies anything —
             # the one point every PostgresEra boot passes through, and the
             # earliest at which the connection's own role is known. See
             # check_fence_applies!'s own header (BUG#24) for why a
@@ -39,7 +39,7 @@ module Hecks
               lineage.hold_first!(current_text, projection: Runtime::StorageShape.project(bluebook))
               bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
               # hold_first! already established era 1 as current for
-              # EVERY role; this one just needs its own privileges.
+              # every role; this one just needs its own privileges.
               lineage.grant_role!(role, aggregates: bluebook.aggregates, era: 1) if role
               return
             end
@@ -52,7 +52,7 @@ module Hecks
               # is permanently the old one — the frozen text is authentic
               # record ("this domain really was called that, at the
               # time") and must never be rewritten. Only the in-memory
-              # shape used for THIS comparison is normalized, and only
+              # shape used for this comparison is normalized, and only
               # where it exactly matches the declared old name, so an
               # unrelated domain that happens to shape-match some other
               # domain's history still shows up as a real mismatch.
@@ -74,9 +74,9 @@ module Hecks
             matched, = shapes.find { |_, shape| shape == current_shape }
             if matched
               # A held-but-superseded era — an old checkout still running.
-              # It may keep BOOTING and READING (PostgresEra is the one
+              # It may keep booting and reading (PostgresEra is the one
               # adapter that recognizes this rather than refusing), but it
-              # may not keep WRITING: the shared era fence was already
+              # may not keep writing: the shared era fence was already
               # advanced past this ordinal by whichever mint superseded
               # it, and nothing here may roll that back. Granting only
               # this role's privileges, never advance_era!, is what keeps
@@ -84,7 +84,7 @@ module Hecks
               # called with a superseded ordinal.
               lineage.grant_role!(role, aggregates: bluebook.aggregates, era: matched[:ordinal]) if role
               registry.resolved_eras[bluebook.name] = matched[:ordinal]
-              # ...and the boot REMEMBERS that it is superseded, not only
+              # ...and the boot remembers that it is superseded, not only
               # which era it is: `RepositoryFactory.build` hands this to
               # the adapter as `superseded_by:`, and `PostgresEra#append`
               # refuses on it before issuing the INSERT. That is the

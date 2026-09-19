@@ -1,9 +1,9 @@
 module Hecks
   module QuerySpecification
-    # ONE reading of a dotted query-field path, shared by every place that
+    # One reading of a dotted query-field path, shared by every place that
     # used to invent its own. The reference interpreter did a bare
     # `record[field]` lookup (a dotted path silently matched nothing), the
-    # SQL side split dots but judged numericness from the FIRST nested
+    # SQL side split dots but judged numericness from the first nested
     # segment only (a two-level path quietly compared text), and the build
     # seal walked the declaration graph a third way. Three
     # implementations of "what does pizza.price_cents.cents mean" is two
@@ -11,10 +11,10 @@ module Hecks
     #
     # Two sides, deliberately in one file so they cannot drift:
     #
-    #   dig(holder, field)        — VALUE side: walk a record's held state,
+    #   dig(holder, field)        — value side: walk a record's held state,
     #                               segment by segment, through Value
     #                               objects and plain hashes alike.
-    #   leaf_attribute / numeric? — DECLARATION side: walk the declared
+    #   leaf_attribute / numeric? — declaration side: walk the declared
     #                               shape to the attribute a path lands on.
     #                               Callers supply value-object lookup as a
     #                               block, because an Aggregate and a
@@ -32,7 +32,7 @@ module Hecks
       # stored nested value object is a plain hash by the time it is read
       # back, keyed by symbol in memory and by string off a wire decode,
       # so both spellings are tried — `key?` first, never `||`, because
-      # `||` falls through a genuinely-stored `false` to the OTHER
+      # `||` falls through a genuinely-stored `false` to the other
       # spelling (usually absent) and returns `nil` instead. The seal
       # admits boolean leaves (`SCALAR_PRIMITIVES` below), so a `false`
       # here is a real, held answer, not a missing one.
@@ -54,7 +54,7 @@ module Hecks
         # an Array broke it: `Array#[]` demands an Integer index, so
         # `current[segment]` (a String) raised `TypeError` straight
         # through `dig` instead of answering nil. A dotted path stepping
-        # INTO a list_of attribute (`where "tags.name" == "x"` against a
+        # into a list_of attribute (`where "tags.name" == "x"` against a
         # bare list, rather than each element) has no single member a
         # bare index would name anyway — nil is the honest answer, the
         # same one a dangling reference or a missing key already gets.
@@ -84,7 +84,7 @@ module Hecks
       # convention every adapter already implements: a numeric primitive,
       # or a value object carrying at least one numeric member. A dotted
       # path must land on a numeric primitive itself — the convention does
-      # not reach through a named path, it IS the absence of one.
+      # not reach through a named path, it is the absence of one.
       def numeric?(attribute, segments, &)
         leaf = leaf_attribute(attribute, segments, &)
         return false if leaf.nil? || leaf.list? || leaf.reference?
@@ -95,7 +95,7 @@ module Hecks
         !shape.nil? && shape.attributes.any? { |member| NUMERIC_PRIMITIVES.include?(member.type.to_s) }
       end
 
-      # A dotted path must end on a SCALAR member — landing on a value
+      # A dotted path must end on a scalar member — landing on a value
       # object would hand SQL a JSON object where the reference
       # interpreter unwraps a hash, and the two would answer differently.
       def scalar_leaf?(attribute, segments, &)

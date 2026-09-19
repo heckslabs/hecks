@@ -5,11 +5,11 @@ require_relative "value_object_shape"
 
 module Hecks
   module Forms
-    # One resolved field, ready for a renderer to turn into markup. A LEAF
+    # One resolved field, ready for a renderer to turn into markup. A leaf
     # scalar carries `kind`/`options`/etc; a `:group` or `:list` carries
     # `children` instead and nothing else on itself.
     #
-    # `path` is the DOTTED field path this attribute is reached at —
+    # `path` is the dotted field path this attribute is reached at —
     # `"email.address"`, `"amount.cents"` — the same convention the language
     # already uses for a query's own cross-object `where` clauses
     # (`where(:"customer.status" => ...)`), not a fresh one invented here. A
@@ -32,7 +32,7 @@ module Hecks
       # "given" -> "Given", "daily_limit" -> "Daily limit", "end_to_end" ->
       # "End to end" — the label a plain reader wants, not the wire spelling.
       def self.label(text)
-        # Split on "." FIRST, alone, to take only the last path segment —
+        # Split on "." first, alone, to take only the last path segment —
         # "daily_limit" is one segment (the underscore is a word break
         # inside it, not a path hop) and must keep both its words; only a
         # genuinely dotted path ("amount.cents") drops everything before
@@ -62,7 +62,7 @@ module Hecks
     module FieldShape
       PRIMITIVES = Bluebook::Attribute::PRIMITIVES
 
-      # `aggregate:` is the Aggregate that OWNS this attribute (a
+      # `aggregate:` is the Aggregate that owns this attribute (a
       # command's, a query's, or — recursively — a value object's) —
       # needed to resolve `reference_to`, `admits:`, and a same-chapter
       # value object by name. `path:` defaults to the attribute's own name;
@@ -103,7 +103,7 @@ module Hecks
                                   end)
       end
 
-      # `admits:` names a closed set declared ELSEWHERE (`"Account::
+      # `admits:` names a closed set declared elsewhere (`"Account::
       # LedgerDirection"`) that the value must belong to — see
       # Runtime::Value::Admission#admitted_members, which this mirrors
       # exactly (same split, same chapter walk, same discriminant rule) so
@@ -116,14 +116,14 @@ module Hecks
         return primitive_field(attribute, common) unless set # undeclared — refuse-at-dispatch stays the backstop
 
         options = select_or_radio(common, closed_set_options(set))
-        # The attribute's OWN type still has to be built the shape coercion
+        # The attribute's own type still has to be built the shape coercion
         # expects (`Value::Coercion#fields_for` refuses anything that
         # isn't a Hash or a Value for a value-object-typed attribute) — a
         # plain String attribute stays a bare scalar, but a value object
         # like `MovementDirection { value }` still needs the ".value" hop
-        # even though the SET it's checked against (`admits:`) is declared
+        # even though the set it's checked against (`admits:`) is declared
         # somewhere else entirely. Same unwrap `value_object_field` does,
-        # kept separate because an admitted set changes the OPTIONS, not
+        # kept separate because an admitted set changes the options, not
         # which field the hop lands on.
         own_shape = own_value_object(attribute, aggregate)
         inner = own_shape && ValueObjectShape.sole_attribute(own_shape)
@@ -145,9 +145,9 @@ module Hecks
         return money_field(shape, common) if ValueObjectShape.money?(shape)
 
         # A single-attribute value object (EmailAddress{address}, CustomerNumber{value})
-        # is a NAME for a scalar, not a genuine group — unwrap it so the form
+        # is a name for a scalar, not a genuine group — unwrap it so the form
         # asks for one thing ("Email address") instead of a one-item fieldset,
-        # and so the inner attribute's OWN pattern (the real email regex,
+        # and so the inner attribute's own pattern (the real email regex,
         # declared on `address`, not on the outer `email` attribute) drives
         # the input type. [[feedback_name_the_scalar_field]] says the same
         # thing about Ruby call sites; a form asks the identical question.
@@ -189,7 +189,7 @@ module Hecks
       end
 
       # A `one_of` shape (`AccountKind{name}`, `LedgerDirection{value}`) is
-      # ALWAYS single-attribute in this language — the discriminant IS the
+      # always single-attribute in this language — the discriminant is the
       # whole value object — so the field's own path always gains that one
       # hop; nothing to branch on the way `admitted_field` has to (a set
       # named by `admits:` may sit on a multi-field value object it doesn't

@@ -2,15 +2,15 @@ require_relative "../naming"
 
 module Hecks
   module Projector
-    # A BLUEBOOK, PROJECTED AS ITS OWN COMMAND-LINE SURFACE.
+    # A bluebook, projected as its own command-line surface.
     #
     # Every verb a domain declares is a subcommand; every argument is an
-    # option whose TYPE, whose admitted values and whose required-ness are
+    # option whose type, whose admitted values and whose required-ness are
     # already stated in the chapter. A hand-written CLI restates all of it and
     # then drifts — and the first thing to drift is the help text, which is the
     # only part anybody reads.
     #
-    # WHAT IS PROJECTED, AND WHAT IS NOT. This answers the SURFACE — the verb
+    # What is projected, and what is not. This answers the surface — the verb
     # tree, the argument spec, the usage text — and nothing executes here. One
     # small generic runner (`bin/run`) boots a domain, asks for this, parses
     # against it and dispatches.
@@ -23,7 +23,7 @@ module Hecks
     # reads. Projecting the surface keeps one dispatcher and a help text that
     # cannot be stale, because it is computed at the moment it is printed.
     #
-    # THE TYPING IS THE POINT. A CLI hands everything over as a String.
+    # The typing is the point. A CLI hands everything over as a String.
     # `sequence.value=99` has to become the Integer 99 or the runtime refuses
     # it, and the only honest place to learn that is the value object's own
     # declared field type. A CLI that guessed — "it looks like a number" —
@@ -32,7 +32,7 @@ module Hecks
     module CliProjector
       module_function
 
-      # TWO NAMESPACES, NOT ONE — `{ verbs:, questions:, usage: }`.
+      # Two namespaces, not one — `{ verbs:, questions:, usage: }`.
       #
       # A chapter may legally declare a command and a query of one name: the
       # language namespaces them and `Banking::Account.Open` is both, in the
@@ -62,32 +62,32 @@ module Hecks
             end
           end
 
-          # A PORT IS A VERB TOO, and leaving it off the map was a real gap
+          # A port is a verb too, and leaving it off the map was a real gap
           # rather than a tasteful omission. The runtime has always dispatched
           # a port operation by exactly the same name as a command — the
           # projection simply never listed one, so `run_specs` and `file`
           # answered "no such verb" while working perfectly through Ruby.
           #
           # It matters most for the caller with no other door. An agent that
-          # may not shell out reaches this domain ONLY through the projected
+          # may not shell out reaches this domain only through the projected
           # CLI, and a port it cannot see is a capability it does not have.
           aggregate.ports.each do |port|
             port.operations.each { |o| claim(verbs, name_for(aggregate, o), port_spec(bluebook, aggregate, port, o)) }
           end
         end
 
-        # A REPORT IS A QUESTION TOO, and leaving it off was the same gap the
+        # A report is a question too, and leaving it off was the same gap the
         # ports had: `Dispatcher#query` has always answered `Domain.ReportName`,
         # the projection simply never listed one — so the composed reads worked
         # from Ruby and did not exist for anybody whose only door is the command
         # line.
         #
-        # It matters most for exactly what a report is FOR. Every other question
+        # It matters most for exactly what a report is for. Every other question
         # here answers with rows and leaves the arithmetic to the reader; a
         # `group_by` report is the one that counts. An agent that cannot reach
         # it can list bugs all day and never answer "how are we doing".
         #
-        # ONE DOT, NOT TWO — a report belongs to the chapter rather than to any
+        # One dot, not two — a report belongs to the chapter rather than to any
         # aggregate (that is what rootless means), so it is addressed
         # `QualityControl.BugsByStatus` where a query is
         # `QualityControl::Bug.Queue`. `Dispatcher#query` splits on precisely
@@ -96,7 +96,7 @@ module Hecks
           claim(questions, Naming.snake(model.hecks_name), report_spec(bluebook, model))
         end
 
-        # THE SHORT SPELLING, WHERE IT CANNOT BE AMBIGUOUS. `pizzas
+        # The short spelling, where it cannot be ambiguous. `pizzas
         # create_pizza` rather than `pizzas order.create_pizza` — the
         # aggregate is worth typing only when two of them declare the same
         # verb, and in a one-aggregate domain it never is. Both spellings are
@@ -129,7 +129,7 @@ module Hecks
         end
       end
 
-      # A NAME IS CLAIMED ONCE. A command and a query of one name are legal in
+      # A name is claimed once. A command and a query of one name are legal in
       # a chapter — the language namespaces them — and ambiguous as
       # subcommands. Refused here rather than silently resolving to whichever
       # was walked first, which is how `Ticket.Filed` (a command) and
@@ -156,7 +156,7 @@ module Hecks
          entity ? "#{entity.hecks_name}." : "", verb.hecks_name].join
       end
 
-      # THE ARGUMENTS A RECEIVER ADDS, BEFORE ANY VERB-SPECIFIC ONE. Shared by
+      # The arguments a receiver adds, before any verb-specific one. Shared by
       # `command_spec` and `port_spec` — a port operation always addresses an
       # aggregate record (`port_spec` passes `receiver: :aggregate`, never
       # `:entity` or `nil`, because a port is declared on an aggregate, never
@@ -194,7 +194,7 @@ module Hecks
                       (command.creates? ? nil : :aggregate)
                     end
 
-        # THE RECEIVER IS NOT A COMMAND ARGUMENT. An aggregate command names
+        # The receiver is not a command argument. An aggregate command names
         # its record through to; an entity command needs both the aggregate
         # record and the entity element within it. Keeping those paths in the
         # projected option list makes the human-facing request complete while
@@ -215,7 +215,7 @@ module Hecks
           refusals: refusals(command, holder), arguments: arguments }
       end
 
-      # A PORT OPERATION READS AS A VERB BUT REPORTS AS A BOUNDARY.
+      # A port operation reads as a verb but reports as a boundary.
       #
       # `creates: false` because it makes no record, and `refusals: []`
       # because it has none in the sense every other verb means: a command's
@@ -223,7 +223,7 @@ module Hecks
       # outbound operation's failure is somebody else's sentence, unknowable
       # from here.
       #
-      # THE SUMMARY NAMES BOTH ENDINGS, which is the one thing a caller most
+      # The summary names both endings, which is the one thing a caller most
       # needs and cannot infer. `run_specs` looks like it either works or
       # errors; what it actually does is answer `SpecsCompleted` even when the
       # suite is red, and refuse only when rspec could not run. Somebody
@@ -233,7 +233,7 @@ module Hecks
         arguments = receiver_options(:aggregate, aggregate, nil) +
                     operation.attributes.flat_map { |a| options_for(a, aggregate, aggregate) }
 
-        # THE WIRE NAME CARRIES THE PORT, THE TYPED NAME DOES NOT.
+        # The wire name carries the port, the typed name does not.
         #
         # `Dispatcher#dispatch` splits a verb into head and sub and looks the
         # head up as a port, so a port operation is addressed
@@ -244,7 +244,7 @@ module Hecks
         # names it short, which is the same split `shorten` already makes.
         { verb: [fqn(bluebook, aggregate, operation).sub(/\.[^.]+\z/, ""), port.name, operation.hecks_name].join("."),
           kind: :command, creates: false, receiver: :aggregate, refusals: [],
-          # `role:` HERE IS DESCRIPTIVE TEXT, NOT AN AUTHORIZATION GATE —
+          # `role:` here is descriptive text, not an authorization gate —
           # who calls whom through the port, for `--help`/`verb_help`'s
           # "issued by" line. A port operation never reaches
           # `CommandRules::Authorization#refuse_role_mismatch` (only
@@ -266,7 +266,7 @@ module Hecks
         "Ask #{port.name} — answers #{operation.answers}, refuses #{operation.refuses}"
       end
 
-      # A ROOTLESS REPORT TAKES NOTHING; a rooted one takes the id of the
+      # A rootless report takes nothing; a rooted one takes the id of the
       # record it is a view of, under the name the model gave that reference.
       def report_spec(bluebook, model)
         arguments =
@@ -293,14 +293,14 @@ module Hecks
 
       # ── one argument, flattened ───────────────────────────────────────
 
-      # A VALUE OBJECT BECOMES ONE OPTION PER FIELD, dotted. `commit` typed
+      # A value object becomes one option per field, dotted. `commit` typed
       # `CommitRef` is `--commit.value`, because that is the shape the runtime
       # wants and a flat `--commit` would have to guess which field it meant.
       # Single-field value objects — almost all of them — read fine either way,
       # and the runner accepts the short form for exactly those.
-      # RECURSIVE, AND IT HAS TO BE. A value object may hold another one —
+      # Recursive, and it has to be. A value object may hold another one —
       # pizzas' `Pizza` holds a `Price` and a `Size` — so stopping after one
-      # level produced `pizza.price_cents=1500` and sent the STRING "1500"
+      # level produced `pizza.price_cents=1500` and sent the string "1500"
       # where `{ cents: 1500 }` belonged.
       #
       # The runtime took it. `qa/FINDINGS.md` #2 is exactly that gap —
@@ -316,13 +316,13 @@ module Hecks
         value_object = value_object_for(attribute, holder, aggregate)
         return [scalar_option(path, attribute, optional)] unless value_object
 
-        # A LIST SAYS SO, ALL THE WAY DOWN TO ITS LEAVES.
+        # A list says so, all the way down to its leaves.
         #
         # Without this a `list_of(Tag)` projected exactly like a single Tag:
         # one option, `tags.value`, indistinguishable from a scalar. So the
         # help said to pass one, `CliDoor#bury` overwrote the leaf each time,
-        # and passing two tags stored the second and lost the first WITHOUT
-        # SAYING ANYTHING. A missing argument is refused loudly; a forgotten
+        # and passing two tags stored the second and lost the first without
+        # saying anything. A missing argument is refused loudly; a forgotten
         # one is not, which makes it the more expensive of the two by far.
         #
         # The flag is carried on the leaf rather than kept beside the
@@ -390,7 +390,7 @@ module Hecks
         program = options[:program] || "bin/run"
         only    = options[:verb]
 
-        # WHICH NAMESPACE, when both hold the name. `options[:ask]` says so;
+        # Which namespace, when both hold the name. `options[:ask]` says so;
         # without it a `--help` for a question would print the command that
         # shares its name, which banking has and which is how this was found.
         if only
@@ -421,16 +421,16 @@ module Hecks
         name ? "#{spec[:short]} is also #{name}" : ""
       end
 
-      # A QUERY's `description` is written as a paragraph — it argues for why
+      # A query's `description` is written as a paragraph — it argues for why
       # the list is worth reading. A verb table wants the first sentence of
       # that argument; `--help` still prints the whole thing.
       def first_sentence(text)
         text.to_s.split(/(?<=\.)\s/).first.to_s
       end
 
-      # FOUR TEXT BLOCKS, IN FIXED DISPLAY ORDER — meta (name/kind/role),
+      # Four text blocks, in fixed display order — meta (name/kind/role),
       # invocation, arguments, refusals. Each block is independent of the
-      # others' content (only the OUTPUT ORDER is fixed, and stays fixed
+      # others' content (only the output order is fixed, and stays fixed
       # below), so each is its own method returning the lines it
       # contributes — `[]` when it contributes none — concatenated in the
       # same order the original inline version built them in.

@@ -18,7 +18,7 @@ module Hecks
         # but three of those blocks (`:port`, `:method_missing`,
         # `:const_missing`) are a single cross-referencing essay on the
         # stale-facade-across-boots hazard — each one's comment explicitly
-        # points at "below"/"above" as part of the SAME method. Splitting
+        # points at "below"/"above" as part of the same method. Splitting
         # into helper methods wouldn't break anything at runtime (no
         # shared mutable state beyond the closed-over args, which just
         # become parameters), but it would sever that narrative across
@@ -34,13 +34,13 @@ module Hecks
             warn "[hecks] #{aggregate.hecks_name}##{attribute.name} shadows a built-in — no reader defined"
           end
 
-          # A creating verb is a MODULE method returning the new record in hand ;
+          # A creating verb is a module method returning the new record in hand ;
           # a verb that reaches an existing record lives on the Handle. `!` —
-          # a command DOES something (mutates, may refuse), Ruby's own
+          # a command does something (mutates, may refuse), Ruby's own
           # convention for that ; `Naming.snake` alone used to leave a
           # creating command's bare name claiming the exact spelling a
-          # QUERY of the SAME business name also wants (`Account`'s own
-          # "Open" — the creating command AND a query listing open
+          # query of the same business name also wants (`Account`'s own
+          # "Open" — the creating command and a query listing open
           # accounts, a real same-aggregate collision this corpus already
           # has) — the suffix is what makes both nameable at all, not
           # merely a style choice.
@@ -51,7 +51,7 @@ module Hecks
             end
           end
 
-          # A query is a MODULE method too — same level as a creating
+          # A query is a module method too — same level as a creating
           # command, since neither needs an existing record in hand — but
           # bare: a query reads and returns, nothing to warn a caller
           # about the way `!` does for a command. Answers the raw row
@@ -66,7 +66,7 @@ module Hecks
           door.define_singleton_method(:fqn)        { fqn }
           door.define_singleton_method(:ir)         { aggregate }
 
-          # THE SAME VERB THE CHAPTER ANSWERS, one level down. Every
+          # The same verb the chapter answers, one level down. Every
           # construct emits its own IR (Hecks::IR), so an aggregate
           # is a legitimate thing to project — `Pizzas::Order.project(
           # Projections::IR)` is this aggregate's IR, not the chapter's.
@@ -88,7 +88,7 @@ module Hecks
             aggregate.commands.map { |c| "#{Naming.snake(c.hecks_name)}!" }.sort
           end
           door.define_singleton_method(:queries) { aggregate.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
-          # ONE AGGREGATE'S USAGE DOCUMENT — the same projection the chapter
+          # One aggregate's usage document — the same projection the chapter
           # answers with, narrowed to this head. `commands` above already
           # answers "what can I call"; this answers "and what does each one
           # want, refuse, and guarantee", which is the rest of the question.
@@ -96,7 +96,7 @@ module Hecks
             Projector.call(:docs, bluebook: dispatcher.registry.bluebook(domain),
                                   options:  options.merge(aggregate: aggregate.hecks_name))
           end
-          # ONE AGGREGATE, READ BACK IN ENGLISH — the same narrowing `:docs`
+          # One aggregate, read back in english — the same narrowing `:docs`
           # takes, aimed at `:narrate` instead.
           door.define_singleton_method(:narrate) do |**options|
             Projector.call(:narrate, bluebook: dispatcher.registry.bluebook(domain),
@@ -116,18 +116,18 @@ module Hecks
             end
           end
 
-          # THE SAME REASON `method_missing` BELOW EXISTS AT ALL — a facade
-          # left over from a PREVIOUS boot in this process shadows the fresh
+          # The same reason `method_missing` below exists at all — a facade
+          # left over from a previous boot in this process shadows the fresh
           # `BindingProxy` a `.hecksagon` would otherwise reach through
           # `ConstShim`/`const_missing`, so `Pizzas::Pizza.port(...)` lands
-          # HERE instead once any boot has run before.
+          # here instead once any boot has run before.
           #
-          # RE-RESOLVED, NOT THE CLOSED-OVER `aggregate` — this door can be a
-          # STALE one, built by a boot from earlier in this same process,
+          # Re-resolved, not the closed-over `aggregate` — this door can be a
+          # stale one, built by a boot from earlier in this same process,
           # sitting on the `Pizzas`/`Pizza` constants only because nothing
-          # has re-installed them since. Attaching to this door's OWN
+          # has re-installed them since. Attaching to this door's own
           # `aggregate` would attach the port to a discarded aggregate from
-          # that old boot, invisible to the CURRENT one actually being
+          # that old boot, invisible to the current one actually being
           # loaded — silently, the exact way `method_missing` below already
           # has to avoid it for a plain bind, via `HecksagonBuilder.collector`
           # rather than anything this door closes over. `Hecks.current_registry`
@@ -166,18 +166,18 @@ module Hecks
             !Bluebook::DSL::HecksagonBuilder.collector.nil? || super(name, include_private)
           end
 
-          # THE SAME STALE-FACADE HAZARD `method_missing`/`port` ABOVE ALREADY
-          # DOCUMENT, one door lower — `Surface.install` installs an aggregate's
-          # OWN name as a bare TOP-LEVEL constant too (`Namespace.install(Object,
+          # The same stale-facade hazard `method_missing`/`port` above already
+          # document, one door lower — `Surface.install` installs an aggregate's
+          # own name as a bare top-level constant too (`Namespace.install(Object,
           # aggregate.hecks_name, ...)`, surface.rb's own `install`), not only
-          # nested under its chapter. So once ANY domain has booted once in this
-          # process, `Account::Debit` written while declaring some OTHER
-          # bluebook — same domain or a different one — reaches THIS door's
+          # nested under its chapter. So once any domain has booted once in this
+          # process, `Account::Debit` written while declaring some other
+          # bluebook — same domain or a different one — reaches this door's
           # const_missing directly, never `Object.const_missing`/`ConstShim::
           # Hook` at all: real modules resolve without ever calling that.
           #
-          # `aggregate.hecks_name`, NOT the qualified `fqn` — a scoped
-          # reference has to read the SAME either way, whether or not a stale
+          # `aggregate.hecks_name`, not the qualified `fqn` — a scoped
+          # reference has to read the same either way, whether or not a stale
           # door happens to be sitting on this process from an earlier boot;
           # qualifying it here would make `Account::Debit`'s own meaning
           # depend on incidental process history, which is the exact

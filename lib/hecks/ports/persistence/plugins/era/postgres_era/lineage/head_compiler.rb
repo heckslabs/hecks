@@ -14,7 +14,7 @@ module Hecks
         module HeadCompiler
           # ── head compilation ───────────────────────────────────────────
 
-          # The snapshot table backing one aggregate's CURRENT era: one row
+          # The snapshot table backing one aggregate's current era: one row
           # per live id, upserted transactionally by PostgresEra#append
           # alongside the journal insert it belongs to, never derived by
           # scanning history thereafter. Idempotent and unguarded by
@@ -22,19 +22,19 @@ module Hecks
           # privilege class as the per-aggregate views/matviews already
           # created this way, not the shared owner-only journal.
           #
-          # BACKFILLED, not just created, the FIRST time this table comes
+          # Backfilled, not just created, the first time this table comes
           # into existence for a domain that already has journal history —
           # a fresh era (compile_head! at mint) never has any, but era 1
-          # against an EXISTING deployment (any domain running before this
+          # against an existing deployment (any domain running before this
           # snapshot table existed at all) does, and an empty table would
           # silently erase every already-written record from every read
           # the instant the head view starts pointing at it.
           #
-          # CREATION and BACKFILL are deliberately two separate steps now,
+          # Creation and backfill are deliberately two separate steps now,
           # not one nested transaction — principle 1 (docs/implemented/postgres-era-
           # adapter-split-plan.md): no operation may hold a lock across a
           # scan whose duration scales with table size, and
-          # `backfill_head_snapshot!` below is now a CHUNKED, resumable
+          # `backfill_head_snapshot!` below is now a chunked, resumable
           # scan (see `ResumableBackfill`), the opposite of something that
           # belongs inside one transaction. Creation alone (an empty
           # table, nothing to scan) still needs the short-held lock
@@ -43,44 +43,44 @@ module Hecks
           # fully backfilled by a prior boot (one indexed point lookup via
           # `hecks_backfill_progress`, see ResumableBackfill), or left
           # mid-backfill by a crashed or still-racing concurrent boot
-          # (picks up exactly where the last COMMITTED chunk left off).
+          # (picks up exactly where the last committed chunk left off).
           def ensure_head_snapshot!(storage_name, era)
             name = head_snapshot(storage_name, era)
             unless table_exists?(name)
               # Locked, not a bare CREATE TABLE IF NOT EXISTS — two
               # processes booting this aggregate for the very first time
-              # concurrently must not race to CREATE (one wins, one gets a
+              # concurrently must not race to create (one wins, one gets a
               # real Postgres error). Re-checked under the lock: the fast
               # path above skips locking entirely once any boot has
               # already finished this once, which is every boot after the
               # first.
               #
-              # NESTABLE — this runs both standalone (adapter boot, its
+              # Nestable — this runs both standalone (adapter boot, its
               # own transaction) and from `compile_head!` while
               # `mint_era!` is already mid-transaction (its manual
               # `BEGIN`, held open for the era row, every aggregate's
               # matview, and the advisory lock advance_era! relies on).
-              # `@db.transaction` is a bare BEGIN/COMMIT with no savepoint
+              # `@db.transaction` is a bare begin/commit with no savepoint
               # nesting (see H2 in docs/audits/2026-08-10-main-bug-
               # audit.md) — called while already inside a transaction, its
-              # COMMIT would end THAT transaction early, releasing mint's
+              # commit would end that transaction early, releasing mint's
               # advisory lock and letting a later step run uncommitted.
               # `nested_transaction` tells the two cases apart and uses a
               # SAVEPOINT for the second, so the surrounding mint stays
-              # one real transaction from BEGIN to its own COMMIT
+              # one real transaction from begin to its own commit
               # regardless of how deep this is called from.
               nested_transaction("hecks_head_snapshot") do
                 @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_head_snapshot:' || $1))", [name])
                 next if table_exists?(name)
 
-                # `operation` + a NULLABLE `state` — H3, docs/audits/2026-08-
+                # `operation` + a nullable `state` — H3, docs/audits/2026-08-
                 # 10-main-bug-audit.md: a delete used to just `DELETE FROM`
-                # this table, leaving NO row at all for an id carried in
+                # this table, leaving no row at all for an id carried in
                 # from an ancestor era. `compile_head!`'s union below then
                 # had nothing current-era to outrank the ancestor
                 # matview's own (still-live-looking) `save` row with, so a
-                # deleted ancestor-carried record kept winning `DISTINCT
-                # ON` forever. A delete now upserts a TOMBSTONE row here
+                # deleted ancestor-carried record kept winning `distinct
+                # on` forever. A delete now upserts a tombstone row here
                 # instead (`operation = 'delete'`, `state` NULL) — the
                 # exact same ordinal-guarded upsert every write already
                 # uses, so it participates in the union/`DISTINCT ON`
@@ -99,7 +99,7 @@ module Hecks
                 SQL
               end
             end
-            # SELF-HEALING for a table this ADR predates — same idiom as
+            # Self-healing for a table this ADR predates — same idiom as
             # `postgres/schema_builder.rb`'s own `hecks_version` backfill:
             # unconditional, runs on every boot, a no-op once the column
             # is there. A table created before H3's fix has no
@@ -111,8 +111,8 @@ module Hecks
             backfill_head_snapshot!(name, storage_name, era)
           end
 
-          # The exact reduction era 1's OLD live view used to run on every
-          # single read — DISTINCT ON latest-per-id, saves only — now
+          # The exact reduction era 1's old live view used to run on every
+          # single read — distinct on latest-per-id, saves only — now
           # chunked through `ResumableBackfill#chunked_backfill!` instead
           # of one blocking `INSERT ... SELECT` over the whole journal:
           # each chunk reads the next page of distinct ids (a plain SELECT,
@@ -120,7 +120,7 @@ module Hecks
           # by this running), then upserts it under the same short-held
           # advisory lock + ordinal guard every other upsert in this
           # adapter already uses. See `ResumableBackfill`'s own header for
-          # why this is RESUMABLE, not merely safe-to-restart.
+          # why this is resumable, not merely safe-to-restart.
           def backfill_head_snapshot!(name, storage_name, era)
             chunked_backfill!(
               name,
@@ -157,14 +157,14 @@ module Hecks
 
           # A transaction wrapper safe to call from inside an already-open
           # transaction, unlike `PG::Connection#transaction` (bare
-          # BEGIN/COMMIT, no savepoint nesting — see H2). Standalone
+          # begin/commit, no savepoint nesting — see H2). Standalone
           # (`PQTRANS_IDLE`), this is `@db.transaction` itself: a real
           # transaction, committed or rolled back on the way out. Nested
           # (anything else — `PQTRANS_INTRANS` from a manual `BEGIN` like
           # mint_era!'s, or the gem's own `#transaction`), it's a SAVEPOINT
           # instead: released on success, rolled back to (then the error
           # re-raised) on failure, and either way the surrounding
-          # transaction is never touched — no early COMMIT, no early
+          # transaction is never touched — no early commit, no early
           # release of whatever advisory lock it holds.
           def nested_transaction(name, &)
             return @db.transaction(&) if @db.transaction_status == PG::PQTRANS_IDLE
@@ -197,32 +197,32 @@ module Hecks
           end
 
           # The compiled chain over the ancestor tail — the matview's body,
-          # also runnable as a LIVE query (the audit previews a pending
+          # also runnable as a live query (the audit previews a pending
           # era through exactly this SQL before anything is minted).
           #
-          # NEVER flatten the edges into one merged rule set, however
+          # Never flatten the edges into one merged rule set, however
           # tempting the optimization looks. The two-line counterexample:
           # edge 1 renames A→B, edge 2 renames C→A. Flattened, a single
           # phase order either applies C→A before A→B (aliasing C's value
-          # into B) or drops the recycled name entirely — there is NO
+          # into B) or drops the recycled name entirely — there is no
           # correct position for both rules in one pass. Chaining the
           # original edges in mint order reproduces the true execution
           # exactly and needs no such reasoning.
-          # ONLY THE LATEST ANCESTOR ENTRY PER ID IS OBSERVABLE. The head,
+          # Only the latest ancestor entry per ID is observable. The head,
           # the tail-merge, and the audit all reduce by
-          # DISTINCT ON (aggregate_id) ORDER BY ordinal DESC before anyone
+          # distinct on (aggregate_id) ORDER BY ordinal DESC before anyone
           # reads a state, so an entry with a newer sibling can never
           # reach a reader. Translating those siblings computes and stores
           # rows nothing can observe — on an append-only journal a record
           # edited a hundred times cost a hundred translations to serve
           # one.
           #
-          # So the tail is reduced BEFORE the chain, not after. The
+          # So the tail is reduced before the chain, not after. The
           # translated output is identical (the reducer is idempotent and
           # the survivor is the same row either way); only the work
           # changes, from |journal entries| to |distinct records|.
           #
-          # `era` must survive the reduction: each edge's CASE reads it to
+          # `era` must survive the reduction: each edge's case reads it to
           # decide whether a row is old enough to need that edge applied.
           def latest_per_id(tail)
             return tail if tail.to_s.empty?
@@ -231,15 +231,15 @@ module Hecks
               "FROM (#{tail}) tail_entries ORDER BY aggregate_id, ordinal DESC"
           end
 
-          # THE LAYERED BUILD — era N from era N-1's matview, not from raw
+          # The layered build — era N from era N-1's matview, not from raw
           # history. Returns nil when it cannot apply, and the caller
           # falls back to the full chain above.
           #
           # The algebra it rests on, both halves load-bearing:
           #
-          #   1. THE CUTS DO NOT MOVE. ancestor_tail_sql cuts ancestor k at
+          #   1. The cuts do not move. ancestor_tail_sql cuts ancestor k at
           #      W(k+1) — the watermark recorded when era k+1 was minted.
-          #      Those are the SAME literals in the era N-1 build and the
+          #      Those are the same literals in the era N-1 build and the
           #      era N build, so era N-1's matview already carries exactly
           #      the cut era N needs for eras 1..N-2. Only era N-1's own
           #      rows are new, and they are cut at W(N). The watermark is
@@ -247,7 +247,7 @@ module Hecks
           #      baked into the layer beneath. (This is why the tail-merge
           #      must pass full: — it moves every watermark at once.)
           #
-          #   2. REDUCING IS ASSOCIATIVE. reduce(A ∪ B) == reduce(reduce(A) ∪ B),
+          #   2. Reducing is associative. reduce(A ∪ B) == reduce(reduce(A) ∪ B),
           #      because the survivor is max-ordinal-per-id either way. So
           #      reducing per layer is the same answer as reducing the
           #      whole tail once.
@@ -256,22 +256,22 @@ module Hecks
           # N-1's shape — the matview because it was chained through edge
           # N-2, era N-1's own rows because that is the shape they were
           # written under — so the final edge applies uniformly, with no
-          # per-era CASE. That equality is asserted, not argued: the spec
+          # per-era case. That equality is asserted, not argued: the spec
           # builds a third era both ways and diffs them.
           # `edges.size != era - 1` — added alongside `head_body_sql`
           # below, not merely a pre-existing guard: `names_by_era(aggregate,
           # edges)` sizes `names[:storage]` to `edges.size + 1`, and the
-          # union above indexes it at `names[:storage][era - 2]` — CORRECT
-          # only when `edges` is the FULL chain reaching `era` (mint's own
+          # union above indexes it at `names[:storage][era - 2]` — correct
+          # only when `edges` is the full chain reaching `era` (mint's own
           # call, and the audit's own "after" reading, both are). A caller
-          # handed a SHORTER chain against the SAME `era` — exactly what
+          # handed a shorter chain against the same `era` — exactly what
           # the audit's own "before" reading is, `chain[0..-2]` against the
           # unchanged target era — would index `names[:storage]` out of
           # its real bounds instead of falling back to `chain_sql` the way
           # every other mismatch here already does. Guarded structurally,
           # not by trusting every future caller to know this invariant.
           #
-          # The guard clauses above ARE the method: each rules out one way
+          # The guard clauses above are the method: each rules out one way
           # the layered shortcut cannot honestly apply (era too young, too
           # few edges, a mismatched chain length, no prior era, no label,
           # no materialized prior view) before the SQL-building tail runs.
@@ -344,12 +344,12 @@ module Hecks
 
           # The translated tail as it would stand in era `era`, latest
           # entry per id, saves only — what the audit holds up against the
-          # bluebook and the edge. Reads through `head_body_sql`, the SAME
+          # bluebook and the edge. Reads through `head_body_sql`, the same
           # layered-or-full choice `compile_head!` makes at real mint time
           # (that method's own comment has the full reasoning) — so this
           # is provably what the real mint will materialize, not a second
           # implementation that could silently drift from it. Safe for
-          # BOTH real callers: the "after" reading (`edges` is the full
+          # both real callers: the "after" reading (`edges` is the full
           # chain reaching `era`) and the "before" reading (`edges` one
           # shorter, same `era` — `audit.rb`'s own `samples_for`/`check`
           # callers) — `layered_chain_sql`'s own `edges.size != era - 1`
@@ -380,48 +380,48 @@ module Hecks
           end
 
           # Era N: materialize the translated ancestor tail (edge chain as
-          # CTEs, watermarks baked in), then overlay this era's OWN live
+          # CTEs, watermarks baked in), then overlay this era's own live
           # rows — read from its snapshot table, not re-derived from raw
           # history — in a plain view.
           #
-          # THE FROZEN-TAIL INVARIANT. This materialized view is correct
-          # by construction only because BOTH of these hold:
+          # The frozen-tail invariant. This materialized view is correct
+          # by construction only because both of these hold:
           #   1. journal rows are never updated or deleted (immutability
           #      by privilege), and
-          #   2. the watermark is baked into this definition as a LITERAL,
-          #      so post-cut ancestor writes — which DO keep arriving
+          #   2. the watermark is baked into this definition as a literal,
+          #      so post-cut ancestor writes — which do keep arriving
           #      while a fork is live — can never enter the head, even on
-          #      a full REFRESH.
-          # The ancestor partition is append-only but NOT frozen. Any
+          #      a full refresh.
+          # The ancestor partition is append-only but not frozen. Any
           # future "optimization" that refreshes incrementally, reads the
           # watermark from hecks_eras at query time, or otherwise
           # re-derives the cut will silently leak the old world's post-cut
           # writes into the new head. Rebuilding the definition (mint,
           # merge) is the only way the cut may move.
           # `full:` forces a rebuild from the raw journal. The tail-merge
-          # needs it: it moves EVERY watermark to the new tip, so every
+          # needs it: it moves every watermark to the new tip, so every
           # ancestor matview's cut goes stale in the same statement, and
           # layering on one would carry a cut that no longer exists.
           #
-          # THE LIVE HALF used to be `WHERE era = era AND aggregate = name`
-          # over the raw journal — a DISTINCT ON that re-reduced this era's
-          # ENTIRE write history on every single read, the exact cost this
+          # The live half used to be `WHERE era = era AND aggregate = name`
+          # over the raw journal — a distinct on that re-reduced this era's
+          # entire write history on every single read, the exact cost this
           # snapshot table exists to avoid (PostgresEra#append keeps it
           # current, transactionally, as of every write). The union below
-          # is bounded by LIVE RECORD COUNT for this era instead of its
+          # is bounded by live record count for this era instead of its
           # write count; the ancestor side was already bounded that way
           # (the matview only ever holds the reduced tail, never raw
           # history — see latest_per_id's own comment).
-          # THE ONE PLACE THAT PICKS layered VS full — pulled out so the
+          # The one place that picks layered vs full — pulled out so the
           # audit's own preview (`translated_latest`, below: both
           # `bin/translation_audit`'s standalone run and the real
           # mint-time gate in coverage_check.rb#audit!) reads through the
-          # IDENTICAL branch selection a real mint's own `compile_head!`
+          # identical branch selection a real mint's own `compile_head!`
           # will use, rather than a second, hand-kept-in-sync copy of this
           # same "layered when eligible, else full" choice. Before this,
           # `translated_latest` called `chain_sql` unconditionally — for
           # any era >= 3, the real mint (this method, `full: false` by
-          # default) could materialize via the LAYERED path while the
+          # default) could materialize via the layered path while the
           # preview that approved it never exercised that branch at all.
           # `full:` mirrors `compile_head!`'s own default; tail_merge's
           # `full: true` rebuild is the one caller that ever needs the
@@ -440,10 +440,10 @@ module Hecks
               CREATE MATERIALIZED VIEW #{quote(view)} AS
               #{body}
             SQL
-            # ADDITIVE, changes nothing about what can be pushed through
+            # Additive, changes nothing about what can be pushed through
             # the reduction (that wall is structural, an index doesn't
             # move it — see this file's own module header) — only speeds
-            # up the reduction ITSELF, which every read still has to run
+            # up the reduction itself, which every read still has to run
             # regardless of a field cache's own two-phase shortcut (a
             # multi-clause query with an uncached clause, an order_by-only
             # query, or simply every read before Track C's cache tables
@@ -452,18 +452,18 @@ module Hecks
             # running on PG18+.
             @db.exec("CREATE INDEX IF NOT EXISTS #{quote("#{view}_reduce_idx")} ON #{quote(view)} (aggregate_id, ordinal DESC)")
 
-            # era-qualified, always a FRESH table for a newly-minted era —
+            # era-qualified, always a fresh table for a newly-minted era —
             # no separate reset step needed; there is structurally nothing
             # in it yet for anyone to have written, until an append lands
             # under this era specifically.
             ensure_head_snapshot!(storage_name, era)
             @db.exec("DROP VIEW IF EXISTS #{quote(head_view(storage_name))}")
-            # THE CURRENT-ERA SIDE READS ITS OWN `operation` COLUMN NOW —
+            # The current-era side reads its own `operation` column now —
             # H3 (docs/audits/2026-08-10-main-bug-audit.md). This used to
             # hardcode `'save' AS operation` here, on the reasoning that a
             # delete simply removed its row from the snapshot table. But
             # for an id carried in from an ancestor era, that left the
-            # ancestor matview's own `save` row as the ONLY row on either
+            # ancestor matview's own `save` row as the only row on either
             # side of this union — which then won `DISTINCT ON` and
             # `WHERE operation = 'save'` let it straight through, so a
             # deleted ancestor-carried record kept resurrecting forever.
@@ -485,10 +485,10 @@ module Hecks
             SQL
           end
 
-          # The aggregate's storage name AS OF each era: `was:` chains
+          # The aggregate's storage name as of each era: `was:` chains
           # walked backward from the current name, one edge at a time.
           # names[:current][i] is the declared (Pascal) name after edge i;
-          # names[:storage][e] the snake storage name DURING era e (1-based).
+          # names[:storage][e] the snake storage name during era e (1-based).
           def names_by_era(aggregate, edges)
             current = Array.new(edges.size + 1)
             current[edges.size] = aggregate.name
@@ -501,7 +501,7 @@ module Hecks
           end
 
           # Rows this aggregate contributed to every ancestor era, under
-          # the name it had THEN, cut at the watermark recorded when the
+          # the name it had then, cut at the watermark recorded when the
           # next era was minted.
           def ancestor_tail_sql(names, era)
             watermarks = eras.to_h { |held| [held[:ordinal], held[:watermark]] }
@@ -516,7 +516,7 @@ module Hecks
 
           # compile_rules/rekeyed?/id_case/compile_id_expression/
           # compile_compute moved to Translation::RuleCompiler — the
-          # PURE half of this compiler, with no database connection, no
+          # pure half of this compiler, with no database connection, no
           # watermark, no era chain. Extracted so Exporter's build-time
           # SQL export (feeding rust/host's own boot-time mint) can call
           # the exact same code this file's own callers do, rather than

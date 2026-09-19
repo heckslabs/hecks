@@ -1,13 +1,13 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT A PROCESS MANAGER DOES. Its declared half is the trigger,
+      # What a process manager does. Its declared half is the trigger,
       # the states and the handlers; the compensation half — `saga` — is
-      # DERIVED from the handler that answers a refusal, not declared.
+      # derived from the handler that answers a refusal, not declared.
       module ProcessManager
         def hecks_name = @name
 
-        # THE LEG THAT ANSWERS — selected by (event, current state), C10.3
+        # The leg that answers — selected by (event, current state), C10.3
         # (docs/semantics/bluebook-semantics.md). Two legs may answer the
         # same event from different states; which one runs is decided by
         # the state the instance is in, never by declaration order. With
@@ -25,7 +25,7 @@ module Hecks
 
         def handles?(event) = @handlers.any? { |h| h.event_type == event.to_s }
 
-        # WHETHER A STATE IS ONE THIS PROCEDURE DECLARES — asked of a value
+        # Whether a state is one this procedure declares — asked of a value
         # a real run left a saga instance holding (its live or rehydrated
         # state), the way `Lifecycle#states` is asked of an aggregate's
         # resting field. A rehydrated instance in a state no handler could
@@ -35,7 +35,7 @@ module Hecks
         def correlation_head = @correlates_by.to_s.split(".").first.to_sym
 
         # The compensation half of a procedure, read off the handler that
-        # answers REFUSED.
+        # answers refused.
         #
         # nil for a procedure with no answer to a refusal, which is a legitimate
         # thing to be — a hiring pipeline cannot un-interview anybody.
@@ -43,13 +43,13 @@ module Hecks
           leg = handler_for(Bluebook::ProcessManager::REFUSED)
           return nil unless leg
 
-          # `compensations` — a STATIC PREVIEW, declaration order, not
+          # `compensations` — a static preview, declaration order, not
           # one instance's own runtime history (which legs a given
           # instance actually completed is per-instance state,
           # `SagaInterpreter`'s own `completed_compensations`, not a
           # fact `Saga` — a pure declaration reading — could ever hold).
-          # Every `compensates` ANY handler's own dispatch declares,
-          # forward declaration order, THEN whatever this leg's own
+          # Every `compensates` any handler's own dispatch declares,
+          # forward declaration order, then whatever this leg's own
           # hand-written body still lists — coexistence, not replacement
           # (`ProcessManagerBuilder::HandlerBuilder#dispatch_impl`'s own
           # comment): a saga can derive some of its compensation and

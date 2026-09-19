@@ -10,7 +10,7 @@ module Hecks
       # AdapterJudge already are — its own file, its own door, judged
       # through its own self-hosted language (translation.bluebook)
       # rather than left as plain Ruby structs nothing checks. Walks the
-      # WHOLE built translation in one pass — the top-level Declare/
+      # whole built translation in one pass — the top-level Declare/
       # Retire commands, then every nested aggregate's own Declare plus
       # one Add* command per rule it carries — the same "one judge, every
       # nested record" shape WorldJudge already gives Wiring. Field names
@@ -35,9 +35,9 @@ module Hecks
 
         def args(pairs) = pairs.compact
 
-        # `Runtime::AlreadyExists` is rescued HERE but not by World/Port/
+        # `Runtime::AlreadyExists` is rescued here but not by World/Port/
         # Adapter's own sibling judges — found live, not by inspection.
-        # Those three each judge a SINGLE aggregate per build (Port/Adapter)
+        # Those three each judge a single aggregate per build (Port/Adapter)
         # or a Hash keyed by verb (World's own settings, deduped by
         # construction), so a duplicate-identity Declare can never reach
         # their own runtime. `TranslationBuilder#aggregate` appends every
@@ -65,13 +65,13 @@ module Hecks
           send_to("Translation::Translation.Declare", t.domain,
                   with: { domain: v(t.domain), from: v(t.from), to: v(t.to) })
 
-          # `id:`, computed the SAME way — `Naming.identity([domain, from,
-          # to])` — Translation's own identity is COMPOSITE
+          # `id:`, computed the same way — `Naming.identity([domain, from,
+          # to])` — Translation's own identity is composite
           # (`identified_by :domain, :from, :to`), the same reason
           # `Wiring.Set`'s own self-reference dispatch (world.bluebook,
           # `WorldJudge#judge_wiring`) needs a computed `id:` rather than
           # a bare field value — a single-field identity (TranslationAggregate's
-          # own `name`) is the ONE case where the bare value itself IS the
+          # own `name`) is the one case where the bare value itself is the
           # id, confirmed live via direct dispatch testing, not assumed.
           translation_id = Naming.identity([t.domain, t.from, t.to])
           Array(t.retired).each do |name|

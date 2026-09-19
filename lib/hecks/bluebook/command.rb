@@ -12,7 +12,7 @@ module Hecks
 
       # `sign:` — item #5 of the whole-project table-unification survey.
       # `increment`/`decrement`'s own +1/-1 used to be re-derived from the
-      # op NAME by two independent Rust codegen scripts (rust/project/
+      # op name by two independent Rust codegen scripts (rust/project/
       # mutations.rb, rust/codegen/src/mutations.rs — a ternary on
       # `op == "increment"` in each), even though the fact was already
       # table-driven on the Ruby runtime side
@@ -31,8 +31,8 @@ module Hecks
 
       emits_ir(target: :target, op: :op, sign: -> { Mutation.sign_for(op) })
 
-      # THE ONE GENUINELY BRANCHING EMISSION in the model: an append (or a
-      # DELEGATE — `CommandBuilder#delegates_to`'s own comment gives the
+      # The one genuinely branching emission in the model: an append (or a
+      # delegate — `CommandBuilder#delegates_to`'s own comment gives the
       # full reasoning for reusing this exact wire shape rather than
       # inventing a parallel one) binds several fields at once and carries
       # `fields:`, everything else carries a single `source:`. Declared
@@ -46,9 +46,9 @@ module Hecks
       end
     end
 
-    # A command, as a RUBY CLASS.
+    # A command, as a Ruby class.
     #
-    # NOT nested as a constant, and that is a finding rather than a shortcut. A
+    # Not nested as a constant, and that is a finding rather than a shortcut. A
     # command and a value object may legitimately share a name inside one
     # aggregate — the language does it six times, and means it: the command
     # `Argument` is the verb that appends to the `arguments` list whose element
@@ -56,10 +56,10 @@ module Hecks
     # So `Bluebook::Command::Argument` cannot be both, and a single constant
     # namespace cannot index a kind-ambiguous name. The same follows for
     # `hecks_fqn` : `Bluebook::Command.Argument` names both, which is why the judge's
-    # ids only work per-category, each in its own repository. IDENTITY IS
-    # (KIND, FQN), not fqn.
+    # ids only work per-category, each in its own repository. Identity is
+    # (Kind, FQN), not fqn.
     #
-    # It is a declaration holder anyway, because that is where the EDGES live.
+    # It is a declaration holder anyway, because that is where the edges live.
     # `acts_on` answers with the owning construct itself — the Aggregate,
     # or the entity holder for a piece's verb — rather than the name of one.
     # The invocation door (`pizza.add_topping`) is the facade's business, a
@@ -79,8 +79,8 @@ module Hecks
         ensures:    -> { ensures.map { |rule| Expression::AstJson.rule_row(rule) } },
         mutations:  many(:mutations),
         emits:      :emits,
-        # THE LIFECYCLE STATE THIS COMMAND IS ADMISSIBLE FROM (S10, ADR
-        # 0025 — "lifecycle state becomes a command guard") — a GUARD,
+        # The lifecycle state this command is admissible from (S10, ADR
+        # 0025 — "lifecycle state becomes a command guard") — a guard,
         # not a transition: `command "Debit", from: "open"` replaces
         # `given("account is open") { status == "open" }`, checked
         # against the owning construct's own lifecycle field the same

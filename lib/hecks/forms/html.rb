@@ -29,7 +29,7 @@ module Hecks
       def self.attr(value) = html(value)
 
       # L12 (docs/audits/2026-08-10-main-bug-audit.md) — safe as a
-      # query-string VALUE. `html`/`attr` guard against the value becoming
+      # query-string value. `html`/`attr` guard against the value becoming
       # markup, but say nothing about it staying inside the URL syntax
       # position it was placed in: an aggregate's identity is free-form
       # unless its value object declares a `pattern:` (see S3 in the same
@@ -38,17 +38,17 @@ module Hecks
       # interpolation (a stray `&` smuggles a second query parameter, `#`
       # truncates the path at a fragment, `/` splits the path into an
       # extra segment, ...). Percent-encodes via
-      # `application/x-www-form-urlencoded` (`+` for space) — correct ONLY
+      # `application/x-www-form-urlencoded` (`+` for space) — correct only
       # for a query-string value (query_form_renderer.rb's `quick_links`,
-      # record_renderer.rb's `?to=`). For a URL PATH segment use `path`
+      # record_renderer.rb's `?to=`). For a URL path segment use `path`
       # below instead — `+` is a literal plus there, not an escaped space,
       # so this method would corrupt any id containing a space. Callers
-      # still wrap the ASSEMBLED href/Location in `attr` (or `html`) as
+      # still wrap the assembled href/Location in `attr` (or `html`) as
       # usual — this only covers the id's own component, not the
       # surrounding markup.
       def self.url(value) = URI.encode_www_form_component(value.to_s)
 
-      # Same guard as `url`, for a URL PATH segment instead of a
+      # Same guard as `url`, for a URL path segment instead of a
       # query-string value. `encode_www_form_component` renders space as
       # `+`, which is only meaningful inside a query string — in a path
       # segment `+` is a literal plus, so an id like "John Smith" would

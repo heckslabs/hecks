@@ -4,7 +4,7 @@ require_relative "../../runtime/value"
 module Hecks
   module QuerySpecification
     module Common
-      # THE ONE COMPARATOR TABLE. There were two, near-identical copies of
+      # The one comparator table. There were two, near-identical copies of
       # this — `Ports::Query::InMemory` (the path a Memory- or Heki-backed
       # aggregate query actually runs) and `Runtime::QueryInterpreter`
       # (entity/sub-list queries, and any adapter implementing no `:query`)
@@ -15,13 +15,13 @@ module Hecks
       # real bugs twice already, both recorded in the comments those files
       # carried. `none_in_state` was added to one copy only, so an ordinary
       # Memory query's `none_in_state` clause fell to the `else` branch and
-      # silently excluded every row. And `comparable` DIVERGED without
-      # anyone noticing: one copy took the FIRST numeric member of a value
-      # object, the other only unwrapped when there was EXACTLY ONE — so a
+      # silently excluded every row. And `comparable` diverged without
+      # anyone noticing: one copy took the first numeric member of a value
+      # object, the other only unwrapped when there was exactly one — so a
       # value object with two numeric members compared as a number on one
       # path and as a whole Hash on the other.
       #
-      # The callers still differ in how they REACH a value — one takes a
+      # The callers still differ in how they reach a value — one takes a
       # registry argument, the other closes over `@registry`; one digs the
       # field through `FieldPath`, the other is handed it — so they keep
       # their own resolution and share only the comparison itself.
@@ -31,7 +31,7 @@ module Hecks
         # A value object compared as a scalar, when which scalar is meant
         # is not in doubt. Exactly one numeric member is unambiguous; a
         # single-member value object is unambiguous whatever its type.
-        # Anything else is returned UNCHANGED rather than guessed at — two
+        # Anything else is returned unchanged rather than guessed at — two
         # numeric members give no reason to prefer either, and picking the
         # first silently compares a field the author never named.
         #
@@ -65,13 +65,13 @@ module Hecks
 
         # A `case` over a closed, declared set (Vocabulary::QueryComparator,
         # held equal to this list by spec/vocabulary_table_spec — see the
-        # `else` branch's own comment) is the whole point of THE ONE
-        # COMPARATOR TABLE this file's header describes: one place naming
+        # `else` branch's own comment) is the whole point of the one
+        # comparator table this file's header describes: one place naming
         # every comparator, not one method per comparator scattered across
         # a module.
         # rubocop:disable-next Metrics/CyclomaticComplexity
         def holds?(operation, held, want, registry: nil)
-          # A NULL SATISFIES NO COMPARISON — NullPolicy.unmatchable? owns
+          # A NULL satisfies no comparison — NullPolicy.unmatchable? owns
           # the rule and the reasoning, including why `none_in_state` is
           # exempt from it.
           return false if NullPolicy.unmatchable?(operation, held, want)
@@ -108,9 +108,9 @@ module Hecks
         # `in` reads a comma-separated list — a real Array survives
         # untouched (a bluebook's own in-process value, before any wire
         # serialisation), each element unwrapped the same way a scalar
-        # field is. This is `in`'s reading of ITS ARGUMENT (a caller may
+        # field is. This is `in`'s reading of its argument (a caller may
         # legitimately pass "a,b,c" meaning "any of these") — unrelated to
-        # `contains`, which reads the STORED field. See `contains?`.
+        # `contains`, which reads the stored field. See `contains?`.
         def members(value)
           return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
 
@@ -120,7 +120,7 @@ module Hecks
         # A folded reference hop asks whether the locally-held identity is
         # among the matching target identities. A has_many relationship holds
         # several identities, so the same question becomes an intersection:
-        # does ANY held identity occur in the wanted set? Scalar `in` retains
+        # does any held identity occur in the wanted set? Scalar `in` retains
         # its existing one-candidate behavior.
         def any_member_in?(held, want)
           wanted = members(want)
@@ -129,10 +129,10 @@ module Hecks
           candidates.any? { |candidate| wanted.include?(comparable(candidate).to_s) }
         end
 
-        # `contains` means two different things depending on what is HELD —
-        # real ELEMENT membership for a `list_of` field (a genuine Array
+        # `contains` means two different things depending on what is held —
+        # real element membership for a `list_of` field (a genuine Array
         # arrives already, one element one member, nothing to split), and
-        # plain SUBSTRING for anything else. It used to fall through to
+        # plain substring for anything else. It used to fall through to
         # `members`' comma-split for the scalar case too, silently reading
         # a free-text field's own comma as a separator — which the SQL
         # side's `instr`/`position` never did, so the two disagreed the
@@ -145,8 +145,8 @@ module Hecks
           held.to_s.include?(want.to_s)
         end
 
-        # A CROSS-AGGREGATE ANTI-JOIN — `where ref: { none_in_state:
-        # "Claim:held" }` holds when NO record in the named aggregate,
+        # A cross-aggregate anti-join — `where ref: { none_in_state:
+        # "Claim:held" }` holds when no record in the named aggregate,
         # keyed by this record's own field value, is in the named state.
         # No registry — no way to look the target up — reads as "not
         # excluded", the same graceful default a missing record already
@@ -165,14 +165,14 @@ module Hecks
           record = registry.repository(target_domain, target_ir).find(held)
           return true unless record
 
-          # THE FIELD A STATE LIVES ON, READ FROM THE TARGET'S OWN
-          # DECLARATION — not assumed to be literally named `state`. Every
+          # The field a state lives on, read from the target's own
+          # declaration — not assumed to be literally named `state`. Every
           # `none_in_state` fixture this comparator originally shipped
           # with (spec/query_none_in_state_*_spec.rb) happens to declare a
           # plain `attribute :state, ...` rather than a real `lifecycle`,
           # which is how the previous hardcoded `record.state[:state]`
           # passed every one of them while being wrong for the shape this
-          # whole comparator exists to answer about: a real state MACHINE.
+          # whole comparator exists to answer about: a real state machine.
           # `lifecycle :field, default: ... do ... end` stores its state
           # under `field` (`Instance#assign_creation_attributes`'s own
           # `state[aggregate.lifecycle.field.to_sym] = ...`), and this
@@ -181,7 +181,7 @@ module Hecks
           # `lifecycle :status` among many others) — so the hardcoded key
           # silently read `nil` from every real lifecycle-backed target,
           # comparable(nil) != state was true unconditionally, and
-          # `none_in_state` against ANY lifecycle aggregate answered
+          # `none_in_state` against any lifecycle aggregate answered
           # "not excluded" for every row, always, no matter its actual
           # state. Found chasing `QualityControl::Bug.AwaitingClearance`
           # (qa/bluebook/quality_control.bluebook), which is exactly this

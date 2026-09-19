@@ -3,14 +3,14 @@ require_relative "../../forms/html"
 module Hecks
   module Projections
     module Glossary
-      # THE PAGE, RENDERED FROM THE MARKDOWN — `html/index.html` is
+      # The page, rendered from the markdown — `html/index.html` is
       # `glossary.md` read back and dressed: a navigation rail built from
       # its `##` headings, each `###` a term entry, every ```mermaid fence
       # a diagram, every `[x](#y)` an in-page link. Nothing here reads
       # the bluebook; if the page shows it, the Markdown says it, so the
       # two cannot drift.
       #
-      # A SUBSET RENDERER, NOT A MARKDOWN LIBRARY — the projector emits
+      # A subset renderer, not a markdown library — the projector emits
       # a fixed handful of constructs (`Markdown`'s own header lists
       # them), and this reads exactly those. The Gemfile keeps every
       # dependency justified in its own comment; a full Markdown engine
@@ -89,7 +89,7 @@ module Hecks
         # The same slugs GitHub would give these headings, in the same
         # order — so the links the Markdown carries land here too.
         #
-        # KEYED BY THE BLOCK ITSELF, NOT ITS VALUE — a Struct compares by
+        # Keyed by the block itself, not its value — a Struct compares by
         # members, so two "### Open" headings in different sections would
         # otherwise be one key, and the first would answer with the
         # second's "-1" slug, leaving `#open` with nothing to land on.

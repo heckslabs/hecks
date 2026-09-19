@@ -3,8 +3,8 @@ require_relative "traits"
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT AN ENTITY DOES. EXTENDED, not included — an entity is a
-      # CLASS, so this is singleton behaviour.
+      # What an entity does. Extended, not included — an entity is a
+      # class, so this is singleton behaviour.
       #
       # `settle` is the same seam an Aggregate has, reached from `absorb`
       # rather than from a constructor because a declared entity is built
@@ -29,26 +29,26 @@ module Hecks
           @queries_by_name  = index_by_hecks_name(@queries)
         end
 
-        # S17, ADR 0026 — `@entities`, now genuinely NESTED entities
+        # S17, ADR 0026 — `@entities`, now genuinely nested entities
         # (Dispatch, inside Handler) rather than always `[]`. Kept as a
         # real reader rather than a hardcoded empty list for two
         # reasons at once: `Value::Coercion#for_attribute` calls
-        # `.entities` on WHATEVER OWNER it is handed — an aggregate's or
-        # an entity's own — the moment it meets ANY `list_of(...)`
+        # `.entities` on whatever owner it is handed — an aggregate's or
+        # an entity's own — the moment it meets any `list_of(...)`
         # attribute (entity-typed or not — `hydrate_entity_list`'s own
         # fallback, `return value unless entity`, only runs once
         # `.entities` has already answered) ; and `EntityInterpreter`
-        # now walks a DOTTED chain of entities one level at a time
+        # now walks a dotted chain of entities one level at a time
         # (`walk_entity_chain`) exactly the way an aggregate's own
         # `.entities` is walked for its direct children. Entity's own
         # header comment already promises it stays "structurally
         # interchangeable with an aggregate" for exactly this reason.
         def entities = @entities || []
 
-        # A piece OWNS the verbs declared on it, so they can state an
+        # A piece owns the verbs declared on it, so they can state an
         # identity — `Banking::Account.Ledger.Deposit` rather than a
         # command that cannot say what it belongs to. Separate from
-        # `settle` because `declare` stamps AFTER absorbing, once the
+        # `settle` because `declare` stamps after absorbing, once the
         # subclass that will own them exists. `@entities` too now
         # (S17, ADR 0026) — a nested entity states its own owner chain
         # exactly the way a nested command does.

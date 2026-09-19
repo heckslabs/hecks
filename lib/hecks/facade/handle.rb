@@ -2,10 +2,10 @@ require_relative "../naming"
 
 module Hecks
   module Facade
-    # ONE record in hand — the object `Pizza.create_pizza(...)` and
+    # One record in hand — the object `Pizza.create_pizza(...)` and
     # `Pizza.find(id)` give back.
     #
-    # ONE SHARED CLASS, not one minted per aggregate. The old door subclassed
+    # One shared class, not one minted per aggregate. The old door subclassed
     # `Hecks::Aggregate` per head and defined a reader per field ; this
     # wraps the same `Runtime::Instance` state hash and answers readers and
     # verbs through `method_missing`, closing over the dispatcher and the
@@ -30,15 +30,15 @@ module Hecks
 
       def [](key) = @state[key.to_sym]
 
-      # `id: @id` LAST, not first — an aggregate is free to declare its own
+      # `id: @id` last, not first — an aggregate is free to declare its own
       # attribute literally named `id` (BurningManPrep's `Item`, `attribute
       # :id, ItemId`, is real corpus now: `identified_by :id` reads
-      # THAT attribute for identity). When it does, `@state[:id]` holds the
+      # that attribute for identity). When it does, `@state[:id]` holds the
       # full wrapped value object, not the bare identity string — merging
       # `@state` on top of `{ id: @id }` let that wrapped VO silently
       # clobber the correct bare `@id`, so every caller of `to_h` (the JSON
       # door's own `/api/:coll` listing, in particular) got an object where
-      # a plain identity string belonged. `@id` merged LAST always wins,
+      # a plain identity string belonged. `@id` merged last always wins,
       # so `to_h[:id]` is always the true bare identity, regardless of
       # whether the aggregate also happens to declare a same-named field.
       def to_h = @state.merge(id: @id)
@@ -55,7 +55,7 @@ module Hecks
         self
       end
 
-      # Equality is (WHICH AGGREGATE, WHICH ID) — two handles to the same record
+      # Equality is (which aggregate, which ID) — two handles to the same record
       # are the same record, and a Pizza never equals an Account that happens to
       # share an id. The old door said this with `other.is_a?(self.class)`,
       # leaning on one class per aggregate ; the fqn says it in data.
@@ -70,7 +70,7 @@ module Hecks
       alias to_s inspect
 
       # A declared field not yet written arrives here too (nil, the way a
-      # defined reader answered). Verbs are NOT handled here — see
+      # defined reader answered). Verbs are not handled here — see
       # `define_verb_methods` for why.
       def method_missing(name, *args, **kwargs, &)
         return @state[name] if @state.key?(name) || reader?(name)
@@ -90,9 +90,9 @@ module Hecks
         !@ir.attribute(name).nil? || @ir.lifecycle&.field&.to_sym == name
       end
 
-      # NON-CREATING VERBS ARE DEFINED, NOT DISPATCHED THROUGH method_missing.
+      # Non-creating verbs are defined, not dispatched through method_missing.
       #
-      # method_missing only runs once Ruby finds no REAL method already
+      # method_missing only runs once Ruby finds no real method already
       # answering the name — and every object already answers `freeze` and
       # `send` (Kernel/Object), among others. A verb whose snake-cased name
       # collided with one of those — `Account::Freeze` -> `freeze`,
@@ -112,7 +112,7 @@ module Hecks
         end
       end
 
-      # ONE HEAD ADDRESSES THE SAME WAY AS SEVERAL. `@ir.identified_by` is only
+      # One head addresses the same way as several. `@ir.identified_by` is only
       # the single-head shorthand — nil the moment an identity is composite
       # (`SafeDepositBox`'s `branch_code`/`box_number`) — so building the
       # identity payload from `identity_heads` instead reads every head, one
@@ -122,7 +122,7 @@ module Hecks
         self
       end
 
-      # THE OTHER HALF OF A CROSS-REFERENCE. `transfer.source` already reads
+      # The other half of a cross-reference. `transfer.source` already reads
       # the raw value — a plain reader, same as any other attribute, still
       # needed by a `given`. This is the hydrated hop docs/rails-integration.md
       # designed and marked "nothing built": `transfer.source_account`
@@ -134,20 +134,20 @@ module Hecks
       # option — that shape was considered and rejected in the same design
       # note for hiding how many lookups actually happened behind one call.
       #
-      # Defined BEFORE verb methods, not after — on the vanishing chance a
+      # Defined before verb methods, not after — on the vanishing chance a
       # reference's own accessor name collided with a command's, the verb
       # should win; `initialize` calls this first so `define_verb_methods`
       # defines second and last.
-      # NO DERIVATION LEFT (ADR 0025, "References"): `reference_to`
+      # No derivation left (ADR 0025, "References"): `reference_to`
       # itself mints the bare attribute name now — `:account`, never
       # `:account_id` — so the accessor is spelled exactly like the
       # attribute it reads, with no `_id`-strip or `as:`-suffix rule to
-      # apply first. `piece.account` (a METHOD, defined here) and
+      # apply first. `piece.account` (a method, defined here) and
       # `piece[:account]` (`Handle#[]`, bracket access reading the raw
       # id straight off `@instance`) never collide despite sharing a
       # name — Ruby dispatches the two completely differently — which is
-      # what makes the OLD "studio_studio" double-suffix workaround
-      # (this method used to force a DIFFERENT name specifically to dodge
+      # what makes the old "studio_studio" double-suffix workaround
+      # (this method used to force a different name specifically to dodge
       # that non-collision) unnecessary rather than merely simplified.
       def define_reference_accessors
         @ir.attributes.select(&:reference?).each do |attribute|

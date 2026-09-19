@@ -8,17 +8,17 @@ module Hecks
       # a plugin makes itself known as a side effect of being `require`d, the
       # same way an adapter's own `.rb` file already registers itself
       # (`Runtime::Registry#add_adapter`) rather than core listing adapter
-      # names anywhere. `register_plugin` is the ENTIRE contract a plugin
+      # names anywhere. `register_plugin` is the entire contract a plugin
       # must satisfy: anything responding to `contribute_boot_gates(registry,
       # gates)` (a no-op is a valid implementation).
       #
-      # This is deliberately NOT the same registry `Hecks::Projector` uses
+      # This is deliberately not the same registry `Hecks::Projector` uses
       # (ADR 0027) or `Runtime::BootGates` (ADR 0031) — each of those is
       # scoped to its own seam (IR-in/artifact-out; per-boot phased gates).
       # A shared base is deferred until a third registry actually wants one.
       #
-      # NAME-KEYED, PROCESS-WIDE, NOT PER-BOOT — unlike `BootGates` (one
-      # instance per `Loader.boot` call, because gate REGISTRATION is
+      # Name-keyed, process-wide, not per-boot — unlike `BootGates` (one
+      # instance per `Loader.boot` call, because gate registration is
       # capability-conditional per registry), a persistence plugin is either
       # `require`d into this process or it isn't; there is no "this boot's
       # registry doesn't need it" case to isolate against, so a plain

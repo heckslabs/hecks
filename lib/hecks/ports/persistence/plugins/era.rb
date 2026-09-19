@@ -11,7 +11,7 @@ module Hecks
   module Ports
     module Persistence
       module Plugins
-        # ADR 0033 — requiring THIS FILE is installing the plugin. Nothing in
+        # ADR 0033 — requiring this file is installing the plugin. Nothing in
         # Hecks core requires it; an app that binds `PostgresEra`, or wants
         # schema-translation support at all, requires it explicitly — the
         # same shape every adapter-specific spec fixture already uses to
@@ -29,7 +29,7 @@ module Hecks
           # unchanged) — this is the rich, adapter-aware version of that
           # check; `Runtime::Loader`'s own structural backstop (plain
           # `Bluebook::Translation` data, no plugin-specific class) only
-          # ever fires when NO persistence plugin is loaded at all.
+          # ever fires when no persistence plugin is loaded at all.
           #
           # `:era_check` — conditional, exactly ADR 0031's own gate,
           # unchanged: registered only when this registry has an aggregate

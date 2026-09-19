@@ -2,7 +2,7 @@ require_relative "../runtime/errors"
 
 module Hecks
   module Facade
-    # THE CLI DOOR — WHERE Facade MEETS A CALLER HOLDING FLAT STRINGS.
+    # The CLI door — where Facade meets a caller holding flat strings.
     #
     # `JsonDoor` beside this one translates for a caller holding parsed JSON:
     # String keys, already-nested objects, real Integers. A command line has
@@ -12,7 +12,7 @@ module Hecks
     # So this does the two things that turns into: rebuild the nesting, and
     # give every leaf the type the chapter declared for it.
     #
-    # THE TYPE COMES FROM THE PROJECTION, NEVER FROM THE VALUE. A door that
+    # The type comes from the projection, never from the value. A door that
     # guessed — "99 looks like a number" — would send the Integer 99 for a
     # version string of "99", and be wrong in a way nothing downstream could
     # detect, because both are perfectly good arguments. `Projector::CliProjector`
@@ -53,7 +53,7 @@ module Hecks
         [name, value]
       end
 
-      # THE SHORT FORM, FOR THE COMMON CASE. Almost every value object in this
+      # The short form, for the common case. Almost every value object in this
       # corpus has exactly one field, so `reference=BUG#1` is unambiguous and
       # is what anybody types. Expanded only when precisely one option starts
       # with that prefix — two would be a guess, and a guess about which field
@@ -74,7 +74,7 @@ module Hecks
         raise Runtime::TypeMismatch, "#{value.inspect} is not #{type} — the chapter declares this field as #{type}"
       end
 
-      # A LIST GROWS RATHER THAN OVERWRITES, and getting this wrong is silent.
+      # A list grows rather than overwrites, and getting this wrong is silent.
       #
       # `tags.value=framework tags.value=model-checker` used to reach `bury`
       # twice and store the second one alone — no refusal, no warning, one tag
@@ -82,7 +82,7 @@ module Hecks
       # loud kind, the kind where a value is forgotten and the caller has no
       # way to notice.
       #
-      # A LIST OF ONE IS STILL A LIST. `tags.value=flaky` produces
+      # A list of one is still a list. `tags.value=flaky` produces
       # `[{ value: "flaky" }]`, not `{ value: "flaky" }`, because the chapter
       # declared a collection and a caller who sent one element did not
       # thereby declare a different shape. The old behaviour handed a bare
@@ -90,7 +90,7 @@ module Hecks
       # it — a query's `contains`, a projection, the Postgres adapter's own
       # array handling — is entitled to assume it can iterate.
       #
-      # MULTI-FIELD ELEMENTS ARE NOT SUPPORTED HERE, deliberately. A flat
+      # Multi-field elements are not supported here, deliberately. A flat
       # command line has no way to say which `a.x=` goes with which `a.y=`,
       # and inventing an index syntax would be a language nobody asked for.
       # Every list in this corpus is a list of single-field value objects; a

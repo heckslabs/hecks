@@ -1,7 +1,7 @@
 module Hecks
-  # ISOLATED, ON PURPOSE — the gemspec reads this file directly rather
+  # Isolated, on purpose — the gemspec reads this file directly rather
   # than `require_relative "lib/hecks"` (the whole framework),
-  # specifically so evaluating the gemspec never triggers ANY of this
+  # specifically so evaluating the gemspec never triggers any of this
   # gem's own dependencies (prism among them) before Bundler has even
   # resolved what to install. A real, live chicken-and-egg bug caught
   # deploying to a Ruby version that doesn't bundle prism for free

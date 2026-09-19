@@ -4,7 +4,7 @@ require_relative "../behaviors"
 # `bundle exec rspec` uses to run `.behaviors` files as ordinary examples,
 # one `it` per test, named by the test's own description string. Same
 # shape `spec/guides_spec.rb` uses for doctested guides: the file is
-# PARSED at collection time (cheap — `Behaviors.parse`, no test actually
+# parsed at collection time (cheap — `Behaviors.parse`, no test actually
 # run yet, just enough to know the `it` names), and each test's own
 # `Expectations.run_one` runs lazily inside its own `it`, exactly when
 # rspec actually executes it.

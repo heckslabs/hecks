@@ -12,10 +12,23 @@ module Hecks
 
       module_function
 
+      # @param registry [Runtime::Registry] the booted registry to search
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Object] the aggregate to find projection binds for
+      # @return [Array] the aggregate's declared projection binds, or `[]` if it has none
       def binds_for(registry, domain, aggregate)
         registry.hecksagon(domain)&.binds_for(aggregate.hecks_name, VERB) || []
       end
 
+      # Builds a worker that catches one projection's store up to its authoritative journal.
+      #
+      # @param registry [Runtime::Registry] the booted registry to resolve binds against
+      # @param domain [String] the domain the aggregate belongs to
+      # @param aggregate [Object] the aggregate being projected
+      # @param policy [Symbol] `:refresh` (rebuild from scratch) or `:strict` (refuse on
+      #   divergent history) — see {Worker::VALID_POLICIES}
+      # @return [Worker, nil] a worker for the aggregate's first declared bind, or nil if it
+      #   has no projection bind
       def worker(registry, domain, aggregate, policy: :refresh)
         bind = binds_for(registry, domain, aggregate).first
         return unless bind
@@ -37,7 +50,7 @@ module Hecks
         # The only two policies anything in this codebase ever passes
         # (`bin/project`, every spec) — there is no third, legitimate
         # "lenient append" policy on record anywhere. Before this, any
-        # value OTHER than the exact symbol `:strict` silently fell
+        # value other than the exact symbol `:strict` silently fell
         # through the `consistent?` check below and appended onto
         # divergent history without a word — not just a real typo like
         # `:strikt`, but a caller-supplied String `"strict"` too (this
@@ -49,6 +62,10 @@ module Hecks
         # `:strict` really is meant to be the only enforcing contract.
         VALID_POLICIES = %i[refresh strict].freeze
 
+        # @param authoritative [Object] the authoritative repository to catch the projection up to
+        # @param projection [Object] the projection store being caught up
+        # @param policy [Symbol] one of {VALID_POLICIES}
+        # @raise [ArgumentError] if `policy` isn't one of {VALID_POLICIES}
         def initialize(authoritative, projection, policy: :refresh)
           @authoritative = authoritative
           @projection = projection
@@ -62,6 +79,10 @@ module Hecks
 
         # Invoke from a separate process or scheduler. The command-side write
         # path never calls this method.
+        #
+        # @return [Object] the projection store, now caught up
+        # @raise [Runtime::WiringError] under `:strict` policy, if the projection's own
+        #   history has diverged from the authoritative journal
         def catch_up!
           entries = Queue.new(@authoritative).entries
           present = @projection.entries
@@ -79,6 +100,7 @@ module Hecks
           @projection
         end
 
+        # @return [Integer] how many entries the projection has caught up through so far
         def checkpoint = @projection.entries.length
 
         private
@@ -96,7 +118,10 @@ module Hecks
       # It is committed before a worker sees it; projection entries are the
       # worker's durable checkpoint, so delivery is at-least-once and safe to replay.
       class Queue
+        # @param authoritative [Object] the authoritative repository to read entries from
         def initialize(authoritative) = @authoritative = authoritative
+
+        # @return [Array] the authoritative repository's entries, in journal order
         def entries = @authoritative.entries
       end
     end

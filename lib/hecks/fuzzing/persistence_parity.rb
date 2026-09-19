@@ -4,14 +4,14 @@ require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
-    # THE SECOND DIFFERENTIAL AXIS — bin/qa_sweep's own `diff_ruby_vs_rust`
-    # compares two DIFFERENT ENGINES (the Ruby interpreter vs the compiled
-    # Rust kernel) against the SAME persistence (Memory, always — see
-    # `SequenceGenerator`'s own header: sequence GENERATION stays
+    # The second differential axis — bin/qa_sweep's own `diff_ruby_vs_rust`
+    # compares two different engines (the Ruby interpreter vs the compiled
+    # Rust kernel) against the same persistence (Memory, always — see
+    # `SequenceGenerator`'s own header: sequence generation stays
     # Memory-only, and `IsolatedBoot`'s own header explains why every
     # existing fuzz/replay path structurally cannot reach a real Postgres-
     # bound domain's own SQL compilation). This module compares the
-    # opposite pairing: the SAME ONE Ruby engine, against two DIFFERENT
+    # opposite pairing: the same one Ruby engine, against two different
     # persistences — Memory (the reference, exactly as fast and as
     # deterministic as every other fuzz check) and a real, disposable
     # `PostgresEra` database (the actual SQL compute/rekey/query-pushdown
@@ -27,20 +27,20 @@ module Hecks
     # Memory, unconditionally, no matter what `directory.world` itself
     # declares.
     #
-    # NOT a replacement for `bin/qa_sweep`'s own Ruby-vs-Rust differential
+    # Not a replacement for `bin/qa_sweep`'s own Ruby-vs-Rust differential
     # mode — a genuinely separate axis, opt-in (`--persistence-parity`),
     # because this one pays for a real `PG.connect` and real SQL per
     # dispatch where Memory-vs-Rust pays for neither. See `bin/qa_sweep`'s
     # own `--persistence-parity` handling for the seed-count dial that
     # keeps that cost bounded.
     #
-    # GENERALIZED TO `left:`/`right:` — originally hardcoded to Memory vs
+    # Generalized to `left:`/`right:` — originally hardcoded to Memory vs
     # PostgresEra (the only pairing that existed), now any two of
     # `IsolatedBoot`'s own adapter symbols (`:memory`, `:sqlite`,
     # `:postgres`, `:postgres_era`). Defaults preserve the original
     # pairing exactly, so every existing caller (this file's own spec,
     # `bin/qa_sweep`'s `--persistence-parity`) is unchanged. The second
-    # pairing this generalization exists FOR is Memory vs SQLite
+    # pairing this generalization exists for is Memory vs SQLite
     # (`QualityControlDials::ADAPTER_PARITY_PAIRS`, `bin/qa_sweep`'s own
     # `adapter_parity_sqlite` mode) — `:sqlite` is nearly as cheap as
     # Memory itself (`IsolatedBoot#rebind_to_sqlite!`'s own header: an
@@ -49,7 +49,7 @@ module Hecks
     # loop instead of needing a deferred wave of its own the way
     # PostgresEra does.
     #
-    # `database:`/`schema:` — REQUIRED only when `:postgres_era` is one of
+    # `database:`/`schema:` — required only when `:postgres_era` is one of
     # the two adapters (the caller — today, only `bin/qa_sweep` — owns the
     # disposable database's whole lifecycle: created before the sweep,
     # dropped after — see that script's own comment, and the discipline
@@ -59,21 +59,21 @@ module Hecks
     module PersistenceParity
       module_function
 
-      # THE SAME SIX FIELDS `bin/qa_sweep`'s own `diff_ruby_vs_rust`
+      # The same six fields `bin/qa_sweep`'s own `diff_ruby_vs_rust`
       # compares (its own comment: "instances, events, refusals, queries,
       # sagas, reactions") — deliberately the identical set, so a report
       # this mode produces reads exactly like the sibling mode's own,
       # differing only in which two things were compared, not in what
       # "found something" means.
       #
-      # SIMPLER NORMALIZATION THAN `diff_ruby_vs_rust`, on purpose — that
-      # method reduces Rust's OWN JSON-over-stdout output to "wire
+      # Simpler normalization than `diff_ruby_vs_rust`, on purpose — that
+      # method reduces Rust's own JSON-over-stdout output to "wire
       # precision" and filters known Ruby/Rust structural gaps, because
       # it is comparing two genuinely different engines that are allowed
       # to differ in already-catalogued, understood ways. Both sides here
-      # are the SAME Ruby engine (`Replay.call`, called twice, adapter
+      # are the same Ruby engine (`Replay.call`, called twice, adapter
       # only) — there is no second engine's own known-gap catalogue to
-      # filter against, so any real difference IS the finding. Both
+      # filter against, so any real difference is the finding. Both
       # results still round-trip through `JSON.generate`/`JSON.parse`
       # before comparing, matching `diff_ruby_vs_rust`'s own discipline —
       # not because either side needs a wire-format reduction, but so

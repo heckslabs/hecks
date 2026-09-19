@@ -12,7 +12,7 @@ module Hecks
     # method differs.
     module FieldRenderer
       # `values` is the nested hash a sticky re-render (a rejected command,
-      # a submitted query) carries back — read with the SAME dotted path a
+      # a submitted query) carries back — read with the same dotted path a
       # Field already carries, via `dig`. `reference_options` maps a
       # `:reference` field's own path to `[[id, label], ...]`, built by the
       # caller (it needs a repository; this module stays pure markup).
@@ -148,17 +148,17 @@ module Hecks
         { required: field.required?, aria_describedby: field.help ? "#{dom_id(field.path)}-help" : nil }
       end
 
-      # `values` is a nested hash; `path` a dotted string using the SAME
+      # `values` is a nested hash; `path` a dotted string using the same
       # segment spelling the hash keys are built from (`leaf_key` in
       # params.rb) — symbols one level down from a group, strings at the
       # flat top when a sticky POST re-render hands raw params back untouched.
       def self.dig(values, path)
         return nil unless values.is_a?(Hash)
 
-        # A sticky re-render after a refused submission hands back the RAW
+        # A sticky re-render after a refused submission hands back the raw
         # flat params (`{"amount.cents"=>"1050"}` — the same shape the form
         # posted, string values and all, dotted key intact) ; a prefill from
-        # an existing record's own state hands back a NESTED hash instead
+        # an existing record's own state hands back a nested hash instead
         # (`{amount: {cents: 1050}}`). Flat wins when both would answer,
         # since only the raw form is ever what the caller actually typed.
         # `key?` decides which spelling answers, at every step below —

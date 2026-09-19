@@ -14,32 +14,32 @@ require_relative "properties/outbox"
 
 module Hecks
   module Fuzzing
-    # Declared properties, checked over a REPLAYED history — the other
+    # Declared properties, checked over a replayed history — the other
     # half of property-based testing the fuzzer was missing: it already
     # generates and (with bin/fuzz's shrinker) minimizes, but checked
     # nothing beyond "did the interpreter crash" and "did the replay
     # match the claim." A property here is a fact that should hold of
-    # ANY history a valid domain produces, independent of which seed
+    # any history a valid domain produces, independent of which seed
     # produced it.
     #
     # Each property is `name => ->(history) { true/false, or a message
     # string naming what broke }` — a truthy return (including `true`)
-    # is a pass; a String return is a failure, and the string IS the
+    # is a pass; a String return is a failure, and the string is the
     # finding. `history` is Replay's return shape.
     #
-    # EVERY PROPERTY DECLARES THE LANGUAGE FEATURE IT COVERS, in
+    # Every property declares the language feature it covers, in
     # `FEATURE_COVERAGE` below — a "Construct#attribute" pair spelled
     # exactly as `Bluebook::MetaValidator.grammar_registry` names it,
-    # the SAME meta-domain that judges every real bluebook (see that
+    # the same meta-domain that judges every real bluebook (see that
     # module's own header: "the language IS the source"). That is the
     # link this file exists to make real: a construct the language
     # declares is a fact `spec/meta_domain_coverage_spec.rb` can
     # enumerate on its own, without anyone re-typing the list here —
     # so a new attribute added to `language/bluebook/*.bluebook` shows
-    # up in that spec as UNCLAIMED the moment it lands, not whenever
+    # up in that spec as unclaimed the moment it lands, not whenever
     # someone remembers to go looking. Claiming a feature here is a
     # deliberate act (a real property, checked at least once failing
-    # AND once passing — `spec/fuzzing/properties_spec.rb`'s own
+    # and once passing — `spec/fuzzing/properties_spec.rb`'s own
     # discipline) or an explicit, reasoned exemption in that same
     # spec — never silence.
     module Properties
@@ -64,11 +64,11 @@ module Hecks
 
       module_function
 
-      # WHICH LANGUAGE FEATURE EACH PROPERTY IS ANSWERABLE FOR. Not
+      # Which language feature each property is answerable for. Not
       # exhaustive of everything a property's body happens to touch —
       # `Command#attributes`, say, is exercised by nearly every property
-      # here without being what any of them was WRITTEN to guard — but
-      # exhaustive of the feature that would go UNCHECKED if this
+      # here without being what any of them was written to guard — but
+      # exhaustive of the feature that would go unchecked if this
       # property did not exist. That is the question the coverage gate
       # actually asks.
       FEATURE_COVERAGE = {
@@ -80,17 +80,17 @@ module Hecks
         authorize_scopes_or_refuses:                      %w[Query#options],
         guard_refusals_are_declared:                      %w[Command#givens Command#ensures],
         lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions Entity#preconditions],
-        # Dispatch#command_name/Dispatch#with_spec are NOT claimable
-        # feature names — META_DOMAIN_ALL_FEATURES only walks ONE level
+        # Dispatch#command_name/Dispatch#with_spec are not claimable
+        # feature names — META_DOMAIN_ALL_FEATURES only walks one level
         # of entity nesting (`agg.entities.flat_map`, meta_domain_
-        # coverage_spec.rb), and Dispatch sits TWO deep (ProcessManager
+        # coverage_spec.rb), and Dispatch sits two deep (ProcessManager
         # -&gt; Handler -&gt; Dispatch), so those strings never exist there
         # to claim — a pre-existing meta-domain coverage-generation gap,
         # found here (their old META_DOMAIN_KNOWN_GAPS entries were
         # themselves already-orphaned strings no completeness check ever
         # verified, since KNOWN_GAPS has no "never lets a gap rot" check
         # the way FEATURE_COVERAGE/GUARANTEED_BY_CONSTRUCTION both do).
-        # This property still closes the REAL behavior both would have
+        # This property still closes the real behavior both would have
         # named — a Dispatch's own command_name/with_spec are exactly
         # what dispatch_args resolves and this property checks — the
         # grammar just has no feature string for either one.
@@ -102,29 +102,29 @@ module Hecks
         aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field],
         stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants Entity#invariants],
         group_by_matches_recompute:                       %w[ReadModel#group_by],
-        # A RUNTIME DOOR, NOT A GRAMMAR CONSTRUCT — `Dispatcher#dry_run?`
+        # A runtime door, not a grammar construct — `Dispatcher#dry_run?`
         # is something an application asks of a booted domain, not a
         # word a bluebook can declare, so there is no feature string
         # for it to claim. Listed (empty) rather than omitted so the
         # discipline this table states — every property names what it
         # is answerable for — has no silent exception.
         dry_runs_leave_no_trace:                          [],
-        # ANOTHER RUNTIME DOOR, NOT A GRAMMAR CONSTRUCT — same reasoning
+        # Another runtime door, not a grammar construct — same reasoning
         # as dry_runs_leave_no_trace right above: `Runtime::Outbox` is
         # something a persistence adapter provides underneath a booted
         # domain, never a word a bluebook declares.
         outbox_rows_match_reactions:                      [],
-        # THE `corrects` MUTATION'S OWN TARGET — this property reads
+        # The `corrects` mutation's own target — this property reads
         # `command.mutations.select { op == :corrects }` and asks whether
         # the event each one names was ever actually emitted, so the
         # feature it answers for is the mutation list, the same one
         # `mutations_match_recompute` reads for a different question.
-        # (NOT `Command#references`: that field is the dangling-reference
+        # (Not `Command#references`: that field is the dangling-reference
         # question no property asks yet, and it stays a named gap.)
         corrections_reference_an_emitted_event:           %w[Command#mutations],
-        # NO FEATURE STRING EXISTS FOR WHAT THIS ONE READS. It depends on
+        # No feature string exists for what this one reads. It depends on
         # an argument's own `relationship` (which reference-typed argument
-        # points at which aggregate) — but `Argument` is a VALUE OBJECT,
+        # points at which aggregate) — but `Argument` is a value object,
         # and the meta-domain walk enumerates aggregate and entity fields
         # only, so no `Argument#…` name is claimable. The declaration side
         # it shares with queries, `authorize …, tenant:`, is
@@ -135,36 +135,36 @@ module Hecks
         commands_respect_tenant_scope:                    []
       }.freeze
 
-      # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
-      # RUNTIME'S OWN CONSTRUCTION makes the violation impossible to
+      # Features a replay property could never catch violated, because the
+      # runtime's own construction makes the violation impossible to
       # produce in the first place — not "untested," but unfalsifiable by
       # a history, the same class of guarantee this codebase already
-      # states for identity ("NOTHING IS MINTED" — command_interpreter.rb's
-      # own header) and now generalises. Each entry names the ONE place in
+      # states for identity ("nothing is minted" — command_interpreter.rb's
+      # own header) and now generalises. Each entry names the one place in
       # the runtime that makes it true, universally, for every domain and
       # every adapter — never per-domain logic a future domain could
       # accidentally route around.
       #
-      # THE BLUEBOOK/HECKSAGON BOUNDARY IS WHY THIS WORKS: a bluebook
-      # declares SHAPE (attribute types, patterns, closed sets, VO
+      # The bluebook/hecksagon boundary is why this works: a bluebook
+      # declares shape (attribute types, patterns, closed sets, VO
       # invariants — see docs/decisions/0009), and shape is enforced by
-      # ONE coercion door every domain's every attribute passes through
+      # one coercion door every domain's every attribute passes through
       # (`Runtime::Value.build`, via value/coercion.rb + value/admission.rb)
       # regardless of which hecksagon later binds the aggregate to Memory,
       # Postgres, or anything else. A value that violated its own declared
-      # pattern, invariant, or closed set could never be COERCED, so it
-      # could never be STORED, so it could never appear in a replay's own
+      # pattern, invariant, or closed set could never be coerced, so it
+      # could never be stored, so it could never appear in a replay's own
       # `:instances` to be caught violating it. Checking for it after the
       # fact would be watching for something the construction path already
       # made impossible.
       #
-      # NOT a place to hide a real gap — a feature belongs here only once
-      # the SPECIFIC enforcing code path has been read and confirmed, the
+      # Not a place to hide a real gap — a feature belongs here only once
+      # the specific enforcing code path has been read and confirmed, the
       # same discipline `spec/fuzzing/meta_domain_coverage_spec.rb` demands
       # of `KNOWN_GAPS` in the other direction. `Entity#identified_by` was
-      # checked FOR this category once before and found NOT to qualify —
+      # checked for this category once before and found not to qualify —
       # `command_interpreter.rb`'s `AlreadyExists` refusal was given to
-      # every CREATING AGGREGATE command uniformly, and MutationApplier
+      # every creating aggregate command uniformly, and MutationApplier
       # (command_interpreter/mutation_applier.rb) had no matching check on
       # an entity's own append. It does now: #check_entity_collision runs
       # unconditionally on both branches an entity identity can arrive by
@@ -222,7 +222,7 @@ module Hecks
         # ValueObject), so this reads "Member#pairs", not "Member#shape" —
         # the free-text, un-parsed spelling a standalone root once needed
         # no longer exists at all, an entity's own element is never
-        # serialized as text. "ValueObject#members" is the SAME fact
+        # serialized as text. "ValueObject#members" is the same fact
         # "ValueObject#rows" already counts, seen from the other side — a
         # value object cannot declare admitted rows without a members list
         # to hold them, and vice versa.
@@ -230,8 +230,8 @@ module Hecks
         "Member#pairs"            => "one level into ValueObject#rows — same door"
       }.freeze
 
-      # THE STANDARD BATTERY, run over one replayed history — everything
-      # except determinism, which needs to replay TWICE itself and so
+      # The standard battery, run over one replayed history — everything
+      # except determinism, which needs to replay twice itself and so
       # takes the steps directly rather than a single history.
       def check(history)
         { lifecycle_values_are_declared:                    lifecycle_values_are_declared(history),

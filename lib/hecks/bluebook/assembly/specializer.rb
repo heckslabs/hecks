@@ -1,21 +1,21 @@
 module Hecks
   module Bluebook
     class Assembly
-      # THE FIRST SPECIALIZER — a projection of `contracts.rb`'s `fields:` table,
+      # The first specializer — a projection of `contracts.rb`'s `fields:` table,
       # derived from the language's own description of a category instead of
       # hand-written beside it.
       #
       # `Plan` already reads `grammar_registry` to build the judge's walk ; this
-      # reads the same chapter to build the OTHER table this arc's own header
-      # names as duplication — "SPELLED AS THE IR SPELLS THEM," field for field,
+      # reads the same chapter to build the other table this arc's own header
+      # names as duplication — "spelled as the IR spells them," field for field,
       # for every category simple enough to say so.
       #
-      # ONE CASE, PROVEN, NOT THE WHOLE TABLE. A field this can speak for is
+      # One case, proven, not the whole table. A field this can speak for is
       # scalar and not a reference — every other field (a list, a reference, a
       # fold like Lifecycle) is exactly what `contracts.rb`'s `reads:`/`derived:`
       # exist to say, and stays hand-written until a later projection learns to
       # derive readers and folds too. Restricting the claim to what can be
-      # PROVEN CORRECT — checked in spec/specializer_spec.rb against two
+      # proven correct — checked in spec/specializer_spec.rb against two
       # independent categories — is the same discipline `derived:` itself
       # enforces : a claim needs a kind, and this one's kind is "plain, checked."
       module Specializer
@@ -41,13 +41,13 @@ module Hecks
           nil
         end
 
-        # `position` IS THE FIRST FOLD THIS RUNS INTO : a category declares
-        # `attribute :position, Position` — for the JUDGE's own walk,
+        # `position` is the first fold this runs into : a category declares
+        # `attribute :position, Position` — for the judge's own walk,
         # `order_by :position` on its `DeclaredIn` ask — but no `*`
         # constructor takes it as an argument. `contracts.rb` already says so,
         # in the language every other derived field speaks :
-        # `derived: { position: :walk }`. The language says a category HAS a
-        # position ; it does not say a category's OWN constructor is handed
+        # `derived: { position: :walk }`. The language says a category has a
+        # position ; it does not say a category's own constructor is handed
         # one, and that second fact is exactly what `fields:` needs to answer.
         # So the skip reads the category's own walk claims (`Contract#walked`)
         # rather than restating `position` here — Handler, which has no

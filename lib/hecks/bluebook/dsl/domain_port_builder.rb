@@ -14,15 +14,15 @@ module Hecks
 
         include WordGate
 
-        # `legacy_bare_port:` — ONLY `Hecks.port`'s own top-level method
+        # `legacy_bare_port:` — only `Hecks.port`'s own top-level method
         # (lib/hecks.rb) passes `true`. `PortBuilder#build` never refused
         # an empty build (no verb, no signal, nothing) — `Port.new(verb:
         # nil, signal: :reply)` is a real, allowed shape dsl_spec.rb's own
         # "a port" tests rely on (`signal`-only, no `verb` at all). The
-        # AGGREGATE-scoped (`BindingProxy#port`) and hecksagon-ROOT
-        # (`HecksagonBuilder#port_impl`) callers both reach this SAME
+        # aggregate-scoped (`BindingProxy#port`) and hecksagon-root
+        # (`HecksagonBuilder#port_impl`) callers both reach this same
         # class with `owner: nil` too when they're building the bare-verb
-        # shape (`port_impl`'s own root-level port can be EITHER shape,
+        # shape (`port_impl`'s own root-level port can be either shape,
         # decided only after `build` returns) — so `owner.nil?` cannot be
         # the discriminator between "old Hecks.port semantics" and "real
         # DomainPort semantics"; those two callers correctly want the
@@ -38,14 +38,14 @@ module Hecks
           @legacy_bare_port = legacy_bare_port
         end
 
-        # WHAT THE OUTSIDE TELLS US — an external fact arriving, translated
+        # What the outside tells us — an external fact arriving, translated
         # into this domain's own word for it. Spelled `operation` before it
         # had a twin, and `operation` still works: the corpus is full of it,
         # and renaming a word costs every chapter that uses it for no gain a
         # reader can feel.
         #
-        # RENAMED FROM `tells` — item #13's full metaprogrammed dispatch
-        # (slice 4c). `operation`/`tells` are TWO separate Keyword rows
+        # Renamed from `tells` — item #13's full metaprogrammed dispatch
+        # (slice 4c). `operation`/`tells` are two separate Keyword rows
         # (a word admitting two forms) that both name `calls: "tells_impl"`
         # — the routing between the two spellings now lives in the table,
         # not in a Ruby `alias`. Not bootstrap-reachable (checked
@@ -54,24 +54,24 @@ module Hecks
           @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :inbound, &)
         end
 
-        # WHAT WE ASK OF THE OUTSIDE — the direction this language did not
-        # have. Before this, a domain could be CALLED by an adapter and never
+        # What we ask of the outside — the direction this language did not
+        # have. Before this, a domain could be called by an adapter and never
         # call one. An `asks` is dispatched like any other port operation, so
         # a `policy` can trigger it off an event, and it comes back as one of
         # the two events it named — which is what makes the outside world
         # something the model can reason about rather than a place exceptions
         # come from.
         #
-        # RENAMED FROM `asks` — item #13's full metaprogrammed dispatch
+        # Renamed from `asks` — item #13's full metaprogrammed dispatch
         # (slice 4c), same reasoning as tells_impl above.
         def asks_impl(name, to: nil, &)
           @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :outbound, &)
         end
 
-        # THE DRIVEN HALF OF THE SAME WORD. `operation`/`emits` translates an
+        # The driven half of the same word. `operation`/`emits` translates an
         # inbound fact into this domain's own event vocabulary — there is no
         # channel back to a caller beyond the events it emits. `verb` is the
-        # opposite direction: the domain calling OUT to a swappable adapter
+        # opposite direction: the domain calling out to a swappable adapter
         # and getting a real value back (a checkout URL, a fetched document),
         # exactly what `Hecks.port "name" do verb "x" end` already builds —
         # this is that same `Port`, reached from the same `port` call
@@ -85,7 +85,7 @@ module Hecks
 
         # `Hecks.port "x" do verb "y"; signal :effect end`'s own two words,
         # reachable here too — a bare-verb `DomainPortBuilder.build` falls
-        # back to the SAME `Port` object `PortBuilder` produces (`build`,
+        # back to the same `Port` object `PortBuilder` produces (`build`,
         # below), so any `.port` file can migrate to being parsed by this
         # builder with zero change to its own text, or to any caller that
         # reads `.verb`/`.signal` off the `Port` it gets back. Ordinary
@@ -96,7 +96,7 @@ module Hecks
         def verb(value)   = @verb = value.to_s
         def signal(value) = @signal = value.to_sym
 
-        # THE METHOD CONTRACT — `PortBuilder#answers`'s own twin, added
+        # The method contract — `PortBuilder#answers`'s own twin, added
         # here after the fact: a `.port` file migrated to parse through
         # this builder (the repoint `lib/hecks.rb#port`'s own comment
         # describes) can still declare one (`extraction.port`'s own

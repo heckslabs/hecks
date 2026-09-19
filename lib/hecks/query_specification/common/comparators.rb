@@ -9,8 +9,8 @@ module Hecks
   module QuerySpecification
     module Common
       # `none_in_state`, vendored addition not (yet) upstream hecks
-      # (migration plan task 4): a CROSS-AGGREGATE ANTI-JOIN comparator --
-      # `where ref: { none_in_state: "Claim:held" }` holds true when NO
+      # (migration plan task 4): a cross-aggregate anti-join comparator --
+      # `where ref: { none_in_state: "Claim:held" }` holds true when no
       # record in the named aggregate, keyed by this record's own field
       # value, is currently in the named state. plan.bluebook's own
       # description: "a keyed point lookup (HashMap hit), never a scan" --

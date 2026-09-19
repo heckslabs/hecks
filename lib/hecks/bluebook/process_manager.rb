@@ -3,8 +3,8 @@ require_relative "../ir"
 
 module Hecks
   module Bluebook
-    # `compensates` — a SECOND `DispatchSpec`, shape-identical to this
-    # one, naming the command that undoes THIS dispatch specifically
+    # `compensates` — a second `DispatchSpec`, shape-identical to this
+    # one, naming the command that undoes this dispatch specifically
     # (see `ProcessManagerBuilder::HandlerBuilder#dispatch_impl`'s own
     # comment). `nil` for a dispatch with nothing to undo (a pure
     # bookkeeping mark, or one whose own effect is superseded by a later
@@ -14,7 +14,7 @@ module Hecks
     # used" bar would refuse a second level speculatively.
     DispatchSpec = Struct.new(:command_name, :with_spec, :compensates, keyword_init: true) do
       # A Struct already answers to_h; including the mixin puts the
-      # DECLARED emission ahead of Struct's own in the ancestry, which
+      # declared emission ahead of Struct's own in the ancestry, which
       # is what makes the shape data rather than a method body.
       include Hecks::IR
 
@@ -39,32 +39,32 @@ module Hecks
 
     # The compensation half of a procedure, as its own thing.
     #
-    # A PROCESS MANAGER coordinates: legs, states, an opinion about who goes
-    # next. A SAGA undoes: what makes the world good again when a leg it
+    # A process manager coordinates: legs, states, an opinion about who goes
+    # next. A saga undoes: what makes the world good again when a leg it
     # dispatched is refused. Two concepts, and the industry slurs them into one
     # word — so here they are two objects, and a procedure either has a saga or
     # does not.
     #
     # `undoes` is the ordered list of commands the compensation sends — a
-    # STATIC PREVIEW, declaration order (`Behaviour::ProcessManager#saga`),
+    # static preview, declaration order (`Behaviour::ProcessManager#saga`),
     # not one instance's own runtime history. Per-dispatch compensation
     # (`compensates`, on the step it compensates for) moved most of what
     # a saga undoes off this leg's own hand-written body and onto
     # whichever forward dispatch each one undoes — this reads every
-    # declared `compensates` across the WHOLE saga first, then whatever
+    # declared `compensates` across the whole saga first, then whatever
     # this leg's own hand-written body still lists, for compensation
-    # that isn't expressible as "undo command X." WHICH of a declared
+    # that isn't expressible as "undo command X." which of a declared
     # `compensates` actually fires for one instance, and in what order
     # (newest-first, completed-legs-only), is `SagaInterpreter`'s own
     # dynamic `completed_compensations` — a per-instance runtime fact
     # this declaration-only object could never hold.
     #
-    # NAMING COLLISION, ONCE FLAGGED, NOW RESOLVED — `command`'s own
+    # Naming collision, once flagged, now resolved — `command`'s own
     # `corrects event, reverses: true` (docs/implemented/decisions/0036-
     # corrects-is-an-appended-fact-not-a-rewrite.md) already claimed
-    # `reverses` for a different meaning: auto-deriving a command's OWN
-    # corrective mutation from a past EVENT, not a saga's own
-    # compensating leg from a past DISPATCH. This feature keeps
+    # `reverses` for a different meaning: auto-deriving a command's own
+    # corrective mutation from a past event, not a saga's own
+    # compensating leg from a past dispatch. This feature keeps
     # `reverses` reserved for `corrects` and uses `compensates` for
     # per-dispatch saga compensation instead — a deliberate choice, not
     # an accidental collision.
@@ -78,10 +78,10 @@ module Hecks
     # produced by `DSL::ProcessManagerBuilder` — its start/end events,
     # correlation field, derived states, and handler rows. Its
     # compensation half (`saga`, `Behaviour::ProcessManager#saga`) is
-    # DERIVED from the handler answering `REFUSED`, below, not declared as
+    # derived from the handler answering `REFUSED`, below, not declared as
     # its own construct.
     class ProcessManager
-      # The BLUEBOOK's name for this construct, asked the same way of a class
+      # The bluebook's name for this construct, asked the same way of a class
       # that has crossed over and of an IR object that has not. Collapses into
       # Construct when this one crosses.
       # The trigger of a compensating leg. Not an event name — no aggregate

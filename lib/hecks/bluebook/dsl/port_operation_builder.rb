@@ -14,7 +14,7 @@ module Hecks
         include AttributeCollector
         include WordGate
 
-        # `to:` — THE SANCTIONED REPLACEMENT for `reference_to` inside an
+        # `to:` — the sanctioned replacement for `reference_to` inside an
         # operation body, added here rather than left as a documented-but-
         # unbuilt promise: reference_to_impl's own refusal message has told
         # authors to "pass the receiving aggregate in to:" since #335, but
@@ -23,16 +23,16 @@ module Hecks
         # confirmed by grep across every lib/hecks/language file, not
         # assumed.
         #
-        # GENUINE ROUTING METADATA, NOT AN ATTRIBUTE — matching
+        # Genuine routing metadata, not an attribute — matching
         # rust/parser/src/parse/domain_port.rs's own header comment ("The
         # receiving aggregate is routing metadata supplied by to:, not an
         # operation attribute"), which anticipated this shape before either
         # side actually built it. Stored separately (below, threaded to
         # PortOperation as `to:`) rather than reusing reference_to_impl's
         # own attribute-adding path — Dispatcher#port_invocation
-        # (lib/hecks/runtime/dispatcher.rb) is the ONE place that resolves
+        # (lib/hecks/runtime/dispatcher.rb) is the one place that resolves
         # routing at dispatch time; it gained a second, purely additive
-        # branch for this (falls back to a plain attribute NAMED for the
+        # branch for this (falls back to a plain attribute named for the
         # owning aggregate's own identified_by field, the same "declare
         # only external facts with attribute" the refusal message
         # describes) rather than folding `to:` into identity_attribute's
@@ -47,21 +47,21 @@ module Hecks
           @emits     = []
         end
 
-        # ALWAYS an attribute, never the self-reference `CommandBuilder`
+        # Always an attribute, never the self-reference `CommandBuilder`
         # spells — a port operation has no `creates?`/`acts_on` distinction
         # to protect, so there is nothing for the self-reference branch to be
-        # FOR here. `reference_to Payment, as: :payment_id` reads the same
+        # for here. `reference_to Payment, as: :payment_id` reads the same
         # even though the target happens to equal the owning aggregate.
-        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        # Renamed from `reference_to` — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable, in
         # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
         #
-        # DISABLED, #335 — kept only for MetaValidator's own shadow-parsing
+        # Disabled, #335 — kept only for MetaValidator's own shadow-parsing
         # pass (the self-hosted grammar's own KeywordSeed/ArgumentSeed rows
         # for "reference_to" in this context are themselves declared using
         # this construct, one level up — deleting the Ruby method would
         # break the language describing itself, not just old domain
-        # authors). Every REAL domain author reaches `to:` instead, above —
+        # authors). Every real domain author reaches `to:` instead, above —
         # a genuinely different mechanism now, not a relocated spelling of
         # this one (see `to:`'s own comment).
         def reference_to_impl(type, as: nil)
@@ -76,7 +76,7 @@ module Hecks
 
         def emits(event_name) = @emits << event_name.to_s
 
-        # THE TWO HALVES OF AN `asks`. An outbound call has exactly two
+        # The two halves of an `asks`. An outbound call has exactly two
         # endings and the chapter names both — `answers` for what came back,
         # `refuses` for what the outside said instead. They are separate words
         # rather than two `emits` because a reader has to be able to tell them
@@ -96,7 +96,7 @@ module Hecks
             direction: @direction, answers: @answers, refuses: @refuses, to: @to
           )
 
-          # AN INBOUND OPERATION STILL HAS TO SAY SOMETHING. Only inbound: an
+          # An inbound operation still has to say something. Only inbound: an
           # `asks` says it with `answers`/`refuses` instead, and
           # `refuse_wrong_words!` above has already insisted on both.
           if !outbound && @emits.empty?
@@ -110,7 +110,7 @@ module Hecks
 
         private
 
-        # THE ONE PLACE a reference attribute actually gets added — both
+        # The one place a reference attribute actually gets added — both
         # `to:` (initialize, above) and reference_to_impl's own shadow-
         # parsing branch call this, so there is exactly one real
         # implementation of "carry a Reference-typed external fact,"
@@ -120,7 +120,7 @@ module Hecks
           attribute_impl(as || default_reference_name(target), Reference.new(target))
         end
 
-        # EACH DIRECTION REFUSES THE OTHER'S WORDS. `emits` on an `asks` looks
+        # Each direction refuses the other's words. `emits` on an `asks` looks
         # right and is not: it would name one ending and leave the other
         # nowhere. `answers` on a `tells` is worse — there is no channel back
         # to an inbound caller at all, so it would read as a promise the

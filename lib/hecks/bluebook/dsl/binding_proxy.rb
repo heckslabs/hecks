@@ -20,10 +20,10 @@ module Hecks
           @collector = collector
         end
 
-        # THE AGGREGATE-SCOPED PORT — `Payments::Payment.port("Gateway") do
+        # The aggregate-scoped port — `Payments::Payment.port("Gateway") do
         # ... end`, the same receiver a plain bind like `.persisted_by(...)`
         # already reaches, because a port belongs to exactly one aggregate
-        # the same way a bind does. A REAL method, not method_missing : its
+        # the same way a bind does. A real method, not method_missing : its
         # shape (a name and a block building operations) has nothing to do
         # with `Bind`, so it does not belong in that generic verb path.
         def port(name, &block)

@@ -4,8 +4,8 @@ require_relative "resolver"
 module Hecks
   module Bluebook
     module Expression
-      # THE INVERSE OF `AstJson` — reads the `"op"`-tagged JSON a rule row
-      # carries as `ast` back into the SAME `Evaluator`/`Resolver` node
+      # The inverse of `AstJson` — reads the `"op"`-tagged JSON a rule row
+      # carries as `ast` back into the same `Evaluator`/`Resolver` node
       # Structs `Evaluator.parse` builds from `canonical`. This is how the
       # runtime evaluates a rule without re-parsing its text: the one
       # parse happened at DSL-build time, behind `AstJson`; dispatch walks
@@ -19,7 +19,7 @@ module Hecks
       # the spec proved the round trip first, then the runtime adopted it.
       #
       # One deliberate asymmetry, inherited: `AstJson` rewrites a
-      # LITERAL-array `.include?` into an OR of equalities (see
+      # literal-array `.include?` into an or of equalities (see
       # `emit_include`), so reading never produces an `Include` over an
       # `ArrayLiteral`. Evaluation is unchanged by that rewrite, which is
       # exactly what the equivalence spec pins.

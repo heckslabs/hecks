@@ -8,7 +8,7 @@ module Hecks
       # leftover source keys, and id-set conservation across the edge.
       module LayerTwo
         # Per-rule value preservation and leftover source keys are checked
-        # against the reference transform IN FULL — never rule by rule in
+        # against the reference transform in full — never rule by rule in
         # isolation, because rules interact (a rename whose value a later
         # move partially consumes preserves exactly what the transform
         # says it preserves, no more). This makes every mint a run of the
@@ -17,7 +17,7 @@ module Hecks
         # transform produces `expected`; they must agree byte-for-byte on
         # every path a compute doesn't own. Compute paths are exempt — the
         # SQL is their only implementation, and the Layer-3 sample is
-        # their only review. A rekeyed aggregate is exempt from this WHOLE
+        # their only review. A rekeyed aggregate is exempt from this whole
         # per-record check, for the same reason and one more: there is no
         # old-id → new-id correspondence to look `after` up by once the id
         # itself is what changed.
@@ -44,9 +44,9 @@ module Hecks
         # `after`, and whether the edge rekeyed, never the declared rules
         # themselves.
         def check_id_conservation!(violations, aggregate, before, after, rekeyed:)
-          # A rekey legitimately changes the id SET (that's the entire
+          # A rekey legitimately changes the id set (that's the entire
           # point) — set-equality would flag every honest rekey as data
-          # loss. What must still hold is RECORD COUNT: a botched rekey
+          # loss. What must still hold is record count: a botched rekey
           # colliding two distinct old ids onto one new id, or dropping one
           # (its SQL returning NULL), shows up as the count going down —
           # caught here without needing to track the old→new mapping
@@ -93,7 +93,7 @@ module Hecks
         # top-level attribute it happens to live under. A bare path
         # ("price_cents") is itself the compute's entire value — dropping
         # the whole top-level key is correct, there's nothing else there
-        # to check. A DOTTED path ("price.cents") only owns that one
+        # to check. A dotted path ("price.cents") only owns that one
         # member of the value object it reaches into; every sibling
         # member (e.g. "price.currency") is untouched by the compute and
         # must stay subject to the equivalence check below. Blanket-

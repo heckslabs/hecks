@@ -1,24 +1,24 @@
 module Hecks
   module Bluebook
-    # WHICH REGEXES A BLUEBOOK MAY SAY.
+    # Which regexes a bluebook may say.
     #
     # A `pattern:` is a fact about a value, carried in a bluebook — declared
     # data, not Ruby code, so it must not lean on what any one engine happens
     # to accept. Regex engines disagree in two different ways :
     #
-    #   ONLY A BACKTRACKING ENGINE CAN MATCH IT — lookahead, lookbehind,
+    #   only a backtracking engine can match it — lookahead, lookbehind,
     #   backreferences, atomic groups, possessive quantifiers. None of these
     #   can be matched in linear time, and linear-time engines refuse them
     #   outright. Refused here for the same reason.
     #
-    #   EVERY ENGINE PARSES IT AND THEY MEAN DIFFERENT THINGS — the dangerous
-    #   half, because nothing errors. `\d` `\w` `\s` are ASCII in some engines
+    #   every engine parses it and they mean different things — the dangerous
+    #   half, because nothing errors. `\d` `\w` `\s` are ascii in some engines
     #   and Unicode in others ; `[:digit:]` and friends flip the same way in
     #   the other direction. Both families are refused, and a domain spells
     #   the range it means.
     #
     # What remains — explicit ranges, alternation, quantifiers, anchors,
-    # groups — reads identically everywhere, with `^` and `$` as LINE anchors
+    # groups — reads identically everywhere, with `^` and `$` as line anchors
     # (Ruby's reading). The evidence is spec/corpus/fixtures/patterns.json.
     module PatternSubset
       Rejection = Struct.new(:construct, :reason)
@@ -57,13 +57,13 @@ module Hecks
 
       # nil when the pattern is admitted, a Rejection when it is not.
       #
-      # A CHARACTER WALK, deliberately plain : the subset is defined by this
+      # A character walk, deliberately plain : the subset is defined by this
       # walk, and a cleverer spelling would hide what it admits. An escaped
-      # construct is a LITERAL, not a violation — `\(\?=` is the three
+      # construct is a literal, not a violation — `\(\?=` is the three
       # characters "(?=" and says nothing about lookahead — which is why this
       # steps over each backslash pair rather than matching the pattern as a
       # whole.
-      # One character walk is the subset's DEFINITION (see the method
+      # One character walk is the subset's definition (see the method
       # comment above): each construct-check is a branch in a single
       # ordered pass sharing `index`/`in_class`/`class_start`. Splitting
       # the branches into separate methods would force those three cursor
@@ -75,7 +75,7 @@ module Hecks
       def validate(pattern)
         chars = pattern.to_s.chars
         index = 0
-        # A CHARACTER-CLASS INTERIOR IS A DIFFERENT ALPHABET : inside `[...]`,
+        # A character-class interior is a different alphabet : inside `[...]`,
         # `*`, `+`, `?`, `(`, `?` are literal characters, not quantifiers or
         # group syntax — `[*+]` means "a literal asterisk or plus". `]` is
         # only the class's close when it isn't the first character after `[`
@@ -132,7 +132,7 @@ module Hecks
         nil
       end
 
-      # SPELLED OUT, not derived from the key : these strings are the refusal
+      # Spelled out, not derived from the key : these strings are the refusal
       # a caller reads.
       CONSTRUCTS = {
         backreference:       "backreference",
@@ -156,7 +156,7 @@ module Hecks
       end
 
       # A possessive quantifier is `*+`, `++`, `?+`, or a bounded `{n}`/{n,m}`
-      # immediately followed by `+` — only checked OUTSIDE a character class,
+      # immediately followed by `+` — only checked outside a character class,
       # where `*`, `+`, `?`, `{`, `}` are quantifier syntax rather than
       # literal characters.
       def possessive_at?(chars, index)

@@ -7,7 +7,7 @@ module Hecks
       # and — where the store can hold one — a recorded event beside the
       # data it describes.
       module Emission
-        # `correlation` arrives HERE rather than being merged onto the
+        # `correlation` arrives here rather than being merged onto the
         # event afterwards. It is part of the transaction — known from
         # `dispatch`'s own argument before anything is emitted — and an
         # event that is still being written to is not yet a record of

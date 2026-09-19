@@ -3,25 +3,25 @@ require_relative "bootstrap_table"
 module Hecks
   module Bluebook
     module DSL
-      # ITEM #13's FULL METAPROGRAMMED DISPATCH — slices 1-2 of 4, whole-
+      # Item #13's full metaprogrammed dispatch — slices 1-2 of 4, whole-
       # project table-unification survey. WordGate (the first slice,
-      # already shipped) only CHECKS a word's admissibility; this module
-      # EXECUTES the safe, mechanical subset of what a word actually
-      # DOES, read live off the SAME self-hosted grammar table — so a
+      # already shipped) only checks a word's admissibility; this module
+      # executes the safe, mechanical subset of what a word actually
+      # does, read live off the same self-hosted grammar table — so a
       # builder method for one of these words no longer needs to be
       # hand-written at all. Called from `WordGate#method_missing`'s own
       # "admitted here, no builder method for it yet" branch, so it only
       # ever sees a word whose (context, word) pair the grammar already
       # admits.
       #
-      # SCOPE, deliberately narrow and VERIFIED word-by-word — a full
+      # Scope, deliberately narrow and verified word-by-word — a full
       # audit read every real Ruby builder method's own source before
       # any of this was written, not inferred from the table's shape
       # alone (which fooled a first pass: `ReadModelBuilder#group_by`/
-      # `#include` LOOK like plain fills from `kind`/`fills` alone, but
+      # `#include` look like plain fills from `kind`/`fills` alone, but
       # actually wrap their arguments in a Hash/tuple). What's covered:
       #
-      #   - a SINGLE, non-variadic, positional Argument row whose value
+      #   - a single, non-variadic, positional Argument row whose value
       #     is stored with nothing beyond a uniform, kind-driven
       #     coercion (`COERCE_BY_KIND`) — or, for `kind: "text"`, no
       #     coercion at all when the row's own `coerce: "false"` says so
@@ -29,43 +29,43 @@ module Hecks
       #     is a same-object no-op for every real corpus use, but a
       #     genuine behavior change for a direct Ruby API call passing
       #     something else)
-      #   - a scalar ASSIGN (`@ivar = value`) or list APPEND (`@ivar <<
+      #   - a scalar assign (`@ivar = value`) or list append (`@ivar <<
       #     value`), chosen by whether the ivar `fills:` names is
-      #     ALREADY an Array at call time (every candidate's own
+      #     already an Array at call time (every candidate's own
       #     `initialize` pre-populates its accumulating ivars as `[]` —
       #     read live, not assumed)
-      #   - a ZERO-ARGUMENT word, either (a) one of several sibling
-      #     Keyword rows in the SAME context sharing the SAME `fills:`
-      #     target — derives its own stored value from ITS OWN word
+      #   - a zero-argument word, either (a) one of several sibling
+      #     Keyword rows in the same context sharing the same `fills:`
+      #     target — derives its own stored value from its own word
       #     name as a symbol (`core`/`generic`/`supporting` all fill
-      #     `classification`), or (b) the ONLY Keyword row filling its
+      #     `classification`), or (b) the only Keyword row filling its
       #     own `fills:` target — a bare marker, stores literal `true`
       #     (`ReadModel#count`)
       #   - an OPENS_BLOCK word named in `SAFE_OPENS_BLOCK` below,
-      #     verified to do NOTHING beyond "build the child, instance_
+      #     verified to do nothing beyond "build the child, instance_
       #     eval the block against it, append the result" — see that
       #     constant's own comment
       #   - (slice 2) a single-fill word whose row also names a `blank_
-      #     message:` — raises that EXACT Malformed text if the coerced
+      #     message:` — raises that exact Malformed text if the coerced
       #     value is blank, before storing it, matching a real hand-
       #     written guard exactly (`Translation#retired`/
       #     `TranslationAggregate#drop`, the only two words in the whole
       #     grammar with this precise shape — `required: "true"` alone
       #     only gates Ruby's own arity, never a present-but-blank
-      #     value, and most `required: "true"` words do NOT raise on
+      #     value, and most `required: "true"` words do not raise on
       #     blank, so this needed a real per-row signal, not an
       #     assumption from `required:` alone)
       #
-      # Explicitly OUT of this slice (found live, during the audit, not
+      # Explicitly out of this slice (found live, during the audit, not
       # assumed) — stays hand-written, unaffected, until a later slice's
       # own new table columns (`gated_by:`/`calls:`) can name
       # what it really does: variadic accumulation with a real transform
       # (`attaches_to`); source-block extraction (`ensures`, `where`);
       # Struct/Hash-wrapping (`limit`, `group_by`, `rekey`); a guard
-      # clause NOT reducible to a plain blank-check (`role`'s own "raise
-      # if ALREADY set" uniqueness gate — a genuinely different shape
+      # clause not reducible to a plain blank-check (`role`'s own "raise
+      # if already set" uniqueness gate — a genuinely different shape
       # from `retired`/`drop`'s own blank-check, needing its own
-      # design); a dynamically-BUILT refusal message rather than one
+      # design); a dynamically-built refusal message rather than one
       # fixed string (`TranslationAggregateBuilder#unresolved` — real
       # branching logic choosing between several message shapes, not a
       # simple "always refuses" flag; belongs with `calls:`, slice 4,
@@ -76,7 +76,7 @@ module Hecks
       # `Bluebook#aggregate`, `Translation#aggregate`) or doing anything
       # beyond a bare fold after building (`Aggregate#policy`'s stamp,
       # `Aggregate#value_object`'s flatten, `Hecksagon#port`'s resolver-
-      # swap-and-branch); the DEFERRED-build queue pattern (`Aggregate`/
+      # swap-and-branch); the deferred-build queue pattern (`Aggregate`/
       # `Entity`'s own `command`/`entity`/`query`); the shadow_parsing?-
       # gated words (`has_many`/`has_one`/`belongs_to`/`then_set`/
       # `trigger`/`dispatch`/`one_of` — each delegates to its own
@@ -86,18 +86,18 @@ module Hecks
       # `File`-context word (routes through `Runtime.current_registry`,
       # a side effect this module has no business performing).
       #
-      # TWO FURTHER, DIFFERENT reasons a word can look table-safe and
+      # Two further, different reasons a word can look table-safe and
       # still be excluded, both found live rather than assumed:
-      #   - BOOTSTRAP REACHABILITY. `WordGate`'s own gate steps aside
+      #   - Bootstrap reachability. `WordGate`'s own gate steps aside
       #     entirely while `MetaValidator.bootstrapping?` (the meta-
       #     domain's own circularity — its grammar table doesn't exist
-      #     yet to read), and `load_grammar_into` loads REAL `.port`/
-      #     `.adapter` files, plus every core `.bluebook` chapter, DURING
+      #     yet to read), and `load_grammar_into` loads real `.port`/
+      #     `.adapter` files, plus every core `.bluebook` chapter, during
       #     that exact window. Any word those files actually call (found
       #     to be nearly every common one — `vision`/`core`/`generic`/
       #     `supporting`/`description`/`goal`/`emits`/`role`/`identified_
       #     by` describe literally every self-hosted aggregate/command)
-      #     has NO working method to fall back on if its hand-written
+      #     has no working method to fall back on if its hand-written
       #     `def` is removed — `super` from `WordGate#method_missing`
       #     just raises `NoMethodError`. `PortBuilder`/`AdapterBuilder`/
       #     `BluebookBuilder` turned out to be entirely off-limits to
@@ -105,13 +105,13 @@ module Hecks
       #     booting `MetaValidator.grammar_registry` after each
       #     candidate removal, not assumed safe from reading the table
       #     alone.
-      #   - A CONFLICTING HAND-WRITTEN `method_missing`. `WorldBuilder`
-      #     and `HecksagonBuilder` each define their OWN `method_missing`
+      #   - A conflicting hand-written `method_missing`. `WorldBuilder`
+      #     and `HecksagonBuilder` each define their own `method_missing`
       #     directly on the class (for genuinely open-ended settings/
       #     collector verbs) — a method defined directly on a class always
       #     wins over one from an included module in Ruby's own method
       #     resolution, so `WordGate`'s (and this module's) own
-      #     `method_missing` never runs for THEIR builders at all. Their
+      #     `method_missing` never runs for their builders at all. Their
       #     own candidate words (`realm`/`latest`, `subscribe`) stay
       #     hand-written for this structural reason, independent of
       #     whether their own behavior would otherwise qualify.
@@ -121,10 +121,10 @@ module Hecks
         COERCE_BY_KIND = { "text" => :to_s, "symbol" => :to_sym }.freeze
 
         # (context, word) OPENS_BLOCK pairs verified, by reading every
-        # real Ruby method, to do NOTHING beyond building the child and
+        # real Ruby method, to do nothing beyond building the child and
         # appending it — see this file's own header for the full account
         # of what was excluded and why. Value: the ivar the built child
-        # is appended into. NOT derivable from `fills:` — every one of
+        # is appended into. Not derivable from `fills:` — every one of
         # these Keyword rows carries `fills: ""`; the append target is
         # implicit in the hand-written code today, never named by the
         # table at all, so this is the one place slice 1 hand-names a
@@ -136,15 +136,15 @@ module Hecks
           %w[Bluebook read_model]      => :read_models
         }.freeze
 
-        # `WordGate#method_missing`'s OWN bootstrap-window fallback,
-        # consulted ONLY while `MetaValidator.bootstrapping?` (the real
+        # `WordGate#method_missing`'s own bootstrap-window fallback,
+        # consulted only while `MetaValidator.bootstrapping?` (the real
         # table doesn't exist yet to read `keyword[:calls]` from). Names
-        # the SAME (context, word) -> method pairs the real table's own
+        # the same (context, word) -> method pairs the real table's own
         # `calls:` column carries — every live row, projected ahead of
         # time into the committed lib/hecks/bluebook/dsl/bootstrap_table.rb
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).
         #
-        # This used to be a hand-kept SUBSET — 48 of 87 rows, each checked
+        # This used to be a hand-kept subset — 48 of 87 rows, each checked
         # for bootstrap-reachability by grepping the core chapters. Carrying
         # all of them costs nothing: a builder with its own `def` never
         # reaches `method_missing`, and one without gains the same dispatch
@@ -155,23 +155,23 @@ module Hecks
 
         module_function
 
-        # THE STATIC PREDICATE — does this (context, word) pair fall
-        # within this slice's own verified scope, WITHOUT executing
+        # The static predicate — does this (context, word) pair fall
+        # within this slice's own verified scope, without executing
         # anything? The same row-shape checks `try` itself runs before
         # ever touching a real argument, shared so a conformance spec
         # (which has no real call, no real builder instance) can ask the
-        # SAME question `method_missing` answers live.
+        # same question `method_missing` answers live.
         def handles?(context, word, rows: MetaValidator::SyntaxBoot.call)
           !shape_for(context, word, rows).nil?
         end
 
         # `NOT_HANDLED` for anything outside this slice's own verified
         # scope — the caller (`WordGate#method_missing`) falls through
-        # to its own existing "not yet implemented" refusal, UNCHANGED,
+        # to its own existing "not yet implemented" refusal, unchanged,
         # the exact same message a word not yet migrated to any slice
         # already gets today. A real `ArgumentError` — matching what a
         # hand-written method of the same arity would raise — for a
-        # call whose SHAPE the grammar admits but whose actual argument
+        # call whose shape the grammar admits but whose actual argument
         # count doesn't match; never a silent wrong answer.
         def try(builder, context, word, args, kwargs, block, rows)
           shape = shape_for(context, word, rows)
@@ -197,7 +197,7 @@ module Hecks
           end
         end
 
-        # THE ONE PLACE ROW SHAPE IS JUDGED — returns a small Hash naming
+        # The one place row shape is judged — returns a small Hash naming
         # which of the four safe shapes (context, word) is, or `nil` if
         # it falls outside this slice's own verified scope. No argument
         # values are read here; this only ever looks at the table.
@@ -234,7 +234,7 @@ module Hecks
 
         # `keyword[:calls]` names a real Ruby method whose whole call —
         # every positional, every kwarg, the block, all of it — forwards
-        # here UNCHANGED. No argument-shape interpretation at all,
+        # here unchanged. No argument-shape interpretation at all,
         # deliberately: the target method (`AttributeCollector#
         # attribute_impl`, etc.) already does its own, real, hand-
         # written argument handling; this is a pure, transparent `send`,

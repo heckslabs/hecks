@@ -17,10 +17,10 @@ module Hecks
       # ReadModelBuilder so the two specification kinds parse the same
       # clauses identically rather than each carrying its own copy.
       module DSL
-        # RENAMED FROM `where`/`order_by`/`limit`/`offset`/`authorize`
+        # Renamed from `where`/`order_by`/`limit`/`offset`/`authorize`
         # (all below) — item #13's full metaprogrammed dispatch (slice
-        # 4c). A SHARED mixin, same shape `attribute_impl` proved in
-        # slice 3: ONE renamed method each, both Query and ReadModel
+        # 4c). A shared mixin, same shape `attribute_impl` proved in
+        # slice 3: one renamed method each, both Query and ReadModel
         # Keyword rows name it in `calls:`. `where`/`order_by` are
         # bootstrap-reachable (every core chapter's own `read_model`
         # filters its roster with them), so both are in

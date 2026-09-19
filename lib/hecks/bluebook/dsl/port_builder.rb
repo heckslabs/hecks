@@ -5,7 +5,7 @@ module Hecks
       # Parses a top-level `.port` file's `Hecks.port "Name" do verb "x";
       # signal :effect end` body into a `Port` — the adapter-facing shape (one
       # verb, one signal, an optional method contract in `answers`) a domain
-      # calls OUT through, as opposed to `DomainPortBuilder`'s own inbound/
+      # calls out through, as opposed to `DomainPortBuilder`'s own inbound/
       # outbound operations.
       class PortBuilder
         GRAMMAR_CONTEXT = "Port".freeze
@@ -21,8 +21,8 @@ module Hecks
         def verb(value)   = @verb = value.to_s
         def signal(value) = @signal = value.to_sym
 
-        # THE METHOD CONTRACT — the fact a `.port` file's `verb`/`signal`
-        # never carried: what an adapter must actually RESPOND TO for a
+        # The method contract — the fact a `.port` file's `verb`/`signal`
+        # never carried: what an adapter must actually respond to for a
         # dispatch to reach it without a bare `NoMethodError`. Declared the
         # same repeatable way `AdapterBuilder#field`/`#secret` already are,
         # so `verify!` can check it with `respond_to?` at boot instead of

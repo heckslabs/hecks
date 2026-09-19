@@ -86,15 +86,15 @@ module Hecks
         end
       end
 
-      # THE ACTUAL "more than one tenant" MOMENT — Runtime::TenantCheck's
+      # The actual "more than one tenant" moment — Runtime::TenantCheck's
       # own header names this table as the one place real multitenancy
-      # happens: the SAME on-disk directory (one domain, one
-      # `persisted_by` binding) registering a SECOND time, under a
-      # different realm, into this SAME shared route table. A directory's
-      # FIRST registration is never refused here — nothing shares its
+      # happens: the same on-disk directory (one domain, one
+      # `persisted_by` binding) registering a second time, under a
+      # different realm, into this same shared route table. A directory's
+      # first registration is never refused here — nothing shares its
       # data yet, so a plain single-tenant deployment on an ordinary
       # adapter (Postgres, no schema story) still boots exactly as
-      # before. Only the SECOND (and any later) registration of that
+      # before. Only the second (and any later) registration of that
       # same directory is refused, and refused before this call adds its
       # routes to the table — so a leaking tenant's requests never
       # become reachable through `Router#resolve` in the first place.

@@ -57,7 +57,7 @@ module Hecks
         @read_models = ReadModelInterpreter.new(registry)
         @policies = PolicyInterpreter.new(registry, door: self)
         @sagas    = SagaInterpreter.new(registry, door: self)
-        # THE RELAY IS THE REGISTRY'S, NOT THIS DISPATCHER'S — the
+        # The relay is the registry's, not this dispatcher's — the
         # interpreters enqueue through `@registry.outbox` from inside
         # the save transaction, and this dispatcher drains through the
         # same object, so there is exactly one relay per registry no
@@ -79,7 +79,7 @@ module Hecks
       def policy_dispatches = @registry.policy_dispatch_log
       def verbs = @registry.verbs
 
-      # LOOSE KEYWORD FACTS ARE DEPRECATED (roadmap I3) — `dispatch(verb,
+      # Loose keyword facts are deprecated (roadmap I3) — `dispatch(verb,
       # amount: 5)` still works, and warns once per call site; pass
       # `with: { amount: 5 }` (and the receiver in `to:`) instead. The
       # keyword door closes in LEGACY_ARGS_REMOVAL. `bin/codemod_legacy_
@@ -99,7 +99,7 @@ module Hecks
         Deprecation.call(:legacy_dispatch_args, LEGACY_ARGS_WARNING) unless legacy_args.empty?
       end
 
-      # THE FLAT-FACTS WIRE FORM — one Hash, NOT keywords, and NOT
+      # The flat-facts wire form — one Hash, not keywords, and not
       # deprecated: the shape `spec/corpus/*.json` steps, the Rust kernel's
       # `cli.rs` contract, a reaction without a `with:` projection, and the
       # self-hosted meta-domain all carry. Routes exactly as
@@ -124,7 +124,7 @@ module Hecks
           if command_name.include?(".")
             head, sub = command_name.split(".", 2)
             port = aggregate.port(head)
-            # A PORT OPERATION, reached by the SAME verb shape an entity
+            # A port operation, reached by the same verb shape an entity
             # command already uses ("Domain::Aggregate.Head.Rest") — ports
             # are checked first, so an aggregate that ever declared both a
             # port and an entity of the same name would resolve to the
@@ -156,14 +156,14 @@ module Hecks
             @commands.call(domain, aggregate, command, invocation, saga_correlation)
           end
 
-        # Correlation is SET AT CONSTRUCTION now, not merged on here —
+        # Correlation is set at construction now, not merged on here —
         # it is part of the transaction, known from this method's own
         # argument before a single event exists. It used to be stamped
         # onto already-emitted events, which is what kept an event
         # mutable after it had happened.
         #
         # The ordering this note used to guard still holds, and more
-        # simply: `SagaInterpreter#advance` runs on THIS domain's
+        # simply: `SagaInterpreter#advance` runs on this domain's
         # `announced` events within this very call, and finds the
         # correlation already there because it was never absent.
 
@@ -173,12 +173,12 @@ module Hecks
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome)
       end
 
-      # THE ONE BODY BOTH DOORS RUN — `dispatch` (keywords) and
+      # The one body both doors run — `dispatch` (keywords) and
       # `dispatch_flat` (one Hash) differ only in how the call's parts are
       # spelled, never in what happens next.
       private :dispatch_invocation
 
-      # EVERYTHING OWED BECAUSE `announced` COMMITTED — policies first,
+      # Everything owed because `announced` committed — policies first,
       # then sagas, the order this method always ran them in. The
       # command/entity interpreters hand back the outbox rows they
       # enqueued inside the save transaction (`Interpreting#
@@ -196,9 +196,9 @@ module Hecks
       end
       private :react
 
-      # "IF THIS WERE DISPATCHED RIGHT NOW, WOULD IT SUCCEED" — the same
+      # "If this were dispatched right now, would it succeed" — the same
       # pipeline #dispatch itself runs (arguments coerced, givens checked,
-      # mutations applied IN MEMORY, ensures checked against the settled
+      # mutations applied in memory, ensures checked against the settled
       # result), except `step_save`/`step_emit` never run, and neither do
       # policies or sagas afterward: nothing here is committed, so nothing
       # should react to it. Built for exactly the shape a whole-board
@@ -208,12 +208,12 @@ module Hecks
       # own move purely to trigger the check, which then had to avoid
       # interfering with the very position being tested).
       #
-      # RAISES THE SAME REFUSALS #dispatch does — a DomainRefusal
+      # Raises the same refusals #dispatch does — a DomainRefusal
       # subclass propagates normally, so a caller checking "would this be
       # legal" writes the identical rescue clause a real dispatch already
       # needs; this returns `true` only when nothing was refused.
       #
-      # NEVER A PORT VERB — `PortOperationInterpreter`'s own side effects
+      # Never a port verb — `PortOperationInterpreter`'s own side effects
       # (an external gateway call, say) have no meaningful in-memory-only
       # form, so this refuses one outright rather than silently running
       # it for real, which "dry" would otherwise quietly lie about.
@@ -229,7 +229,7 @@ module Hecks
                   "only for aggregate and entity commands"
           end
 
-          # `to:`/`with:` are NOT keywords of this method — a key named
+          # `to:`/`with:` are not keywords of this method — a key named
           # either is an ordinary fact here (BUG#131), so both go in as nil.
           resolution = nil
           invocation = Invocation.from_call(verb, to: nil, with: nil, legacy: args, receiver: :entity) do
@@ -245,7 +245,7 @@ module Hecks
         true
       end
 
-      # THE DOOR AN ADAPTER OUTSIDE THE BLUEBOOK CALLS THROUGH — never the
+      # The door an adapter outside the bluebook calls through — never the
       # domain itself. `port_name`/`operation_name` are separate arguments
       # rather than one packed verb string on purpose: there is no established
       # wire spelling for "domain, aggregate, port, operation" yet, and
@@ -300,7 +300,7 @@ module Hecks
         @queries.reference_call(domain, aggregate, query_name, args)
       end
 
-      # A reaction is the SYSTEM acting, not the caller who happened to be
+      # A reaction is the system acting, not the caller who happened to be
       # on the stack when the triggering command ran — the ambient caller
       # is cleared for the reaction's own dispatch, so a triggering
       # caller's role can neither satisfy nor block a reaction command it
@@ -311,10 +311,10 @@ module Hecks
       # dispatching through it (a Puma worker pool, say), so a plain ivar
       # here is exactly the known Puma-concurrency bug class: two
       # concurrent top-level dispatches on different threads would
-      # increment/decrement the SAME counter, letting one thread's nested
+      # increment/decrement the same counter, letting one thread's nested
       # reaction depth leak into another thread's unrelated dispatch. A
       # `Mutex` is not the answer either — a reaction cascade re-enters
-      # `reenter` on the SAME thread (see `SagaInterpreter#advance_saga`'s
+      # `reenter` on the same thread (see `SagaInterpreter#advance_saga`'s
       # own comment on why a non-reentrant `Mutex` can't guard this).
       # `Thread.current`-backed, saved/restored around the call with a
       # plain local + `ensure`, is the same idiom `Runtime::Caller`

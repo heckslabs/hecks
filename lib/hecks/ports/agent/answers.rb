@@ -1,11 +1,11 @@
 module Hecks
   module Ports
     module Agent
-      # WHERE A RAW HASH BECOMES A STRUCT — the one place, so every
+      # Where a raw hash becomes a struct — the one place, so every
       # adapter (the real `claude_code` one, and any scripted double
       # standing in for it in a spec) is held to the identical shape.
       # An adapter's whole job ends at "here is what came back, already
-      # JSON"; whether that hash is USABLE is decided once, here, not
+      # JSON"; whether that hash is usable is decided once, here, not
       # re-decided per adapter.
       #
       # Every failure raises `ValidationError` — never lets a bare
@@ -60,11 +60,11 @@ module Hecks
           raise ValidationError, "#{key.inspect} missing or blank in #{row.inspect}"
         end
 
-        # A VERB THE LANGUAGE COULD NOT EVEN PARSE IS AN ADAPTER FAULT,
+        # A verb the language could not even parse is an adapter fault,
         # refused right here — the same `not_fully_qualified` shape the
         # language's own grammar already refuses by, reused rather than
         # reinvented. A verb naming a real category that turns out to
-        # describe the wrong fact is NOT this port's business: that one
+        # describe the wrong fact is not this port's business: that one
         # dispatches, and `Interview::Session#offer` is what says no.
         def verb!(row)
           verb = row["verb"].to_s
@@ -87,8 +87,8 @@ module Hecks
           raise ValidationError, "#{severity.inspect} is not a severity this port knows (#{SEVERITIES.join(', ')})"
         end
 
-        # ROWS SHAPED EXACTLY AS `Interview::Proposal::Argument` — a
-        # reference's `field` is legitimately blank (a reference IS an
+        # Rows shaped exactly as `Interview::Proposal::Argument` — a
+        # reference's `field` is legitimately blank (a reference is an
         # id), so only `name` is required here.
         def arguments!(row)
           Array(row["arguments"]).map do |argument|

@@ -5,10 +5,10 @@ module Hecks
     # Every DomainRefusal wording that is not already data — `given`/
     # `ensures`/a declared `invariant` already carry their own description,
     # read at dispatch time off the command or value object that declared
-    # them. These are different in kind: LANGUAGE-LEVEL refusals, the same
+    # them. These are different in kind: language-level refusals, the same
     # wording for every domain, not authored per-bluebook.
     #
-    # READ OFF THE GENERATED TABLE, not typed a second time. The rows are
+    # Read off the generated table, not typed a second time. The rows are
     # Vocabulary::RefusalTemplate (language/bluebook/vocabulary.bluebook),
     # projected into lib/hecks/vocabulary.rb by bin/project_vocabulary and
     # into rust/src/kernel/vocab/refusal_template.rs by
@@ -22,7 +22,7 @@ module Hecks
       module_function
 
       # Plain text substitution, never expression syntax — a template is
-      # read, not evaluated. `render` computes the placeholder VALUES via
+      # read, not evaluated. `render` computes the placeholder values via
       # whatever the call site already had (a joined list, a rendered
       # identity reading, …) and this only replaces the markers.
       def render(refusal, site, **values)

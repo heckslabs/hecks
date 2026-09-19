@@ -32,7 +32,7 @@ module Hecks
 
         # Attributes present now that the held shape never had — the
         # addition side of drift, which `uncovered_attributes` above never
-        # looks at, since it only walks the HELD shape (vanish/retype).
+        # looks at, since it only walks the held shape (vanish/retype).
         # Most additions are free (ADR 0025, "Added attributes and
         # absence"): a default:, a list_of (frozen []), or a value object
         # whose fields all default fill an existing record automatically
@@ -40,7 +40,7 @@ module Hecks
         # non-optional attribute with no way to fill itself — can leave an
         # existing record with the field genuinely absent, and that is
         # what this reports: unfilled by a declared translation's own
-        # `backfill`, OR by a move/convert that lands an OLD field inside
+        # `backfill`, or by a move/convert that lands an old field inside
         # this brand-new attribute (`Lineage#fills?` — the destination-
         # side question, never `explains?`'s source-side one, since a
         # rename from Crate to Bin can introduce a top-level attribute
@@ -55,7 +55,7 @@ module Hecks
                    .map(&:name)
         end
 
-        # THE FOUR-ROW TABLE, as a predicate over the fourth row only — the
+        # The four-row table, as a predicate over the fourth row only — the
         # other three (default:, list_of, a fully-defaulted value object)
         # all fill an existing record for free and never reach here.
         def possibly_absent?(aggregate, attribute)
@@ -72,7 +72,7 @@ module Hecks
         # Paths the translation needs to explain: attributes that vanished
         # by name, attributes that kept their name but changed type (a
         # `convert` is what lets that be declared at all), and — recursing
-        # into a same-named, same-typed value object — its OWN members
+        # into a same-named, same-typed value object — its own members
         # vanishing or changing type one level down, reported as a dotted
         # path ("price.currency"). A pure addition, at any depth, never
         # needs covering; only vanish-or-retype does, matching the
@@ -90,11 +90,11 @@ module Hecks
           paths.reject { |path| lineage.explains?(path) }
         end
 
-        # `held_type`/`current_type` are type NAMES, resolved against each
-        # side's OWN value_object AND entity declarations — neither is ever
+        # `held_type`/`current_type` are type names, resolved against each
+        # side's own value_object and entity declarations — neither is ever
         # nested in the DSL, only in the type graph, so both are always
         # looked up flat off their respective aggregate. A `list_of` entity
-        # is only reached here to DETECT a member vanish-or-retype; there is
+        # is only reached here to detect a member vanish-or-retype; there is
         # no per-element translation machinery yet (`move`/`convert`/`drop`
         # only reach into a single nested hash, not each element of an
         # array) — the only way to satisfy a refusal on an entity path
@@ -103,7 +103,7 @@ module Hecks
         # under it. Blunt, but loud beats silent.
         def diff_type(path, held_type, current_type, held_aggregate, aggregate, lineage, seen = [])
           if held_type != current_type
-            # A declared retype says the two TYPE names mean the same shape
+            # A declared retype says the two type names mean the same shape
             # — accept the pair, but still recurse into the members so a
             # member drift hiding beneath the rename is caught by name.
             return [path] unless lineage&.retype?(held_type, current_type)

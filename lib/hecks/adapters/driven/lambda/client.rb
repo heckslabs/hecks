@@ -3,17 +3,17 @@ require "json"
 module Hecks
   module Adapters
     class Lambda
-      # THE THIN AWS CLIENT — shared by this adapter's own read methods
+      # The thin AWS client — shared by this adapter's own read methods
       # (Lambda#find/#all/#count/#query) and Runtime::RemoteDispatcher's
       # write methods. One Lambda invoke, one JSON round trip, nothing
       # domain-specific: neither caller needs to know an AWS SDK is
       # involved at all.
       #
-      # FUNCTION NAME IS COMPUTED, NOT PASSED — `"hecks-#{domain}"`,
+      # Function name is computed, not passed — `"hecks-#{domain}"`,
       # lowercased, matches bin/project_deploy's own `stack_name`
       # exactly (bin/project_deploy: `stack_name = "hecks-#{domain_name}"`,
       # `domain_name = File.basename(domain)`). `domain` here is the
-      # bluebook's OWN declared name (`Embryonaut`, not the directory);
+      # bluebook's own declared name (`Embryonaut`, not the directory);
       # today's real corpus has directory name == declared name
       # lowercased for every domain that deploys, so `.downcase` alone
       # reproduces the same string bin/project_deploy computes from the
@@ -27,7 +27,7 @@ module Hecks
           @client = Aws::Lambda::Client.new(region: region)
         end
 
-        # THE WHOLE DOMAIN, EVERY TIME — matches dispatch::read's own
+        # The whole domain, every time — matches dispatch::read's own
         # rehydrate-the-full-journal design (Phase 1, rust/host). No
         # caching here, deliberately not even per-request: Lambda#all
         # used to memoize this across calls, which silently served

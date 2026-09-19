@@ -14,14 +14,14 @@ module Hecks
   module Forms
     # The content-negotiated router: `GET /Banking/Account/Overdrawn.html`
     # renders the query view built in this directory; the identical path
-    # with no extension (or `.json`) dispatches the SAME ask through
+    # with no extension (or `.json`) dispatches the same ask through
     # `Runtime::Dispatcher#query` and answers with its raw result — one
     # route, two representations, exactly the "change the file format on
     # the route" mechanism this was built around
     # (docs/command-form-and-query-form-bluebook.md).
     #
     # A plain Rack app (`#call(env)`) — no Sinatra, no Rails. `rack` itself
-    # is a LAZY dependency the same way `pg`/`oauth2`/`aws-sdk-lambda` are
+    # is a lazy dependency the same way `pg`/`oauth2`/`aws-sdk-lambda` are
     # for their own adapters (see the Gemfile's own comment) : a project
     # that never boots this file never needs it installed.
     class App
@@ -82,12 +82,12 @@ module Hecks
       end
 
       # H12 (docs/audits/2026-08-10-main-bug-audit.md) — splitting on the
-      # FIRST "." truncated any identity value containing a dot (an email
+      # first "." truncated any identity value containing a dot (an email
       # `identified_by { email.address }`, a decimal-ish reference — an
       # aggregate's identity is free-form unless its value object declares
       # a `pattern:`, see S3 in the same audit) at its own first dot, so
       # `reference.value=c.1` 404'd everywhere: detail page, JSON view, and
-      # its own index-table link. Only a LITERAL trailing ".html"/".json"
+      # its own index-table link. Only a literal trailing ".html"/".json"
       # now counts as a format — every other dot in the segment is just
       # part of the identity. An identity that itself happens to end in
       # exactly ".html" or ".json" is still ambiguous with a real format
@@ -123,7 +123,7 @@ module Hecks
                breadcrumbs: [[chapter.name, "/"], [aggregate.hecks_name, nil]])
         else
           instances = @registry.repository(chapter.name, aggregate).all
-          # id LAST — see Instance#to_h's own comment: an aggregate free
+          # id last — see Instance#to_h's own comment: an aggregate free
           # to declare its own attribute literally named `id` has that
           # attribute's own wrapped value sitting in `i.state[:id]`
           # already, which used to silently clobber the correct bare
@@ -141,7 +141,7 @@ module Hecks
         # L11 (docs/audits/2026-08-10-main-bug-audit.md) — a record's own
         # id is free-form (S3) and can collide with one of its own
         # aggregate's command/query names ("Close", "Overdrawn", ...).
-        # A GET for such an id must still be able to reach that RECORD's
+        # A GET for such an id must still be able to reach that record's
         # own detail page when a record with that literal id actually
         # exists — checking the verb first (the previous order) meant a
         # record unlucky enough to be named after a real verb could never
@@ -202,7 +202,7 @@ module Hecks
 
         _, envelope = submitted_command(request, aggregate, command)
         result = @dispatcher.dispatch_flat("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", envelope)
-        # id LAST — same reasoning as the other JSON-serializing call
+        # id last — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         json(201, result.state.merge(id: result.id))
       rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
@@ -239,7 +239,7 @@ module Hecks
         results, error = run_query(domain, aggregate, query, fields, asked)
         return json(422, { error: error.class.name.split("::").last, message: error.message }) if error
 
-        # id LAST — same reasoning as the other JSON-serializing call
+        # id last — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         json(200, results.map { |i| i.state.merge(id: i.id) })
       end
@@ -259,7 +259,7 @@ module Hecks
       # JSON (the honest fallback for a multi-attribute list element this
       # prototype's textarea doesn't build a second widget for). A caller
       # who types a non-JSON line into that field raises `JSON::ParserError`
-      # BEFORE dispatch ever sees it — both command submission paths
+      # before dispatch ever sees it — both command submission paths
       # already rescue it (`submit_command`, `command_json`); this one
       # didn't, so a malformed list-of-VO query 500'd instead of showing
       # the same 422 every other bad-input path shows.
@@ -272,7 +272,7 @@ module Hecks
 
         instance ||= @registry.repository(domain, aggregate).find(id)
         return not_found(aggregate, id, format) unless instance
-        # id LAST — same reasoning as the other JSON-serializing call
+        # id last — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         return json(200, instance.state.merge(id: instance.id)) if format != "html"
 

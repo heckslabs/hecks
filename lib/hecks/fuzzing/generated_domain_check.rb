@@ -7,7 +7,7 @@ require_relative "differential"
 
 module Hecks
   module Fuzzing
-    # ONE GENERATED DOMAIN, CHECKED — the child-process half of
+    # One generated domain, checked — the child-process half of
     # `bin/qa_generated_domains` (one domain per process: every generated
     # domain is named `QaGenerated`, see DomainGenerator's header).
     #
@@ -18,7 +18,7 @@ module Hecks
     # self-consistency, an interpreter crash). A domain that does not even
     # boot is `invalid` — a generator defect, not a finding, reported apart.
     #
-    # `match:` is how DOMAIN-level shrinking asks "does this smaller domain
+    # `match:` is how domain-level shrinking asks "does this smaller domain
     # still show the same finding?": only a divergence in the same mode
     # whose `Shrinker.signature` contains the original's counts. Verb names
     # survive a removal that did not touch them, so the signature does too.

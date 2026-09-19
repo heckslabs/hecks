@@ -12,7 +12,7 @@ module Hecks
     class PostgresEra
       # The PostgresEra side of the boot-time era gate. Where every other
       # adapter's era check can only hold texts and refuse, this one
-      # ACTS: a drifted shape whose translation edge exists, matches by
+      # acts: a drifted shape whose translation edge exists, matches by
       # shape label, covers the whole diff, and passes the audit mints
       # the next era — one transaction — and boots into it. Everything
       # else refuses, as loudly and as specifically as the situation
@@ -38,7 +38,7 @@ module Hecks
 
         module_function
 
-        # The FULL chain, one edge per step in original mint order —
+        # The full chain, one edge per step in original mint order —
         # never flattened. Each step is found by its stored labels;
         # every mint required its own edge, so a break in the chain is a
         # deleted file, and deserves its own refusal.

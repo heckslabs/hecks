@@ -4,22 +4,22 @@ require_relative "../../runtime/errors"
 module Hecks
   module Ports
     module Persistence
-      # NO ADAPTER CAN BUILD AN `Instance` FROM UNDECODED STATE (Phase 2,
+      # No adapter can build an `Instance` from undecoded state (Phase 2,
       # Track A, PR A3). Routing every adapter through `StateCodec` is a
       # convention until something refuses the bypass; this is that
       # something, and it is installed by `RepositoryFactory.build` — the
       # one place every runtime repository is made — so no adapter can opt
       # out of it.
       #
-      # THE MECHANISM, two halves:
+      # The mechanism, two halves:
       #
-      # 1. `guard!(adapter)` extends the adapter OBJECT (not its class,
+      # 1. `guard!(adapter)` extends the adapter object (not its class,
       #    not a proxy — `is_a?`, `class`, and `===` stay the adapter's
       #    own) with a module that wraps every public method the adapter's
       #    class defines. Each call runs inside the boundary: a
       #    thread-local flag, re-entrant, restored on the way out. A block
-      #    the CALLER passes (`transaction`, `with_write_lock`,
-      #    `each_saga`) runs OUTSIDE it — that block is the dispatch
+      #    the caller passes (`transaction`, `with_write_lock`,
+      #    `each_saga`) runs outside it — that block is the dispatch
       #    itself (hydrate, entity views, mutation), not adapter code.
       #    Reaching the adapter through `repository.adapter` (the query
       #    port, saga persistence, `bin/heki_compact`) is guarded all the
@@ -91,7 +91,7 @@ module Hecks
         WRAPPERS = {} # rubocop:disable Style/MutableConstant
         WRAPPERS_LOCK = Mutex.new
 
-        # One wrapper module per adapter CLASS, built once: every public
+        # One wrapper module per adapter class, built once: every public
         # instance method the class (and its ancestors below Object)
         # defines, each forwarding to `super` inside the boundary.
         def wrapper_for(klass)
@@ -109,7 +109,7 @@ module Hecks
           end
         end
 
-        # The caller's own block, re-wrapped to run OUTSIDE the boundary
+        # The caller's own block, re-wrapped to run outside the boundary
         # whenever the adapter yields to it.
         def outside_block(block)
           return nil unless block

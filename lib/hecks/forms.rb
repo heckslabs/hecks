@@ -2,7 +2,7 @@
 # `query_form.bluebook` will eventually become — see docs/
 # command-form-and-query-form-bluebook.md), the IR->HTML renderers, and
 # the Rack app that content-negotiates between them and a plain JSON
-# reading of the same dispatch. NOT required by `require "hecks"`
+# reading of the same dispatch. Not required by `require "hecks"`
 # itself — a project that never boots this file never pays for `rack`,
 # the same lazy-dependency discipline the Gemfile's own comment already
 # holds `pg`/`oauth2`/`aws-sdk-lambda` to.
@@ -19,7 +19,7 @@ module Hecks
   # `expose` deliberately does and does not cover.
   module Forms
     # `expose`'s own declaration — "which chapters does this app expose" —
-    # kept OUTSIDE the `Hecks.*` collector convention (`Hecks.bluebook`,
+    # kept outside the `Hecks.*` collector convention (`Hecks.bluebook`,
     # `Hecks.hecksagon`, ...) and outside `Runtime::Registry` entirely, on
     # purpose: a real language word goes through `syntax.bluebook` and
     # `MetaValidator` (see docs/implemented/guides/extending-hecks.md, "a new word is a
@@ -30,9 +30,9 @@ module Hecks
     # see docs/command-form-and-query-form-bluebook.md, "why this isn't
     # syntax.bluebook yet".
     #
-    # ONE `expose` GRANTS A WHOLE CHAPTER, not a command or a query
+    # One `expose` grants a whole chapter, not a command or a query
     # individually — the future `command_form.bluebook`/`query_form.bluebook`
-    # words are PER-DECLARATION (one command, one query, its own form/view,
+    # words are per-declaration (one command, one query, its own form/view,
     # possibly its own overrides), which `expose` doesn't do today and was
     # never trying to; it's the coarse "turn this chapter's forms on at
     # all" switch those finer words will eventually sit inside.

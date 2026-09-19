@@ -3,7 +3,7 @@ module Hecks
     module MetaValidator
       # Offers a built .port to the language that describes ports.
       #
-      # A port is a SIBLING of a bluebook, the same shape WorldJudge already
+      # A port is a sibling of a bluebook, the same shape WorldJudge already
       # is one level over — its own file, its own door, judged through its
       # own self-hosted language (port.bluebook) rather than left as a plain
       # Ruby struct nothing checks. Whole-project table-unification survey,

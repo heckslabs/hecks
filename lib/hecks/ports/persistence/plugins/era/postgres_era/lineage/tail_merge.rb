@@ -34,7 +34,7 @@ module Hecks
           # re-enters as the newest row and wins structurally — originals
           # stay immutable).
           # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-          # One Postgres transaction (BEGIN…COMMIT) with a manual ROLLBACK
+          # One Postgres transaction (begin…commit) with a manual rollback
           # at every early refusal, and a snapshot-before-mutation
           # invariant (`new_states` captured before the head rebuild lets
           # the tail interleave). Splitting the steps into separate
@@ -159,18 +159,18 @@ module Hecks
           end
           # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
-          # Ids touched by BOTH worlds since the cut — the old world's
+          # Ids touched by both worlds since the cut — the old world's
           # post-cut tail INTERSECTed with the new world's own writes.
           #
-          # KNOWN GAP, not silently risked: this compares raw
+          # Known gap, not silently risked: this compares raw
           # `aggregate_id` values, with no notion of "these two different
           # ids are the same entity, rekeyed." If a domain's history
-          # includes a rekey (see TranslationRekey) and is LATER
+          # includes a rekey (see TranslationRekey) and is later
           # merged here, a record's pre-rekey and post-rekey rows will
           # never intersect — they just silently survive as two separate,
           # unrelated-looking heads (a duplicate, not corruption: nothing
           # here deletes or clobbers either side). Resolve any such
-          # duplicate manually after a merge; teaching this INTERSECT
+          # duplicate manually after a merge; teaching this intersect
           # about a rekey mapping is real, separate work, deliberately
           # out of scope for rekey's first pass.
           def conflict_ids(aggregate, edges, era, cut)

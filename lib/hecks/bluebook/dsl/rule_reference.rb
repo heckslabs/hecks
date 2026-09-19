@@ -3,35 +3,35 @@ require_relative "bootstrap_table"
 module Hecks
   module Bluebook
     module DSL
-      # THE THREE RESOLUTION PRIMITIVES the S10 given/invariant family's
+      # The three resolution primitives the S10 given/invariant family's
       # own "declared once, referenced by name" mechanism (ADR 0025)
       # reduces to, at every scope this language has grown one so far
       # (a command referencing its owner or a sibling piece's entity-wide
       # pool; an aggregate referencing another aggregate chapter-wide; a
       # value object referencing a sibling value object on the same
-      # aggregate) — extracted here, once, so the NEXT scope this family
+      # aggregate) — extracted here, once, so the next scope this family
       # widens to (there will be one — see docs/resolution-rules/
       # chapter-given.md's own "Known limitations" for two already named)
       # reuses one of these three shapes instead of a fourth hand-written
       # near-duplicate resolver.
       #
-      # NOT ONE UNIFIED ALGORITHM — a real design question this file
-      # answers directly: the THREE existing resolvers are not
-      # superficially different, they are STRUCTURALLY different (a
-      # multi-pool fallback CHAIN; ONE pool keyed by declaring OWNER,
-      # needing disambiguation; a LIVE SCAN over already-built sibling
+      # Not one unified algorithm — a real design question this file
+      # answers directly: the three existing resolvers are not
+      # superficially different, they are structurally different (a
+      # multi-pool fallback chain; one pool keyed by declaring owner,
+      # needing disambiguation; a live scan over already-built sibling
       # objects with no separate pool at all) — forcing them into one
       # shape would be a real behavior change (see `#lookup`, below, for
       # which construct uses which), not the pure internal refactor this
-      # module is. `build_rule` is the one piece that WAS genuinely
+      # module is. `build_rule` is the one piece that was genuinely
       # identical across all 7 declaring methods (`given`×3,
       # `invariant`×3, `ensures`×1) before this file existed — extract
       # predicate source, refuse if extraction failed, build the struct.
       #
-      # `#lookup`/`#verify_resolves_via!` read WHICH construct uses which
+      # `#lookup`/`#verify_resolves_via!` read which construct uses which
       # primitive off the self-hosted grammar table itself
       # (`Keyword#resolves_via`, `syntax.bluebook`) — not a Ruby-only
-      # Hash cross-checked afterward (this file's OWN earlier shape, one
+      # Hash cross-checked afterward (this file's own earlier shape, one
       # round ago) — so a real domain's own boot, not just `bundle exec
       # rspec`, fails loudly the moment the table and this file's own
       # hand-written resolution methods disagree.
@@ -41,14 +41,14 @@ module Hecks
         # `struct_class` is `Given` or `Invariant` (both `Struct.new(
         # :description, :canonical, :predicate, keyword_init: true)` —
         # `Given` lives in command.rb, `Invariant` in value_object.rb).
-        # `owner_name`/`word` are ONLY for the refusal message's own
+        # `owner_name`/`word` are only for the refusal message's own
         # wording. `extraction_failure` is the tail of that same
-        # message, and stays a REQUIRED parameter rather than one
+        # message, and stays a required parameter rather than one
         # hardcoded string on purpose — `given` ("its source could not
         # be read, so no other runtime could ever evaluate it"),
         # `invariant` ("it would be a rule the IR cannot carry"), and
         # `ensures` ("a postcondition is carried as text, and this one
-        # has none") each already had their OWN exact wording before
+        # has none") each already had their own exact wording before
         # this method existed; unifying them into one generic sentence
         # would be a real (if small) behavior change this refactor is
         # not making.
@@ -66,9 +66,9 @@ module Hecks
           struct_class.new(description: description, canonical: canonical, predicate: predicate, ast: ast)
         end
 
-        # PRIMITIVE 1 — an ORDERED CHAIN of flat `Hash[description] =>
+        # Primitive 1 — an ordered chain of flat `Hash[description] =>
         # Rule` pools, first match wins. `CommandBuilder#given`'s own
-        # two-pool shape (its OWN owner's `named_givens`, then a sibling
+        # two-pool shape (its own owner's `named_givens`, then a sibling
         # piece's entity-wide pool) is this with a 2-element chain — a
         # future single-pool bare reference is the same primitive with a
         # 1-element chain, not a separate "just look in one hash" method.
@@ -77,12 +77,12 @@ module Hecks
           nil
         end
 
-        # PRIMITIVE 2 — ONE pool keyed BY DECLARING OWNER,
+        # Primitive 2 — one pool keyed by declaring owner,
         # `Hash[description][owner] => Rule` — `AggregateBuilder#given`'s
         # own chapter-wide shape, the only construct so far where the
-        # SAME description can mean two genuinely different predicates
+        # same description can mean two genuinely different predicates
         # (docs/implemented/resolution-rules/chapter-given.md). Returns the full
-        # candidates Hash (0, 1, or many entries) — deliberately NOT
+        # candidates Hash (0, 1, or many entries) — deliberately not
         # raising here, so each caller keeps its own exact refusal
         # wording for "none," "ambiguous," and "declared_by: named the
         # wrong owner" rather than one generic message papering over all
@@ -91,10 +91,10 @@ module Hecks
           pool[description] || {}
         end
 
-        # PRIMITIVE 3 — a LIVE SCAN over already-built SIBLING OBJECTS'
+        # Primitive 3 — a live scan over already-built sibling objects'
         # own collections, not a separately-maintained pool at all —
         # `ValueObjectBuilder#invariant`'s own shape: every sibling value
-        # object on the same aggregate has ALREADY been built by the time
+        # object on the same aggregate has already been built by the time
         # a later one references back (declaration order, the same
         # constraint every scope in this family carries), so there is
         # nothing to write through — just read their own already-declared
@@ -107,32 +107,32 @@ module Hecks
                   .find { |rule| rule.description == description }
         end
 
-        # WHICH CONSTRUCT USES WHICH PRIMITIVE — no longer a Ruby-only
-        # Hash (that WAS this constant's own shape, one round ago): the
+        # Which construct uses which primitive — no longer a Ruby-only
+        # Hash (that was this constant's own shape, one round ago): the
         # user's own correction — "my goal is that if they read the same
         # table they behave identically" — means a table only Ruby ever
         # reads cannot deliver that, no matter how faithfully it is
         # cross-checked afterward. `Keyword#resolves_via`/`#disambiguator`
-        # (self-hosted, `syntax.bluebook`) is the REAL table now — the
-        # SAME generated data `rust/parser/src/keywords.rs` is generated
+        # (self-hosted, `syntax.bluebook`) is the real table now — the
+        # same generated data `rust/parser/src/keywords.rs` is generated
         # from (`bin/project_parser_table`). `#lookup` reads it live.
         #
-        # THE ONE UNAVOIDABLE EXCEPTION: the meta-domain's own bootstrap
+        # The one unavoidable exception: the meta-domain's own bootstrap
         # (`MetaValidator.load_grammar_into`) dispatches `given`/
-        # `invariant` on ITSELF 61 times while building the very grammar
+        # `invariant` on itself 61 times while building the very grammar
         # table that would answer "how does given/Aggregate resolve" —
         # `MetaValidator.grammar_registry`/`SyntaxBoot.call` are not
-        # ready yet, and cannot be made ready without ALREADY having
+        # ready yet, and cannot be made ready without already having
         # resolved a `given` somewhere upstream. `MetaValidator.
         # bootstrapping?` is the SAME guard `MetaValidator.call` (the
         # judge) already uses to skip self-judging during this exact
         # window — `#lookup` uses it too, falling back to
-        # `BOOTSTRAP_FALLBACK` (below) ONLY while it's true. Every REAL
+        # `BOOTSTRAP_FALLBACK` (below) only while it's true. Every real
         # domain (banking, pizzas, compliance, any future one) boots
-        # AFTER `grammar_registry` is fully built and memoized, so reads
+        # after `grammar_registry` is fully built and memoized, so reads
         # the real table, every time, no exception.
         #
-        # NO LONGER KEPT IN SYNC BY HAND — the same `resolves_via`/
+        # No longer kept in sync by hand — the same `resolves_via`/
         # `disambiguator` columns, projected ahead of time into the
         # committed lib/hecks/bluebook/dsl/bootstrap_table.rb
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).
@@ -151,16 +151,16 @@ module Hecks
           end
         end
 
-        # A LIVE CROSS-CHECK, not a spec-only one — every REAL domain's
+        # A live cross-check, not a spec-only one — every real domain's
         # own boot (not just `bundle exec rspec`) now genuinely fails
         # loudly if a construct's own hand-written resolution method
         # ever disagrees with what the self-hosted grammar table claims
         # for it. Each of the three `reference_named_*` methods below
-        # calls this FIRST, naming the primitive it is ABOUT to use —
+        # calls this first, naming the primitive it is about to use —
         # if `syntax.bluebook`'s own `resolves_via` for this exact
         # (word, context) pair ever names something else, this is a
         # real drift between the language's own self-description and
-        # its own implementation, caught at the next boot of ANYTHING,
+        # its own implementation, caught at the next boot of anything,
         # not just the next `rspec` run.
         def verify_resolves_via!(word, context, expected_primitive)
           actual = lookup(word, context)[:resolves_via]

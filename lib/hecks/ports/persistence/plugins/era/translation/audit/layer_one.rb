@@ -8,7 +8,7 @@ module Hecks
     module Audit
       # Layer 1 — from the bluebook alone: every translated state must
       # pass the new era's types, value-object invariants, and lifecycle.
-      # This is also where a NEW, stricter invariant that old records
+      # This is also where a new, stricter invariant that old records
       # violate surfaces — there is no "grandfather old records"
       # construct, and the remedy is relaxing the invariant or explicit
       # remediation, never a translation rule.
@@ -25,7 +25,7 @@ module Hecks
             # legitimately declared just as a `from:` (a terminal
             # transition's source, never anyone's target) is real and
             # reachable but invisible to it. `ModelCheck.full_states`
-            # is the full declared set (default, every target, AND
+            # is the full declared set (default, every target, and
             # every from) that `fuzzing/properties.rb`'s own replay
             # check already uses for this identical question — see its
             # comment on this same hole.

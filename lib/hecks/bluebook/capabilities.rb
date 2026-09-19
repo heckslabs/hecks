@@ -1,6 +1,6 @@
 module Hecks
   module Bluebook
-    # WHAT A CHAPTER MAY DECLARE IT PROVIDES, and what each capability
+    # What a chapter may declare it provides, and what each capability
     # must name. A chapter that `provides "authorization"` is trusted in
     # place of a check for the literal name "Governance" — by the role
     # check at dispatch, the ungoverned-role refusal at boot, the

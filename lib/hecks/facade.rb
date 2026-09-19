@@ -11,11 +11,11 @@ module Hecks
   # with a warning, never a raise — to clobber a constant belonging to user
   # code or the stdlib. Which is why a chapter named `Set` never becomes a
   # constant, and why `Registry` keeps its own table of chapters rather than
-  # trusting Ruby's. Each re-install REPLACES the previous boot's entry, so
+  # trusting Ruby's. Each re-install replaces the previous boot's entry, so
   # what GENERATED retains is one small facade module per name, not a graph
   # per boot.
   module Namespace
-    # NOT frozen — a real registry, mutated below
+    # Not frozen — a real registry, mutated below
     # (`GENERATED[[container, name]] = value`). False positive for
     # Style/MutableConstant.
     # rubocop:disable-next Style/MutableConstant

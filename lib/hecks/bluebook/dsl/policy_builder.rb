@@ -17,10 +17,10 @@ module Hecks
           @name = name
         end
 
-        # `on Account::AccountFrozen` — A BARE CONSTANT ACCEPTED (ADR
+        # `on Account::AccountFrozen` — a bare constant accepted (ADR
         # 0025, S6 — "events first-class"), resolved through `ConstShim`
         # the same way `trigger`/`dispatch` already resolve a command
-        # reference (`Naming.event_ref`, that method's own header). NOT
+        # reference (`Naming.event_ref`, that method's own header). Not
         # a required spelling yet, unlike `trigger`'s own quoted-text
         # refusal — see `policy.bluebook`'s own KeywordSeed comment for
         # why: event names aren't 100% migrated across the live corpus
@@ -28,7 +28,7 @@ module Hecks
         # AccountFrozen"` (quoted) and `on Account::AccountFrozen`
         # (bare) stay admitted until a full migration lands.
         #
-        # RENAMED FROM the generic single-fill coercion — item #13's
+        # Renamed from the generic single-fill coercion — item #13's
         # full metaprogrammed dispatch, slice 1 (whole-project
         # table-unification survey), now overridden here the same way
         # `trigger_impl` overrides its own generic default.
@@ -36,7 +36,7 @@ module Hecks
           @on_event = Naming.event_ref(event_ref)
         end
 
-        # `with:` — WHAT THE TRIGGER IS GIVEN, when the event's own shape
+        # `with:` — what the trigger is given, when the event's own shape
         # is not it. Omitted, the whole event payload forwards verbatim,
         # which is what every policy did before this existed.
         #
@@ -46,10 +46,10 @@ module Hecks
         # supplies itself. The reason it exists is the reason a saga's
         # does — a reaction crosses an aggregate boundary, and the event
         # on one side is under no obligation to be shaped like the
-        # command on the other. Without it the target has to DECLARE
+        # command on the other. Without it the target has to declare
         # every field the event happens to carry, whether it reads them
         # or not.
-        # THE COMMAND ITSELF, NOT ITS NAME (ADR 0025, "events and
+        # The command itself, not its name (ADR 0025, "events and
         # reactions" — command references become first-class): `trigger
         # Account::Debit`, a bare constant `ConstShim` resolves the same
         # way `reference_to Account` always has, not a quoted verb string.
@@ -61,10 +61,10 @@ module Hecks
         # `Account::Debit` and `Banking::Account::Debit` mean the same
         # thing here).
         #
-        # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era
+        # Legacy under shadow-parsing (S0a's own bridge) — frozen era
         # text still writes the quoted form.
         #
-        # RENAMED FROM `trigger` — item #13's full metaprogrammed
+        # Renamed from `trigger` — item #13's full metaprogrammed
         # dispatch (slice 4), same reasoning as has_many_impl above: not
         # bootstrap-reachable, reached through calls: with no fallback
         # needed.
@@ -91,8 +91,8 @@ module Hecks
           @expect_undelivered = expect_undelivered == true
         end
 
-        # THE GUARD — same extraction CommandBuilder#given/#ensures already
-        # use (Ports::Extraction reads the block's SOURCE ; the block itself
+        # The guard — same extraction CommandBuilder#given/#ensures already
+        # use (Ports::Extraction reads the block's source ; the block itself
         # is never called, here or at runtime — Runtime::PolicyInterpreter
         # evaluates the extracted text through the same
         # Bluebook::Expression::Evaluator a command's own given/ensures run
@@ -102,7 +102,7 @@ module Hecks
         # this policy does not apply to this event, exactly like an
         # `event_qualifier` miss, which carries no message either.
         #
-        # Evaluated against the triggering EVENT's OWN PAYLOAD, not a
+        # Evaluated against the triggering event's own payload, not a
         # stored record — a policy reacts to what just happened, and has no
         # aggregate instance of its own to read state from.
         def where(&predicate)
@@ -120,7 +120,7 @@ module Hecks
           @where = canonical
         end
 
-        # THE FAN-OUT SOURCE — a query verb, "Aggregate.query_name" or
+        # The fan-out source — a query verb, "Aggregate.query_name" or
         # "Domain::Aggregate.query_name", the same qualified-or-not shape a
         # saga's own `dispatch` command name already takes
         # (SagaInterpreter#qualified). Runtime::PolicyInterpreter runs the

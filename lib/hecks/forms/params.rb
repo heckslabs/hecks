@@ -4,28 +4,28 @@ require_relative "field_renderer"
 
 module Hecks
   module Forms
-    # The two directions between a flat, dotted, ALL-STRINGS web payload
+    # The two directions between a flat, dotted, all-strings web payload
     # (`{"amount.cents"=>"1050", "amount.currency"=>"USD"}`, whether it came
     # off a POST form body or a GET query string — Rack hands back the same
     # flat shape for both as long as nothing uses `[]` bracket names) and the
     # nested, typed hash `Dispatcher#dispatch`/`#query` actually take
     # (`{amount: {cents: 1050, currency: "USD"}}`).
     #
-    # `extract` NEEDS the Field tree, not just the raw params — a numeric
+    # `extract` needs the Field tree, not just the raw params — a numeric
     # leaf's own runtime check (`Value::Coercion#check_numeric_fields`)
     # requires an actual `Integer`/`Float`, not a String that merely looks
     # like one (`given.is_a?(expected)`, no coercion attempted there); a web
     # form can only ever hand back strings, so the cast has to happen here,
-    # once, using the SAME shape `FieldShape` already resolved for
+    # once, using the same shape `FieldShape` already resolved for
     # rendering the input in the first place — one reading of the IR, not
     # two that could disagree.
     module Params
-      # Every LEAF field carries its own full dotted path regardless of how
+      # Every leaf field carries its own full dotted path regardless of how
       # deep `FieldShape` nested it to get there — a single-attribute value
-      # object unwraps to a leaf sitting at the TOP of the fields array with
+      # object unwraps to a leaf sitting at the top of the fields array with
       # a two-segment path (`"reference.value"`), the exact same shape a
       # `:group`'s own child carries. So this collects every leaf as
-      # (full path -> value) FIRST, and nests by the path's OWN segments
+      # (full path -> value) first, and nests by the path's own segments
       # last — one nesting rule, blind to how a field arrived at its path.
       def self.extract(fields, raw)
         pairs = {}
@@ -42,18 +42,18 @@ module Hecks
       end
 
       # A path-prefix collision: one field named (say) "price" alongside
-      # another named "price.cents" implies "price" is BOTH a scalar leaf
+      # another named "price.cents" implies "price" is both a scalar leaf
       # and the parent of a nested group — the two can never coexist in
       # the same result hash. Depending on which pair `each_with_object`
       # reaches first, the naive walk below used to fail in one of two
       # ways: a scalar planted first left `acc[segment] ||= {}` seeing a
-      # truthy non-Hash and reusing IT as `node`, so the next `node[leaf] =
+      # truthy non-Hash and reusing it as `node`, so the next `node[leaf] =
       # value` blew up with a raw `TypeError` from calling `String#[]=`
-      # with a Symbol key; a scalar planted AFTER the nested group instead
+      # with a Symbol key; a scalar planted after the nested group instead
       # sailed through `node[leaf] = value` and silently clobbered the
       # entire nested hash with the scalar, losing every sibling under it
       # with no error at all. Both directions are checked explicitly here
-      # so either order raises the SAME clear `ArgumentError` instead of a
+      # so either order raises the same clear `ArgumentError` instead of a
       # confusing crash or silent data loss — this is the family of error
       # every command/query submission path in app.rb already rescues into
       # a 422 (`ArgumentError` sits right alongside the domain refusals in
@@ -119,8 +119,8 @@ module Hecks
 
       # The other direction — a nested value hash back to the flat dotted
       # pairs a GET link's query string carries, so a query view's
-      # "shareable link" and its filter FORM stay two renderings of the
-      # SAME data rather than two formats that can drift. Reads with
+      # "shareable link" and its filter form stay two renderings of the
+      # same data rather than two formats that can drift. Reads with
       # `FieldRenderer.dig` — the identical full-path lookup a re-rendered
       # input's own value comes from — for the same reason `extract` above
       # nests by full path rather than by tree shape.

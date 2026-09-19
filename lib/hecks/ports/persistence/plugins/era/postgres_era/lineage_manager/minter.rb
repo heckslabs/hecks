@@ -61,7 +61,7 @@ module Hecks
           # A compute's (and, the same way, a rekey's) only verification
           # is the audit's human-approved sample — mint stays
           # non-interactive by requiring the approval to already exist,
-          # recorded IN THIS DATABASE by `bin/translation_audit …
+          # recorded in this database by `bin/translation_audit …
           # --approve` and bound to what was actually reviewed: this
           # edge's parsed content, and the journal as it stood when the
           # samples were read. A journal that has advanced past the
@@ -88,7 +88,7 @@ module Hecks
 
           # No edge yet: the boot refuses toward the authoring loop —
           # naming both tools and the era ordinal. With HECKS_SCAFFOLD=1
-          # the boot RUNS the scaffold first (an explicit flag, never a
+          # the boot runs the scaffold first (an explicit flag, never a
           # silent side-effect) and the refusal names the file it wrote.
           def refuse_toward_the_scaffold!(registry, bluebook, lineage, latest, ordinal, directory)
             if ENV["HECKS_SCAFFOLD"] == "1" && directory

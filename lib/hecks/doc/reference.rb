@@ -6,7 +6,7 @@ module Hecks
     # The DSL reference, projected from the language's own Syntax chapter
     # — the same Keyword/Argument rows the conformance specs hold equal
     # to the live builders. Nothing here is described twice: the tables
-    # come from the declaration, the PROSE is hand-written between
+    # come from the declaration, the prose is hand-written between
     # markers the generator preserves, and the golden spec refuses a
     # tree where the two have drifted.
     #
@@ -19,9 +19,9 @@ module Hecks
       GENERATED_END = "<!-- generated:end -->".freeze
       TODO_SENTINEL = "<!-- TODO: document this word -->".freeze
 
-      # A PAGE'S OWN HAND-WRITTEN OPENING, harvested under a key no word
+      # A page's own hand-written opening, harvested under a key no word
       # can ever collide with (words are strings off the Syntax chapter;
-      # this is a Symbol). It exists so a page can boot ONCE — load a real
+      # this is a Symbol). It exists so a page can boot once — load a real
       # corpus chapter, wire its hexagon — and have every word's example
       # below run against that single boot, the way a guide's opening
       # `ruby boot` block already does. Without it each word would have to
@@ -33,7 +33,7 @@ module Hecks
 
       def generated_begin(word) = "<!-- generated:begin word=#{word} -->"
 
-      # Keyed by REGION rather than by word — the same marker convention,
+      # Keyed by region rather than by word — the same marker convention,
       # used for the parts of a page that are not about one word: a
       # page's generated lede here, README's generated indexes below.
       def region_begin(id) = "<!-- generated:begin id=#{id} -->"
@@ -56,7 +56,7 @@ module Hecks
       # same shape `rows` used to produce — nothing below this needed to
       # change.
       #
-      # NO SEPARATE `@keywords ||=` HERE ANYMORE. This module used to
+      # No separate `@keywords ||=` here anymore. This module used to
       # memoize its own copy on top of `SyntaxBoot.call`'s own memo — a
       # double cache with no way to invalidate either half, and a real
       # bug: whichever call in the whole process happened to land first
@@ -86,9 +86,9 @@ module Hecks
         end.merge("index.md" => render_index)
       end
 
-      # A WORD ADMITTING TWO FORMS HAS TWO ROWS — syntax.bluebook's own
+      # A word admitting two forms has two rows — syntax.bluebook's own
       # stated rule, and `identified_by` (a block, or a bare argument and
-      # none) is the case that made it real again. One SECTION per word all
+      # none) is the case that made it real again. One section per word all
       # the same: the prose is the word's rather than the form's, and the
       # argument rows join by (word, context) and so already cover every
       # form. Grouped rather than rendered per row, or a reader would meet
@@ -128,7 +128,7 @@ module Hecks
         inside.empty? ? "Words available in the #{context} body." : "Words available inside #{inside}."
       end
 
-      # One SPELLING per form, everything else off the first row — the
+      # One spelling per form, everything else off the first row — the
       # columns that differ between two forms of one word are `body` (which
       # is what the spelling shows) and nothing else.
       def render_word(forms, prose)
@@ -204,7 +204,7 @@ module Hecks
       # Prose keyed by word: everything between a section's generated
       # region and the next `## ` heading (or end of file).
       #
-      # Starts on PREAMBLE rather than nil so the text between the PAGE's
+      # Starts on PREAMBLE rather than nil so the text between the page's
       # own generated lede and its first word heading is carried over too
       # instead of being silently dropped. A page written before that
       # region existed has no generated marker ahead of its first `## `,
@@ -212,7 +212,7 @@ module Hecks
       # preamble is invented — the older shape reads back unchanged.
       # A single-pass line-scanning state machine (current/collecting/
       # buffer/in_fence) — each branch mutates shared local state that
-      # carries into the NEXT iteration, so splitting per branch would
+      # carries into the next iteration, so splitting per branch would
       # mean passing all four back and forth by reference every line.
       # rubocop:disable-next Metrics/PerceivedComplexity
       def harvest(text)
@@ -221,7 +221,7 @@ module Hecks
         collecting = false
         buffer = []
 
-        # A HEADING INSIDE A FENCE IS NOT A HEADING. `## something` is an
+        # A heading inside a fence is not a heading. `## something` is an
         # ordinary Ruby comment, and now that every word's section carries
         # runnable code, one written at the left margin would otherwise
         # end that section mid-example and orphan the rest of it under a
@@ -293,11 +293,11 @@ module Hecks
         lines.join("\n")
       end
 
-      # The opening comment PARAGRAPH, not just the first line — a table
+      # The opening comment paragraph, not just the first line — a table
       # cell that trails off mid-clause reads worse than one that runs a
       # little long and says "...". A code-bearing comment (`field.name`,
       # `pattern:`) makes naive sentence-splitting on "." or ":" cut in
-      # the wrong place, so this truncates on LENGTH alone.
+      # the wrong place, so this truncates on length alone.
       def tool_summary(path)
         comment_lines = []
         started = false
@@ -317,13 +317,13 @@ module Hecks
         text.length > 140 ? "#{text[0, 137]}..." : text
       end
 
-      # ONE REAL, COMMITTED FILE, READ FRESH — not re-derived from a boot
+      # One real, committed file, read fresh — not re-derived from a boot
       # (this module never requires `hecks/projections/diagrams`, and
       # shouldn't just to draw one example). `docs/generated/diagrams/`
       # is already held to the declaration by `spec/diagrams_spec.rb`'s
       # own drift check; this just quotes its own output, so the two
       # can't independently drift from each other either — a stale
-      # Order_lifecycle.mmd fails THAT spec long before this one runs.
+      # Order_lifecycle.mmd fails that spec long before this one runs.
       def diagram_showcase(root)
         lifecycle = File.read(File.join(root, "docs/generated/diagrams/pizzas/Order_lifecycle.mmd")).strip
         <<~MARKDOWN.strip
@@ -363,7 +363,7 @@ module Hecks
         File.write(path, render_readme(root, File.read(path)))
       end
 
-      # An example A READER CAN SEE and the harness will actually run.
+      # An example a reader can see and the harness will actually run.
       # `ruby skip` is display-only by the doctest harness's own rule, and
       # a hidden `<!-- doctest:boot -->` block is setup rather than an
       # example — a word whose only "example" is invisible or inert is a
@@ -373,7 +373,7 @@ module Hecks
 
       def exemplified?(prose) = prose.to_s.match?(EXAMPLE_FENCE)
 
-      # EVERY LIVE WORD, PAIRED WITH ITS PROSE. Both coverage gates ask a
+      # Every live word, paired with its prose. Both coverage gates ask a
       # question about this same walk and differ only in what they ask of
       # the prose, so they share it rather than each re-deriving the page
       # set — the two are meant to move together, and one drifting past
@@ -394,18 +394,18 @@ module Hecks
 
       def name_of(word, context) = "#{word} (#{context})"
 
-      # The coverage gate's question: every LIVE word with no prose yet.
+      # The coverage gate's question: every live word with no prose yet.
       def undocumented(directory)
         live_words(directory).reject { |_word, _context, prose| prose }
                              .map { |word, context, _| name_of(word, context) }
       end
 
-      # The SECOND coverage gate: prose is a declaration, and a
+      # The second coverage gate: prose is a declaration, and a
       # declaration nothing runs cannot disagree with anything. A word
       # documented only in sentences can go stale — or describe a word
       # the runtime never wired at all, which this repository has already
       # shipped twice (`read_model`'s where/order_by/limit/offset, and
-      # `role`/`goal` on a command). An example that RUNS is the only
+      # `role`/`goal` on a command). An example that runs is the only
       # documentation that can go red.
       def unexemplified(directory)
         live_words(directory).reject { |_word, _context, prose| exemplified?(prose) }

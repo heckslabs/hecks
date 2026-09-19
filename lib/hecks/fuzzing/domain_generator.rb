@@ -4,10 +4,10 @@ require_relative "form_census"
 
 module Hecks
   module Fuzzing
-    # A SMALL, VALID BLUEBOOK, WRITTEN FROM A SEED — so the QA loop can test
+    # A small, valid bluebook, written from a seed — so the QA loop can test
     # construct combinations nobody has hand-authored yet.
     #
-    # The ledger's most productive moments were a new stress domain's FIRST
+    # The ledger's most productive moments were a new stress domain's first
     # sweep: `corrections` found four bugs, `referral_chain` four,
     # `tenant_ledger` two. Every one of those domains was written by hand,
     # one angle at a time, and `bin/qa_domain_novelty` exists precisely
@@ -20,16 +20,16 @@ module Hecks
     # policy, a role), and renders the whole thing as ordinary bluebook
     # source any runtime boots.
     #
-    # A BLUEPRINT, NOT SOURCE, IS THE UNIT. `generate` answers a plain,
+    # A blueprint, not source, is the unit. `generate` answers a plain,
     # JSON-shaped Hash (string keys) — a small IR of its own — and `render`
     # turns it into source. That split is what makes a finding shrinkable
-    # at the DOMAIN level: `shrink_candidates` removes one element at a time
+    # at the domain level: `shrink_candidates` removes one element at a time
     # (a query, a command, an entity, an aggregate, a given…) and `prune`
     # drops whatever that removal left dangling, using the explicit
     # `requires` tokens every dependent element carries. Nothing here
     # parses Ruby back.
     #
-    # EVERY GENERATED DOMAIN IS THE SAME DOMAIN NAME — `QaGenerated`, in a
+    # Every generated domain is the same domain name — `QaGenerated`, in a
     # `qa_generated/bluebook/qa_generated.bluebook` directory — because the
     # directory basename doubles as a Rust module and Cargo feature name
     # (`bin/project_rust`'s own landmine guard), and one fixed feature is
@@ -39,14 +39,14 @@ module Hecks
     module DomainGenerator
       DOMAIN_NAME = "QaGenerated".freeze
       DIRECTORY   = "qa_generated".freeze
-      # `FORMS` — what this generator can BUILD, defined at the bottom of
+      # `FORMS` — what this generator can build, defined at the bottom of
       # this module, beside the `Builder::FORM_STEPS` table it reads.
 
-      # NO RUST-RESERVED SNAKE NAMES. `Crate` was here first and every
+      # No Rust-reserved snake names. `Crate` was here first and every
       # domain holding it failed to compile under `--rust`: its snake form
       # is the keyword `crate`, which Rust cannot escape even as a raw
       # identifier, and the projection emits it as a module and field name
-      # unguarded (`bin/project_rust` only guards the DOMAIN name). That is
+      # unguarded (`bin/project_rust` only guards the domain name). That is
       # a real finding, reported rather than generated into every run.
       AGGREGATE_NAMES = %w[Ticket Desk Parcel Venue Kiosk Hangar].freeze
       ENTITY_NAMES    = %w[Line Stamp].freeze
@@ -252,7 +252,7 @@ module Hecks
         copy
       end
 
-      # DROP WHATEVER A REMOVAL LEFT DANGLING, to a fixpoint. Every element
+      # Drop whatever a removal left dangling, to a fixpoint. Every element
       # that depends on another carries `requires` — tokens naming exactly
       # what must still exist (`attribute:Ticket.score`, `lifecycle:Desk`,
       # `reference:Ticket->Desk`, `command:Ticket.Close`, …) — so this is
@@ -295,7 +295,7 @@ module Hecks
         owner["lifecycle"] = nil if transitions.empty?
       end
 
-      # EVERY STATE A PATH FROM THE DEFAULT REACHES. A transition out of a
+      # Every state a path from the default reaches. A transition out of a
       # state nothing reaches can never fire, so a removal that orphans one
       # goes too: shrinking away `Close` used to leave `Reopen from closed`
       # behind — qa/stress_domains/generated_revalued_shape was promoted
@@ -454,7 +454,7 @@ module Hecks
           types = { "sequence" => "#{name}Sequence", "batch" => "#{name}Batch" }
 
           aggregate["attributes"] << { "name" => list, "type" => name, "list" => true, "requires" => ["entity:#{owner}.#{name}"] }
-          # Event names are qualified by the OWNER aggregate, not just the
+          # Event names are qualified by the owner aggregate, not just the
           # entity type — `ENTITY_NAMES` is a small pool (`Line`, `Stamp`)
           # shared across every aggregate in a domain, and `extras` can pick
           # the same entity name on a different aggregate than a form forced
@@ -677,14 +677,14 @@ module Hecks
         def snake(name) = DomainGenerator.snake(name)
       end
 
-      # WHAT THIS GENERATOR CAN BUILD, NOT EVERYTHING THE CENSUS NAMES.
+      # What this generator can build, not everything the census names.
       # This read `FormCensus::FORMS.keys`, which quietly assumed the two
       # tables would always agree — and they stopped agreeing the moment
       # the census learned a form (`corrects`, `role_gated`) that
       # `Builder::FORM_STEPS` has no recipe for: `generate` raised
       # `KeyError` for any seed that happened to draw one. The census
-      # measures what a domain HAS; this names what a generator can
-      # WRITE, and a form in the first without the second simply is not
+      # measures what a domain has; this names what a generator can
+      # write, and a form in the first without the second simply is not
       # generated — the rotation still meets it, and
       # `spec/combination_coverage_spec.rb`'s own `HELD_OUTSIDE_THE_GOLDENS`
       # names where. Kept honest by `spec/fuzzing/domain_generator_spec.rb`.

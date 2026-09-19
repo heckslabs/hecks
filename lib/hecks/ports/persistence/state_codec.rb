@@ -4,11 +4,11 @@ require_relative "../../runtime/value"
 module Hecks
   module Ports
     module Persistence
-      # ONE SPELLING OF AN AGGREGATE'S STATE ACROSS THE STORE BOUNDARY
+      # One spelling of an aggregate's state across the store boundary
       # (Phase 2, Track A, PR A2). Every adapter used to decode its own way
       # (spec/ports/persistence_legacy_decode_spec.rb pins today's shapes):
-      # Heki heads and every journal reader symbolize the TOP level only,
-      # Sqlite/D1/Postgres/PostgresEra/Lambda heads symbolize DEEP, and
+      # Heki heads and every journal reader symbolize the top level only,
+      # Sqlite/D1/Postgres/PostgresEra/Lambda heads symbolize deep, and
       # Memory never serializes at all (a shallow `state.dup`). This codec is
       # the single, IR-driven answer those adapters converge on. Since A3
       # every adapter writes through `encode` and reads through `decode`
@@ -22,14 +22,14 @@ module Hecks
       # - `decode` — walks the aggregate's IR: attributes, value objects
       #   (their fields, recursively), `list_of` value objects and entities
       #   (entity fields, nested entities, the entity's own lifecycle),
-      #   references, the lifecycle field, and projected fields. A DECLARED
+      #   references, the lifecycle field, and projected fields. A declared
       #   key becomes a symbol at every depth, whichever spelling arrived.
       # - `copy` — `decode(encode(state))`: what a durable adapter would hand
       #   back, for Memory, with no JSON text in between.
       #
-      # WHAT DECODE NEVER DOES:
+      # What decode never does:
       #
-      # It never INVENTS a key. A declared field absent from the stored
+      # It never invents a key. A declared field absent from the stored
       # state stays absent — not a present nil — because the runtime reads
       # absence as "this record predates the field": `Instance.
       # hydrate_with_defaults` fills a declared `default:` only when the key
@@ -38,17 +38,17 @@ module Hecks
       # required declared-but-absent field reads as a named refusal rather
       # than nil (spec/runtime/attribute_absence_spec.rb). A present nil
       # would silently suppress all three. For the same reason it never
-      # DROPS a key, nil or not: a stored nil stays a stored nil.
+      # drops a key, nil or not: a stored nil stays a stored nil.
       #
-      # It never touches an UNDECLARED key's value — a retired field, or a
+      # It never touches an undeclared key's value — a retired field, or a
       # member a value object no longer declares, is exactly what an Era
-      # translation (rename/move/drop) still has to read. Its KEY keeps its
+      # translation (rename/move/drop) still has to read. Its key keeps its
       # spelling below the top level; at the top level every key is a
       # symbol, declared or not, because every adapter has always
       # symbolized the top level and `Lineage#translate` reads retired
       # top-level names as symbols.
       #
-      # When a hash carries BOTH spellings of one declared key, the symbol
+      # When a hash carries both spellings of one declared key, the symbol
       # spelling wins: it can only have been written by Ruby after the
       # string one was read.
       module StateCodec
@@ -84,7 +84,7 @@ module Hecks
         end
 
         # Whether `decode` would hand `state` back unchanged — every
-        # top-level key a Symbol, every DECLARED key below it a Symbol, no
+        # top-level key a Symbol, every declared key below it a Symbol, no
         # hash carrying both spellings of a declared key. Allocates
         # nothing; `CodecBoundary` asks it of every `Instance` an adapter
         # builds. A `Runtime::Value` (hydrated state, a save's own entry)
@@ -160,7 +160,7 @@ module Hecks
 
         # An entity is "structurally interchangeable with an aggregate"
         # (behaviour/entity.rb): its attributes plus its own lifecycle field.
-        # Its value objects and nested entities resolve through the ROOT
+        # Its value objects and nested entities resolve through the root
         # aggregate, the same way `EntityListCoercion#hydrate_entity_list`
         # resolves them.
         def entity_fields(entity)
@@ -173,7 +173,7 @@ module Hecks
         # ── decoded? ────────────────────────────────────────────────────
 
         # The mirror of `decode_hash`: a key `decode` would respell (any
-        # non-Symbol at the top, a non-Symbol DECLARED key below it) means
+        # non-Symbol at the top, a non-Symbol declared key below it) means
         # "not decoded"; an undeclared nested key keeps whatever spelling
         # it has, exactly as `decode` keeps it.
         def hash_decoded?(aggregate, fields, hash, top: false)

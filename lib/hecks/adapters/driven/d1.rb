@@ -15,16 +15,16 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # Cloudflare D1 — SQLite, managed, reached over its REST API rather
-    # than a local file. D1 IS SQLite, dialect and all, so this file
-    # reuses Sqlite::SchemaBuilder and Sqlite::Codec UNCHANGED (the DDL
+    # Cloudflare D1 — SQLite, managed, reached over its rest API rather
+    # than a local file. D1 is SQLite, dialect and all, so this file
+    # reuses Sqlite::SchemaBuilder and Sqlite::Codec unchanged (the DDL
     # and the column encode/decode) and SqlQueryBuilder's dialect hooks
     # are copied near-verbatim from sqlite.rb — the only real difference
     # is the transport (D1::Connection, an HTTP call per query, vs a
     # persistent local sqlite3 handle). See sqlite.rb's own header
     # comment: "this file supplies only SQLite's dialect" — true here too.
     class D1
-      # THE TRANSPORT — mirrors just the slice of SQLite3::Database's own
+      # The transport — mirrors just the slice of SQLite3::Database's own
       # interface (execute/get_first_row/get_first_value, rows as
       # column-name-keyed hashes) that Sqlite::SchemaBuilder, Sqlite::Codec,
       # and this file's own methods already assume. One stateless HTTP call
@@ -45,7 +45,7 @@ module Hecks
         # D1 batches are SQL transactions: statements execute in order and a
         # failure rolls the entire sequence back. Keep the tuple-shaped local
         # seam small so adapter code and focused fakes do not need to know the
-        # REST request envelope.
+        # rest request envelope.
         # https://developers.cloudflare.com/d1/worker-api/d1-database/#batch
         def batch(statements)
           payload = {
@@ -83,10 +83,10 @@ module Hecks
           raise Runtime::WiringError, "D1 query failed: non-JSON response (HTTP #{response.code}): #{response.body}"
         end
 
-        # `messages` is the whole-response :errors fallback, tried LAST —
+        # `messages` is the whole-response :errors fallback, tried last —
         # a per-statement `failed["error"]`/`failed["message"]` (checked
         # by key presence, not truthiness, so an explicit `nil` still
-        # counts as "the key was there") is always more specific to WHICH
+        # counts as "the key was there") is always more specific to which
         # statement failed, when either is present.
         def failed_statement_detail(failed, messages)
           detail =
@@ -132,7 +132,7 @@ module Hecks
         end
 
         @db = Connection.new(account_id: account_id, database_id: database_id, api_token: api_token)
-        # THE OPTIONAL saga-persistence capability's own scoping column
+        # The optional saga-persistence capability's own scoping column
         # (§2/§4) — D1's domain isolation is by whole-database identity
         # (one D1 database per domain in practice), so unlike Sqlite's
         # own per-aggregate-file default, there's no "which file does
@@ -168,7 +168,7 @@ module Hecks
         Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
       end
 
-      # order_by IS A RUNTIME VALUE — see postgres.rb's own all for the
+      # order_by is a runtime value — see postgres.rb's own all for the
       # full reasoning; whitelisted the identical way, same order_clause
       # Sqlite's own all reuses (D1 speaks the identical dialect).
       def all(order_by: nil, direction: :asc)
@@ -194,7 +194,7 @@ module Hecks
       def append(entry)
         @db.execute(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-          # `mirrors` (unlike `state`) is a NULLABLE column — an absent
+          # `mirrors` (unlike `state`) is a nullable column — an absent
           # mirrors hash must bind a real SQL NULL, not the four-character
           # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
           # check against it would never match. Same guard `postgres_era.rb`
@@ -248,29 +248,29 @@ module Hecks
       # statement supplies the outcome from database state inside that same
       # transaction; the runtime performs no preliminary find.
       #
-      # `insert_only:` used to spend a SEPARATE, EARLIER round trip finding
+      # `insert_only:` used to spend a separate, earlier round trip finding
       # out whether the row existed before ever building the batch — a real
       # TOCTOU gap (two concurrent creates at the same identity could both
       # pass that check before either wrote). D1's batch has no conditional
-      # BRANCH of its own, true, but it does not need one: a batch's own
+      # branch of its own, true, but it does not need one: a batch's own
       # statements already execute in order, atomically, as one transaction
       # (Connection#batch's own comment) — the exact guarantee the single-
       # connection adapters' own `@db.transaction do ... end` gets locally.
-      # So the existence check moves INSIDE the batch as its own first
-      # statement, and the two writes are individually gated with `WHERE NOT
-      # EXISTS (...)` against that same table, evaluated in the same
+      # So the existence check moves inside the batch as its own first
+      # statement, and the two writes are individually gated with `where not
+      # exists (...)` against that same table, evaluated in the same
       # transaction — a row that already existed makes both writes into
       # real, zero-row no-ops rather than skipping them from the Ruby side,
-      # matching Sqlite#atomic_put's `next` (skip append AND project both,
+      # matching Sqlite#atomic_put's `next` (skip append and project both,
       # together) with no second HTTP call and no gap for another writer to
       # land in between the check and the write.
-      # Three SQL statements, built here and batched together as ONE
+      # Three SQL statements, built here and batched together as one
       # transaction below — see the comment above on the real TOCTOU gap
-      # this exact shape closes (the existence check moved INSIDE the
+      # this exact shape closes (the existence check moved inside the
       # batch, not run as a separate earlier round trip). Splitting the
       # per-statement builders out would still need columns/values/slots/
       # not_exists/quoted_table threaded into each, and would separate
-      # three pieces of ONE atomic batch across methods with no single
+      # three pieces of one atomic batch across methods with no single
       # place left to see that they are, together, the fix.
       # rubocop:disable-next Metrics/AbcSize
       # rubocop:disable-next Metrics/MethodLength
@@ -290,7 +290,7 @@ module Hecks
               "THEN 'replaced' ELSE 'inserted' END AS status"
           end
 
-        # `mirrors` is NULLABLE (unlike `state`) — see `append`'s own comment.
+        # `mirrors` is nullable (unlike `state`) — see `append`'s own comment.
         encoded_mirrors = entry.mirrors && JSON.generate(entry.mirrors)
 
         entry_sql, entry_binds =
@@ -355,7 +355,7 @@ module Hecks
         end
       end
 
-      # ── the OPTIONAL saga-persistence capability (§2) — reuses the DDL
+      # ── the optional saga-persistence capability (§2) — reuses the DDL
       # `Sqlite::SchemaBuilder` already shares with Sqlite (`d1.rb`'s own
       # file header). Same `?`-placeholder shape every other write here
       # already uses through `Connection#execute`.
@@ -421,7 +421,7 @@ module Hecks
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 
-      # SQLite (and D1, the same engine) has no bare OFFSET — LIMIT -1 is
+      # SQLite (and D1, the same engine) has no bare offset — limit -1 is
       # its own documented unbounded spelling, exactly for this case.
       def unbounded_limit = " LIMIT -1"
 

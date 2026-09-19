@@ -32,10 +32,10 @@ module Hecks
     # postgres/codec.rb for the encode/decode):
     # - One real column per attribute, typed for a scalar
     #   (`SQL_TYPES`, `text` default), `jsonb` for a nested (value-object)
-    #   or list-typed attribute — never JSON-in-TEXT the way `Sqlite` has
+    #   or list-typed attribute — never JSON-in-text the way `Sqlite` has
     #   to, since Postgres has a native jsonb type.
     # - `append` and `project` are two real Postgres statements — `save`/
-    #   `delete` wrap them in ONE transaction, same "the journal insert
+    #   `delete` wrap them in one transaction, same "the journal insert
     #   and the snapshot stay atomic" reasoning `PostgresEra#append`'s own
     #   comment gives: a crash between the two must never leave a
     #   half-written state. `append`/`project` stay plain, individually-
@@ -56,7 +56,7 @@ module Hecks
       def persistence_capabilities = [:atomic_put, :optimistic_concurrency]
 
       def self.connect_for(name, settings)
-        # LAZY, ON PURPOSE — same reasoning as PostgresEra's own
+        # Lazy, on purpose — same reasoning as PostgresEra's own
         # connect_for: a domain that never wires Postgres should never
         # need the gem installed.
         require "pg"
@@ -75,7 +75,7 @@ module Hecks
             PG.connect(dbname: declared)
           end
 
-        # SHARED-INSTANCE ISOLATION — same as PostgresEra's own: a
+        # Shared-instance isolation — same as PostgresEra's own: a
         # domain that declares `schema` is sharing its Postgres instance
         # with other domains, so every unqualified reference this
         # adapter constructs resolves through search_path. A domain with
@@ -83,8 +83,8 @@ module Hecks
         schema = settings.key?(:schema) ? settings[:schema] : settings["schema"]
         connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
 
-        # QUIET ON PURPOSE — same reasoning as PostgresEra's own: a
-        # schema/table that already exists is the ORDINARY case on every
+        # Quiet on purpose — same reasoning as PostgresEra's own: a
+        # schema/table that already exists is the ordinary case on every
         # boot after the first, not news.
         connection.exec("SET client_min_messages = warning")
         connection
@@ -97,7 +97,7 @@ module Hecks
         @aggregate = aggregate
         @settings  = settings
         @db = self.class.connect_for(aggregate.name, settings)
-        # THE OPTIONAL saga-persistence capability's own scoping column
+        # The optional saga-persistence capability's own scoping column
         # (§2/§4) — falls back to the aggregate's own storage name for a
         # directly-instantiated adapter (specs), same fallback shape
         # Sqlite's own @domain already uses.
@@ -127,7 +127,7 @@ module Hecks
         instance_from_row(result[0])
       end
 
-      # order_by IS A RUNTIME VALUE — see Sqlite#all's own reasoning;
+      # order_by is a runtime value — see Sqlite#all's own reasoning;
       # whitelisted the identical way before it ever reaches
       # order_expression.
       def all(order_by: nil, direction: :asc)
@@ -151,7 +151,7 @@ module Hecks
       def append(entry)
         pg_exec_params(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES ($1, $2, $3, $4)",
-          # `mirrors` (unlike `state`) is a NULLABLE column — an absent
+          # `mirrors` (unlike `state`) is a nullable column — an absent
           # mirrors hash must bind a real SQL NULL, not the four-character
           # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
           # check against it would never match. Same guard `sqlite.rb`/
@@ -164,18 +164,18 @@ module Hecks
 
       # `expected_version:` requests optimistic-concurrency CAS (see
       # `persistence_capabilities`/`Ports::Persistence::AppendOnly#save`).
-      # `hecks_version` is ADAPTER BOOKKEEPING — never in `persisted_fields`
+      # `hecks_version` is adapter bookkeeping — never in `persisted_fields`
       # (Codec), so it never reaches `decode`'s domain-state hash. It goes
       # in the INSERT column list at `1` (a genuinely new row) and bumps by
       # one in the `ON CONFLICT DO UPDATE` branch; when `expected_version`
-      # is given, that UPDATE branch additionally requires
+      # is given, that update branch additionally requires
       # `hecks_version = expected_version` to apply at all — Postgres's own
       # `INSERT ... ON CONFLICT DO UPDATE ... WHERE`, which gates only
-      # whether the CONFLICT branch's update applies. A genuinely new row
+      # whether the conflict branch's update applies. A genuinely new row
       # never reaches that branch at all, so it always inserts regardless
-      # of this WHERE. `RETURNING hecks_version` plus `ntuples.zero?` is
+      # of this where. `RETURNING hecks_version` plus `ntuples.zero?` is
       # how a real version mismatch is told apart from an ordinary write:
-      # zero rows back means the conflict branch's WHERE excluded the row
+      # zero rows back means the conflict branch's where excluded the row
       # entirely — the version had already moved — so `nil` is returned
       # for the caller (`AppendOnly#save`) to treat as "stale, no-op".
       # rubocop:disable Metrics/AbcSize -- the CAS/plain upsert split is one
@@ -224,7 +224,7 @@ module Hecks
         self
       end
 
-      # ONE TRANSACTION, not the plain append-then-project two-step a
+      # One transaction, not the plain append-then-project two-step a
       # file-based adapter needs a crash-recovery replay for (Heki) —
       # real Postgres ACID atomicity is sitting right there, so a crash
       # between the journal insert and the table upsert must not leave
@@ -290,7 +290,7 @@ module Hecks
         end
       end
 
-      # ── the OPTIONAL saga-persistence capability (§2) — same DDL and
+      # ── the optional saga-persistence capability (§2) — same DDL and
       # shape as PostgresEra's own (postgres_era.rb), not lineage-
       # specific, copied verbatim.
       def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
@@ -344,7 +344,7 @@ module Hecks
         "position(#{placeholder} in #{expression}) > 0"
       end
 
-      # THE LIST COLUMN ITSELF IS THE JSONB ARRAY — no reaching into a
+      # The list column itself is the JSONB array — no reaching into a
       # shared blob a jsonb path has to walk into first (PostgresEra's
       # own version does, since every attribute there shares one `state`
       # column). Here, `column` names a real column of its own, already
@@ -357,17 +357,17 @@ module Hecks
 
       def plain_column(name) = quote_ident(name)
 
-      # PostgresEra's own `jsonb_path` walks `[name, *path]` into ONE
-      # shared `state` column — the attribute name is PART of the path
-      # there. Here the attribute name IS THE COLUMN: the path into it
-      # is whatever is LEFT after the column, never the column name
+      # PostgresEra's own `jsonb_path` walks `[name, *path]` into one
+      # shared `state` column — the attribute name is part of the path
+      # there. Here the attribute name is the column: the path into it
+      # is whatever is left after the column, never the column name
       # repeated inside its own path.
       def nested_expression(name, path, member)
         segments = path.empty? ? [(member || "value").to_s] : path
         jsonb_path(name, segments)
       end
 
-      # Scalar, non-value-object attributes get a REAL typed column
+      # Scalar, non-value-object attributes get a real typed column
       # (bigint/double precision/text) — comparing and sorting one needs
       # no cast at all, unlike PostgresEra's shared jsonb `state` blob,
       # where even a top-level scalar only ever comes out of `#>>` as
@@ -412,11 +412,11 @@ module Hecks
         jsonb_extraction?(expression) && numeric_field?(field) ? "(#{expression})::numeric" : expression
       end
 
-      # Postgres defaults to NULLS LAST on ASC — same override
+      # Postgres defaults to nulls last on ASC — same override
       # PostgresEra's own order_clause carries, so a declared query
       # answers identically no matter which adapter serves it (the
       # port's in-memory semantics, which Sqlite's own default happens
-      # to match, put null rows FIRST ascending and LAST descending).
+      # to match, put null rows first ascending and last descending).
       def order_clause(order_by, policy)
         direction = order_by.direction.to_s.downcase == "desc" ? "DESC" : "ASC"
         nulls = case policy&.mode.to_s
@@ -428,7 +428,7 @@ module Hecks
       end
 
       # Same walk PostgresEra's own numeric_field? uses — decides
-      # numericness at ANY depth from the declared shape itself, not a
+      # numericness at any depth from the declared shape itself, not a
       # runtime value.
       def numeric_field?(field)
         name, *path = field.to_s.split(".")
@@ -437,7 +437,7 @@ module Hecks
         end
       end
 
-      # ARRAY[...] of individually-escaped literals — same escaping
+      # Array[...] of individually-escaped literals — same escaping
       # PostgresEra's own jsonb_path carries and the same reason: a
       # hand-rolled '{a,b,c}' array literal has no escaping at all, and
       # a segment is a field or value-object member name this method has

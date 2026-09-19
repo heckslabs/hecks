@@ -10,9 +10,9 @@ module Hecks
       module LineageManager
         # What a mint must prove before it may happen: the edge covers
         # the whole diff, no identity path was re-keyed, and the audit's
-        # first two layers pass over the LIVE compiled chain.
+        # first two layers pass over the live compiled chain.
         module CoverageCheck
-          # Layer 1 against THIS edge specifically: every vanished or
+          # Layer 1 against this edge specifically: every vanished or
           # retyped path in the held→current diff must be explained, and
           # every held aggregate must still be claimed. The refusal is
           # EraGuard's own, byte for byte.
@@ -32,15 +32,15 @@ module Hecks
             Runtime::EraGuard.check_vanished_aggregates!(registry, bluebook, held_bluebook)
           end
 
-          # An identity-path change is a RE-KEYING, not an ordinary
+          # An identity-path change is a re-keying, not an ordinary
           # translation — stored ids were fixed at write time under the old
-          # key, so this refuses UNLESS the edge declares a `rekey` for
+          # key, so this refuses unless the edge declares a `rekey` for
           # this aggregate covering exactly that. `rules.rekey?` (see
           # `Ports::Persistence::Lineage`'s own comment) is the single
           # source of truth every consumer of this fact asks — this is not
           # a second, independent check of `declared.rekeys`.
           def check_identity_unchanged!(bluebook, aggregate, held_aggregate, rules)
-            # The FULL declared path lists, in declaration order — never the
+            # The full declared path lists, in declaration order — never the
             # single-head shortcut, which is nil for every composite identity
             # and so would let two different composites compare as unchanged.
             return if held_aggregate.identity_paths == aggregate.identity_paths
@@ -56,7 +56,7 @@ module Hecks
                   "data explicitly"
           end
 
-          # Layers 1 and 2 of the audit, over the LIVE compiled chain —
+          # Layers 1 and 2 of the audit, over the live compiled chain —
           # before anything is minted, so a refusal leaves no half-born
           # era. (A convert meeting an unmapped value raises inside the
           # preview query itself: same rollback-shaped outcome.)

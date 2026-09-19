@@ -3,22 +3,22 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # THE MODEL CLASSES, PROJECTED FROM THE LANGUAGE THAT DECLARES THEM.
+    # The model classes, projected from the language that declares them.
     #
-    # A construct's HOLDING half — its readers, its emission, a
+    # A construct's holding half — its readers, its emission, a
     # constructor that assigns declared fields and hands off — restates
     # what `bluebook.bluebook` already says, three times over in Ruby.
     # This renders it instead.
     #
-    # ONLY THE HOLDING HALF. `Behaviour::X` is hand-written and permanent,
+    # Only the holding half. `Behaviour::X` is hand-written and permanent,
     # and `settle` is the seam: everything a declaration cannot state
     # lives behind it, so regenerating can never be lossy. That property
     # was established construct by construct before any of this was
     # written — the chapter looked generatable and was not, until its
     # `@hecks_root`, ports table and child stamping moved behind `settle`.
     #
-    # THE HOST MANIFEST IS THE HONEST PART. The grammar states the fields;
-    # it does not state which constructs are Ruby CLASSES rather than
+    # The HOST manifest is the honest part. The grammar states the fields;
+    # it does not state which constructs are Ruby classes rather than
     # instances, what a constructor's defaults are, or how a value is
     # coerced on the way in. Those are facts about Ruby, not about
     # bluebooks, so they are declared here rather than pretended into the
@@ -29,7 +29,7 @@ module Hecks
 
       projects_as :model, declares: "Bluebook", emits: :files
 
-      # PER-CONSTRUCT RUBY FACTS. `coerce` is the only fiddly column: a
+      # Per-construct Ruby facts. `coerce` is the only fiddly column: a
       # declared field arrives as whatever the builder handed over, and
       # each construct has always normalised its own on the way in.
       HOST = {
@@ -42,20 +42,20 @@ module Hecks
           defaults:  { name: nil, on_event: "nil", trigger_command: "nil",
                        target_domain: "nil", expect_undelivered: "false", where: "nil", for_each: "nil",
                        with_spec: "[]", aggregate: "nil" },
-          # A FLAG ON THE WIRE IS A BOOLEAN — the language holds it as
+          # A flag on the wire is a boolean — the language holds it as
           # text ("true"), the builder hands over `true`, and a
           # reconstruction hands back whichever it read; all three land
           # as the same `true`/`false`.
           coerce:    { name: ".to_s", aggregate: "&.to_s", expect_undelivered: ".to_s == \"true\"" },
-          # A LIST OF BINDINGS IS NOT A SCALAR ON THE WIRE. Every other
+          # A list of bindings is not a scalar on the wire. Every other
           # field emits as itself; this one has to render the way
           # `DispatchSpec`'s own `with_spec` does — keys to strings, and
-          # `render_value` KEEPING the leading colon on a Symbol, because
+          # `render_value` keeping the leading colon on a Symbol, because
           # a binding that reads an event field and one that supplies a
           # literal string are otherwise indistinguishable once written
           # down (see `MetaValidator::Readings`' own note on exactly that).
           renders:   { with_spec: "-> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } }",
-                       # COMPUTED (Deviations::COMPUTED["Policy"]): the structured
+                       # Computed (Deviations::COMPUTED["Policy"]): the structured
                        # form of `where`, a pure function of that text, the same
                        # `ast` every rule row carries beside its `canonical`.
                        where_ast: "-> { where_ast }" },
@@ -71,8 +71,8 @@ module Hecks
 
       def render(bluebook, name, host)
         <<~RUBY
-          # GENERATED — projected from the language's own #{name} aggregate.
-          # DO NOT EDIT: the holding half is rendered, and #{host.fetch(:behaviour)}
+          # Generated — projected from the language's own #{name} aggregate.
+          # Do not edit: the holding half is rendered, and #{host.fetch(:behaviour)}
           # is where anything hand-written belongs.
           require_relative "behaviour/#{File.basename(host.fetch(:file), '.rb')}"
 
@@ -95,9 +95,9 @@ module Hecks
 
       # The emission, keyed as the model spells it and sourced as the
       # language declares it.
-      # A COMPUTED field (Deviations::COMPUTED) is emitted too — it is
+      # A computed field (Deviations::COMPUTED) is emitted too — it is
       # model-only by definition, so it rides after the declared fields
-      # and MUST have a `renders` entry, there being nothing to `send`.
+      # and must have a `renders` entry, there being nothing to `send`.
       def emits(bluebook, name)
         fields  = emitted_fields(bluebook, name) + Deviations.computed(name)
         renders = HOST.fetch(name).fetch(:renders, {})
@@ -106,7 +106,7 @@ module Hecks
         "emits_ir(\n#{fields.map { |f| "  #{"#{f}:".ljust(width + 1)} #{renders.fetch(f, ":#{f}")}" }.join(",\n")}\n)"
       end
 
-      # WHAT THE CONSTRUCT EMITS: what the language declares, less every
+      # What the construct emits: what the language declares, less every
       # deviation the tables account for. The generator and
       # spec/model_shape_conformance_spec compute this the same way, from
       # the same tables, which is the point of the tables being in lib.
@@ -126,13 +126,13 @@ module Hecks
         return lines.join("\n") if accessors.empty?
 
         # A declared field the model deliberately does not emit still
-        # needs a reader, and the REASON it is off the wire is carried
+        # needs a reader, and the reason it is off the wire is carried
         # here rather than typed in — a comment that survives
         # regeneration is one the generator writes.
         reasons = Deviations::OFF_THE_WIRE.fetch(host.fetch(:construct, ""), {})
         (lines + accessors.map do |a|
           why = reasons[a]
-          (why ? "\n# #{a.upcase}, DECLARED AND DELIBERATELY OFF THE WIRE\n# #{wrap(why)}\n" : "") +
+          (why ? "\n# #{a.to_s.capitalize}, declared and deliberately off the wire\n# #{wrap(why)}\n" : "") +
             "attr_accessor :#{a}"
         end).join("\n")
       end

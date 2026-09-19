@@ -18,10 +18,10 @@ module Hecks
       # for a non-creating command — see `identity_field` below). `values`/
       # `error` carry a sticky re-render after a refused submission; leave
       # both nil/`{}` for a fresh form. `prefill` carries values a caller
-      # arrived WITH (typically `?to=...` off a record's own detail page) —
+      # arrived with (typically `?to=...` off a record's own detail page) —
       # kept separate from `values` because a prefill is not an error retry
       # and should not be treated as one by a future reader of this code.
-      # The SAME field list a POST handler needs to cast raw params against
+      # The same field list a POST handler needs to cast raw params against
       # (params.rb's `Params.extract`) — one derivation, so a page never
       # renders an input the submit handler doesn't also expect.
       def self.fields_for(aggregate, command)

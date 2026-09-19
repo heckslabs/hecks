@@ -7,16 +7,16 @@ require_relative "../ports/clock"
 
 module Hecks
   module Facade
-    # THE RUNNER BEHIND A PROJECTED CLI.
+    # The runner behind a projected CLI.
     #
-    # `Projector::CliProjector` answers what a domain's command line LOOKS
+    # `Projector::CliProjector` answers what a domain's command line looks
     # like; this is the twenty lines that parse against it and dispatch. It
     # lives in `lib/` rather than in a `bin/` because more than one front door
     # wants it — `bin/run` for whichever domain you are standing in, `bin/qc`
     # pinned to the QA ledger — and a second copy of the parse-and-dispatch
     # would be the exact duplication the projection exists to avoid.
     #
-    # NO IO. It answers `[text, status]` and never prints or exits, so a spec
+    # No IO. It answers `[text, status]` and never prints or exits, so a spec
     # can call it without capturing streams or trapping SystemExit. The `bin/`
     # scripts do the printing, the same division `Router` and `JsonDoor`
     # already keep against HTTP.
@@ -31,14 +31,14 @@ module Hecks
         name = argv.first
         return [cli[:usage], 0] if name.nil? || %w[--help -h help].include?(name)
 
-        # `ask` PUTS A QUESTION IN ITS OWN NAMESPACE — a chapter may declare a
+        # `ask` puts a question in its own namespace — a chapter may declare a
         # command and a query of one name, and banking does.
         asking = name == "ask"
         argv   = argv[1..] if asking
         name   = argv.first
         return [cli[:usage], 1] if name.nil?
 
-        # RESOLVED THROUGH THE ALIAS MAP, so `pizzas create_pizza` and
+        # Resolved through the alias map, so `pizzas create_pizza` and
         # `pizzas order.create_pizza` reach the same verb — the aggregate is
         # worth typing only when two of them declare the same word.
         pool = asking ? cli[:questions] : cli[:verbs]
@@ -64,7 +64,7 @@ module Hecks
           return [JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
         end
 
-        # THE ANSWER IS SCOPED TO WHAT WAS ASKED. `bin/run`'s step-list form
+        # The answer is scoped to what was asked. `bin/run`'s step-list form
         # reports the whole store because a corpus run is judged on all of it;
         # somebody who issued one verb wants that verb's outcome, and against a
         # Postgres-backed domain the full dump is every record there has been.
@@ -77,20 +77,20 @@ module Hecks
                               state:  JsonDoor.materialize(handle.state),
                               events: handle.events.map(&:name)), 0]
       rescue Runtime::NotFound, Runtime::TypeMismatch => e
-        # A BAD ARGUMENT AND A MISSING RECORD BOTH LAND HERE, and both want the
+        # A bad argument and a missing record both land here, and both want the
         # same next step: read what the verb actually takes.
         ["#{e.message}\n\n  #{program} #{'ask ' if asking}#{name} --help", 1]
       rescue *Runtime::DOMAIN_REFUSALS => e
-        # THE REFUSAL IS THE PRODUCT — the chapter's own sentence, verbatim.
+        # The refusal is the product — the chapter's own sentence, verbatim.
         [e.message, 1]
       end
 
-      # THE CLOCK, FILLED IN AT THE DOOR.
+      # The clock, filled in at the door.
       #
       # A staleness rule needs the time, and the sublanguage cannot ask for it
       # — a `given` that read the clock would judge the same record differently
       # on two runs, and every replay, audit and fuzz oracle here assumes it
-      # does not. So `now` stays an ARGUMENT the predicate merely reads, and
+      # does not. So `now` stays an argument the predicate merely reads, and
       # the question becomes who types it. Before this, the caller did:
       #
       #   qa/quality_control target.claim id=QC held_by.value=me \
@@ -99,20 +99,20 @@ module Hecks
       # which is a shell incantation in front of every claim, and one an agent
       # gets wrong by pasting a stale number.
       #
-      # AT THE DOOR, NOT IN THE RUNTIME, and the distinction is load-bearing.
+      # At the door, not in the runtime, and the distinction is load-bearing.
       # `Ports::IdentityGeneration` reasons the same question through for a
       # minted uuid and lands on "the value is baked into the caller's args at
-      # the first live dispatch". A clock consulted INSIDE the interpreter
+      # the first live dispatch". A clock consulted inside the interpreter
       # would not have that property — a recorded corpus step replayed
       # tomorrow would quietly get tomorrow's time, and the fuzzer's oracle and
       # the adapter-agreement gate both compare runs of exactly that shape. Here
       # it fills only what a person or an agent is typing, and `runtime.dispatch`
       # is left alone.
       #
-      # AN EXPLICIT VALUE ALWAYS WINS, so a spec or a caller reproducing a
+      # An explicit value always wins, so a spec or a caller reproducing a
       # moment says so and is believed. This only supplies what was omitted.
       #
-      # BY NAME, WHICH IS THE ONE UNCOMFORTABLE PART. `now` is a plausible
+      # By name, which is the one uncomfortable part. `now` is a plausible
       # domain word and nothing declares that it means the clock. It is
       # tolerable because this is a convenience layer rather than semantics —
       # the verb's own help says the argument exists, dispatch is unchanged,
@@ -127,12 +127,12 @@ module Hecks
         args.merge(now: { value: Ports::Clock.now(runtime.registry) })
       end
 
-      # A PORT OPERATION HAS NO STATE, AND ITS PAYLOAD IS THE ENTIRE POINT.
+      # A port operation has no state, and its payload is the entire point.
       #
       # A command answers with the record it changed, so naming the events is
       # enough — the interesting part is in `state`. A port operation changes
       # no record: it asked something outside and came back with what was
-      # said, and that lives ONLY in the event payload. Reporting names alone
+      # said, and that lives only in the event payload. Reporting names alone
       # would print `SpecsCompleted` and drop the spec output on the floor.
       #
       # This is what makes a projected CLI usable as somebody's only door. An
@@ -140,13 +140,13 @@ module Hecks
       # it asks the port and reads the answer, and if the answer is a bare
       # event name then the door leads nowhere and it needs a shell after all.
       #
-      # BOTH ENDINGS COME BACK THE SAME WAY, and the status stays 0 for both.
+      # Both endings come back the same way, and the status stays 0 for both.
       # A refusal here is not a misuse — `IssueStillOpen` and `SuiteFailed`
       # are answers the caller asked for, correctly delivered. Exit 1 is for
       # "you typed something wrong", and conflating the two would have a
       # scripted agent treat a healthy no as a broken call.
       def answered(handle)
-        # THE ID COMES OFF THE EVENT, because a port operation hydrates no
+        # The ID comes off the event, because a port operation hydrates no
         # instance and the handle's own `id` is nil by design. The event knows
         # which record was asked about — it was stamped with it — and printing
         # `null` beside a payload that plainly says `SW-TOOL` would read as a
@@ -157,15 +157,15 @@ module Hecks
           end }
       end
 
-      # A NEAR MISS IS WORTH MORE THAN A LIST. Somebody who typed
+      # A near miss is worth more than a list. Somebody who typed
       # `bug.discovr` wants one line, not eighty-seven of them.
       #
-      # RANKED BY SHARED PREFIX, not by substring. Substring was the first
+      # Ranked by shared prefix, not by substring. Substring was the first
       # attempt and it finds nothing for the commonest typo of all — a dropped
       # letter, `order.create_piza`, which is a substring of nothing. Prefix
       # length survives an error anywhere after it, which is where errors are.
       def unknown(cli, name, asking, program)
-        # BOTH SPELLINGS ARE CANDIDATES. A caller who typed the qualified
+        # Both spellings are candidates. A caller who typed the qualified
         # form with a typo — `order.create_piza` — shares no prefix with the
         # short name `create_pizza`, so pooling only one of them suggests
         # nothing for half the mistakes anybody makes.

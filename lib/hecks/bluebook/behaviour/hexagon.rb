@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT A HECKSAGON DOES — the lookups over its declared binds.
+      # What a hecksagon does — the lookups over its declared binds.
       module Hecksagon
         # Aggregate-specific bind wins when one was declared; otherwise
         # falls back to a domain-level default (`b.aggregate.nil?` — see
@@ -21,7 +21,7 @@ module Hecks
         end
       end
 
-      # WHAT A WORLD DOES — settings lookup, with the adapter-specific
+      # What a world does — settings lookup, with the adapter-specific
       # entry falling back to the verb's own.
       module World
         def for_verb(verb) = @settings.fetch(verb.to_s, {})
@@ -30,13 +30,13 @@ module Hecks
         # end`) only answers for the adapter it actually names — falling
         # back to it unconditionally applies one adapter's settings to an
         # unrelated one. Real, corpus-caught bug: a hecksagon binding two
-        # aggregates to two different adapters under the SAME verb (one to
+        # aggregates to two different adapters under the same verb (one to
         # Heki, one to Memory) sent Memory's lookup down Heki's generic
         # entry, then failed `check_settings` with "Memory does not
         # declare :dir" — the generic entry's own `settings[:adapter]`
         # names Heki, not Memory, so the fallback was never actually for
         # this bind. `{}` is exactly right when nothing was configured for
-        # THIS adapter — Memory, which takes no values at all.
+        # this adapter — Memory, which takes no values at all.
         def for_binding(verb, adapter)
           qualified = @settings["#{verb}:#{adapter.to_s.downcase}"]
           return qualified if qualified

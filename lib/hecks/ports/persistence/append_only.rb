@@ -46,8 +46,8 @@ module Hecks
           @adapter.reset!
         end
 
-        # NOT an endless `def events = ... if ...` — that modifier binds to
-        # the WHOLE `def`, not just its body, so it evaluates against
+        # Not an endless `def events = ... if ...` — that modifier binds to
+        # the whole `def`, not just its body, so it evaluates against
         # `@adapter` while `@adapter` is still nil (class-body time,
         # before `initialize` ever runs) and silently skips defining the
         # method at all. Found live: nothing in this codebase called
@@ -71,14 +71,14 @@ module Hecks
         # `RebuildSweep#refresh`) reads it that way.
         #
         # `expected_version:` requests optimistic-concurrency CAS — commit
-        # only if the stored record's version still matches what THIS
+        # only if the stored record's version still matches what this
         # instance was read at. It is `nil` both when a caller explicitly
         # doesn't want CAS (`RebuildSweep#refresh`'s own projection-field
         # touch-up, which has no `given` to protect) and when the instance
         # is brand new (never read from storage, so `instance.version` is
         # nil) — both cases fall through to the plain, unconditional
         # `project(entry)` below, byte-for-byte today's behavior. Only an
-        # adapter that both receives a non-nil `expected_version` AND
+        # adapter that both receives a non-nil `expected_version` and
         # declares `:optimistic_concurrency` gets CAS treatment; every
         # other adapter/call site is unaffected.
         def save(instance, expected_version: nil)
@@ -114,7 +114,7 @@ module Hecks
           true
         end
 
-        # NOT an endless `def record_event = ... if ...` — same gotcha as
+        # Not an endless `def record_event = ... if ...` — same gotcha as
         # `events` above, and it bit for real here: this guard evaluated
         # against `@adapter` at class-body time (nil, always false), so
         # `record_event` was never defined at all. `emission.rb`'s own
@@ -130,7 +130,7 @@ module Hecks
           @adapter.record_event(event) if @adapter.respond_to?(:record_event)
         end
 
-        # ONE COMMIT BOUNDARY FOR SAVE + EMIT + OUTBOX — `Interpreting#
+        # One commit boundary for save + emit + outbox — `Interpreting#
         # run_dispatch_order` runs the `save` and `emit` steps inside
         # this block, so an adapter that owns a real transaction
         # (Sqlite, Postgres) commits the aggregate row, its journal
@@ -147,7 +147,7 @@ module Hecks
           yield
         end
 
-        # ONLY an adapter advertising `:cross_process_lock` (PostgresEra —
+        # Only an adapter advertising `:cross_process_lock` (PostgresEra —
         # see ADR 0036) implements this; `run_dispatch_order_with_isolation`
         # (runtime/interpreting.rb) checks `capabilities` before ever
         # calling it, so the plain `yield` fallback here only guards
@@ -158,7 +158,7 @@ module Hecks
           yield
         end
 
-        # THE OUTBOX CONTRACT — four optional adapter methods, probed
+        # The outbox contract — four optional adapter methods, probed
         # together the way `save_saga`/`delete_saga`/`each_saga` are
         # (`Registry::SagaPersistence`): an adapter either has an outbox
         # or it doesn't, never half of one. See `Runtime::Outbox`.

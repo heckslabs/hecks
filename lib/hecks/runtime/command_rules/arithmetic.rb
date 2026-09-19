@@ -22,51 +22,51 @@ module Hecks
           MutationOp.new(name: row["name"], sign: row["sign"].empty? ? nil : Integer(row["sign"]))
         end.freeze
 
-        # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and
+        # A mutation's source is either the name of an argument or a literal, and
         # the two are told apart by type : a Symbol is always a name, a String or a
         # number is always a value. Checked across all eight chapters — `to: :name`
         # and `to: "sold"`, never a Symbol meant as a value.
         #
         # `&& args.key?(source)` used to guard the lookup, and that guard is what
-        # made an ABSENT argument fall through to `source` and return THE SYMBOL
-        # ITSELF as the value. `Customer.Register` without its `name` set name to
+        # made an absent argument fall through to `source` and return the symbol
+        # itself as the value. `Customer.Register` without its `name` set name to
         # the literal `:name`, coercion met a Symbol where a PersonName belonged,
         # and the refusal read "name is a PersonName — pass its fields as an
         # object, not :name" — a message describing a mistake the caller had not
         # made. The real mistake, an absent argument, was never the one refused,
         # which is what fuzz surfaced.
         #
-        # STALE (as of the equivalence-gap plan's own audit): this used to
+        # Stale (as of the equivalence-gap plan's own audit): this used to
         # say "the language cannot yet say which arguments are optional" —
         # it already can, and always could once `attribute ..., optional:
         # true` existed (`CommandBuilder#attribute_impl`,
         # `attribute_collector.rb`): `sets` already sources correctly from
         # an optional attribute, resolving absent to nil exactly as this
-        # method does, and REFUSING it here would be wrong, not merely
+        # method does, and refusing it here would be wrong, not merely
         # undone work — `TillRoom::Till.TakeIn`'s own `note` (spec/
         # fixtures/till.bluebook) and Banking's `CardPayment.Authorize`'s
         # `tags` (payment_cards.bluebook) are real, live commands whose
         # `sets` mutation is deliberately sourced from an optional
         # attribute the caller may omit — `spec/runtime/command_rules_spec
-        # .rb`'s own "says an absent OPTIONAL argument is nil, not the
+        # .rb`'s own "says an absent optional argument is nil, not the
         # name of the argument" pins exactly this as correct, not pending.
         # The meta-domain's own self-hosted commands (Command.Declare's
         # `role`/`goal`/`provenance`/`from`/`position`, and ~35 more sites
         # across the language) all lean on the identical pattern — nil is
-        # the RIGHT answer for a `sets` sourced from a declared-optional
+        # the right answer for a `sets` sourced from a declared-optional
         # attribute the caller left out, every time.
         #
-        # The one thing that WAS still a real, narrow gap — a `sets`
-        # source Symbol naming NOTHING the command declares at all (a
+        # The one thing that was still a real, narrow gap — a `sets`
+        # source Symbol naming nothing the command declares at all (a
         # typo, not an optional argument) — silently resolved to nil
         # forever the same way, indistinguishable at either build or run
-        # time from a legitimate optional absence. Closed at BUILD time
+        # time from a legitimate optional absence. Closed at build time
         # instead of here: `CommandBuilder#refuse_unknown_argument_sources!`
         # refuses it the moment the `.bluebook` file loads, mirroring
         # `AggregateBuilder#seal_query_argument`'s identical check for a
         # query's own where-clause argument. This function stays exactly
         # what it always was — a pure, unconditional lookup — because by
-        # the time ANY mutation reaches it, the source has already been
+        # the time any mutation reaches it, the source has already been
         # proven to name either a real, possibly-optional argument, or a
         # StateRef/literal; there is nothing left here to refuse.
         def resolve_source(source, args)
@@ -85,7 +85,7 @@ module Hecks
           # `amount` arrives VO-wrapped — a real command argument typed the
           # same as the attribute, but with nothing to combine field-by-
           # field against yet (that is what `arithmetic_value_object`,
-          # above, is for once BOTH sides carry real fields). Before this,
+          # above, is for once both sides carry real fields). Before this,
           # falling straight to `unless amount.is_a?(Numeric)` below
           # refused with "increment needs an Integer, got 500" — true of
           # nothing: 500 is exactly the Integer it asked for, just still
@@ -116,7 +116,7 @@ module Hecks
 
         # C3.3/C3.4 — an effect's arithmetic is held to the same value
         # model an expression's is: Integer is signed 64-bit, Float is
-        # finite. A result outside that is an evaluation FAULT (never a
+        # finite. A result outside that is an evaluation fault (never a
         # refusal, C8.3), worded as the Rust kernel's own generated
         # `checked_add`/`checked_sub`/`checked_mul` word it.
         INT64_RANGE = (-(2**63))..((2**63) - 1)
@@ -157,8 +157,8 @@ module Hecks
         end
 
         # Not a bare `.find(...)&.sign || -1` — that silently answered
-        # DECREMENT'S sign for BOTH an op this table has never heard of
-        # AND a declared, real op that simply carries no sign at all
+        # decrement's sign for both an op this table has never heard of
+        # and a declared, real op that simply carries no sign at all
         # (set/append/multiply/clamp/remove — see MUTATION_OPS above).
         # Callers today only ever reach this for :increment/:decrement
         # (both MutationApplier#apply and EntityInterpreter#
@@ -202,7 +202,7 @@ module Hecks
         end
 
         # Vendored addition, not (yet) upstream hecks (migration plan
-        # task 4, i106): bound the CURRENT value into `[min, max]` -- no
+        # task 4, i106): bound the current value into `[min, max]` -- no
         # "amount" to combine, so it does not go through
         # #arithmetic/#multiply's shared-numeric-field matching at all;
         # it clamps whichever single numeric field the wrapping value
@@ -210,12 +210,12 @@ module Hecks
         # one, per Part 3a's auto-synthesis).
         def clamp(current, bounds, target)
           min, max = bounds
-          # THE SAME `current ||= 0` #arithmetic/#multiply both give a
-          # PHANTOM (never-set) numeric field, one line up from each —
+          # The same `current ||= 0` #arithmetic/#multiply both give a
+          # phantom (never-set) numeric field, one line up from each —
           # this was the one arithmetic op that didn't, so a VO-typed
           # attribute with no declared `default:` (genuinely absent,
           # `Instance.defaults`/`#default_for`) hit TypeMismatch on the
-          # FIRST clamp. (#arithmetic/#multiply's OWN absent-current gap
+          # first clamp. (#arithmetic/#multiply's own absent-current gap
           # was a real, separate bug this comment used to describe wrong —
           # they did not "silently treat the same absent field as zero";
           # they raised too, blaming a perfectly valid `amount` for not
@@ -243,14 +243,14 @@ module Hecks
         # `amount` arrives VO-wrapped whenever the command's own declared
         # attribute type says so (a real `Money`, not a bare Integer) —
         # true whether or not `current` has ever been set. Only meaningful
-        # to call once `current` is known NOT to be a Value itself (the
+        # to call once `current` is known not to be a Value itself (the
         # `current.is_a?(Value) && amount.is_a?(Value)` branch, above in
         # both callers, already owns the case where both sides carry real
         # fields to combine). Refuses rather than guesses when more than
         # one field is numeric — genuinely ambiguous which one an absent
         # `current` should be treated as zero for, the same reasoning
         # `combine_value_object`'s own `shared_numeric.size == 1` check
-        # already holds to when both sides ARE present.
+        # already holds to when both sides are present.
         def unwrap_single_numeric_field(value)
           fields = value.to_h
           numeric_fields = fields.keys.select { |field| fields[field].is_a?(Numeric) }

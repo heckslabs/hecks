@@ -3,11 +3,11 @@ module Hecks
   module Bluebook
     module DSL
       # Parses a `.hecksagon` file's top-level DSL block into a `Hecksagon`
-      # — a domain's own WIRING: which adapter binds to which verb
+      # — a domain's own wiring: which adapter binds to which verb
       # (`persisted_by`, `projected_by`, ...), which framework/vendored
       # bluebooks it attaches, which external events it subscribes to, and
       # its bare chapter-root port. Kept separate from the bluebook itself
-      # (the domain's own declared MODEL) because wiring is an operational
+      # (the domain's own declared model) because wiring is an operational
       # decision, not a fact the domain states about itself.
       class HecksagonBuilder
         GRAMMAR_CONTEXT = "Hecksagon".freeze
@@ -28,15 +28,15 @@ module Hecks
           @vendored_bluebooks = []
         end
 
-        # An event this hecksagon takes from OUTSIDE the domain's own
+        # An event this hecksagon takes from outside the domain's own
         # bluebook.
         def subscribe(event) = @subscriptions << event.to_s
 
         # A framework/ member this domain wants attached —
         # Governance, Identity, whatever else lands beside them.
-        # Attaching one is a WIRING decision, the same kind `persisted_by`/
+        # Attaching one is a wiring decision, the same kind `persisted_by`/
         # `projected_by` already are, so it lives here rather than as a
-        # fact stated in the domain's own bluebook. Recorded onto THIS
+        # fact stated in the domain's own bluebook. Recorded onto this
         # hecksagon, the same way `subscribe` records onto its own
         # `subscriptions` — and loads the member's bluebook then its own
         # hecksagon into whatever registry this one is loading into, see
@@ -46,16 +46,16 @@ module Hecks
           Hecks::Framework.load!(name)
         end
 
-        # A VENDORED, EXTERNAL bluebook this domain wants attached — same
+        # A vendored, external bluebook this domain wants attached — same
         # wiring-decision shape `uses_framework` already is, one level
         # further out: not a member shipped inside hecks's own lib/,
-        # but a separate package (embryonaut_bluebooks) vendored into THIS
+        # but a separate package (embryonaut_bluebooks) vendored into this
         # project's own checkout. See EmbryonautBluebook's own header for
-        # the full reasoning on why its ROOT can't be a fixed constant the
+        # the full reasoning on why its root can't be a fixed constant the
         # way Framework::ROOT is, and for the recovery provenance.
         #
-        # RECORDED ONTO @vendored_bluebooks, same shape `uses_framework`
-        # already gives @framework_members — a SEPARATE list on purpose:
+        # Recorded onto @vendored_bluebooks, same shape `uses_framework`
+        # already gives @framework_members — a separate list on purpose:
         # `framework_members` is load-bearing for `refuse_ungoverned_roles!`
         # (below) and for Governance's own attachment check; conflating
         # the two would make a vendored bluebook attachment satisfy a
@@ -65,7 +65,7 @@ module Hecks
           Hecks::EmbryonautBluebook.load!(name)
         end
 
-        # THE PRIMARY PORT, BARE AT THE ROOT — belongs to the CHAPTER as a
+        # The primary port, bare at the root — belongs to the chapter as a
         # whole, not one aggregate. `BindingProxy#port` is the aggregate-
         # scoped sibling (`Payments::Payment.port("Gateway") do ... end`);
         # this is what's left when a port isn't about any one record. The
@@ -73,7 +73,7 @@ module Hecks
         # loads after its bluebook, and this attaches to that real, final
         # object directly rather than building a second copy MetaValidator
         # would have to know how to reconstruct.
-        # RENAMED FROM `port` — item #13's full metaprogrammed dispatch
+        # Renamed from `port` — item #13's full metaprogrammed dispatch
         # (slice 5). Not bootstrap-reachable (checked directly — no
         # core/attached chapter declares a Hecksagon of its own). Reached
         # through `WordGate#method_missing`'s new `word_gate_dispatch`,
@@ -103,16 +103,16 @@ module Hecks
           bluebook_ir.add_port(built)
         end
 
-        # NO ungoverned-role check here anymore — see
+        # No ungoverned-role check here anymore — see
         # Registry::Verification#refuse_ungoverned_roles!. Moved out of
         # per-block `build`, recovered alongside `environment:`
         # (Runtime::Loader.boot's comment has the provenance): a domain
         # split across multiple hecksagon blocks (base + an
         # `environments/<name>.hecksagon` overlay) would have every
         # block but the one declaring `uses_framework "Governance"`
-        # refused HERE, even though `Registry#add_hecksagon` merges them
+        # refused here, even though `Registry#add_hecksagon` merges them
         # into one Hecksagon before anything ever dispatches against it.
-        # Checking the MERGED result once, at verify! time — after every
+        # Checking the merged result once, at verify! time — after every
         # file for this domain has loaded — is both more permissive (no
         # need to repeat `uses_framework` in every file) and strictly
         # more correct (a check against an incomplete, not-yet-merged
@@ -122,7 +122,7 @@ module Hecks
                         framework_members: @framework_members, vendored_bluebooks: @vendored_bluebooks)
         end
 
-        # DOMAIN-LEVEL DEFAULT BINDS — `persisted_by "Heki"` bare, at the top
+        # Domain-level default binds — `persisted_by "Heki"` bare, at the top
         # of a hecksagon block, applies to every aggregate in this domain
         # that doesn't declare its own override. Mirrors `BindingProxy`'s own
         # `method_missing` one level down (`aggregate:` filled in there,
@@ -135,7 +135,7 @@ module Hecks
           # — item #13's full metaprogrammed dispatch (slice 5); see
           # `WordGate#word_gate_dispatch`'s own header for why this class
           # needs to call it explicitly rather than including it the
-          # ordinary way. Only once THAT says "not admitted" does the
+          # ordinary way. Only once that says "not admitted" does the
           # genuinely open-ended `persisted_by "Heki"`-style bind
           # vocabulary below get a turn.
           result = word_gate_dispatch(verb, args, kwargs, block)

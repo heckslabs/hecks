@@ -19,7 +19,7 @@ module Hecks
       # `Widget::Item.Add(...)` sugar. A caller that only ever dispatches
       # by FQN string (`SmokeTest`, the one caller so far) can pass
       # `false` to skip it: `Facade::Surface.install` puts a bare global
-      # Ruby constant on `Object` per domain AND per aggregate name, with
+      # Ruby constant on `Object` per domain and per aggregate name, with
       # no scoping and no cleanup hook, so a tool booting arbitrary
       # throwaway domains under generic names ("Widget", "Item", "Tag")
       # would otherwise leak those names into the rest of the process —
@@ -55,7 +55,7 @@ module Hecks
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
 
-      # THE OUTBOX'S BOOT-TIME RECONCILIATION — after the dispatcher
+      # The outbox's boot-time reconciliation — after the dispatcher
       # exists (a row's consumer runs through its interpreters, so this
       # cannot be a plain registry gate the way saga rehydration is) and
       # after saga rehydration (a redriven row may advance a saga, which
@@ -69,7 +69,7 @@ module Hecks
         dispatcher.outbox.redrive!
       end
 
-      # THE EXPLICIT-FILE FORM — `paths` names the exact bluebook/hecksagon/
+      # The explicit-file form — `paths` names the exact bluebook/hecksagon/
       # world files to boot, in place, wherever they actually live. `boot`
       # above only ever takes a directory and globs it; that is the right
       # shape for a real deployment (`examples/banking`, a domain someone
@@ -79,16 +79,16 @@ module Hecks
       # (`Hecks::Behaviors`), but this carries no behaviors-specific
       # logic and is not gated behind requiring that module.
       #
-      # NO COPYING, NO TEMP DIRECTORY. A prior port of this same idea
+      # No copying, no temp directory. A prior port of this same idea
       # (vendored into a downstream consumer, read before writing this)
       # scoped a per-test boot by copying files into `Dir.mktmpdir` — which
       # destroys real relative paths, and worse, makes a `persisted_by`
-      # path resolve against the TEMP copy's root instead of the project's
+      # path resolve against the temp copy's root instead of the project's
       # own (confirmed there: a file adapter kept reading and writing the
       # same deterministic tmp copy across an entire session, because
       # `Hecks.boot`'s own `root` is always `File.dirname` of whatever
       # directory it was handed). `directory` here is `File.dirname` of the
-      # FIRST real path in `paths` — genuinely on disk, not a copy — so
+      # first real path in `paths` — genuinely on disk, not a copy — so
       # every downstream path (`EraCheck`, `persisted_by`, `shared_root`)
       # resolves exactly as an ordinary directory boot's would.
       def self.boot_files(paths, shared: nil, install_facade: true, environment: nil)
@@ -110,7 +110,7 @@ module Hecks
       end
 
       # ADR 0031 — replaces two previously-hardcoded, unconditional calls
-      # with a per-boot `BootGates` instance holding exactly the gates THIS
+      # with a per-boot `BootGates` instance holding exactly the gates this
       # registry's own bound adapters have a capability for. Ordering is
       # preserved: era-checking (when a persistence plugin contributes one)
       # still runs before `verify!`, saga rehydration still runs after
@@ -118,7 +118,7 @@ module Hecks
       # comment).
       #
       # ADR 0033 — this loader no longer names `EraCheck`, or any other
-      # era-specific class, at all. Every LOADED persistence plugin
+      # era-specific class, at all. Every loaded persistence plugin
       # (`Ports::Persistence.each_plugin` — nothing here if nothing was
       # ever `require`d) is asked to contribute its own `:pre_verify`/
       # `:post_verify` gates generically; `:saga_rehydration` is the one
@@ -144,7 +144,7 @@ module Hecks
       # `TranslationCompute`/`TranslationRekey` data (`bluebook/
       # translation.rb`, core, no era-specific class involved), so this
       # needs nothing plugin-specific to ask "does anything declare a
-      # compute/rekey rule at all." A LOADED persistence plugin (e.g. the
+      # compute/rekey rule at all." A loaded persistence plugin (e.g. the
       # era plugin's own `:era_compute_rules` gate, registered above) runs
       # the real, adapter-aware version of this check and refuses by name
       # ("...is bound to Memory") long before this ever would; this only
@@ -165,7 +165,7 @@ module Hecks
       end
 
       # `RemoteDispatcher` for a domain routed through Lambda,
-      # `Dispatcher` otherwise — the ONE place this decision gets
+      # `Dispatcher` otherwise — the one place this decision gets
       # made, so everything built on top (`Handle`, `AggregateDoor`,
       # `Facade::Surface`) never has to know which class it's holding.
       # `registry.bluebooks.keys.first` is the just-booted domain's own
@@ -173,7 +173,7 @@ module Hecks
       # any `uses_framework` chapter, `bin/project_rust`'s own header
       # draws the identical distinction), not a directory basename.
       #
-      # `dispatched_by("Lambda")` is its OWN, EXPLICIT verb — NOT
+      # `dispatched_by("Lambda")` is its own, explicit verb — not
       # inferred from `deployed_to("AwsLambda")`'s mere presence. Both
       # Banking's and Embryonaut's `.world` files already declare
       # `deployed_to("AwsLambda")` (it only means "a deploy target
@@ -191,10 +191,10 @@ module Hecks
         RemoteDispatcher.new(registry, region: settings.fetch(:region, "us-east-1"))
       end
 
-      # THE DOOR IS INSTALLED HERE, NOT STAMPED. This used to write the
+      # The door is installed here, not stamped. This used to write the
       # dispatcher onto every aggregate's class (`ruby_class.runtime =`) — the
       # class-level global that made two boots in one process share one
-      # name. The facade's modules close over THIS dispatcher instead, so the
+      # name. The facade's modules close over this dispatcher instead, so the
       # binding lives in the surface a boot installs, not on anything shared.
       def self.bind_runtime(dispatcher)
         Facade::Surface.install(dispatcher)

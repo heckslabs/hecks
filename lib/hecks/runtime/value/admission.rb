@@ -22,11 +22,11 @@ module Hecks
                                       admitted: admitted.map(&:inspect).join(", "), offered: offered.inspect)
         end
 
-        # EVERY DECLARED FIELD, not only the discriminant — a multi-column
+        # Every declared field, not only the discriminant — a multi-column
         # `member` row (`StatementFrequency`'s `cadence`/`retention_months`/
         # `paper_fee_cents`, statements.bluebook) names a whole tuple, and a
         # caller offering the right `cadence` with the wrong
-        # `retention_months` is not a genuine member just because the FIRST
+        # `retention_months` is not a genuine member just because the first
         # column happened to match. `admitted.include?(offered.to_s)` above
         # used to be the entire check, so it stopped at that first column —
         # confirmed live: `Value.build(StatementFrequency, cadence:
@@ -40,16 +40,16 @@ module Hecks
           member.all? { |field, value| fields[field].to_s == value.to_s }
         end
 
-        # THE SAME REFUSAL, FOR A SET NAMED SOMEWHERE ELSE.
+        # The same refusal, for a set named somewhere else.
         #
-        # `admit_member` above refuses a non-member when the value object BEING
-        # BUILT is itself the closed set — which is the only shape `one_of` can
-        # make, because it SYNTHESISES the set from the values written inline. An
+        # `admit_member` above refuses a non-member when the value object being
+        # built is itself the closed set — which is the only shape `one_of` can
+        # make, because it synthesises the set from the values written inline. An
         # `admits:` attribute is the other direction: the value is an ordinary
         # String or a plain text holder, and the set it must belong to was
         # declared once, elsewhere, and is named rather than restated.
         #
-        # Without this the word was a DECLARATION and nothing more — read by
+        # Without this the word was a declaration and nothing more — read by
         # projections, read by nobody at the door. A rule
         # that cannot be the one to refuse is decoration, and this language has
         # paid for that mistake before.
@@ -66,14 +66,14 @@ module Hecks
                                       admitted: admitted.map(&:inspect).join(", "), offered: offered.inspect)
         end
 
-        # `Vocabulary::MutationOp` — the aggregate that HOLDS the set, then the
-        # set. Qualified because a closed set is a value object INSIDE an
+        # `Vocabulary::MutationOp` — the aggregate that holds the set, then the
+        # set. Qualified because a closed set is a value object inside an
         # aggregate, which is exactly why `admits` could not be spelled as a
         # reference: `reference_to` reaches aggregate heads and nothing below one.
         #
-        # RESOLVED LATE, like `Reference#resolve` and for the same reason — the
+        # Resolved late, like `Reference#resolve` and for the same reason — the
         # set may be declared further down the file than the attribute that names
-        # it. And REFUSED when it resolves to nothing, also like `Reference`: a
+        # it. And refused when it resolves to nothing, also like `Reference`: a
         # link checked against nothing is worse than no link, because it reads
         # like a rule.
         def admitted_members(owner, attribute)
@@ -91,17 +91,17 @@ module Hecks
           set.members.map { |member| member.to_h[discriminant].to_s }
         end
 
-        # UP TO THE CHAPTER, from wherever the attribute was declared. A value
+        # Up to the chapter, from wherever the attribute was declared. A value
         # object's owner is its aggregate and an aggregate's owner is its chapter,
         # so the walk stops at the first construct that can answer for an
-        # aggregate BY NAME — which is the chapter, and only the chapter.
+        # aggregate by name — which is the chapter, and only the chapter.
         def chapter_of(construct)
           node = construct
           node = node.hecks_owner while node && !node.respond_to?(:aggregate) && node.respond_to?(:hecks_owner)
           node.respond_to?(:aggregate) ? node : nil
         end
 
-        # An admitted value is a SCALAR however it arrived — as a bare string on a
+        # An admitted value is a scalar however it arrived — as a bare string on a
         # plain field, or wrapped in the one-field holder its type names.
         def admitted_scalar(value)
           return value unless value.is_a?(self)
@@ -110,7 +110,7 @@ module Hecks
           fields.size == 1 ? fields.values.first : value
         end
 
-        # A FIELD OF A VALUE OBJECT MAY NAME A SET TOO.
+        # A field of a value object may name a set too.
         #
         # Beside check_patterns and for the same reason: `Query::Filter.op` is a
         # plain String field that admits `Vocabulary::QueryComparator`, and the

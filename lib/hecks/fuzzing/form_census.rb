@@ -3,26 +3,26 @@ require_relative "../corpus"
 
 module Hecks
   module Fuzzing
-    # WHAT AN AGGREGATE CAN EXHIBIT, AND WHICH PAIRS IT PUTS TOGETHER.
+    # What an aggregate can exhibit, and which pairs it puts together.
     #
     # Extracted from `spec/combination_coverage_spec.rb`'s own pairwise
     # table so it has exactly two consumers that can never drift: that
     # spec (the golden corpus, held to every pair) and `bin/qa_domain_
-    # novelty` (a CANDIDATE stress domain, measured against every path
+    # novelty` (a candidate stress domain, measured against every path
     # the QA ledger already sweeps — see that script's own header for why
     # a new domain has to name the pair no existing target meets before
     # it earns a place in the rotation).
     #
-    # THE UNIT IS ONE AGGREGATE. Two forms in the same chapter but
+    # The unit is one aggregate. Two forms in the same chapter but
     # different heads never meet at dispatch; two forms on one head do
     # — that spec's own header has the four defects that argument came
     # from. Each entry below is a form the language declares and a
     # runtime has to handle, chosen because it has produced a defect or
     # sits one step from one; adding one here is how a new form joins
-    # BOTH gates at once, and it will name its own uncovered pairs on the
+    # both gates at once, and it will name its own uncovered pairs on the
     # first run of each.
     #
-    # ONE FLAT TABLE, ON PURPOSE — each entry is an independent boolean
+    # One flat table, on purpose — each entry is an independent boolean
     # check against the same string-keyed aggregate IR hash (the shape
     # `spec/golden/ir/*.json` carries and `Projector::Exporter.call`
     # round-trips to through JSON), laid out so every declared form can
@@ -49,7 +49,7 @@ module Hecks
         "closed_set"         => ->(a) { (a["value_objects"] || []).any? { |shape| shape["closed_set"] } },
         "has_default"        => ->(a) { attributes(a).any? { |held| !held["default"].nil? } },
         "has_optional"       => ->(a) { commands(a).any? { |verb| (verb["attributes"] || []).any? { |held| held["optional"] } } },
-        # THE REFERENCE-HOP FAMILY (ANGLE-2, qa/bluebook ledger) — the
+        # The reference-hop family (angle-2, qa/bluebook ledger) — the
         # forms `qa/stress_domains/referral_chain` exists for, absent
         # from the census until that domain named them. Each is one
         # step from a catalogued gap: `two_hop_given` is `dereference`'s
@@ -60,11 +60,11 @@ module Hecks
         # command redeclaring the aggregate's own reference field under
         # a non-reference type, so only `resolve_state_references` (never
         # ported) can catch a dangling id.
-        # A RETROACTIVE CORRECTION, AND A ROLE-GATED COMMAND — both are
+        # A retroactive correction, and a role-gated command — both are
         # declared forms this census could not see, on aggregates it was
         # already measuring: `examples/banking` has carried `corrects`
         # mutations and `role`-bearing commands the whole time, and
-        # `qa/stress_domains/corrections` exists FOR the first. Three
+        # `qa/stress_domains/corrections` exists for the first. Three
         # stress domains' own NOTES.md record `bin/qa_domain_novelty`
         # answering "no new pair" for a domain whose whole point was a
         # shape this table did not name (case_escalation's is the
@@ -83,7 +83,7 @@ module Hecks
       def entities(aggregate)   = aggregate["entities"] || []
       def commands(aggregate)   = aggregate["commands"] || []
 
-      # ONE AGGREGATE'S COMMANDS, ITS PIECES' INCLUDED — a form carried by
+      # One aggregate's commands, its pieces' included — a form carried by
       # an entity command is carried by the aggregate that owns it, the
       # same way `composite_piece`/`piece_lifecycle` already read pieces.
       def every_command(aggregate) = commands(aggregate) + entities(aggregate).flat_map { |piece| commands(piece) }
@@ -103,7 +103,7 @@ module Hecks
       end
 
       # A command attribute sharing a name with one of the aggregate's
-      # own reference-typed attributes while carrying a DIFFERENT, non-
+      # own reference-typed attributes while carrying a different, non-
       # reference type — `attribute :member, Handle` against
       # `reference_to Member`.
       def revalued_reference?(aggregate)
@@ -142,7 +142,7 @@ module Hecks
       def pair_key(left, right) = [left, right].sort.join(" + ")
 
       # `held` is `[[aggregate_name, properties], ...]`. Answers which
-      # pairs are met on ONE aggregate, and by which — a Hash from pair
+      # pairs are met on one aggregate, and by which — a Hash from pair
       # key to the names carrying it, so a caller can say who.
       def covered_pairs(held)
         held.each_with_object(Hash.new { |h, k| h[k] = [] }) do |(name, shows), covered|
@@ -161,17 +161,17 @@ module Hecks
         end
       end
 
-      # WHERE A DOMAIN PATH KEEPS ITS BLUEBOOKS — see
+      # Where a domain path keeps its bluebooks — see
       # `Hecks::Corpus.bluebook_files`, the one definition every corpus
       # walk shares. `nil` when neither shape holds a bluebook.
       def bluebook_files(domain_path)
         Hecks::Corpus.bluebook_files(domain_path)
       end
 
-      # THE SAME CENSUS OVER A DOMAIN ON DISK, booted the lightweight
+      # The same census over a domain on disk, booted the lightweight
       # way `bin/model_check` and `Hecks::Codemod.load_bluebook` already
       # do (ports and the two in-process adapters, no `Hecks.boot`, no
-      # live database, no `.hecksagon`: the census reads declared SHAPE,
+      # live database, no `.hecksagon`: the census reads declared shape,
       # and a framework chapter a `.hecksagon` would attach is not this
       # domain's own). Only the domain's own chapter is measured — the
       # first bluebook loaded, the same "target chapter is always first"

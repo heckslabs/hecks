@@ -67,6 +67,7 @@ module DoctestNames
     adoption-readiness.md
     architecture-map.md
     command-form-and-query-form-bluebook.md
+    COMMENT_STYLE_GUIDE.md
     dsl-work-slices.md
     event-storming-policies.md
     future-features.md

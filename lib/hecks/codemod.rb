@@ -2,49 +2,49 @@ require_relative "bluebook/meta_validator"
 require_relative "corpus"
 
 module Hecks
-  # SHARED MACHINERY for a codemod that migrates real `.bluebook` source
+  # Shared machinery for a codemod that migrates real `.bluebook` source
   # once a DSL builder change makes some previously-required declaration
   # optional/redundant — pulled out of `bin/codemod_implicit_append_fields`
   # (the first one built), which needed three real, hard-won fixes before
   # it could be trusted: a process-lifetime AST cache with no
   # invalidation, a batch-revert granularity that let one unsafe
   # candidate sink every other safe one sharing its boot, and (in the
-  # SPINE the codemod migrates FOR, not here) an append-at-end insertion
+  # spine the codemod migrates for, not here) an append-at-end insertion
   # that only round-tripped correctly for whichever field happened to be
   # last. None of those are guessable in advance; they only surface by
   # actually running a real edit against real self-hosted code. This
-  # module is that lesson, kept — the NEXT codemod plugs in two rule-
+  # module is that lesson, kept — the next codemod plugs in two rule-
   # specific procs (`find_candidates`, `apply_candidate`) and inherits
   # the boot/safety-net machinery rather than rediscovering it.
   #
-  # A CODEMOD IS NOT PATTERN-MATCHING ALONE. Deciding "is this line safe
-  # to delete" means knowing what the RUNTIME would resolve it to — so
+  # A codemod is not pattern-matching alone. Deciding "is this line safe
+  # to delete" means knowing what the runtime would resolve it to — so
   # every codemod built on this module follows the same three steps:
   #   1. Boot the real domain (or the self-hosted meta-domain) and read
-  #      its IR to find CANDIDATES — provided by the caller's own
+  #      its IR to find candidates — provided by the caller's own
   #      `find_candidates`, since the actual redundancy rule is specific
   #      to whichever spine change this migration serves.
   #   2. Locate and remove each candidate's own source text — the
   #      caller's own `apply_candidate`.
   #   3. Re-boot from the edited text and diff the full IR export
   #      against the pre-edit export. Byte-identical -> keep. Anything
-  #      else (including a RAISED exception — the self-hosted
-  #      meta-domain DISPATCHES itself into being, S14, so a bad edit
+  #      else (including a raised exception — the self-hosted
+  #      meta-domain dispatches itself into being, S14, so a bad edit
   #      can surface as a runtime refusal, not just a differing export)
-  #      -> revert and report SKIPPED, never silently guessed past.
+  #      -> revert and report skipped, never silently guessed past.
   #
-  # DESIGN-TIME CHECKLIST for the SPINE change a future codemod migrates
-  # corpus text for — both items below are real bugs THIS module's own
+  # Design-time checklist for the spine change a future codemod migrates
+  # corpus text for — both items below are real bugs this module's own
   # first use found, not hypothetical:
-  #   - Does the resolved value get inserted into an ORDER-SENSITIVE
+  #   - Does the resolved value get inserted into an order-sensitive
   #     list (the exported IR is array-order-sensitive throughout)? If
-  #     so, the spine's own insertion must preserve the ORIGINAL
+  #     so, the spine's own insertion must preserve the original
   #     position, not just append — an append-at-end insertion only
   #     round-trips correctly for a value that already happened to be
   #     last.
-  #   - Does resolution depend on ANOTHER construct already being
+  #   - Does resolution depend on another construct already being
   #     declared (the aggregate/entity a `sets`/`append:` field resolves
-  #     against)? If a creator command can be declared BEFORE the
+  #     against)? If a creator command can be declared before the
   #     construct it creates (real, live: `command "Handler"` before
   #     `entity "Handler"`, one file down), one-pass resolution
   #     genuinely cannot see it yet — not a codemod bug, a structural
@@ -57,11 +57,11 @@ module Hecks
                       Dir.glob(File.join(ROOT, "lib/hecks/framework/bluebook/*.bluebook")) +
                       Dir.glob(File.join(ROOT, "lib/hecks/language/bluebook/**/*.bluebook"))).sort
 
-    # THE SAME LIGHTWEIGHT PATH `spec/spec_helper.rb`'s own
+    # The same lightweight path `spec/spec_helper.rb`'s own
     # `boot_in_memory` uses — `Hecks.with_registry` satisfies
     # `Hecks.bluebook`'s own `collect`'s "loaded outside a boot" check
     # without `Hecks.boot`'s full era-check/adapter-wiring path, which
-    # needs a LIVE Postgres connection for `compliance` and would make
+    # needs a live Postgres connection for `compliance` and would make
     # every codemod depend on a database it has no reason to touch — a
     # codemod only ever reads a chapter's own declared IR, never a
     # stored record.
@@ -73,11 +73,11 @@ module Hecks
     def self.export_json(registry) = Hecks::Projector::Exporter.json(registry)
 
     # `Hecks::Adapters::Prism` caches a file's parsed AST for the
-    # life of the PROCESS, keyed by path — fine for every existing
+    # life of the process, keyed by path — fine for every existing
     # caller (a file loads once per process: one `bin/ir` run, one
-    # rspec worker), but a codemod legitimately reloads the SAME path
+    # rspec worker), but a codemod legitimately reloads the same path
     # after editing it, and a stale cached tree reports a
-    # `given`/`ensures` block at its OLD line number, which no longer
+    # `given`/`ensures` block at its old line number, which no longer
     # matches the freshly re-executed file's own `block.source_location`
     # — surfacing as "did not survive extraction" on a perfectly valid
     # file. `Prism.forget` is the real invalidation API this module's
@@ -105,10 +105,10 @@ module Hecks
       registry
     end
 
-    # `forget_all`, not a single `forget` — the meta-domain is NINE
+    # `forget_all`, not a single `forget` — the meta-domain is nine
     # files (`MetaValidator::GRAMMAR_FILES`) merged into one registry,
     # and a caller here (the codemod runner) doesn't generally know in
-    # advance which ONE it just edited.
+    # advance which one it just edited.
     def self.boot_meta
       Hecks::Adapters::Prism.forget_all
       Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
@@ -124,7 +124,7 @@ module Hecks
     # Walks every aggregate (and every nested entity, recursively)
     # across every chapter in a booted registry, yielding [owning
     # construct, command] pairs — `construct` is whichever
-    # Aggregate/Entity actually OWNS the command, the same distinction
+    # Aggregate/Entity actually owns the command, the same distinction
     # `AggregateBuilder#command` vs `EntityBuilder#command` already
     # draws. Generic enough for any rule that needs to walk real
     # commands, not specific to the attribute-redundancy rule.
@@ -144,7 +144,7 @@ module Hecks
       construct.attributes.find { |attr| attr.name.to_s == name.to_s }
     end
 
-    # A LIST attribute's own element construct — the value object or
+    # A list attribute's own element construct — the value object or
     # entity `list_of(...)` names, resolved by `hecks_name` the same way
     # `AttributeCollector#resolve_identity_field!` already does. Shared
     # because "what does this list actually hold" is a question any
@@ -158,7 +158,7 @@ module Hecks
       pool.find { |c| c.hecks_name.to_s == list_attr.type.to_s }
     end
 
-    # Either a raised exception OR a differing export counts as unsafe
+    # Either a raised exception or a differing export counts as unsafe
     # — see the module header on why the meta-domain specifically can
     # raise. Returns [value_or_nil, error_message_or_nil].
     def self.safely
@@ -167,11 +167,11 @@ module Hecks
       [nil, "#{e.class}: #{e.message}"]
     end
 
-    # THE REUSABLE RUNNER — every real bug fix this module carries lives
+    # The reusable runner — every real bug fix this module carries lives
     # here, not in a caller's own script. A caller supplies:
     #
     #   find_candidates: ->(registry) { [...] }
-    #     Given a booted registry, return every CANDIDATE this rule
+    #     Given a booted registry, return every candidate this rule
     #     could migrate. A candidate is whatever shape the caller wants
     #     — `apply_candidate` is the only other thing that reads it.
     #
@@ -179,7 +179,7 @@ module Hecks
     #     Given one file's current text and one candidate, return the
     #     edited text and whether a match was actually found/removed —
     #     `false` (text unchanged) when the candidate doesn't apply to
-    #     THIS file, which is how the meta-domain's multi-file search
+    #     this file, which is how the meta-domain's multi-file search
     #     below finds the right one without the caller needing to know
     #     which file a candidate lives in ahead of time.
     #
@@ -280,10 +280,10 @@ module Hecks
         end
       end
 
-      # PER-CANDIDATE, not one batched write-then-verify — the
-      # meta-domain is ONE shared registry (SyntaxBoot DISPATCHES it
+      # Per-candidate, not one batched write-then-verify — the
+      # meta-domain is one shared registry (SyntaxBoot dispatches it
       # into itself, S14), so a single unsafe candidate among many would
-      # otherwise sink every OTHER, genuinely safe candidate in the same
+      # otherwise sink every other, genuinely safe candidate in the same
       # run: this module's first real run found exactly that (25
       # candidates, one dispatch-time break, all 25 reverted as a batch
       # before this per-candidate loop existed). `before_meta` stays the
@@ -292,8 +292,8 @@ module Hecks
       # still equal the pristine original after each kept edit, by
       # definition, no moving target needed.
       # Same shape and same reason as run_example_domains just above (see
-      # its own comment) — the write/verify/revert sequence, PER
-      # CANDIDATE (this method's own comment explains why it cannot
+      # its own comment) — the write/verify/revert sequence, per
+      # candidate (this method's own comment explains why it cannot
       # batch), is one coherent unit; splitting it would scatter
       # before_meta/live_meta/applied_by_file state across methods for
       # no gain.
@@ -324,7 +324,7 @@ module Hecks
           live_meta[target_file] = text
           Codemod::META_FILES.each { |f| File.write(f, live_meta[f]) }
 
-          # DRY RUN STILL VERIFIES — see run_example_domains' own
+          # Dry run still verifies — see run_example_domains' own
           # comment; the edit is always written and rebooted for real,
           # then always reverted afterward when dry-run (whether or not
           # it was safe) so the next candidate is judged against the

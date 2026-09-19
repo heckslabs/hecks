@@ -18,7 +18,7 @@ module Hecks
           @transitions = []
         end
 
-        # RENAMED FROM `transition` — item #13's full metaprogrammed
+        # Renamed from `transition` — item #13's full metaprogrammed
         # dispatch (slice 4c). Bootstrap-reachable (syntax.bluebook's
         # own Keyword/Argument entities describe their `status`
         # lifecycle with it), so in BOOTSTRAP_CALLS_FALLBACK.
@@ -51,9 +51,9 @@ module Hecks
         # one command whose `from:` sets overlap (or where either has no
         # `from:` at all) were silently first-wins; refused where the state
         # machine can be read whole. Two transitions for one command from
-        # DISJOINT states are the legitimate shape (`match_transition`
+        # disjoint states are the legitimate shape (`match_transition`
         # picks by the current state) and stay. A `from:` naming a state
-        # nothing declares is NOT refused here: it is a reachability
+        # nothing declares is not refused here: it is a reachability
         # finding `bin/model_check` already reports (unreachable state,
         # dead transition), and a bluebook may declare it on purpose.
         def refuse_ambiguity!

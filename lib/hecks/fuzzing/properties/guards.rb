@@ -12,18 +12,18 @@ module Hecks
       # verb-to-declaration lookups (#command_for_verb,
       # #effective_guard_descriptions) each resolves a refusal against.
       module Guards
-        # `Query#options`' OTHER HALF — TenantScope.apply's own contract
+        # `Query#options`' other half — TenantScope.apply's own contract
         # (tenant_scope.rb), independently restated as a property rather
         # than exercised only through whatever the generator happens to
-        # try. NOT closed by the generator here on purpose: SafeDepositBox.
+        # try. Not closed by the generator here on purpose: SafeDepositBox.
         # Rented — the only real corpus query declaring `authorize` at
-        # all — declares ZERO attributes of its own, so StepBuilder#args_for
+        # all — declares zero attributes of its own, so StepBuilder#args_for
         # always hands it `{}` and TenantScope.apply refuses every
         # generated attempt, unconditionally (confirmed: no successful ask
         # against an authorize-bearing query reaches this property via the
         # standard battery today). Extending the generator to invent a
         # `tenant:` value ran into a separate, real finding along the way —
-        # SafeDepositBox is COMPOSITE-identified (`identified_by` is nil
+        # SafeDepositBox is composite-identified (`identified_by` is nil
         # for it — Runtime::Identified#derive_identity), so the generator's
         # existing `known_ids` pool (keyed by `aggregate.identified_by ||
         # "id"`) tracks a stray, never-real scalar for it rather than its
@@ -37,10 +37,10 @@ module Hecks
         # where a `tenant:` arg came from.
         #
         # Two claims, matching TenantScope.apply's own two branches: every
-        # SUCCESSFUL answer's own tenant field agrees with the tenant arg
+        # successful answer's own tenant field agrees with the tenant arg
         # given (the WhereClause TenantScope injects is a Symbol reference
-        # into args, resolved dynamically — this checks the OUTCOME, not
-        # re-deriving that resolution) ; every ask MISSING a required
+        # into args, resolved dynamically — this checks the outcome, not
+        # re-deriving that resolution) ; every ask missing a required
         # tenant: refuses with the declared wording, never succeeds. A
         # refusal for an unrelated reason with the tenant arg present is
         # not this property's claim either way — skipped, not graded.
@@ -92,14 +92,14 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # EVERY GIVEN/ENSURES REFUSAL A RUN ACTUALLY RAISED NAMES A RULE
-        # THE COMMAND ACTUALLY DECLARES. `GivenNotMet`/`EnsuresNotMet` both
+        # Every given/ensures refusal a run actually raised names a rule
+        # the command actually declares. `GivenNotMet`/`EnsuresNotMet` both
         # quote their guard's own `description` verbatim
         # (command_rules/admissibility.rb: `"#{command.hecks_name} refused
         # — #{given.description}"`) — the SAME text `behavior.bluebook`'s
         # own `Rule`/Command.Ensure hold as `Rule#description`, so a
         # refusal whose quoted text is not among the refusing command's
-        # OWN `guard_descriptions` (Behaviour::Command, both givens and
+        # own `guard_descriptions` (Behaviour::Command, both givens and
         # ensures) is either a stale message surviving a renamed rule, a
         # rule firing against the wrong command's own guard set, or the
         # wording drifting out from under the declaration it is supposed
@@ -107,7 +107,7 @@ module Hecks
         # guards, some through a cross-aggregate dereference) are exactly
         # the surface this exists to hold to its word.
         #
-        # `kind:` is what tells a guard refusal apart from the FOUR other
+        # `kind:` is what tells a guard refusal apart from the four other
         # `RefusalWording` templates sharing the identical "X refused — Y"
         # shape (LifecycleRefused/transition_blocked, both TypeMismatch
         # object-reference templates, Unauthorized/role_mismatch) — see
@@ -138,27 +138,27 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # ANGLE-8's OWN WRITE-SIDE HALF. `authorize_scopes_or_refuses`
+        # Angle-8's own write-side half. `authorize_scopes_or_refuses`
         # (above) enforces `TenantScope.apply`'s boundary, and that
-        # boundary exists ONLY for queries/read models — `authorize
+        # boundary exists only for queries/read models — `authorize
         # policy, tenant: field` is a word `QuerySpecification::Common::
         # DSL#authorize_impl` grants to `QueryBuilder`/`ReadModelBuilder`
         # alone; `CommandBuilder` never includes that module, so no
         # bluebook can declare it on a command at all (confirmed by
-        # reading the grammar directly, not inferred). A WRITE that
+        # reading the grammar directly, not inferred). A write that
         # carries a `reference_to` from one tenant-scoped record into
-        # another's is checked by NOTHING at dispatch time: `TenantScope`
+        # another's is checked by nothing at dispatch time: `TenantScope`
         # never runs for a command, and no runtime `given`/`ensures`
         # anywhere in this corpus reads a cross-aggregate tenant field
         # either. `qa/stress_domains/tenant_ledger` exists to give this
         # property a real place to fire.
         #
-        # THE RULE: an aggregate's own declared TENANT FIELD is whichever
-        # field one of ITS OWN queries names in `authorize policy, tenant:
+        # The rule: an aggregate's own declared tenant field is whichever
+        # field one of its own queries names in `authorize policy, tenant:
         # :field` — the exact same declaration `authorize_scopes_or_
         # refuses` reads off a query above, reused here to name a field
-        # on the AGGREGATE ITSELF that stores the tenant it belongs to.
-        # For every STORED record (`history[:instances]` — a refused
+        # on the aggregate itself that stores the tenant it belongs to.
+        # For every stored record (`history[:instances]` — a refused
         # dispatch never writes one, so "a refusal is correct behaviour,
         # not a finding" holds by construction, the same way `history
         # [:instances]` already guarantees this for `stored_records_
@@ -166,13 +166,13 @@ module Hecks
         # tenant field, walk every `reference_to`-typed attribute it
         # carries (`Bluebook::Reference` — "a reference IS the id",
         # value/coercion.rb's own header, so the stored value is always a
-        # plain id, never a nested payload) pointing at ANOTHER aggregate
-        # that ALSO declares a tenant field: if the referenced record's
+        # plain id, never a nested payload) pointing at another aggregate
+        # that also declares a tenant field: if the referenced record's
         # own tenant value disagrees with the referencing record's own
         # tenant value, the write crossed a tenant boundary and nothing
         # refused it — a finding.
         #
-        # A DANGLING/UNRESOLVABLE REFERENCE IS SKIPPED — a different,
+        # A dangling/unresolvable reference is skipped — a different,
         # existence-shaped property's claim, not this one's (the same
         # "inconclusive, not a claimed pass" restraint `lifecycle_guard_
         # and_given_violations_are_refused` already documents for a
@@ -180,11 +180,11 @@ module Hecks
         # Query::InMemory.comparable` (the SAME normalization `authorize_
         # scopes_or_refuses` already applies to a query row's own tenant
         # field, just above) rather than `Runtime::Value#==` directly —
-        # two single-attribute value objects with the SAME scalar but
-        # DIFFERENT declared names (`LedgerRegion`/`TransferRegion`, this
+        # two single-attribute value objects with the same scalar but
+        # different declared names (`LedgerRegion`/`TransferRegion`, this
         # domain's own pair — a value object is always declared inside
         # the aggregate that owns it, so two independently tenant-scoped
-        # aggregates can never share one) compare UNEQUAL under `Value#==`
+        # aggregates can never share one) compare unequal under `Value#==`
         # (`type_name` is part of that equality) despite meaning the
         # identical tenant, which would make every same-tenant write a
         # false positive.
@@ -230,7 +230,7 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # THE FIELD AN AGGREGATE'S OWN QUERY NAMES AS TENANT-SCOPING —
+        # The field an aggregate's own query names as tenant-scoping —
         # shared by `commands_respect_tenant_scope` above for both sides
         # of a `reference_to`. `nil` for an aggregate with no `authorize
         # ..., tenant:` on any of its own queries — not every aggregate
@@ -241,16 +241,16 @@ module Hecks
           authorization&.tenant&.to_sym
         end
 
-        # A DECLARED PROCESS MANAGER'S OWN COMMAND — `command.hecks_name`,
+        # A declared process manager's own command — `command.hecks_name`,
         # or an entity's own if the verb's second component is itself
         # dotted (`Aggregate.Entity.Command`, the same two shapes
         # `Dispatcher#dispatch` itself branches on). Shared by the guard
         # property above and available for anything else that needs to go
         # from a replayed verb back to its declaration.
         #
-        # RESOLVED AGAINST `bluebooks` (the FULL map, `history[:bluebooks]`
+        # Resolved against `bluebooks` (the full map, `history[:bluebooks]`
         # — every loaded domain, keyed by name), never a single assumed
-        # bluebook: a verb names its OWN domain (`Naming.split_verb`'s
+        # bluebook: a verb names its own domain (`Naming.split_verb`'s
         # first element), and that domain is not always the one Replay
         # happens to expose as `history[:bluebook]`. A fuzz run against
         # `lib/hecks/grammar` (Expression + Translation, in load
@@ -258,14 +258,14 @@ module Hecks
         # refusal read as "no declared command resolves that verb" purely
         # because `history[:bluebook]` was Expression, not Translation; the
         # refusal was real, this property's own domain resolution was not.
-        # A DELEGATING DOOR REFUSES WITH ITS TARGET'S OWN WORDS. `delegates_to`
+        # A delegating door refuses with its target's own words. `delegates_to`
         # (CommandBuilder#delegates_to_impl) hands the whole dispatch to one
         # entity command, and that command's given is what refuses — raised
         # back through the door, in the door's name (chess: `Game.MoveKnight
         # refused — "it is that color's turn"`, a given Knight.Move declares
         # and MoveKnight, a pure passthrough, never could). Read the door's
         # own guards first, then every delegation target's; an offence is
-        # only a description NEITHER declares. Found live mining chess's
+        # only a description neither declares. Found live mining chess's
         # history: every refused move through a door read as undeclared.
         def effective_guard_descriptions(bluebooks, verb, command)
           own = command.guard_descriptions
@@ -296,9 +296,9 @@ module Hecks
           end
         end
 
-        # `guard_refusals_are_declared`'s OWN OPPOSITE DIRECTION. That
+        # `guard_refusals_are_declared`'s own opposite direction. That
         # property is passive and one-directional — for a refusal that
-        # ALREADY HAPPENED, is the quoted text real declared text? It says
+        # already happened, is the quoted text real declared text? It says
         # nothing about a guard that should have refused and silently did
         # not — a call site that stopped calling enforce_givens/enforce_
         # lifecycle_guard would never appear in history[:refusals] at all,
@@ -306,7 +306,7 @@ module Hecks
         #
         # This one calls Admissibility#enforce_givens (which itself folds
         # in #enforce_lifecycle_guard whenever `declaring:` is passed)
-        # DIRECTLY, against Replay's own pre-dispatch snapshot
+        # directly, against Replay's own pre-dispatch snapshot
         # (history[:guard_checks], one bounded, additive extension — see
         # that file's own comment at the capture site) — an independent
         # recomputation, not grading production against itself, the same
@@ -316,27 +316,27 @@ module Hecks
         # could mutate anything a cross-aggregate given dereferences) is
         # compared against `actual_refused` (GivenNotMet/LifecycleRefused
         # specifically — Replay's own comment on GUARD_REFUSAL_CLASSES
-        # explains why ANY other refusal class, or an outright success,
+        # explains why any other refusal class, or an outright success,
         # both count as "the guard did not fire," since enforce_givens
-        # runs FIRST in DISPATCH_ORDER).
+        # runs first in DISPATCH_ORDER).
         #
         # Aggregate#preconditions closes for free alongside this — a
         # no-block `given` reference (CommandBuilder#given) pushes the
-        # SAME Given struct object `enforce_givens` already iterates
+        # same Given struct object `enforce_givens` already iterates
         # command.givens for, so there is no separate runtime path a
         # property could exercise beyond what this already reaches.
         # Entity#preconditions closes the identical way, one level down
         # (ADR 0028) — a piece's own bare `given` reference pushes the
-        # SAME Given struct onto ITS OWN referencing command's givens,
+        # same Given struct onto its own referencing command's givens,
         # so LedgerEntry's own Amend/Reverse (banking) already exercise
         # this through the exact mechanism above, no separate path.
         #
         # Real targets: Account.Debit/CloseAccount (`from:` guards),
         # Credit/Debit (the named-once `given("customer is active")`
         # precondition) — FreezeAccount deliberately references the
-        # DIFFERENT named precondition `"customer is not closed"` instead
+        # different named precondition `"customer is not closed"` instead
         # (a suspended customer must still be freezable), so it is not a
-        # `"customer is active"` example, just the same MECHANISM.
+        # `"customer is active"` example, just the same mechanism.
         def lifecycle_guard_and_given_violations_are_refused(history)
           offenders = history.fetch(:guard_checks).filter_map do |check|
             next if check[:recomputed_refused] == check[:actual_refused]

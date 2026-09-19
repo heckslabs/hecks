@@ -14,20 +14,20 @@ require_relative "../ports/persistence/binding_policy"
 # runner.rb the same way the file-count/sweep concern is split from a
 # single test's own execution.
 #
-# TWO DELIBERATE DEVIATIONS from a prior port of this same idea (read
+# Two deliberate deviations from a prior port of this same idea (read
 # before writing this, not reinvented):
 #
 # 1. A `setup` refusal and a refusal from the command under test are
-#    caught in SEPARATE rescue scopes. The prior port wrapped the whole
+#    caught in separate rescue scopes. The prior port wrapped the whole
 #    test body — setups included — in one `rescue *REFUSAL_CLASSES`, so a
 #    broken setup could spuriously satisfy `expect refused: "..."` if its
 #    own refusal happened to match the expected substring. Here, any
-#    domain refusal during `setup` is unconditionally an ERROR — the
+#    domain refusal during `setup` is unconditionally an error — the
 #    example never got to the situation it claims to test.
 #
-# 2. `emits:` is read off a `registry.event_log` DIFF around the tested
+# 2. `emits:` is read off a `registry.event_log` diff around the tested
 #    dispatch, not off `Result#events` alone. `Result#events` only holds
-#    the events the OUTERMOST dispatch announced; a policy's own cascade
+#    the events the outermost dispatch announced; a policy's own cascade
 #    reenters through the same `Dispatcher#dispatch` (`PolicyInterpreter
 #    #deliver` → `door.reenter` → `dispatch`), and every dispatch's
 #    events — outer and reentrant alike — land in the one shared
@@ -66,18 +66,18 @@ module Hecks
         error_result(test, "#{e.class}: #{e.message}")
       end
 
-      # ONE BOOT PER SUITE, NOT PER TEST. The isolation a test needs is a
+      # One boot per suite, not per test. The isolation a test needs is a
       # runtime with nothing in it — and a boot of the same files gives
       # exactly that back for the price of `Registry#reset_runtime_state!`
       # instead of ~2s of loading, verifying and era-checking the same
       # bluebook again (chess: 76 behaviours, 155s of which was booting
-      # `chess.bluebook` 76 times). Keyed by the suite's own `loads` AND
+      # `chess.bluebook` 76 times). Keyed by the suite's own `loads` and
       # their mtimes, so an edited bluebook boots fresh on the next test
       # rather than running against a stale one — the property a watch
       # loop or a long rspec session actually relies on. `runtime:` lets
       # a caller that already holds a booted runtime (a spec, a REPL)
       # hand it in; it is reset the same way.
-      # NOT frozen — a real cache, mutated below (`RUNTIMES[key] ||=
+      # Not frozen — a real cache, mutated below (`RUNTIMES[key] ||=
       # boot_and_guard(files)`) and by #reset!. False positive for
       # Style/MutableConstant.
       # rubocop:disable-next Style/MutableConstant
@@ -94,12 +94,12 @@ module Hecks
         end
       end
 
-      # `reset_runtime_state!` only drops repository OBJECTS between
+      # `reset_runtime_state!` only drops repository objects between
       # tests (registry.rb) — sufficient isolation for `Memory`, whose
       # `@records` is a plain per-instance ivar, so a fresh object really
       # is a fresh store. Against anything else (Sqlite, Postgres) the
       # rows themselves stay put: tests leak into each other, and a
-      # suite booted against a domain's REAL hecksagon writes to a real
+      # suite booted against a domain's real hecksagon writes to a real
       # database. Refusing that wiring here, at boot, is the same shape
       # of guard `BindingPolicy` already applies to a missing bind — the
       # project's identity is refusing bad wiring up front, not
@@ -159,13 +159,13 @@ module Hecks
         check_ok(test) || check_fields(test, settled_state(runtime, verb, result)) || pass_result(test)
       end
 
-      # A field expectation reads the aggregate AS IT STANDS once the
+      # A field expectation reads the aggregate as it stands once the
       # dispatch and its whole cascade have run — the same "cascades are
       # always on" reading `emits:` already commits to. `Result#state` is
-      # the wrong source for that: it snapshots the instance the OUTER
+      # the wrong source for that: it snapshots the instance the outer
       # dispatch saved, and a policy's own reentrant dispatch (a ply
       # advancing off a Moved event, a move count bumping) hydrates and
-      # saves a FRESH record afterward — so a field the cascade wrote
+      # saves a fresh record afterward — so a field the cascade wrote
       # read back stale (found live: `expect move_count: 1` got 0 while
       # `emits:` saw MoveCountBumped in the same test). The repository
       # holds the settled record; read it back by the id the dispatch
@@ -185,7 +185,7 @@ module Hecks
       # A behaviors test writes a dispatch the way the guide's own chess
       # examples do — receiver identity and command facts side by side
       # (`label: "g", id: "wn", to: { file: 2, rank: 2 }`) — and since
-      # #335 the dispatcher's own `to:` keyword is the ROUTING envelope,
+      # #335 the dispatcher's own `to:` keyword is the routing envelope,
       # so forwarding those kwargs loose collides the moment a domain
       # declares a command fact named `to` (chess does: every Move's own
       # destination). Found live: every such test failed with "to: does
@@ -202,7 +202,7 @@ module Hecks
       # expects a command's own declared attributes at the top level,
       # not a port operation's already-wrapped `to:`/`with:` shape.
       #
-      # THIS USED TO RELY ON `resolve_target` RAISING `UnknownVerb` for
+      # This used to rely on `resolve_target` raising `UnknownVerb` for
       # any port-operation verb — true only so long as nothing else ever
       # asked it to resolve one. Now that a `policy` can legitimately
       # `trigger` a port operation (`ReactionInvocation#resolve_target`'s
@@ -227,8 +227,8 @@ module Hecks
         end
       end
 
-      # THE SAME "Head.Rest" SHAPE `Dispatcher#dispatch` AND
-      # `ReactionInvocation#resolve_target` BOTH ALREADY CHECK — a bare
+      # The same "Head.Rest" shape `Dispatcher#dispatch` and
+      # `ReactionInvocation#resolve_target` both already check — a bare
       # domain/aggregate lookup plus a port-name lookup, no command
       # resolution needed since all this asks is whether one exists.
       def port_operation?(runtime, verb)
@@ -331,7 +331,7 @@ module Hecks
       # `expect` values both ways — bare (`expect kind: "bishop"`) and
       # wrapped (`expect kind: { value: "bishop" }`). A live record's
       # field always comes back as a `Hecks::Runtime::Value`;
-      # normalizing BOTH sides to the same bare-scalar-or-plain-hash
+      # normalizing both sides to the same bare-scalar-or-plain-hash
       # shape is the one comparison that accepts either spelling.
       def normalize(value)
         return Hecks::Runtime::Value.materialize_unwrapped(value) if value.is_a?(Hecks::Runtime::Value)
@@ -344,7 +344,7 @@ module Hecks
       # can name more than one bluebook, so resolution searches every
       # aggregate across every bluebook the suite booted for the one that
       # actually declares the command. `on:` (when given, only ever on
-      # the TESTED command — `setup` never receives it, see the DSL
+      # the tested command — `setup` never receives it, see the DSL
       # contract) narrows the search to one aggregate by name instead of
       # searching all of them.
       def qualify(command, on_aggregate, bluebooks, kind:)
@@ -354,7 +354,7 @@ module Hecks
         disambiguate_qualified_name(candidates, command, kind, bluebooks)
       end
 
-      # THE SEARCH — every (bluebook, aggregate) pair that declares a
+      # The search — every (bluebook, aggregate) pair that declares a
       # command/query named `command`, narrowed to `on_aggregate` by name
       # when given.
       def qualify_candidates(command, on_aggregate, bluebooks, kind)
@@ -368,7 +368,7 @@ module Hecks
         pairs.select { |_, agg| agg.public_send(members).any? { |m| m.hecks_name == command.to_s } }
       end
 
-      # THE REPORT — zero candidates and more-than-one candidates both
+      # The report — zero candidates and more-than-one candidates both
       # refuse (with a different message); exactly one resolves to its
       # dotted FQN.
       def disambiguate_qualified_name(candidates, command, kind, bluebooks)

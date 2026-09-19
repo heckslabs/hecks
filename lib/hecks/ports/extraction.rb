@@ -11,8 +11,15 @@ module Hecks
 
       module_function
 
+      # @param block [Proc] a predicate block, as written in the bluebook
+      # @return [String] the block's own source text
       def canonical(block) = adapter.canonical(block)
 
+      # Finds the single adapter bound to this port.
+      #
+      # @return [Class] the adapter class implementing this port
+      # @raise [Runtime::WiringError] if resolved outside a boot, or if zero or more than one
+      #   adapter implements it
       def adapter
         registry = Hecks.current_registry
         unless registry

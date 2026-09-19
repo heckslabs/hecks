@@ -13,7 +13,7 @@ module Hecks
     # instance really is a fresh store, with nothing shared across tests or
     # tenants.
     class Memory
-      # TENANT-CAPABLE TRIVIALLY — see Runtime::TenantCheck's own header
+      # Tenant-capable trivially — see Runtime::TenantCheck's own header
       # for the full reasoning. `@records` is a plain instance variable;
       # two `Runtime.boot` calls build two entirely separate Registry
       # objects and, through them, two entirely separate Memory
@@ -43,7 +43,7 @@ module Hecks
         Ports::Query::InMemory.execute(all, specification, args, registry: context[:registry])
       end
 
-      # THROUGH THE STATE CODEC, like every durable adapter (PR A3): the
+      # Through the state codec, like every durable adapter (PR A3): the
       # journal holds `StateCodec.copy` — exactly what an encode-to-JSON
       # then decode would hand back — never the caller's own live state
       # objects, so an entry read back here has the same deep-symbol,
@@ -101,7 +101,7 @@ module Hecks
       # a domain per test case don't need this — they get a brand new
       # `Memory` instance, with brand new empty `@records`/`@events`/
       # `@entries`, for free. This is for the other case: a caller that
-      # deliberately keeps ONE booted runtime across many cases (to skip
+      # deliberately keeps one booted runtime across many cases (to skip
       # `load_domain`'s own per-boot parse/verify cost) and wants each
       # case to start from the same clean slate `Hecks.boot` would have
       # given it, without paying for a fresh boot to get there.

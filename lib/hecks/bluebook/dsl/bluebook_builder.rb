@@ -7,7 +7,7 @@ module Hecks
       # builder collecting every `aggregate`/`read_model`/`policy`/
       # `process_manager` a chapter declares, plus the chapter-wide named-
       # given pools those thread down into (see `#aggregate_impl`'s own
-      # comment). `.build` reuses the SAME open builder instance across
+      # comment). `.build` reuses the same open builder instance across
       # several files sharing one chapter name (`self.build`'s own comment),
       # so a chapter split across files accumulates rather than each file
       # silently replacing the last.
@@ -26,19 +26,19 @@ module Hecks
           @read_models      = []
           @policies         = []
           @process_managers = []
-          # THE ROOT of the CHAPTER-WIDE given pool — one level wider
+          # The root of the chapter-wide given pool — one level wider
           # than `AggregateBuilder`'s own `@entity_named_givens` (S10
           # extended across an aggregate's whole entity tree, earlier
           # this arc). See `#given`'s own comment for what this closes.
           @chapter_named_givens = {}
-          # EVERY BARE CHAPTER-GIVEN REFERENCE THIS CHAPTER'S OWN FILES
-          # LEFT UNRESOLVED SO FAR — threaded into every aggregate the
+          # Every bare chapter-given reference this chapter's own files
+          # left unresolved so far — threaded into every aggregate the
           # same way `@chapter_named_givens` is. See
           # `AggregateBuilder#pending_chapter_given`'s own comment for
           # what queues here and `#resolve_pending_chapter_givens!`,
           # below, for where it drains.
           @chapter_pending_givens = []
-          # ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool
+          # One level wider still — the chapter-wide, entity-scoped pool
           # (the piece analogue of `@chapter_named_givens`, above). See
           # `EntityBuilder#given_impl`'s own comment for what this
           # closes; `docs/implemented/resolution-rules/
@@ -73,20 +73,20 @@ module Hecks
         # old name instead of minting a brand-new lineage from nothing.
         def formerly_known_as(value) = @formerly_known_as = value.to_s
 
-        # A SUB-LANGUAGE NAMES WHERE IT LANDS. ADR 0026's own seam: the core
+        # A sub-language names where it lands. ADR 0026's own seam: the core
         # grammar does not name its extension points, so this chapter names
-        # ITSELF onto them instead — the core contexts (e.g. "Query",
+        # itself onto them instead — the core contexts (e.g. "Query",
         # "ReadModel") whose own admitted words this chapter's `Syntax`
         # aggregate contributes rows for. Variadic, and accumulating across
         # calls the same reason `identified_by`/`group_by` are: nothing here
         # requires one call to name every context at once.
-        # RENAMED FROM `attaches_to` — item #13's full metaprogrammed
+        # Renamed from `attaches_to` — item #13's full metaprogrammed
         # dispatch (slice 4c). Not bootstrap-reachable (only sub-language
-        # chapters like Paging use it; the CORE chapters never describe
+        # chapters like Paging use it; the core chapters never describe
         # themselves with it).
         def attaches_to_impl(*contexts) = (@attaches_to ||= []).concat(contexts.map(&:to_s))
 
-        # A CAPABILITY THIS CHAPTER ANSWERS FOR OTHER DOMAINS, declared so
+        # A capability this chapter answers for other domains, declared so
         # nothing has to recognise the chapter by name — Governance's
         # `provides "authorization", assignments: ..., grant: ...,
         # transitions: ...`. One row per key, in the order written; what
@@ -109,13 +109,13 @@ module Hecks
 
         # `@chapter_named_givens` is threaded into every aggregate this
         # chapter builds — see `AggregateBuilder#given`'s own comment
-        # for the sharing this enables; NOT a new top-level DSL word
-        # itself (an aggregate's own EXISTING `given` already both
+        # for the sharing this enables; not a new top-level DSL word
+        # itself (an aggregate's own existing `given` already both
         # declares locally and write-throughs here as a side effect,
         # the identical shape `EntityBuilder#given`'s own write-through
         # to its owner aggregate's pool already takes — no new spelling
         # for "declare a precondition," one level wider, same word).
-        # RENAMED FROM `aggregate` — item #13's full metaprogrammed
+        # Renamed from `aggregate` — item #13's full metaprogrammed
         # dispatch (slice 4c). Bootstrap-reachable (every core/attached
         # chapter's own top-level shape is written with it), so also
         # named in GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
@@ -135,7 +135,7 @@ module Hecks
         # that used it must keep booting; live source refuses it, naming
         # the replacement.
         def read_model(name, &)
-          # A read model gathers heads from SEVERAL aggregates, so no single head
+          # A read model gathers heads from several aggregates, so no single head
           # declares it — the chapter does. Its owner is stamped in `build`, where
           # the chapter namespace exists.
           @read_models << ReadModelBuilder.build(name, &)
@@ -157,7 +157,7 @@ module Hecks
 
         def build
           # The chapter is the top of the construct chain — `Bluebook` is a
-          # ROOT, and its constructor stamps every aggregate and read model with
+          # root, and its constructor stamps every aggregate and read model with
           # itself as owner, so every `hecks_fqn` below resolves by walking up
           # to it. No constants are installed at load time : the public door is
           # a per-boot projection, installed by `Loader.bind_runtime` once a
@@ -172,23 +172,23 @@ module Hecks
                                            attaches_to: @attaches_to || [],
                                            provides: @provides || [])
 
-          # SAME REASON, SAME GATE — a bare chapter-given may still be
+          # Same reason, same gate — a bare chapter-given may still be
           # pending (see `AggregateBuilder#pending_chapter_given`) if a
           # file that would resolve it hasn't loaded yet; resolving now
           # would see the same incomplete `@chapter_named_givens`
           # `validate_assembled!` below would. Deferred to
-          # `MetaValidator.judge_deferred!` the same way, and BEFORE
+          # `MetaValidator.judge_deferred!` the same way, and before
           # `validate_assembled!` there — nothing downstream should ever
           # read an unresolved placeholder's fields.
           resolve_pending_chapter_givens! unless MetaValidator.deferring?
           resolve_pending_chapter_entity_givens! unless MetaValidator.deferring?
 
-          # A CHAPTER MAY BE SPLIT ACROSS FILES (see `self.build`'s own
-          # comment). Every check below needs the WHOLE chapter present —
+          # A chapter may be split across files (see `self.build`'s own
+          # comment). Every check below needs the whole chapter present —
           # a hop, a projection, a correlation key or an event shape can
           # equally name a construct declared in a file that has not
           # loaded yet, and `@aggregates`/`@process_managers` here are
-          # only ever as complete as whatever has loaded SO FAR. So,
+          # only ever as complete as whatever has loaded so far. So,
           # exactly like `MetaValidator.call` below, this is skipped
           # while `MetaValidator.defer` is loading the chapter's files
           # and run once instead — by `MetaValidator.judge_deferred!`,
@@ -205,17 +205,17 @@ module Hecks
           MetaValidator.call(bluebook)
         end
 
-        # THE OTHER HALF OF A CHAPTER-WIDE `given` REFERENCE —
+        # The other half of a chapter-wide `given` reference —
         # `AggregateBuilder#pending_chapter_given` recognised an
         # unresolved bare reference and deferred it here, unable to
-        # check further: a later file in this SAME chapter might still
+        # check further: a later file in this same chapter might still
         # declare the real thing. Runs once every file has loaded,
         # against the now-complete `@chapter_named_givens` pool — the
-        # IDENTICAL lookup `reference_named_chapter_given` already does,
+        # identical lookup `reference_named_chapter_given` already does,
         # just late enough to see every aggregate's own declarations,
         # not only the ones loaded before the referencing one.
         #
-        # MUTATES each placeholder `Given` IN PLACE rather than
+        # Mutates each placeholder `Given` in place rather than
         # replacing it — it is already embedded, by Ruby object
         # reference, in the referencing aggregate's own `preconditions`
         # and in any command (same aggregate) that separately
@@ -265,7 +265,7 @@ module Hecks
         end
         private :resolve_pending_chapter_given
 
-        # THE ENTITY-SCOPED ANALOGUE, one level down — see
+        # The entity-scoped analogue, one level down — see
         # `#resolve_pending_chapter_givens!`'s own comment; identical
         # shape, resolved against `@chapter_entity_named_givens` instead.
         def resolve_pending_chapter_entity_givens!
@@ -307,18 +307,18 @@ module Hecks
         end
         private :resolve_pending_chapter_entity_given
 
-        # A CHAPTER MAY BE DECLARED IN SEVERAL FILES, meant to merge into ONE
+        # A chapter may be declared in several files, meant to merge into one
         # domain — `lib/hecks/language/bluebook/*.bluebook` all open
         # `Hecks.bluebook "Bluebook" do ... end`. Each `Hecks.bluebook` call used to
         # mint a fresh builder, so a second file with the same chapter name
         # silently replaced the first's aggregates instead of adding to them.
         #
-        # The registry now holds the builder OPEN across calls : the first file
+        # The registry now holds the builder open across calls : the first file
         # for a name creates it, every later file for the same name reuses the
         # same instance, so `@aggregates`/`@read_models` accumulate. `#build` is
         # safe to call once per file on the same builder — it constructs a fresh
         # `Bluebook` from whatever is currently held and re-`Namespace.install`s
-        # over the previous one, so the LAST file's call leaves every aggregate
+        # over the previous one, so the last file's call leaves every aggregate
         # seen so far reachable, and each call's IR is a strict superset of the
         # one before. `Registry#add_bluebook` still simply stores by name — with
         # this in place, "last write wins" is the cumulative, correct write.
@@ -326,7 +326,7 @@ module Hecks
           registry = Hecks.current_registry
           builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
           builder.__send__(:adopt_version, version)
-          # A bare constant in a bluebook — `attribute :name, PizzaName` — is a NAME,
+          # A bare constant in a bluebook — `attribute :name, PizzaName` — is a name,
           # not a reference to something Ruby has heard of. `const_missing` hands
           # over a `ConstShim::ScopedConstant` (S0b, const_shim.rb's own comment),
           # and that is still the whole answer for a bare name: `Attribute` spells
@@ -334,7 +334,7 @@ module Hecks
           # only long enough to be stringified. The concept still has a home — the
           # language declares `value_object "TypeName"` — it just needed no Ruby
           # class of its own. A Module rather than a Symbol is what also lets
-          # `Account::Debit`/`admits: Account::LedgerDirection` answer their OWN
+          # `Account::Debit`/`admits: Account::LedgerDirection` answer their own
           # `::` — a plain Symbol cannot.
           resolver = ->(const) { ConstShim::ScopedConstant.for(const) }
           ConstShim.with(resolver) { builder.instance_eval(&block) } if block

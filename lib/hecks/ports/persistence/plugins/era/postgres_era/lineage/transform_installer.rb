@@ -14,11 +14,11 @@ module Hecks
           # cross-execution equivalence spec; the SQL here is a compilation
           # target, not a second source of truth.
           #
-          # LOCKED, unlike every other statement `ensure_base!` runs — those
+          # Locked, unlike every other statement `ensure_base!` runs — those
           # are all `CREATE ... IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS`,
           # which Postgres itself resolves safely under concurrent boots.
           # `CREATE OR REPLACE FUNCTION` is not: it always rewrites the
-          # `pg_proc` row, so two sessions racing to (re)install the SAME
+          # `pg_proc` row, so two sessions racing to (re)install the same
           # function — these six are shared/global, not per-domain, so any
           # two domains' concurrent first-boots can collide here — hit a
           # real `PG::InternalError: tuple concurrently updated`, not a
@@ -33,11 +33,11 @@ module Hecks
             end
           end
 
-          # Six independent CREATE OR REPLACE FUNCTION statements — each
+          # Six independent create or replace function statements — each
           # self-contained SQL, no shared Ruby state, and (per this
           # module's own header comment) safe in any install order since
           # plpgsql bodies aren't resolved against each other until
-          # called, not at CREATE time. Split one-per-function below
+          # called, not at create time. Split one-per-function below
           # purely so each has its own name and (where relevant) its own
           # comment to sit next to, not because the six have any
           # sequencing dependency on one another.
@@ -84,7 +84,7 @@ module Hecks
             SQL
           end
 
-          # ADVERSARIAL FINDING: a destination whose top segment already
+          # Adversarial finding: a destination whose top segment already
           # holds a value — most commonly a reference, a bare scalar id
           # — used to be silently overwritten with an empty object the
           # moment a dotted destination needed to nest under it. That is

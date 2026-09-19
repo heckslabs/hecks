@@ -2,17 +2,17 @@ module Hecks
   module Bluebook
     module DSL
       class AggregateBuilder
-        # THE "SEAL_*" PASS — everything `#build` runs once every
+        # The "SEAL_*" pass — everything `#build` runs once every
         # declaration (attributes, entities, commands, queries, the
         # lifecycle) is otherwise in place, checking that what a command,
-        # query, or default NAMES actually exists elsewhere on the
+        # query, or default names actually exists elsewhere on the
         # aggregate. Split out of aggregate_builder.rb (which keeps the
         # DSL surface itself — attribute/command/query/policy declaration
         # — and the smaller drain_pending!/identity bookkeeping) because
         # this cluster is one cohesive concern: cross-field validation
         # that can only run after every declaration is real, the same
         # relationship BluebookBuilder's own `self.validate_*` cluster has
-        # to ITS chapter (see that file's own header for the parallel).
+        # to its chapter (see that file's own header for the parallel).
         # `include`d back into AggregateBuilder, same pattern as
         # `Runtime::Registry`'s own `include Verification` /
         # `include SagaPersistence` — same class, its private instance
@@ -23,10 +23,10 @@ module Hecks
           # Every reference is told which Aggregate declares it, so it can
           # find the chapter and resolve its target.
           #
-          # Stamped HERE, at build, rather than at `reference_to`, because a command
+          # Stamped here, at build, rather than at `reference_to`, because a command
           # builder does not hold the aggregate and should not learn to. And
           # deliberately across every list that can carry one — a reference the walk
-          # missed would resolve to nil, and `resolve_references` SKIPS a nil target,
+          # missed would resolve to nil, and `resolve_references` skips a nil target,
           # so the guarantee would go quiet instead of going red. That is the exact
           # shape of the bug that let an Account belong to an unregistered customer
           # fourteen times over.
@@ -34,8 +34,8 @@ module Hecks
             reference_bearing_attributes.each { |attribute| attribute.type.declared_in = aggregate }
           end
 
-          # AN OWNED PIECE'S OWN `reference_to` IS AN EDGE THIS AGGREGATE
-          # POINTS ACROSS TOO (S9, ADR 0025 — "entity/aggregate shared
+          # An owned piece's own `reference_to` is an edge this aggregate
+          # points across too (S9, ADR 0025 — "entity/aggregate shared
           # vocabulary") — a ring closing through a contained piece (Board
           # -> Board::Card -> Product -> Board) is the same "no boundary
           # anyone can reason about alone" `validate_no_bidirectional_
@@ -43,7 +43,7 @@ module Hecks
           # aggregate ring; it was invisible before this because only
           # `AggregateBuilder#reference_to` ever fed `@reference_targets`,
           # never `EntityBuilder#reference_to`. Command/query reference
-          # ARGUMENTS are deliberately excluded — they are data flowing
+          # arguments are deliberately excluded — they are data flowing
           # through a dispatch, not persisted state the graph a cycle
           # means anything over.
           def entity_reference_targets
@@ -61,12 +61,12 @@ module Hecks
             lists.flatten.select(&:reference?)
           end
 
-          # A mutation must name a field the aggregate actually HAS.
+          # A mutation must name a field the aggregate actually has.
           #
-          # NOT moved to the language, and deliberately so. The language says only
+          # Not moved to the language, and deliberately so. The language says only
           # `given("a mutation names a target") { !target.value.to_s.empty? }` —
           # non-emptiness — because saying more means reaching a list that lives on
-          # a DIFFERENT root : a command's changes hang off Command, the fields they
+          # a different root : a command's changes hang off Command, the fields they
           # name hang off Aggregate, and a given is a closed predicate over its own
           # state. Aggregate.Seal is the right shape and cannot see commands ; the
           # reference trick that rescued "attributes use value-object types" needs a
@@ -78,10 +78,10 @@ module Hecks
           # So it lives here, at build, where every declaration is present. Found by
           # writing `then_set :disputed_by` on CardPayment before the field existed :
           # it wrote into nothing, refused nothing, and every check stayed green.
-          # A DEFAULT FILLS THE SHAPE IT IS DECLARED ON, or it fills nothing.
+          # A default fills the shape it is declared on, or it fills nothing.
           #
           # `attribute :cover, one_of("covered", "open"), default: "open"` builds
-          # cleanly and then refuses EVERY create at dispatch — "cover is a Cover,
+          # cleanly and then refuses every create at dispatch — "cover is a Cover,
           # pass its fields as an object" — because the value object wants its
           # fields and got a bare string. The bluebook is wrong at the line where
           # it is written and says so nowhere near it.
@@ -91,12 +91,12 @@ module Hecks
           # consistency about nothing. `till.bluebook` has always had the right shape
           # — `default: { cents: 0 }`.
           #
-          # A PRIMITIVE takes a scalar and a VALUE OBJECT takes its fields, so the
+          # A primitive takes a scalar and a value object takes its fields, so the
           # test is simply which one the type names. Nothing here guesses at the
           # keys: a default that is a Hash is left to `Value.for_attribute`, which
-          # is where a wrong FIELD belongs.
+          # is where a wrong field belongs.
           def seal_defaults
-            # `closed_sets` TOO, not only `@value_objects` — the exact gap
+            # `closed_sets` too, not only `@value_objects` — the exact gap
             # this method's own comment names: an inline `one_of(...)`
             # synthesises its value object through `closed_sets`
             # (AttributeCollector#synthesise_closed_set), never installed
@@ -120,7 +120,7 @@ module Hecks
           end
 
           # A command's `from:` guard needs a lifecycle field to check
-          # against — declared at BUILD time (S10, ADR 0025), the same
+          # against — declared at build time (S10, ADR 0025), the same
           # point every other "does this actually resolve" check in this
           # file runs, rather than left to crash `enforce_lifecycle_
           # guard` the first time such a command is ever dispatched.
@@ -137,12 +137,12 @@ module Hecks
             end
           end
 
-          # `projects`'s OWN half of "does this actually resolve" (S12,
-          # ADR 0025) — the LOCAL half only: `reference` must name a real
+          # `projects`'s own half of "does this actually resolve" (S12,
+          # ADR 0025) — the local half only: `reference` must name a real
           # reference-typed attribute this aggregate declares, and
           # `name` must not collide with an attribute already declared
           # (a projected field is its own kind of field, never a second
-          # spelling of one that already exists). The TARGET aggregate's
+          # spelling of one that already exists). The target aggregate's
           # own field is checked separately, once every aggregate in the
           # chapter is real — see BluebookBuilder#validate_projected_
           # fields!'s own comment for why that half cannot happen here.
@@ -173,23 +173,23 @@ module Hecks
             @commands.each do |command|
               command.mutations.each do |mutation|
                 # `:delegate` — CommandBuilder#delegates_to's own comment —
-                # targets no field of THIS aggregate at all; its `target`
+                # targets no field of this aggregate at all; its `target`
                 # names an "Entity.Command" pair instead, checked when the
                 # command builds (`delegates_to`'s own `rpartition` guard)
                 # and again at dispatch time (`CommandInterpreter
                 # #step_delegate_to_entity`, which refuses a real one that
-                # names no such entity or command). Sealing THIS check
+                # names no such entity or command). Sealing this check
                 # against it would refuse every delegating command outright.
                 # `:corrects` — CommandBuilder#corrects_impl's own comment —
-                # targets an EVENT name, not a field either; checked instead
+                # targets an event name, not a field either; checked instead
                 # by `seal_correction_targets`, below.
                 next if [:delegate, :corrects].include?(mutation.op)
 
                 # C5.3 (docs/semantics/bluebook-semantics.md) — the
-                # lifecycle field moves ONLY by transition; a `sets` on it
+                # lifecycle field moves only by transition; a `sets` on it
                 # would be overwritten by any transition and bypass the
                 # state machine otherwise. Refused at build — except for
-                # FROZEN ERA TEXT (`MetaValidator.shadow_parsing?`), which
+                # frozen era text (`MetaValidator.shadow_parsing?`), which
                 # is history and must keep parsing as the language tightens.
                 if @lifecycle && mutation.target.to_sym == @lifecycle.field.to_sym && !MetaValidator.shadow_parsing?
                   raise Malformed,
@@ -212,26 +212,26 @@ module Hecks
           # itself — a command cannot see its own siblings' `emits` while
           # it is still being built). Two things are checked:
           #
-          # 1. The named event must be something a SIBLING command here
+          # 1. The named event must be something a sibling command here
           #    actually `emits` — naming an event nothing in this aggregate
           #    ever announces is a build-time authoring error. (Whether
-          #    THIS record has actually emitted it YET is the dispatch-time
+          #    this record has actually emitted it yet is the dispatch-time
           #    half — CommandRules::Admissibility#enforce_correction_target.)
           #
           # 2. `reverses: true` derives the corrective `sets` from the
-          #    ORIGINAL command's own mutations, rather than the author
+          #    original command's own mutations, rather than the author
           #    writing them — but only when every one of those mutations is
-          #    STRUCTURALLY invertible with no runtime data: increment/
+          #    structurally invertible with no runtime data: increment/
           #    decrement, same argument, opposite verb (`sign_for`'s own
           #    +1/-1 pair — CommandRules::Arithmetic applies `current +
-          #    sign * amount`, so the SAME source with the OPPOSITE sign
+          #    sign * amount`, so the same source with the opposite sign
           #    undoes it exactly). Nothing else qualifies today: `set` has
-          #    no such rule at all — inverting it needs the SPECIFIC prior
+          #    no such rule at all — inverting it needs the specific prior
           #    value at the moment the original fired, which is per-
           #    instance runtime data no build-time derivation can have;
           #    `multiply`/`clamp` are lossy by design (a clamped value's
           #    own pre-clamp magnitude is not recoverable from the mutation
-          #    at all); `append`/`remove` LOOK symmetric but are not
+          #    at all); `append`/`remove` look symmetric but are not
           #    reliably so — `append`'s source is a per-field binding hash
           #    (`append: { name: :name, amount: :amount }`), `remove`'s is
           #    a single resolved value to match by equality
@@ -243,9 +243,9 @@ module Hecks
           #    — see docs/decisions/ for the ADR that draws this exact
           #    line.
           # One closed cluster of `corrects`/`reverses: true` rules, run
-          # in sequence against ONE command at a time (emission exists,
+          # in sequence against one command at a time (emission exists,
           # reverses/own-sets conflict, invertibility, then the actual
-          # derivation) — each `raise` gates the next check for THAT
+          # derivation) — each `raise` gates the next check for that
           # command, and `inverse_op`/`emitted_by` are shared read-only
           # lookups built once up front. Splitting the per-command body
           # out would still need all of `command`/`event`/`sources`/
@@ -299,11 +299,11 @@ module Hecks
             end
           end
 
-          # A query must ask about a field the aggregate actually HAS — the same
+          # A query must ask about a field the aggregate actually has — the same
           # seal `then_set` gets, closing the same silence: a where over a field
           # nothing declares matches nothing and refuses nothing, forever, on
           # every adapter. Three more silences close with it. A dotted path may
-          # reach through the value-object graph but must LAND on a scalar
+          # reach through the value-object graph but must land on a scalar
           # member (QuerySpecification::FieldPath is the one walk every engine
           # now shares) — landing on a value object hands SQL a JSON object
           # where the reference interpreter unwraps a hash. An ordered
@@ -339,13 +339,13 @@ module Hecks
               @entities.map { |entity| ["#{@name}::#{entity.hecks_name}", entity.attributes, entity.lifecycle, entity.queries] }
           end
 
-          # `/` CROSSES INTO ANOTHER RECORD, `.` WALKS FIELDS INSIDE THIS
-          # ONE (ADR 0025, "References") — the operator answers which
+          # `/` crosses into another record, `.` walks fields inside this
+          # one (ADR 0025, "References") — the operator answers which
           # kind of path this is now, not a name collision to arbitrate,
           # so a hop is routed to its own method before any `.`-splitting
           # runs at all; `seal_query_hop` below never sees a field this
           # one would also have tried to resolve as a local dotted walk.
-          # A closed decision tree over where ONE field can resolve —
+          # A closed decision tree over where one field can resolve —
           # hop, local scalar, lifecycle field, value object (refused),
           # or nothing (refused) — see the doc comment above (and the
           # method-level comments on the hop/ordering split) for why each
@@ -378,18 +378,18 @@ module Hecks
                   "matches nothing and refuses nothing"
           end
 
-          # ORDER BY refuses a hop OUTRIGHT, right here — unlike a WHERE
+          # ORDER BY refuses a hop outright, right here — unlike a where
           # hop (deferred below), this doesn't need the target's shape to
           # answer: an ask is ordered by what its own answering rows
           # hold, and a hop answers with a candidate set, not a sort key
           # (see Runtime::ReferenceHop).
           #
-          # A WHERE hop is only RECOGNISED here, and CHECKED LATER. The
+          # A where hop is only recognised here, and checked later. The
           # head names one of this aggregate's own references, which is
           # answerable now — a Reference knows its own target_name at
-          # declaration. What it points AT is not: stamp_references has
+          # declaration. What it points at is not: stamp_references has
           # already run by this point, but the chapter (Bluebook, and the
-          # owning aggregate's OWN place in it) does not exist yet, so
+          # owning aggregate's own place in it) does not exist yet, so
           # Reference#resolve would answer nil for every target in the
           # file, including ones declared above this one. The tail, and
           # whether the target even exists, are BluebookBuilder's
@@ -416,14 +416,14 @@ module Hecks
           def seal_ordered_comparator(owner, query, fields, clause)
             return unless ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
 
-            # A WHERE clause hopping through a reference with an ordered
+            # A where clause hopping through a reference with an ordered
             # comparator is legitimate ("client whose balance > 500") —
             # unlike ORDER BY (refused outright in seal_query_field, see
             # its own comment), a where-clause hop answers a real
             # candidate set either way, ordered or not. Deferred for the
             # same reason any other hop is: whether the tail is even
             # numeric is BluebookBuilder#validate_query_hops!'s question
-            # to ask of the TARGET's shape, not this aggregate's own.
+            # to ask of the target's shape, not this aggregate's own.
             return if clause.field.to_s.include?("/") && QuerySpecification::HopPath.hop_head?(clause.field, fields)
 
             name, *nested = clause.field.to_s.split(".")
@@ -473,17 +473,17 @@ module Hecks
             query.attributes << leaf if leaf
           end
 
-          # A BARE FIELD NAMING A VALUE OBJECT HAS TO SAY WHICH MEMBER IT
-          # MEANS, when more than one could answer. The dotted case above
+          # A bare field naming a value object has to say which member it
+          # means, when more than one could answer. The dotted case above
           # already refuses a path that lands on a value object rather than
           # a scalar; a bare name was returning unconditionally, so
           # `where(frequency: ...)` against a StatementFrequency
           # (cadence, retention_months, paper_fee_cents) compiled — and the
           # engines then disagreed about which member it meant, one taking
-          # the FIRST numeric and another declining to unwrap at all.
+          # the first numeric and another declining to unwrap at all.
           #
           # Unambiguous is: exactly one member, whatever its type, or
-          # exactly one NUMERIC member among several (Money's `cents`
+          # exactly one numeric member among several (Money's `cents`
           # beside its `currency` — the reading every engine already
           # shared, and what the corpus relies on). Anything else names
           # its member with a dotted path, which already works.

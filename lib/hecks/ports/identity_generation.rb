@@ -3,19 +3,19 @@ require_relative "../runtime/registry"
 module Hecks
   module Ports
     # A creating command with no natural key needs a value from
-    # SOMEWHERE to be its identity — this is that somewhere. Resolved
+    # somewhere to be its identity — this is that somewhere. Resolved
     # the same way `Ports::Extraction` resolves its own adapter (one
     # adapter registry-wide implements this port, not a per-aggregate
     # binding the way persistence needs — different aggregates have no
     # real reason to want different id-generation strategies within
     # one running app).
     #
-    # REPLAY NEEDS NO SUPPRESSION HERE, ON PURPOSE. A UUID minted for a
+    # Replay needs no suppression here, on purpose. A UUID minted for a
     # creating command's identity gets baked into that step's own args
     # — an ordinary string value — the moment it's generated, by
     # whoever issues the first, live dispatch. A recorded corpus
     # script or a captured fuzz-replay step already holds that
-    # concrete value; replaying it calls `dispatch` with the SAME
+    # concrete value; replaying it calls `dispatch` with the same
     # args, and this module is never consulted again, for the same
     # reason `SecureRandom.uuid` never runs twice for one
     # already-recorded step today. `Event#occurred_at`
@@ -28,8 +28,15 @@ module Hecks
 
       module_function
 
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
+      # @return [String] a newly-minted identity value
       def uuid(registry) = adapter(registry).uuid
 
+      # Finds the single adapter bound to this port.
+      #
+      # @param registry [Runtime::Registry] the booted registry to search
+      # @return [Class] the adapter class implementing this port
+      # @raise [Runtime::WiringError] if zero or more than one adapter implements it
       def adapter(registry)
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 

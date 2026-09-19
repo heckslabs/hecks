@@ -12,7 +12,7 @@ module Hecks
     # rules), audit/layer_two.rb (the edge against the reference
     # transform), audit/unfed_report.rb (what nothing feeds), and
     # audit/approval_digest.rb (the human gate's binding). Layer 3 — the
-    # before/after sample a HUMAN approves, intent not being derivable —
+    # before/after sample a human approves, intent not being derivable —
     # is assembled right here in `check`.
     module Audit
       Verdict = Struct.new(:violations, :dropped, :unfed, :samples, keyword_init: true) do
@@ -28,7 +28,7 @@ module Hecks
 
       module_function
 
-      # aggregate — the CURRENT era's IR; declared — this edge's rules
+      # aggregate — the current era's IR; declared — this edge's rules
       # for it (may be nil); before/after — {id => state hash}, source
       # era's latest vs translated.
       def check(aggregate:, declared:, before:, after:)
@@ -57,7 +57,7 @@ module Hecks
       # nothing. Nothing in-process can compute the old→new
       # correspondence either (the rekey's SQL is its only
       # implementation, same as compute's own). Shown side by side
-      # instead, each labelled by its OWN id: real records going in,
+      # instead, each labelled by its own id: real records going in,
       # real records coming out — not claimed to correspond one-to-one,
       # but enough for the human this rule's only verification depends
       # on to actually see real shapes and values, not a wall of null.

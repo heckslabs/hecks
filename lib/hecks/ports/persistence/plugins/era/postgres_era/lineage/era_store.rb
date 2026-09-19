@@ -13,7 +13,7 @@ module Hecks
         module EraStore
           # Every held text is verified against its raw-byte digest on the
           # way out — an edited storage fact refuses rather than silently
-          # reporting "no drift". This is NOT the era name (which hashes
+          # reporting "no drift". This is not the era name (which hashes
           # the canonical projection, minted once, never recomputed): it
           # is a plain integrity check over bytes, and a row from before
           # the check existed is backfilled, not refused.
@@ -42,10 +42,10 @@ module Hecks
               held_projection: rows[0]["held_projection"] }
           end
 
-          # The recovery path: tamper-EVIDENCE (against accident and
+          # The recovery path: tamper-evidence (against accident and
           # drift, not adversaries) gets resolved by a human acknowledging
           # the text as it now stands — recorded in an append-only
-          # attestation table, never by a bare psql UPDATE.
+          # attestation table, never by a bare psql update.
           def reattest!(ordinal)
             era = raw_era(ordinal)
             raise Runtime::WiringError, "#{@domain} holds no era #{ordinal} to re-attest" unless era
@@ -132,7 +132,7 @@ module Hecks
             )
           end
 
-          # A Layer-3 approval, recorded IN the database it was reviewed
+          # A Layer-3 approval, recorded in the database it was reviewed
           # against — bound to the edge's parsed content and the journal's
           # high-water ordinal at review time. The latest row for a shape
           # pair wins (re-approval supersedes).
@@ -155,7 +155,7 @@ module Hecks
             { edge_digest: rows[0]["edge_digest"], reviewed_ordinal: rows[0]["reviewed_ordinal"].to_i }
           end
 
-          # Era identity is minted ONCE and stored; nothing ever recomputes
+          # Era identity is minted once and stored; nothing ever recomputes
           # a stored name to verify it.
           def mint_name!(ordinal, hash, label)
             @db.exec_params(

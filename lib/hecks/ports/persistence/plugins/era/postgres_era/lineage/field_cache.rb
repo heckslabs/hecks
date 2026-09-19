@@ -4,11 +4,11 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # THE READ-SIDE OF THE ERA WORKAROUND. Once a domain mints a
+        # The read-side of the era workaround. Once a domain mints a
         # second era, `head_view` is a `DISTINCT ON`/`UNION ALL`
         # reduction — and a `where` clause on anything but `id` (its own
         # partition key) cannot be pushed through that reduction, so every
-        # declared query pays the cost of reducing the WHOLE aggregate
+        # declared query pays the cost of reducing the whole aggregate
         # before it can filter anything (see docs/implemented/postgres-era-adapter-
         # split-plan.md's own trigger section — this is a real
         # SQL-semantics wall, not a missing index; adding one to
@@ -16,25 +16,25 @@ module Hecks
         # prove a predicate on a non-partition column commutes with
         # `DISTINCT ON` without risking a stale row winning).
         #
-        # THE WORKAROUND: one narrow table per declared `where`-field
+        # The workaround: one narrow table per declared `where`-field
         # (never `order_by`-only fields — sorting the reduced output was
         # never blocked by the reduction; only filtering was), holding
-        # exactly (id, ordinal, value) — the CURRENT extracted value for
+        # exactly (id, ordinal, value) — the current extracted value for
         # every live id, maintained transactionally by `append` alongside
         # the head snapshot it already upserts (same ordinal-guard idiom:
         # `WHERE ordinal < EXCLUDED.ordinal`). A query whose sole `where`
         # is on a cached field never runs the reduction at all: `SELECT id
-        # FROM <field>_cache WHERE value <op> $1`, then `SELECT id, state
-        # FROM head_view WHERE id = ANY($ids)` — safe THROUGH the
+        # from <field>_cache where value <op> $1`, then `SELECT id, state
+        # from head_view where id = ANY($ids)` — safe through the
         # reduction because `id` is its own partition key, unlike the
         # original field.
         #
-        # SCOPED TO NON-LIST FIELDS ONLY, same reasoning Track A (plain
+        # Scoped to non-list fields only, same reasoning Track A (plain
         # Postgres) and Track B (Sqlite/D1) both landed on independently
         # for their own automatic indexing: this codebase's `contains`
         # compiles to element-membership (`jsonb_array_elements`/
         # `json_each` + `EXISTS`), which a (id, ordinal, value) cache table
-        # keyed on ONE scalar value per id has no way to represent — a
+        # keyed on one scalar value per id has no way to represent — a
         # list field would need one row per (id, element), a different
         # shape this plan does not build. `PostgresEra#eligible_for_cache?`
         # is where that boundary lives.
@@ -47,12 +47,12 @@ module Hecks
           # human-readable; `hecks_backfill_progress`/catalog lookups are
           # always driven by this same computed name, never typed by hand.
           #
-          # `@domain` IS PART OF THE HASH INPUT — this table has the exact
+          # `@domain` is part of the hash input — this table has the exact
           # same collision this whole file's siblings (`head_view`/
           # `head_snapshot`/`matview`, `lineage.rb`) were fixed for in
           # docs/decisions/0059: two domains bound to PostgresEra against
           # the same database, each with an aggregate sharing a
-          # storage_name AND a cached where-field of the same name, used
+          # storage_name and a cached where-field of the same name, used
           # to derive the identical `hecks_fc_<hash>` table and silently
           # share cached rows across domains. Already fully hashed, so
           # folding the domain in costs nothing readability could lose.
@@ -61,15 +61,15 @@ module Hecks
           end
 
           # Self-healing, same idiom as `ensure_head_snapshot!`: cheap,
-          # unconditional, safe to call on every boot. CREATION is a
+          # unconditional, safe to call on every boot. Creation is a
           # short-held lock (table doesn't exist yet — nothing to block);
-          # BACKFILL runs outside it, chunk by chunk, each chunk its own
+          # backfill runs outside it, chunk by chunk, each chunk its own
           # short lock — never one transaction spanning the scan, per
           # principle 1. `value_expression` is the exact SQL
           # `PostgresEra#query_expression(field)` already compiles for
           # this field, applied against a `state` column this module's own
           # SQL always makes available in scope (see `field_cache_source_sql`)
-          # — ONE source of truth for "what does this field mean", not a
+          # — One source of truth for "what does this field mean", not a
           # second hand-rolled copy that could silently drift from what a
           # live query actually filters on.
           def ensure_field_cache!(storage_name, era, field, value_expression)
@@ -109,10 +109,10 @@ module Hecks
             )
           end
 
-          # THE LIVE-WRITE SIDE — called from `append`, inside the SAME
+          # The live-write side — called from `append`, inside the same
           # transaction as the journal insert and the head-snapshot
           # upsert, for every field this aggregate has a cache table for.
-          # `state_json` is the entry's OWN new state (already the thing
+          # `state_json` is the entry's own new state (already the thing
           # `append` is about to write) — bound as a literal jsonb value
           # and aliased `state`, so `value_expression` (built to read a
           # column literally named `state`) evaluates identically here and
@@ -136,19 +136,19 @@ module Hecks
           private
 
           # The reduced (id, ordinal, state) source a field cache backfills
-          # from — NOT the raw journal (unlike `backfill_head_snapshot!`'s
-          # own source): a field cache reflects the CURRENT HEAD value,
+          # from — not the raw journal (unlike `backfill_head_snapshot!`'s
+          # own source): a field cache reflects the current head value,
           # which for era > 1 can come from either this era's own live
-          # writes OR an untouched-this-era id whose value still comes
+          # writes or an untouched-this-era id whose value still comes
           # from the translated ancestor tail. Era 1 has no ancestor tail
-          # (the snapshot table IS the head, verbatim); era N reduces the
-          # SAME two sources `compile_head!`'s own final view definition
+          # (the snapshot table is the head, verbatim); era N reduces the
+          # same two sources `compile_head!`'s own final view definition
           # unions (head_compiler.rb) — this is deliberately the identical
           # shape, ordinal kept in the SELECT list instead of dropped,
-          # because a backfilled cache row needs a REAL ordinal to guard
+          # because a backfilled cache row needs a real ordinal to guard
           # against a concurrent live write the same way every other
           # upsert in this adapter already does. Ordinals are safe to
-          # compare across that union because they come from ONE spanning
+          # compare across that union because they come from one spanning
           # sequence per domain (see lineage.rb's own header comment) —
           # an ancestor-era ordinal is always numerically smaller than any
           # current-era one, so the ordinary `ordinal <` guard already
@@ -167,7 +167,7 @@ module Hecks
                 "SELECT ordinal, aggregate_id AS id, state FROM #{quote(view)} WHERE operation = 'save'"
               else
                 # No compiled ancestor matview yet (e.g. this era was just
-                # minted and compile_head! hasn't run for THIS aggregate) —
+                # minted and compile_head! hasn't run for this aggregate) —
                 # the live snapshot side alone is the whole truth so far.
                 "SELECT NULL::bigint AS ordinal, NULL::text AS id, NULL::jsonb AS state WHERE FALSE"
               end

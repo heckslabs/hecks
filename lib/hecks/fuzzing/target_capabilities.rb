@@ -1,30 +1,30 @@
 module Hecks
   module Fuzzing
-    # WHAT A SWEEP TARGET CAN ACTUALLY BE CHECKED FOR, read off the
+    # What a sweep target can actually be checked for, read off the
     # filesystem — never off a stored list.
     #
-    # `bin/qa_sweep` used to decide its ONE comparison mode inline: "is
+    # `bin/qa_sweep` used to decide its one comparison mode inline: "is
     # there a Cargo feature named after this directory? then
     # `:differential`, else `:ruby_only`", and a separate hand-typed abort
     # for `--persistence-parity` ("does any .hecksagon bind PostgresEra?").
     # Every further mode the practice adds (era boundary, concurrency, a
     # WASM front) would have grown one more inline `if`, each one a
     # policy decision hiding in a script. This module is those decisions
-    # as DATA: `MODE_REQUIREMENTS` says which capabilities each mode
+    # as data: `MODE_REQUIREMENTS` says which capabilities each mode
     # needs, `infer` says which capabilities a target's own directory
     # actually has, and `resolve` is the one rule that joins them —
     # `modes_to_run = enabled ∩ eligible`.
     #
-    # INFERENCE DECIDES; A STORED LIST ONLY RECORDS. `Target.capabilities`
+    # Inference decides; a stored list only records. `Target.capabilities`
     # (qa/bluebook/quality_control.bluebook, once PR-1's era lands) is
     # written by the runner from exactly this inference at release time
-    # so `Target.EligibleFor(mode)` can AUDIT the rotation from the
+    # so `Target.EligibleFor(mode)` can audit the rotation from the
     # ledger alone — but the runner re-infers every sweep, because a
     # stored list that lags yesterday's Cargo feature is precisely the
     # "quiet divergence" (the chapter's own opening comment) this whole
     # practice exists to hunt. Nothing here ever reads the ledger.
     #
-    # EVERY REGEX IS ONE THE HARNESS ALREADY OWNED, moved here rather than
+    # Every regex is one the harness already owned, moved here rather than
     # re-derived, and each one's provenance is named beside it so a
     # future edit to the original site is a visible drift, not a silent
     # one: the Cargo feature line (`RustConformanceHelpers#build_rust_for`),
@@ -45,7 +45,7 @@ module Hecks
       # domain-level default (`persisted_by "PostgresEra"`).
       POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
 
-      # `HecksagonBuilder#uses_framework "X"` — captures WHICH member a
+      # `HecksagonBuilder#uses_framework "X"` — captures which member a
       # hecksagon attaches, whatever its name. Whether that member answers
       # a role check is then read off its own declaration (`provides
       # "authorization"`, via `Framework.providers_of`), the same rule
@@ -64,21 +64,21 @@ module Hecks
 
       PROCESS_MANAGER = /^\s*process_manager\s+"/
 
-      # WHICH CAPABILITIES EACH MODE NEEDS BEFORE IT CAN SAY ANYTHING TRUE
-      # ABOUT A TARGET. An empty list means "any target at all" — every
+      # Which capabilities each mode needs before it can say anything true
+      # about a target. An empty list means "any target at all" — every
       # domain boots under Memory, so Ruby-only properties and the
       # self-consistency pass are always answerable. `ruby_only` is listed
-      # requirement-free on purpose and then EXCLUDED by `resolve` whenever
+      # requirement-free on purpose and then excluded by `resolve` whenever
       # `differential` resolved too: they are the same seat, and a compiled
       # Rust binary is strictly the better occupant (item 1 of the
-      # detection plan folded the Ruby-only property battery INTO the
+      # detection plan folded the Ruby-only property battery into the
       # differential seat, so nothing is lost by the exclusion).
       #
       # The four `false`-by-default modes in `QualityControlDials::MODES`
       # (`adapter_parity_postgres`, `era_boundary`, `concurrency`,
       # `wasm_front`) are named here with their requirements even though
       # nothing runs them yet — so `resolved modes:` can already say, per
-      # target, which of them WOULD be eligible the day a human flips the
+      # target, which of them would be eligible the day a human flips the
       # dial, and so flipping it is a one-line data change rather than a
       # code change plus a data change.
       MODE_REQUIREMENTS = {
@@ -95,16 +95,16 @@ module Hecks
         wasm_front:                 %w[rust]
       }.freeze
 
-      # WHICH OF THOSE MODES `bin/qa_sweep` CAN ACTUALLY RUN TODAY.
-      # `MODE_REQUIREMENTS` above says what a mode NEEDS; this says what
-      # EXISTS to do it, and the two are not the same. Conflating them is
+      # Which of those modes `bin/qa_sweep` can actually run today.
+      # `MODE_REQUIREMENTS` above says what a mode needs; this says what
+      # exists to do it, and the two are not the same. Conflating them is
       # how `qa/settings.yml` came to enable `wasm_front` and
       # `adapter_parity_postgres` with nothing behind either — no seat, no
       # check folded into the seed loop, no `MODE_EXPECTATIONS` entry — while
       # `resolved modes:` still printed them per target, so the sweep
       # advertised coverage it never performed. A mode named in
       # `MODE_REQUIREMENTS` but absent here is one this practice wants and has
-      # not built: `bin/qa_sweep` REFUSES to start when a dial or `--modes`
+      # not built: `bin/qa_sweep` refuses to start when a dial or `--modes`
       # enables it, rather than resolving it into a line nobody can act on.
       # `spec/qa_sweep_runnable_modes_spec.rb` keeps this list honest from
       # both sides by grepping the runner itself.
@@ -112,7 +112,7 @@ module Hecks
                           structural_skip_report adapter_parity_sqlite persistence_parity
                           era_boundary concurrency].freeze
 
-      # MODES THAT NAME A SEPARATE, EXPENSIVE PASS OF THEIR OWN rather than
+      # Modes that name a separate, expensive pass of their own rather than
       # an extra check folded into the ordinary per-seed loop —
       # `bin/qa_sweep` runs these only when asked by name (`--modes
       # persistence_parity`, or its older alias `--persistence-parity`) or
@@ -142,7 +142,7 @@ module Hecks
         (required - capabilities).empty?
       end
 
-      # THE ONE RULE. `enabled` is whatever the dial (or `--modes`) turned
+      # The one rule. `enabled` is whatever the dial (or `--modes`) turned
       # on, in the dial's own declaration order — that order is preserved
       # so the printed line reads the same way the dial does. Then the
       # single exclusion named on `MODE_REQUIREMENTS`.

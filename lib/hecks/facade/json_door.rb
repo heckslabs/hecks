@@ -7,11 +7,11 @@ require_relative "../runtime/value"
 
 module Hecks
   module Facade
-    # THE JSON DOOR — WHERE Facade MEETS BODY-IN/BODY-OUT CALLERS.
+    # The JSON door — where Facade meets body-in/body-out callers.
     #
     # `Handle`/`Surface` are Ruby sugar over the dispatcher for a Ruby caller
     # holding real objects — a symbol verb name, a `**kwargs` payload, a
-    # `Handle` back in hand. A REST-ish JSON API is a caller holding STRINGS
+    # `Handle` back in hand. A rest-ish JSON API is a caller holding strings
     # instead: a URL segment naming a collection, a URL segment naming a
     # record or a verb, a parsed request body whose every key arrived as a
     # String because that is all JSON ever gives. Every app that wants to put
@@ -19,10 +19,10 @@ module Hecks
     # name to class, string to symbol, nested `Runtime::Value` back to plain
     # data — and one sibling app had already hand-written it once, bespoke,
     # against its own routes, before this existed. This is that translation
-    # pulled out, generic, reading the SAME IR the rest of the facade already
+    # pulled out, generic, reading the same IR the rest of the facade already
     # reads rather than re-deriving "how do I find an aggregate by name".
     #
-    # NO HTTP LIVES HERE. Same discipline `Router` and `Surface` already
+    # No HTTP lives here. Same discipline `Router` and `Surface` already
     # hold: this module never sees a request object, never picks a status
     # code, never calls `halt`. Every method here takes plain Ruby values in
     # — a raw JSON String is the one exception, see `.parse` below, every
@@ -31,10 +31,10 @@ module Hecks
     # turning a raised exception into an HTTP status, both stay the calling
     # app's job, exactly the way they already are for `Router#dispatch`.
     #
-    # EVERY "THAT DOESN'T EXIST" CASE RAISES `Runtime::NotFound` — THE SAME
-    # CLASS EVERY TIME, NOT A NEW ONE PER CALLER. `Runtime::NotFound` already
+    # Every "that doesn't exist" case raises `Runtime::NotFound` — the same
+    # class every time, not a new one per caller. `Runtime::NotFound` already
     # sits in `Runtime::DOMAIN_REFUSALS` (runtime/errors.rb) — the family a
-    # booted app already has, or trivially can have, ONE generic `error`
+    # booted app already has, or trivially can have, one generic `error`
     # handler for, mapping the whole family to a status code without a
     # special case per refusal. A bespoke `JsonDoor::CollectionNotFound` (or
     # three of those, one per flavor of "not found") would just force every
@@ -50,7 +50,7 @@ module Hecks
       # `Facade::Handle`'s own reference accessors reach with
       # `Object.const_get` (see handle.rb's `define_reference_accessors`).
       #
-      # Checked against the CURRENT boot's IR first, not against Ruby's
+      # Checked against the current boot's IR first, not against Ruby's
       # constant table directly — a name that names nothing in this
       # registry should refuse before ever asking Ruby whether some
       # same-named constant happens to exist (possibly a stale one, left
@@ -81,11 +81,11 @@ module Hecks
       end
 
       # A URL segment or a JSON body's "command" field, checked against what
-      # a `Handle` can actually dispatch — NOT `klass.commands`, which is
+      # a `Handle` can actually dispatch — not `klass.commands`, which is
       # `AggregateDoor`'s own door-level list and includes the one creating
       # command too (`aggregate_door.rb`'s `commands` singleton method maps
       # every `ir.commands`, full stop). A `Handle` only ever defines
-      # singleton methods for the NON-creating ones
+      # singleton methods for the non-creating ones
       # (`Handle#define_verb_methods`, `@ir.commands.reject(&:creates?)`) —
       # the creating command lives on the aggregate class itself, dispatched
       # through `.creating_command` above, not through a `Handle` in hand.
@@ -105,7 +105,7 @@ module Hecks
 
       # `klass.find` already answers nil-on-miss — the right shape for a
       # Ruby caller that means to check for itself. A JSON caller asking for
-      # one record by id off a URL means to HAVE it, or answer 404 — this is
+      # one record by id off a URL means to have it, or answer 404 — this is
       # that stricter wrapper, raising the same `Runtime::NotFound` the rest
       # of this door raises rather than handing back nil for the caller to
       # remember to check.

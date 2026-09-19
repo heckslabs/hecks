@@ -2,38 +2,38 @@ require_relative "../naming"
 
 module Hecks
   module Projector
-    # A BLUEBOOK, PROJECTED AS ITS OWN USAGE DOCUMENTATION.
+    # A bluebook, projected as its own usage documentation.
     #
-    # WHAT THIS IS FOR. A chapter in this corpus already contains everything a
+    # What this is for. A chapter in this corpus already contains everything a
     # user of it needs: what each aggregate is (`description`), what each verb
     # is for (`goal`) and who issues it (`role`), which states it moves
     # between, what it refuses and in whose words (`given`, `invariant`,
     # `ensures`), and what each list is worth reading (`description` on a
-    # query). None of that reaches the person who has to CALL the domain.
+    # query). None of that reaches the person who has to call the domain.
     # They read the source, or they read a document somebody wrote beside the
     # source and stopped updating.
     #
     # `docs/implemented/reference/` is the precedent and the contrast. `bin/reference`
     # generates it from the language's own Syntax chapter, so the reference
     # for the DSL cannot drift from the DSL. This is the same trick one level
-    # down: the usage document for a DOMAIN, generated from that domain, so it
+    # down: the usage document for a domain, generated from that domain, so it
     # cannot drift from the domain either.
     #
-    # WHY IT IS A PROJECTION AND NOT A GENERATOR SCRIPT. `Projector` is the
+    # Why it is a projection and not a generator script. `Projector` is the
     # repository's registry of "canonical IR in, external artifact out" (§30
     # of the implementation plan), and this is exactly that shape: one
     # bluebook's IR in, markdown out, no runtime needed and no store touched.
     # Registered as `:docs` beside `:ir`, and reachable the way every
     # projector is — `Projector.call(:docs, bluebook: ...)`.
     #
-    # AND AS A METHOD, which is the half that makes it get used.
+    # And as a method, which is the half that makes it get used.
     # `Facade::Surface` already installs a module per chapter carrying
     # `vision` and `aggregates`; `docs` joins them, so a booted domain answers
     # `QualityControl.docs` and an aggregate door answers
     # `QualityControl::Bug.docs`. A document you have to remember a script for
     # is a document nobody reads.
     #
-    # WHAT IT DELIBERATELY DOES NOT DO: invent. Every sentence below comes out
+    # What it deliberately does not do: invent. Every sentence below comes out
     # of the chapter. Where a chapter says nothing — an aggregate with no
     # `description`, a command with no `goal` — the document says nothing
     # rather than filling the gap with a restatement of the name, because a
@@ -55,7 +55,7 @@ module Hecks
         "#{out.compact.join("\n").rstrip}\n"
       end
 
-      # A NAME THAT NAMES NOTHING IS REFUSED, not answered with an empty
+      # A name that names nothing is refused, not answered with an empty
       # document. Shipped the other way first: `options[:aggregate]` that
       # matched no head returned "" and exit 0, which is the silent-wrong-
       # answer shape this repository has already been bitten by twice in the
@@ -75,7 +75,7 @@ module Hecks
 
       def chapter_header(bluebook, depth)
         out = [h(depth, bluebook.name), ""]
-        # THE VISION FIRST AND AS A QUOTE. It is the one sentence in a chapter
+        # The vision first and as a quote. It is the one sentence in a chapter
         # written for somebody who does not know the domain yet.
         out += ["> #{bluebook.vision}", ""] if bluebook.vision
         out << "#{bluebook.classification.to_s.capitalize} domain." if bluebook.classification
@@ -88,7 +88,7 @@ module Hecks
 
       def anchor(name) = Naming.snake(name).tr("_", "-")
 
-      # WHAT HAPPENS WITHOUT ANYBODY ASKING — the part of a domain a caller
+      # What happens without anybody asking — the part of a domain a caller
       # cannot discover from any verb list, and the part most likely to surprise
       # them. A policy means one dispatch causes another, sometimes into a
       # different domain entirely; a saga means a sequence is being driven on
@@ -145,7 +145,7 @@ module Hecks
       def entity_section(aggregate, entity, depth)
         out = [h(depth, "#{entity.hecks_name} (within #{aggregate.hecks_name})"), ""]
         out += [entity.description, ""] if entity.description
-        # THE THING A CALLER GETS WRONG FIRST. An entity has no door of its
+        # The thing a caller gets wrong first. An entity has no door of its
         # own: its verb is spelled through the aggregate that holds it, and
         # the parent's id travels alongside the entity's own identity.
         out << "Addressed through its holder — `#{aggregate.hecks_name}.#{entity.hecks_name}.<Verb>`, " \
@@ -171,7 +171,7 @@ module Hecks
         table(%w[attribute shape rules], rows)
       end
 
-      # A VALUE OBJECT'S FIELDS, NOT ITS NAME. `commit` typed `CommitRef` tells
+      # A value object's fields, not its name. `commit` typed `CommitRef` tells
       # a caller nothing; `{ value: String }` tells them what to send, which is
       # the single most common thing to get wrong at this boundary — a bare
       # scalar where an object is wanted.
@@ -277,7 +277,7 @@ module Hecks
         end
       end
 
-      # EVERY WAY THIS VERB CAN SAY NO, gathered from the three places a
+      # Every way this verb can say no, gathered from the three places a
       # chapter states them — the lifecycle it is an edge of, its own
       # `given`s, and the fact that a reference has to resolve. A caller
       # reading only the argument list learns none of these, and they are

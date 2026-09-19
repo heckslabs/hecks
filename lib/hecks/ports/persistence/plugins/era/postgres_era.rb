@@ -15,7 +15,7 @@ require_relative "../../../../runtime/registry"
 module Hecks
   module Adapters
     # The enforcement-grade persistence adapter — and the only one that
-    # declares the LINEAGE capability: it may act on shape drift
+    # declares the lineage capability: it may act on shape drift
     # (translate, fork, merge) where every other adapter can only refuse
     # toward it. Sibling to the plain `Postgres` adapter (postgres.rb),
     # which is the same database with none of this machinery — pick
@@ -24,18 +24,18 @@ module Hecks
     # the two are split and what each one carries.
     #
     # Storage model (see postgres_era/lineage.rb for the DDL):
-    # - One journal per DOMAIN, list-partitioned by era, one ordinal
+    # - One journal per domain, list-partitioned by era, one ordinal
     #   sequence spanning partitions. Appends go there; nothing updates
-    #   or deletes a journal row (immutability by privilege — UPDATE and
+    #   or deletes a journal row (immutability by privilege — update and
     #   DELETE revoked; a deployment's app role connects as a non-owner).
-    # - Per aggregate, the HEAD is derived: era 1 reads a plain view
+    # - Per aggregate, the head is derived: era 1 reads a plain view
     #   (latest save per id); later eras read a view overlaying the
     #   materialized, translated ancestor tail with live current-era
     #   rows. `project` is therefore a no-op — old entries are never
     #   rewritten, and the head is never a table anything writes.
-    # - State is ONE jsonb column. jsonb normalizes key order (and drops
+    # - State is one jsonb column. jsonb normalizes key order (and drops
     #   duplicate keys), so anything comparing stored state — the corpus
-    #   history gate above all — must compare CANONICALIZED state, never
+    #   history gate above all — must compare canonicalized state, never
     #   raw bytes; `bin/canonicalise` deep-sorts keys, which is exactly
     #   why the gate survives this normalization.
     # - Query pushdown is the shared SqlQueryBuilder: every declared
@@ -48,7 +48,7 @@ module Hecks
       attr_reader :aggregate
 
       # `:cross_process_lock` tells `Interpreting#run_dispatch_order_with_isolation`
-      # (runtime/interpreting.rb) this repository can hold a REAL
+      # (runtime/interpreting.rb) this repository can hold a real
       # cross-process lock for the whole dispatch order itself, via
       # `with_write_lock` below — so it should use that instead of the
       # in-process `AggregateLock` `Mutex` every other non-CAS repository
@@ -61,7 +61,7 @@ module Hecks
       # PostgresEra carries an era_check! for the boot gate to delegate to.
       def self.lineage_capable? = true
 
-      # TENANT-CAPABLE — see Runtime::TenantCheck's own header for the
+      # Tenant-capable — see Runtime::TenantCheck's own header for the
       # full reasoning. `connect_for`'s own `schema:` setting (the
       # Storehouse shared-instance mechanism, already built, already
       # proven for eras) is what keeps two tenant boots' tables apart:
@@ -79,13 +79,13 @@ module Hecks
         )
       end
 
-      # BOTH SPELLINGS OF A SETTING ARE HONORED — a world's settings hash
+      # Both spellings of a setting are honored — a world's settings hash
       # may arrive symbol-keyed (built straight in Ruby) or string-keyed
       # (round-tripped through JSON), and a domain that names one is not
       # obligated to also skip the other. `key?` decides which spelling
       # actually exists, never `||` — `||` cannot tell a genuinely stored
       # `false` apart from an absent key, and would silently prefer the
-      # OTHER spelling (or `default`) instead of returning the real, held
+      # other spelling (or `default`) instead of returning the real, held
       # answer. See Hecks::QuerySpecification::FieldPath#read for the same
       # discipline applied to stored state instead of settings.
       def self.setting(settings, key, default: nil)
@@ -98,7 +98,7 @@ module Hecks
       end
 
       def self.connect_for(name, settings)
-        # LAZY, ON PURPOSE — same reasoning as Sqlite's own initialize:
+        # Lazy, on purpose — same reasoning as Sqlite's own initialize:
         # a domain that never wires PostgresEra should never need the gem.
         require "pg"
 
@@ -116,18 +116,18 @@ module Hecks
             PG.connect(dbname: declared)
           end
 
-        # SHARED-INSTANCE ISOLATION. A domain that declares `schema` is
+        # Shared-instance isolation. A domain that declares `schema` is
         # sharing its Postgres instance with other domains (the
         # storehouse) — every unqualified table/view/function reference
         # this adapter and its lineage classes ever construct resolves
-        # through search_path, so this one SET is what makes ALTER
-        # TABLE ... SET SCHEMA migrations transparent to the rest of the
+        # through search_path, so this one set is what makes alter
+        # table ... Set schema migrations transparent to the rest of the
         # adapter. A domain with no `schema` setting keeps Postgres's
         # own default search_path (public), same as before this existed.
         schema = setting(settings, :schema)
         if schema.to_s != ""
-          # THE SCHEMA ITSELF, IDEMPOTENTLY — a domain naming a `schema:`
-          # nobody has created yet used to fail on its FIRST table-
+          # The schema itself, idempotently — a domain naming a `schema:`
+          # nobody has created yet used to fail on its first table-
           # creation attempt with Postgres's own "no schema has been
           # selected to create in", found live provisioning tenant_
           # isolation_spec.rb's own multi-schema fixture by hand before
@@ -135,19 +135,19 @@ module Hecks
           # same self-healing idempotency this adapter's own table/era
           # provisioning already holds itself to (see the comment right
           # below on `client_min_messages`) — a schema that already
-          # exists is the ORDINARY case for every boot after the first,
+          # exists is the ordinary case for every boot after the first,
           # not news.
           connection.exec("CREATE SCHEMA IF NOT EXISTS #{connection.quote_ident(schema)}")
           connection.exec("SET search_path TO #{connection.quote_ident(schema)}")
         end
 
-        # QUIET ON PURPOSE. Provisioning re-runs its own idempotent
+        # Quiet on purpose. Provisioning re-runs its own idempotent
         # `CREATE ... IF NOT EXISTS` checks on every boot — a schema that
-        # already exists is the ORDINARY case, not news, and Postgres
-        # surfaces every one as a NOTICE by default. `bin/set-password`
+        # already exists is the ordinary case, not news, and Postgres
+        # surfaces every one as a notice by default. `bin/set-password`
         # boots a real registry just to mint an Identity, and nobody
         # setting a password needs to see a page of "relation ...
-        # already exists, skipping" to do it. WARNING and above (real
+        # already exists, skipping" to do it. Warning and above (real
         # problems) still surface.
         connection.exec("SET client_min_messages = warning")
         connection
@@ -168,7 +168,7 @@ module Hecks
         # for a directly-instantiated adapter (specs, consoles) that
         # skips the factory.
         #
-        # When the aggregate DOES have an owning chapter (`hecks_owner`
+        # When the aggregate does have an owning chapter (`hecks_owner`
         # set — true for any aggregate sealed through a real bluebook,
         # even if this adapter itself was built by hand), default to the
         # chapter's own declared PascalCase name. That's the same string
@@ -189,14 +189,14 @@ module Hecks
         ).to_s
         @lineage = Lineage.new(@db, @domain)
         @lineage.ensure_base!
-        # The era gate resolves which era this boot IS (an old checkout
+        # The era gate resolves which era this boot is (an old checkout
         # boots a held-but-superseded era and keeps writing its own
         # partition); a directly-instantiated adapter defaults to the
         # newest.
         #
-        # NOT `self.class.setting(...)` here — RepositoryFactory#build
+        # Not `self.class.setting(...)` here — RepositoryFactory#build
         # always merges `era: registry.resolved_eras[domain]` into
-        # settings, so the key is genuinely PRESENT (not absent) for
+        # settings, so the key is genuinely present (not absent) for
         # any domain the era boot gate hasn't resolved yet (or that
         # doesn't have one at all), just holding `nil`. `setting`'s own
         # presence-over-truthiness discipline (correct for a field like
@@ -209,18 +209,18 @@ module Hecks
         # promise.
         @era = settings.key?(:era) ? settings[:era] : settings["era"]
         @era ||= @lineage.current_era
-        # THE IN-PROCESS HALF OF THE ERA FENCE. `EraResolver.check!` sets
+        # The in-process half of the era fence. `EraResolver.check!` sets
         # `registry.superseded_eras[domain]` for a held-but-superseded
         # boot only, and `RepositoryFactory.build` merges it in here as
-        # `superseded_by:` — so this is nil for every current-era boot AND
+        # `superseded_by:` — so this is nil for every current-era boot and
         # for a directly-instantiated adapter (specs, consoles), which,
         # like `era:` above, self-resolves rather than being told. When
-        # set, `append`/`atomic_put` refuse BEFORE issuing an INSERT (see
+        # set, `append`/`atomic_put` refuse before issuing an INSERT (see
         # `refuse_superseded_write!`): the RLS fence already refuses the
         # same write for an ordinary role, but a superuser walks through
         # RLS (BUG#24), and this checkout's own knowledge that it is stale
         # is the one guard no role attribute can void. Same coalescing as
-        # `era:` — the key is always PRESENT from the factory, holding nil
+        # `era:` — the key is always present from the factory, holding nil
         # for the ordinary case.
         @superseded_by = settings.key?(:superseded_by) ? settings[:superseded_by] : settings["superseded_by"]
         # Unconditional and idempotent, regardless of era — belt-and-
@@ -230,14 +230,14 @@ module Hecks
         # CREATE TABLE IF NOT EXISTS nobody pays for twice.
         @lineage.ensure_head_snapshot!(table, @era)
         @lineage.ensure_first_head!(table) if @era == 1
-        # THE READ-CACHE SIDE OF THE ERA WORKAROUND (Track C,
+        # The read-cache side of the era workaround (Track C,
         # docs/implemented/postgres-era-adapter-split-plan.md §3) — one row-cache
         # table per `where`-field this aggregate's own declared queries
         # (and its entities' own) actually use, derived automatically
         # (principle 3 — no bluebook keyword), self-healing and
         # idempotent like everything else booted here. `@field_caches`
         # maps field -> cache-table name; `query` below consults it to
-        # decide whether a declared query can skip the DISTINCT ON
+        # decide whether a declared query can skip the distinct on
         # reduction entirely.
         @field_caches = ensure_field_caches!
         create_event_table!
@@ -254,7 +254,7 @@ module Hecks
         instance(result[0])
       end
 
-      # order_by IS A RUNTIME VALUE, not framework-authored bluebook source
+      # order_by is a runtime value, not framework-authored bluebook source
       # like every other caller of order_expression — a query param off an
       # HTTP request, in the console's case. Whitelisted against the
       # aggregate's own real attributes (plus its lifecycle field) before
@@ -278,7 +278,7 @@ module Hecks
 
       def count = @db.exec(%(SELECT COUNT(*) FROM #{quoted_head}))[0]["count"].to_i
 
-      # THE TWO-PHASE SHORTCUT (Track C, docs/implemented/postgres-era-adapter-
+      # The two-phase shortcut (Track C, docs/implemented/postgres-era-adapter-
       # split-plan.md §3). `SqlQueryBuilder#query` (`super`, unmodified per
       # principle 2) always runs correctly here — it filters against
       # `head_view`, which is already the fully-reduced current state —
@@ -290,24 +290,24 @@ module Hecks
       # ordinary comparator, not a null-vs-value special case — see
       # `cache_eligible?`), skip the reduction: look candidate ids up in
       # the cache table(s) first (cheap, indexed, no reduction involved),
-      # then read ONLY those ids' current state from `head_view` — safe
-      # THROUGH the reduction because `id` is its own partition key. Any
-      # clause that ISN'T cache-eligible (an uncached field, or a null
+      # then read only those ids' current state from `head_view` — safe
+      # through the reduction because `id` is its own partition key. Any
+      # clause that isn't cache-eligible (an uncached field, or a null
       # comparison) is simply re-checked against `head_view` in the
       # second phase, exactly as `super` would have checked it anyway —
-      # this can only ever NARROW what phase two has to look at, never
+      # this can only ever narrow what phase two has to look at, never
       # change what a clause means.
       #
-      # FALLS BACK TO `super` WHENEVER NO CLAUSE CAN BE ACCELERATED — a
+      # Falls back to `super` whenever no clause can be accelerated — a
       # query with no `where` at all (order_by-only — no cache table
       # exists for these, see field_cache.rb), a query whose only clauses
       # target fields with no cache table, or a domain that has never
       # minted a second era at all (`@field_caches` is never empty just
       # because era 1 has no reduction to skip — the cache tables still
       # exist and still accelerate era 1 the same way, but the fallback
-      # path is already just as cheap there since head_view IS the
+      # path is already just as cheap there since head_view is the
       # snapshot table verbatim for era 1; skipping straight to `super`
-      # in that case would be a valid FUTURE optimization, not attempted
+      # in that case would be a valid future optimization, not attempted
       # here to keep this one code path correct for every era uniformly).
       def query(declared, args = {}, context: {})
         return super if @field_caches.empty? || declared.wheres.empty?
@@ -323,26 +323,26 @@ module Hecks
       end
 
       # ADR 0036's actual fix — see `persistence_capabilities` above.
-      # Wraps the WHOLE dispatch order (hydrate through save), not just
+      # Wraps the whole dispatch order (hydrate through save), not just
       # `append`'s own transaction below: `lock_writes!` has to be held
       # before hydrate even starts, or two cross-process writers can
       # both hydrate unlocked and race for the write, each blind to the
       # other. `transaction` (via `include Adapters::PostgresOutbox`) is
       # already re-entrant — `append`/`atomic_put`'s own inner
       # `transaction do ... end`, deep inside the block below, joins
-      # this SAME transaction instead of opening/committing its own, so
+      # this same transaction instead of opening/committing its own, so
       # the advisory lock stays held until this whole block returns.
       def with_write_lock(&block) = transaction { lock_writes!; block.call } # rubocop:disable Style/Semicolon
 
-      # HELD FOR THE WHOLE TRANSACTION, not just around the INSERT — the
+      # Held for the whole transaction, not just around the INSERT — the
       # ordinal is assigned by the column's own `nextval()` default, inside
       # this same statement, so the lock has to already be held before that
-      # default evaluates. A DIFFERENT key from `mint_era!`/`merge_tail!`'s
-      # `hecks_eras:domain` : this serializes plain writes against EACH
-      # OTHER, never against a mint. See postgres/lineage.rb's own comment
+      # default evaluates. A different key from `mint_era!`/`merge_tail!`'s
+      # `hecks_eras:domain` : this serializes plain writes against each
+      # other, never against a mint. See postgres/lineage.rb's own comment
       # for why only that half of the race is closed.
       # The journal insert and the snapshot upsert/delete happen in the
-      # SAME transaction — real ACID atomicity, not the append-then-
+      # same transaction — real ACID atomicity, not the append-then-
       # project two-step a file-based adapter needs a crash-recovery
       # replay for (see Heki). If this transaction commits, the snapshot
       # is already exactly as current as the journal; if it doesn't,
@@ -363,11 +363,11 @@ module Hecks
         entry
       end
 
-      # BEFORE the transaction, before the lock, before the INSERT — a
+      # Before the transaction, before the lock, before the INSERT — a
       # superseded checkout takes nothing and touches nothing. Reads are
       # deliberately untouched: `EraResolver.check!`'s own contract for an
-      # old checkout is "may keep BOOTING and READING, but may not keep
-      # WRITING", and the head views it reads through are its own era's.
+      # old checkout is "may keep booting and reading, but may not keep
+      # writing", and the head views it reads through are its own era's.
       def refuse_superseded_write!
         return unless @superseded_by
 
@@ -379,7 +379,7 @@ module Hecks
       end
 
       # Outcome detection, journal append and every derived projection share
-      # the SAME transaction and domain write lock. The lineage-aware head
+      # the same transaction and domain write lock. The lineage-aware head
       # determines whether this id is already visible; no repository `find`
       # occurs before entering this adapter-native operation.
       def atomic_put(entry, insert_only: false)
@@ -401,7 +401,7 @@ module Hecks
         status
       end
 
-      # The head is DERIVED — projecting is reading, so there is nothing
+      # The head is derived — projecting is reading, so there is nothing
       # to write here. `append` above already keeps the snapshot the head
       # view reads from current, transactionally. The instance is still
       # built (and validated) so a save returns what every other adapter
@@ -428,10 +428,10 @@ module Hecks
         end
       end
 
-      # The journal carries FORCE ROW LEVEL SECURITY with exactly two
+      # The journal carries force ROW LEVEL SECURITY with exactly two
       # policies — hecks_current_era's INSERT and hecks_read_all's
       # SELECT (advance_era! above) — and no DELETE policy at all, for
-      # anyone. FORCE means even the table's own owner is fenced by
+      # anyone. Force means even the table's own owner is fenced by
       # that (only an actual Postgres superuser or a role granted
       # BYPASSRLS sits above it — see lineage.rb's own header), so a
       # plain `DELETE ... WHERE aggregate = $1` from an ordinary
@@ -487,15 +487,15 @@ module Hecks
         end
       end
 
-      # ── the OPTIONAL saga-persistence capability (Ports::Persistence's
+      # ── the optional saga-persistence capability (Ports::Persistence's
       # own three-method shape, §2) — one row per (domain, process_manager,
       # correlation), `domain` kept as an explicit column even under
       # schema isolation so two domains sharing one schema (neither
       # declares its own `schema`) still isolate correctly, matching
       # `hecks_eras`' own precedent (postgres/lineage/provisioning.rb).
       # No advisory lock of its own: every call here already runs inside
-      # `SagaInterpreter`'s own mutex (§7) serializing IN-PROCESS writers,
-      # and gets the SAME cross-process safety an aggregate's own writes
+      # `SagaInterpreter`'s own mutex (§7) serializing in-process writers,
+      # and gets the same cross-process safety an aggregate's own writes
       # get from this adapter — no better, no worse.
       def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
         @db.exec_params(
@@ -555,7 +555,7 @@ module Hecks
             "state = EXCLUDED.state WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
             [entry.id, ordinal, state_json]
           )
-          # SAME TRANSACTION, SAME ORDINAL — every field cache stays
+          # Same transaction, same ordinal — every field cache stays
           # exactly as current as the snapshot it's derived from, for
           # the identical reason `postgres_era.rb`'s own header comment
           # gives for the journal/snapshot pair: if this transaction
@@ -565,21 +565,21 @@ module Hecks
             @lineage.upsert_field_cache_row!(cache_table, entry.id, ordinal, state_json, query_expression(field))
           end
         else
-          # A TOMBSTONE ROW, NOT A BARE DELETE — H3 (docs/audits/2026-08-
+          # A tombstone row, not a bare DELETE — H3 (docs/audits/2026-08-
           # 10-main-bug-audit.md). `DELETE FROM head_snapshot` used to be
           # the whole story here, which is correct in isolation but wrong
           # once an ancestor era is in the picture: for a record carried
           # into this era from an ancestor, removing this era's row left
-          # NOTHING on the current-era side of `compile_head!`'s union to
+          # nothing on the current-era side of `compile_head!`'s union to
           # outrank the ancestor matview's own (still-present, still
           # `save`) row, so `DISTINCT ON` picked the ancestor's row and
           # the "deleted" record kept reading back forever. Upserting a
           # tombstone (`operation = 'delete'`, `state` NULL) instead
-          # means this era always has ITS OWN newest-ordinal row for the
+          # means this era always has its own newest-ordinal row for the
           # id, exactly like a real re-save already did ("re-saves are
           # masked correctly" — the audit's own phrasing for why that
           # half of this was never broken) — it just carries `operation
-          # = 'delete'` instead of `'save'`, so `head_view`'s own `WHERE
+          # = 'delete'` instead of `'save'`, so `head_view`'s own `where
           # operation = 'save'` still correctly hides it. Ordinal-guarded
           # the same as every other upsert here, so an out-of-order
           # replay can never let a stale delete clobber a newer save.
@@ -656,9 +656,9 @@ module Hecks
         numeric_field?(field) ? "(#{expression})::numeric" : expression
       end
 
-      # Postgres defaults to NULLS LAST on ASC; the port's in-memory
+      # Postgres defaults to nulls last on ASC; the port's in-memory
       # semantics (NullPolicy.order, which SQLite's own default happens
-      # to match) put null rows FIRST ascending and LAST
+      # to match) put null rows first ascending and last
       # descending. Compile the placement explicitly so a declared query
       # answers identically no matter which adapter serves it.
       def order_clause(order_by, policy)
@@ -671,7 +671,7 @@ module Hecks
         "#{order_expression(order_by.field)} #{direction}#{nulls}, id #{direction}"
       end
 
-      # One shared walk decides numericness at ANY depth — this used to
+      # One shared walk decides numericness at any depth — this used to
       # inspect only the first nested segment, so a two-level path
       # (pizza.price_cents.cents) skipped the ::numeric cast and ordered
       # as text: "900" above "1200".
@@ -682,8 +682,8 @@ module Hecks
         end
       end
 
-      # ARRAY[...] of individually-escaped literals, never the hand-rolled
-      # '{a,b,c}' array-literal SYNTAX — a segment is a field or
+      # Array[...] of individually-escaped literals, never the hand-rolled
+      # '{a,b,c}' array-literal syntax — a segment is a field or
       # value-object member name, and while today's callers only ever
       # pass schema-declared names, this method has no way to know
       # that, and the '{...}' form has no escaping at all: a segment
@@ -691,7 +691,7 @@ module Hecks
       # follows becomes live SQL. Measured, not assumed — a crafted
       # field name of `x}' = '' OR $1::text = $1::text -- ` made a
       # `where(secret: "public")` clause return every row regardless,
-      # against the OLD form; the ARRAY[] form below closes it, verified
+      # against the old form; the array[] form below closes it, verified
       # against the identical payload.
       def jsonb_path(segments)
         "state #>> ARRAY[#{segments.map { |segment| text_literal(segment) }.join(', ')}]::text[]"
@@ -701,7 +701,7 @@ module Hecks
 
       # ── the field-cache read shortcut (Track C) ─────────────────────
 
-      # EVERY declared `where`-field this aggregate's own queries and its
+      # Every declared `where`-field this aggregate's own queries and its
       # entities' own queries use, minus anything a cache table can't
       # represent (see `cacheable_field?`) — never `order_by`-only
       # fields, which never needed a cache in the first place (sorting
@@ -726,10 +726,10 @@ module Hecks
         @aggregate.queries + @aggregate.entities.flat_map(&:queries)
       end
 
-      # LIST-TYPED FIELDS ARE EXCLUDED, same boundary the plain `Postgres`
+      # List-typed fields are excluded, same boundary the plain `Postgres`
       # and `Sqlite`/`D1` adapters independently landed on for their own
       # automatic indexing: `contains` means element membership, and a
-      # (id, ordinal, ONE value) cache row has nowhere to put more than
+      # (id, ordinal, one value) cache row has nowhere to put more than
       # one element. Everything else — a plain scalar, the lifecycle
       # field, or a non-list value-object member path — reduces to
       # exactly one comparable value per id, which is the one shape this
@@ -743,7 +743,7 @@ module Hecks
       end
 
       # A clause can be served by the cache when its field has a cache
-      # table AND it isn't the null-vs-value special case
+      # table and it isn't the null-vs-value special case
       # `QuerySpecification::Common::NullPolicy` intercepts before
       # `where_clause` ever runs (see `query`'s own header comment) — a
       # clause that fails either check simply flows to `head_phase`
@@ -754,11 +754,11 @@ module Hecks
                                                                value).nil?
       end
 
-      # PHASE ONE — candidate ids, no reduction touched. One SELECT per
+      # Phase one — candidate ids, no reduction touched. One SELECT per
       # cached clause against its own narrow (id, ordinal, value) table,
       # `INTERSECT`ed into the set that satisfies every cached clause at
       # once. Reuses `where_clause` (SqlQueryBuilder, private, already
-      # mixed into this class) UNCHANGED against the cache table's own
+      # mixed into this class) unchanged against the cache table's own
       # `value` column instead of a jsonb path expression — the exact
       # same operator compilation (`eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`in`)
       # a live query already gets against the real column, so a cached
@@ -774,12 +774,12 @@ module Hecks
         @db.exec_params(clauses.join("\nINTERSECT\n"), binds).map { |row| row["id"] }
       end
 
-      # PHASE TWO — `head_view`, restricted to phase one's candidate ids
-      # PLUS whatever clauses phase one couldn't accelerate, applied
+      # Phase two — `head_view`, restricted to phase one's candidate ids
+      # plus whatever clauses phase one couldn't accelerate, applied
       # exactly the way `SqlQueryBuilder#query` (`super`) already applies
       # every clause today: against the fully-reduced view, which is
       # already correct regardless of caching (see this file's own
-      # `query` comment — a cache is a SPEED shortcut, never a
+      # `query` comment — a cache is a speed shortcut, never a
       # correctness fix; head_view was always safe to filter directly,
       # just expensive to reduce in the first place). Duplicates a small
       # slice of `SqlQueryBuilder#query`'s own tail assembly (order_by/

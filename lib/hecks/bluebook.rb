@@ -13,7 +13,7 @@
 # the meta-validator that its builders call at build time.
 
 module Hecks
-  # Declared as a CLASS, not a module — `Hecks::Bluebook` IS a
+  # Declared as a class, not a module — `Hecks::Bluebook` is a
   # chapter (bluebook/chapter.rb carries its body). Everything a chapter
   # declares nests under it, as do the ways to build one (`DSL`) and to
   # judge one (`MetaValidator`). Reopening this anywhere must say `class`.
@@ -29,7 +29,7 @@ require_relative "literal"
 require_relative "query_specification"
 
 require_relative "bluebook/expression"
-# THE MODEL ITSELF — the chapter class's own body first, then everything
+# The model itself — the chapter class's own body first, then everything
 # a chapter declares. Order matters only for reading: each is a bag of
 # declarations with no load-time cross-references.
 require_relative "bluebook/chapter"
