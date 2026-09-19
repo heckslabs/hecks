@@ -81,6 +81,22 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     end
   end
 
+  # `merge_group.base_sha` is the previous QUEUE ENTRY, not the target
+  # branch, and the queue merges a whole group on its last entry's run. A
+  # path gate that diffs against it lets a gate-skipped PR carry a red one
+  # in ahead of it — #729 behind #730, 2026-09-18.
+  it "diffs no merge group against the previous queue entry" do
+    Dir[File.join(InMemoryDomain::ROOT, ".github/{workflows,actions}/**/*.yml")].each do |path|
+      YAML.load_file(path).fetch("jobs", {}).each do |name, job|
+        job.fetch("steps", []).each do |step|
+          expect(step["run"].to_s.gsub(/^\s*#.*$/, "")).not_to include("merge_group.base_sha"),
+                                                                "#{File.basename(path)}'s #{name} reads merge_group.base_sha — diff against " \
+                                                                "`git merge-base origin/<base_ref> <sha>` instead"
+        end
+      end
+    end
+  end
+
   # A job with no timeout falls back to GitHub's 360 minutes, and a hung
   # job holds one of the account's 20 concurrent runner slots that whole time.
   it "gives every job that takes a runner a timeout" do
