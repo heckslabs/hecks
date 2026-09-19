@@ -16,7 +16,7 @@ RSpec.describe Hecks::Adapters::Lambda do
     # ARE the assertion (the false/absent :region distinction); `allow`
     # wouldn't fail if the fix regressed and .new were never called this way.
     expect(described_class::Client).to receive(:new)
-      .with(domain: anything, region: false)
+      .with(domain: anything, region: false, function: nil)
       .and_return(instance_double(described_class::Client))
 
     described_class.new(aggregate: aggregate, settings: { region: false })
@@ -27,10 +27,36 @@ RSpec.describe Hecks::Adapters::Lambda do
     # ARE the assertion (the false/absent :region distinction); `allow`
     # wouldn't fail if the fix regressed and .new were never called this way.
     expect(described_class::Client).to receive(:new)
-      .with(domain: anything, region: "us-east-1")
+      .with(domain: anything, region: "us-east-1", function: nil)
       .and_return(instance_double(described_class::Client))
 
     described_class.new(aggregate: aggregate, settings: {})
+  end
+
+  # A DEPLOYMENT WHOSE FUNCTION ISN'T `hecks-<domain>` — a `.world`'s own
+  # `stack_prefix`/`stack_name` can name a stack that predates a rename,
+  # and nothing downstream of that could previously be told about it.
+  # Found live: embryonautfoundersapp deploys as `hecksagain-embryonaut`,
+  # so every Ruby-side read and dispatch for it had been invoking a
+  # function that does not exist.
+  it "passes a :function setting straight through to the client" do
+    # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
+    # ARE the assertion.
+    expect(described_class::Client).to receive(:new)
+      .with(domain: anything, region: anything, function: "hecksagain-embryonaut")
+      .and_return(instance_double(described_class::Client))
+
+    described_class.new(aggregate: aggregate, settings: { function: "hecksagain-embryonaut" })
+  end
+
+  it "reads the same setting string-keyed, the way a round-tripped export spells it" do
+    # rubocop:disable-next RSpec/StubbedMock -- the args passed to Client.new
+    # ARE the assertion.
+    expect(described_class::Client).to receive(:new)
+      .with(domain: anything, region: anything, function: "hecksagain-embryonaut")
+      .and_return(instance_double(described_class::Client))
+
+    described_class.new(aggregate: aggregate, settings: { "function" => "hecksagain-embryonaut" })
   end
 
   it "still falls back to the aggregate's own name in @prefix when :domain is genuinely absent" do
