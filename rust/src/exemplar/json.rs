@@ -88,11 +88,14 @@ impl TmplKind {
             // TMPL:closed_set_codec:FROM_JSON_ARM BEGIN
             "tmpl_member_a" => Ok(TmplKind::TmplMemberA),
             // TMPL:closed_set_codec:FROM_JSON_ARM END
-            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
-                ("type", "tmpl_closed_set_type"),
-                ("admitted", "tmpl_closed_set_admitted"),
-                ("offered", &candidate.inspect()),
-            ]))),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "tmpl_closed_set_type",
+                    admitted: &["tmpl_closed_set_member_a"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
         }
     }
 }

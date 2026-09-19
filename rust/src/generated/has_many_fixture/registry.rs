@@ -131,21 +131,23 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["members", "id", "circle"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Admit does not declare {} — it takes members",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Admit",
+        unknown: &unknown,
+        declared: &["members"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["members"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Admit"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "members"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Admit",
+        absent: &absent,
+        declared: &["members"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::has_many_fixture::circle::Circle::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Admit acts on an existing Circle — pass id.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::has_many_fixture::circle::Circle::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Admit", aggregate: "Circle", identity: "id.value" }.render_args()))?, };
               let args = crate::generated::has_many_fixture::circle::AdmitArgs::from_json(facts_json)?;
                       for item in &args.members { item.check_invariants()?; }
               crate::kernel::check_role_via(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;

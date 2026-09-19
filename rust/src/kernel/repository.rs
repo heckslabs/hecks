@@ -91,11 +91,9 @@ pub fn check_reference<T: Clone>(
     // anyway, for drift-proofing: a future hand-edit here can no longer
     // silently diverge from Ruby's own table the way a bare `format!`
     // could.
-    Err(super::Refusal::NotFound(super::RefusalSite::NotFoundReferenceTargetMissing.render(&[
-        ("target", target),
-        ("heads", heads),
-        ("key", &format!("{value:?}")),
-    ])))
+    Err(super::Refusal::NotFound(
+        super::refusal_wording::NotFoundReferenceTargetMissingArgs { target, heads, key: value }.render_args(),
+    ))
 }
 
 /// Every generated domain's own `Store` gets this — `kernel/cli.rs`'s ad
@@ -393,11 +391,9 @@ pub fn check_role_via(
     // exactly, even on the real-check branch: `refuse_role_mismatch`'s
     // refusal message always quotes what the caller TYPED, never what
     // `holds_role?` actually found.
-    Err(super::Refusal::Unauthorized(super::RefusalSite::UnauthorizedRoleMismatch.render(&[
-        ("command", command_name),
-        ("role", role),
-        ("caller_role", caller),
-    ])))
+    Err(super::Refusal::Unauthorized(
+        super::refusal_wording::UnauthorizedRoleMismatchArgs { command: command_name, role, caller_role: caller }.render_args(),
+    ))
 }
 
 // Item #9, whole-project table-unification survey — an END-TO-END proof

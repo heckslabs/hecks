@@ -117,13 +117,15 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["id", "desk", "code"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Close does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Close",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::desk::Desk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing Desk — pass code.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::desk::Desk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Close", aggregate: "Desk", identity: "code.value" }.render_args()))?, };
               let args = crate::generated::generated_reaction_wording::desk::CloseArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedReactionWording::Desk", &id);
@@ -153,13 +155,15 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["note", "id", "parcel", "code"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Annotate does not declare {} — it takes note",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Annotate",
+        unknown: &unknown,
+        declared: &["note"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::parcel::Parcel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on an existing Parcel — pass code.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::generated_reaction_wording::parcel::Parcel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Annotate", aggregate: "Parcel", identity: "code.value" }.render_args()))?, };
               let args = crate::generated::generated_reaction_wording::parcel::AnnotateArgs::from_json(facts_json)?;
                       if let Some(v) = &args.note { v.check_invariants()?; }
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());

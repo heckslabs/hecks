@@ -34,7 +34,10 @@
 // where each one actually runs today.
 
 use super::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent};
-use super::refusal_wording::RefusalSite;
+use super::refusal_wording::{
+    AlreadyExistsCreatingDuplicateArgs, LifecycleRefusedTransitionBlockedArgs, NotFoundCreatingNoIdentityArgs, NotFoundEntityElementMissingArgs,
+    NotFoundRecordMissingArgs,
+};
 use super::vocab::{AggregateStep, EntityStep};
 use super::{Event, Json, MutationRecord, Refusal, Repository, SetProjectedField, ToJson};
 
@@ -402,12 +405,15 @@ where
                 // `Hydrate::Create` (see that variant's own comment); every
                 // other dispatch reaches this a plain no-op.
                 if defer_existence_check && repo.find(id.as_str()).is_some() {
-                    return Err(Refusal::AlreadyExists(RefusalSite::AlreadyExistsCreatingDuplicate.render(&[
-                        ("command", command_name),
-                        ("aggregate", aggregate_name),
-                        ("identity", identity_reading),
-                        ("offered", &format!("{id:?}")),
-                    ])));
+                    return Err(Refusal::AlreadyExists(
+                        AlreadyExistsCreatingDuplicateArgs {
+                            command: command_name,
+                            aggregate: aggregate_name,
+                            identity: identity_reading,
+                            offered: &format!("{id:?}"),
+                        }
+                        .render_args(),
+                    ));
                 }
 
                 persist(repo, id, record, aggregate_qualified_name, mutations);
@@ -461,11 +467,10 @@ where
             // joins declared parts, so this is the one place both
             // codegen pipelines' output converges through.
             if id.is_empty() {
-                return Err(Refusal::NotFound(RefusalSite::NotFoundCreatingNoIdentity.render(&[
-                    ("command", command_name),
-                    ("aggregate", aggregate_name),
-                    ("identity", identity_reading),
-                ])));
+                return Err(Refusal::NotFound(
+                    NotFoundCreatingNoIdentityArgs { command: command_name, aggregate: aggregate_name, identity: identity_reading }
+                        .render_args(),
+                ));
             }
             // BUG#28 — a state-independent creating command (see
             // `Hydrate::Create`'s own comment) skips this eager check
@@ -476,12 +481,15 @@ where
                 // `AlreadyExists`/`creating_duplicate` — `CommandInterpreter
                 // #hydrate`'s own second guard, read directly: "a second
                 // creation is not a fresh one."
-                return Err(Refusal::AlreadyExists(RefusalSite::AlreadyExistsCreatingDuplicate.render(&[
-                    ("command", command_name),
-                    ("aggregate", aggregate_name),
-                    ("identity", identity_reading),
-                    ("offered", &format!("{id:?}")),
-                ])));
+                return Err(Refusal::AlreadyExists(
+                    AlreadyExistsCreatingDuplicateArgs {
+                        command: command_name,
+                        aggregate: aggregate_name,
+                        identity: identity_reading,
+                        offered: &format!("{id:?}"),
+                    }
+                    .render_args(),
+                ));
             }
             Ok((id, build()))
         }
@@ -493,11 +501,10 @@ where
             // its own failed `repository.find`, not a distinct entity-
             // specific one.
             let record = repo.find(&id).ok_or_else(|| {
-                Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
-                    ("aggregate", aggregate_name),
-                    ("identity", identity_reading),
-                    ("offered", &format!("{id:?}")),
-                ]))
+                Refusal::NotFound(
+                    NotFoundRecordMissingArgs { aggregate: aggregate_name, identity: identity_reading, offered: &format!("{id:?}") }
+                        .render_args(),
+                )
             })?;
             Ok((id, record))
         }
@@ -556,15 +563,18 @@ fn admissible_transition(instance: &dyn Fielded, transition: Option<&TransitionC
                 // already is here (`lifecycle_transition_for`,
                 // mutations.rb: `rows.map { |r| r[:from_state] }.uniq`
                 // over rows already filtered to this command). Each
-                // state is `.inspect`-quoted and joined with " or ",
-                // never Rust's own `{:?}` slice-debug rendering.
-                let allowed = check.from_states.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>().join(" or ");
-                return Err(Refusal::LifecycleRefused(RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
-                    ("command", command_name),
-                    ("field", check.field),
-                    ("current", &format!("{current:?}")),
-                    ("allowed", &allowed),
-                ])));
+                // state's `.inspect` quoting and the " or " join are
+                // `allowed`'s own RefusalSiteArgument row, applied by
+                // `render_args` — handed over raw here.
+                return Err(Refusal::LifecycleRefused(
+                    LifecycleRefusedTransitionBlockedArgs {
+                        command: command_name,
+                        field: check.field,
+                        current: &format!("{current:?}"),
+                        allowed: check.from_states,
+                    }
+                    .render_args(),
+                ));
             }
             Ok(())
         }
@@ -827,13 +837,16 @@ where
 
     fn locate_element(&mut self, record: &T) -> Result<(), Refusal> {
         let position = (self.get_list)(record).iter().position(|el| (self.matches)(el)).ok_or_else(|| {
-            Refusal::NotFound(RefusalSite::NotFoundEntityElementMissing.render(&[
-                ("entity", self.entity_name),
-                ("identity", self.entity_identity_reading),
-                ("wants", self.wants),
-                ("aggregate", self.aggregate_name),
-                ("parent_id", &format!("{:?}", self.parent_id)),
-            ]))
+            Refusal::NotFound(
+                NotFoundEntityElementMissingArgs {
+                    entity: self.entity_name,
+                    identity: self.entity_identity_reading,
+                    wants: self.wants,
+                    aggregate: self.aggregate_name,
+                    parent_id: &format!("{:?}", self.parent_id),
+                }
+                .render_args(),
+            )
         })?;
         self.element = Some((self.get_list)(record)[position].clone());
         self.position = Some(position);
@@ -991,11 +1004,14 @@ where
                 // Same `record_missing` site `EntityInterpreter#parent` raises —
                 // see `hydrate_record` above for the aggregate-level twin.
                 hydrated = Some(repo.find(parent_id).ok_or_else(|| {
-                    Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
-                        ("aggregate", aggregate_name),
-                        ("identity", parent_identity_reading),
-                        ("offered", &format!("{parent_id:?}")),
-                    ]))
+                    Refusal::NotFound(
+                        NotFoundRecordMissingArgs {
+                            aggregate: aggregate_name,
+                            identity: parent_identity_reading,
+                            offered: &format!("{parent_id:?}"),
+                        }
+                        .render_args(),
+                    )
                 })?);
             }
             // THE ELEMENT HALF — the same per-step body `apply_entity_command`

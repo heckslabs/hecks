@@ -40,9 +40,9 @@ module Hecks
           return if unknown.empty?
 
           raise UnknownArgument,
-                RefusalWording.render("UnknownArgument", "unknown_args",
-                                      command: command.hecks_name, unknown: unknown.join(", "),
-                                      declared: declared_reading(command))
+                RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                           command: command.hecks_name, unknown: unknown,
+                                           declared: declared_names(command))
         end
 
         # And it takes ALL of them. The other half of the same sentence, missing
@@ -87,9 +87,9 @@ module Hecks
           return if absent.empty?
 
           raise AbsentArgument,
-                RefusalWording.render("AbsentArgument", "absent_args",
-                                      command: command.hecks_name, absent: absent.join(", "),
-                                      declared: declared_reading(command))
+                RefusalWording.render_site("AbsentArgument", "absent_args",
+                                           command: command.hecks_name, absent: absent,
+                                           declared: declared_names(command))
         end
 
         # A COMMAND THAT DECLARES NOTHING STILL HAS TO SAY SO. `Account
@@ -104,10 +104,7 @@ module Hecks
         # one attribute renders exactly as it did before, because refusal
         # wording is contract and pinned byte-for-byte by the corpus (see
         # `refuse_unknown_arguments`' own note on sorting for why).
-        def declared_reading(command)
-          declared = command.attributes.map(&:name)
-          declared.empty? ? "none" : declared.join(", ")
-        end
+        def declared_names(command) = command.attributes.map(&:name)
 
         # What a process manager correlates by is ROUTING, not description. A saga
         # threads its correlation key through every leg it dispatches so the event

@@ -1,4 +1,5 @@
 require_relative "../projector"
+require_relative "../runtime/refusal_wording"
 require_relative "vocabulary"
 
 module Hecks
@@ -22,6 +23,16 @@ module Hecks
     # enum names that differ from the table name keep existing Rust call
     # sites (`RefusalSite`) and the dispatch-step names D1 consumes
     # (`AggregateStep`, `EntityStep`).
+    #
+    # TYPED REFUSAL ARGUMENTS. The templates table also reads
+    # RefusalSiteArgument: every site gets a `<Variant>Args` struct whose
+    # fields are exactly the site's declared arguments (a `&str` per
+    # scalar, a `&[&str]` per list) and a `render_args` that formats each
+    # one by its row. `render` itself stays private to the generated
+    # module, so no call site can pass an argument list by hand — leaving
+    # one out does not compile. The generated test pins every site's
+    # `render_args` output (empty, single and multiple unsorted lists)
+    # against Runtime::RefusalWording.render_with, computed here in Ruby.
     module RustVocabulary
       extend Projector::Target
 
@@ -32,10 +43,11 @@ module Hecks
 
       # table name => enum name, variant-naming fields, file stem, kind.
       # `:order` tables also get `ORDER` and `position`; `:templates`
-      # gets `render` and the placeholder sweep test.
+      # gets `render`, the typed `<Variant>Args` (read off the `arguments`
+      # table) and the placeholder and argument-rendering tests.
       TABLES = {
         "RefusalTemplate"        => { enum: "RefusalSite",     variant_from: %w[refusal site], file: "refusal_template",
-                                      kind: :templates },
+                                      kind: :templates, arguments: "RefusalSiteArgument" },
         "QueryComparator"        => { enum: "QueryComparator", variant_from: %w[name], file: "query_comparator", kind: :set },
         "FieldHint"              => { enum: "FieldHint",       variant_from: %w[name], file: "field_hint", kind: :set },
         "AggregateDispatchOrder" => { enum: "AggregateStep",   variant_from: %w[step], file: "aggregate_dispatch_order",
@@ -43,6 +55,10 @@ module Hecks
         "EntityDispatchOrder"    => { enum: "EntityStep",      variant_from: %w[step], file: "entity_dispatch_order",
                                       kind: :order }
       }.freeze
+
+      RUST_KEYWORDS = %w[as async await break const continue crate dyn else enum extern false fn for if impl in let loop
+                         match mod move mut pub ref return self static struct super trait true type unsafe use where
+                         while abstract become box do final macro override priv typeof unsized virtual yield try].freeze
 
       module_function
 
@@ -52,7 +68,10 @@ module Hecks
         tables = Vocabulary.tables(bluebook)
         files = TABLES.to_h do |table, spec|
           rows = tables.fetch(table) { raise ArgumentError, "Vocabulary declares no #{table} table" }
-          ["vocab/#{spec[:file]}.rs", table_file(table, spec, rows)]
+          arguments = spec[:arguments] && tables.fetch(spec[:arguments]) do
+            raise ArgumentError, "Vocabulary declares no #{spec[:arguments]} table"
+          end
+          ["vocab/#{spec[:file]}.rs", table_file(table, spec, rows, arguments)]
         end
         { "vocab/mod.rs" => mod_file }.merge(files)
       end
@@ -85,13 +104,14 @@ module Hecks
         RUST
       end
 
-      def table_file(table, spec, rows)
+      def table_file(table, spec, rows, argument_rows = nil)
         variants = rows.map { |row| variant_name(row, spec[:variant_from]) }
         duplicates = variants.tally.select { |_, count| count > 1 }.keys
         raise ArgumentError, "duplicate #{spec[:enum]} variant(s): #{duplicates.join(', ')}" if duplicates.any?
 
         enum   = spec[:enum]
         fields = rows.first.keys
+        by_site = spec[:kind] == :templates ? site_arguments(rows, argument_rows) : nil
         body = [
           header(table),
           "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]",
@@ -106,7 +126,8 @@ module Hecks
           extras(enum, variants, spec[:kind]),
           "}",
           "",
-          tests(enum, spec[:kind])
+          by_site ? argument_types(enum, variants, rows, by_site) : [],
+          tests(enum, spec[:kind], variants, rows, by_site)
         ]
         "#{body.flatten.join("\n").rstrip}\n"
       end
@@ -156,9 +177,11 @@ module Hecks
            "        }",
            "    }"]
         when :templates
-          ["    /// `RefusalWording.render`: replace every `{key}` marker, in the",
-           "    /// order given. A template is read, never evaluated.",
-           "    pub fn render(&self, values: &[(&str, &str)]) -> String {",
+          ["    /// `RefusalWording.substitute`: replace every `{key}` marker, in the",
+           "    /// order given. A template is read, never evaluated. Private: call",
+           "    /// sites go through a site's typed `<Variant>Args::render_args`,",
+           "    /// which formats and supplies every declared argument.",
+           "    fn render(&self, values: &[(&str, &str)]) -> String {",
            "        let mut text = self.template().to_string();",
            "        for (key, value) in values {",
            "            text = text.replace(&format!(\"{{{key}}}\"), value);",
@@ -170,7 +193,125 @@ module Hecks
         end
       end
 
-      def tests(enum, kind)
+      # [refusal, site] => that site's argument rows, in declared order —
+      # refused unless they name exactly the template's own placeholders,
+      # in the order each first appears, with only known formatting rules.
+      def site_arguments(rows, argument_rows)
+        grouped = argument_rows.group_by { |row| [row.fetch("refusal"), row.fetch("site")] }
+        orphans = grouped.keys - rows.map { |row| [row.fetch("refusal"), row.fetch("site")] }
+        raise ArgumentError, "RefusalSiteArgument rows name no RefusalTemplate: #{orphans.inspect}" if orphans.any?
+
+        rows.to_h do |row|
+          key   = [row.fetch("refusal"), row.fetch("site")]
+          specs = grouped.fetch(key, [])
+          wants = row.fetch("template").scan(/\{(\w+)\}/).flatten.uniq
+          names = specs.map { |spec| spec.fetch("argument") }
+          unless names == wants
+            raise ArgumentError, "RefusalSiteArgument for #{key.join('/')} declares #{names.inspect}; " \
+                                 "its template's placeholders are #{wants.inspect}"
+          end
+          specs.each { |spec| check_rule!(key, spec) }
+          [key, specs]
+        end
+      end
+
+      def check_rule!(key, spec)
+        where = "#{key.join('/')}.#{spec.fetch('argument')}"
+        unless Runtime::RefusalWording::SHAPES.include?(spec.fetch("shape"))
+          raise ArgumentError, "#{where}: unknown shape #{spec['shape'].inspect}"
+        end
+        unless Runtime::RefusalWording::QUOTINGS.include?(spec.fetch("quoting"))
+          raise ArgumentError, "#{where}: unknown quoting #{spec['quoting'].inspect}"
+        end
+        return if %w[true false].include?(spec.fetch("sorted"))
+
+        raise ArgumentError, "#{where}: sorted must be \"true\" or \"false\""
+      end
+
+      def argument_types(enum, variants, rows, by_site)
+        support = [
+          "/// Ruby's `#inspect` of a name, as a refusal quotes it: `{:?}` on a",
+          "/// `&str`, the quoting every kernel call site used before",
+          "/// RefusalSiteArgument existed.",
+          "fn quoted(text: &str) -> String {",
+          "    format!(\"{text:?}\")",
+          "}",
+          "",
+          "/// A list argument, written the way its RefusalSiteArgument row says:",
+          "/// sorted first (before quoting), each item quoted, then joined; an",
+          "/// empty list reads `when_empty`.",
+          "fn list(items: &[&str], sorted: bool, inspect: bool, separator: &str, when_empty: &str) -> String {",
+          "    let mut items = items.to_vec();",
+          "    if sorted {",
+          "        items.sort_unstable();",
+          "    }",
+          "    if items.is_empty() {",
+          "        return when_empty.to_string();",
+          "    }",
+          "    let write = |item: &&str| if inspect { quoted(item) } else { item.to_string() };",
+          "    items.iter().map(write).collect::<Vec<_>>().join(separator)",
+          "}",
+          ""
+        ]
+        support + variants.zip(rows).flat_map do |variant, row|
+          args_struct(enum, variant, row, by_site.fetch([row.fetch("refusal"), row.fetch("site")]))
+        end
+      end
+
+      def args_struct(enum, variant, row, specs)
+        fields = specs.flat_map do |spec|
+          type = spec.fetch("shape") == "list" ? "&'a [&'a str]" : "&'a str"
+          ["    /// #{rule_reading(spec)}", "    pub #{rust_field(spec.fetch('argument'))}: #{type},"]
+        end
+        locals = specs.filter_map { |spec| formatted_local(spec) }
+        pairs  = specs.map do |spec|
+          name  = spec.fetch("argument")
+          value = formatted_local(spec) ? "#{local_name(name)}.as_str()" : "self.#{rust_field(name)}"
+          "            (#{rust_string(name)}, #{value}),"
+        end
+        ["/// `#{enum}::#{variant}`'s arguments — `RefusalWording.render_site(" \
+         "#{rust_string(row.fetch('refusal'))}, #{rust_string(row.fetch('site'))}, ...)`.",
+         "#[derive(Debug, Clone, Copy)]",
+         "pub struct #{variant}Args<'a> {",
+         fields,
+         "}",
+         "",
+         "impl #{variant}Args<'_> {",
+         "    /// The site's wording, every argument formatted by its declared row.",
+         "    pub fn render_args(&self) -> String {",
+         locals.map { |line| "        #{line}" },
+         "        #{enum}::#{variant}.render(&[",
+         pairs,
+         "        ])",
+         "    }",
+         "}",
+         ""]
+      end
+
+      def formatted_local(spec)
+        name  = spec.fetch("argument")
+        field = "self.#{rust_field(name)}"
+        if spec.fetch("shape") == "list"
+          "let #{local_name(name)} = list(#{field}, #{spec.fetch('sorted')}, #{spec.fetch('quoting') == 'inspect'}, " \
+            "#{rust_string(spec.fetch('separator'))}, #{rust_string(spec.fetch('when_empty'))});"
+        elsif spec.fetch("quoting") == "inspect"
+          "let #{local_name(name)} = quoted(#{field});"
+        end
+      end
+
+      def rule_reading(spec)
+        quoting = spec.fetch("quoting") == "inspect" ? ", quoted" : ""
+        return "scalar#{quoting}" unless spec.fetch("shape") == "list"
+
+        sorted = spec.fetch("sorted") == "true" ? ", sorted" : ""
+        "list#{sorted}#{quoting}, joined #{spec.fetch('separator').inspect}, empty reads #{spec.fetch('when_empty').inspect}"
+      end
+
+      def local_name(argument) = "#{argument}_text"
+
+      def rust_field(argument) = RUST_KEYWORDS.include?(argument) ? "r##{argument}" : argument
+
+      def tests(enum, kind, variants = [], rows = [], by_site = nil)
         list = kind == :order ? "ORDER" : "ALL"
         name = accessor_name(kind == :templates ? "site" : name_field(kind))
         lines = ["#[cfg(test)]",
@@ -187,7 +328,10 @@ module Hecks
                     ""]
         end
         lines += order_test(enum) if kind == :order
-        lines += placeholder_test(enum) if kind == :templates
+        if kind == :templates
+          lines += placeholder_test(enum)
+          lines += [""] + render_args_test(variants, rows, by_site)
+        end
         lines.pop while lines.last == ""
         lines + ["}"]
       end
@@ -231,6 +375,46 @@ module Hecks
          "            );",
          "        }",
          "    }"]
+      end
+
+      # THE RUBY ORACLE, PINNED. Every site renders through its typed
+      # `render_args` for each edge case a list argument has — empty, one
+      # item, several out of order — and must equal what
+      # Runtime::RefusalWording.render_with answers for the same values,
+      # computed here at generation time. Scalars carry a `"` so quoting
+      # is compared too.
+      def render_args_test(variants, rows, by_site)
+        asserts = variants.zip(rows).flat_map do |variant, row|
+          specs = by_site.fetch([row.fetch("refusal"), row.fetch("site")])
+          argument_cases(specs).map do |arguments|
+            expected = Runtime::RefusalWording.render_with(row.fetch("template"), specs, arguments)
+            fields = specs.map do |spec|
+              value = arguments.fetch(spec.fetch("argument").to_sym)
+              rust_value = value.is_a?(Array) ? "&[#{value.map { |item| rust_string(item) }.join(', ')}]" : rust_string(value)
+              "#{rust_field(spec.fetch('argument'))}: #{rust_value}"
+            end
+            ["        assert_eq!(",
+             "            #{variant}Args { #{fields.join(', ')} }.render_args(),",
+             "            #{rust_string(expected)}",
+             "        );"]
+          end
+        end
+        ["    #[test]",
+         "    fn render_args_matches_ruby_render_site() {",
+         asserts,
+         "    }"].flatten
+      end
+
+      LIST_CASES = [[], ["only \"one\""], %w[zeta alpha mid]].freeze
+
+      def argument_cases(specs)
+        cases = specs.any? { |spec| spec.fetch("shape") == "list" } ? LIST_CASES : [nil]
+        cases.map do |items|
+          specs.to_h do |spec|
+            name = spec.fetch("argument")
+            [name.to_sym, spec.fetch("shape") == "list" ? items : "#{name} \"x\""]
+          end
+        end
       end
 
       def name_field(kind) = kind == :order ? "step" : "name"

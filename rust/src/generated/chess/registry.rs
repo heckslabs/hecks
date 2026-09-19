@@ -104,21 +104,23 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["id", "kind", "color", "square", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "PlacePiece does not declare {} — it takes id, kind, color, square",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "PlacePiece",
+        unknown: &unknown,
+        declared: &["id", "kind", "color", "square"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["color", "id", "kind", "square"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "PlacePiece"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, kind, color, square"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "PlacePiece",
+        absent: &absent,
+        declared: &["id", "kind", "color", "square"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("PlacePiece acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "PlacePiece", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::PlacePieceArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.square.check_invariants()?;
@@ -137,21 +139,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "destination", "by", "outcome", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "MovePiece does not declare {} — it takes id, destination, by, outcome",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "MovePiece",
+        unknown: &unknown,
+        declared: &["id", "destination", "by", "outcome"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by", "destination", "id", "outcome"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "MovePiece"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, destination, by, outcome"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "MovePiece",
+        absent: &absent,
+        declared: &["id", "destination", "by", "outcome"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("MovePiece acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "MovePiece", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::MovePieceArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.destination.check_invariants()?;
@@ -170,21 +174,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "by", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "CapturePiece does not declare {} — it takes id, by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "CapturePiece",
+        unknown: &unknown,
+        declared: &["id", "by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "CapturePiece"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "CapturePiece",
+        absent: &absent,
+        declared: &["id", "by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CapturePiece acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "CapturePiece", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::CapturePieceArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
@@ -202,21 +208,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["turn", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AdvanceTurn does not declare {} — it takes turn",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "AdvanceTurn",
+        unknown: &unknown,
+        declared: &["turn"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["turn"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AdvanceTurn"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "turn"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "AdvanceTurn",
+        absent: &absent,
+        declared: &["turn"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AdvanceTurn acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AdvanceTurn", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::AdvanceTurnArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -233,21 +241,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareCheck does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "DeclareCheck",
+        unknown: &unknown,
+        declared: &["by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclareCheck"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "DeclareCheck",
+        absent: &absent,
+        declared: &["by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareCheck acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclareCheck", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::DeclareCheckArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -264,21 +274,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareCheckmate does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "DeclareCheckmate",
+        unknown: &unknown,
+        declared: &["by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclareCheckmate"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "DeclareCheckmate",
+        absent: &absent,
+        declared: &["by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareCheckmate acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclareCheckmate", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::DeclareCheckmateArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -295,21 +307,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclareStalemate does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "DeclareStalemate",
+        unknown: &unknown,
+        declared: &["by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclareStalemate"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "DeclareStalemate",
+        absent: &absent,
+        declared: &["by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareStalemate acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclareStalemate", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::DeclareStalemateArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -326,21 +340,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Resign does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Resign",
+        unknown: &unknown,
+        declared: &["by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Resign"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Resign",
+        absent: &absent,
+        declared: &["by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Resign acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Resign", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::ResignArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -357,21 +373,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "OfferDraw does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "OfferDraw",
+        unknown: &unknown,
+        declared: &["by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "OfferDraw"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "OfferDraw",
+        absent: &absent,
+        declared: &["by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("OfferDraw acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "OfferDraw", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::OfferDrawArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -388,21 +406,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AcceptDraw does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "AcceptDraw",
+        unknown: &unknown,
+        declared: &["by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AcceptDraw"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "AcceptDraw",
+        absent: &absent,
+        declared: &["by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AcceptDraw acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AcceptDraw", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::AcceptDrawArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -419,21 +439,23 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["by", "id", "game", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "DeclineDraw does not declare {} — it takes by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "DeclineDraw",
+        unknown: &unknown,
+        declared: &["by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "DeclineDraw"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "DeclineDraw",
+        absent: &absent,
+        declared: &["by"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclineDraw acts on an existing Game — pass label.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "DeclineDraw", aggregate: "Game", identity: "label.value" }.render_args()))?, };
               let args = crate::generated::chess::game::DeclineDrawArgs::from_json(facts_json)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
@@ -450,18 +472,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "destination", "by", "outcome", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Move does not declare {} — it takes id, destination, by, outcome",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Move",
+        unknown: &unknown,
+        declared: &["id", "destination", "by", "outcome"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by", "destination", "id", "outcome"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Move"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, destination, by, outcome"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Move",
+        absent: &absent,
+        declared: &["id", "destination", "by", "outcome"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::chess::game::PieceMoveEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Move acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::chess::game::PieceMoveEntityArgs::from_json(facts_json)?;
@@ -482,18 +506,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "by", "label"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Capture does not declare {} — it takes id, by",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Capture",
+        unknown: &unknown,
+        declared: &["id", "by"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["by", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Capture"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "id, by"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Capture",
+        absent: &absent,
+        declared: &["id", "by"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on a Game's Piece — pass label.value:".to_string()))?; let element_id = crate::generated::chess::game::Piece::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on one Piece — pass id.value:".to_string()))?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(facts_json)?;

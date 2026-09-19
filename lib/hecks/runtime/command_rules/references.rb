@@ -101,9 +101,9 @@ module Hecks
             next if @registry.repository(domain, target).find(key)
 
             raise NotFound,
-                  RefusalWording.render("NotFound", "reference_target_missing",
-                                        target: target.name, heads: target.identity_heads.join(", "),
-                                        key: key.inspect)
+                  RefusalWording.render_site("NotFound", "reference_target_missing",
+                                             target: target.name, heads: target.identity_heads.join(", "),
+                                             key: key)
           end
         end
 
@@ -152,12 +152,12 @@ module Hecks
             next if target_tenant == own_tenant
 
             raise Unauthorized,
-                  RefusalWording.render("Unauthorized", "cross_tenant_reference",
-                                        aggregate: construct.hecks_name, field: own_tenant_field,
-                                        tenant: Rendering.describe(state[own_tenant_field]),
-                                        attribute: attribute.name, target: target.name,
-                                        target_field: target_tenant_field,
-                                        other: Rendering.describe(record.state[target_tenant_field]))
+                  RefusalWording.render_site("Unauthorized", "cross_tenant_reference",
+                                             aggregate: construct.hecks_name, field: own_tenant_field,
+                                             tenant: Rendering.describe(state[own_tenant_field]),
+                                             attribute: attribute.name, target: target.name,
+                                             target_field: target_tenant_field,
+                                             other: Rendering.describe(record.state[target_tenant_field]))
           end
         end
 

@@ -371,10 +371,10 @@ module Hecks
 
       def resolve_query_aggregate(domain, aggregate_name, verb)
         bluebook = @registry.bluebook(domain) ||
-                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
+                   raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_domain", domain: domain, verb: verb))
         bluebook.aggregate(aggregate_name) ||
-          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate",
-                                                   domain: domain, aggregate: aggregate_name.inspect))
+          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_aggregate",
+                                                        domain: domain, aggregate: aggregate_name))
       end
     end
   end

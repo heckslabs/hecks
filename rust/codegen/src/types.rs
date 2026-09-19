@@ -64,7 +64,7 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
             let description = inv.get("description").and_then(Json::as_str).unwrap_or("");
             let expr = crate::expr_emitter::emit_ast(ast);
             format!(
-                "{{\n    let ctx = crate::kernel::EvalContext {{ args: &crate::kernel::NoFields, instance: self }};\n    if !crate::kernel::interpret(&{expr}, &ctx)?.truthy() {{\n        let mut offered = self.to_json();\n        if let crate::kernel::Json::Object(fields) = &mut offered {{\n            fields.sort_by(|a, b| a.0.cmp(&b.0));\n        }}\n        let offered = offered.to_json_string();\n        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[\n            (\"name\", {}),\n            (\"description\", {}),\n            (\"offered\", offered.as_str()),\n        ])));\n    }}\n}}",
+                "{{\n    let ctx = crate::kernel::EvalContext {{ args: &crate::kernel::NoFields, instance: self }};\n    if !crate::kernel::interpret(&{expr}, &ctx)?.truthy() {{\n        let mut offered = self.to_json();\n        if let crate::kernel::Json::Object(fields) = &mut offered {{\n            fields.sort_by(|a, b| a.0.cmp(&b.0));\n        }}\n        let offered = offered.to_json_string();\n        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {{\n            name: {},\n            description: {},\n            offered: offered.as_str(),\n        }}.render_args()));\n    }}\n}}",
                 naming::ruby_inspect_string(&type_name),
                 naming::ruby_inspect_string(description),
             )

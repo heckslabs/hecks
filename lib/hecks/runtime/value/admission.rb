@@ -17,9 +17,9 @@ module Hecks
           return if value_object.members.any? { |member| member_matches?(member, fields) }
 
           raise InvariantViolation,
-                RefusalWording.render("InvariantViolation", "closed_set_member",
-                                      type: value_object.hecks_name,
-                                      admitted: admitted.map(&:inspect).join(", "), offered: offered.inspect)
+                RefusalWording.render_site("InvariantViolation", "closed_set_member",
+                                           type: value_object.hecks_name,
+                                           admitted: admitted, offered: offered.inspect)
         end
 
         # EVERY DECLARED FIELD, not only the discriminant — a multi-column
@@ -61,9 +61,9 @@ module Hecks
           return value if admitted.include?(offered.to_s)
 
           raise InvariantViolation,
-                RefusalWording.render("InvariantViolation", "admits_declared_set",
-                                      name: attribute.name, admits: attribute.admits,
-                                      admitted: admitted.map(&:inspect).join(", "), offered: offered.inspect)
+                RefusalWording.render_site("InvariantViolation", "admits_declared_set",
+                                           name: attribute.name, admits: attribute.admits,
+                                           admitted: admitted, offered: offered.inspect)
         end
 
         # `Vocabulary::MutationOp` — the aggregate that HOLDS the set, then the
@@ -83,8 +83,8 @@ module Hecks
 
           unless set
             raise InvariantViolation,
-                  RefusalWording.render("InvariantViolation", "undeclared_set",
-                                        name: attribute.name, admits: attribute.admits)
+                  RefusalWording.render_site("InvariantViolation", "undeclared_set",
+                                             name: attribute.name, admits: attribute.admits)
           end
 
           discriminant = set.attributes.first.name

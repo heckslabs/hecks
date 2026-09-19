@@ -361,6 +361,303 @@ Hecks.bluebook "Bluebook" do
                        "or read {reference}.{remote_field} directly if this rule cannot wait"
     end
 
+    # THE ARGUMENTS EACH RefusalTemplate TAKES, AND HOW EACH ONE IS WRITTEN.
+    # A template says WHERE a value goes; this says WHICH values a site
+    # takes (in the order its placeholders first appear) and how each is
+    # rendered before it goes there — so a caller hands over the raw value
+    # (a list of names, a name) rather than a string it formatted itself.
+    # BUG#134 was exactly the hand-formatted kind: Ruby's `declared_reading`
+    # fell back to "none" for an empty list, the Rust generators joined
+    # the list themselves and never did.
+    #
+    # Read by Runtime::RefusalWording.render_site (a missing or extra
+    # argument refuses to render at all) and projected into
+    # rust/src/kernel/vocab/refusal_template.rs as one typed args struct
+    # per site (`render_args` — a missing argument does not compile).
+    #
+    #   shape      — "scalar" (one value) or "list" (a collection of them)
+    #   quoting    — "none" (the value's own text) or "inspect" (Ruby's
+    #                `#inspect`; Rust's `{:?}`), per value or per item
+    #   separator  — what a list's items are joined with
+    #   sorted     — "true" sorts a list's items first (before quoting)
+    #   when_empty — what an empty list renders as
+    #
+    # Recorded from what the Ruby call sites did when this table was
+    # introduced; no wording changed. A value whose rendering depends on
+    # its runtime type (`Rendering.describe`, `offered.inspect` of an
+    # arbitrary value) stays a caller-rendered "none" scalar, as do the
+    # identity readings (`identity`, `heads`, `wants`) the Rust side already
+    # joins once at codegen time or inside `extract_wants`.
+    value_object "RefusalSiteArgument" do
+      attribute :refusal,    String, admits: "Vocabulary::DomainRefusal"
+      attribute :site,       String
+      attribute :argument,   String
+      attribute :shape,      String
+      attribute :quoting,    String
+      attribute :separator,  String
+      attribute :sorted,     String
+      attribute :when_empty, String
+
+      member refusal: "NotFound", site: "creating_no_identity", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "creating_no_identity", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "creating_no_identity", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AlreadyExists", site: "creating_duplicate", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AlreadyExists", site: "creating_duplicate", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AlreadyExists", site: "creating_duplicate", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AlreadyExists", site: "creating_duplicate", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AlreadyExists", site: "entity_duplicate", argument: "entity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AlreadyExists", site: "entity_duplicate", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AlreadyExists", site: "entity_duplicate", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      # One described value per identity head (MutationApplier), or the
+      # one offered element identity (EntityListCoercion).
+      member refusal: "AlreadyExists", site: "entity_duplicate", argument: "offered",
+             shape: "list", quoting: "none", separator: ", ", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "acting_no_identity", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "acting_no_identity", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "acting_no_identity", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "record_missing", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "record_missing", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "record_missing", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_parent_no_identity", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_parent_no_identity", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_parent_no_identity", argument: "entity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_parent_no_identity", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_unknown", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_unknown", argument: "entity",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_no_identity", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_no_identity", argument: "entity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_no_identity", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_missing", argument: "entity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_missing", argument: "identity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_missing", argument: "wants",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_missing", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "entity_element_missing", argument: "parent_id",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "reference_target_missing", argument: "target",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "reference_target_missing", argument: "heads",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "reference_target_missing", argument: "key",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "read_model_reference_missing", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "NotFound", site: "read_model_reference_missing", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "read_model_object_reference", argument: "query",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "read_model_object_reference", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_query", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_query", argument: "query",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_query_missing", argument: "entity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_query_missing", argument: "query",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_holds_no_list", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_holds_no_list", argument: "entity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_no_command", argument: "entity",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "entity_no_command", argument: "command",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "aggregate_no_command", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "aggregate_no_command", argument: "command",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "port_no_operation", argument: "port",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "port_no_operation", argument: "operation",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_domain", argument: "domain",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_domain", argument: "verb",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_read_model", argument: "domain",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_read_model", argument: "query",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "not_fully_qualified", argument: "verb",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_aggregate", argument: "domain",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownVerb", site: "no_aggregate", argument: "aggregate",
+             shape: "scalar", quoting: "inspect", separator: "", sorted: "false", when_empty: ""
+      member refusal: "LifecycleRefused", site: "transition_blocked", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "LifecycleRefused", site: "transition_blocked", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "LifecycleRefused", site: "transition_blocked", argument: "current",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "LifecycleRefused", site: "transition_blocked", argument: "allowed",
+             shape: "list", quoting: "inspect", separator: " or ", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "value_object_shape", argument: "name",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "value_object_shape", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "value_object_shape", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "attribute",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "reference_wrong_shape", argument: "known_by",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "multi_field_scalar", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "composite_identity", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "numeric_field", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "numeric_field", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "numeric_field", argument: "expected",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "numeric_field", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "non_finite_field", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "non_finite_field", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "non_finite_field", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "integer_range", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "integer_range", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "integer_range", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "pattern_mismatch", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "pattern_mismatch", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "pattern_mismatch", argument: "pattern",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "pattern_mismatch", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_amount", argument: "op",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_amount", argument: "target",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_amount", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_current", argument: "op",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_current", argument: "target",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_current", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_shared_field", argument: "op",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "TypeMismatch", site: "arithmetic_shared_field", argument: "target",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownArgument", site: "unknown_args", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "UnknownArgument", site: "unknown_args", argument: "unknown",
+             shape: "list", quoting: "none", separator: ", ", sorted: "true", when_empty: ""
+      member refusal: "UnknownArgument", site: "unknown_args", argument: "declared",
+             shape: "list", quoting: "none", separator: ", ", sorted: "false", when_empty: "none"
+      member refusal: "AbsentArgument", site: "absent_args", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AbsentArgument", site: "absent_args", argument: "absent",
+             shape: "list", quoting: "none", separator: ", ", sorted: "true", when_empty: ""
+      member refusal: "AbsentArgument", site: "absent_args", argument: "declared",
+             shape: "list", quoting: "none", separator: ", ", sorted: "false", when_empty: "none"
+      member refusal: "InvariantViolation", site: "closed_set_member", argument: "type",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "closed_set_member", argument: "admitted",
+             shape: "list", quoting: "inspect", separator: ", ", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "closed_set_member", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "value_object_invariant", argument: "name",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "value_object_invariant", argument: "description",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "value_object_invariant", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "admits_declared_set", argument: "name",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "admits_declared_set", argument: "admits",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "admits_declared_set", argument: "admitted",
+             shape: "list", quoting: "inspect", separator: ", ", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "admits_declared_set", argument: "offered",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "undeclared_set", argument: "name",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "InvariantViolation", site: "undeclared_set", argument: "admits",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "tenant_required", argument: "query",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "tenant_required", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "role_mismatch", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "role_mismatch", argument: "role",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "role_mismatch", argument: "caller_role",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "tenant",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "attribute",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "target",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "target_field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "other",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AttributeAbsent", site: "absent_read", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "AttributeAbsent", site: "absent_read", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "ProjectionAbsent", site: "absent_read", argument: "aggregate",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "ProjectionAbsent", site: "absent_read", argument: "field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "ProjectionAbsent", site: "absent_read", argument: "reference",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "ProjectionAbsent", site: "absent_read", argument: "remote_field",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+    end
+
     # SagaInterpreter::REFUSED.
     #
     # A leg answers an EVENT — `on "AccountDebited"` — or it answers one of these,

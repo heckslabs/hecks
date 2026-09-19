@@ -52,7 +52,8 @@
 // callers (a read model choosing among several aggregate heads; a query
 // ordering/capping its own single result set directly, with no head
 // selection at all).
-use super::{query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal, RefusalSite};
+use super::refusal_wording::UnauthorizedTenantRequiredArgs;
+use super::{query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal};
 
 /// ONE declared query, compiled. `verb` is the fully-qualified
 /// "Domain::Aggregate.QueryName" `kernel/cli.rs`'s STRING-form "query" step
@@ -236,10 +237,9 @@ pub fn run_cross_domain(
 ) -> Result<Vec<(String, Json)>, Refusal> {
     if let Some(auth) = &def.authorization {
         if args.get(auth.tenant_field).is_none() {
-            return Err(Refusal::Unauthorized(RefusalSite::UnauthorizedTenantRequired.render(&[
-                ("query", auth.query_name),
-                ("field", auth.tenant_field),
-            ])));
+            return Err(Refusal::Unauthorized(
+                UnauthorizedTenantRequiredArgs { query: auth.query_name, field: auth.tenant_field }.render_args(),
+            ));
         }
     }
 

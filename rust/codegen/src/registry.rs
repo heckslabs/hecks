@@ -263,16 +263,16 @@ pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
     out.push_str(&format!("let own_tenant = {own_expr}; "));
     out.push_str("if target_tenant != own_tenant { ");
     out.push_str(
-        "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[",
+        "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::refusal_wording::UnauthorizedCrossTenantReferenceArgs { ",
     );
-    out.push_str(&format!("(\"aggregate\", {}), ", naming::ruby_inspect_string(&check.aggregate_name)));
-    out.push_str(&format!("(\"field\", {}), ", naming::ruby_inspect_string(&check.own_tenant_field)));
-    out.push_str("(\"tenant\", &format!(\"{:?}\", own_tenant)), ");
-    out.push_str(&format!("(\"attribute\", {}), ", naming::ruby_inspect_string(&check.reference_field)));
-    out.push_str(&format!("(\"target\", {}), ", naming::ruby_inspect_string(&check.target_name)));
-    out.push_str(&format!("(\"target_field\", {}), ", naming::ruby_inspect_string(&check.target_tenant_field)));
-    out.push_str("(\"other\", &format!(\"{:?}\", target_tenant))");
-    out.push_str("]))); ");
+    out.push_str(&format!("aggregate: {}, ", naming::ruby_inspect_string(&check.aggregate_name)));
+    out.push_str(&format!("field: {}, ", naming::ruby_inspect_string(&check.own_tenant_field)));
+    out.push_str("tenant: &format!(\"{:?}\", own_tenant), ");
+    out.push_str(&format!("attribute: {}, ", naming::ruby_inspect_string(&check.reference_field)));
+    out.push_str(&format!("target: {}, ", naming::ruby_inspect_string(&check.target_name)));
+    out.push_str(&format!("target_field: {}, ", naming::ruby_inspect_string(&check.target_tenant_field)));
+    out.push_str("other: &format!(\"{:?}\", target_tenant)");
+    out.push_str(" }.render_args())); ");
     out.push_str("} } }");
     out
 }
@@ -454,12 +454,16 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // reading) of its own to render `RefusalSite::
             // NotFoundActingNoIdentity` — its ONE possible `Err` is
             // wrapped here, where both are already in scope, into the
-            // exact same wording `RefusalWording.render("NotFound",
-            // "acting_no_identity", ...)` produces on the Ruby side.
-            let not_found_expr = |acting_no_identity_message: &str| {
+            // exact same wording `RefusalWording.render_site("NotFound",
+            // "acting_no_identity", ...)` produces on the Ruby side — off
+            // the same declared template and the same argument rows,
+            // never re-typed here.
+            let not_found_expr = |command: &str, aggregate: &str, identity: &str| {
                 format!(
-                    "crate::kernel::Refusal::NotFound({}.to_string())",
-                    naming::ruby_inspect_string(acting_no_identity_message)
+                    "crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {{ command: {}, aggregate: {}, identity: {} }}.render_args())",
+                    naming::ruby_inspect_string(command),
+                    naming::ruby_inspect_string(aggregate),
+                    naming::ruby_inspect_string(identity)
                 )
             };
             // `collision_key` — BUG#54 (qa/bluebook/quality_control.
@@ -591,13 +595,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             let id_line = if c.creates {
                 creating_route_precheck_line
             } else {
-                let acting_no_identity_message = format!(
-                    "{} acts on an existing {} — pass {}:",
-                    c.name,
-                    a.record,
-                    a.identified_by.join(", ")
-                );
-                let not_found = not_found_expr(&acting_no_identity_message);
+                let not_found = not_found_expr(&c.name, &a.record, &a.identified_by.join(", "));
                 if collision_key {
                     let collision_fallback = {
                         let mut lines = vec![format!(
@@ -1342,7 +1340,7 @@ mod tests {
         // into the exact NotFound/acting_no_identity wording Ruby's own
         // CommandInterpreter#hydrate_existing raises for this case.
         assert!(generated.contains(
-            "SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(\"Close acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:\".to_string()))?,"
+            "SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: \"Close\", aggregate: \"SafeDepositBox\", identity: \"branch_code.value, box_number.value\" }.render_args()))?,"
         ));
     }
 }

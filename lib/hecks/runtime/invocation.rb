@@ -256,9 +256,9 @@ module Hecks
           return if unknown.empty?
 
           raise UnknownArgument,
-                RefusalWording.render("UnknownArgument", "unknown_args",
-                                      command: declaring.hecks_name, unknown: unknown.join(", "),
-                                      declared: declared_reading(declared))
+                RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                           command: declaring.hecks_name, unknown: unknown,
+                                           declared: declared)
         end
 
         def refuse_absent_facts!(declaring, offered, declared)
@@ -266,12 +266,10 @@ module Hecks
           return if absent.empty?
 
           raise AbsentArgument,
-                RefusalWording.render("AbsentArgument", "absent_args",
-                                      command: declaring.hecks_name, absent: absent.sort.join(", "),
-                                      declared: declared_reading(declared))
+                RefusalWording.render_site("AbsentArgument", "absent_args",
+                                           command: declaring.hecks_name, absent: absent,
+                                           declared: declared)
         end
-
-        def declared_reading(declared) = declared.empty? ? "none" : declared.join(", ")
       end
     end
   end

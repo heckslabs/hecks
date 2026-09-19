@@ -326,8 +326,8 @@ module Hecks
 
       def fetch(bluebook, domain, aggregate_name, id)
         @registry.read_repository(domain, bluebook.aggregate(aggregate_name)).find(id) ||
-          raise(NotFound, RefusalWording.render("NotFound", "read_model_reference_missing",
-                                                aggregate: aggregate_name, offered: Rendering.describe(id)))
+          raise(NotFound, RefusalWording.render_site("NotFound", "read_model_reference_missing",
+                                                     aggregate: aggregate_name, offered: Rendering.describe(id)))
       end
 
       def records(bluebook, domain, aggregate_name)
@@ -354,8 +354,8 @@ module Hecks
         return unless offered.is_a?(Hash) || offered.is_a?(Value)
 
         raise TypeMismatch,
-              RefusalWording.render("TypeMismatch", "read_model_object_reference",
-                                    query: model.query_name, field: model.reference_name)
+              RefusalWording.render_site("TypeMismatch", "read_model_object_reference",
+                                         query: model.query_name, field: model.reference_name)
       end
 
       # A reference is the id, in the argument and in the stored row alike.

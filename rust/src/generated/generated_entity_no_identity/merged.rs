@@ -104,18 +104,20 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["label", "id", "code", "batch", "sequence"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Label does not declare {} — it takes label",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Label",
+        unknown: &unknown,
+        declared: &["label"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["label"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Label"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "label"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Label",
+        absent: &absent,
+        declared: &["label"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::generated_entity_no_identity::kiosk::LineLabelEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::generated_entity_no_identity::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on a Kiosk's Line — pass code.value:".to_string()))?; let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on one Line — pass batch.value, sequence.value:".to_string()))?; let element_wants = crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::generated_entity_no_identity::kiosk::LineLabelEntityArgs::from_json(facts_json)?;
@@ -135,10 +137,12 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "code", "batch", "sequence"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Settle does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Settle",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::generated_entity_no_identity::kiosk::LineSettleEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::generated_entity_no_identity::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Settle acts on a Kiosk's Line — pass code.value:".to_string()))?; let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Settle acts on one Line — pass batch.value, sequence.value:".to_string()))?; let element_wants = crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::generated_entity_no_identity::kiosk::LineSettleEntityArgs::from_json(facts_json)?;

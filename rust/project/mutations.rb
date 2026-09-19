@@ -231,9 +231,10 @@ module RustProjection
       guard =
         "let #{local_var} = #{rhs};\n        " \
         "for (i, e) in #{local_var}.iter().enumerate() { if #{local_var}[..i].iter().any(|prior| prior.#{id_field} == e.#{id_field}) " \
-        "{ return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[" \
-        "(\"entity\", #{entity_lit}), (\"aggregate\", #{aggregate_lit}), (\"identity\", #{identity_lit}), " \
-        "(\"offered\", &format!(\"{:?}\", #{offered_expr}))]))); } }\n        "
+        "{ let offered = format!(\"{:?}\", #{offered_expr}); " \
+        "return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs " \
+        "{ entity: #{entity_lit}, aggregate: #{aggregate_lit}, identity: #{identity_lit}, " \
+        "offered: &[offered.as_str()] }.render_args())); } }\n        "
       [guard, local_var]
     end
 
@@ -909,9 +910,10 @@ module RustProjection
             offered_expr = "#{id_rhs}.#{offered_field}"
             collision_guard =
               "if record.#{target_field}.iter().any(|e| e.#{id_field} == #{id_rhs}) " \
-              "{ return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[" \
-              "(\"entity\", #{entity_lit}), (\"aggregate\", #{aggregate_lit}), (\"identity\", #{identity_lit}), " \
-              "(\"offered\", &format!(\"{:?}\", #{offered_expr}))]))); }\n        "
+              "{ let offered = format!(\"{:?}\", #{offered_expr}); " \
+              "return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs " \
+              "{ entity: #{entity_lit}, aggregate: #{aggregate_lit}, identity: #{identity_lit}, " \
+              "offered: &[offered.as_str()] }.render_args())); }\n        "
           end
           if entity[:lifecycle] && !present.include?(entity[:lifecycle][:field].to_s)
             fields_assignment << "#{rust_ident_field(entity[:lifecycle][:field])}: #{entity[:lifecycle][:default].inspect}.to_string()"

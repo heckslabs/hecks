@@ -84,14 +84,17 @@ module RustProjection
       vo[:members].map { |row| row.first[1] }
     end
 
-    # `InvariantViolation`/`admits_declared_set` — `refusal_wording.rb`'s
-    # own template, `"{name} admits {admits} — {admitted} — got {offered}"`
-    # — read directly and reproduced byte-for-byte: `name`/`admits` print
-    # bare (a Ruby Symbol/String's own `to_s`), `admitted`/`offered` are
-    # each already `.inspect`-quoted. The member LIST is baked in as a
-    # compile-time-known `&[&str]` literal (`admitted_set_members` already
-    # resolved it at codegen time) — `{:?}` on the offered `&str` produces
-    # the same quoted form Ruby's own `.inspect` does for a plain string.
+    # `InvariantViolation`/`admits_declared_set`. The template's own text
+    # used to be reproduced here, byte-for-byte, as a baked `prefix`
+    # (everything but the offered value, already substituted); V3 hands
+    # the four declared arguments to the site's own typed `render_args`
+    # instead, so the wording lives only in Vocabulary::RefusalTemplate
+    # and the `.inspect`-quoting and ", " join of the member list are
+    # `admitted`'s own RefusalSiteArgument row rather than this method's.
+    # The member LIST is still resolved at codegen time
+    # (`admitted_set_members`) and passed as a `&[&str]` literal; `{:?}`
+    # on the offered `&str` produces the same quoted form Ruby's own
+    # `.inspect` does for a plain string.
     def emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name)
       return nil unless attr[:admits]
 
@@ -102,33 +105,34 @@ module RustProjection
       return nil unless scalar
 
       members_array = "[#{members.map(&:inspect).join(', ')}]"
-      prefix = "#{attr[:name]} admits #{attr[:admits]} — #{members.map(&:inspect).join(', ')} — got "
       check = Exemplar.render(
         "admits_check",
         '["tmpl_member_a", "tmpl_member_b"]' => members_array,
         "tmpl_scalar" => scalar,
-        '"tmpl_prefix_text"' => prefix.inspect
+        '"tmpl_admits_name"' => attr[:name].to_s.inspect,
+        '"tmpl_admits_target"' => attr[:admits].to_s.inspect
       )
       wrap_if_optional(check, optional_source)
     end
 
-    # `TypeMismatch`/`pattern_mismatch` — `refusal_wording.rb`:
-    # `"{type}.{field} must match {pattern}, got {offered}"`. `pattern`
-    # prints bare (the raw regex SOURCE string, not re-escaped — Ruby's
-    # own template interpolates `attribute.pattern` verbatim); `offered`
-    # is `.inspect`-quoted, same as `admits`'s own wording.
+    # `TypeMismatch`/`pattern_mismatch`, the same way: four declared
+    # arguments handed to the site's typed `render_args`, no copy of
+    # `"{type}.{field} must match {pattern}, got {offered}"` left here.
+    # `pattern` still goes over as the raw regex SOURCE string, not
+    # re-escaped — Ruby's own template interpolates `attribute.pattern`
+    # verbatim, and `pattern`'s own row says `quoting: "none"`.
     def emit_pattern_check(value_expr, attr, owner_type_name, value_objects_by_name)
       return nil unless attr[:pattern]
 
       scalar, optional_source = optional_scalar_expr(value_expr, attr, value_objects_by_name)
       return nil unless scalar
 
-      prefix = "#{owner_type_name}.#{attr[:name]} must match #{attr[:pattern]}, got "
       check = Exemplar.render(
         "pattern_check",
         '"tmpl_pattern_text"' => attr[:pattern].inspect,
         "tmpl_scalar" => scalar,
-        '"tmpl_prefix_text"' => prefix.inspect
+        '"tmpl_pattern_owner"' => owner_type_name.to_s.inspect,
+        '"tmpl_pattern_field"' => attr[:name].to_s.inspect
       )
       wrap_if_optional(check, optional_source)
     end

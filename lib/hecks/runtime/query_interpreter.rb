@@ -95,8 +95,8 @@ module Hecks
 
       def declared_query(aggregate, query_name)
         aggregate.query(query_name) ||
-          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_query",
-                                                   aggregate: aggregate.hecks_name, query: query_name.inspect))
+          raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_query",
+                                                        aggregate: aggregate.hecks_name, query: query_name))
       end
 
       def interpret(records, declared, args, domain: nil)
@@ -194,14 +194,14 @@ module Hecks
       # this dotted name resolve to" from the row-computation that follows.
       def resolve_entity_query(aggregate, entity_name, query_name)
         entity = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
-                 raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                          aggregate: aggregate.hecks_name, entity: entity_name.inspect))
+                 raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_unknown",
+                                                               aggregate: aggregate.hecks_name, entity: entity_name))
         declared = entity.query(query_name) ||
-                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_query_missing",
-                                                            entity: entity_name, query: query_name.inspect))
+                   raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_query_missing",
+                                                                 entity: entity_name, query: query_name))
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
-                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
-                                                             aggregate: aggregate.hecks_name, entity: entity_name))
+                    raise(UnknownVerb, RefusalWording.render_site("UnknownVerb", "entity_holds_no_list",
+                                                                  aggregate: aggregate.hecks_name, entity: entity_name))
         [entity, declared, list_attr]
       end
 

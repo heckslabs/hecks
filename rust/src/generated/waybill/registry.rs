@@ -119,13 +119,15 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["id", "consignment", "reference"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Ship does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Ship",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Ship acts on an existing Consignment — pass reference.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Ship", aggregate: "Consignment", identity: "reference.value" }.render_args()))?, };
               let args = crate::generated::waybill::consignment::ShipArgs::from_json(facts_json)?;
               crate::kernel::check_role_via(Some("System"), "Ship", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
@@ -143,13 +145,15 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["id", "consignment", "reference"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Cancel does not declare {} — it takes none",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Cancel",
+        unknown: &unknown,
+        declared: &[],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Cancel acts on an existing Consignment — pass reference.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Cancel", aggregate: "Consignment", identity: "reference.value" }.render_args()))?, };
               let args = crate::generated::waybill::consignment::CancelArgs::from_json(facts_json)?;
               crate::kernel::check_role_via(Some("System"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
@@ -181,21 +185,23 @@ if !unknown.is_empty() {
 }
 let unknown = v.unknown_keys(&["number", "id", "manifest", "reference"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AddSlot does not declare {} — it takes number",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "AddSlot",
+        unknown: &unknown,
+        declared: &["number"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["number"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AddSlot"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "number"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "AddSlot",
+        absent: &absent,
+        declared: &["number"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSlot acts on an existing Manifest — pass reference.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AddSlot", aggregate: "Manifest", identity: "reference.value" }.render_args()))?, };
               let args = crate::generated::waybill::manifest::AddSlotArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
               crate::kernel::check_role_via(Some("Loader"), "AddSlot", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
@@ -214,18 +220,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["item", "id", "reference", "number"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Fill does not declare {} — it takes item",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Fill",
+        unknown: &unknown,
+        declared: &["item"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["item"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Fill"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "item"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Fill",
+        absent: &absent,
+        declared: &["item"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fill acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?;
@@ -246,18 +254,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["item", "id", "reference", "number"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Clear does not declare {} — it takes item",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Clear",
+        unknown: &unknown,
+        declared: &["item"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["item"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Clear"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "item"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Clear",
+        absent: &absent,
+        declared: &["item"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on a Manifest's Slot — pass reference.value:".to_string()))?; let element_id = crate::generated::waybill::manifest::Slot::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on one Slot — pass number.value:".to_string()))?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?;

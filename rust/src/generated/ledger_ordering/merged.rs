@@ -105,21 +105,23 @@ pub fn dispatch_by_name(
 }
 let unknown = v.unknown_keys(&["reference", "amount", "id", "folder"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AddSlip does not declare {} — it takes reference, amount",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "AddSlip",
+        unknown: &unknown,
+        declared: &["reference", "amount"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["amount", "reference"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "AddSlip"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "reference, amount"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "AddSlip",
+        absent: &absent,
+        declared: &["reference", "amount"],
+    }.render_args()));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => match crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json) { Ok(resolved) => resolved, Err(_) => { let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;         args.reference.check_invariants()?;         args.amount.check_invariants()?; return Err(crate::kernel::Refusal::NotFound("AddSlip acts on an existing Folder — pass reference.value:".to_string())); } }, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => match crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json) { Ok(resolved) => resolved, Err(_) => { let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;         args.reference.check_invariants()?;         args.amount.check_invariants()?; return Err(crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "AddSlip", aggregate: "Folder", identity: "reference.value" }.render_args())); } }, };
               let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;
@@ -139,18 +141,20 @@ if !absent.is_empty() {
 }
 let unknown = v.unknown_keys(&["amount", "id", "reference"]);
 if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Amend does not declare {} — it takes amount",
-        unknown.join(", ")
-    )));
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Amend",
+        unknown: &unknown,
+        declared: &["amount"],
+    }.render_args()));
 }
 let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
-        ("command", "Amend"),
-        ("absent", absent.join(", ").as_str()),
-        ("declared", "amount"),
-    ])));
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Amend",
+        absent: &absent,
+        declared: &["amount"],
+    }.render_args()));
 }
  } let _args_precheck = crate::generated::ledger_ordering::folder::SlipAmendEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on a Folder's Slip — pass reference.value:".to_string()))?; let element_id = crate::generated::ledger_ordering::folder::Slip::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Amend acts on one Slip — pass reference.value:".to_string()))?; let element_wants = crate::generated::ledger_ordering::folder::Slip::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::ledger_ordering::folder::SlipAmendEntityArgs::from_json(facts_json)?;
