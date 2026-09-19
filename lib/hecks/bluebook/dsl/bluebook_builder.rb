@@ -328,8 +328,9 @@ module Hecks
           # `Registry#record_bluebook_source` — two frames up: this
           # method's own caller is `Hecks.bluebook` (hecks.rb), and ITS
           # caller is the real `.bluebook` file's own top-level call site.
-          registry&.record_bluebook_source(name, caller_locations(2, 1)&.first&.path)
-          builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
+          caller_location = caller_locations(2, 1)&.first
+          registry&.record_bluebook_source(name, caller_location&.path)
+          builder = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
           builder.__send__(:adopt_version, version)
           # A bare constant in a bluebook — `attribute :name, PizzaName` — is a NAME,
           # not a reference to something Ruby has heard of. `const_missing` hands

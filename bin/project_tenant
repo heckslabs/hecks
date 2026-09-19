@@ -79,7 +79,7 @@ dispatcher = Hecks.boot_files(
 begin
   dispatcher.dispatch(
     "Deploy::Tenant.Declare",
-    to: slug,
+    to:   slug,
     with: {
       slug:   { value: slug },
       domain: { value: options[:domain] },
@@ -98,7 +98,7 @@ end
 # ProvisioningRefused; either way this call itself never raises.
 reactions = dispatcher.dispatch_port(
   "Deploy", "Tenant", "TenantProvisioning", "Provision",
-  to: slug,
+  to:   slug,
   with: { database: { value: options[:database] }, adapter: { value: options[:adapter] } }
 )
 
@@ -112,7 +112,7 @@ puts "provisioned #{options[:domain]} for tenant #{slug.inspect} under realm #{o
 # CONFIRMED BY QUERY, NOT BY ABSENCE OF AN EXCEPTION — see this
 # script's own header on why a policy's own refusal never raises.
 tenant = dispatcher.registry.repository("Tenancy", dispatcher.registry.bluebook("Tenancy").aggregate("Tenant"))
-                    .find(slug)
+                   .find(slug)
 tenant or abort "provisioning succeeded but #{slug.inspect} was never registered in Tenancy — " \
                 "check registry.reaction_log for a silently refused Register"
 

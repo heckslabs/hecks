@@ -22,7 +22,7 @@ module Hecks
         @root         = root
         @bluebooks    = {}
         @bluebook_sources = {}
-        @hecksagons   = {}
+        @hecksagons = {}
         @ports = {}
         @adapters     = {}
         @worlds       = {}

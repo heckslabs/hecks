@@ -40,7 +40,7 @@ module Hecks
           end
         WORLD
 
-        dispatcher = Hecks.boot(domain_directory, environment: (slug[:value] || slug), install_facade: false)
+        dispatcher = Hecks.boot(domain_directory, environment: slug[:value] || slug, install_facade: false)
         dispatcher.registry.bluebooks.each_key do |name|
           Runtime::TenantCheck.refuse_unless_tenant_capable!(dispatcher.registry, name)
         end
