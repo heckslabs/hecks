@@ -7,8 +7,15 @@ Hecks.hecksagon "Tenancy" do
   # matches by event name plus the emitting aggregate's own demodulised
   # name only, never the domain (confirmed live — a domain-qualified
   # `on` silently never matches).
+  #
+  # `with:` IS REQUIRED, confirmed live — `TenantProvisioned`'s own
+  # payload is the ANSWER (slug/domain/realm/schema) merged with the
+  # port operation's OWN dispatch-time args (database/adapter,
+  # PortOperationInterpreter#ask's `ctx.args.merge(spread(answer))`),
+  # so the whole payload forwarded verbatim carries two fields
+  # `Register` never declares and gets refused outright.
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned
-    trigger Tenant::Register
+    trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }
   end
 end
