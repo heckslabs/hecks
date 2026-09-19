@@ -95,6 +95,23 @@ module Hecks
         wasm_front:                 %w[rust]
       }.freeze
 
+      # WHICH OF THOSE MODES `bin/qa_sweep` CAN ACTUALLY RUN TODAY.
+      # `MODE_REQUIREMENTS` above says what a mode NEEDS; this says what
+      # EXISTS to do it, and the two are not the same. Conflating them is
+      # how `qa/settings.yml` came to enable `wasm_front` and
+      # `adapter_parity_postgres` with nothing behind either — no seat, no
+      # check folded into the seed loop, no `MODE_EXPECTATIONS` entry — while
+      # `resolved modes:` still printed them per target, so the sweep
+      # advertised coverage it never performed. A mode named in
+      # `MODE_REQUIREMENTS` but absent here is one this practice wants and has
+      # not built: `bin/qa_sweep` REFUSES to start when a dial or `--modes`
+      # enables it, rather than resolving it into a line nobody can act on.
+      # `spec/qa_sweep_runnable_modes_spec.rb` keeps this list honest from
+      # both sides by grepping the runner itself.
+      RUNNABLE_MODES = %i[differential ruby_only self_consistency properties_in_differential
+                          structural_skip_report adapter_parity_sqlite persistence_parity
+                          era_boundary concurrency].freeze
+
       # MODES THAT NAME A SEPARATE, EXPENSIVE PASS OF THEIR OWN rather than
       # an extra check folded into the ordinary per-seed loop —
       # `bin/qa_sweep` runs these only when asked by name (`--modes
