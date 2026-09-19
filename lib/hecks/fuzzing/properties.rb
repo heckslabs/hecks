@@ -171,13 +171,18 @@ module Hecks
                                      "(command_interpreter.rb, command.creates?) for every creating command uniformly, " \
                                      "before a duplicate id can ever be stored — collision is refused at the door, not " \
                                      "produced and later caught",
-        "Entity#identified_by"    => "MutationApplier#check_entity_collision (command_interpreter/mutation_applier.rb) " \
-                                     "checks Array(current) against every part of the entity's own identity before an " \
-                                     "append can land, on both branches identity arrives by (caller-supplied, or " \
-                                     "composite) — the same AlreadyExists refusal Aggregate#identified_by gets above, " \
-                                     "one level down. Auto-minted entities never reach the check (current.size + 1 " \
-                                     "can't repeat unless something remove:s from the list between mints, which no " \
-                                     "real domain does today — see the comment on #entity_element itself)",
+        "Entity#identified_by"    => "EntityElement.check_entity_collision (runtime/entity_element.rb, moved there " \
+                                     "BUG#145 so both call sites share it) checks Array(current) against every part " \
+                                     "of the entity's own identity before an append can land — MutationApplier#" \
+                                     "entity_element's aggregate-owned call (Workspace.boards, on both branches " \
+                                     "identity arrives by: caller-supplied, or composite) AND EntityElement#" \
+                                     "appended_to_element's entity-owned, nested-one-hop-further call (Board.cards — " \
+                                     "unconditional, no auto-mint branch exists at that depth) — the same " \
+                                     "AlreadyExists refusal Aggregate#identified_by gets above, one or two levels " \
+                                     "down. Auto-minted (aggregate-owned) entities never reach the check " \
+                                     "(current.size + 1 can't repeat unless something remove:s from the list between " \
+                                     "mints, which no real domain does today — see the comment on #entity_element " \
+                                     "itself)",
         "Command#attributes"      => "command arguments are coerced through the SAME Value.build door as any other " \
                                      "attribute — an accepted dispatch's own args already passed pattern/admits/invariant checks",
         "Command#emits"           => "CommandRules::Emission#emit iterates command.emits ITSELF to construct every " \
