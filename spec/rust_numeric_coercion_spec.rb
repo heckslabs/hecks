@@ -27,7 +27,7 @@ require_relative "support/rust_conformance_helpers"
 #
 # Ruby's `Integer` promotes to Bignum with no ceiling; this Rust kernel
 # has no arbitrary-precision integer type anywhere (`Json::Num` is a
-# plain `f64` end to end). That used to be a recorded parity gap — Ruby
+# plain `f64` end to end). That was once a recorded parity gap — Ruby
 # accepted both scenarios below, Rust refused. C3.3 (docs/semantics/
 # bluebook-semantics.md) closed it the other way round: Integer is a
 # signed 64-bit integer in the language, an out-of-range value is a
@@ -137,8 +137,8 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   # L21 — `Account.Open`'s `daily_limit.cents` (`DailyLimit`, a plain
   # Integer-typed field) goes through the exact same generated
   # `x.as_i64().ok_or_else(...)` this fix repairs. A JSON number far
-  # outside `i64`'s range used to silently become `Some(i64::MAX)` via
-  # the unguarded `as i64` cast; it must now be a clean refusal instead.
+  # outside `i64`'s range would otherwise silently become `Some(i64::MAX)` via
+  # the unguarded `as i64` cast; it must be a clean refusal instead.
   HUGE_OUT_OF_RANGE = 10**30
 
   def out_of_range_steps

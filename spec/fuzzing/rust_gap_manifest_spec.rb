@@ -52,9 +52,9 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest do
   end
 
   describe ".for_binary" do
-    # A synthetic crate, not a real domain's: every in-repo gap this example
-    # used to sample has since been generated, and a fixture that tracks
-    # real gaps goes stale each time one closes.
+    # A synthetic crate, not a real domain's: every in-repo gap this
+    # example could sample is already generated, and a fixture that
+    # tracks real gaps goes stale each time one closes.
     it "reads the rust dir and feature off a pinned conformance binary path" do
       Dir.mktmpdir do |root|
         write_module(root, "shop", [gap("query", "Shop::Order.LineItem.Recent", "entity_query")])

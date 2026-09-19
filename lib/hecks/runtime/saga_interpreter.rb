@@ -28,14 +28,29 @@ module Hecks
 
       attr_reader :registry
 
+      # @param registry [Runtime::Registry] the booted registry whose declared
+      #   process managers and saga persistence this interpreter runs against
+      # @param door [Runtime::Dispatcher] the dispatcher a saga leg's own dispatch
+      #   re-enters through
       def initialize(registry, door:)
         @registry = registry
         @door     = door
       end
 
+      # Runs `domain`'s declared process managers against `event`: begins,
+      # advances or ends each matching saga instance, checkpointing durably
+      # before its own dispatches run.
+      #
       # `only:` — one process manager, the outbox relay's way of running
       # exactly the consumer a row names (`Runtime::Outbox::Relay#
       # run_consumer`); nil advances every manager the domain declares.
+      #
+      # @param event [Runtime::Event] the just-emitted event to react to
+      # @param domain [String, Symbol] the domain whose declared process managers
+      #   are checked
+      # @param only [Bluebook::ProcessManager, nil] one process manager to run
+      #   exactly, instead of every manager `domain` declares
+      # @return [void]
       def advance(event, domain, only: nil)
         bluebook = @registry.bluebook(domain)
         return unless bluebook
@@ -56,12 +71,11 @@ module Hecks
       # could otherwise interleave their writes out of order, silently
       # reordering a saga's own transition history — worse for the
       # adapters with no locking of their own (Heki) than for Postgres.
-      # `deep_copy` guards against the exact shape of bug PR #175 itself
-      # already found once (over-freezing a live, still-mutated Hash) —
-      # never hand a persistence adapter the same object `advance_saga`/
-      # `unwind` go on to mutate in place; round-tripping through JSON
-      # is also what guarantees the value is safe for every adapter that
-      # itself calls `JSON.generate` on it.
+      # `deep_copy` guards against a real bug shape (over-freezing a live,
+      # still-mutated Hash) — never hand a persistence adapter the same
+      # object `advance_saga`/`unwind` go on to mutate in place;
+      # round-tripping through JSON is also what guarantees the value is
+      # safe for every adapter that itself calls `JSON.generate` on it.
       # `pending:` — see saga_pending_dispatch.rb. Injected into the
       # written copy of memory only, never into `instance[:memory]`
       # itself: every other reader of a live instance's memory
@@ -423,7 +437,7 @@ module Hecks
         # Same non-reentrancy reasoning as `advance_saga`'s own comment —
         # the mutex covers only the check-and-mutate-and-checkpoint step.
         advanced = @registry.saga_mutex.synchronize do
-          # The compensating leg is selected by (REFUSED, current state)
+          # The compensating leg is selected by (`REFUSED`, current state)
           # too — C10.3, one rule for every leg.
           handler = process_manager.handler_for(REFUSED, instance[:state])
           unless handler
@@ -507,9 +521,9 @@ module Hecks
       end
 
       # BUG#6 — unconditionally the saga's own home domain, never inferred
-      # from `command_name`'s own shape. This used to guess: a leftover
-      # `::` after `Naming.command_ref`'s own rewrite was read as "already
-      # domain-qualified" and left alone. That heuristic cannot actually
+      # from `command_name`'s own shape. Guessing from a leftover
+      # `::` after `Naming.command_ref`'s own rewrite (read as "already
+      # domain-qualified" and left alone) cannot actually
       # tell a genuinely cross-domain reference (`Banking::Account::
       # Debit` -> one `::` survives) apart from a same-domain entity
       # command reference (`Manifest::Slot::Fill` -> one `::` survives
@@ -519,11 +533,11 @@ module Hecks
       # (confirmed against `Naming.command_ref`'s own rewrite: it only
       # ever strips the last `::`, so the count of what remains is blind
       # to why it's there). Picking the cross-domain reading unconditionally
-      # left `qa/stress_domains/waybill`'s own `Packing` saga dispatching
+      # would leave `qa/stress_domains/waybill`'s own `Packing` saga dispatching
       # `Manifest::Slot::Fill` — an entity command in its own domain —
-      # unprefixed, so `Naming.split_verb` read "Manifest" as a domain
+      # unprefixed, so `Naming.split_verb` would read "Manifest" as a domain
       # name instead of this chapter's own aggregate, and the dispatch
-      # failed with `UnknownVerb`, silently recorded as an ordinary
+      # would fail with `UnknownVerb`, silently recorded as an ordinary
       # domain refusal rather than surfacing as the real bug it is.
       #
       # The fix mirrors `PolicyInterpreter#deliver`'s own mechanism,

@@ -94,8 +94,19 @@ until ARGV.empty?
   end
 end
 
+# Shortens an absolute path under `ROOT` for log lines.
+#
+# @param path [String] an absolute path under `ROOT`
+# @return [String] the path relative to the repository root
 def relative(path) = path.delete_prefix("#{ROOT}/")
 
+# Pipes a prompt to the agent command and reports why it failed, if it did.
+#
+# @param command [Array<String>] the agent command and its arguments
+# @param prompt [String] the text piped to the agent's stdin
+# @param log [String] path to append the agent's combined stdout/stderr to
+# @return [String, nil] a failure message if the agent exited non-zero or
+#   could not start, or nil on success
 def ask_agent(command, prompt, log)
   output, status = Open3.capture2e(*command, stdin_data: prompt, chdir: ROOT)
   File.open(log, "a") { |file| file.puts(output) }
@@ -108,7 +119,12 @@ end
 
 # Adopts the candidate under `QaGenerated` in a scratch directory and
 # boots it in a child `bin/qa_generated_domains --check … --seeds 0`.
-# Answers the boot error, or nil when it boots.
+#
+# @param candidate [Hash{Symbol => String, nil}] one candidate, as
+#   `Miner.candidates` returns it (`:slug`, `:dir`, `:bluebook`, `:hypothesis`)
+# @param boot_root [String] scratch directory to adopt the candidate under
+# @return [String, nil] the boot error message if the candidate does not
+#   boot, or nil once it boots
 def boot_error(candidate, boot_root)
   dir = Hecks::Fuzzing::DomainGenerator.write(
     { "source" => File.read(candidate[:bluebook]), "aggregates" => [], "policies" => [] },
@@ -123,9 +139,10 @@ def boot_error(candidate, boot_root)
   result["status"] == "invalid" ? result["error"] : nil
 end
 
-# The pid makes the run directory unique per process: two runs started in
-# the same second (the three miner spec files on parallel workers) used to
-# share it and read each other's candidates — PR #675's queue run.
+# The pid makes the run directory unique per process — without it, two runs
+# started in the same second (the three miner spec files on parallel
+# workers) share one run directory and read each other's candidates, a
+# collision the queue has hit for real.
 stamp     = "#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{Process.pid}"
 run_dir   = File.join(ROOT, "tmp/qa-mined/run-#{stamp}")
 out_dir   = options[:from] || File.join(run_dir, "candidates")

@@ -97,9 +97,11 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
 
   it "excludes an aggregate-level row whose claim IS in the named state, and keeps the rest" do
     runtime = boot_aggregate_anti_join
-    runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.File", id: { value: "c1" }) # stays "held"
+    # stays "held"
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.File", id: { value: "c1" })
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.File", id: { value: "c2" })
-    runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.Release", id: "c2")         # no longer "held"
+    # no longer "held"
+    runtime.dispatch_flat("AggregateAntiJoinGrowth::Claim.Release", id: "c2")
 
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b1" }, claim_id: "c1")
     runtime.dispatch_flat("AggregateAntiJoinGrowth::Board.Open", id: { value: "b2" }, claim_id: "c2")

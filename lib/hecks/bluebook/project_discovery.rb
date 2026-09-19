@@ -8,10 +8,15 @@ module Hecks
 
       attr_reader :root
 
+      # @param root [String] the directory to search under
       def initialize(root)
         @root = File.expand_path(root)
       end
 
+      # Walks `root` for every directory that holds `.bluebook` files.
+      #
+      # @return [Array<String>] the absolute path of each `bluebook` directory found,
+      #   sorted; a directory named in `SKIPPED_DIRECTORIES` is pruned from the walk
       def bluebook_directories
         found = []
         Find.find(root) do |path|

@@ -44,6 +44,13 @@ USAGE = "usage: bin/run [domain] <verb [name=value …] | script.json | - | '{\"
 # Tried first, and falls through to the JSON form when the first argument does
 # not name a projected verb — which is what keeps `bin/run <domain> <script>`
 # working exactly as it did.
+# Boots `domain` and dispatches `argv` as a projected CLI verb invocation, printing the
+# result and exiting the process — never returning to the caller.
+#
+# @param domain [String] the domain's directory path
+# @param argv [Array<String>] the command-line arguments after the domain, e.g.
+#   `["bug.discover", "reference=BUG#1"]`
+# @return [void]
 def cli_form(domain, argv)
   runtime = Hecks.boot(domain, install_facade: false)
   # **No fall-through**. This is only reached when the argument is not

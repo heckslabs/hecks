@@ -66,7 +66,7 @@ RSpec.describe "the declared vocabularies" do
 
   # The language's own duplicate of its own closed set — gone, not gated.
   #
-  # A block here used to hold `Command::OpName`'s invariant
+  # A block here once held `Command::OpName`'s invariant
   # (`set || append || increment || decrement`) equal to Vocabulary::MutationOp,
   # because the language had no way to link the two: `reference_to` reaches
   # aggregate roots and a vocabulary's sets are value objects inside one, while
@@ -107,7 +107,7 @@ RSpec.describe "the declared vocabularies" do
   end
 
   # SignTest's compares_via, MutationOp's sign, RefusalTemplate's wording and
-  # FieldHint's patterns used to be held equal to hand-typed Ruby tables here
+  # FieldHint's patterns were once held equal to hand-typed Ruby tables here
   # and in their own conformance specs. Those constants now read the
   # generated table (Resolver::SIGN_TEST_OPERATORS, CommandRules::
   # MUTATION_OPS, RefusalWording::TEMPLATES, FieldShape::HINTS), so the
@@ -193,7 +193,7 @@ RSpec.describe "the declared vocabularies" do
 
   # **Coverage, both directions**. A declared step with no handler and a handler
   # with no declaration are the same class of drift — a step DISPATCH_ORDER
-  # never reaches — but only the first direction used to be gated:
+  # never reaches — but only the first direction was gated until now:
   #
   #   every DISPATCH_ORDER name must resolve to a real `step_<name>` handler
   #   `call` can actually `send` to — the thing that would have silently

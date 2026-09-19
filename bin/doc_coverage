@@ -46,6 +46,12 @@ unexemplified = Hecks::Doc::Reference.unexemplified(directory)
 # undocumented word needs somebody to write about it, an unexemplified
 # one needs somebody to prove it. A word with neither shows up in both
 # lists on purpose — you owe it both.
+#
+# @param words [Array<String>] live vocabulary words missing this kind of coverage
+# @param owed [String] phrase describing what each listed word lacks, printed after
+#   "carries"/"carry"
+# @return [Boolean] true if `words` was empty and nothing was printed, false once a
+#   gap section was printed
 def report(words, owed)
   return true if words.empty?
 

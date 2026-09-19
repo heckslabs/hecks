@@ -68,7 +68,7 @@ RSpec.describe "a reference that arrives as an object" do
 
   # BUG#27 (QualityControl ledger) — found live on qa/stress_domains/
   # referral_chain's Member.Join/Referral.Issue: a bare Boolean, Array, or
-  # `null` used to sail past this refusal entirely (only Hash/Value ever
+  # `null` would otherwise sail past this refusal entirely (only Hash/Value ever
   # matched it), get `.to_s`'d into a lookup key by `CommandRules::
   # References#reference_key` ("true", "false", "[8, 8]"), and answer
   # NotFound — or, for `null`, skip the lookup outright (`next if

@@ -8,6 +8,10 @@ module Hecks
     module BrokenClock
       module_function
 
+      # Stands in for the clock port's real method under a wrong name, so a boot-time
+      # check can prove it catches a missing method instead of waiting for first dispatch.
+      #
+      # @return [String] a fixed placeholder string, never a time
       def not_now = "wrong method name entirely"
     end
   end

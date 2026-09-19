@@ -1,12 +1,17 @@
 module Hecks
-  # **A vendored, external bluebook** — same shape as Framework (framework.rb),
-  # for members that don't ship inside hecks's own lib/ at all: a
-  # separate, independently-versioned package
-  # (github.com/chrisyoung/embryonaut_bluebooks) that a consuming project
-  # vendors into its own checkout, the same way a project already vendors
-  # hecks itself (bin/vendor_hecks, vendor/hecks/).
+  # A vendored, external bluebook.
   #
-  # **Recovered, not rebuilt** — this module and its `uses_embryonaut_bluebook`
+  # ## What it is
+  #
+  # Same shape as Framework (framework.rb), for members that don't ship
+  # inside hecks's own lib/ at all: a separate, independently-versioned
+  # package (github.com/chrisyoung/embryonaut_bluebooks) that a consuming
+  # project vendors into its own checkout, the same way a project already
+  # vendors hecks itself (bin/vendor_hecks, vendor/hecks/).
+  #
+  # ## Recovered, not rebuilt
+  #
+  # This module and its `uses_embryonaut_bluebook`
   # DSL word (hecksagon_builder.rb) were built on a prior commit of this
   # repo (933d1dd), vendored out to a real consumer (lifeadelics/domain,
   # for embryonaut_bluebooks/payments), and then lost from this repo's own
@@ -16,6 +21,8 @@ module Hecks
   # file is ported forward from it, checked against current `main`'s own
   # conventions rather than copied wholesale, since the two trees had
   # otherwise diverged for weeks in both directions.
+  #
+  # ## Resolution
   #
   # Resolved from the consuming registry's own root, not this gem's
   # __dir__ — Framework::ROOT can be a fixed, `__dir__`-relative constant
@@ -27,6 +34,8 @@ module Hecks
   # itself only runs at hecksagon-build time, when a real registry is
   # current.
   #
+  # ## Load order
+  #
   # Every `.bluebook` file in the package, sorted — not just one. Unlike a
   # framework member (one file, named by its own stem), a vendored package
   # can span several bluebook files that reopen the same `Hecks.bluebook`
@@ -37,7 +46,9 @@ module Hecks
   # payment < payments < policies, the same reason that package's own
   # files are named to fall in that order in the first place.
   #
-  # **Only the bluebook files** — same restriction Framework draws, same
+  # ## Scope
+  #
+  # Only the bluebook files — same restriction Framework draws, same
   # reason: a `.hecksagon`/`.port`/`.adapter` is a wiring decision
   # (persistence, which processor adapter is bound) that belongs to
   # whoever is deploying, never baked into the vendored package itself.
@@ -46,12 +57,24 @@ module Hecks
   # `Hecks.hecksagon "Payments" do ... end` to bind real storage/adapters
   # — see Framework's own comment for the fuller reasoning, identical here.
   #
-  # Idempotent the same way Framework.load! Is — checked against the
+  # ## Idempotency
+  #
+  # Idempotent the same way `Framework.load!` is — checked against the
   # bluebook this package actually declares (`Naming.pascal("payments")`
   # => "Payments"), not a separate ledger. A vendored package's directory
   # name and its declared `Hecks.bluebook` name are the one convention
   # this reuses from Framework rather than reinventing.
   module EmbryonautBluebook
+    # Loads a vendored embryonaut bluebook package's `.bluebook` files, once
+    # per registry.
+    #
+    # @param name [String, Symbol] the vendored package's directory name, such
+    #   as `"payments"`
+    # @param registry [Runtime::Registry, nil] the registry to vendor into and
+    #   check for an existing load; defaults to the current boot registry
+    # @return [void]
+    # @raise [Runtime::WiringError] if `registry` has no root, or no vendored
+    #   package named `name` is checked out
     def self.load!(name, registry: Hecks.current_registry)
       unless registry&.root
         raise Runtime::WiringError,

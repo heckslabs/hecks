@@ -3,11 +3,12 @@ module Hecks
     module MetaValidator
       # What the language says about itself, read back as something walkable.
       #
-      # The judge used to carry one hand-written branch per category, and the
-      # reason given for keeping it that way was that "which append command
-      # belongs to which list is not derivable from a name". True — and beside
-      # the point. It is derivable from the language's own IR, because every
-      # append command declares its target:
+      # ## Why a plan, not a hand-written branch per category
+      #
+      # "Which append command belongs to which list is not derivable from a
+      # name" sounds like a reason to hand-write one branch per category —
+      # and is beside the point. It is derivable from the language's own IR,
+      # because every append command declares its target:
       #
       #     command "Argument" do
       #       reference_to Command
@@ -24,7 +25,7 @@ module Hecks
       # Query / Entity, ValueObject -> Member, ProcessManager -> Handler ->
       # Dispatch all fall out of the declarations rather than being restated here.
       #
-      # Usage:
+      # ## Usage
       #
       #     plan = Plan.for(MetaValidator.grammar_registry)
       #     plan.category("Command").parent            # => "Aggregate"
@@ -52,6 +53,10 @@ module Hecks
           # Every verb this category declares, in declaration order. `alternates`
           # matters here: two commands can append to one list, and a verb missing
           # from this is a verb the coverage gate stops watching.
+          #
+          # @return [Array<String>] every command name this category declares
+          #   (the creating command, every setter, appender, alternate
+          #   appender, and sealer), `nil` entries dropped
           def verbs
             [declare, *setters.map(&:verb), *appends.values.map(&:verb),
              *alternates.map(&:verb), *sealers].compact
@@ -61,19 +66,35 @@ module Hecks
           # an id is a scalar — so the judge offers it bare, where every other
           # field goes as a one-field value object. The language answers this
           # about itself, so declaring a new reference needs no change here.
+          #
+          # @param verb [String] the command name declaring `argument`
+          # @param argument [String] the argument name to check
+          # @return [Boolean] whether `argument` on `verb` is a reference
           def references?(verb, argument)
             Array(references[verb.to_s]).include?(argument.to_s)
           end
 
+          # Reports whether this category is the root of the containment
+          # tree.
+          #
+          # @return [Boolean] whether this category has no parent — the root
+          #   of the containment tree
           def root? = parent.nil?
         end
 
+        # Reads the language's own self-description off `registry`.
+        #
+        # @param registry [Runtime::Registry] a registry with the language's
+        #   own "Bluebook" chapter already judged and assembled
+        # @return [Plan] the plan, built from that chapter's own aggregates
         def self.for(registry)
           new(registry.bluebook("Bluebook"))
         end
 
         attr_reader :categories
 
+        # @param meta [Bluebook::Chapter] the language's own assembled
+        #   "Bluebook" chapter
         def initialize(meta)
           @categories = {}
           meta.aggregates.each do |aggregate|
@@ -121,7 +142,17 @@ module Hecks
           @categories.freeze
         end
 
+        # Looks up one category by name.
+        #
+        # @param name [String, Symbol] the category name, such as
+        #   `"Command"` or `"ValueObject"`
+        # @return [Category, nil] the named category, or `nil` if the
+        #   language declares no such category
         def category(name) = @categories[name.to_s]
+
+        # Lists every category this plan holds.
+        #
+        # @return [Array<String>] every category name this plan holds
         def names          = @categories.keys
 
         # Every verb the language declares, spelled as the judge would
@@ -135,6 +166,10 @@ module Hecks
         # entity-owned category's own parent may itself be entity-
         # owned), so this stays what it already is: the judge's own
         # coverage promise, not a second guess at it.
+        #
+        # @return [Array<String>] every verb the language declares, dotted
+        #   and prefixed with `"Bluebook::"`, such as `"Bluebook::Aggregate.
+        #   Command.Argument"`
         def verbs
           @categories.flat_map do |name, category|
             category.verbs.map { |verb| "Bluebook::#{dotted_prefix(name)}.#{verb}" }
@@ -218,8 +253,8 @@ module Hecks
             # than restated. The judge has to know a record's id before it
             # dispatches, because the children it walks next carry it as their
             # parent — so it derives the same join the runtime will, off the same
-            # declaration. It used to be a branch per category, and a branch that
-            # disagreed with the runtime by one separator was a broken reference.
+            # declaration: a hand-written branch per category, disagreeing with
+            # the runtime by even one separator, would be a broken reference.
             identity_paths: aggregate.identity_paths,
             entity_owned:   entity_owned
           )

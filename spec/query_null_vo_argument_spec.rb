@@ -2,8 +2,8 @@ require "spec_helper"
 require "hecks/fuzzing"
 
 # QualityControl BUG#36 — a null required value-object-typed query
-# argument used to be silently absorbed via the type's own field
-# defaults (`Value::Coercion#nil_argument`, shared — pre-fix — with the
+# argument would be silently absorbed via the type's own field
+# defaults (`Value::Coercion#nil_argument`, shared with the
 # command argument door), answering `rows: []` instead of refusing,
 # whenever every one of the value object's fields happened to have a
 # default. Rust's generated `check_query_args` already refused
@@ -35,9 +35,9 @@ require "hecks/fuzzing"
 #     `spec/rust_conformance_fuzz_spec.rb`'s own generated-sequence
 #     comparison holds refusals to (C8.2: prose is not the contract).
 #   - `Order.CostingLessThan`'s `ceiling` — a single-field `Price` with
-#     no default. Already agreed between engines before this fix (the
-#     no-default branch of `nil_argument`/`check_required_fields` was
-#     never touched); pinned here as a non-regression check.
+#     no default. Already agreed between engines regardless (the
+#     no-default branch of `nil_argument`/`check_required_fields` is
+#     never touched by this fix); pinned here as a non-regression check.
 RSpec.describe "a null required value-object-typed query argument (QualityControl BUG#36)" do
   describe "LeaseClock::Lease.Expired (single-field value object, WITH a default)" do
     let(:domain) { File.join(InMemoryDomain::ROOT, "qa/stress_domains/lease_clock") }

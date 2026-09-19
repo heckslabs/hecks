@@ -8,6 +8,9 @@ module Hecks
     module SecureRandomIdentity
       module_function
 
+      # Mints a fresh random identity value.
+      #
+      # @return [String] a newly minted, random UUID
       def uuid = SecureRandom.uuid
     end
   end

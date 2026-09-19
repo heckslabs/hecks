@@ -23,6 +23,10 @@ module Hecks
       # as `--foo`'s value (and `--bar` would then never be seen at
       # all), and a value-less `--foo` at the end of argv would bypass
       # whatever default `foo` promised instead of falling back to it.
+      # @param argv [Array<String>] the command-line argument list to scan
+      # @param name [String] the flag's name, without its leading `--`
+      # @param default [String, nil] value to use when the flag is absent or has no value
+      # @return [String, nil] the flag's value, or `default`
       def option(argv, name, default = nil)
         index = argv.index("--#{name}")
         return default unless index
@@ -42,6 +46,12 @@ module Hecks
       # the gate specs, not on anything this method knows about). A
       # clean return leaves the snapshots unused; the caller decides
       # from there whether the tree stands.
+      #
+      # @param paths [Array<String>] files to snapshot before running the block
+      # @yield the mutating work to run, restored from snapshot if it raises
+      # @return [Object] the block's result
+      # @raise [StandardError] re-raises whatever the block raised, after restoring
+      #   every snapshotted file
       def restore_on_raise(paths)
         snapshots = paths.to_h { |path| [path, File.read(path)] }
         yield
@@ -50,6 +60,10 @@ module Hecks
         raise
       end
 
+      # Every syntax-table file declaring a `KeywordSeed` or `ArgumentSeed`
+      # value object.
+      #
+      # @return [Array<String>] matching `.bluebook` file paths
       def syntax_paths
         Dir.glob(File.expand_path("../language/**/*.bluebook", __dir__)).select do |path|
           source = File.read(path)
@@ -60,13 +74,25 @@ module Hecks
       # Kept as a narrow compatibility door for callers deliberately doing
       # single-file surgery. Normal operation uses `syntax_paths` and discovers
       # the owning concept from the row itself.
+      #
+      # @return [String, nil] the first syntax-table path, or nil when there are none
       def syntax_path = syntax_paths.first
 
+      # Resolves the file(s) a call should search or write.
+      #
+      # @param path [String, nil] an explicit single file, or nil for every syntax path
+      # @return [Array<String>] `[path]` when given, else `syntax_paths`
       def paths_for(path) = path ? Array(path) : syntax_paths
 
       # The Keyword one_of's member rows, parsed leniently off the text —
       # enough to know each row's (word, context, status), which is all
       # the tool ever asks.
+      #
+      # @param path [String, nil] an explicit single file to read, or nil for every
+      #   syntax path
+      # @return [Array<Hash>] one Hash per member row, with `:word`, `:context`,
+      #   `:status` (`"admitted"` when unspelled), and `:was` (nil unless renamed)
+      # @raise [Refusal] if `path` is given and declares no `KeywordSeed` value object
       def keyword_rows(path = nil)
         paths_for(path).flat_map do |candidate|
           blocks = seed_blocks(File.read(candidate), "KeywordSeed")
@@ -82,6 +108,20 @@ module Hecks
         end
       end
 
+      # Declares a new, proposed keyword row in the syntax table that owns
+      # `context` (or `opens`'s own aggregate, for a `File`-context word).
+      #
+      # @param word [String] the keyword's spelling
+      # @param context [String] the grammar context the word is declared in
+      # @param body [String] the keyword's body shape; `"none"` by default
+      # @param inner [String] the keyword's inner shape, if any
+      # @param opens [String] the aggregate concept a `File`-context word opens
+      # @param fills [String] the field the keyword fills, if any
+      # @param path [String, nil] an explicit single file to search/write, or nil to
+      #   search every syntax path
+      # @return [void]
+      # @raise [Refusal] if `context`.`word` is already declared, or no syntax table
+      #   owns `context`
       def propose(word:, context:, body: "none", inner: "", opens: "", fills: "", path: nil)
         if keyword_rows(path).any? do |row|
           row[:word] == word && row[:context] == context
@@ -105,6 +145,17 @@ module Hecks
         File.write(path, source.sub(block, updated))
       end
 
+      # Rewrites a declared keyword row's `status:` cell in place.
+      #
+      # @param word [String] the keyword's spelling
+      # @param context [String] the grammar context the word is declared in
+      # @param to [String] the new status: `"proposed"`, `"admitted"`, `"deprecated"`,
+      #   or `"retired"`
+      # @param path [String, nil] an explicit single file to search/write, or nil to
+      #   search every syntax path
+      # @return [void]
+      # @raise [Refusal] if `to` is not one of the four stations, or `context`.`word`
+      #   is not declared
       def set_status(word:, context:, to:, path: nil)
         raise Refusal, "#{to.inspect} is not a station a word's life admits" unless %w[proposed admitted deprecated
                                                                                        retired].include?(to)
@@ -131,8 +182,17 @@ module Hecks
       # `was:` — one hop only. Renaming an already-renamed word refuses
       # until the language grows real eras for its own words; renaming
       # onto a spelling the context already declares refuses too. The
-      # word's Argument rows follow it — row-aware now, not the blind
-      # substitution this used to be (see `cascade_argument_rename`).
+      # word's Argument rows follow it — row-aware, not a blind
+      # substitution (see `cascade_argument_rename`).
+      #
+      # @param word [String] the keyword's current spelling
+      # @param context [String] the grammar context the word is declared in
+      # @param to [String] the keyword's new spelling
+      # @param path [String, nil] an explicit single file to search/write, or nil to
+      #   search every syntax path
+      # @return [void]
+      # @raise [Refusal] if `context`.`word` is not declared, was already renamed once,
+      #   or `to` is already declared in `context`
       def rename(word:, context:, to:, path: nil)
         row = keyword_rows(path).find { |r| r[:word] == word && r[:context] == context }
         raise Refusal, "#{context}.#{word} is not declared" unless row
@@ -160,16 +220,38 @@ module Hecks
         cascade_argument_rename(keyword: word, context: context, to: to, path: paths)
       end
 
+      # Tells whether `line` is a KeywordSeed member row for `(word, context)`.
+      #
+      # @param line [String] one raw source line
+      # @param word [String] the keyword's spelling
+      # @param context [String] the grammar context
+      # @return [Boolean]
       def member_row?(line, word, context)
         line =~ /^\s*member / && line.include?(%(word: "#{word}")) && line.include?(%(context: "#{context}"))
       end
 
+      # Finds which syntax-table path declares a keyword row.
+      #
+      # @param word [String] the keyword's spelling
+      # @param context [String] the grammar context
+      # @param paths [Array<String>] candidate syntax-table paths to search
+      # @return [String] the path whose KeywordSeed declares `(word, context)`
+      # @raise [Refusal] if no path in `paths` declares that row
       def path_holding_keyword(word, context, paths = syntax_paths)
         paths.find do |candidate|
           keyword_blocks(File.read(candidate)).any? { |block| block.lines.any? { |line| member_row?(line, word, context) } }
         end || raise(Refusal, "#{context}.#{word} is not declared")
       end
 
+      # Finds which syntax-table path declares an argument row.
+      #
+      # @param keyword [String] the argument's owning keyword
+      # @param context [String] the grammar context
+      # @param at [String] the argument's positional slot, `""` for a named-only argument
+      # @param named [String] the argument's keyword name, `""` for a positional-only argument
+      # @param paths [Array<String>] candidate syntax-table paths to search
+      # @return [String] the path whose ArgumentSeed declares this row
+      # @raise [Refusal] if no path in `paths` declares that row
       def path_holding_argument(keyword, context, at, named, paths = syntax_paths)
         paths.find do |candidate|
           argument_blocks(File.read(candidate)).any? do |block|
@@ -183,6 +265,14 @@ module Hecks
       # A new row belongs wherever that context's existing rows live. File is
       # intentionally wider than one aggregate; for a new entry point, `opens`
       # identifies the aggregate concept whose file should own it.
+      #
+      # @param context [String] the grammar context a new row is being added to
+      # @param word [String] the word being added, used only in the refusal message
+      # @param opens [String] the aggregate concept a `File`-context word opens
+      # @param paths [Array<String>] candidate syntax-table paths to search
+      # @return [String] the path that should own the new row
+      # @raise [Refusal] if no candidate path declares an existing row for `context`
+      #   (and, for a `File` context with `opens` given, no path declares that aggregate)
       def owner_path(context:, word:, opens: "", paths: syntax_paths)
         if context == "File" && !opens.to_s.empty?
           aggregate_path = paths.find { |candidate| File.read(candidate).match?(/^\s*aggregate "#{Regexp.escape(opens)}" do$/) }
@@ -197,6 +287,13 @@ module Hecks
         end || raise(Refusal, "no aggregate-local syntax table owns context #{context.inspect} for #{word}")
       end
 
+      # Every `value_object "<name>"` block's full source text, from its
+      # opener to its closing `end`.
+      #
+      # @param source [String] a `.bluebook` file's source text
+      # @param name [String] the value object's name, such as `"KeywordSeed"`
+      # @return [Array<String>] each matching block's raw source, including the
+      #   opener and closing `end` lines
       def seed_blocks(source, name)
         opener = /^([ \t]*)value_object "#{Regexp.escape(name)}" do$/
         source.to_enum(:scan, opener).map do
@@ -209,6 +306,15 @@ module Hecks
         end
       end
 
+      # The first `value_object "<name>"` block's source text.
+      #
+      # @param source [String] a `.bluebook` file's source text
+      # @param name [String] the value object's name, such as `"KeywordSeed"`
+      # @param required [Boolean] whether a missing block should raise instead of
+      #   returning nil
+      # @return [String, nil] the block's raw source, or nil when absent and not
+      #   `required`
+      # @raise [Refusal] if `required` and `source` declares no such value object
       def seed_block(source, name, required: false)
         block = seed_blocks(source, name).first
         unless block
@@ -225,7 +331,15 @@ module Hecks
       # is the value object's own, the same fact the original one_of-
       # nested version of this method leaned on (nothing else nested
       # inside it either, before or after).
+      # @param source [String] a `.bluebook` file's source text
+      # @return [Array<String>] each KeywordSeed block's raw source
       def keyword_blocks(source) = seed_blocks(source, "KeywordSeed")
+
+      # The first KeywordSeed block's source text.
+      #
+      # @param source [String] a `.bluebook` file's source text
+      # @return [String] the first KeywordSeed block's raw source
+      # @raise [Refusal] if `source` declares no KeywordSeed value object
       def keyword_block(source) = seed_block(source, "KeywordSeed", required: true)
 
       # ── the Argument rows — a word's own arguments, at last with tooling
@@ -234,6 +348,14 @@ module Hecks
       # kwarg), so identity here is the full (keyword, context, at, named)
       # tuple, not the two-field key a Keyword row answers to.
 
+      # The ArgumentSeed's member rows, parsed leniently off the text.
+      #
+      # @param path [String, nil] an explicit single file to read, or nil for every
+      #   syntax path
+      # @return [Array<Hash>] one Hash per member row, with `:keyword`, `:context`,
+      #   `:at`, `:named`, `:kind`, `:required`, `:fills`, and `:status`
+      #   (`"admitted"` when unspelled)
+      # @raise [Refusal] if `path` is given and declares no `ArgumentSeed` value object
       def argument_rows(path = nil)
         paths_for(path).flat_map do |candidate|
           blocks = seed_blocks(File.read(candidate), "ArgumentSeed")
@@ -257,6 +379,20 @@ module Hecks
       # naming a single field as a row that "names a single field, which
       # it cannot fill" — correctly, since the two shapes are genuinely
       # different and only one of them can be checked the same way.
+      # @param keyword [String] the argument's owning keyword
+      # @param context [String] the grammar context
+      # @param kind [String] the argument's value kind
+      # @param required [String] `"true"` or `"false"`, as text like every other cell
+      # @param at [String] the argument's positional slot, `""` for a named-only argument
+      # @param named [String] the argument's keyword name, `""` for a positional-only argument
+      # @param fills [String] the field the argument fills, if any
+      # @param pairs_shape [String, nil] the shape a `pairs` argument's key/value list
+      #   fills, or nil when this argument is not a `pairs` argument
+      # @param path [String, nil] an explicit single file to search/write, or nil to
+      #   search every syntax path
+      # @return [void]
+      # @raise [Refusal] if this (keyword, context, at, named) row is already declared,
+      #   or no syntax table owns `context`
       def propose_argument(keyword:, context:, kind:, required: "false", at: "", named: "", fills: "",
                            pairs_shape: nil, path: nil)
         if argument_rows(path).any? { |r| argument_identity(r) == [keyword, context, at, named] }
@@ -280,6 +416,18 @@ module Hecks
         File.write(path, source.sub(block, updated))
       end
 
+      # Rewrites a declared argument row's `status:` cell in place.
+      #
+      # @param keyword [String] the argument's owning keyword
+      # @param context [String] the grammar context
+      # @param to [String] the new status: `"proposed"`, `"admitted"`, `"deprecated"`,
+      #   or `"retired"`
+      # @param at [String] the argument's positional slot, `""` for a named-only argument
+      # @param named [String] the argument's keyword name, `""` for a positional-only argument
+      # @param path [String, nil] an explicit single file to search/write, or nil to
+      #   search every syntax path
+      # @return [void]
+      # @raise [Refusal] if `to` is not one of the four stations, or the row is not declared
       def set_argument_status(keyword:, context:, to:, at: "", named: "", path: nil)
         raise Refusal, "#{to.inspect} is not a station an argument's life admits" unless %w[proposed admitted deprecated
                                                                                             retired].include?(to)
@@ -307,12 +455,26 @@ module Hecks
         File.write(path, source.sub(block, updated))
       end
 
+      # Tells whether `line` is an ArgumentSeed member row for this
+      # (keyword, context, at, named) tuple.
+      #
+      # @param line [String] one raw source line
+      # @param keyword [String] the argument's owning keyword
+      # @param context [String] the grammar context
+      # @param at [String] the argument's positional slot
+      # @param named [String] the argument's keyword name
+      # @return [Boolean]
       def argument_row?(line, keyword, context, at, named)
         line =~ /^\s*member / &&
           line.include?(%(keyword: "#{keyword}")) && line.include?(%(context: "#{context}")) &&
           line.include?(%(at: "#{at}")) && line.include?(%(named: "#{named}"))
       end
 
+      # The identity tuple an argument row is keyed by.
+      #
+      # @param row [Hash] an argument row, as `argument_rows` returns one
+      # @return [Array(String, String, String, String)] the row's `(keyword, context,
+      #   at, named)` identity tuple
       def argument_identity(row) = [row[:keyword], row[:context], row[:at], row[:named]]
 
       # The rename cascade, row-aware — only the rows that actually belong
@@ -320,6 +482,12 @@ module Hecks
       # blind `gsub` on every `keyword: "word",` substring in the file
       # (which a coincidentally-matching row elsewhere could have
       # corrupted, and which read nothing before writing).
+      # @param keyword [String] the keyword whose argument rows follow its rename
+      # @param context [String] the grammar context
+      # @param to [String] the keyword's new spelling
+      # @param path [String, nil] an explicit single file to search/write, or nil to
+      #   search every syntax path
+      # @return [void]
       def cascade_argument_rename(keyword:, context:, to:, path: nil)
         paths_for(path).each do |candidate|
           source = File.read(candidate)
@@ -341,7 +509,15 @@ module Hecks
       # `keyword_block`'s own comment for why the first bare `end` after
       # the opener is already the right one, now that `member` rows sit
       # bare (S3, ADR 0025).
+      # @param source [String] a `.bluebook` file's source text
+      # @return [Array<String>] each ArgumentSeed block's raw source
       def argument_blocks(source) = seed_blocks(source, "ArgumentSeed")
+
+      # The first ArgumentSeed block's source text.
+      #
+      # @param source [String] a `.bluebook` file's source text
+      # @return [String] the first ArgumentSeed block's raw source
+      # @raise [Refusal] if `source` declares no ArgumentSeed value object
       def argument_block(source) = seed_block(source, "ArgumentSeed", required: true)
     end
   end

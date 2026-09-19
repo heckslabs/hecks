@@ -37,8 +37,34 @@ module Hecks
 
       module_function
 
+      # The ambient caller bound by the innermost enclosing `as` block on this thread.
+      #
+      # @return [Runtime::Caller::Current, nil] the bound caller, or nil when no `as`
+      #   block is on the stack for this thread
       def current = Thread.current[:hecks_caller]
 
+      # Binds the ambient caller for the duration of the block, restoring whatever
+      # caller (if any) was bound before, even if the block raises.
+      #
+      # `actor_id`, `as_of` and `scope` are each optional, self-asserted facts about
+      # the caller rather than derived from the command — see `Current`'s own header
+      # above for why each stays here instead of becoming a command-level DSL
+      # construct.
+      #
+      # @param role [String] the role the caller states it holds, checked by string
+      #   equality against the command's declared `role`
+      # @param actor_id [String, nil] who the caller is; when given, lets
+      #   `CommandRules::Authorization` check a real Governance `RoleAssignment`
+      #   instead of the bare role-string comparison
+      # @param as_of [Integer, nil] Unix epoch seconds the caller asserts as "now",
+      #   filled at the door from `Ports::Clock.now`; nil leaves a `RoleAssignment`'s
+      #   `starts_at` unchecked
+      # @param scope [String, nil] the scope the caller states it is acting in,
+      #   checked against the matching `RoleAssignment`'s own `scope`; nil skips
+      #   that check
+      # @yield the code that should see `role`/`actor_id`/`as_of`/`scope` as the
+      #   ambient caller
+      # @return [Object] the block's result
       def as(role:, actor_id: nil, as_of: nil, scope: nil)
         previous = Thread.current[:hecks_caller]
         Thread.current[:hecks_caller] = Current.new(
@@ -49,11 +75,17 @@ module Hecks
         Thread.current[:hecks_caller] = previous
       end
 
+      # Clears the ambient caller for the duration of the block, restoring
+      # whatever caller (if any) was bound before, even if the block raises.
+      #
       # A reaction is the system acting, not the caller who happened to be
       # on the stack when the triggering command ran — `Dispatcher#reenter`
       # clears the ambient caller around a reaction's own dispatch so a
       # triggering caller's role can neither satisfy nor block a reaction
       # command it has nothing to do with.
+      #
+      # @yield the code that should see no ambient caller bound
+      # @return [Object] the block's result
       def without
         previous = Thread.current[:hecks_caller]
         Thread.current[:hecks_caller] = nil

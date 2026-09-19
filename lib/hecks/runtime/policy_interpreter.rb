@@ -16,11 +16,18 @@ module Hecks
     class PolicyInterpreter
       attr_reader :registry
 
+      # @param registry [Runtime::Registry] the booted registry whose loaded
+      #   bluebooks are scanned for candidate policies
+      # @param door [Runtime::Dispatcher] the dispatcher reactions re-enter through,
+      #   and whose reaction-depth guard is checked before each delivery
       def initialize(registry, door:)
         @registry = registry
         @door     = door
       end
 
+      # Fires every declared policy `event` triggers, recording each outcome on
+      # the registry's reaction log.
+      #
       # `deliver` returns `nil` for a policy whose `where` did not hold —
       # silently, the same as a policy `policies_for` never selected at all
       # (an `event_qualifier` miss carries no reaction_log entry either) —
@@ -32,6 +39,13 @@ module Hecks
       # way of running exactly the consumer a row names (`Runtime::
       # Outbox::Relay#run_consumer`) instead of every policy that
       # matches the event. Selection is otherwise identical.
+      #
+      # @param event [Runtime::Event] the just-emitted event to react to
+      # @param domain [String, Symbol] the domain `event`'s own aggregate belongs
+      #   to, the emitting domain's policies fire first
+      # @param only [Array(Bluebook::Policy, String), nil] one `[policy, home_domain]`
+      #   pair to run exactly, instead of scanning every loaded bluebook for candidates
+      # @return [void]
       def react(event, domain, only: nil)
         selected = only ? [only] : policies_for(event, domain)
         selected.each do |policy, home_domain|
@@ -195,14 +209,13 @@ module Hecks
       # The event's own identity is a fact too, not only its payload. A
       # for_each query commonly filters by the emitting record's own
       # identity (`OpenForCustomer`'s own `reference:`, scoping by the
-      # very customer who was just suspended) — which used to arrive for
-      # free because legacy dispatch left the self-addressing key riding
-      # along in `event.payload` unfiltered. Routing separated from
-      # payload (`to:`/`with:`, what the facade's own bang-methods always
-      # use) correctly stopped carrying it there, which left this query
-      # silently seeing neither the field it needs nor any error saying
-      # why — an empty result read as "nothing to freeze" instead of "the
-      # customer" the whole reaction exists to catch.
+      # very customer who was just suspended) — a fact routing keeps
+      # separate from payload (`to:`/`with:`, what the facade's own
+      # bang-methods always use), so `event.payload` alone does not carry
+      # it. Without this, the query would silently see neither the field
+      # it needs nor any error saying why — an empty result read as
+      # "nothing to freeze" instead of "the customer" the whole reaction
+      # exists to catch.
       #
       # Merged in only when the query declares an argument by that exact
       # name and the emitting aggregate's own identity is genuinely what
@@ -261,7 +274,7 @@ module Hecks
           label:     "#{policy.name}'s trigger"
         )
 
-        # **The raw inputs `args` was resolved from** — same additive,
+        # The raw inputs `args` was resolved from — same additive,
         # Ruby-only shape SagaInterpreter#deliver_saga_dispatch's own
         # saga_dispatch_log gets, for Properties.dispatch_binding_
         # fidelity's own independent re-derivation of Policy#with_spec's

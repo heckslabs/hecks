@@ -190,14 +190,14 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     registry.bluebooks.values.first.aggregate(aggregate_name).queries.find { |q| q.name == query_name }
   end
 
-  # The real helper, not a second, hand-rolled copy of its hash — this
-  # used to reimplement `Lineage#field_cache`'s own
-  # `Digest::SHA256.hexdigest(...)` by hand, storage_name-only, and went
-  # silently out of sync the moment `field_cache` started folding
-  # `@domain` into that hash (docs/decisions/0059: the same cross-domain
-  # storage_name collision `head_view`/`head_snapshot`/`matview` were
-  # fixed for also applied here, a fourth, differently-shaped relation
-  # family). Every real call site in this file is domain "Cache" (see
+  # The real helper, not a second, hand-rolled copy of its hash — a
+  # hand-rolled copy of `Lineage#field_cache`'s own
+  # `Digest::SHA256.hexdigest(...)`, storage_name-only, would silently
+  # go out of sync the moment `field_cache` folds `@domain` into that
+  # hash (docs/decisions/0059: the same cross-domain storage_name
+  # collision `head_view`/`head_snapshot`/`matview` were fixed for
+  # also applies here, a fourth, differently-shaped relation family).
+  # Every real call site in this file is domain "Cache" (see
   # `adapter_for`'s own `domain: "Cache"`) — calling through the real
   # method rather than reconstructing it independently is what makes
   # this impossible to drift out of sync again.

@@ -86,13 +86,12 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
   end
 
   # S2 (docs/audits/2026-08-10-main-bug-audit.md) — `#cell`, the entity
-  # sub-list row-identity reader used to tiebreak `order_by` on a
-  # composite piece, read `row[key.to_sym] || row[key.to_s]`. When the
-  # symbol-keyed value is a genuinely-stored `false`, `false || …` falls
-  # through to the (usually absent) string spelling and answers `nil`
-  # instead of the real, held value. PR A4 dropped the string spelling
-  # altogether (rows are decoded, symbol-keyed state), so its example went
-  # with it; a stored false still reads as false.
+  # sub-list row-identity reader that tiebreaks `order_by` on a
+  # composite piece, reads only `row[key.to_sym]` — no fallback to
+  # `row[key.to_s]`. A fallback via `||` would fall through to the
+  # (usually absent) string spelling on a genuinely-stored `false`
+  # symbol-keyed value, answering `nil` instead of the real, held value;
+  # rows are decoded, symbol-keyed state, so a stored false reads as false.
   describe "#cell" do
     it "reads a stored false the same way it reads any other value" do
       interpreter = Hecks::Runtime::QueryInterpreter.new(nil)

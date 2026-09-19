@@ -31,7 +31,7 @@ module Hecks
       # both directions.
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("AggregateDispatchOrder")
 
-      # **A last-resort safety valve, not the normal outcome path** — see
+      # A last-resort safety valve, not the normal outcome path — see
       # `Runtime::StaleWrite`'s own comment. Two concurrent writers
       # against one aggregate resolve through exactly one retry in the
       # ordinary case (the loser's retried hydrate reads the winner's now-
@@ -41,14 +41,17 @@ module Hecks
       # two-writer case.
       MAX_STALE_WRITE_RETRIES = 5
 
-      # Every cross-step local `call` used to thread through its own literal
-      # sequence, held in one place now that the sequence is data-driven —
+      # Every cross-step local held in one place, now that the sequence is
+      # data-driven rather than `call`'s own literal method-call sequence —
       # `result` and `transition`/`old_state` default to nil until the step
-      # that sets them runs, same as they were unset locals before that point.
+      # that sets them runs, the same as unset locals would be before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
                            :dry_run, :correction_bindings, :outbox_rows, :invocation)
 
+      # @param registry [Runtime::Registry] the booted registry this interpreter reads
+      # @param rules [Runtime::CommandRules] the shared rules engine (admissibility,
+      #   references, arithmetic, authorization, emission) dispatch runs through
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
@@ -69,6 +72,27 @@ module Hecks
       # `invocation` — the `Runtime::Invocation` `Dispatcher` built for this
       # call. `ctx.args` is `invocation.to_args` (the same Hash routing
       # always handed this method), `ctx.route` its `target`.
+      #
+      # @param domain [String, Symbol] the domain `aggregate` belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate the command acts on
+      # @param command [Class] the command class (`Bluebook::Command` subclass) to dispatch
+      # @param invocation [Runtime::Invocation] the invocation `Dispatcher` built for
+      #   this call
+      # @param correlation [Hash{Symbol => Object}, nil] correlation head => value,
+      #   stamped on every emitted event when a saga leg causes this dispatch; nil
+      #   otherwise
+      # @param dry_run [Boolean] whether to run every step through validation without
+      #   saving, emitting or enqueueing
+      # @return [Array(Runtime::Instance, Array<Runtime::Event>,
+      #   Runtime::DependencyPlanning::Plan, Ports::Persistence::Execution,
+      #   Array<Runtime::Outbox::Row>)] the settled instance, emitted events,
+      #   execution plan, persistence outcome and outbox rows — the last
+      #   three nil on a dry run, which skips save/emit/outbox
+      # @raise [StandardError] any class in `Runtime::DOMAIN_REFUSALS` when a
+      #   given/ensures/invariant/authorization/admissibility rule refuses
+      # @raise [Runtime::StaleWrite] if concurrent writers beat this one through every
+      #   retry (`MAX_STALE_WRITE_RETRIES`)
+      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false)
         args    = invocation.to_args
         route   = invocation.target
@@ -273,9 +297,9 @@ module Hecks
           # `ensures`/`enforce_invariants`/`save` steps still run after
           # this one. The target's emission is parked and performed by
           # `step_emit`, after the parent committed — where every other
-          # command's events are emitted too. (Before this, the entity
-          # leg's events were on the event log and in the adapter before
-          # the parent could refuse.)
+          # command's events are emitted too. (Without parking it here, the
+          # entity leg's events would be on the event log and in the adapter
+          # before the parent could refuse.)
           ctx.pending_delegation = [target_command, target_args]
         end
       end
@@ -350,7 +374,7 @@ module Hecks
 
       def persist_instance(ctx)
         if ctx.strategy == DependencyPlanning::ATOMIC_PUT
-          # **A second creation is not a fresh one** — see
+          # A second creation is not a fresh one — see
           # hydrate_complete_state's own comment; the
           # same refusal, on the same terms, for the
           # complete-state path. `insert_only:` asks the
@@ -441,8 +465,9 @@ module Hecks
           # `:delegate` mutation.
           if ctx.pending_delegation
             target_command, target_args = ctx.pending_delegation
-            # The same dispatch, so the same correlation — a saga-driven
-            # door's events used to lose their stamp here.
+            # The same dispatch, so the same correlation — without
+            # threading `ctx.correlation` through, a saga-driven door's
+            # events would lose their stamp here.
             next @rules.emit(target_command, ctx.domain, ctx.aggregate, ctx.instance, target_args, ctx.repository,
                              ctx.correlation)
           end
@@ -562,7 +587,7 @@ module Hecks
                                                         aggregate: aggregate.hecks_name,
                                                         identity:  identity_reading(aggregate)))
 
-        # **A second creation is not a fresh one** — `creates?` on an identity
+        # A second creation is not a fresh one — `creates?` on an identity
         # a record already exists under refuses (`AlreadyExists`) rather
         # than silently overwriting it, the same refusal `hydrate_prior_
         # or_initial`'s own body gives for its own complete-but-state-
@@ -604,7 +629,7 @@ module Hecks
                                                         identity:  identity_reading(aggregate)))
         found = repository.find(id)
 
-        # **A second creation is not a fresh one** — see hydrate_complete_
+        # A second creation is not a fresh one — see hydrate_complete_
         # state's own comment; the same refusal, on the same terms, for
         # a complete-but-state-dependent command (one with a `given`
         # reading its own prior state, which is what routes here instead
@@ -614,10 +639,10 @@ module Hecks
         # prior state this branch exists to supply), so only a genuine
         # creation reusing an already-occupied identity is a duplicate.
         # `SafeDepositBox.Rent` is exactly this shape — `given("box is
-        # vacant")` makes it state-dependent, so a second Rent used to
-        # silently hydrate the existing box as "prior state" and refuse
-        # for the wrong reason (not vacant) instead of the right one
-        # (already exists).
+        # vacant")` makes it state-dependent, so without this check a
+        # second Rent would silently hydrate the existing box as "prior
+        # state" and refuse for the wrong reason (not vacant) instead of
+        # the right one (already exists).
         if found && command.creates?
           raise(AlreadyExists, RefusalWording.render_site("AlreadyExists", "creating_duplicate",
                                                           command: command.hecks_name, aggregate: aggregate.hecks_name,
@@ -628,7 +653,7 @@ module Hecks
         found ? found.dup : Instance.new(aggregate: aggregate, id: id, args: args)
       end
 
-      # **The join, the dig, and the reading** — all shared with `EntityInterpreter`
+      # The join, the dig, and the reading — all shared with `EntityInterpreter`
       # now, in `Runtime::Identity`, rather than kept as two copies that could
       # only ever drift. See that module for the reasoning ; these three stay
       # here, at the old names, purely so nothing below has to change.

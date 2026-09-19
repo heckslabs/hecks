@@ -9,6 +9,15 @@ module Hecks
     # `prefers-color-scheme` alone; nothing here reads a cookie or a query
     # param for it, so it is never wrong for the browser rendering it.
     module Page
+      # Wraps one page's own body HTML in the shared shell: doctype, head, nav, footer,
+      # inline styles and script.
+      #
+      # @param title [String] the page title, escaped into `<title>` and the browser tab
+      # @param body [String] the page's own body markup, inserted unescaped inside `<main>`
+      # @param breadcrumbs [Array<Array(String, String), Array(String, nil)>] each
+      #   `[label, href]` pair, in order; the last pair's `href` should be `nil` for the
+      #   current page
+      # @return [String] the complete HTML document
       def self.render(title:, body:, breadcrumbs: [])
         <<~HTML
           <!doctype html>
@@ -36,6 +45,11 @@ module Hecks
         HTML
       end
 
+      # Renders the breadcrumb trail as a `<nav>`, each crumb a link except the last.
+      #
+      # @param crumbs [Array<Array(String, String), Array(String, nil)>] each
+      #   `[label, href]` pair; a `nil` href renders as the current, unlinked page
+      # @return [String] the `<nav>` markup, HTML-escaped; `""` when `crumbs` is empty
       def self.breadcrumbs_html(crumbs)
         return "" if crumbs.empty?
 

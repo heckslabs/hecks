@@ -241,7 +241,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     let(:aggregate) { fixture.aggregate("Account") }
 
     # An adapter that "forgets" the codec: symbolizes one level by hand, the
-    # way Heki and every journal reader used to.
+    # way Heki and every journal reader once did.
     let(:forgetful_class) do
       Class.new(Hecks::Adapters::Memory) do
         def find(id)

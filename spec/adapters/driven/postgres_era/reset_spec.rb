@@ -7,9 +7,10 @@ require_relative "../../../support/postgres_probe"
 # level security) journal — the journal carries an INSERT policy and a
 # SELECT policy (advance_era!, mint_transaction.rb) and no DELETE
 # policy at all, for anyone. A plain `DELETE ... WHERE aggregate = $1`
-# from an ordinary connection therefore used to silently match zero
-# rows: no privilege error, no exception, `reset!` just returned `self`
-# having deleted nothing.
+# from an ordinary connection would therefore silently match zero
+# rows: no privilege error, no exception — `reset!` compares the row
+# count before and after and raises instead of returning `self` having
+# deleted nothing.
 #
 # Same non-superuser-owner harness as lineage_spec.rb's own header
 # explains: a local dev Postgres user is commonly a superuser (mine
@@ -118,7 +119,7 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
 
     expect { adapter.reset! }.to raise_error(Hecks::Runtime::WiringError, /FORCE ROW LEVEL SECURITY|DELETE policy/)
 
-    # Nothing was actually removed — the record the silent no-op used to
+    # Nothing was actually removed — the record a silent no-op would
     # leave behind (and the bug this pins) is still exactly there.
     expect(adapter.find("a1")).not_to be_nil
   end

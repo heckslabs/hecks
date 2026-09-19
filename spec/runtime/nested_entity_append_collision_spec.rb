@@ -11,7 +11,7 @@ require "hecks/fuzzing"
 # onto `Board.cards`, itself nested two levels under `Workspace`) is the
 # first corpus member to exercise, per that domain's own NOTES.md ("a
 # speculative runtime fix... was drafted, verified not to regress the
-# existing suite, and then deliberately reverted before this PR: it does
+# existing suite, and then deliberately reverted: it does
 # not resolve BUG#4 ... an unverified runtime change with no failing-test
 # demonstration of its own is not something this loop ships"). Found live
 # by `bin/qa_sweep nested_pieces`'s first real differential sweep
@@ -50,7 +50,7 @@ RSpec.describe "Board.AddCard — a nested-entity-owned append's own duplicate-i
   # holding two identical elements and `element_of`'s own `find_index`
   # (BUG#3's own header) makes the first permanently the only one any
   # later command can ever address — the exact "silent duplicate becomes
-  # unaddressable" harm BUG#13's own commit message (PR #549) already
+  # unaddressable" harm BUG#13's own commit message already
   # named for the one-hop-shallower case.
   it "refuses a second AddCard under a sequence the board already holds, the same way append already does one hop up" do
     steps = [

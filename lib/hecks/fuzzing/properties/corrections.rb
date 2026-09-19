@@ -45,6 +45,11 @@ module Hecks
         # mutation is invisible to both doors today — this property is the
         # only thing anywhere, on either engine, that would ever catch one
         # going wrong.
+        #
+        # @param history [Hash] a replayed history as returned by `Replay.call`
+        # @return [true, String] true if every event emitted by a `corrects`-bearing
+        #   command has a matching, strictly earlier corrected event in the same
+        #   history; otherwise a message listing every unmatched correction
         def corrections_reference_an_emitted_event(history)
           violations = []
 
@@ -72,6 +77,17 @@ module Hecks
           violations.empty? || violations.uniq.join("; ")
         end
 
+        # Finds every occurrence of `produced_event_name`, on `aggregate_key`, with no
+        # matching `corrected_event` for the same id appearing earlier in `events`.
+        #
+        # @param events [Array<Hash>] `history[:events]`, in occurrence order
+        # @param aggregate_key [String] `"domain::AggregateName"` the events belong to
+        # @param produced_event_name [String] name of the event a `corrects` mutation's
+        #   command emits
+        # @param corrected_event [String] name of the event the mutation claims to correct
+        # @param command_name [String] the command's own `hecks_name`, for the message
+        # @return [Array<String>] one message per occurrence with no matching earlier
+        #   corrected event; empty when every occurrence is matched
         def unmatched_corrections(events, aggregate_key, produced_event_name, corrected_event, command_name)
           own_events = events.each_with_index.select do |event, _index|
             event[:name] == produced_event_name && event[:aggregate] == aggregate_key
@@ -90,6 +106,15 @@ module Hecks
           end
         end
 
+        # Yields every command declared on `owner`, then recurses into each of its
+        # entities to yield theirs too, at any nesting depth (ADR 0026, S17).
+        #
+        # @param owner [Bluebook::Aggregate, Bluebook::Entity] the aggregate or entity
+        #   whose own commands, and whose entities' commands, to walk
+        # @yield [command] once per declared command, aggregate-level or nested
+        # @yieldparam command [Bluebook::Command] a command declared on `owner` or one
+        #   of its entities
+        # @return [void]
         def each_command_including_entities(owner, &block)
           owner.commands.each(&block)
           owner.entities.each { |entity| each_command_including_entities(entity, &block) }

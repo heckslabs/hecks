@@ -16,16 +16,32 @@ module Hecks
     # model is simple enough for one; otherwise runs the whole join
     # in-process against loaded records.
     class ReadModelInterpreter
+      # @param registry [Runtime::Registry] the booted registry whose repositories
+      #   this interpreter reads
       def initialize(registry) = @registry = registry
 
+      # Runs one declared read model and returns its projected rows.
+      #
+      # @param domain [String, Symbol] the domain the read model is declared in
+      # @param model [Bluebook::ReadModel] the read model to run
+      # @param args [Hash{Symbol => Object}] the query's declared arguments
+      # @return [Array<Hash>] a one-element Array holding a Hash of head name to
+      #   projected rows (or a single row, for a non-`:many` head)
+      # @raise [Runtime::TypeMismatch] if the reference argument is offered as a whole
+      #   object rather than a plain identity, or a `median` field is not numeric
+      # @raise [Runtime::NotFound] if the reference argument names no record
+      # @raise [KeyError] if a rooted read model is asked without its reference argument
+      # @raise [ArgumentError] if `group_by` or `median` names a field its target
+      #   aggregate does not declare
+      # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
       def call(domain, model, args)
         project(domain, model, args)
       end
 
       private
 
-      # **Root-first, then the SQLite escape hatch, then the join loop** —
-      # each step's own comment names a real, previously-shipped bug the
+      # Root-first, then the SQLite escape hatch, then the join loop —
+      # each step's own comment names a real, already-shipped bug the
       # current order fixes (the reference/TenantScope refusal ordering
       # above, the root-first head processing below). Splitting this
       # into smaller methods would scatter that ordering across method
@@ -77,11 +93,11 @@ module Hecks
         # bluebook. `read_model_builder.rb`'s own `include` is
         # documented "Order-independent" (the `:many` flag is resolved
         # at build time, once `@reference_target` is known), but that
-        # promise was never kept here: this loop used to run heads in
-        # their literal declared order and match each "many" head
-        # against whatever was already in `projected` — empty, the
-        # very first time through, if a many-side head happened to be
-        # declared before the root. A real, live bug (not a guess):
+        # promise is not kept without this: running heads in
+        # their literal declared order and matching each "many" head
+        # against whatever was already in `projected` would leave it
+        # empty, the very first time through, if a many-side head happened
+        # to be declared before the root. A real, live bug (not a guess):
         # `include Promotion` before `include Item` on a read model
         # whose root is Item silently returned an empty array for
         # Promotion — no error, just a wrong, too-small answer — while

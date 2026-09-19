@@ -28,12 +28,10 @@
 #     shape for a pinned fixture, not a live run.
 #
 #   bin/rust_conformance <domain> <script.json> native|<path/to/module.wasm>
-#     the subprocess hook this file's own header used to say didn't exist
-#     yet ("this tool does not invoke Rust itself... until then, 'give me
-#     a JSON file to compare against' is the whole interface"). `native`
-#     runs rust/target/{release,debug}/rust (bin/project_rust's own
-#     `cargo build` artifact); a `.wasm` path runs it under `wasmtime`
-#     (bin/project_wasm's artifact). Either way `script.json`'s bytes go
+#     the subprocess hook that runs Rust directly instead of only comparing
+#     against a pinned file. `native` runs rust/target/{release,debug}/rust
+#     (bin/project_rust's own `cargo build` artifact); a `.wasm` path runs it
+#     under `wasmtime` (bin/project_wasm's artifact). Either way `script.json`'s bytes go
 #     on the subprocess's stdin and its stdout is the comparison JSON —
 #     kernel/cli.rs's stdin/stdout contract, the same shape Ruby already
 #     prints above, now answerable live instead of only from a pinned file.
@@ -56,6 +54,12 @@ require "hecks/fuzzing"
 require "json"
 require "open3"
 
+# Runs a built Rust artifact as a subprocess, feeding it the script JSON on
+# stdin and capturing its comparison JSON from stdout.
+#
+# @param cmd [Array<String>] the subprocess argv, e.g. `[bin]` or `%w[wasmtime run] + [path]`
+# @param stdin_data [String] the script JSON bytes to feed on the subprocess's stdin
+# @return [String] the subprocess's stdout, the comparison JSON
 def run_subprocess(cmd, stdin_data)
   stdout, status = Open3.capture2(*cmd, stdin_data: stdin_data)
   abort "#{cmd.join(' ')} exited #{status.exitstatus}:\n#{stdout}" unless status.success?
@@ -63,6 +67,10 @@ def run_subprocess(cmd, stdin_data)
   stdout
 end
 
+# Finds the pre-built native Rust binary, preferring the release profile.
+#
+# @return [String, nil] absolute path to the first executable found under
+#   `rust/target/{release,debug}/rust`, or nil if neither profile has been built
 def native_binary
   %w[release debug]
     .map { |profile| File.expand_path("../rust/target/#{profile}/rust", __dir__) }

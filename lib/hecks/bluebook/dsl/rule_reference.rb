@@ -15,9 +15,10 @@ module Hecks
       # reuses one of these three shapes instead of a fourth hand-written
       # near-duplicate resolver.
       #
-      # **Not one unified algorithm** — a real design question this file
-      # answers directly: the three existing resolvers are not
-      # superficially different, they are structurally different (a
+      # ## Not one unified algorithm
+      #
+      # A real design question this file answers directly: the three existing
+      # resolvers are not superficially different, they are structurally different (a
       # multi-pool fallback chain; one pool keyed by declaring owner,
       # needing disambiguation; a live scan over already-built sibling
       # objects with no separate pool at all) — forcing them into one
@@ -28,18 +29,21 @@ module Hecks
       # `invariant`×3, `ensures`×1) before this file existed — extract
       # predicate source, refuse if extraction failed, build the struct.
       #
+      # ## Resolution rules read off the grammar table, not a Ruby-only mirror
+      #
       # `#lookup`/`#verify_resolves_via!` read which construct uses which
       # primitive off the self-hosted grammar table itself
-      # (`Keyword#resolves_via`, `syntax.bluebook`) — not a Ruby-only
-      # Hash cross-checked afterward (this file's own earlier shape, one
-      # round ago) — so a real domain's own boot, not just `bundle exec
-      # rspec`, fails loudly the moment the table and this file's own
+      # (`Keyword#resolves_via`, `syntax.bluebook`), so a real domain's own boot, not just
+      # `bundle exec rspec`, fails loudly the moment the table and this file's own
       # hand-written resolution methods disagree.
       module RuleReference
         module_function
 
+        # Extracts a predicate block's source and builds the rule struct that holds it,
+        # refusing when the source could not be read.
+        #
         # `struct_class` is `Given` or `Invariant` (both `Struct.new(
-        # :description, :canonical, :predicate, keyword_init: true)` —
+        # :description, :canonical, :predicate, :ast, keyword_init: true)` —
         # `Given` lives in command.rb, `Invariant` in value_object.rb).
         # `owner_name`/`word` are only for the refusal message's own
         # wording. `extraction_failure` is the tail of that same
@@ -52,6 +56,22 @@ module Hecks
         # this method existed; unifying them into one generic sentence
         # would be a real (if small) behavior change this refactor is
         # not making.
+        #
+        # @param struct_class [Class] the rule struct to build — `Bluebook::Given` or
+        #   `Bluebook::Invariant`
+        # @param description [String] the rule's own description, as declared by the caller's
+        #   own `given`/`invariant`/`ensures` word
+        # @param predicate [Proc] the rule's own body block, never called here — only its
+        #   extracted source is used
+        # @param owner_name [String] the declaring construct's own name, for the refusal message
+        # @param word [String] the declaring word (`"given"`, `"invariant"`, or `"ensures"`),
+        #   for the refusal message
+        # @param extraction_failure [String] the refusal message's own tail, naming what an
+        #   unreadable predicate would mean for this particular word
+        # @return [Bluebook::Given, Bluebook::Invariant] the built rule struct, an instance of
+        #   `struct_class`
+        # @raise [Bluebook::DSL::Malformed] if `predicate`'s source could not be extracted, or
+        #   it matches against a pattern construct `Expression::AstJson::PatternSubset` refuses
         def build_rule(struct_class, description, predicate, owner_name:, word:, extraction_failure:)
           canonical = Ports::Extraction.canonical(predicate)
 
@@ -72,6 +92,11 @@ module Hecks
         # piece's entity-wide pool) is this with a 2-element chain — a
         # future single-pool bare reference is the same primitive with a
         # 1-element chain, not a separate "just look in one hash" method.
+        # @param pools [Array<Hash{String => Bluebook::Given, Bluebook::Invariant}>] pools to
+        #   search in order; the first pool holding `description` wins
+        # @param description [String] the rule's own description to find
+        # @return [Bluebook::Given, Bluebook::Invariant, nil] the matching rule, or `nil` if no
+        #   pool has one
         def resolve_hash_chain(pools, description)
           pools.each { |pool| return pool[description] if pool.key?(description) }
           nil
@@ -87,6 +112,11 @@ module Hecks
         # wording for "none," "ambiguous," and "declared_by: named the
         # wrong owner" rather than one generic message papering over all
         # three.
+        # @param pool [Hash{String => Hash{String => Bluebook::Given, Bluebook::Invariant}}]
+        #   descriptions mapped to their own candidates, each keyed by declaring owner
+        # @param description [String] the rule's own description to find
+        # @return [Hash{String => Bluebook::Given, Bluebook::Invariant}] the candidates for
+        #   `description`, keyed by declaring owner; empty when none exist
         def resolve_owner_keyed(pool, description)
           pool[description] || {}
         end
@@ -102,6 +132,13 @@ module Hecks
         # sibling (`:invariants` today; kept a parameter, not hardcoded,
         # since a future sibling-scan scope might reference a different
         # collection).
+        # @param siblings [Array<Object>] the already-built sibling objects to scan; each must
+        #   respond to `reader`
+        # @param description [String] the rule's own description to find
+        # @param reader [Symbol] the method to call on each sibling to read its own rule
+        #   collection, such as `:invariants`
+        # @return [Bluebook::Given, Bluebook::Invariant, nil] the matching rule, or `nil` if no
+        #   sibling declares one
         def resolve_sibling_scan(siblings, description, reader:)
           siblings.flat_map { |sibling| sibling.public_send(reader) }
                   .find { |rule| rule.description == description }
@@ -138,6 +175,14 @@ module Hecks
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).
         BOOTSTRAP_FALLBACK = BootstrapTable::RESOLVES
 
+        # Reads how a (word, context) pair resolves its rule references, off the self-hosted
+        # grammar table itself (or, while that table is still booting, the projected fallback).
+        #
+        # @param word [String] the DSL word, such as `"given"` or `"invariant"`
+        # @param context [String] the grammar context, such as `"Aggregate"`
+        # @return [Hash{Symbol => String, nil}] `:resolves_via` and `:disambiguator` for this
+        #   (word, context) pair, `nil`-valued when the row leaves either blank, or `{}` if no row
+        #   matches at all
         def lookup(word, context)
           if MetaValidator.bootstrapping?
             BOOTSTRAP_FALLBACK[[word, context]] || {}
@@ -162,6 +207,13 @@ module Hecks
         # real drift between the language's own self-description and
         # its own implementation, caught at the next boot of anything,
         # not just the next `rspec` run.
+        # @param word [String] the DSL word, such as `"given"` or `"invariant"`
+        # @param context [String] the grammar context, such as `"Aggregate"`
+        # @param expected_primitive [String] the resolution primitive's own name the caller is
+        #   about to use, such as `"hash_chain"`, `"owner_keyed"`, or `"sibling_scan"`
+        # @return [void]
+        # @raise [RuntimeError] if `syntax.bluebook`'s own `resolves_via` for this (word, context)
+        #   pair names something other than `expected_primitive`
         def verify_resolves_via!(word, context, expected_primitive)
           actual = lookup(word, context)[:resolves_via]
           return if actual == expected_primitive

@@ -2,14 +2,15 @@ require "spec_helper"
 require "tempfile"
 
 # Real dispatch coverage for the Value-wrap asymmetry bug fix across
-# increment/decrement/multiply: #apply used to wrap `amount` into a Value
-# whenever the target attribute existed, never checking whether `current`
-# (the field's own existing value) was also wrapped. On a phantom-created
-# field -- a VO-typed attribute with no declared default, genuinely nil
-# until first touched -- `current` came back as a raw, unwrapped 0, so the
-# two sides of the same arithmetic call disagreed on Value-ness and the
-# primitive path refused a correctly-typed number as a type mismatch the
-# caller never made.
+# increment/decrement/multiply: #apply wrapping `amount` into a Value
+# whenever the target attribute existed, without checking whether `current`
+# (the field's own existing value) was also wrapped, would break on a
+# phantom-created field -- a VO-typed attribute with no declared default,
+# genuinely nil until first touched -- where `current` comes back as a raw,
+# unwrapped 0, so the
+# two sides of the same arithmetic call would disagree on Value-ness and
+# the primitive path would refuse a correctly-typed number as a type
+# mismatch the caller never made.
 #
 # Uses a literal amount (`increment: 1`, not `increment: :amount`)
 # deliberately: a Symbol source naming a command argument arrives already

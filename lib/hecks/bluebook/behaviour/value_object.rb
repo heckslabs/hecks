@@ -6,13 +6,22 @@ module Hecks
       # behaviour is singleton behaviour, and the holding half's `absorb`
       # is what a generated constructor would be.
       module ValueObject
-        # A one_of declared but left empty used to be indistinguishable from no
-        # one_of at all — both are `members: []` — so the rule about it could
-        # only live in the builder. Recording the declaration lets the language
-        # judge it, the same way an empty attribute name survives into the IR
-        # and is judged there.
+        # Recorded as its own fact (`closed_set`), not left to be inferred from
+        # `members: []` alone — an empty `one_of` and no `one_of` at all would
+        # otherwise be indistinguishable, which would leave the rule about it
+        # only livable in the builder. Recording the declaration lets the
+        # language judge it instead, the same way an empty attribute name
+        # survives into the IR and is judged there.
+        #
+        # @return [Boolean] whether this value object declares `one_of`, even
+        #   if left empty
         def closed_set? = @closed_set
 
+        # Finds a declared attribute by its declared name.
+        #
+        # @param named [String, Symbol] the attribute's declared name
+        # @return [Bluebook::Attribute, nil] the attribute named `named`, or
+        #   `nil` if none is declared under that name
         def attribute(named) = attributes.find { |held| held.name == named.to_sym }
 
         # A single-attribute value object (EmailAddress{address},
@@ -30,6 +39,9 @@ module Hecks
         # `retention_months`/`paper_fee_cents`). `sole_attribute` would
         # return `nil` for that shape and break the discriminant lookup —
         # left as `.first` on purpose, not a missed migration.
+        #
+        # @return [Bluebook::Attribute, nil] this value object's only
+        #   attribute, or `nil` when it has zero or more than one
         def sole_attribute
           attributes.first if attributes.size == 1
         end

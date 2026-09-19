@@ -1,10 +1,10 @@
 require "spec_helper"
 
-# ROADMAP I3, SECOND HALF — `dispatch` took command facts as loose keyword
+# Roadmap I3, second half — `dispatch` took command facts as loose keyword
 # arguments until 1.3.x, deprecated there and removed here. One bag holding
 # both the receiver's identity and the command's payload is the shape behind
 # nine past routing bugs; the receiver goes in `to:`, the facts in `with:`,
-# and a caller holding a bag of DATA rather than written keywords calls
+# and a caller holding a bag of data rather than written keywords calls
 # `dispatch_flat`, which is the wire form and stays.
 #
 # Ruby itself is the refusal now — an unknown keyword, named — so this file

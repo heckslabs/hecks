@@ -22,6 +22,8 @@ module DoctestNames
   # AUTHORING.md is the contract for writing these, and index.md is a
   # generated table of contents — neither is a document with claims of
   # its own to back.
+  #
+  # @return [Array<String>] every guide's own path, README.md included
   def guides
     (Dir.glob(File.join(ROOT, "docs/implemented/guides/*.md")) -
      [File.join(ROOT, "docs/implemented/guides/AUTHORING.md"),
@@ -29,11 +31,17 @@ module DoctestNames
       [File.join(ROOT, "README.md")]
   end
 
+  # Lists the DSL reference pages, one runnable example per word.
+  #
+  # @return [Array<String>] every DSL reference page's own path
   def reference
     Dir.glob(File.join(ROOT, "docs/implemented/reference/*.md")) -
       [File.join(ROOT, "docs/implemented/reference/index.md")]
   end
 
+  # Lists every document this gate covers.
+  #
+  # @return [Array<String>] every gated document's own path: `guides` plus `reference`
   def all = guides + reference
 
   # Everything at docs/*.md (one level, not docs/implemented/, not the
@@ -87,6 +95,8 @@ module DoctestNames
   # nobody decided yet whether it belongs in `guides` (write it as a
   # narrative with real fences) or on the list above (a status/planning
   # document, exempt with the same reasoning as its neighbors).
+  # @return [Array<String>] basenames present at `docs/*.md` that `UNGATED_STATUS_DOCS`
+  #   does not account for; empty when the list is still complete
   def unaccounted_top_level_docs
     Dir.glob(File.join(ROOT, "docs/*.md")).map { |path| File.basename(path) }.sort -
       UNGATED_STATUS_DOCS
@@ -100,11 +110,15 @@ module DoctestNames
   # reason the reference pages prefer loading the corpus: 105 invented
   # chapters would be 105 names to keep distinct, and the corpus is
   # already the honest thing to document a shipped language with.
+  # @return [Hash{String => Array<String>}] each gated document's own path, mapped to the
+  #   chapter names it invents
   def claims
     all.to_h { |path| [path, Doctest.declared_domains(Doctest.parse(path))] }
   end
 
-  # Returns a list of sentences, empty when nothing collides.
+  # Finds every chapter name two documents both claim.
+  #
+  # @return [Array<String>] one sentence per colliding chapter name, empty when none collide
   def collisions
     owners = {}
     claims.flat_map do |path, domains|
@@ -119,5 +133,9 @@ module DoctestNames
     end
   end
 
+  # Shortens an absolute path for display.
+  #
+  # @param path [String] an absolute path under `ROOT`
+  # @return [String] `path`, relative to `ROOT`
   def relative(path) = path.delete_prefix("#{ROOT}/")
 end

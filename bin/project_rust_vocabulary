@@ -21,6 +21,13 @@ require "tempfile"
 
 KERNEL = File.expand_path("../rust/src/kernel", __dir__)
 
+# Writes `content` to `target` through a temp file and atomic rename, so a
+# reader never observes a partially written file even if the process is
+# killed mid-write.
+#
+# @param target [String] absolute path of the file to write
+# @param content [String] full file content to write
+# @return [void]
 def write_atomically(target, content)
   FileUtils.mkdir_p(File.dirname(target))
   Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|

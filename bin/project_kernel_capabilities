@@ -43,19 +43,20 @@
 # sites give once a human closes the gap by adding the file
 # (bin/rust_kernel_coverage checks for exactly that file, mechanically).
 #
-# A third capability used to be written here too, and no longer is —
-# worth recording why, since its absence could otherwise look like an
-# oversight rather than a decision. `Hecks::QuerySpecification::
-# Common::COMPARATORS` (lib/hecks/query_specification/common/
-# comparators.rb) — `eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`in`/`contains`, the
-# same eight names `Vocabulary::QueryComparator` (language/bluebook/
-# vocabulary.bluebook) declares — used to have no kernel dispatch site at
-# all, so this script wrote `rust/src/kernel/query_comparators.rs` as a
-# bare, undispatched gap-enum (`emit_gap_enum`, formerly here): no `match`
-# anywhere to protect, so nothing for a generator to keep honest, just
-# eight names tracked so they wouldn't stay undiscoverable until a real
-# query engine came along and someone had to re-derive them from Ruby by
-# hand.
+# A third capability, `Hecks::QuerySpecification::Common::COMPARATORS`
+# (lib/hecks/query_specification/common/comparators.rb) — `eq`/`ne`/`gt`/
+# `gte`/`lt`/`lte`/`in`/`contains`, the same eight names
+# `Vocabulary::QueryComparator` (language/bluebook/vocabulary.bluebook)
+# declares — is deliberately not generated here, worth recording since
+# its absence could otherwise look like an oversight rather than a
+# decision. It has a real kernel dispatch site now, in
+# `rust/src/kernel/query_comparators.rs` (see below) — this script's own
+# `emit_gap_enum`, no longer called, is what wrote that file as a bare,
+# undispatched gap-enum for as long as no dispatch site existed: no
+# `match` anywhere to protect, so nothing for a generator to keep honest,
+# just eight names tracked so they would not stay undiscoverable until a
+# real query engine came along and someone had to re-derive them from
+# Ruby by hand.
 #
 # That day came: `rust/src/kernel/cli.rs`'s ad hoc, single-comparator
 # "query" step (the object form) now dispatches over this enum for real,
@@ -92,6 +93,12 @@ require "tempfile"
 
 ROOT = File.expand_path("..", __dir__)
 
+# Writes generated content to `target` via a same-directory temp file and
+# rename, so a reader never observes a partially-written file.
+#
+# @param target [String] the absolute path to write
+# @param content [String] the file's full contents
+# @return [void]
 def write_atomically(target, content)
   FileUtils.mkdir_p(File.dirname(target))
   Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|
@@ -103,13 +110,28 @@ def write_atomically(target, content)
 end
 
 # snake_case grammar/Ruby name -> PascalCase Rust variant name. Plain
-# ASCII splitting on "_" — every name this ever sees (SHAPES' own
+# ASCII splitting on "_" — every name this ever sees (`SHAPES`' own
 # symbols, Grammar's own `category` strings) is already a simple
 # lowercase/underscore token, never anything richer.
+#
+# @param name [String, Symbol] a snake_case grammar or Ruby name
+# @return [String] the PascalCase Rust enum variant name
 def pascal(name)
   name.to_s.split("_").map { |part| part[0].upcase + part[1..] }.join
 end
 
+# Renders and writes one capability enum module: the `pub mod` lines, the
+# enum itself, and its `module_name`/`ALL` impl.
+#
+# @param target [String] the absolute path of the `mod.rs` file to write
+# @param header [String] the file-level doc block naming the ground-truth source, inserted
+#   verbatim after the generated-file banner
+# @param enum_name [String] the Rust enum's name, e.g. `"AttributeShape"` or `"OperatorCategory"`
+# @param names [Array<String>] the capability names, in declaration order; each becomes one
+#   enum variant and one `pub mod` line
+# @param doc_line [String] short citation of the ground truth `names` came from, echoed into
+#   the generated file's banner comment
+# @return [void]
 def emit_mod(target, header:, enum_name:, names:, doc_line:)
   variants = names.map { |name| "    #{pascal(name)}," }.join("\n")
   mods     = names.map { |name| "pub mod #{name};" }.join("\n")
@@ -152,7 +174,7 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
   write_atomically(target, content)
 end
 
-# ── Attribute SHAPES ──────────────────────────────────────────────────
+# ── Attribute shapes ──────────────────────────────────────────────────
 shape_names = Hecks::Runtime::Value::Coercion::SHAPES
 emit_mod(
   File.join(ROOT, "rust/src/kernel/attribute_shapes/mod.rs"),

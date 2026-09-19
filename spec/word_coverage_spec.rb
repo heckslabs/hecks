@@ -7,7 +7,7 @@ require "hecks/doc/reference"
 # down and naming the consumer, never assumed." (principle 4)
 #
 # `bin/doc_coverage`/`spec/reference_golden_spec.rb` already close the
-# DOCTEST half — every live word must carry prose and a fenced, running
+# doctest half — every live word must carry prose and a fenced, running
 # example. Neither checks the other half: a doctest can run against a
 # chapter invented for the page alone (`docs/implemented/reference/*.md` do this
 # routinely — a synthetic `QueryReference`/`DomainPortReference`/

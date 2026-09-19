@@ -18,9 +18,19 @@ module Hecks
 
     module_function
 
-    # The parts of an identity, joined in declaration order.
+    # Joins the parts of an identity in declaration order.
+    #
+    # @param parts [Array<#to_s>, #to_s] one or more identity segments; a bare
+    #   value is wrapped in a single-element Array
+    # @return [String] the segments joined with `IDENTITY_JOIN`
     def identity(parts) = Array(parts).join(IDENTITY_JOIN)
 
+    # Strips a namespace path down to its last segment.
+    #
+    # @param type [Module, String, Symbol, #to_s] a `::`-joined constant path, or
+    #   anything whose `to_s` is one
+    # @return [String] the text after the last `::`, or the whole `to_s` if there
+    #   is none
     def demodulise(type)
       type.to_s.split("::").last.to_s
     end
@@ -28,10 +38,17 @@ module Hecks
     # snake_case -> PascalCase. The name a synthesised closed-set value object
     # takes when an attribute declares one inline. The derivation is part of
     # the IR contract: the same bluebook must always produce the same name.
+    #
+    # @param text [String, Symbol, #to_s] a snake_case (or already Pascal) name
+    # @return [String] the PascalCase form
     def pascal(text)
       text.to_s.split("_").map { |part| part.sub(/\A(.)/) { Regexp.last_match(1).upcase } }.join
     end
 
+    # PascalCase or camelCase -> snake_case.
+    #
+    # @param text [String, Symbol, #to_s] a Pascal-, camel-, or already snake-case name
+    # @return [String] the lowercase, underscore-separated form
     def snake(text)
       text.to_s
           .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
@@ -48,6 +65,9 @@ module Hecks
     # nobody says ("Atm"). First word capitalized, the rest lowercased,
     # so a headword reads as sentence case whatever casing it was
     # declared in.
+    #
+    # @param text [String, Symbol, #to_s] a Pascal-, camel-, or snake-case identifier
+    # @return [String] the space-separated, sentence-cased phrase
     def words(text)
       parts = text.to_s
                   .tr("_", " ")
@@ -61,9 +81,14 @@ module Hecks
       end.join(" ")
     end
 
-    # "A, B, and C" / "A or B" — the Oxford-comma list every English
-    # sentence a projection writes wants; lived in `NarrateProjector`
-    # alone until a second projection needed it.
+    # Joins items into the Oxford-comma list — "A, B, and C" / "A or B" —
+    # every English sentence a projection writes wants; lived in
+    # `NarrateProjector` alone until a second projection needed it.
+    #
+    # @param items [Array<#to_s>] the items to join
+    # @param conj [String] the word before the last item, such as `"and"` or `"or"`
+    # @return [String] `""` for no items, the item's `to_s` for one, and the
+    #   Oxford-comma join for more
     def to_sentence_list(items, conj: "and")
       case items.size
       when 0 then ""
@@ -73,9 +98,12 @@ module Hecks
       end
     end
 
-    # The vowel-letter heuristic — safe here for the same reason
-    # `Projections::Statements#article` gives: a construct name is a
-    # plain word, never "hour" or "university".
+    # Picks the article for `word` by its first letter — the vowel-letter
+    # heuristic, safe here for the same reason `Projections::Statements#article`
+    # gives: a construct name is a plain word, never "hour" or "university".
+    #
+    # @param word [String, Symbol, #to_s] the word the article precedes
+    # @return [String] `"an"` if `word` starts with a vowel letter, `"a"` otherwise
     def a_or_an(word)
       %w[a e i o u].include?(word.to_s[0].to_s.downcase) ? "an" : "a"
     end
@@ -89,6 +117,9 @@ module Hecks
     # the wrong rule against itself. Agreement is not correctness; it never was.
     #
     # So: one pluraliser, three rules, and every collection name flows through it.
+    #
+    # @param text [String, Symbol, #to_s] a singular name
+    # @return [String] the pluralised name
     def plural(text)
       word = text.to_s
       return "#{word[0..-2]}ies" if word.match?(/[^aeiou]y\z/)
@@ -104,6 +135,9 @@ module Hecks
     # already wrote as a real aggregate, so "ies -> y, trailing s dropped" is the
     # whole rule — enough for `has_many Invoices` to resolve to the aggregate
     # actually named Invoice.
+    #
+    # @param text [String, Symbol, #to_s] a plural name
+    # @return [String] the singularised name
     def singularize(text)
       word = text.to_s
       return "#{word[0..-4]}y" if word.length > 3 && word.end_with?("ies")
@@ -124,25 +158,47 @@ module Hecks
       word
     end
 
+    # Derives the attribute name a reference to `type` is stored under.
+    #
+    # @param type [Module, String, Symbol, #to_s] the referenced construct's name
+    #   or a `::`-joined path to it
+    # @return [Symbol] the snake_case, demodulised name, as a Symbol
     def reference_key(type)
       snake(demodulise(type)).to_sym
     end
 
+    # Splits a `qualifier.name` string on its first dot.
+    #
+    # @param dotted [String, Symbol, #to_s] text, optionally containing a dot
+    # @return [Array(String, String)] `[before the first dot, after it]`; the
+    #   second element is `""` when `dotted` has no dot
     def split_dotted(dotted)
       first, second = dotted.to_s.split(".", 2)
       [first.to_s, second.to_s]
     end
 
+    # The part of a dotted name before its first dot.
+    #
+    # @param dotted [String, Symbol, #to_s] text, optionally containing a dot
+    # @return [String, nil] the text before the first dot, or nil if `dotted`
+    #   has no dot
     def qualifier(dotted)
       text = dotted.to_s
       text.include?(".") ? text.split(".", 2).first : nil
     end
 
+    # The part of a dotted name after its first dot.
+    #
+    # @param dotted [String, Symbol, #to_s] text, optionally containing a dot
+    # @return [String] the text after the first dot, or the whole text if
+    #   `dotted` has no dot
     def unqualified(dotted)
       text = dotted.to_s
       text.include?(".") ? text.split(".", 2).last : text
     end
 
+    # Splits a domain-qualified verb into its domain, aggregate, and command parts.
+    #
     # Domain, aggregate, then the REST dot-joined into one command path.
     #
     # The `::` boundary between domain and aggregate is unambiguous by
@@ -166,6 +222,11 @@ module Hecks
     # .kind_for` and `ReactionInvocation#resolve_target` both already
     # assume this contract on their own end; this is what actually
     # delivers it to them.
+    #
+    # @param verb [String, Symbol, #to_s] a `Domain::Aggregate.command` (or
+    #   `.query`) path
+    # @return [Array(String, String, String), nil] `[domain, aggregate, command]`,
+    #   or nil if `verb` has no `.` or no `domain::aggregate` before it
     def split_verb(verb)
       path, command = verb.to_s.split(".", 2)
       return nil unless path && command
@@ -178,6 +239,9 @@ module Hecks
       [domain, aggregate, command]
     end
 
+    # Rewrites a bare command constant's trailing `::` into `.`, matching a
+    # command's own FQN separator; a String or Symbol passes through unchanged.
+    #
     # `trigger Account::Debit` / `dispatch Account::Debit` — a bare
     # constant reference (`ConstShim`'s own `ScopedConstant`, S0b), not
     # text (ADR 0025, "events and reactions" — command references become
@@ -195,6 +259,10 @@ module Hecks
     # it (its own last `::` sits between the domain and the aggregate,
     # not the aggregate and the command). Only an actual constant object
     # — never seen holding a `.` of its own — needs the rewrite at all.
+    #
+    # @param value [Symbol, String, Module] the command, as a bare constant (a
+    #   `ScopedConstant` module `ConstShim` resolves) or already-dotted text
+    # @return [String] the dotted command reference
     def command_ref(value)
       return value.to_s if value.is_a?(::String) || value.is_a?(::Symbol)
 
@@ -203,6 +271,9 @@ module Hecks
       path.empty? ? text : "#{path}.#{command}"
     end
 
+    # The event-side twin of `command_ref`, kept as its own name because an
+    # event name is not a command name that happens to share a format.
+    #
     # `emits Account::AccountFrozen` / `on Account::AccountFrozen` — the
     # event-side twin of `command_ref`, above (ADR 0025, S6 — "events
     # first-class"). Identical transform (a bare `ScopedConstant`'s last
@@ -212,8 +283,14 @@ module Hecks
     # own name because the two references mean different things even
     # though the rewrite is byte-identical: an event name is not a
     # command name that happens to share a format.
+    #
+    # @param value [Symbol, String, Module] the event, as a bare constant (a
+    #   `ScopedConstant` module `ConstShim` resolves) or already-dotted text
+    # @return [String] the dotted event reference
     def event_ref(value) = command_ref(value)
 
+    # Strips a process manager's event reference down to its bare event name.
+    #
     # `transition Account::AccountDebited => "state"` / `starts_on
     # Transfer::TransferRequested` / `ends_on Transfer::TransferSettled`
     # — a process manager's own event references (ADR 0025, S6),
@@ -240,6 +317,10 @@ module Hecks
     # passes through unchanged either way, exactly like `command_ref`'s
     # own legacy branch — this corpus never spelled one dotted to begin
     # with, so there is nothing here to strip.
+    #
+    # @param value [Symbol, String, Module] the event, as a bare constant (a
+    #   `ScopedConstant` module `ConstShim` resolves) or already-dotted text
+    # @return [String] the bare event name, with any qualifier stripped
     def event_name_ref(value) = demodulise(value)
   end
 end

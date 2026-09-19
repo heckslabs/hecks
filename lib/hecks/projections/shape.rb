@@ -31,6 +31,14 @@ module Hecks
       # is "every file here registers," not "every projection always
       # succeeds") but refuses clearly if asked to run with the plugin
       # unloaded, rather than raising on an undefined constant.
+      # Projects the storage shape of `bluebook` — the structural form an era
+      # bump/no-bump question is answered by diffing.
+      #
+      # @param bluebook [Bluebook::Chapter] the bluebook to reduce to its storage shape
+      # @param options [Hash] unused; accepted to satisfy the registry's call shape
+      # @return [Hash{String => Object}] `Runtime::StorageShape.project`'s Hash: `"name"`
+      #   and a sorted `"aggregates"` array
+      # @raise [RuntimeError] if the era persistence plugin is not loaded
       def call(bluebook:, options: {})
         unless Ports::Persistence.plugin?(:era)
           raise "the :shape projection needs the era persistence plugin loaded " \

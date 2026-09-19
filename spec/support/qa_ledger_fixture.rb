@@ -61,15 +61,24 @@ module QaLedgerFixture
     end
   RUBY
 
+  # One spec file's disposable `QualityControl` ledger: a real Postgres
+  # database plus a symlinked-in fixture domain directory, driven as a
+  # subprocess by the `bin/qa_*` script under test. See this file's own
+  # header for why it exists as a shared implementation.
   class Ledger
     attr_reader :database, :dir
 
+    # @param database [String] the disposable Postgres database's name,
+    #   created by `#stand_up!` and dropped by `#tear_down!`
     def initialize(database:)
       @database = database
     end
 
     # Creates the database and the fixture directory. Call from
     # `before(:all)`, after a `PostgresProbe.available?` skip.
+    #
+    # @return [QaLedgerFixture::Ledger] self, once the database and fixture
+    #   directory are ready
     def stand_up!
       @root = Dir.mktmpdir("qa_ledger_fixture")
       @dir  = File.join(@root, "bluebook")
@@ -96,6 +105,9 @@ module QaLedgerFixture
       self
     end
 
+    # Drops the disposable database and removes the fixture directory.
+    #
+    # @return [void]
     def tear_down!
       admin = PG.connect(dbname: "postgres")
       admin.exec("DROP DATABASE IF EXISTS #{@database} WITH (FORCE)")
@@ -105,6 +117,8 @@ module QaLedgerFixture
 
     # A fresh schema before every example — a row a prior example left
     # behind must never leak into the next one's own ledger.
+    #
+    # @return [void]
     def reset!
       scrub = PG.connect(dbname: @database)
       scrub.exec("DROP SCHEMA public CASCADE")
@@ -115,17 +129,31 @@ module QaLedgerFixture
 
     # Booted in-process, briefly, to seed or read rows — never to run
     # the script under test, which is always a real subprocess.
+    #
+    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher
+    #   bound to the fixture domain
     def boot
       Hecks.boot(@dir)
     end
 
     # The environment every subprocess gets: the seam `bin/qa_sweep`,
     # `bin/qa_pr_check`, `bin/qa_log_bug`, `bin/qa_open_pr` all honour.
+    #
+    # @param extra [Hash{String => String}] additional environment variables,
+    #   merged over the base and able to override `QA_SWEEP_DOMAIN_DIR`
+    # @return [Hash{String => String}] the environment to hand a subprocess
     def env(extra = {})
       { "QA_SWEEP_DOMAIN_DIR" => @dir }.merge(extra)
     end
 
     # `bundle exec ruby bin/<script> …`, exactly as a human would type it.
+    #
+    # @param script [String] the script's basename under `bin/`
+    # @param env [Hash{String => String}] extra environment variables,
+    #   merged via `#env`
+    # @param chdir [String] the directory to run the subprocess from
+    # @return [Array(String, String, Process::Status)] the subprocess's
+    #   captured stdout, stderr and exit status
     def run(script, *, env: {}, chdir: InMemoryDomain::ROOT)
       Open3.capture3(self.env(env), "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin", script), *,
                      chdir: chdir)

@@ -286,7 +286,8 @@ RSpec.describe "the evolve surgery" do
       with_copies("Command") do |paths|
         contents = paths.to_h { |path| [path, File.read(path)] }
         EVOLVE.restore_on_raise(paths) { EVOLVE.rename(word: "emits", context: "Command", to: "announces", path: paths) }
-        expect(paths.any? { |path| File.read(path) != contents[path] }).to be(true) # the rename really landed
+        # the rename really landed
+        expect(paths.any? { |path| File.read(path) != contents[path] }).to be(true)
       end
     end
 

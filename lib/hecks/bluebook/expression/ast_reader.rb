@@ -26,8 +26,19 @@ module Hecks
       module AstReader
         module_function
 
+        # Reads a whole predicate's own `"op"`-tagged JSON back into its AST.
+        #
+        # @param json [Hash{String => Object}] the `"op"`-tagged JSON a rule row's own
+        #   `ast` carries
+        # @return [Evaluator::Or, Evaluator::And, Evaluator::Not, Evaluator::Compare,
+        #   Evaluator::Include, Evaluator::Resolve] the boolean/comparison AST node
         def read_predicate(json) = read_bool(json)
 
+        # Reads one boolean/comparison node, recursing into its own children.
+        #
+        # @param json [Hash{String => Object}] the `"op"`-tagged JSON for one node
+        # @return [Evaluator::Or, Evaluator::And, Evaluator::Not, Evaluator::Compare,
+        #   Evaluator::Include, Evaluator::Resolve] the boolean/comparison AST node
         def read_bool(json)
           case json.fetch("op")
           when "or"      then Evaluator::Or.new(left: read_bool(json["left"]), right: read_bool(json["right"]))
@@ -46,6 +57,10 @@ module Hecks
         # `Operator` carrying that exact triple is the one `parse` would
         # have chosen, because the roster (`expression/projection.json`)
         # holds one symbol per triple.
+        #
+        # @param cmp [Hash{String => Boolean}] `{"less_than"=>, "equal"=>, "negated"=>}`
+        # @return [Evaluator::Operator] the operator carrying that exact triple
+        # @raise [RuntimeError] if no operator in `Evaluator::OPERATORS` has that triple
         def operator(cmp)
           Evaluator::OPERATORS.find do |op|
             op.compares_less_than == cmp.fetch("less_than") &&
@@ -54,6 +69,15 @@ module Hecks
           end or raise "no comparison operator has the triple #{cmp.inspect}"
         end
 
+        # Reads one dotted/arithmetic leaf node, recursing into its own children.
+        #
+        # @param json [Hash{String => Object}] the `"op"`-tagged JSON for one leaf node
+        # @return [Object] a `Resolver` AST node — one of `IntegerLiteral`, `FloatLiteral`,
+        #   `StringLiteral`, `BoolLiteral`, `NilLiteral`, `ArrayLiteral`, `Lookup`,
+        #   `Addition`, `SignTest`, `Empty`, `ToS`, `Modulo`, `Size`, `First`, `Last`,
+        #   `BlockPredicate`, `Find`, `MatchesRegex`, `Presence`, `Assignment`, `Split`,
+        #   `StartsWith`, or `EndsWith`
+        # @raise [RuntimeError] if `json["op"]` names no known resolver op
         # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity -- one arm
         # per AstJson op is the point; splitting the case would hide the roster.
         def read_resolver(json)
@@ -98,6 +122,11 @@ module Hecks
         # triple is what evaluates. Recover the spelling from the
         # vocabulary so a rebuilt node refuses with the same message the
         # parsed one would.
+        #
+        # @param operator [Evaluator::Operator] the comparison operator a sign test's own
+        #   triple resolved to
+        # @return [String] the sign test's own vocabulary name, or `operator.symbol` when
+        #   no sign test shares its triple
         def sign_test_name(operator)
           Resolver::SIGN_TEST_OPERATORS.key(operator.symbol) || operator.symbol
         end

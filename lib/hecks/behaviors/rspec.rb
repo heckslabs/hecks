@@ -21,6 +21,14 @@ module Hecks
     module RSpec
       module_function
 
+      # Parses one `.behaviors` file and registers an rspec example group for it, one
+      # `it` per test named by the test's own description.
+      #
+      # @param path [String] the `.behaviors` file's path
+      # @return [void]
+      # @raise [RuntimeError] not raised by this call itself; wraps `parsed.parse_error`'s
+      #   message and is raised only when rspec later runs the generated "loads without a
+      #   parse error" example, so it surfaces as that example's failure
       def describe_file(path)
         parsed = Behaviors.parse(path)
 

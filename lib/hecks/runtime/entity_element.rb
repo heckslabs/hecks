@@ -33,6 +33,9 @@ module Hecks
       UNMATCHABLE = Object.new.freeze
       private_constant :UNMATCHABLE
 
+      # Walks `chain`, one hop per entry, and returns the located element (or
+      # `instance` itself, when `chain` is empty).
+      #
       # **One hop per chain entry**. `container` starts as `instance` (the root
       # aggregate record) and becomes each just-located element in turn —
       # Dispatch's own element is found inside the Handler element
@@ -52,6 +55,22 @@ module Hecks
       # split's own consequence: an entity's own identity may arrive via
       # `to:` rather than duplicated into `args`, so each hop is offered
       # its routed identity ahead of falling back to `args`.
+      #
+      # @param root_aggregate [Bluebook::Aggregate] the root aggregate record's
+      #   own construct, held constant across every hop for coercion
+      # @param chain [Array<Bluebook::Entity>] the entity chain to walk, root-first
+      # @param instance [Runtime::Instance] the root aggregate record to walk from
+      # @param args [Hash{String, Symbol => Object}] the offered command arguments,
+      #   read for each hop's own identity when `route` does not supply it
+      # @param command_name [String] the command name, quoted in a refusal
+      # @param route [Runtime::Routing::Envelope, nil] the call's resolved routing
+      #   envelope, if any; its own `entities` supply each hop's identity first
+      # @return [Runtime::Instance, Hash{Symbol => Object}] the located element;
+      #   `instance` itself, unchanged, when `chain` is empty
+      # @raise [Runtime::UnknownVerb] if a hop's owner declares no list attribute
+      #   for that entity
+      # @raise [Runtime::NotFound] if a hop's identity is absent from `args`, or no
+      #   element matches it
       def locate_chain(root_aggregate, chain, instance, args, command_name, route = nil)
         container = instance
         owner     = root_aggregate
@@ -81,6 +100,24 @@ module Hecks
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/PerceivedComplexity
       # rubocop:disable-next Metrics/MethodLength
+      #
+      # @param root_aggregate [Bluebook::Aggregate] the root aggregate record's own
+      #   construct, used for value-object coercion
+      # @param owner [Bluebook::Aggregate, Bluebook::Entity] the construct whose own
+      #   attribute declares the list `entity` is searched in
+      # @param entity [Bluebook::Entity] the entity type being located
+      # @param command_name [String] the command name, quoted in a refusal
+      # @param container [Runtime::Instance, Hash{Symbol => Object}] the record or
+      #   element holding the list to search
+      # @param args [Hash{String, Symbol => Object}] the offered command arguments,
+      #   read for the element's own identity when `routed_identity` is nil
+      # @param routed_identity [String, nil] the routing envelope's own identity
+      #   string for this hop, matched directly instead of deriving one from `args`
+      # @return [Hash{Symbol => Object}] a fresh copy of the located element; the
+      #   owning list inside `container` is replaced with a fresh copy too
+      # @raise [Runtime::UnknownVerb] if `owner` declares no list attribute for `entity`
+      # @raise [Runtime::NotFound] if an identity part is absent from `args`
+      #   (`routed_identity` nil only), or no element matches
       def element_of(root_aggregate, owner, entity, command_name, container, args, routed_identity = nil)
         entity_name = entity.hecks_name
         list_attr = owner.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
@@ -173,6 +210,12 @@ module Hecks
       # that does not name its fields is refused when the bluebook loads ("an
       # entity says what it is known by", "an identity part names something"),
       # so by the time a dispatch arrives here there is always a path to dig.
+      #
+      # @param entity [Bluebook::Entity] the entity type whose identity paths
+      #   are read
+      # @param element [Hash{Symbol => Object}] the stored element to read an
+      #   identity off
+      # @return [String] the element's identity, joined from its declared parts
       def element_identity(entity, element)
         parts = entity.identity_paths.map do |path|
           head = path.to_s.split(".").first.to_sym
@@ -215,8 +258,32 @@ module Hecks
       # intentional mirroring, which is what lets the two be diffed
       # against each other when one gets a fix the other needs too.
       # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity
+      # Applies one declared mutation to an entity element, in place.
+      #
       # `pre` — the element as it was before this command (C4.2): every
       # read below goes through it, every write lands on `element`.
+      #
+      # @param rules [Runtime::CommandRules] the shared rules engine `resolve_source`/
+      #   `arithmetic`/`multiply`/`clamp`/`sign_of` are read through
+      # @param aggregate [Bluebook::Aggregate] the root aggregate, for value-object
+      #   coercion
+      # @param entity [Bluebook::Entity] the entity type `element` is an instance of
+      # @param element [Hash{Symbol => Object}] the element to mutate; written in place
+      # @param mutation [Bluebook::Mutation] the declared mutation to apply
+      # @param args [Hash{String, Symbol => Object}] the offered command arguments,
+      #   a mutation's source may read from
+      # @param pre [Hash{Symbol => Object}] the element as it stood before this
+      #   command; every read goes through this, every write lands on `element`
+      # @return [void]
+      # @raise [Runtime::TypeMismatch] if a mutation's own value cannot be coerced,
+      #   or an arithmetic op's operands are not numeric or compatible value objects
+      # @raise [Runtime::InvariantViolation] if a coerced or arithmetic-derived value
+      #   object breaks one of its own invariants
+      # @raise [Runtime::AlreadyExists] if an `:append` mints a nested entity whose
+      #   identity collides with an existing element
+      # @raise [Bluebook::Expression::EvaluationError] if an arithmetic op's product
+      #   does not fit a signed 64-bit Integer, or is a non-finite Float
+      # @raise [Runtime::WiringError] if `mutation.op` names no handled mutation kind
       def apply_to_element(rules, aggregate, entity, element, mutation, args, pre = element)
         case mutation.op
         when :set
@@ -269,22 +336,47 @@ module Hecks
         end
       end
 
+      # Rewraps a plain-Numeric arithmetic result into `attribute`'s own declared
+      # value-object type, when the arithmetic itself ran unwrapped.
+      #
       # `MutationApplier#rewrap_arithmetic_result`'s own entity-scoped
       # twin, byte-for-byte the same fix — see that method's own
       # comment for the full "phantom-field asymmetric wrapping" story.
       # A no-op whenever `current` was already a Value (the arithmetic
       # call already returned one) or the mutation targets no declared
       # attribute at all.
+      #
+      # @param aggregate [Bluebook::Aggregate] the root aggregate, for value-object
+      #   coercion
+      # @param attribute [Bluebook::Attribute, nil] the mutated field's own declared
+      #   attribute; a no-op when nil (targets no declared attribute)
+      # @param current [Object] the field's pre-mutation value, as read off `pre`
+      # @param result [Object] the arithmetic op's own result
+      # @return [Runtime::Value, Object] `result` unchanged when already a `Value`,
+      #   `current` is a `Value`, or `attribute` is nil; otherwise `result` coerced
+      #   into `attribute`'s own declared type
       def rewrap_arithmetic_result(aggregate, attribute, current, result)
         return result if current.is_a?(Value) || attribute.nil? || result.is_a?(Value)
 
         Value.for_attribute(aggregate, attribute, result)
       end
 
+      # Resolves an `:append` mutation's own field source against the offered
+      # arguments, falling back to the element's own current field.
+      #
       # `MutationApplier#resolve_append_source`'s own entity-scoped
       # twin — a caller-supplied arg first, falling back to the
       # element's own current field (never the parent instance's) when
       # it isn't one.
+      #
+      # @param source [Symbol, Object] the mutation's own field source: a Symbol
+      #   names a command argument or, failing that, an element field; anything
+      #   else is returned as is
+      # @param element [Hash{Symbol => Object}] the element to fall back to reading
+      #   from
+      # @param args [Hash{String, Symbol => Object}] the offered command arguments
+      # @return [Object, nil] the named argument's value; failing that, the named
+      #   element field's value; `source` itself when it is not a Symbol
       def resolve_element_append_source(source, element, args)
         return source unless source.is_a?(Symbol)
         return args[source] if args.key?(source)
@@ -314,6 +406,20 @@ module Hecks
       # every declared attribute the append mapping doesn't name gets its
       # own default the same way a fresh aggregate's own attributes
       # already do (`Instance.defaults`), whichever branch built `fields`.
+      #
+      # @param aggregate [Bluebook::Aggregate] the root aggregate, for value-object
+      #   coercion
+      # @param entity [Bluebook::Entity] the entity type `element`'s mutated list
+      #   attribute belongs to
+      # @param element [Hash{Symbol => Object}] the element being appended to, read
+      #   as the source for a field the mutation's own map does not supply directly
+      # @param mutation [Bluebook::Mutation] the declared `:append` mutation
+      # @param args [Hash{String, Symbol => Object}] the offered command arguments
+      # @return [Array] `element[mutation.target]`'s existing elements, frozen deep,
+      #   with the newly built element (a `Runtime::Value`, or a Hash for an entity
+      #   or untyped element) appended last
+      # @raise [Runtime::AlreadyExists] if the appended element is a nested entity
+      #   whose identity collides with an existing one
       def appended_to_element(aggregate, entity, element, mutation, args)
         fields       = mutation.source.transform_values { |source| resolve_element_append_source(source, element, args) }
         element_type = entity.attribute(mutation.target)&.type
@@ -389,6 +495,15 @@ module Hecks
       # what "the default" means. Additive only — a key `fields` already
       # holds (the append mapping, an auto-minted identity, a lifecycle
       # default) is never overwritten.
+      #
+      # @param aggregate [Bluebook::Aggregate] the root aggregate, for value-object
+      #   coercion
+      # @param entity [Bluebook::Entity] the entity type whose declared attributes
+      #   are defaulted
+      # @param fields [Hash{Symbol => Object}] the element fields already resolved;
+      #   written in place
+      # @return [Hash{Symbol => Object}] `fields`, with every declared attribute it
+      #   did not already hold filled with its own default
       def fill_declared_defaults(aggregate, entity, fields)
         entity.attributes.each do |attribute|
           next if fields.key?(attribute.name)
@@ -404,6 +519,18 @@ module Hecks
       # the list this targets is itself entity-typed — see
       # `list_element_match?`, below, which both this and
       # `MutationApplier#removed` now share.
+      #
+      # @param rules [Runtime::CommandRules] the shared rules engine `resolve_source`
+      #   is read through
+      # @param aggregate [Bluebook::Aggregate] the root aggregate, for value-object
+      #   coercion
+      # @param entity [Bluebook::Entity] the entity type `element`'s mutated list
+      #   attribute belongs to
+      # @param element [Hash{Symbol => Object}] the element being removed from
+      # @param mutation [Bluebook::Mutation] the declared `:remove` mutation
+      # @param args [Hash{String, Symbol => Object}] the offered command arguments
+      # @return [Array] `element[mutation.target]`'s existing elements, with any
+      #   matching the resolved remove target left out
       def removed_from_element(rules, aggregate, entity, element, mutation, args)
         value     = rules.resolve_source(mutation.source, args)
         attribute = entity.attribute(mutation.target)
@@ -443,6 +570,17 @@ module Hecks
       # "matches" means — the same reasoning this file's own header
       # gives for centralizing `locate_chain`/`element_of` once rather
       # than twice.
+      #
+      # @param aggregate [Bluebook::Aggregate] the root aggregate, to resolve
+      #   whether `attribute`'s own type is an entity
+      # @param attribute [Bluebook::Attribute, nil] the list attribute `element`
+      #   belongs to
+      # @param element [Object] the stored list element to check: a Hash for an
+      #   entity-typed list, a `Runtime::Value` otherwise
+      # @param value [Object] the `remove:` target to match `element` against
+      # @return [Boolean] whole-value equality for a non-entity-typed list;
+      #   identity-field equality for an entity-typed one with a single identity
+      #   head; false for a composite or absent identity
       def list_element_match?(aggregate, attribute, element, value)
         entity = attribute&.list? ? Value.find_entity(aggregate, attribute.type.to_s) : nil
         return element == value unless entity
@@ -453,24 +591,27 @@ module Hecks
         element.is_a?(Hash) && element[head] == value
       end
 
-      # BUG#13 (PR #549) — the same check #hydrate gives every creating
+      # Refuses a caller-supplied or composite identity that already names an
+      # element on `current`.
+      #
+      # BUG#13 — the same check #hydrate gives every creating
       # aggregate command (`repository.find(id)`,
-      # `command_interpreter.rb`), one level down. Originally lived in
-      # `MutationApplier` (mutation_applier.rb), called only from
+      # `command_interpreter.rb`), one level down. Shared with
+      # `MutationApplier` (mutation_applier.rb), called from
       # `#entity_element` — an aggregate's own entity list (`Workspace.
-      # boards`, `Ledger.entries`). Moved here (BUG#145) so `#appended_
+      # boards`, `Ledger.entries`) — and, moved here (BUG#145), from `#appended_
       # to_element`, above — an entity's own nested entity list one hop
-      # further in (`Board.cards`) — can share it too, rather than
-      # reimplementing it a second time the same way `#list_element_
+      # further in (`Board.cards`) — so neither call site reimplements
+      # it a second time, the same way `#list_element_
       # match?` already avoids that split for `remove:`.
       #
       # Reached, at the aggregate-owned call site, only on the two
       # branches that do not auto-mint: a caller-supplied identity (the
       # field is already in the append's own field map) or a composite
       # one (`entity.identified_by` is nil for those — Runtime::
-      # Identified#derive_identity). Neither used to check the sibling
+      # Identified#derive_identity). Without this, neither checks the sibling
       # list at all: a second LogVisit with the same date+sequence, or a
-      # second IssueKey with the same serial, appended a silent
+      # second IssueKey with the same serial, would append a silent
       # duplicate — worse than an ordinary duplicate row, because
       # `EntityElement#element_of`'s own `find_index` always matches the
       # first match, so the second becomes permanently unaddressable by
@@ -491,6 +632,18 @@ module Hecks
       # hops up). Used for that naming purpose only (`owner.hecks_name`) —
       # never for `Value`/namespace resolution, which is why an `Entity`
       # (not just an `Aggregate`) is a valid thing to pass here.
+      #
+      # @param owner [Bluebook::Aggregate, Bluebook::Entity] the construct named
+      #   in a refusal as what the duplicate "already exists on"
+      # @param entity [Bluebook::Entity] the entity type being checked for a
+      #   colliding identity
+      # @param current [Array<Hash>, Object] the entity's own existing elements;
+      #   coerced through `Array()`, so a single element or nil is also accepted
+      # @param fields [Hash{Symbol => Object}] the new element's own fields, whose
+      #   identity heads are checked against every element in `current`
+      # @return [void]
+      # @raise [Runtime::AlreadyExists] if `current` already holds an element
+      #   whose identity heads match `fields`'s own
       def check_entity_collision(owner, entity, current, fields)
         heads = entity.identity_heads
         return if heads.empty?

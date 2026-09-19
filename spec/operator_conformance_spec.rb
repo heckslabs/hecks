@@ -205,11 +205,11 @@ RSpec.describe "the operator domain" do
   end
 
   # The gap this file's own header now names: everything above holds the
-  # ledger equal to the evaluator's tables (COMPARISONS, PROBES) — but
+  # ledger equal to the evaluator's tables (`COMPARISONS`, `PROBES`) — but
   # eight real node types (MatchesRegex/Presence/Split/StartsWith/
-  # EndsWith/First/Last, admitted above for the first time) used to
-  # reach `resolver.rb` as hand-coded Structs with a parse branch and an
-  # `interpret` arm and nothing else — no ledger entry, no PROBES entry,
+  # EndsWith/First/Last, admitted above for the first time) would reach
+  # `resolver.rb` as hand-coded Structs with a parse branch and an
+  # `interpret` arm and nothing else — no ledger entry, no `PROBES` entry,
   # nothing any table-shaped guard could see, because they were never
   # table entries; they were leaf-grammar code. `operator_conformance_
   # spec` checking tables could not structurally notice code the tables
@@ -229,9 +229,9 @@ RSpec.describe "the operator domain" do
     # All six comparison symbols (`>=`/`<=`/`</`>`/`==`/`!=`) share one
     # node type — `Evaluator::Compare`, `operator:` naming which of the
     # six — the identical reduction `SignTest` already applies for
-    # `.positive?`/`.negative?`/`.zero?` below. `COMPARISONS` (`==
-    # OPERATORS.map(&:symbol)`) is the ledger-derived roster itself
-    # (evaluator.rb), not a second hand-copied list of the six symbols.
+    # `.positive?`/`.negative?`/`.zero?` below. The ledger-derived roster
+    # itself (`Evaluator::COMPARISONS`, `== OPERATORS.map(&:symbol)` in
+    # evaluator.rb), not a second hand-copied list of the six symbols.
     **Evaluator::COMPARISONS.to_h { |symbol| [symbol, Evaluator::Compare] },
     "+" => Resolver::Addition, ".modulo" => Resolver::Modulo,
     ".positive?" => Resolver::SignTest, ".negative?" => Resolver::SignTest, ".zero?" => Resolver::SignTest,

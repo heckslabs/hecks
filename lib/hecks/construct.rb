@@ -1,6 +1,8 @@
 module Hecks
   # The invisible field a built construct carries.
   #
+  # ## Identity
+  #
   # A construct is a record with an owner chain — the chapter (Bluebook)
   # owns its aggregates, an aggregate owns everything declared on it — and the
   # bluebook identity is carried in its own field, under a `hecks_` prefix that
@@ -20,7 +22,7 @@ module Hecks
   # record of that construct carry the same identity, and there is no
   # translation table between them to be quietly wrong in.
   #
-  # Usage:
+  # ## Usage
   #
   #     price = Class.new(ValueObject)   # a declaration holder
   #     price.hecks_name  = "Price"
@@ -41,14 +43,21 @@ module Hecks
     # rather than a top — see hecks_fqn.
     attr_writer :hecks_root
 
+    # Whether this construct is the top of its own owner chain.
+    #
+    # @return [Boolean] true for a chapter, which sets `hecks_root`; false otherwise
     def hecks_root? = @hecks_root ? true : false
 
     # The name as the bluebook declares it, never the constant path.
+    #
+    # @return [String] the construct's own name, without any owner prefix
     def hecks_name = @hecks_name
 
     # How this construct joins its owner. An aggregate is a member of its
     # chapter's namespace (`::`) ; everything else is declared on its owner
     # (`.`). Overridden by Aggregate, defaulted here for every other construct.
+    #
+    # @return [String] `"."`, the separator this construct uses in `hecks_fqn`
     def hecks_separator = "."
 
     # Refuses rather than guesses. A construct with no owner and no claim to be a
@@ -56,6 +65,11 @@ module Hecks
     # while entities are still IR objects — and answering the bare name would be a
     # plausible half-truth that no test would notice. That shape of falsehood is
     # what this repo keeps finding, so it goes red instead.
+    #
+    # @return [String] the fully-qualified name, joining every owner from the
+    #   chapter down to this construct
+    # @raise [Construct::Unowned] if this construct has no owner and is not itself
+    #   a chapter (root)
     def hecks_fqn
       return hecks_name.to_s if hecks_root?
 

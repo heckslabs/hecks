@@ -27,10 +27,23 @@ module Hecks
         # (searched recursively, the same reason `Value::Coercion#find_
         # entity` does: a nested entity, like `Dispatch` inside
         # `Handler`, is not a direct child of any aggregate either).
+        #
+        # @param chapter [Bluebook::Chapter] the chapter to search
+        # @param name [String, Symbol] the construct's declared name
+        # @return [Bluebook::Aggregate, Class, nil] the aggregate, or the entity class
+        #   (a `Bluebook::Entity` subclass) nested anywhere under one, or `nil` if
+        #   `chapter` declares no construct by that name
         def construct_for(chapter, name)
           chapter.aggregate(name) || chapter.aggregates.filter_map { |a| find_entity(a, name) }.first
         end
 
+        # Searches a construct's own entities, recursively, for one by name.
+        #
+        # @param construct [Bluebook::Aggregate, Class] the aggregate, or entity class,
+        #   to search under
+        # @param name [String, Symbol] the entity's declared name
+        # @return [Class, nil] the entity class (a `Bluebook::Entity` subclass), or `nil`
+        #   if none of `construct`'s nested entities has that name
         def find_entity(construct, name)
           construct.entities.each do |candidate|
             return candidate if candidate.hecks_name == name
@@ -52,6 +65,12 @@ module Hecks
         # So the skip reads the category's own walk claims (`Contract#walked`)
         # rather than restating `position` here — Handler, which has no
         # walk-minted position, skips nothing.
+        #
+        # @param category [String, Symbol] the construct category's name, such as
+        #   `"Aggregate"` or `"Command"`
+        # @return [Hash{Symbol => Array(Symbol, Symbol)}] a `contracts.rb`-shaped
+        #   `fields:` table, one `field => [field, :plain]` entry per scalar,
+        #   non-reference, non-walked attribute the language declares for `category`
         def fields_for(category)
           language = construct_for(MetaValidator.grammar_registry.bluebook("Bluebook"), category.to_s)
           walked   = Assembly.contract(category).walked

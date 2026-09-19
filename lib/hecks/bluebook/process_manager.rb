@@ -69,6 +69,10 @@ module Hecks
     # per-dispatch saga compensation instead — a deliberate choice, not
     # an accidental collision.
     Saga = Struct.new(:trigger, :from_state, :to_state, :compensations, keyword_init: true) do
+      # Lists the commands this saga sends to undo a refused leg.
+      #
+      # @return [Array<String>] the name of each compensating command, in the order
+      #   `compensations` lists them
       def undoes = compensations.map(&:command_name)
 
       def to_s = "#{trigger} → #{to_state} (#{undoes.join(', ')})"
@@ -120,6 +124,15 @@ module Hecks
 
       attr_reader :name, :correlates_by, :starts_on, :ends_on, :states, :handlers
 
+      # @param name [String, Symbol] the process manager's declared name
+      # @param correlates_by [Symbol, nil] the payload field a triggering event's
+      #   instances are correlated by
+      # @param starts_on [String, nil] the event that starts a new instance
+      # @param ends_on [String, nil] the event that ends an instance
+      # @param states [Array<String>] the declared states this procedure's instances pass
+      #   through
+      # @param handlers [Array<Bluebook::ProcessManagerHandler>] the declared handler rows,
+      #   one per (event, state) leg
       def initialize(name:, correlates_by: nil, starts_on: nil, ends_on: nil,
                      states: [], handlers: [])
         @name          = name.to_s

@@ -44,6 +44,13 @@ repository = repositories.find { |repo| repo.respond_to?(:events) }
 
 abort "bin/follow: no adapter in #{domain_name} persists an event log" unless repository
 
+# Says whether `event` passes the `--aggregate` filter.
+#
+# @param event [Runtime::Event] one persisted event; `aggregate` names its aggregate as
+#   `"Domain::Name"`
+# @param filter [String, nil] the `--aggregate` option's value, or nil to match everything
+# @return [Boolean] true if `filter` is nil, matches the event's bare aggregate name
+#   case-insensitively, or equals `event.aggregate` exactly
 def matches?(event, filter)
   filter.nil? || event.aggregate.to_s.split("::").last.casecmp?(filter) || event.aggregate == filter
 end

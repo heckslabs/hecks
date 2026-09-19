@@ -7,8 +7,8 @@ require "hecks/fuzzing/differential"
 
 # `Differential.manifest_partition` — the one place a Ruby/Rust query
 # divergence may be tolerated, and only for a verb a manifest.json declares
-# not generated. A synthetic manifest: the real banking one this used to
-# read now declares no gaps.
+# not generated. A synthetic manifest: the real banking one this would
+# otherwise read declares no gaps.
 RSpec.describe Hecks::Fuzzing::Differential, ".manifest_partition" do
   around do |example|
     Dir.mktmpdir do |root|

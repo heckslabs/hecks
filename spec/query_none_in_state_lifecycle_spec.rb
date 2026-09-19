@@ -7,10 +7,10 @@ require "tempfile"
 # real `lifecycle :field, ...`. Most aggregates in this codebase (and
 # every aggregate `none_in_state` was actually written to answer
 # questions about) use `lifecycle :status` instead, which is a real state
-# machine, not a bare attribute — and `Comparison#none_in_state?` used to
-# hardcode `record.state[:state]`, silently reading `nil` off any
+# machine, not a bare attribute — and hardcoding `record.state[:state]`
+# in `Comparison#none_in_state?` would silently read `nil` off any
 # lifecycle-backed record no matter what it actually held (`comparable
-# (nil) != state` is true unconditionally, so `none_in_state` answered
+# (nil) != state` is true unconditionally, so `none_in_state` would answer
 # "not excluded" for every row, always). Found chasing
 # `QualityControl::Bug::AwaitingClearance` against `QualityControl::
 # Clearance` (`lifecycle :status`) in a since-superseded PR; kept here,
@@ -128,9 +128,9 @@ RSpec.describe "none_in_state against a lifecycle-backed target" do
 
     rows = runtime.query("AntiJoinLifecycle::Board.Assignment.Unclaimed")
 
-    # Before the fix, `record.state[:state]` read `nil` for every row
+    # A bare `record.state[:state]` read would return `nil` for every row
     # (this target has no `:state` attribute at all, only `:status` via
-    # `lifecycle`), so `c1` -- genuinely still "held" -- would have been
+    # `lifecycle`), so `c1` -- genuinely still "held" -- would be
     # wrongly included alongside `c2` and `nonexistent`.
     expect(rows.map { |row| row[:claim_id] }).to contain_exactly("c2", "nonexistent")
   end

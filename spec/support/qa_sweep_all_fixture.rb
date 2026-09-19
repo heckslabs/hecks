@@ -5,10 +5,10 @@ require "pathname"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
 
-# **The `bin/qa_sweep --all` fixture, shared** — extracted from what used to
-# be one 710-line `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
-# effort): the file's own 13 examples took 336s together on one CI
-# runner, a floor no matrix size could split further since
+# **The `bin/qa_sweep --all` fixture, shared** — split out of one 710-line
+# `qa_sweep_all_spec.rb` (Phase 2 of the CI speed effort): the file's own
+# 13 examples took 336s together on one CI runner, a floor no matrix size
+# could split further since
 # `parallel_rspec` balances at file granularity. Splitting the fixture
 # out here and the 13 examples across several small files (each
 # `include_context "with a qa_sweep_all fixture", <unique database name>`) lets
@@ -190,7 +190,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
       end
     RUBY
 
-    # Living inside the real repo ROOT, not `/tmp` — `bin/qa_sweep`
+    # Living inside the real repo `ROOT`, not `/tmp` — `bin/qa_sweep`
     # always resolves a `Target`'s own `path` against the real repository
     # root, independent of `QA_SWEEP_DOMAIN_DIR`.
     @target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_target-", InMemoryDomain::ROOT)
@@ -227,6 +227,11 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # next one's own rotation.
   before { reset_schema! }
 
+  # Scrubs the fixture database's `public` schema back to empty and
+  # reassigns it to the QA role, so no row a prior example left behind
+  # can leak into the next one.
+  #
+  # @return [void]
   def reset_schema!
     scrub = PG.connect(dbname: @qa_sweep_all_database)
     scrub.exec("DROP SCHEMA public CASCADE")
@@ -238,6 +243,10 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # Booted in-process, briefly, purely to write `Target` rows down —
   # never to dispatch a sweep itself (every sweep in this file runs as a
   # real, separate `bin/qa_sweep` process, which is the whole point).
+  #
+  # @param targets [Hash{String => String}] target reference to its domain's
+  #   path, relative to `InMemoryDomain::ROOT`
+  # @return [void]
   def identify_targets!(targets)
     Hecks.boot(@fixture_dir)
     targets.each do |reference, path|
@@ -251,6 +260,10 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # one, and `QA_SWEEP_RUST_DIR` is what tells `found_one`'s own
   # differential diff to build/run this spec's own hand-maintained
   # fixture crate rather than reaching for the real `rust/`.
+  #
+  # @param args [Array<String>] the CLI flags to pass `bin/qa_sweep`
+  # @return [Array(String, String, Process::Status)] the subprocess's
+  #   captured stdout, stderr and exit status
   def run_qa_sweep(*args)
     Open3.capture3(
       { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir, "QA_SWEEP_RUST_DIR" => FIXTURE_RUST_DIR },
@@ -266,6 +279,11 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # a live process would, so that loop can never observe the child
   # exiting). `probe` is called once per poll and returns whatever this
   # run wants tracked; returns `[status, probe_results]`.
+  #
+  # @param pid [Integer] the child process id to reap
+  # @yieldreturn [Object] one probe result, collected each poll
+  # @return [Array(Process::Status, Array<Object>)] the reaped exit status
+  #   and every yielded probe result, in polling order
   def reap_while_polling(pid)
     results = []
     loop do

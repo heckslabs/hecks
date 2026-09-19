@@ -120,8 +120,7 @@ RSpec.describe Hecks::Fuzzing::RotationPriority do
     # **The bound, not the mechanism**. It would be tempting to assert
     # "exhausted is only ever picked once the floor forces it" — but
     # that is not quite what the arithmetic guarantees, and asserting it
-    # is what an earlier draft of this example got wrong: because
-    # staleness itself is unbounded while "hot"/"warm" keep resetting
+    # would be wrong: staleness itself is unbounded while "hot"/"warm" keep resetting
     # their own staleness to ~0 every time they win, "exhausted"'s plain
     # staleness can occasionally out-race a competitor's own bounded
     # ceiling (yield_score * weight_seconds) even before crossing the

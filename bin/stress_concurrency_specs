@@ -144,6 +144,14 @@ end
 # by default the same way a real CI run would, while the Postgres one
 # still self-skips cleanly via `PostgresProbe.available?` if this machine
 # has no reachable Postgres — no separate flag needed to opt in or out.
+# Runs `spec_files` once, under one `--seed`, as a real `bundle exec rspec` child process.
+#
+# @param spec_files [Array<String>] the spec paths to run, relative to `ROOT`
+# @param seed [Integer] the `--seed` value for this run
+# @param label [String] a short name for this group, carried through into the result and
+#   into any saved failure log's filename
+# @return [Hash{Symbol => Object}] `:label`, `:seed`, `:success` (Boolean), `:output` (the
+#   combined stdout/stderr `rspec` printed), `:reproduce` (the shell command to rerun it)
 def run_once(spec_files, seed, label:)
   env = { "CI" => "true" }
   cmd = ["bundle", "exec", "rspec", *spec_files, "--seed", seed.to_s, "--format", "progress"]
@@ -152,6 +160,12 @@ def run_once(spec_files, seed, label:)
     reproduce: "CI=true bundle exec rspec #{spec_files.join(' ')} --seed #{seed}" }
 end
 
+# Runs `spec_files` once per seed in `seeds`, concurrently, one OS process per seed.
+#
+# @param spec_files [Array<String>] the spec paths to run, relative to `ROOT`
+# @param seeds [Array<Integer>] the `--seed` values to run, one `run_once` call each
+# @param label [String] a short name for this group, passed through to `run_once`
+# @return [Array<Hash>] one `run_once` result per seed, in `seeds` order
 def run_batch(spec_files, seeds, label:)
   # One thread per RSpec process in this batch, not `Process.spawn`
   # directly — `Open3.capture2e` already spawns a real child process per

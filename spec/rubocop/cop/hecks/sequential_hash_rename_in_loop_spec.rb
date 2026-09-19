@@ -27,8 +27,8 @@ RSpec.describe RuboCop::Cop::Hecks::SequentialHashRenameInLoop do
   # `MessageAnnotator` prepends by default.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
-  # The exact shape M27 shipped with — `apply_renames` used to do this,
-  # one rule at a time, before it was fixed (see the cop's own header and
+  # The exact shape M27 shipped with — `apply_renames` did this,
+  # one rule at a time, until it was fixed (see the cop's own header and
   # `lib/hecks/ports/persistence/plugins/era/lineage.rb`'s own comment on
   # `apply_renames`). Reconstructed here as a fixture, not by reverting the
   # real (already-fixed) method — this spec proves the cop would have

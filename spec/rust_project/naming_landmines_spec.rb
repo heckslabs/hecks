@@ -92,7 +92,8 @@ RSpec.describe RustProjection::Projector do
     it "escapes a raw control character as a BRACED \\u{...} (Rust's own syntax, unlike Ruby's bare \\uXXXX)" do
       described = described_class.rust_string_literal("control:#{1.chr}:end")
       expect(described).to eq('"control:\u{1}:end"')
-      expect(described).not_to include("\\u0001") # Ruby's own (invalid-in-Rust, brace-less) rendering
+      # Ruby's own (invalid-in-Rust, brace-less) rendering
+      expect(described).not_to include("\\u0001")
     end
 
     it "still escapes backslash, double-quote, and the common whitespace escapes correctly" do

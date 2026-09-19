@@ -40,6 +40,15 @@ module Hecks
         # state lands in). Double-checked locking against a dedicated mutex
         # — never `@saga_mutex` — see `Registry#initialize`'s own comment for
         # why reusing that one would deadlock.
+        # Resolves and memoizes the adapter a domain's sagas persist through.
+        #
+        # @param domain [String, Symbol] the domain to resolve saga persistence for
+        # @return [Adapters::Heki, Adapters::Postgres, Adapters::Sqlite, Adapters::D1,
+        #   Ports::Persistence::Plugins::Era::PostgresEra, Ports::Persistence::NullSagaStore]
+        #   the same adapter instance the domain's anchor aggregate persists through, when it
+        #   implements `save_saga`; `NULL_SAGA_STORE` for a domain with no anchor aggregate, an
+        #   adapter that does not implement the capability, a `RemoteRuntime`-shaped adapter,
+        #   or a `Runtime::WiringError` resolving the anchor's own bind
         def saga_persistence(domain)
           key = domain.to_s
           @saga_persistence[key] || @saga_persistence_mutex.synchronize do
@@ -67,6 +76,8 @@ module Hecks
         # points inside `@saga_mutex.synchronize` blocks (`saga_interpreter.
         # rb`), which genuinely do and are guarded accordingly.
         # rubocop:disable-next Hecks/ThreadSharedIvarMutation
+        #
+        # @return [Hecks::Runtime::Registry] self
         def rehydrate_sagas!
           @hecksagons.each_key do |domain|
             saga_persistence(domain).each_saga do |process_manager, correlation, state, memory, completed_compensations = []|

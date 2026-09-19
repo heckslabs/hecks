@@ -17,25 +17,29 @@ module Hecks
     # "no, that's wrong". A banker, a support rep, the CEO and an engineer
     # read the same page.
     #
-    # **Three things follow from that audience**. First, no type jargon: a
-    # term is a term, not "an Aggregate" or "a Value Object", and every
-    # identifier is spelled as a person says it (`Naming.words`: `ATMCard`
-    # is "ATM card"). Second, nothing invented: every sentence is either
-    # the domain author's own words (a `description`, a `goal`, an
-    # invariant) or built mechanically from a declared fact ("Recorded
-    # after Freeze account") — the same discipline `DocsProjector` holds
-    # to; a wrong sentence is worse than a missing one. Third, grouped
-    # under the aggregate each term belongs to, A to Z within it — a
-    # reader thinks "what does Account mean" before "what starts with A",
-    # and once there reads the way a dictionary reads.
+    # ## Three things follow from that audience
     #
-    # **Two files from one source**. `glossary.md` is the document — every
-    # construct in it renders on GitHub as-is (headings, blockquotes,
-    # ```mermaid fences, lists, in-page links). `html/index.html` is that
-    # exact Markdown string rendered into a page with a navigation rail;
-    # it is built FROM the Markdown, not beside it, so the two cannot
-    # drift. `bin/project_glossary` writes both to `<domain>/glossary/` beside
-    # the bluebook (examples/banking, examples/pizzas, and the QA ledger in qa/).
+    # First, no type jargon: a term is a term, not "an Aggregate" or "a
+    # Value Object", and every identifier is spelled as a person says it
+    # (`Naming.words`: `ATMCard` is "ATM card"). Second, nothing invented:
+    # every sentence is either the domain author's own words (a
+    # `description`, a `goal`, an invariant) or built mechanically from a
+    # declared fact ("Recorded after Freeze account") — the same
+    # discipline `DocsProjector` holds to; a wrong sentence is worse than
+    # a missing one. Third, grouped under the aggregate each term belongs
+    # to, A to Z within it — a reader thinks "what does Account mean"
+    # before "what starts with A", and once there reads the way a
+    # dictionary reads.
+    #
+    # ## Two files from one source
+    #
+    # `glossary.md` is the document — every construct in it renders on
+    # GitHub as-is (headings, blockquotes, ```mermaid fences, lists,
+    # in-page links). `html/index.html` is that exact Markdown string
+    # rendered into a page with a navigation rail; it is built from the
+    # Markdown, not beside it, so the two cannot drift. `bin/project_glossary`
+    # writes both to `<domain>/glossary/` beside the bluebook (examples/banking,
+    # examples/pizzas, and the QA ledger in qa/).
     #
     #   Projector.call(:glossary, bluebook: <the Bluebook chapter>)
     #   # => { "glossary.md" => "...", "html/index.html" => "..." }
@@ -59,6 +63,14 @@ module Hecks
 
       module_function
 
+      # Projects `bluebook`'s glossary as a Markdown document and the HTML
+      # page built from it.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to render a
+      #   glossary for
+      # @param options [Hash] unused; accepted to satisfy the registry's call shape
+      # @return [Hash{String => String}] `"glossary.md"` and `"html/index.html"`,
+      #   each mapped to its rendered content
       def call(bluebook:, options: {})
         markdown = Markdown.render(document(bluebook))
         { "glossary.md" => markdown, "html/index.html" => Html.render(markdown) }
@@ -66,6 +78,11 @@ module Hecks
 
       # ── the document ─────────────────────────────────────────────────
 
+      # Gathers every term, groups it into sections, assigns headings and
+      # slugs, and builds the index links resolve through.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to render
+      # @return [Document] the fully assembled document, ready for `Markdown.render`
       def document(bluebook)
         sections = sections(bluebook, entries(bluebook))
         Slugs.assign!(bluebook, sections)
@@ -74,6 +91,12 @@ module Hecks
 
       # Aggregates first, a to Z by their spoken name ("Account" before
       # "ATM card"), then the three groups nothing homes to one aggregate.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
+      #   aggregates to group by
+      # @param entries [Array<Entry>] every gathered term
+      # @return [Array<Section>] one section per aggregate, sorted, followed by
+      #   any of the Roles/Read models/Reactions sections that have entries
       def sections(bluebook, entries)
         grouped = entries.group_by(&:section)
         list = bluebook.aggregates.sort_by { |aggregate| Naming.words(aggregate.hecks_name).downcase }.map do |aggregate|
@@ -87,10 +110,16 @@ module Hecks
         list
       end
 
-      # A HEADWORD is qualified only when it would repeat within its own
+      # A headword is qualified only when it would repeat within its own
       # section — "Open" the action and "Open (the list)" the question;
       # "Return (key issuance)" beside another Return — never numbered
       # (Chicago 18.9, MDN's disambiguation pages: qualify the headword).
+      #
+      # @param entries [Array<Entry>] the section's own entries
+      # @param section_name [String] the entries' own section name, for telling
+      #   an entry's own section apart from a borrowed one when qualifying
+      # @return [Array<Entry>] `entries`, headword-assigned, sorted by headword
+      #   then kind
       def with_headwords(entries, section_name)
         entries.each { |entry| entry.headword = Naming.words(entry.name) }
         entries.group_by(&:headword).each_value do |group|
@@ -101,6 +130,14 @@ module Hecks
         entries.sort_by { |entry| [entry.headword.downcase, entry.kind.to_s] }
       end
 
+      # Disambiguates one entry's headword from the rest of its group.
+      #
+      # @param entry [Entry] the entry to qualify
+      # @param group [Array<Entry>] every entry sharing `entry`'s plain headword
+      # @param section_name [String] the section `entry` and `group` are being
+      #   rendered under
+      # @return [String] `entry`'s headword, qualified with "(the list)" or its
+      #   own holder's name when needed to tell it apart from the rest of `group`
       def qualified(entry, group, section_name)
         base = Naming.words(entry.name)
         return "#{base} (the list)" if entry.kind == :query && group.any? { |other| other.kind == :command }
@@ -114,6 +151,10 @@ module Hecks
       # An entity can carry its own commands and queries too — walked the
       # same one level down `DocsProjector` and `Projections::Diagrams`
       # already walk it.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to walk
+      # @return [Array<Bluebook::Aggregate, Bluebook::Entity>] every aggregate, each
+      #   immediately followed by its own nested entities
       def holders(bluebook)
         bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
       end
@@ -121,6 +162,10 @@ module Hecks
       # Every holder's own aggregate, one hop or zero — an aggregate maps
       # to itself, an entity to whichever aggregate declared it. The one
       # fact the grouping is built on.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to walk
+      # @return [Hash{String => String}] every aggregate and entity name, mapped to
+      #   its own owning aggregate's name
       def holder_aggregate(bluebook)
         bluebook.aggregates.each_with_object({}) do |aggregate, map|
           map[aggregate.hecks_name] = aggregate.hecks_name
@@ -131,14 +176,29 @@ module Hecks
       # Every event's raisers — an event is never declared, only emitted,
       # so its home is whichever aggregate the first command that raises
       # it belongs to; a policy or saga reacting to it inherits that home.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to walk
+      # @return [Hash{String => Array<Array(Bluebook::Aggregate, Bluebook::Command)>}]
+      #   every emitted event name, mapped to `[holder, command]` pairs for every
+      #   command that raises it; a name absent from the Hash raises nothing
       def event_raisers(bluebook)
         holders(bluebook).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |holder, map|
           holder.commands.each { |command| command.emits.each { |event| map[event] << [holder, command] } }
         end
       end
 
+      # Strips a dotted name down to its last segment.
+      #
+      # @param qualified [String, Symbol] a dotted or bare name, such as
+      #   `"Handler.Dispatch"` or `"Freeze"`
+      # @return [String] the name after the last `.`, or the whole name if it has none
       def bare(qualified) = qualified.to_s.split(".").last
 
+      # Gathers every term the glossary carries, ungrouped and unordered.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather terms from
+      # @return [Array<Entry>] one entry per entity, value object, command, query,
+      #   event, policy, saga, role, and read model
       def entries(bluebook)
         homes   = holder_aggregate(bluebook)
         raisers = event_raisers(bluebook)
@@ -156,6 +216,10 @@ module Hecks
         entries
       end
 
+      # Gathers one entry per entity.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather entities from
+      # @return [Array<Entry>] one `:entity`-kind entry per entity
       def entity_entries(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
           aggregate.entities.map do |entity|
@@ -167,6 +231,11 @@ module Hecks
 
       # Aggregates only — an entity declares no value objects of its own
       # (`Bluebook::Entity` deliberately does not answer `value_objects`).
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather value
+      #   objects from
+      # @return [Array<Entry>] one `:value_object`-kind entry per aggregate-declared
+      #   value object
       def value_object_entries(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
           aggregate.value_objects.map do |value_object|
@@ -176,6 +245,14 @@ module Hecks
         end
       end
 
+      # Gathers one entry per command and query.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather commands
+      #   and queries from
+      # @param homes [Hash{String => String}] every holder's name, mapped to its
+      #   owning aggregate's name (as `holder_aggregate` builds)
+      # @return [Array<Entry>] one `:command`-kind or `:query`-kind entry per command
+      #   and query, commands first
       def verb_entries(bluebook, homes)
         holders(bluebook).flat_map do |holder|
           commands = holder.commands.map do |command|
@@ -190,6 +267,15 @@ module Hecks
         end
       end
 
+      # Gathers one entry per raised event.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
+      #   policies checked for reactions
+      # @param raisers [Hash{String => Array<Array(Bluebook::Aggregate, Bluebook::Command)>}]
+      #   every event name, mapped to its raising `[holder, command]` pairs (as
+      #   `event_raisers` builds)
+      # @param home_of [Proc, #call] answers an event name's owning aggregate name, or nil
+      # @return [Array<Entry>] one `:event`-kind entry per raised event
       def event_entries(bluebook, raisers, home_of)
         raisers.map do |event, raised_by|
           reactions = bluebook.policies.select { |policy| bare(policy.on_event) == event }
@@ -198,6 +284,11 @@ module Hecks
         end
       end
 
+      # Gathers one entry per declared policy.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather policies from
+      # @param home_of [Proc, #call] answers an event name's owning aggregate name, or nil
+      # @return [Array<Entry>] one `:policy`-kind entry per declared policy
       def policy_entries(bluebook, home_of)
         bluebook.policies.map do |policy|
           Entry.new(name: policy.name, kind: :policy, section: home_of.call(bare(policy.on_event)),
@@ -205,6 +296,11 @@ module Hecks
         end
       end
 
+      # Gathers one entry per declared process manager.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather sagas from
+      # @param home_of [Proc, #call] answers an event name's owning aggregate name, or nil
+      # @return [Array<Entry>] one `:saga`-kind entry per declared process manager
       def saga_entries(bluebook, home_of)
         bluebook.process_managers.map do |saga|
           shape = saga.to_h
@@ -216,6 +312,9 @@ module Hecks
       # Cross-cutting by nature — `System` and `Customer` issue commands
       # across half the aggregates here — so a role belongs to no single
       # one and gets its own section.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather roles from
+      # @return [Array<Entry>] one `:role`-kind entry per distinct role named by a command
       def role_entries(bluebook)
         by_role = Hash.new { |hash, key| hash[key] = [] }
         holders(bluebook).each do |holder|
@@ -228,6 +327,10 @@ module Hecks
 
       # A read model joins heads from more than one aggregate — its own
       # header says so — so it belongs to none of them.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to gather read
+      #   models from
+      # @return [Array<Entry>] one `:read_model`-kind entry per declared read model
       def read_model_entries(bluebook)
         bluebook.read_models.map do |read_model|
           Entry.new(name: read_model.name, kind: :read_model, section: READ_MODELS, facts: { read_model: read_model })
@@ -244,8 +347,20 @@ module Hecks
       module Slugs
         module_function
 
+        # Reproduces GitHub's own heading-to-slug transform.
+        #
+        # @param text [String] the heading text to slugify
+        # @return [String] `text` lowercased, stripped of punctuation, spaces turned
+        #   to hyphens
         def github(text) = text.to_s.downcase.gsub(/[^\p{Word}\- ]/, "").tr(" ", "-")
 
+        # Assigns every section's and every entry's own slug, in document order.
+        #
+        # @param bluebook [Bluebook::Behaviour::Chapter] the chapter the document
+        #   titles itself after
+        # @param sections [Array<Section>] the sections to assign slugs to, in the
+        #   order they render
+        # @return [void]
         def assign!(bluebook, sections)
           seen = Hash.new(0)
           take = lambda do |text|
@@ -267,6 +382,10 @@ module Hecks
       # (a cross-domain command like `Notifications.Send`) answers nil,
       # and the sentence says it in words with no link.
       class Index
+        # Builds the lookup table every `link` call resolves through.
+        #
+        # @param sections [Array<Section>] the document's own sections, already
+        #   built and slugged
         def initialize(sections)
           @by_key = {}
           sections.each do |section|
@@ -275,6 +394,12 @@ module Hecks
           end
         end
 
+        # Builds one entry's lookup key.
+        #
+        # @param entry [Entry] the entry to key
+        # @return [Array(Symbol, String, String), Array(Symbol, String)] `[kind, within,
+        #   name]` for a command, query, or value object (which can share a bare name
+        #   across holders); `[kind, name]` otherwise
         def key_of(entry)
           case entry.kind
           when :command, :query, :value_object then [entry.kind, entry.within, entry.name]
@@ -282,6 +407,14 @@ module Hecks
           end
         end
 
+        # Looks up one entry or aggregate section by its key.
+        #
+        # @param kind [Symbol] the entry's kind, or `:aggregate` for a section
+        # @param name [String] the entry's or aggregate's name
+        # @param within [String, nil] the holder's name, for a command, query, or
+        #   value object; nil otherwise
+        # @return [Entry, Section, nil] the matching entry or aggregate section, or
+        #   nil if the chapter declares none
         def [](kind, name, within: nil)
           @by_key[within ? [kind, within, name] : [kind, name]]
         end
@@ -289,6 +422,15 @@ module Hecks
         # A Markdown link to a term's own heading, or the plain words when
         # the chapter declares no such term. `label:` overrides the link
         # text for a sentence that has to tell two same-named terms apart.
+        #
+        # @param kind [Symbol] the target's kind, or `:aggregate` for a section
+        # @param name [String] the target's or aggregate's name
+        # @param within [String, nil] the holder's name, for a command, query, or
+        #   value object; nil otherwise
+        # @param label [String, nil] link text to use instead of the target's own
+        #   headword or title
+        # @return [String] a `[text](#slug)` Markdown link, or the plain words when
+        #   the chapter declares no such term
         def link(kind, name, within: nil, label: nil)
           target = self[kind, name, within: within]
           return label || Naming.words(name) unless target

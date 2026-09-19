@@ -178,6 +178,8 @@ module CommentStyle
 
     module_function
 
+    # Loads and memoizes the system word list, once per process.
+    #
     # @return [Set<String>, nil] lower-case word list, or nil when this machine has none
     def words
       return @words if defined?(@words)
@@ -185,6 +187,8 @@ module CommentStyle
       @words = File.exist?(WORDS) ? Set.new(File.foreach(WORDS, chomp: true).map(&:downcase)).merge(EXTRA) : nil
     end
 
+    # Checks a capitalized token against the word list, stripped and stemmed.
+    #
     # @param word [String] a token, in any case, possibly a contraction
     # @return [Boolean] true for an English word, and always true with no word list to consult
     def english?(word)
@@ -211,6 +215,8 @@ module CommentStyle
     end
   end
 
+  # Lexes `source` and drops every comment and whitespace token.
+  #
   # @param source [String] Ruby source
   # @return [Array<String>] every token that is not a comment or whitespace
   def self.code_tokens(source)
@@ -233,6 +239,8 @@ module CommentStyle
       @constants = code_words
     end
 
+    # Finds every place this file departs from the style guide.
+    #
     # @param only [Array<String>, nil] categories to keep, all when nil
     # @return [Array<Violation>]
     def violations(only: nil)
@@ -261,6 +269,8 @@ module CommentStyle
       output
     end
 
+    # Parses this file's structure once and caches it.
+    #
     # @return [Array<TypeDef>] every class and module opened in this file
     def types
       test_file? || generated? ? [] : structure.last
@@ -282,6 +292,8 @@ module CommentStyle
       path.end_with?("_spec.rb")
     end
 
+    # Answers whether a `class`/`module` has its own doc comment.
+    #
     # @param type [TypeDef]
     # @return [Boolean] whether a comment block sits directly above the definition
     def documented?(type)
@@ -605,7 +617,7 @@ module CommentStyle
 
         return [Violation.new(path, method.line, "undocumented_method", "##{method.name}")]
       end
-      return [] if doc.match?(/@api private|@private|:nodoc:|\(see [^)]+\)/)
+      return [] if doc.match?(/@api private|@private|:nodoc:|\(see (?:`[^`]+`|#\w)[^)]*\)\W*\z/m)
 
       tag_violations(method, doc)
     end
@@ -674,12 +686,15 @@ module CommentStyle
 
     attr_reader :methods, :types
 
+    # @return [void]
     def initialize
       @methods = []
       @types = []
       @private_names = Set.new
     end
 
+    # Visits one Ripper node, recording any method or type it defines.
+    #
     # @param node [Array, Object] Ripper s-expression node
     # @param scope [Scope] enclosing lexical scope
     # @return [void]
@@ -815,6 +830,8 @@ module CommentStyle
       end
     end
 
+    # Every violation across the whole file set, computed once.
+    #
     # @return [Array<Violation>]
     def violations
       @violations ||= begin
@@ -824,6 +841,8 @@ module CommentStyle
       end
     end
 
+    # Rewrites every file's fixable categories in place.
+    #
     # @return [Integer] number of files rewritten
     def fix!
       wants_caps = @only.nil? || @only.include?("all_caps")
@@ -839,6 +858,8 @@ module CommentStyle
       end
     end
 
+    # Renders the summary tables `--report` prints.
+    #
     # @param top [Integer] rows to show in the per-file table
     # @return [String]
     def report(top: 20)
@@ -894,8 +915,10 @@ module CommentStyle
     end
   end
 
-  # @param argv [Array<String>]
-  # @return [Integer] process exit status
+  # Builds the CLI's option parser, filling `options` as flags are seen.
+  #
+  # @param options [Hash] mutated in place as each flag is parsed
+  # @return [OptionParser]
   def self.option_parser(options)
     OptionParser.new do |opts|
       opts.banner = "Usage: bin/standardize_comments [--report|--check|--fix] [--only a,b] PATH..."
@@ -912,6 +935,11 @@ module CommentStyle
     end
   end
 
+  # Prints `--report`, `--check`, or `--json` output for a finished run.
+  #
+  # @param run [Run] the run whose violations to render
+  # @param options [Hash] parsed CLI options (`:mode`, `:json`, `:top`)
+  # @return [Integer] process exit status
   def self.render(run, options)
     found = run.violations
     if options[:json]
@@ -924,6 +952,10 @@ module CommentStyle
     options[:mode] == :check && found.any? ? 1 : 0
   end
 
+  # The CLI entry point: parses `argv` and runs the requested mode.
+  #
+  # @param argv [Array<String>]
+  # @return [Integer] process exit status
   def self.main(argv)
     options = { mode: :report, top: 20 }
     parser = option_parser(options)
@@ -940,6 +972,10 @@ module CommentStyle
     end
   end
 
+  # Prints `--code-unchanged`'s verdict.
+  #
+  # @param changed [Array<String>] paths `Run#code_changed_since` flagged
+  # @return [Integer] process exit status
   def self.report_code_changes(changed)
     changed.each { |path| puts "#{path}: code changed, not just comments" }
     puts "code unchanged" if changed.empty?

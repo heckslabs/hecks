@@ -3,9 +3,9 @@ require "tempfile"
 
 # Real dispatch coverage for Float/Numeric arithmetic on the existing
 # increment/decrement ops: CommandRules::Arithmetic#arithmetic/
-# #arithmetic_value_object were Integer-only before this fix, so any
-# Float-typed field (miette's own organ math, "increment: 0.02") raised
-# a TypeMismatch the caller never made. Widened from Integer to Numeric.
+# #arithmetic_value_object accept Numeric, not just Integer, because a
+# Float-typed field (miette's own organ math, "increment: 0.02") would
+# otherwise raise a TypeMismatch the caller never made.
 # Independent of `multiply`/`clamp` landing -- those are brand-new ops
 # with their own Numeric checks from birth and never call #arithmetic/
 # #arithmetic_value_object at all; this fix is exclusively a value-add

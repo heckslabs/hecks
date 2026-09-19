@@ -42,11 +42,11 @@ module Hecks
         # The field name is stringified, never the value. A `member` row can
         # hold any of the scalar types an attribute declares — `Integer 84`
         # (`StatementFrequency#retention_months`, statements.bluebook), not
-        # only `String` — and `value.to_s` used to erase that on the way
-        # out, so `84` and `"84"` (a member some other row might
-        # legitimately spell as text) became indistinguishable once they
-        # reached `to_h`. The declared name still moves (`field.to_s`) —
-        # that half was never a Ruby object with a type to lose.
+        # only `String` — and stringifying it on the way out would erase
+        # that: `84` and `"84"` (a member some other row might legitimately
+        # spell as text) would become indistinguishable once they reached
+        # `to_h`. The declared name still moves (`field.to_s`) — that half
+        # was never a Ruby object with a type to lose.
         members:    -> { members.map { |member| member.map { |field, value| [field.to_s, value] } } }
       )
 
@@ -55,6 +55,17 @@ module Hecks
 
         # One declared shape — a subclass rather than an instance, so the thing
         # the bluebook declares and the thing Ruby holds are one object.
+        #
+        # @param name [String, Symbol] the value object's declared type name
+        # @param attributes [Array<Bluebook::Attribute>] the value object's declared
+        #   fields
+        # @param invariants [Array<Bluebook::Invariant>] the rules checked against every
+        #   instance of this value object
+        # @param members [Array<Hash{Symbol => Object}>] the declared `one_of` members, one
+        #   row of field values per member
+        # @param closed_set [Boolean] whether a `one_of` was declared, even with no
+        #   members; defaults to whether `members` is non-empty
+        # @return [Class] the minted shape class (a `Bluebook::ValueObject` subclass)
         def declare(name:, attributes: [], invariants: [], members: [], closed_set: !members.empty?)
           shape = Class.new(self)
           shape.hecks_name = name.to_s
@@ -63,6 +74,13 @@ module Hecks
           shape
         end
 
+        # Assigns what the language declares onto this shape class.
+        #
+        # @param attributes [Array<Bluebook::Attribute>] see `declare`
+        # @param invariants [Array<Bluebook::Invariant>] see `declare`
+        # @param members [Array<Hash{Symbol => Object}>] see `declare`
+        # @param closed_set [Boolean] see `declare`
+        # @return [void]
         def absorb(attributes:, invariants:, members:, closed_set:)
           @attributes = attributes
           @invariants = invariants

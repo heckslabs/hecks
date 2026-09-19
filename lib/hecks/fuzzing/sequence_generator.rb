@@ -98,6 +98,26 @@ module Hecks
       # `favor:` names verbs the picker weights up. `nil`/`[]`, the
       # defaults, draw nothing extra and change nothing: every pinned seed
       # is byte-for-byte what it was.
+      #
+      # Generates one random-but-valid step sequence for `domain_path`, dispatching
+      # each step for real against a throwaway boot as it builds it.
+      #
+      # @param domain_path [String] path to the domain directory to boot
+      # @param seed [Integer] RNG seed; every draw this run makes is reproducible
+      #   from it
+      # @param steps [Integer] number of generation attempts to make
+      # @param adapter [Symbol] persistence adapter to boot with (default `:memory`)
+      # @param adversarial [Float] fraction of command steps to mutate adversarially
+      #   (default `0.0`, drawing nothing extra)
+      # @param role_draw [Float] fraction of gated commands to draw a caller for
+      #   (default `0.0`, drawing nothing extra)
+      # @param dry_run [Float] fraction of command steps dispatched as dry runs
+      #   (default `0.0`, drawing nothing extra)
+      # @param prefix [Hash, nil] another seed's own generation spec to replay
+      #   first (`{"seed" =>, "steps" =>, "favor" =>, "prefix" =>}`), or `nil`
+      # @param favor [Array<String>, Array<Symbol>] verbs the picker weights up
+      # @return [Array<Hash>] the generated step list, each a command, query, or
+      #   read-model step
       def self.generate(domain_path, seed:, steps:, **)
         new(domain_path, seed: seed, steps: steps, **).call
       end
@@ -108,6 +128,15 @@ module Hecks
       # never hit from one that does not exist.
       Trace = Struct.new(:steps, :coverage, :verbs, keyword_init: true)
 
+      # Generates one sequence exactly like `.generate`, but also returns the
+      # coverage and verb data a campaign needs, which `.generate` discards.
+      #
+      # @param domain_path [String] path to the domain directory to boot
+      # @param seed [Integer] RNG seed; every draw this run makes is reproducible
+      #   from it
+      # @param steps [Integer] number of generation attempts to make
+      # @return [Hecks::Fuzzing::SequenceGenerator::Trace] the generated steps,
+      #   the coverage tuples reached, and every verb the booted catalog offered
       def self.trace(domain_path, seed:, steps:, **)
         generator = new(domain_path, seed: seed, steps: steps, **)
         Trace.new(steps: generator.call, coverage: generator.coverage, verbs: generator.verbs)
@@ -130,6 +159,19 @@ module Hecks
       # replay one.
       attr_reader :event_count
 
+      # @param domain_path [String] path to the domain directory to boot
+      # @param seed [Integer] RNG seed; every draw this run makes is reproducible
+      #   from it
+      # @param steps [Integer] number of generation attempts `#call` will make
+      # @param adapter [Symbol] persistence adapter to boot with
+      # @param adversarial [Float] fraction of command steps to mutate adversarially
+      # @param role_draw [Float] fraction of gated commands to draw a caller for
+      # @param dry_run [Float] fraction of command steps dispatched as dry runs
+      # @param prefix [Hash, nil] another seed's own generation spec to replay
+      #   first, or `nil`
+      # @param favor [Array<String>, Array<Symbol>] verbs the picker weights up
+      # @raise [ArgumentError] if `adversarial`, `role_draw`, or `dry_run` is not a
+      #   Numeric between 0.0 and 1.0
       def initialize(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0,
                      prefix: nil, favor: [])
         { adversarial: adversarial, role_draw: role_draw, dry_run: dry_run }.each do |name, fraction|
@@ -164,6 +206,11 @@ module Hecks
         @attempt             = 0
       end
 
+      # Runs the generation this instance was configured for, against a fresh,
+      # isolated boot of `@domain_path`.
+      #
+      # @return [Array<Hash>] the generated step list, each a command, query, or
+      #   read-model step; a picker miss that produced no step is dropped
       def call
         # Real leftover data from ordinary use (bin/console, whatever) lives
         # under the example's data/ — a generator that boots against it

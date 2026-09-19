@@ -24,6 +24,11 @@ USAGE = "usage: bin/behaviors <file.behaviors | directory>".freeze
 target = ARGV.first or abort USAGE
 abort "no such file or directory: #{target}" unless File.exist?(target)
 
+# Prints one file's behaviors result to stdout — the path, a parse error if the file failed
+# to load, or each test's outcome.
+#
+# @param result [Behaviors::FileResult] one file's parse and test results
+# @return [void]
 def report_file(result)
   puts result.path
   if result.parse_error
@@ -38,6 +43,11 @@ def report_file(result)
   end
 end
 
+# Says whether a run's summary hash contains any failure, error, or parse error.
+#
+# @param summary [Hash{Symbol => Integer}] `:failed`, `:errored`, and `:parse_errors`
+#   counts, as returned by `Hecks::Behaviors.summarize`; each missing key counts as 0
+# @return [Boolean] true if any of the three counts is positive
 def bad?(summary)
   ((summary[:failed] || 0) + (summary[:errored] || 0) + (summary[:parse_errors] || 0)).positive?
 end

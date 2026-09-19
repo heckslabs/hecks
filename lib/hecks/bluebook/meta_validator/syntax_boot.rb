@@ -10,23 +10,27 @@ module Hecks
       # coercion/lifecycle-guard door every other command goes through),
       # not merely declared and never exercised.
       #
-      # **The source stays static**. Aggregate-local `KeywordSeed`/
-      # `ArgumentSeed` value objects (still hand-written `member` rows —
-      # now beside the concepts they spell) are what gets written ; this
-      # is what turns them into what gets read. `Judge`/`Reconstruction`
-      # already draw exactly this line everywhere else in the meta-domain
-      # (a chapter's own declarations versus what gets dispatched from
-      # them) — this runs the same distinction one level further out, for
-      # the language's own grammar table.
+      # ## The source stays static
       #
-      # A dedicated runtime, not `MetaValidator.fresh_runtime`. That one
-      # is reserved for `Judge`'s own bootstrap (dispatching a chapter's
-      # declarations into the meta-domain's grammar) — a different act
-      # from this one (dispatching the meta-domain's own grammar table
-      # data into a live "Bluebook" domain instance). Sharing the runtime
-      # would let one boot's own repository state leak into the other's.
+      # Aggregate-local `KeywordSeed`/`ArgumentSeed` value objects (still
+      # hand-written `member` rows — now beside the concepts they spell)
+      # are what gets written ; this is what turns them into what gets
+      # read. `Judge`/`Reconstruction` already draw exactly this line
+      # everywhere else in the meta-domain (a chapter's own declarations
+      # versus what gets dispatched from them) — this runs the same
+      # distinction one level further out, for the language's own grammar
+      # table.
       #
-      # Usage:
+      # ## A dedicated runtime
+      #
+      # Not `MetaValidator.fresh_runtime`. That one is reserved for
+      # `Judge`'s own bootstrap (dispatching a chapter's declarations into
+      # the meta-domain's grammar) — a different act from this one
+      # (dispatching the meta-domain's own grammar table data into a live
+      # "Bluebook" domain instance). Sharing the runtime would let one
+      # boot's own repository state leak into the other's.
+      #
+      # ## Usage
       #
       #   MetaValidator.syntax_table  # => { keywords: [...], arguments: [...] }
       #
@@ -76,6 +80,9 @@ module Hecks
         # tracked. Holding the chapter objects themselves (not their ids)
         # in the key also means a collected chapter can never hand its id
         # to a newcomer behind this cache's back.
+        # @return [Hash{Symbol => Array<Hash{Symbol => String}>}] `:keywords`
+        #   and `:arguments`, each an array of plain, string-valued row
+        #   hashes (`status` included)
         def call
           chapters = MetaValidator.grammar_registry.bluebooks.to_a
           return @call if @call && same_chapters?(@call_chapters, chapters)
@@ -91,6 +98,15 @@ module Hecks
           result
         end
 
+        # Compares the in-process cache key against the registry's current
+        # chapters.
+        #
+        # @param cached [Array<Array(String, Object)>] the `[name, chapter]`
+        #   pairs `call` last cached against
+        # @param current [Array<Array(String, Object)>] the registry's
+        #   current `[name, chapter]` pairs
+        # @return [Boolean] whether `cached` and `current` name the same
+        #   chapters, by identity, in the same order
         def same_chapters?(cached, current)
           cached.size == current.size &&
             cached.zip(current).all? do |(cached_name, cached_chapter), (name, chapter)|
@@ -152,8 +168,19 @@ module Hecks
         # be ruled out while debugging something else entirely.
         CACHE_DIR = File.expand_path("../../../../tmp/hecks_syntax_boot_cache", __dir__).freeze
 
+        # Reports whether the cross-process disk cache is turned on.
+        #
+        # @return [Boolean] whether the cross-process disk cache is turned
+        #   on (`HECKS_SYNTAX_BOOT_CACHE=off` turns it off)
         def disk_cache_enabled? = ENV["HECKS_SYNTAX_BOOT_CACHE"] != "off"
 
+        # Reads an already-written cache entry for `chapters`, if any.
+        #
+        # @param chapters [Array<Array(String, Object)>] the `[name,
+        #   chapter]` pairs to key the cache entry on
+        # @return [Hash{Symbol => Array<Hash{Symbol => String}>}, nil] the
+        #   cached syntax table, or `nil` if the cache is disabled, no entry
+        #   exists yet, or the entry could not be read
         def read_disk_cache(chapters)
           return nil unless disk_cache_enabled?
 
@@ -165,6 +192,13 @@ module Hecks
           nil
         end
 
+        # Writes `result` to the disk cache for `chapters`, atomically.
+        #
+        # @param chapters [Array<Array(String, Object)>] the `[name,
+        #   chapter]` pairs to key the cache entry on
+        # @param result [Hash{Symbol => Array<Hash{Symbol => String}>}] the
+        #   syntax table to persist
+        # @return [void]
         def write_disk_cache(chapters, result)
           return unless disk_cache_enabled?
 
@@ -177,10 +211,21 @@ module Hecks
           nil
         end
 
+        # Builds the disk cache file path for `chapters`.
+        #
+        # @param chapters [Array<Array(String, Object)>] the `[name,
+        #   chapter]` pairs to key the cache entry on
+        # @return [String] the disk cache file path for `chapters`
         def disk_cache_path(chapters)
           File.join(CACHE_DIR, "#{disk_cache_key(chapters)}.marshal")
         end
 
+        # Builds the cache key for `chapters`.
+        #
+        # @param chapters [Array<Array(String, Object)>] the `[name,
+        #   chapter]` pairs to key the cache entry on
+        # @return [String] a SHA-256 digest of the chapter names and the
+        #   current grammar source
         def disk_cache_key(chapters)
           names = chapters.map { |name, _chapter| name }
           Digest::SHA256.hexdigest("#{names.join(',')}:#{grammar_content_digest}")
@@ -196,12 +241,20 @@ module Hecks
         # chapter it belongs to) — deliberately, since under-covering this
         # set is a correctness bug (a stale table survives a real grammar
         # edit) and over-covering it is only ever a wasted cache miss.
+        # @return [String] a SHA-256 digest of every grammar file's own
+        #   current content, sorted for a stable digest
         def grammar_content_digest
           files = (MetaValidator::GRAMMAR_FILES + MetaValidator::WORLD_GRAMMAR + MetaValidator::HECKSAGON_GRAMMAR +
                     Dir.glob(File.join(MetaValidator::ATTACHED_GRAMMAR_DIR, "*.bluebook"))).sort
           Digest::SHA256.hexdigest(files.map { |file| File.read(file) }.join("\0"))
         end
 
+        # Dispatches every seed row into a fresh "Bluebook" instance and
+        # reads the result back.
+        #
+        # @return [Hash{Symbol => Array<Hash{Symbol => String}>}] `:keywords`
+        #   and `:arguments`, each an array of plain, string-valued row
+        #   hashes (`status` included)
         def boot
           bluebook = MetaValidator.grammar_registry.bluebook("Bluebook")
           # `MetaValidator.fresh_runtime`, not a brand-new `Runtime::
@@ -222,21 +275,35 @@ module Hecks
           read_back(runtime, bluebook)
         end
 
+        # Wraps `text` as a single-field value-object payload, for a
+        # dispatch's own `with:`.
+        #
         # An Integer stays an Integer — `position` is `Position`-typed
         # (`attribute :value, Integer`), so stringifying it fails the type
         # gate rather than feeding it, the same reading `Judge#v` gives.
+        #
+        # @param text [String, Integer] the scalar to wrap
+        # @return [Hash{Symbol => String, Integer}] `{value: text}`,
+        #   stringified unless `text` is already an Integer
         def v(text)
           return { value: text } if text.is_a?(Integer)
 
           { value: text.to_s }
         end
 
+        # Wraps `text` as an `optional: true` command argument's own
+        # payload, or omits it.
+        #
         # Absent stays absent. A seed row's own optional columns ("was",
         # "at", "named", ...) are empty strings, not nil — `Literal`/CSV-
         # shaped grammar data has no `nil` to write — so this is the one
         # place that decides "" means "not given" for the purpose of an
         # `optional: true` command argument, the same reading `Judge#v`
         # makes for the meta-domain's own dispatches.
+        #
+        # @param text [String, nil] the seed row's own column value
+        # @return [Hash{Symbol => String}, nil] `v(text)`, or `nil` when
+        #   `text` is `nil` or empty
         def optional(text)
           return nil if text.nil? || text.to_s.empty?
 
@@ -251,6 +318,13 @@ module Hecks
         # declared first, named after the real chapter, purely to satisfy
         # the reference — its own vision/classification are never read
         # by anything this boot does.
+        #
+        # @param runtime [Runtime::Dispatcher] the fresh runtime to
+        #   dispatch into
+        # @param bluebook [Bluebook::Chapter] the language's own assembled
+        #   "Bluebook" chapter, read for its `hecks_name` and `"Syntax"`
+        #   aggregate
+        # @return [void]
         def declare_syntax(runtime, bluebook)
           syntax = bluebook.aggregate("Syntax")
           runtime.dispatch("Bluebook::Bluebook.Declare",
@@ -264,14 +338,19 @@ module Hecks
 
         # `to: "Syntax"` names the record already opened by `declare_syntax`
         # above — an append onto an existing aggregate, not a second creation
-        # of it. This used to smuggle `name: v("Syntax")` into the payload
-        # instead, the pre-routing convention `Judge#appends` (the same
-        # append shape, for `ValueObject.Member`/`ProcessManager.Handler`)
-        # already left behind for `to:`/`with:` — carrying the receiver in
-        # the payload made `Syntax.Keyword`'s own `command.creates?` (true:
-        # it declares no `reference_to`) look like a fresh identity to mint,
-        # which collided with the very "Syntax" row `declare_syntax` had
-        # just opened.
+        # of it. Smuggling `name: v("Syntax")` into the payload instead — the
+        # pre-routing convention `Judge#appends` (the same append shape, for
+        # `ValueObject.Member`/`ProcessManager.Handler`) already left behind
+        # for `to:`/`with:` — would carry the receiver in the payload,
+        # making `Syntax.Keyword`'s own `command.creates?` (true: it
+        # declares no `reference_to`) look like a fresh identity to mint,
+        # colliding with the very "Syntax" row `declare_syntax` just opened.
+        #
+        # @param runtime [Runtime::Dispatcher] the fresh runtime to
+        #   dispatch into
+        # @param bluebook [Bluebook::Chapter] the language's own assembled
+        #   "Bluebook" chapter, read for its `KeywordSeed` rows
+        # @return [void]
         def admit_keywords(runtime, bluebook)
           all_rows(bluebook, "KeywordSeed").each_with_index do |row, index|
             runtime.dispatch("Bluebook::Syntax.Keyword", to:   "Syntax",
@@ -289,6 +368,14 @@ module Hecks
           end
         end
 
+        # Admits every `ArgumentSeed` row as a `Syntax.Argument`, the same
+        # `to: "Syntax"` append shape `admit_keywords` uses one type over.
+        #
+        # @param runtime [Runtime::Dispatcher] the fresh runtime to
+        #   dispatch into
+        # @param bluebook [Bluebook::Chapter] the language's own assembled
+        #   "Bluebook" chapter, read for its `ArgumentSeed` rows
+        # @return [void]
         def admit_arguments(runtime, bluebook)
           all_rows(bluebook, "ArgumentSeed").each_with_index do |row, index|
             runtime.dispatch("Bluebook::Syntax.Argument", to:   "Syntax",
@@ -315,6 +402,14 @@ module Hecks
         # Port, Adapter, Translation), and attached sub-languages alike.
         # Concatenated into one sequence because `position` is minted from the
         # walk index and must not collide across concepts.
+        #
+        # @param bluebook [Bluebook::Chapter] the language's own assembled
+        #   "Bluebook" chapter, read first, before every other loaded
+        #   chapter
+        # @param name [String] the local value-object name to collect rows
+        #   of, such as `"KeywordSeed"`
+        # @return [Array<Hash{Symbol => String}>] every matching row, across
+        #   every loaded chapter, in chapter order
         def all_rows(bluebook, name)
           seed_chapters(bluebook).flat_map { |chapter| rows(chapter, name) }
         end
@@ -323,6 +418,11 @@ module Hecks
         # sibling/extension. The name rejection avoids reading the same core
         # object twice without relying on object identity across fixpoint
         # assembly.
+        #
+        # @param bluebook [Bluebook::Chapter] the language's own assembled
+        #   "Bluebook" chapter
+        # @return [Array<Bluebook::Chapter>] `bluebook` first, then every
+        #   other chapter the grammar registry holds
         def seed_chapters(bluebook)
           [bluebook] + MetaValidator.grammar_registry.bluebooks.values.reject { |chapter| chapter.name == bluebook.name }
         end
@@ -331,6 +431,13 @@ module Hecks
         # every aggregate that owns a same-named local value object. Repeating
         # the value-object shape is deliberate: each concept remains readable
         # by itself, while this discovery is the only grouping mechanism.
+        #
+        # @param bluebook [Bluebook::Chapter] the chapter to search
+        # @param name [String] the local value-object name to collect rows
+        #   of, such as `"KeywordSeed"`
+        # @return [Array<Hash{Symbol => String}>] one hash per member row,
+        #   `[]` if no aggregate in `bluebook` owns a value object named
+        #   `name`
         def rows(bluebook, name)
           bluebook.aggregates.flat_map do |aggregate|
             value_object = aggregate.value_objects.find { |vo| vo.hecks_name == name }
@@ -344,6 +451,14 @@ module Hecks
         # above hands the seed data in as — plain hashes, string values,
         # `status` included — so `ParserTable`/`syntax_conformance_spec`
         # need not know or care that a real dispatch happened in between.
+        #
+        # @param runtime [Runtime::Dispatcher] the runtime `boot` dispatched
+        #   every seed row into
+        # @param bluebook [Bluebook::Chapter] the language's own assembled
+        #   "Bluebook" chapter, read for its `"Syntax"` aggregate
+        # @return [Hash{Symbol => Array<Hash{Symbol => String}>}] `:keywords`
+        #   and `:arguments`, each an array of plain, string-valued row
+        #   hashes (`status` included)
         def read_back(runtime, bluebook)
           syntax = bluebook.aggregate("Syntax")
           repository = runtime.registry.repository("Bluebook", syntax)
@@ -355,12 +470,23 @@ module Hecks
           }
         end
 
+        # Flattens one dispatched record into a plain, string-valued row.
+        #
+        # @param row [Object] one dispatched keyword or argument record,
+        #   answering `to_h`
+        # @return [Hash{Symbol => String}] `row`'s own fields, each value
+        #   unwrapped and stringified
         def stringify(row)
           row.to_h.transform_values do |cell|
             scalar(cell).to_s
           end
         end
 
+        # Unwraps one field's stored value to its bare scalar.
+        #
+        # @param cell [Object] one field's stored value
+        # @return [Object] `cell`'s sole wrapped value, if `cell` is a
+        #   to_h-able non-String; `cell` unchanged otherwise
         def scalar(cell)
           return cell.to_h.values.first if cell.respond_to?(:to_h) && !cell.is_a?(String)
 

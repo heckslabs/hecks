@@ -56,7 +56,8 @@ RSpec.describe Hecks::QueryIR do
           (r.location == "Account (declared)" || r.location.start_with?("Account."))
       end
 
-      expect(account_given.size).to be > 1 # Account's own declaration, plus every command that references it
+      # Account's own declaration, plus every command that references it
+      expect(account_given.size).to be > 1
 
       groups = described_class.duplicates(domains: [File.join(InMemoryDomain::ROOT, "examples/banking")], include_meta: false)
       customer_active = groups.find do |g|

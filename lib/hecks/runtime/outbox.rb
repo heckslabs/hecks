@@ -13,7 +13,9 @@ module Hecks
     # outbound port operation) the external effects those reactions
     # cause. `future-features.md` item 8, built.
     #
-    # **The shape**. One row per (event, consumer). A consumer is a named
+    # ## The shape
+    #
+    # One row per (event, consumer). A consumer is a named
     # policy or process manager that would react to the event — resolved
     # at enqueue time from the registry (`Fanout`), so the outbox records
     # who was owed what, not just that an event happened. Rows move
@@ -33,18 +35,22 @@ module Hecks
     #              tracks delivery, not the domain's answer.
     #   failed     the consumer raised a defect (non-refusal error).
     #
-    # **Delivery is inline by default** — the dispatcher drains the rows it
+    # ## Delivery is inline by default
+    #
+    # The dispatcher drains the rows it
     # just wrote, in the same call, in the order C10.2 fixes (per event
     # in `emits` order: that event's policy rows, then its saga rows —
     # the emitting domain's own policies before other domains'). Nothing about the
     # happy path is deferred or asynchronous; a caller still sees every
     # reaction settled when `dispatch` returns. What changes is the
-    # crash window: a process that dies between commit and reaction
-    # used to lose the reaction silently. Now the row survives, and
-    # `Relay#redrive!` — run at boot by `Loader.run_boot_gates!` —
+    # crash window: without a durable row, a process that dies between
+    # commit and reaction loses the reaction silently. The row survives,
+    # and `Relay#redrive!` — run at boot by `Loader.run_boot_gates!` —
     # finds it.
     #
-    # **What redrive does, and deliberately doesn't**. A `pending` row is
+    # ## What redrive does, and deliberately doesn't
+    #
+    # A `pending` row is
     # redriven: its consumer provably never started (claiming is the
     # first thing delivery does), so running it now is exactly-once by
     # construction. A `claimed` row is not auto-redriven: the consumer
@@ -57,7 +63,9 @@ module Hecks
     # unique per store, so a re-enqueue of the same fact to the same
     # consumer is a no-op rather than a second row.
     #
-    # **Which adapters**. Memory (in-process rows — visible to specs,
+    # ## Which adapters
+    #
+    # Memory (in-process rows — visible to specs,
     # gone with the process, exactly like everything else Memory holds),
     # Sqlite and Postgres (a `hecks_outbox` table in the aggregate's own
     # database — the only way the enqueue can share the save's
@@ -71,13 +79,30 @@ module Hecks
 
       Row = Struct.new(:id, :delivery_id, :event_uid, :aggregate, :domain, :kind, :consumer, :event,
                        :status, :attempts, :error, keyword_init: true) do
+        # Reports whether this row is still waiting to be claimed.
+        #
+        # @return [Boolean] true if this row's status is `"pending"`
         def pending?   = status == "pending"
+
+        # Reports whether this row's consumer is currently running.
+        #
+        # @return [Boolean] true if this row's status is `"claimed"`
         def claimed?   = status == "claimed"
+
+        # Reports whether this row's consumer ran to completion.
+        #
+        # @return [Boolean] true if this row's status is `"delivered"`
         def delivered? = status == "delivered"
+
+        # Reports whether this row's consumer raised a defect.
+        #
+        # @return [Boolean] true if this row's status is `"failed"`
         def failed?    = status == "failed"
 
         # Wire-shaped — what an adapter persists. `event` is the event's
         # own `to_h` plus correlation; `Row.event_from` reverses it.
+        #
+        # @return [Hash{Symbol => Object}] this row's own fields, keyed by name
         def to_h
           { id: id, delivery_id: delivery_id, event_uid: event_uid, aggregate: aggregate, domain: domain,
             kind: kind, consumer: consumer, event: event, status: status, attempts: attempts, error: error }
@@ -89,6 +114,12 @@ module Hecks
 
       module_function
 
+      # Renders an event as the wire-shaped Hash an outbox row's own `event`
+      # field stores.
+      #
+      # @param event [Runtime::Event] the event to serialize
+      # @return [Hash{Symbol => Object}] `event`'s own `to_h`, with `correlation`
+      #   merged in
       def serialize_event(event)
         event.to_h.merge(correlation: event.correlation)
       end
@@ -96,11 +127,21 @@ module Hecks
       # The emitting domain's own bluebook first, then the rest in load
       # order (C10.2) — the one policy ordering both `PolicyInterpreter#
       # policies_for` and `Fanout.policies` read.
+      #
+      # @param registry [Runtime::Registry] the booted registry whose loaded
+      #   bluebooks are ordered
+      # @param domain [String, Symbol] the emitting domain, sorted first
+      # @return [Array<Bluebook::Chapter>] every loaded chapter, `domain`'s own first
       def bluebooks_home_first(registry, domain)
         home, others = registry.bluebooks.each_value.partition { |bluebook| bluebook.name == domain }
         home + others
       end
 
+      # Rebuilds a frozen event from an outbox row's own stored `event` field.
+      #
+      # @param hash [Hash{String, Symbol => Object}] the wire-shaped event Hash,
+      #   as `serialize_event` built it (String or Symbol keys either way)
+      # @return [Runtime::Event] the rebuilt, frozen event
       def event_from(hash)
         hash = hash.transform_keys(&:to_sym)
         Event.new(
@@ -113,6 +154,12 @@ module Hecks
         ).emit!
       end
 
+      # Recursively symbolizes every Hash key reachable from `value`.
+      #
+      # @param value [Object] the value to symbolize; typically a Hash or Array,
+      #   possibly nested
+      # @return [Object] `value` with every Hash key (at any depth) turned into a
+      #   Symbol; a non-Hash, non-Array value passes through unchanged
       def deep_symbolize(value)
         case value
         when Hash  then value.to_h { |k, v| [k.to_sym, deep_symbolize(v)] }
@@ -137,6 +184,12 @@ module Hecks
         # this consumer".
         # Row order is delivery order (C10.2): per event, in `emits`
         # order — that event's policy rows, then its saga rows.
+        #
+        # @param registry [Runtime::Registry] the booted registry every candidate
+        #   consumer is resolved against
+        # @param events [Array<Runtime::Event>] the just-emitted events to build rows for
+        # @param domain [String, Symbol] the emitting domain
+        # @return [Array<Runtime::Outbox::Row>] one pending row per (event, consumer)
         def rows_for(registry, events, domain)
           uids = events.to_h { |event| [event, SecureRandom.uuid] }
           events.flat_map do |event|
@@ -144,6 +197,16 @@ module Hecks
           end
         end
 
+        # Builds one pending row per policy `event` triggers.
+        #
+        # @param registry [Runtime::Registry] the booted registry policies are
+        #   resolved against
+        # @param event [Runtime::Event] the just-emitted event
+        # @param domain [String, Symbol] the emitting domain
+        # @param uid [String] this event's own enqueue-time UID, shared by every row
+        #   built for it
+        # @return [Array<Runtime::Outbox::Row>] one pending row per matching policy,
+        #   emitting domain's own bluebook first
         def policies(registry, event, domain, uid)
           emitting = Naming.demodulise(event.aggregate)
           Outbox.bluebooks_home_first(registry, domain).flat_map do |bluebook|
@@ -159,6 +222,18 @@ module Hecks
           end
         end
 
+        # Builds one pending row per process manager `event` advances, in `domain`
+        # only (a saga never reacts across domains).
+        #
+        # @param registry [Runtime::Registry] the booted registry process managers
+        #   are resolved against
+        # @param event [Runtime::Event] the just-emitted event
+        # @param domain [String, Symbol] the domain whose declared process managers
+        #   are checked
+        # @param uid [String] this event's own enqueue-time UID, shared by every row
+        #   built for it
+        # @return [Array<Runtime::Outbox::Row>] one pending row per process manager
+        #   `event` starts, ends, or advances
         def sagas(registry, event, domain, uid)
           bluebook = registry.bluebook(domain)
           return [] unless bluebook
@@ -170,6 +245,13 @@ module Hecks
           end
         end
 
+        # Reports whether `event` starts, ends, or advances `process_manager`.
+        #
+        # @param process_manager [Bluebook::ProcessManager] the declared process
+        #   manager to check
+        # @param event [Runtime::Event] the just-emitted event
+        # @return [Boolean] true if `event` names `process_manager`'s own
+        #   `starts_on`, `ends_on`, or a declared handler
         def listens?(process_manager, event)
           process_manager.starts_on == event.name || process_manager.ends_on == event.name ||
             !process_manager.handler_for(event.name).nil?
@@ -179,6 +261,14 @@ module Hecks
         # operation — the row is the durable record that an external
         # call was owed, claimed right before the adapter is asked and
         # settled right after. Everything else is a plain "reaction".
+        #
+        # @param registry [Runtime::Registry] the booted registry the trigger's own
+        #   aggregate/port are resolved against
+        # @param policy [Bluebook::Policy] the policy whose trigger is classified
+        # @param home_domain [String, Symbol] the domain `policy` is declared in,
+        #   used when `policy` declares no `target_domain`
+        # @return [String] `"effect"` when the trigger resolves to an outbound port
+        #   operation, `"reaction"` otherwise
         def kind_for(registry, policy, home_domain)
           target = "#{policy.target_domain || home_domain}::#{policy.trigger_command}"
           parsed = Naming.split_verb(target)
@@ -204,11 +294,16 @@ module Hecks
         # by the Rust kernel (`spec/rust_conformance_spec.rb`); this is
         # an additive, Ruby-only log, the same rule `saga_dispatch_log`
         # and `policy_dispatch_log` already follow.
+        #
+        # @param registry [Runtime::Registry] the booted registry this relay drains
+        #   rows for
         def initialize(registry)
           @registry = registry
           @log      = []
         end
 
+        # Attaches the interpreters a delivered row's own consumer runs through.
+        #
         # A Dispatcher hands over the interpreters a consumer runs
         # through (`Dispatcher#initialize`). Until then this relay can
         # enqueue (that needs only the registry) but not deliver — and
@@ -216,20 +311,38 @@ module Hecks
         # to. The registry holds one relay for its lifetime; a second
         # dispatcher fronting the same registry re-attaches, which is
         # fine because both dispatchers share every log and store.
+        #
+        # @param policies [Runtime::PolicyInterpreter] the interpreter a `"policy:"`
+        #   consumer reacts through
+        # @param sagas [Runtime::SagaInterpreter] the interpreter a `"saga:"` consumer
+        #   advances through
+        # @return [Runtime::Outbox::Relay] self
         def attach(policies:, sagas:)
           @policies = policies
           @sagas    = sagas
           self
         end
 
+        # Reports whether a dispatcher has attached its interpreters.
+        #
+        # @return [Boolean] true once `attach` has run
         def attached? = !@policies.nil?
 
+        # Writes one pending row per (event, consumer) `events` owes a reaction to.
+        #
         # Called inside the save transaction by `Interpreting` for the
         # command/entity paths, and outside one by `Dispatcher` for port
         # operations (which save nothing, so there is no transaction to
         # share). Returns the rows as stored (ids assigned), or nil when
         # the repository has no outbox — the dispatcher then reacts
         # directly, exactly as before.
+        #
+        # @param repository [Persistence::AppendOnly] the repository whose store the
+        #   rows are enqueued into; a no-op unless it has an outbox
+        # @param events [Array<Runtime::Event>] the events this dispatch just emitted
+        # @param domain [String, Symbol] the emitting domain
+        # @return [Array<Runtime::Outbox::Row>, nil] the stored rows, `id` assigned;
+        #   `nil` when `repository` has no outbox; `[]` when `events` is empty
         def enqueue(repository, events, domain)
           return nil unless repository.outbox?
           return [] if events.empty?
@@ -241,6 +354,15 @@ module Hecks
 
         # Drain the rows a dispatch just committed. `rows` nil means "no
         # outbox here" — react directly, the pre-outbox path.
+        #
+        # @param rows [Array<Runtime::Outbox::Row>, nil] the just-enqueued rows to
+        #   deliver; nil to react directly instead (no outbox on this repository)
+        # @param events [Array<Runtime::Event>] the events this dispatch just emitted,
+        #   read when `rows` is nil
+        # @param domain [String, Symbol] the emitting domain
+        # @param repository [Persistence::AppendOnly] the repository `rows` were
+        #   enqueued into
+        # @return [void]
         def deliver(rows, events, domain, repository)
           if rows.nil?
             # Per event, in `emits` order — its policies, then its sagas
@@ -258,6 +380,11 @@ module Hecks
 
         # One row: claim, run its consumer, settle. A claim that fails
         # means another relay (or this one, re-entrantly) already has it.
+        #
+        # @param row [Runtime::Outbox::Row] the row to claim and deliver
+        # @param repository [Persistence::AppendOnly] the repository `row` is stored in
+        # @return [Boolean] true when this call claimed and delivered `row`; false
+        #   when the claim failed, or the consumer raised a defect (recorded on `log`)
         def deliver_row(row, repository)
           return false unless repository.outbox_claim(row.id)
 
@@ -283,13 +410,24 @@ module Hecks
         end
 
         # Every row in every bound store, newest last. `status:` narrows.
+        #
+        # @param status [String, Symbol, nil] keep only rows with this status; nil
+        #   for every row
+        # @return [Array<Runtime::Outbox::Row>] copies of the matching rows, across
+        #   every store with an outbox
         def rows(status: nil)
           stores.flat_map { |repository| repository.outbox_rows(status: status) }
         end
 
+        # Runs the boot-time reconciliation over every bound store.
+        #
         # **Boot-time reconciliation**. Redrives `pending` rows (never
         # claimed — safe by construction); surfaces `claimed` rows and
         # redrives them only when told to (`claimed: true`).
+        #
+        # @param claimed [Boolean] whether to also redrive `claimed` rows (an
+        #   explicit operator decision); false leaves them surfaced and untouched
+        # @return [Array<Runtime::Outbox::Row>] every row this call actually delivered
         def redrive!(claimed: false)
           redriven = []
           stores.each do |repository|

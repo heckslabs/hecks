@@ -4,6 +4,9 @@ require_relative "../naming"
 require_relative "value_object_shape"
 
 module Hecks
+  # The forms surface's own namespace — the `expose` DSL, the IR->HTML
+  # renderers, and the Rack app bridging them; see `forms.rb`'s own header,
+  # its primary opening, for the fuller design this implements.
   module Forms
     # One resolved field, ready for a renderer to turn into markup. A leaf
     # scalar carries `kind`/`options`/etc; a `:group` or `:list` carries

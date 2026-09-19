@@ -2,16 +2,16 @@ require "spec_helper"
 require "hecks/fuzzing"
 require "json"
 
-# THE ARGUMENT-GATE ORDERING MATRIX (roadmap D2) — Ruby's half. One
+# The argument-gate ordering `MATRIX` (roadmap D2) — Ruby's half. One
 # generated table (`bin/argument_gate_matrix`, spec/corpus/
 # argument_gate_order/matrix.json) replaces the hand-written refusal-order
-# fixtures that each pinned ONE pair of argument gates on ONE command
-# shape. Every row is an input violating BOTH steps of an adjacent pair of
-# argument-gate steps; the refusal that wins must be the EARLIER declared
+# fixtures that each pinned one pair of argument gates on one command
+# shape. Every row is an input violating both steps of an adjacent pair of
+# argument-gate steps; the refusal that wins must be the earlier declared
 # step's.
 #
-# NOTHING HERE IS HAND-WRITTEN: the rows, their inputs and their expected
-# refusals all come from RUNNING RUBY (docs/decisions/0010 — Ruby is the
+# **Nothing here is hand-written**: the rows, their inputs and their expected
+# refusals all come from running Ruby (docs/decisions/0010 — Ruby is the
 # oracle), recorded with the step Ruby's own dispatch trace attributes the
 # refusal to. This spec holds Ruby to its own recorded answers, so a
 # change to a gate's wording, class or position shows up as a diff here
@@ -19,19 +19,19 @@ require "json"
 # *.json` — the same rows as an ordinary conformance script — holds the
 # Rust port to them through `spec/rust_conformance_spec.rb`.
 #
-# ADJACENT PAIRS ARE ENOUGH. The matrix covers pairs that are adjacent in
+# **Adjacent pairs are enough**. The matrix covers pairs that are adjacent in
 # the declared order once the gates a given command cannot violate are
 # left out (a command with no declared `role` cannot violate
 # `refuse_role_mismatch`, so `normalize_args` and `resolve_references` are
 # adjacent for it). Adjacency composes: `refuse_unknown_arguments` beating
 # `hydrate` follows from unknown < absent, absent < normalize and
-# normalize < hydrate, each of which IS a covered pair — which is why the
+# normalize < hydrate, each of which is a covered pair — which is why the
 # matrix retires `bug38_entity_command_unknown_argument_before_extract_id`
 # and its siblings rather than restating each of them.
 RSpec.describe "the argument-gate ordering matrix" do
   MATRIX = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/argument_gate_order/matrix.json"))).freeze
 
-  # EVERY PAIR THE MATRIX IS EXPECTED TO COVER. Pinned as a SET, not as
+  # Every pair the `MATRIX` is expected to cover. Pinned as a set, not as
   # counts: a regeneration that drops a whole pair (a domain's command
   # losing its `role`, say, or a generated "valid" value starting to fail
   # a domain's own invariant) fails here instead of quietly shrinking the

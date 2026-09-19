@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 require_relative "support/rust_conformance_helpers"
 
 # **The Rust differential harness, wired in** — bin/rust_conformance's own
-# header comment used to say plainly that nothing did this ("this tool
+# header comment once said plainly that nothing did this ("this tool
 # does not invoke Rust itself... until then, 'give me a JSON file to
 # compare against' is the whole interface"). 0012 gave it a `native` mode
 # that actually runs a compiled artifact; this is that mode, run as part
@@ -14,9 +14,9 @@ require_relative "support/rust_conformance_helpers"
 # skip" discipline that workflow already holds Postgres/SQLite to.
 #
 # Compares `instances`, `events`, `queries`, and full refusal wording
-# (`verb` + `error`, not just `verb`) — the two gaps that used to make
+# (`verb` + `error`, not just `verb`) — the two gaps that made
 # exact `events`/wording comparison the wrong bar here are both closed
-# now (0021): `Event.payload` used to be the router's raw, unfiltered args
+# now (0021): `Event.payload` was the router's raw, unfiltered args
 # (0013's own `stamp_payload`) with no post-coercion default-fill —
 # `Json::overlay` (json.rs) now merges the raw args with the typed args
 # struct's own `to_json()`, matching Ruby's own coerced-hash payload; and
@@ -27,14 +27,14 @@ require_relative "support/rust_conformance_helpers"
 # the `queries` comparison — both engines report an empty array — so
 # adding it here costs those fixtures nothing.
 #
-# The refusal-wording gap this file used to name is closed. Fixtures used
-# to be picked/maintained specifically to stay clear of `LifecycleRefused`'s
+# The refusal-wording gap this file once named is closed. Fixtures were
+# picked/maintained specifically to stay clear of `LifecycleRefused`'s
 # `transition_blocked`, the general VO-`invariant` message, `one_of`
 # closed-set membership, and entity-element-missing — `rust/project.rb`'s
-# own header used to name these as a real, separate, deliberately
+# own header once named these as a real, separate, deliberately
 # out-of-scope gap. `bin/project_refusal_wording` (generating `rust/src/
 # kernel/refusal_wording.rs`, `RefusalSite`) closed all four, plus
-# `record_missing` via `Hydrate::Act` (found live, previously unnamed) and
+# `record_missing` via `Hydrate::Act` (found live, unnamed until this fix) and
 # a wrong refusal class on `closed_set_member` (`TypeMismatch`, not
 # `InvariantViolation` — a behavioral bug, not just wording). The general
 # VO-invariant message is no longer a gap at all: it was promoted into
@@ -117,7 +117,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # reaction-ordering gap described above is closed; its always-false
   # `known_reaction_gap?` predicate was deleted in Phase 4.
 
-  # The READ_MODEL/query-CODEGEN boundary's own refusal, one level up
+  # The READ_MODEL/query-codegen boundary's own refusal, one level up
   # from the single-step example below — the same gap
   # (rust/project/read_models.rb's and queries.rb's own headers, and
   # bin/rust_coverage's "known red, on purpose" citation for banking),
@@ -141,7 +141,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # its own queries log simply has no matching entry — exempted the same
   # way, checking either key a step's own log entry uses.
   #
-  # Both verbs this used to exempt were closed by Phase 10, so the fixed
+  # Both verbs this once exempted were closed by Phase 10, so the fixed
   # corpus compares refusals and queries with no tolerance. PRD 04's
   # generated-sequence bridge (spec/rust_conformance_fuzz_spec.rb) can
   # reach verbs Rust never generated; it tolerates exactly the ones the
@@ -206,7 +206,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
   # The other "query" step shape's own remaining boundary — a named/declared
   # bluebook ask (the string form) whose own shape this generator's query
-  # codegen doesn't cover. Used to be `Banking::Account.Open` (it declared
+  # codegen doesn't cover. This example was `Banking::Account.Open` (it declared
   # `order_by`, which disqualified it outright) — that closed 2026-08-11,
   # the moment `kernel/query_ordering.rs` gave `named_query.rs` the same
   # sort/limit tail `read_model.rs` already had (see named_queries_order_
@@ -234,7 +234,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
     # Every query banking declares is generated now — the reference hop
     # (`OpenForSuspendedCustomers`) and the entity-scoped ones
-    # (`LedgerEntry.Reversed`) this used to sample in turn — so the refusal
+    # (`LedgerEntry.Reversed`) this once sampled in turn — so the refusal
     # path is proven with a verb banking never declares.
     uncovered = "Banking::Account.NoSuchQuery"
     stdout, status = Open3.capture2(

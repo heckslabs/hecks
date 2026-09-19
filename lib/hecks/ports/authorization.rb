@@ -31,8 +31,7 @@ module Hecks
 
       # Answers whether an actor holds a live (not ended) grant of a role.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param actor_id [String] the actor whose grants are checked
       # @param role [String, Symbol] the role name to look for, compared as a String
       # @param as_of [Integer, nil] Unix epoch seconds (from `Ports::Clock.now`); a grant whose
@@ -51,8 +50,7 @@ module Hecks
 
       # Answers whether one role may act as another.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param from_role [String, Symbol] the role the caller holds, compared as a String
       # @param to_role [String, Symbol] the role the caller wants to act as, compared as a
       #   String
@@ -67,8 +65,7 @@ module Hecks
 
       # Looks up the role an actor holds right now, rather than checking a guessed one.
       #
-      # @param registry [Runtime::Registry] the booted registry, used to resolve the adapter
-      #   and handed on to it
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param actor_id [String] the actor to look up
       # @return [String, nil] the role name of the actor's first live (not ended) grant, or
       #   nil if it has none; the caller supplies any fallback

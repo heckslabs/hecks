@@ -268,6 +268,12 @@ TOOLS = [
   }
 ].freeze
 
+# Boots one domain for a single call, confined to `Storehouse::BOOT_ROOT`.
+#
+# @param domain [String] the domain directory, e.g. `"examples/banking"`
+# @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+# @raise [Runtime::TypeMismatch] if `domain` resolves outside `Storehouse::BOOT_ROOT`
+# @raise [Runtime::WiringError] if the domain fails to boot
 def boot(domain) = Hecks.boot(Hecks::Storehouse.confine!(domain, "domain"), install_facade: false)
 
 # A closed-set dispatch table, one `when` per MCP tool name — each branch
@@ -277,7 +283,24 @@ def boot(domain) = Hecks.boot(Hecks::Storehouse.confine!(domain, "domain"), inst
 # trivial single-line methods, and would scatter the shared `rescue` below
 # (every branch's escape hatch to the same structured-error response)
 # across each of them instead of catching it once, here.
+# Runs one MCP tool call by delegating to the matching `Hecks::Storehouse` method.
+#
+# @param name [String] the tool name, one of `TOOLS`'s own `:name` values
+# @param args [Hash{String => Object}] the tool's JSON arguments, shaped per
+#   that tool's `inputSchema`
+# @return [Hash{Symbol => Object}] the delegate's structured result (always at
+#   least `:ok`); `{ok: false, error: ...}` for an unknown tool name or an
+#   unanticipated exception
 # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity
+# Runs one registered MCP tool by delegating to the matching `Hecks::Storehouse` call.
+#
+# @param name [String] the tool name, one of `TOOLS`'s own `:name` values
+# @param args [Hash{String => Object}] the tool's JSON arguments, shaped per that tool's
+#   `inputSchema`
+# @return [Hash{Symbol => Object}] the delegated `Hecks::Storehouse` result on a known
+#   tool name; `{ok: false, error: String}` for an unknown tool name or any `StandardError`
+#   this door did not anticipate (a domain refusal is already `{ok: false, ...}` from
+#   inside `Storehouse` itself)
 def call_tool(name, args)
   case name
   when "dispatch"
@@ -328,18 +351,40 @@ rescue StandardError => e
   { ok: false, error: "#{e.class}: #{e.message}" }
 end
 
+# Wraps a `call_tool` payload in the MCP `tools/call` result shape.
+#
+# @param payload [Hash{Symbol => Object}] a `call_tool` result
+# @return [Hash{Symbol => Object}] `{content: [{type: "text", text: ...}], isError: Boolean}`,
+#   pretty-printing `payload` as the text and setting `isError` from `payload[:ok]`
 def tool_result(payload)
   { content: [{ type: "text", text: JSON.pretty_generate(payload) }], isError: payload[:ok] == false }
 end
 
+# Writes one JSON-RPC success response line to stdout.
+#
+# @param id [String, Integer, nil] the request's own `id`, echoed back
+# @param result [Object] the JSON-serializable result payload
+# @return [void]
 def send_response(id, result)
   puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
 end
 
+# Writes one JSON-RPC error response line to stdout.
+#
+# @param id [String, Integer, nil] the request's own `id`, echoed back (may be
+#   nil when the request itself could not be parsed)
+# @param code [Integer] the JSON-RPC error code
+# @param message [String] the error message
+# @return [void]
 def send_error(id, code, message)
   puts JSON.generate({ jsonrpc: "2.0", id: id, error: { code: code, message: message } })
 end
 
+# Dispatches one parsed JSON-RPC request to its method and writes the response.
+#
+# @param request [Hash{String => Object}] one parsed JSON-RPC request, with
+#   `"id"`, `"method"`, and optional `"params"`
+# @return [void]
 def handle(request)
   id     = request["id"]
   method = request["method"]

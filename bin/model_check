@@ -23,6 +23,12 @@ require "hecks/bluebook/model_check"
 
 ROOT = File.expand_path("..", __dir__)
 
+# Boots one corpus source into a fresh registry, loading its sibling
+# hecksagon (if one exists) so a policy bound from there is visible too.
+#
+# @param source [String] a directory to boot (every bluebook within), or a single
+#   `.bluebook` file path
+# @return [Runtime::Registry] the registry populated with the booted bluebook(s)
 def boot(source)
   registry = Hecks::Runtime::Registry.new
   Hecks.with_registry(registry) do
@@ -65,6 +71,18 @@ end
 # same inference `Fuzzing::TargetCapabilities` makes for bin/qa_sweep), so
 # a `rust_reserved_name` finding is an error for it, not a warning.
 # `STRICT` (`--strict`) makes it an error for every target.
+#
+# Runs `Bluebook::ModelCheck` over one booted domain's chapters, prints
+# its findings against the allowlist, and reports whether it passes.
+#
+# @param name [String] the domain's display name, used for the header and the
+#   `ALLOWED_FINDINGS` lookup key
+# @param registry [Runtime::Registry] a booted registry holding the domain's chapters
+# @param known_domains [Set<String>, nil] every bluebook/hecksagon name booted anywhere
+#   this run, for the multi-target corpus form; nil for the single-target CLI form
+# @return [Boolean] false if an allowlist entry is stale (no longer found); otherwise true
+#   if there are no unresolved error-severity findings (allowlisted or warning-only ones
+#   don't count), false if there is at least one
 def examine(name, registry, known_domains: nil)
   puts "── #{name}"
 
@@ -102,6 +120,9 @@ end
 # (they all open `Hecks.bluebook "Bluebook" do`), and grammar_registry is
 # the judged, fixpointed graph — booting any one of them alone would
 # check a ninth of the language and call it clean.
+#
+# @return [Boolean] true if the language's own Bluebook/World chapters have no
+#   error-severity findings, false otherwise
 def examine_language
   ok = true
   %w[Bluebook World].each do |name|

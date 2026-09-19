@@ -38,13 +38,13 @@ module Hecks
       # never closes it. Real domain activity is unaffected; the saga's
       # own tracking of it is not. Left named rather than redesigning a
       # corpus fixture that is not this checker's to redesign.
-      # S7, ADR 0025 — the ExternalSettlement finding this used to
-      # allowlist is gone, not just quieted: its "sent" state was a
-      # `state "x"` line never named by any handler's own from:/to:, a
+      # S7, ADR 0025 — an ExternalSettlement finding once lived here as an
+      # allowlist entry and is gone now, not just quieted: its "sent" state
+      # was a `state "x"` line never named by any handler's own from:/to:, a
       # pure declaration-drift artifact. States are derived from the
       # transitions that name them now (ProcessManagerBuilder#derived_
       # states), so a state nothing ever transitions into or out of no
-      # longer exists to be unreachable — the finding this allowlisted
+      # longer exists to be unreachable — the finding that entry allowlisted
       # cannot occur any more, by construction.
       #
       # "banking"/NotifyOnClosure, FlagKeyReturn — gone from here, moved
@@ -65,7 +65,7 @@ module Hecks
       # in that domain's own declaration.
       ALLOWED_FINDINGS = {
         # QualityControl was the first domain in this corpus to trigger an
-        # `asks`/`tells` port operation from a `policy`, and used to carry
+        # `asks`/`tells` port operation from a `policy`, and once carried
         # two entries here for it — both gone now, not just quieted:
         #
         # `deaf_policy` (ClearOnPass, RefuseOnFail, RecordTheIssue,
@@ -79,17 +79,17 @@ module Hecks
         #
         # `unknown_trigger` (FileWhenSubmitted, AskOnceMore) — BUG#23 — was
         # never actually a `Naming`/`PolicyBuilder` defect, confirmed by
-        # tracing the real dispatch path rather than assuming the comment
-        # that used to sit here: `Naming.command_ref`'s bare-constant
+        # tracing the real dispatch path rather than trusting a stale
+        # comment that once sat here: `Naming.command_ref`'s bare-constant
         # rewrite does leave `trigger Ticket::IssueTracker::File` (aggregate,
         # port, operation) as "Ticket::IssueTracker.File", a leftover `::`
         # past the aggregate — but `PolicyInterpreter#deliver` re-qualifies
         # every trigger with this domain's own name before dispatch
         # ("QualityControl::Ticket::IssueTracker.File"), and `Naming.
         # split_verb` already folds that reintroduced `::` into the
-        # dot-joined tail correctly (fixed for `ReactionInvocation#
-        # resolve_target`, PR #520, predating this entry's own removal) —
-        # confirmed live: a real dispatch through `Ticket.Submit` fires
+        # dot-joined tail correctly (the same fix `ReactionInvocation#
+        # resolve_target` already carries) — confirmed live: a real
+        # dispatch through `Ticket.Submit` fires
         # `IssueFiled`/`TicketFiled` exactly as declared. The actual gap was
         # entirely in this checker: `verbs_of` never enumerated a port
         # operation as a triggerable verb at all, and `policy_findings`
@@ -102,6 +102,9 @@ module Hecks
 
       module_function
 
+      # Runs every static model check over `bluebook` and returns what it
+      # finds.
+      #
       # `hecksagon:`/`known_domains:` — both optional, both `nil`-safe
       # (every existing caller with no sibling hecksagon, or checking one
       # domain in isolation, behaves exactly as before). `hecksagon` is
@@ -118,6 +121,18 @@ module Hecks
       # `rust_target:`/`strict:` — both default false, both only change the
       # severity of `rust_reserved_name` findings (see
       # `rust_reserved_name_findings`); every other finding is unaffected.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter to check
+      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
+      #   sibling wiring file, if the caller loaded one
+      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
+      #   name the caller has booted anywhere in this corpus scan
+      # @param rust_target [Boolean] whether this domain has a real Rust
+      #   target, raising `rust_reserved_name` findings to error
+      # @param strict [Boolean] whether to raise every `rust_reserved_name`
+      #   finding to error regardless of `rust_target`
+      # @return [Array<Finding>] every finding this bluebook triggers,
+      #   across its lifecycles, sagas, policies, and Rust-reserved names
       def call(bluebook, hecksagon: nil, known_domains: nil, rust_target: false, strict: false)
         findings = []
         bluebook.aggregates.each do |aggregate|
@@ -155,6 +170,18 @@ module Hecks
       #
       # The module-name transform is `downcase`, the one both generators
       # apply to an aggregate name and to an attached chapter's name.
+      #
+      # @param domain_name [String, Symbol, nil] the domain's own name, or
+      #   `nil` to skip the domain-level check
+      # @param aggregate_names [Array<String, Symbol>] every aggregate name
+      #   to check
+      # @param rust_target [Boolean] whether this domain has a real Rust
+      #   target, raising severity to error
+      # @param strict [Boolean] whether to raise severity to error
+      #   regardless of `rust_target`
+      # @return [Array<Finding>] one `:rust_reserved_name` finding per
+      #   aggregate or domain name that collides with a Rust or Cargo
+      #   reserved word
       def rust_reserved_name_findings(domain_name: nil, aggregate_names: [], rust_target: false, strict: false)
         severity = rust_target || strict ? :error : :warning
         keywords = Hecks::Vocabulary.fetch("RustReservedWord")
@@ -171,6 +198,17 @@ module Hecks
         findings
       end
 
+      # Checks the domain's own module/Cargo-feature name, one level up
+      # from `rust_reserved_name_findings`'s own per-aggregate check.
+      #
+      # @param domain_name [String, Symbol] the domain's own name
+      # @param keywords [Array<String>] the admitted `RustReservedWord`
+      #   vocabulary rows
+      # @param severity [Symbol] the finding severity to use, `:error` or
+      #   `:warning`
+      # @return [Array<Finding>] a single-element array holding a
+      #   `:rust_reserved_name` finding, or `[]` if `domain_name` collides
+      #   with no reserved word or Cargo key
       def domain_reserved_name_findings(domain_name, keywords, severity)
         module_name = rust_module_name(domain_name)
         table = if keywords.include?(module_name)
@@ -185,10 +223,27 @@ module Hecks
                               "rename the domain")]
       end
 
+      # Derives the Rust module identifier both generators derive from a
+      # name.
+      #
+      # @param name [String, Symbol] an aggregate or domain name
+      # @return [String] the Rust module identifier both generators derive
+      #   from `name`
       def rust_module_name(name) = name.to_s.downcase
 
       # ── lifecycles (aggregate and entity — a piece may declare one too) ──
 
+      # Runs every lifecycle-shaped model check for one declaring
+      # construct's own lifecycle, if it has one.
+      #
+      # @param aggregate [Bluebook::Aggregate] the root aggregate `declaring`
+      #   belongs to
+      # @param declaring [Bluebook::Aggregate, Bluebook::Entity] the
+      #   construct whose own lifecycle to check — `aggregate` itself, or
+      #   one of its entities
+      # @return [Array<Finding>] `[]` if `declaring` has no lifecycle;
+      #   otherwise every `unknown_command`/`unreachable_state`/
+      #   `dead_transition`/`stuck_state` finding its lifecycle triggers
       def lifecycle_findings(aggregate, declaring)
         lifecycle = declaring.lifecycle
         return [] unless lifecycle
@@ -207,6 +262,15 @@ module Hecks
         findings
       end
 
+      # Finds every declared state a lifecycle's own reachability walk
+      # never reaches.
+      #
+      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
+      # @param full [Array<String>] every state `full_states` declares
+      # @param reached [Set<String>] every state `reachable_states` reaches
+      # @param subject [String] the finding's own subject label
+      # @return [Array<Finding>] one `:unreachable_state` finding per
+      #   declared state that `reached` does not cover
       def unreachable_state_findings(lifecycle, full, reached, subject)
         (full - reached.to_a).map do |state|
           Finding.new(kind: :unreachable_state, severity: :error, subject: subject,
@@ -215,6 +279,13 @@ module Hecks
         end
       end
 
+      # Finds every constrained transition that can never fire.
+      #
+      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
+      # @param reached [Set<String>] every state `reachable_states` reaches
+      # @param subject [String] the finding's own subject label
+      # @return [Array<Finding>] one `:dead_transition` finding per
+      #   constrained transition whose `from:` states are all unreached
       def dead_transition_findings(lifecycle, reached, subject)
         lifecycle.transitions.filter_map do |command, transition|
           next unless transition.constrained?
@@ -226,6 +297,14 @@ module Hecks
         end
       end
 
+      # Finds every reached state with no transition ever leaving it.
+      #
+      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
+      # @param reached [Set<String>] every state `reachable_states` reaches
+      # @param subject [String] the finding's own subject label
+      # @return [Array<Finding>] one `:stuck_state` finding per reached,
+      #   non-exempt state with no transition ever leaving it (skipped
+      #   entirely when any transition is unconstrained)
       def stuck_state_findings(lifecycle, reached, subject)
         any_unconstrained = lifecycle.transitions.any? { |_, t| !t.constrained? }
         (reached - terminal_exempt(lifecycle)).filter_map do |state|
@@ -238,6 +317,15 @@ module Hecks
         end
       end
 
+      # Finds every transition named after a command this construct does
+      # not declare.
+      #
+      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
+      # @param commands [Array<String>] every command name the declaring
+      #   construct actually declares
+      # @param subject [String] the finding's own subject label
+      # @return [Array<Finding>] one `:unknown_command` finding per
+      #   transition named after a command `commands` does not list
       def unknown_transition_commands(lifecycle, commands, subject)
         lifecycle.transitions.filter_map do |command, _transition|
           next if commands.include?(command)
@@ -251,6 +339,10 @@ module Hecks
       # from-only state (declared nowhere as a target) is real and is
       # exactly the hole `Lifecycle#states` leaves: it answers default
       # plus targets only.
+      #
+      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
+      # @return [Array<String>] every state `lifecycle` declares, in any
+      #   role (default, target, or from), unique
       def full_states(lifecycle)
         (
           [lifecycle.default] +
@@ -262,6 +354,10 @@ module Hecks
       # Least fixpoint from the default state: an unconstrained
       # transition always fires, from wherever the machine is ; a
       # constrained one fires once any of its named sources is reached.
+      #
+      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
+      # @return [Set<String>] every state reachable from `lifecycle`'s own
+      #   default state
       def reachable_states(lifecycle)
         reached = Set.new([lifecycle.default])
         loop do
@@ -299,6 +395,10 @@ module Hecks
       # should still warn (see spec/fixtures/model_check/lifecycle_
       # findings.bluebook's own Widget::Part, which stays warned on
       # purpose).
+      #
+      # @param lifecycle [Bluebook::Lifecycle] the lifecycle being checked
+      # @return [Array<String>] `[lifecycle.default]` when it is exempt from
+      #   the stuck-state warning, `[]` otherwise
       def terminal_exempt(lifecycle)
         return [] if lifecycle.transitions.empty?
 
@@ -308,6 +408,15 @@ module Hecks
 
       # ── process managers / sagas ──────────────────────────────────────
 
+      # Runs every saga-shaped model check for one process manager.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter
+      #   `process_manager` belongs to
+      # @param process_manager [Bluebook::ProcessManager] the process
+      #   manager to check
+      # @return [Array<Finding>] every `deaf_trigger`/`unreachable_pm_state`/
+      #   `deaf_handler`/`unknown_dispatch`/`unarmed_compensation`/
+      #   `dead_compensation` finding this process manager triggers
       def saga_findings(bluebook, process_manager)
         emitted = emitted_events(bluebook)
         # (domain, aggregate, command) triples, not raw strings — see
@@ -328,6 +437,15 @@ module Hecks
         findings
       end
 
+      # Finds every declared `starts_on`/`ends_on` event this domain never
+      # emits.
+      #
+      # @param process_manager [Bluebook::ProcessManager] the process
+      #   manager being checked
+      # @param emitted [Array<String>] every bare event name this domain
+      #   actually emits
+      # @return [Array<Finding>] one `:deaf_trigger` finding per declared
+      #   `starts_on`/`ends_on` event this domain never emits
       def deaf_trigger_findings(process_manager, emitted)
         [process_manager.starts_on, process_manager.ends_on].compact.filter_map do |event|
           next if emitted.include?(bare(event))
@@ -338,6 +456,14 @@ module Hecks
         end
       end
 
+      # Finds every declared state no handler chain ever reaches.
+      #
+      # @param process_manager [Bluebook::ProcessManager] the process
+      #   manager being checked
+      # @param reached [Set<String>] every state `pm_reachable_states`
+      #   reaches
+      # @return [Array<Finding>] one `:unreachable_pm_state` finding per
+      #   declared state that `reached` does not cover
       def unreachable_pm_state_findings(process_manager, reached)
         (Array(process_manager.states) - reached.to_a).map do |state|
           Finding.new(kind: :unreachable_pm_state, severity: :error, subject: process_manager.name,
@@ -352,11 +478,25 @@ module Hecks
       # check reads only this handler plus the domain-wide emitted/verbs
       # sets saga_findings already resolved once, no state shared between
       # handlers.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter
+      #   `process_manager` belongs to
+      # @param process_manager [Bluebook::ProcessManager] the process
+      #   manager `handler` belongs to
+      # @param emitted [Array<String>] every bare event name this domain
+      #   actually emits
+      # @param verbs [Array<Array(String, String, String)>] every command
+      #   this domain declares, parsed as `Naming.split_verb`
+      #   `[domain, aggregate, command]` triples
+      # @param handler [Bluebook::ProcessManagerHandler] the handler to
+      #   check
+      # @return [Array<Finding>] every `deaf_handler`/`unknown_dispatch`/
+      #   `unarmed_compensation` finding this handler triggers
       def handler_findings(bluebook, process_manager, emitted, verbs, handler)
         findings = []
 
-        # The compensating leg answers REFUSED, a synthetic trigger no
-        # command ever emits by name (ProcessManager::REFUSED) — not
+        # The compensating leg answers `REFUSED`, a synthetic trigger no
+        # command ever emits by name (`ProcessManager::REFUSED`) — not
         # a deaf handler, the one handler this domain's own events can
         # never satisfy on purpose.
         if handler.event_type != ProcessManager::REFUSED && !emitted.include?(bare(handler.event_type))
@@ -367,16 +507,16 @@ module Hecks
 
         handler.dispatches.each do |dispatch|
           # **Always this domain** — same fix, same reason, as `SagaInterpreter
-          # #qualified` (BUG#6). This used to guess: a dispatch whose own
-          # `command_name` still carried a leftover `::` after `Naming.
-          # command_ref`'s own rewrite was read as "already qualified" and
-          # left alone — the exact same string-shape ambiguity that
+          # #qualified` (BUG#6). Guessing instead — reading a dispatch whose
+          # own `command_name` still carries a leftover `::` after `Naming.
+          # command_ref`'s own rewrite as "already qualified" and leaving it
+          # alone — would hit the exact same string-shape ambiguity that
           # `SagaInterpreter#qualified`'s own comment explains at length
           # (a same-domain entity command reference and a genuinely
           # cross-domain one are textually indistinguishable after that
           # rewrite). Confirmed against the entire corpus, same as that
           # fix: no saga anywhere ever dispatches genuinely cross-domain,
-          # so this checker now qualifies exactly the way the runtime
+          # so this checker qualifies exactly the way the runtime
           # actually dispatches — unconditionally against `bluebook.name`
           # — instead of maintaining its own, independently-wrong copy of
           # the same guess.
@@ -410,7 +550,7 @@ module Hecks
         # shape of the real bug this whole feature closes ("the
         # reversal was written and never armed"), caught at build/
         # model-check time instead of discovered in production. No
-        # handler anywhere answers REFUSED (`process_manager.saga?` false) means
+        # handler anywhere answers `REFUSED` (`process_manager.saga?` false) means
         # `SagaInterpreter#unwind` never runs for this process
         # manager at all, so a declared `compensates` is structurally
         # unreachable — not a warning about style, a dead declaration.
@@ -426,6 +566,16 @@ module Hecks
         findings
       end
 
+      # Checks whether a saga's own compensation leaves an unreachable
+      # state.
+      #
+      # @param process_manager [Bluebook::ProcessManager] the process
+      #   manager being checked
+      # @param reached [Set<String>] every state `pm_reachable_states`
+      #   reaches
+      # @return [Array<Finding>] a single-element array holding a
+      #   `:dead_compensation` finding, or `[]` if `process_manager` has no
+      #   saga or its own compensation leaves a reached state
       def dead_compensation_findings(process_manager, reached)
         return [] unless process_manager.saga? && !reached.include?(process_manager.saga.from_state)
 
@@ -435,13 +585,21 @@ module Hecks
       end
 
       # A handler edge is only usable in the closure if it can actually
-      # fire — REFUSED always can (it is a compensation trigger, not an
+      # fire — `REFUSED` always can (it is a compensation trigger, not an
       # event), and any other handler needs its event genuinely emitted.
       # Without this, a deaf handler's declared from_state -> to_state
       # pair reads as connected even though nothing can ever traverse
       # it, which would hide exactly the states this walk exists to
       # catch (a state only "reachable" through a handler that itself
       # never fires).
+      #
+      # @param process_manager [Bluebook::ProcessManager] the process
+      #   manager being checked
+      # @param emitted [Array<String>] every bare event name this domain
+      #   actually emits
+      # @return [Set<String>] every state reachable from
+      #   `process_manager`'s own first declared state, through handlers
+      #   that can actually fire
       def pm_reachable_states(process_manager, emitted)
         return Set.new if Array(process_manager.states).empty?
 
@@ -463,6 +621,20 @@ module Hecks
 
       # ── policies ───────────────────────────────────────────────────────
 
+      # Runs every same-domain policy check, or defers to
+      # `cross_domain_policy_findings` for a policy that targets another
+      # domain.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter `policy`
+      #   belongs to
+      # @param policy [Bluebook::Policy] the policy to check
+      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
+      #   sibling wiring file, if the caller loaded one
+      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
+      #   name the caller has booted anywhere in this corpus scan
+      # @return [Array<Finding>] every `deaf_policy`/`unknown_trigger`
+      #   finding this policy triggers, or `cross_domain_policy_findings`'s
+      #   own return for a cross-domain policy
       def policy_findings(bluebook, policy, hecksagon, known_domains)
         return cross_domain_policy_findings(policy, hecksagon, known_domains) if policy.target_domain
 
@@ -536,9 +708,20 @@ module Hecks
       # DDD vocabulary (Shared Kernel, Customer/Supplier) lives here, in
       # the finding's own name and this comment, and in prose docs — not
       # in the grammar.
+      #
+      # @param policy [Bluebook::Policy] the cross-domain policy to check
+      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
+      #   sibling wiring file, if the caller loaded one
+      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
+      #   name the caller has booted anywhere in this corpus scan
+      # @return [Array<Finding>] `expected_undelivered_findings`'s own
+      #   return for a policy declared `expect_undelivered`; otherwise every
+      #   `contradictory_relationship`/`unacknowledged_relationship`/
+      #   `unknown_target_domain` finding this policy triggers
       def cross_domain_policy_findings(policy, hecksagon, known_domains)
         return expected_undelivered_findings(policy, hecksagon, known_domains) if policy.expect_undelivered
-        return [] unless hecksagon # no sibling hecksagon loaded — nothing to check a relationship against.
+        # No sibling hecksagon loaded — nothing to check a relationship against.
+        return [] unless hecksagon
 
         target = policy.target_domain
         findings = []
@@ -601,6 +784,16 @@ module Hecks
       # the reaction can be delivered, and the declaration is now a lie.
       # `known_domains` is nil for a single-target run, which can then only
       # check the hecksagon half.
+      #
+      # @param policy [Bluebook::Policy] the `expect_undelivered` policy to
+      #   check
+      # @param hecksagon [Bluebook::Hecksagon, nil] this bluebook's own
+      #   sibling wiring file, if the caller loaded one
+      # @param known_domains [Set<String>, nil] every bluebook/hecksagon
+      #   name the caller has booted anywhere in this corpus scan
+      # @return [Array<Finding>] a single-element array holding a
+      #   `:stale_undelivered_expectation` finding, or `[]` if the target
+      #   remains genuinely unreachable
       def expected_undelivered_findings(policy, hecksagon, known_domains)
         target  = policy.target_domain
         reached = []
@@ -641,6 +834,11 @@ module Hecks
       # read both. `.compact` because an inbound operation's `.answers`/
       # `.refuses` are always nil (there is no channel back to tell), which
       # would otherwise seed every emitted-events set with a stray nil.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter to
+      #   enumerate
+      # @return [Array<String>] every bare event name this domain's
+      #   commands and port operations emit, answer, or refuse, unique
       def emitted_events(bluebook)
         aggregate_emits = bluebook.aggregates.flat_map do |aggregate|
           aggregate.commands.map(&:emits) +
@@ -659,6 +857,11 @@ module Hecks
       # instead. Pulled out of `emitted_events` above purely to keep that
       # method's own branching low enough to read at a glance — every
       # port, aggregate-owned or chapter-level, asks this the same way.
+      #
+      # @param ports [Array<Bluebook::DomainPort>] the ports to enumerate
+      # @return [Array<String, nil>] every event name each operation emits,
+      #   answers, or refuses; `nil` entries included (compacted by the
+      #   caller)
       def port_operation_events(ports)
         ports.flat_map { |port| port.operations.flat_map { |op| [*op.emits, op.answers, op.refuses] } }
       end
@@ -667,6 +870,12 @@ module Hecks
       # carries and fuzzing/sequence_generator/catalog.rb builds
       # independently for the same reason: a saga dispatch and a fuzzer
       # step both have to name a verb the same way the door does.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter to
+      #   enumerate
+      # @return [Array<String>] every command's own fully-qualified verb,
+      #   `"Domain::Aggregate.Command"` or
+      #   `"Domain::Aggregate.Entity.Command"`
       def verbs_of(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
           verbs = aggregate.commands.map { |command| "#{bluebook.name}::#{aggregate.hecks_name}.#{command.hecks_name}" }
@@ -687,6 +896,11 @@ module Hecks
       # Only an aggregate's own ports (`aggregate.ports`) are in scope here
       # — a policy's `trigger` always names one aggregate, never a chapter-
       # level port with no owner to address through.
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter to
+      #   enumerate
+      # @return [Array<String>] every aggregate-owned port operation's own
+      #   fully-qualified verb, `"Domain::Aggregate.Port.Operation"`
       def port_verbs_of(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
           aggregate.ports.flat_map do |port|
@@ -703,10 +917,21 @@ module Hecks
       # spellings of the same verb as strings (see `policy_findings`'s own
       # `unknown_trigger` check for why that comparison has to happen this
       # way, not as `include?` on a raw string).
+      #
+      # @param bluebook [Bluebook::Chapter] the assembled chapter to
+      #   enumerate
+      # @return [Set<Array(String, String, String)>] every triggerable
+      #   verb, parsed as `Naming.split_verb` `[domain, aggregate,
+      #   command]` triples
       def triggerable_verbs(bluebook)
         (verbs_of(bluebook) + port_verbs_of(bluebook)).to_set { |verb| Naming.split_verb(verb) }
       end
 
+      # Strips a domain qualifier off an event name.
+      #
+      # @param event [String, Symbol] an event name, qualified
+      #   (`"Domain::Event"`) or bare
+      # @return [String] `event`'s own bare name, past the last `::`
       def bare(event) = event.to_s.split("::").last
     end
   end

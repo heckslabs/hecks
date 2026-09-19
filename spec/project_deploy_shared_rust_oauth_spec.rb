@@ -3,8 +3,8 @@ require "fileutils"
 require "open3"
 require "yaml"
 
-# Regression coverage for the combination bin/project_deploy used to
-# refuse outright: a Shared-mode domain (database "Shared") with real
+# Regression coverage for the combination bin/project_deploy once
+# refused outright: a Shared-mode domain (database "Shared") with real
 # Google OAuth (web "Rust" + a .env.local carrying GOOGLE_CLIENT_ID).
 # The refusal assumed OAuth needed its own NAT Gateway this domain has
 # none of in Shared mode — but a Shared-mode rust_web domain's main
@@ -158,7 +158,7 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
   # invalid shell text the moment it's concatenated with the line before
   # it. Checked per chain, not across the whole recipe: a target can
   # legitimately carry more than one independent '@'-prefixed line (see
-  # mint_era_recipe's own OWNMINT branch, which already does this).
+  # mint_era_recipe's own `OWNMINT` branch, which already does this).
   def self.shell_chains(lines)
     chains = []
     current = []

@@ -45,6 +45,10 @@ require "hecks/bluebook/smoke_test"
 
 ROOT = File.expand_path("..", __dir__)
 
+# Says whether `dir` (or something nested under it) is a real, bindable domain.
+#
+# @param dir [String] a directory to check
+# @return [Boolean] true if `dir` contains at least one `.hecksagon` file
 def wired?(dir) = !Dir.glob(File.join(dir, "**/*.hecksagon")).empty?
 
 dir_arg = ARGV.shift

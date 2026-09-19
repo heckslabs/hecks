@@ -8,11 +8,19 @@ module Hecks
     # in CommandInterpreter and EntityInterpreter, where they could only
     # ever drift.
     module Interpreting
+      # Ruby's module-inclusion hook. Gives `interpreter` its own `trace`
+      # accessor, since a class including this module needs its own copy
+      # rather than one shared across every interpreter.
+      #
       # Each including interpreter gets its own `trace` — set by a spec to
       # observe dispatch order (Vocabulary::AggregateDispatchOrder and
       # Vocabulary::EntityDispatchOrder in language/bluebook/vocabulary.bluebook);
       # nil in production, always — one array push and a nil check per step
       # is the entire cost of leaving this in.
+      #
+      # @param interpreter [Class] the class (`CommandInterpreter`, `EntityInterpreter`)
+      #   including this module
+      # @return [void]
       def self.included(interpreter)
         interpreter.singleton_class.attr_accessor :trace
       end
@@ -32,9 +40,9 @@ module Hecks
       # read off its own generated Vocabulary::*DispatchOrder table —
       # vocabulary.bluebook, via lib/hecks/vocabulary.rb) by `send`ing
       # each declared step name against the including interpreter's own
-      # `step_<name>` handler, in declared order. What used to be `call`'s own
-      # literal sequence of method calls is now data driving that sequence —
-      # tracing a real dispatch and comparing it to the declaration is
+      # `step_<name>` handler, in declared order. Data drives that sequence,
+      # rather than `call` spelling it out as a literal sequence of method
+      # calls — tracing a real dispatch and comparing it to the declaration is
       # tautological once `call` mechanically follows the declaration; a
       # conditional step (assign_creation_attributes, advance_lifecycle) still
       # has to guard itself at the top of its own handler and skip tracing
@@ -116,8 +124,8 @@ module Hecks
       # refuse_absent_arguments are separate DISPATCH_ORDER steps now (the
       # declared vocabulary lists all three as flat, sequential members, not
       # one nesting the other two), and EntityInterpreter never had them here
-      # at all (an entity inherits its aggregate's own gate). One copy,
-      # shared, rather than the two identical ones that used to drift.
+      # at all (an entity inherits its aggregate's own gate). One shared
+      # copy, rather than two identical ones that can only ever drift apart.
       def normalize_args(aggregate, command, args)
         coerce_declared_arguments(aggregate, command, args)
       end

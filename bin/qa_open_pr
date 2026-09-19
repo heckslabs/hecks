@@ -1,19 +1,20 @@
 #!/usr/bin/env ruby
 
-# OPEN A PR and write it down, in one breath — the only door into
+# Opens a PR and writes it down, in one breath — the only door into
 # `QualityControl::Patch.Open` / `Improvement.Open`.
 #
-# **The gap this closes**. `.claude/skills/hecks_qa/SKILL.md` used to ask a
-# sweep subagent to open a PR, run `gh pr view --json number,url,
-# headRefName,headRefOid,title`, put those five facts in its report, and
-# then ask the orchestrator to copy them into `patch.open` by hand once
-# the report came back — fifty lines of prose about a fact that is true
-# the instant `gh pr create` returns. Copying it later meant a retried
-# report could record a PR twice and a dropped one never; and the daily
-# cap (`QualityControlDials::PR_CAP_PER_DAY`) was a grep an agent was
-# asked to remember to run. This script is that whole paragraph, run
-# once, mechanically: every refusal below is a rule that used to be a
-# sentence.
+# **The gap this closes**. Asking a sweep subagent to open a PR by hand —
+# running `gh pr view --json number,url, headRefName,headRefOid,title`,
+# putting those five facts in its report, and asking the orchestrator to
+# copy them into `patch.open` once the report comes back
+# (`.claude/skills/hecks_qa/SKILL.md`'s old prose instructions) — is fifty
+# lines about a fact that is true the instant `gh pr create` returns.
+# Copying it later means a retried report can record a PR twice and a
+# dropped one never; and the daily cap
+# (`QualityControlDials::PR_CAP_PER_DAY`) becomes a grep an agent has to
+# remember to run. This script replaces that whole paragraph with one
+# mechanical run: every refusal below is a rule that would otherwise only
+# be a sentence.
 #
 #   bin/qa_open_pr --bug bug#n --title "…" [--body "…"]
 #   bin/qa_open_pr --improvement [--angle angle-n] --title "…" [--body "…"]
@@ -29,7 +30,7 @@
 #     (`0` = uncapped; a row whose `opened_at` is 0 — recorded before
 #     the field existed — never counts);
 #   - `--bug`: the bug is not `fixed`, or `Bug.commit` is not an ancestor
-#     of HEAD (`git merge-base --is-ancestor`) — the PR must actually
+#     of `HEAD` (`git merge-base --is-ancestor`) — the PR must actually
 #     carry the commit the ledger says fixes it;
 #   - `--improvement --angle`: the angle is not `investigating`.
 #
@@ -92,11 +93,22 @@ abort "#{USAGE}\n--angle only means something with --improvement" if options[:an
 
 # ── git and gh, never guessing at their exit codes ─────────────────────
 
+# Runs a git subcommand in `REPO_DIR` and captures its output rather than
+# letting it write to this process's own stdout/stderr.
+#
+# @param args (forwarded) the git subcommand and its arguments, e.g. `"status", "--porcelain"`
+# @return [Array(String, String, Process::Status)] trimmed stdout, trimmed stderr, and the
+#   subprocess's exit status
 def git(*)
   out, err, status = Open3.capture3("git", *, chdir: REPO_DIR)
   [out.strip, err.strip, status]
 end
 
+# Runs a `gh` CLI subcommand in `REPO_DIR` and captures its output.
+#
+# @param args (forwarded) the `gh` subcommand and its arguments, e.g. `"pr", "create", ...`
+# @return [Array(String, String, Process::Status)] trimmed stdout, trimmed stderr, and the
+#   subprocess's exit status
 def gh(*)
   out, err, status = Open3.capture3("gh", *, chdir: REPO_DIR)
   [out.strip, err.strip, status]
@@ -120,11 +132,23 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
+# Runs a query against the QualityControl domain, prefixing the query name so
+# every call site below stays short.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @param name [String] the query name without the `QualityControl::` prefix, e.g. `"Patch.All"`
+# @param args [Hash{Symbol => Object}] the query's declared arguments
+# @return [Array<Hash>] the matching rows, as `Runtime::Instance#query` returns them for the verb
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
 # The dials, read once the boot above has loaded the bluebook that
 # defines them — with the same fallbacks a dial-less fixture ledger
 # gets everywhere else: uncapped, non-draft, no auto-merge, `qa/`.
+#
+# @param name [Symbol] the constant name to read off `QualityControlDials`
+# @param fallback [Object] the value to use when `QualityControlDials` is undefined or
+#   lacks that constant
+# @return [Object] the dial's declared value, or `fallback` if not defined
 def dial(name, fallback)
   return fallback unless defined?(QualityControlDials) && QualityControlDials.const_defined?(name)
 
@@ -188,6 +212,12 @@ end
 
 VIEW_FIELDS = "number,url,headRefName,headRefOid,title,state".freeze
 
+# Reads back a branch's open PR via `gh pr view`, if it has one.
+#
+# @param branch [String] the branch name to look up
+# @return [Hash, nil] the parsed `gh pr view` JSON (symbolized keys: `:number`, `:url`,
+#   `:headRefName`, `:headRefOid`, `:title`, `:state`) if a PR for the branch exists and its
+#   `:state` is `"OPEN"`; nil if `gh pr view` fails or the PR is not open
 def view_pr(branch)
   out, _err, status = gh("pr", "view", branch, "--json", VIEW_FIELDS)
   return nil unless status.success?

@@ -1,12 +1,12 @@
 require "spec_helper"
 
-# QueryInterpreter#interpret/#reference_interpret never read declared.offset
-# — confirmed by grep returning nothing before this fix. Latent because the
-# adapter-backed path (Ports::Query::InMemory, fixed by PR #324-326) already
-# applied offset correctly; this is the other path, native-vs-reference
+# Without this fix, `QueryInterpreter#interpret`/`#reference_interpret`
+# would never read `declared.offset` — confirmed by grep returning nothing.
+# Latent because the adapter-backed path (Ports::Query::InMemory, already
+# fixed) applied offset correctly; this is the other path, native-vs-reference
 # (runtime.query vs runtime.reference_query, the fuzzer's own oracle
-# comparison in query_answers_match_reference), which took no adapter at all
-# and went straight through this file instead. ATMCard.ByFee (`limit 3;
+# comparison in query_answers_match_reference), which takes no adapter at all
+# and goes straight through this file instead. ATMCard.ByFee (`limit 3;
 # offset 1`) is real corpus, not a synthetic fixture.
 RSpec.describe "QueryInterpreter applies offset" do
   OFFSET_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR

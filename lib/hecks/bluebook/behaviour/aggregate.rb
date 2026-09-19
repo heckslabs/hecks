@@ -26,11 +26,17 @@ module Hecks
 
         # An aggregate is a member of its chapter's namespace — "Pizzas::Pizza" —
         # where everything else is declared on its owner and joins with ".".
+        #
+        # @return [String] the literal string `"::"`
         def hecks_separator = "::"
 
         # The hook the generated constructor calls once every declared
         # field is assigned. Nothing here is derivable from the
         # declaration, which is exactly why it is not generated.
+        #
+        # @return [Bluebook::Aggregate] self, once identity is derived, every
+        #   declaration is indexed and its commands, value objects, entities and
+        #   queries are stamped as owned by it
         def settle
           derive_identity
           index_declarations
@@ -40,6 +46,10 @@ module Hecks
           self
         end
 
+        # Builds every by-name finder index `settle` needs — attributes, value
+        # objects, commands, queries, ports and projected fields.
+        #
+        # @return [void]
         def index_declarations
           index_attributes(@attributes)
           @value_objects_by_name = index_by_hecks_name(@value_objects)
@@ -53,6 +63,11 @@ module Hecks
           @projected_fields_by_name = @projected_fields.to_h { |field| [field.name, field] }
         end
 
+        # Finds a declared `projects` field by its declared name.
+        #
+        # @param named [String, Symbol] the projected field's declared name
+        # @return [Bluebook::ProjectedField, nil] the field named `named`, or
+        #   `nil` if none is declared under that name
         def projected_field(named) = @projected_fields_by_name[named.to_sym]
 
         # A value object is a class now, so `name` is Ruby's answer (the constant
@@ -60,7 +75,17 @@ module Hecks
         # out — once an attribute's type is the class there is nothing to find —
         # but every consumer still asks by type string, so it stays until they
         # stop.
+        #
+        # @param named [String, Symbol] the value object's declared name
+        # @return [Class, nil] the value object class (a `Bluebook::ValueObject`
+        #   subclass) named `named`, or `nil` if none is declared under that name
         def value_object(named) = @value_objects_by_name[named.to_s]
+
+        # Finds a port attached to this aggregate by its declared name.
+        #
+        # @param named [String, Symbol] the port's declared name
+        # @return [Bluebook::DomainPort, nil] the port named `named`, or `nil` if
+        #   none is attached under that name
         def port(named)         = @ports_by_name[named.to_s]
 
         # A port is declared in the hecksagon, not the bluebook — the
@@ -71,11 +96,18 @@ module Hecks
         # calls it once per `port` declaration, having already stamped each
         # operation's reference attributes with `declared_in = self`, since
         # nothing upstream of a hecksagon load does that for it.
+        #
+        # @param port [Bluebook::DomainPort] the aggregate-scoped port to attach
+        # @return [void]
         def add_port(port)
           @ports << port
           @ports_by_name[port.name] = port
         end
 
+        # Names the table, file or key persistence adapters store this aggregate
+        # under.
+        #
+        # @return [String] the aggregate's name, snake-cased
         def storage_name = Naming.snake(@name)
       end
     end

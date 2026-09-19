@@ -80,6 +80,36 @@ module Hecks
       # Assigns what the language declares, then hands off to the
       # behaviour's own `settle` — derived identity, name indexes and
       # owner stamping, none of which the declaration states.
+      #
+      # @param name [String, Symbol] the aggregate's declared name
+      # @param description [String, nil] the aggregate's declared prose description
+      # @param attributes [Array<Bluebook::Attribute>] the aggregate's declared fields
+      # @param value_objects [Array<Class>] the value object classes (`Bluebook::ValueObject`
+      #   subclasses) declared on this aggregate
+      # @param commands [Array<Class>] the command classes (`Bluebook::Command` subclasses)
+      #   declared on this aggregate
+      # @param invariants [Array<Bluebook::Invariant>] the aggregate-level rules that must
+      #   always hold
+      # @param preconditions [Array<Bluebook::Given>] the aggregate's own named `given`s, a
+      #   referencing command's own resolved `givens` entry can point back at
+      # @param projected_fields [Array<Bluebook::ProjectedField>] the declared `projects`
+      #   fields, copied from another aggregate's own state by the rebuild sweep
+      # @param identified_by [String, Symbol, Array<String, Symbol>] the identity path(s)
+      #   this aggregate is addressed by
+      # @param lifecycle [Bluebook::Lifecycle, nil] the aggregate's declared state machine,
+      #   or `nil` if it declares none
+      # @param entities [Array<Class>] the entity classes (`Bluebook::Entity` subclasses)
+      #   nested directly under this aggregate
+      # @param queries [Array<Bluebook::Query>] the queries declared directly on this
+      #   aggregate
+      # @param policies [Array<Bluebook::Policy>] the reactions hoisted onto this aggregate
+      #   from the chapter that assembled it
+      # @param ports [Array<Bluebook::DomainPort>] the aggregate-scoped ports attached after
+      #   this aggregate was built
+      # @param reference_targets [Array<String>] the name of every aggregate this one points
+      #   at with an aggregate-level `reference_to`
+      # @param provenance [Object, nil] the aggregate's declared canonical source, captured
+      #   exactly as written, or `nil` if it declares none
       def initialize(name:, description: nil, attributes: [], value_objects: [],
                      commands: [], invariants: [], preconditions: [], projected_fields: [], identified_by: [], lifecycle: nil,
                      entities: [], queries: [], policies: [], ports: [], reference_targets: [],

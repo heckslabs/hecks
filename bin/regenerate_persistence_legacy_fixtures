@@ -53,6 +53,11 @@ SCRATCH = {
   postgres_era: "hecks_persistence_legacy_postgres_era"
 }.freeze
 
+# Empties (or creates) one fixture kind's output directory.
+#
+# @param name [String] the fixture kind's directory name under `Fixture::DIR`, e.g.
+#   `"heki"`
+# @return [String] the directory's path, now empty
 def reset_dir(name)
   dir = File.join(Fixture::DIR, name)
   FileUtils.rm_rf(dir)
@@ -60,10 +65,21 @@ def reset_dir(name)
   dir
 end
 
+# Pretty-prints `value` as JSON to one file under `Fixture::DIR`.
+#
+# @param relative [String] the output path, relative to `Fixture::DIR`, e.g.
+#   `"d1/rows.json"`
+# @param value [Hash, Array] the JSON-serializable value to write
+# @return [void]
 def write_json(relative, value)
   File.write(File.join(Fixture::DIR, relative), "#{JSON.pretty_generate(value)}\n")
 end
 
+# Creates the two scratch Postgres databases `SCRATCH` names, runs the block, and drops
+# both databases again on the way out, success or failure.
+#
+# @yield with both scratch databases created and ready to connect to
+# @return [Object] whatever the block returns
 def with_scratch_databases
   admin = PG.connect(dbname: "postgres")
   admin.exec("SET client_min_messages = warning")
@@ -77,6 +93,12 @@ ensure
   admin&.close
 end
 
+# Saves each instance through the real `Hecks::Adapters::Heki` into a tmpdir, then copies
+# the resulting `.heki` snapshot and `.heki.journal` files verbatim into `spec/fixtures/
+# persistence_legacy/heki/`.
+#
+# @param instances [Array<Runtime::Instance>] the instances to write, one save each
+# @return [void]
 def write_heki(instances)
   out = reset_dir("heki")
   Dir.mktmpdir("hecks-legacy-heki-") do |tmp|
@@ -87,6 +109,13 @@ def write_heki(instances)
   end
 end
 
+# Saves each instance through the real `Hecks::Adapters::Sqlite` into a tmp database file,
+# then dumps that file as text via the `sqlite3` CLI into `spec/fixtures/
+# persistence_legacy/sqlite/banking.sql`.
+#
+# @param instances [Array<Runtime::Instance>] the instances to write, one save each
+# @return [void]
+# @raise [SystemExit] via `abort`, if `sqlite3 <file> .dump` exits non-zero
 def write_sqlite(instances)
   out = reset_dir("sqlite")
   Dir.mktmpdir("hecks-legacy-sqlite-") do |tmp|
@@ -100,6 +129,12 @@ def write_sqlite(instances)
   end
 end
 
+# Saves each instance through the real `Hecks::Adapters::D1` into an in-memory SQLite
+# stand-in for D1's HTTP transport, then dumps its rows as JSON into `spec/fixtures/
+# persistence_legacy/d1/rows.json`.
+#
+# @param instances [Array<Runtime::Instance>] the instances to write, one save each
+# @return [void]
 def write_d1(instances)
   reset_dir("d1")
   connection = Fixture.fake_d1_connection
@@ -113,6 +148,12 @@ def write_d1(instances)
   write_json("d1/rows.json", tables.to_h { |table| [table, connection.execute(%(SELECT * FROM "#{table}" ORDER BY rowid))] })
 end
 
+# Saves each instance through the real `Hecks::Adapters::Postgres` into the `SCRATCH[:postgres]`
+# database, then dumps its head/entries rows as JSON into `spec/fixtures/
+# persistence_legacy/postgres/rows.json`, exactly as `pg` hands them back.
+#
+# @param instances [Array<Runtime::Instance>] the instances to write, one save each
+# @return [void]
 def write_postgres(instances)
   reset_dir("postgres")
   rows = instances.to_h do |instance|
@@ -129,6 +170,12 @@ def write_postgres(instances)
   write_json("postgres/rows.json", rows)
 end
 
+# Saves each instance through the real `Hecks::Adapters::PostgresEra` into the
+# `SCRATCH[:postgres_era]` database, then dumps its journal and era-1 head_snapshot rows as
+# JSON into `spec/fixtures/persistence_legacy/postgres_era/rows.json`.
+#
+# @param instances [Array<Runtime::Instance>] the instances to write, one save each
+# @return [void]
 def write_postgres_era(instances)
   reset_dir("postgres_era")
   rows = instances.to_h do |instance|

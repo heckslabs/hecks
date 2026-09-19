@@ -51,7 +51,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
 
   # S14, ADR 0026 — Keyword is a genuine entity of Syntax now, dispatched
   # through a real lifecycle rather than merely declared — `SyntaxBoot.
-  # call` hands back the same shape `rows("Keyword")` used to.
+  # call` hands back the same shape `rows("Keyword")` once returned.
   DECLARED_PAIRS = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
                                                              .select { |row| live?(row) }.map do |row|
     [
@@ -63,8 +63,8 @@ RSpec.describe "the Rust parser's own coverage", :io do
   # `rust/parser/src/main.rs::COVERED_PAIRS` (pairs confirmed by
   # `spec/parser_parity_spec.rb`'s byte-exact comparisons, not just "the
   # word gates cleanly"), and `hecks-parse coverage` prints it — so this
-  # reads the printed set. A Ruby copy used to sit here "kept in sync by
-  # hand", which made `PENDING_PAIRS = DECLARED_PAIRS - COVERED_PAIRS`
+  # reads the printed set. A Ruby copy "kept in sync by
+  # hand" sitting here instead would make `PENDING_PAIRS = DECLARED_PAIRS - COVERED_PAIRS`
   # true by construction: every example below that used it could not fail.
   def self.reported_coverage
     stdout, status = Open3.capture2(COVERAGE_BINARY_PATH, "coverage")

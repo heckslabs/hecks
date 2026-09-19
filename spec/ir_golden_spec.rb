@@ -56,7 +56,8 @@ RSpec.describe "the IR the builder produces, frozen" do
   # Chapters that load from a file, name => path.
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
-    # The flagship domain, carrying what market and relay used to alone.
+    # The flagship domain, now carrying alone what market and relay once
+    # carried between them.
     # Composite identity (`SafeDepositBox`, branch_code + box_number), a
     # command that announces twice (`Surrender`), two entities on one head,
     # a second read_model and a second process_manager — every rare form this

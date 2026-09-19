@@ -11,20 +11,25 @@ module Hecks
     # one correlating on a different field. Absent for any event no saga
     # dispatch caused, which is most of them.
     Event = Struct.new(:name, :aggregate, :id, :payload, :occurred_at, :correlation, keyword_init: true) do
+      # Freezes the event deep, so nothing about it can change after it happens.
+      #
       # An emitted event is a record of something that happened, and a
       # mutable audit trail is not one. The payload — the domain fact the
       # event carries — is frozen through on emission: freezing the Hash
       # alone would leave every value in it editable in place, which is
       # the shape all four previous freezing bugs had.
       #
-      # The whole event, not just its payload. Correlation used to be
-      # merged onto already-emitted events by `Dispatcher#dispatch`, which
-      # is what kept an event writable after it had happened; it is set at
-      # construction now, because it is part of the transaction and known
-      # from `dispatch`'s own argument before anything is emitted.
+      # The whole event, not just its payload. Correlation is set at
+      # construction rather than merged in here by `Dispatcher#dispatch`
+      # after the event already exists, because it is part of the
+      # transaction and known from `dispatch`'s own argument before
+      # anything is emitted — that is what keeps an event immutable once
+      # it exists.
       #
       # The log stays appendable: new events are still recorded. It is
       # each event that stops changing once it exists.
+      #
+      # @return [void]
       def emit!
         Freezer.deep(payload)
         Freezer.deep(correlation)

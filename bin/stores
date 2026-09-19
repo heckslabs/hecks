@@ -19,10 +19,19 @@ end
 runtime = Hecks.boot(domain)
 registry = runtime.registry
 
+# Reads one aggregate's current records as plain JSON-ready hashes, ordered by id.
+#
+# @param repository [Ports::Persistence::AppendOnly] the aggregate's repository
+# @return [Array<Hash{String => Object}>] one hash per stored `Runtime::Instance`, sorted
+#   by id; `[]` when the aggregate has no records
 def records(repository)
   repository.all.sort_by(&:id).map { |instance| JSON.parse(JSON.generate(instance.to_h)) }
 end
 
+# Shapes one aggregate's dump for the top-level `stores` JSON document.
+#
+# @param repository [Ports::Persistence::AppendOnly] the aggregate's repository
+# @return [Hash{String => Object}] `"authoritative"` mapped to `records(repository)`
 def data_for(repository)
   { "authoritative" => records(repository) }
 end

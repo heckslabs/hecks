@@ -10,28 +10,30 @@ module Hecks
     # view; this module is where the blend actually happens, against the
     # rows that query already returns.
     #
-    # **Pure, deliberately**. Every method here is a function of its own
-    # arguments only — no clock read, no query dispatched, nothing
-    # random — so this is unit-testable with plain hashes and no ledger
-    # boot at all, and reruns identically given the same rotation, the
-    # same `now` and the same dials. `now` arrives as an argument for
-    # the exact reason `Target.Claim`'s own comment already gives: a
-    # pure function cannot ask the time, so whoever calls this supplies
-    # it, exactly as it supplies an id.
+    # ## Pure, deliberately
     #
-    # Where this actually matters, and where it does not — checked
-    # against `bin/qa_sweep`'s own code, not assumed. `bin/qa_sweep
-    # --all` sweeps every currently-waiting target in one pass,
-    # regardless of order (`run_all_mode`'s own `waiting.map { spawn_
-    # sweep_child }` — every element the query returned, never
-    # `.first`), so nothing about this module's own ordering changes
-    # what `--all` does; it already sweeps everything the ledger has to
-    # offer. What it changes is `bin/qa_sweep` invoked with no target
-    # argument, which today picks exactly one target via `Target.
-    # Rotation.first` — wiring `.pick` in there instead is this module's
-    # one real caller, and (per the same investigation) its only one:
-    # there is no separate scheduling or concurrency-limit mechanism
-    # elsewhere in this repository for it to feed instead.
+    # Every method here is a function of its own arguments only — no clock
+    # read, no query dispatched, nothing random — so this is unit-testable
+    # with plain hashes and no ledger boot at all, and reruns identically
+    # given the same rotation, the same `now` and the same dials. `now`
+    # arrives as an argument for the exact reason `Target.Claim`'s own
+    # comment already gives: a pure function cannot ask the time, so
+    # whoever calls this supplies it, exactly as it supplies an id.
+    #
+    # ## Where this actually matters, and where it does not
+    #
+    # Checked against `bin/qa_sweep`'s own code, not assumed. `bin/qa_sweep
+    # --all` sweeps every currently-waiting target in one pass, regardless
+    # of order (`run_all_mode`'s own `waiting.map { spawn_sweep_child }` —
+    # every element the query returned, never `.first`), so nothing about
+    # this module's own ordering changes what `--all` does; it already
+    # sweeps everything the ledger has to offer. What it changes is
+    # `bin/qa_sweep` invoked with no target argument, which today picks
+    # exactly one target via `Target.Rotation.first` — wiring `.pick` in
+    # there instead is this module's one real caller, and (per the same
+    # investigation) its only one: there is no separate scheduling or
+    # concurrency-limit mechanism elsewhere in this repository for it to
+    # feed instead.
     module RotationPriority
       module_function
 
@@ -46,6 +48,14 @@ module Hecks
       # that does not care still gets the practice's own current answer
       # to "how much of this is 'recent'" rather than a second, silently
       # drifting copy of the same number.
+      #
+      # @param old_score [Integer] the target's `Target.yield_score` before this period
+      # @param surprises_this_period [Integer] how many Surprised checks this period found
+      # @param decay_percent [Integer] percent of `old_score` that survives into the new
+      #   score; defaults to `QualityControlDials::YIELD_DECAY_PERCENT`
+      # @return [Integer] the next `Target.yield_score` to store
+      # @raise [ArgumentError] if `old_score` is negative
+      # @raise [ArgumentError] if `surprises_this_period` is negative
       def next_yield_score(old_score:, surprises_this_period:,
                            decay_percent: QualityControlDials::YIELD_DECAY_PERCENT)
         raise ArgumentError, "old_score must not be negative" if old_score.negative?
@@ -77,6 +87,16 @@ module Hecks
       # "how many seconds of extra staleness one point of yield is
       # worth" rather than an opaque multiplier nobody could sanity
       # check by eye.
+      #
+      # @param rows [Array<Hash>] rows from `Target.Rotation`, each carrying at least
+      #   `:last_swept` and `:yield_score` as `{ value: Integer }`
+      # @param now [Integer] the current time, Unix epoch seconds
+      # @param weight_seconds [Integer] seconds of extra staleness one point of yield is
+      #   worth; defaults to `QualityControlDials::YIELD_WEIGHT_SECONDS`
+      # @param floor_seconds [Integer] staleness, in seconds, past which a row is picked
+      #   ahead of every row not yet that stale; defaults to
+      #   `QualityControlDials::ROTATION_STALE_FLOOR_SECONDS`
+      # @return [Hash, nil] the picked row, or `nil` if `rows` is empty
       def pick(rows, now:, weight_seconds: QualityControlDials::YIELD_WEIGHT_SECONDS,
                floor_seconds: QualityControlDials::ROTATION_STALE_FLOOR_SECONDS)
         return nil if rows.empty?

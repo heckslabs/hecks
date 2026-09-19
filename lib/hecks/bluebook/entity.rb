@@ -70,6 +70,24 @@ module Hecks
         attr_reader :description, :identified_by, :identity_paths, :identity_heads,
                     :attributes, :commands, :queries, :entities, :preconditions, :invariants, :lifecycle
 
+        # Mints a new piece class for one declared entity and absorbs its fields into it.
+        #
+        # @param name [String, Symbol] the entity's declared name
+        # @param description [String, nil] the entity's declared prose description
+        # @param identified_by [String, Symbol, Array<String, Symbol>, nil] the identity
+        #   path(s) this entity is addressed by
+        # @param attributes [Array<Bluebook::Attribute>] the entity's declared fields
+        # @param commands [Array<Class>] the command classes (`Bluebook::Command` subclasses)
+        #   declared on this entity
+        # @param queries [Array<Bluebook::Query>] the queries declared on this entity
+        # @param entities [Array<Class>] the entity classes (`Bluebook::Entity` subclasses)
+        #   nested directly under this entity
+        # @param preconditions [Array<Bluebook::Given>] this entity's own named `given`s
+        # @param invariants [Array<Bluebook::Invariant>] the rules checked against every
+        #   instance of this entity
+        # @param lifecycle [Bluebook::Lifecycle, nil] the entity's declared state machine,
+        #   or `nil` if it declares none
+        # @return [Class] the minted piece class (a `Bluebook::Entity` subclass)
         def declare(name:, description: nil, identified_by: nil, attributes: [],
                     commands: [], queries: [], entities: [], preconditions: [], invariants: [], lifecycle: nil)
           piece = Class.new(self)
@@ -85,6 +103,17 @@ module Hecks
         # Assigns what the language declares, then hands off to the
         # behaviour's own `settle` — derived identity and the name
         # indexes, neither of which the declaration states.
+        #
+        # @param description [String, nil] see `declare`
+        # @param identified_by [String, Symbol, Array<String, Symbol>, nil] see `declare`
+        # @param attributes [Array<Bluebook::Attribute>] see `declare`
+        # @param commands [Array<Class>] see `declare`
+        # @param queries [Array<Bluebook::Query>] see `declare`
+        # @param entities [Array<Class>] see `declare`
+        # @param preconditions [Array<Bluebook::Given>] see `declare`
+        # @param invariants [Array<Bluebook::Invariant>] see `declare`
+        # @param lifecycle [Bluebook::Lifecycle, nil] see `declare`
+        # @return [Class] this piece's own class, self, once identity and indexes are derived
         def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, invariants:,
                    lifecycle:)
           @description    = description

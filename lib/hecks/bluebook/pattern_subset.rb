@@ -72,6 +72,10 @@ module Hecks
       # methods agreeing about a shared cursor" — exactly what the walk's
       # own comment says a cleverer spelling would obscure.
       # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+      #
+      # @param pattern [String, Symbol, #to_s] the declared `pattern:` regex source
+      # @return [Rejection, nil] the reason the pattern is refused, or `nil` if it is
+      #   entirely within the portable subset
       def validate(pattern)
         chars = pattern.to_s.chars
         index = 0
@@ -145,8 +149,17 @@ module Hecks
         possessive:          "possessive quantifier"
       }.freeze
 
+      # Builds the rejection for one refused construct.
+      #
+      # @param key [Symbol] a key of `CONSTRUCTS`/`REASONS`, such as `:lookahead`
+      # @return [Rejection] the construct's name and the reason it is refused
       def refuse(key) = Rejection.new(CONSTRUCTS.fetch(key), REASONS.fetch(key))
 
+      # Says whether a POSIX bracket class (`[:digit:]` and friends) starts at `index`.
+      #
+      # @param chars [Array<String>] the pattern, split into characters
+      # @param index [Integer] the position to check
+      # @return [Boolean] whether a POSIX bracket class starts at `index`
       def posix_class_at?(chars, index)
         return false unless chars[index] == "[" && chars[index + 1] == ":"
 
@@ -156,9 +169,13 @@ module Hecks
       end
 
       # A possessive quantifier is `*+`, `++`, `?+`, or a bounded `{n}`/{n,m}`
-      # immediately followed by `+` — only checked OUTSIDE a character class,
+      # immediately followed by `+` — only checked outside a character class,
       # where `*`, `+`, `?`, `{`, `}` are quantifier syntax rather than
       # literal characters.
+      #
+      # @param chars [Array<String>] the pattern, split into characters
+      # @param index [Integer] the position to check
+      # @return [Boolean] whether a possessive quantifier starts at `index`
       def possessive_at?(chars, index)
         return true if %w[* + ?].include?(chars[index]) && chars[index + 1] == "+"
         return false unless chars[index] == "{"
@@ -169,6 +186,11 @@ module Hecks
 
       # Length of a `{n}` / `{n,}` / `{n,m}` bound starting at `index`, or nil
       # if what's there isn't one.
+      #
+      # @param chars [Array<String>] the pattern, split into characters
+      # @param index [Integer] the position the bound is expected to start at
+      # @return [Integer, nil] the bound's length in characters, or `nil` if `index`
+      #   does not start a `{n}`/`{n,}`/`{n,m}` bound
       def bounded_quantifier_length(chars, index)
         cursor = index + 1
         digit_seen = false

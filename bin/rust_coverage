@@ -27,11 +27,11 @@
 # coverage question, answerable even when there is no runnable comparison
 # to make. It reports three buckets:
 #
-#   IMPLEMENTED  generated, and reachable via kernel/cli.rs's JSON router
-#   deferred     missing, but on the allowlist below with a cited reason
-#                (a known, deliberate gap — see ALLOWLIST's own header)
-#   gap          missing, and not on the allowlist — a real, actionable
-#                finding; exits non-zero so this can gate CI later
+#   `IMPLEMENTED`  generated, and reachable via kernel/cli.rs's JSON router
+#   deferred       missing, but on the allowlist below with a cited reason
+#                  (a known, deliberate gap — see `ALLOWLIST`'s own header)
+#   gap            missing, and not on the allowlist — a real, actionable
+#                  finding; exits non-zero so this can gate CI later
 #
 # Two kinds of "missing," and this tool is honest about which is which
 # (`gap_class` on every finding, sourced from the manifest itself — see
@@ -97,8 +97,8 @@
 # generator wrote. `--codegen=rust` instead runs `hecks-codegen domain`
 # (rust/codegen) over the same committed `ir.json` into a scratch
 # directory and reads the manifest.json it writes. Everything after that
-# — the IR cross-check, the ALLOWLIST, the buckets, the exit code — is the
-# same code in both modes; the ALLOWLIST is deliberately not generator-
+# — the IR cross-check, the `ALLOWLIST`, the buckets, the exit code — is the
+# same code in both modes; the `ALLOWLIST` is deliberately not generator-
 # aware (0054a's frozen-contract rule), so `--codegen=rust` can only come
 # back clean if hecks-codegen writes the same reason strings.
 #
@@ -118,7 +118,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 #   bin/rust_coverage --check-allowlist
 #
-# fails when an ALLOWLIST rule (below) matches no gap in any generated
+# fails when an `ALLOWLIST` rule (below) matches no gap in any generated
 # module under rust/src/generated/ — the allowlist is shrink-only, so a
 # rule whose gap was closed must be deleted, not left to excuse a future one.
 
@@ -135,6 +135,12 @@ target = positional.shift or abort "usage: bin/rust_coverage <generated-module-n
 # Entity-scoped query ids, at any depth — `Domain::Aggregate.Entity.Query`.
 # Mirrors domain_generator.rb's `entity_query_entries`, which records each
 # one as a whole-kind gap.
+#
+# @param owner_id [String] the dotted id of the entity's own owner (an aggregate or an
+#   enclosing entity), e.g. `"Domain::Aggregate"`
+# @param entities [Array<Hash>] the IR entity payloads to walk, recursing into any nested
+#   `:entities`
+# @return [Array<String>] every entity-scoped query's own dotted id found at any depth
 def entity_query_ids(owner_id, entities)
   entities.flat_map do |entity|
     entity_id = "#{owner_id}.#{entity.fetch(:name)}"
@@ -159,6 +165,11 @@ end
 # rubocop:disable-next Metrics/AbcSize
 # rubocop:disable-next Metrics/CyclomaticComplexity
 # rubocop:disable-next Metrics/PerceivedComplexity
+#
+# @param payload [Hash] a domain's canonical IR, as `bin/ir <domain>` prints it
+# @return [Array<Array(Symbol, String)>] every `[kind, id]` pair the IR declares, across
+#   aggregates, commands, queries, entities, entity commands, port operations, read
+#   models, policies, process managers, and lineage-capable aggregates
 def expected_from_ir(payload)
   domain_name = payload.fetch(:name)
   expected = []
@@ -210,6 +221,14 @@ end
 # else in the method; the four `each` walks below it (commands, entities,
 # ports, queries) are its own nested constructs, not shared with any
 # other aggregate's rows.
+#
+# @param domain_name [String] the domain's own IR name
+# @param aggregate [Hash] one aggregate's IR payload
+# @param mod_dir [String] the domain's `rust/src/generated/<domain>` directory
+# @param routed_verbs [Set<String>] every verb string found routed in
+#   `registry.rs` (fallback mode only)
+# @return [Array<Hash>] one manifest row for the aggregate itself, plus one per command,
+#   entity, entity command, port operation, and query it declares
 def aggregate_manifest_rows(domain_name, aggregate, mod_dir, routed_verbs)
   aggregate_id = "#{domain_name}::#{aggregate.fetch(:name)}"
   aggregate_file = File.join(mod_dir, "#{aggregate.fetch(:name).downcase}.rs")
@@ -226,6 +245,15 @@ def aggregate_manifest_rows(domain_name, aggregate, mod_dir, routed_verbs)
   rows
 end
 
+# Builds one aggregate's own fallback-mode manifest row.
+#
+# @param aggregate_id [String] the aggregate's dotted id, e.g. `"Domain::Aggregate"`
+# @param aggregate_file [String] the aggregate's own expected `.rs` file path under `mod_dir`
+# @param aggregate_generated [Boolean] whether that file exists on disk
+# @param mod_dir [String] the domain's `rust/src/generated/<domain>` directory, used in the
+#   reason text
+# @return [Hash] a manifest row: `:kind`, `:id`, `:generated`, plus `:gap_class`/`:construct`/
+#   `:reason` when not generated
 def aggregate_row(aggregate_id, aggregate_file, aggregate_generated, mod_dir)
   {
     kind: "aggregate", id: aggregate_id, generated: aggregate_generated,
@@ -239,6 +267,13 @@ def aggregate_row(aggregate_id, aggregate_file, aggregate_generated, mod_dir)
   }
 end
 
+# Builds one command's own fallback-mode manifest row.
+#
+# @param aggregate_id [String] the owning aggregate's dotted id
+# @param command [Hash] the command's IR payload
+# @param routed_verbs [Set<String>] every verb string found routed in `registry.rs`
+# @return [Hash] a manifest row: `:kind`, `:id`, `:generated`, `:routed`, plus
+#   `:gap_class`/`:construct`/`:reason` when not routed
 def command_row(aggregate_id, command, routed_verbs)
   verb = "#{aggregate_id}.#{command.fetch(:name)}"
   routed = routed_verbs.include?(verb)
@@ -256,6 +291,13 @@ def command_row(aggregate_id, command, routed_verbs)
   }
 end
 
+# Builds one entity's own manifest row plus one per its commands, fallback-mode.
+#
+# @param aggregate_id [String] the owning aggregate's dotted id
+# @param entity [Hash] the entity's IR payload
+# @param aggregate_generated [Boolean] whether the owning aggregate's own file was found on disk
+# @param routed_verbs [Set<String>] every verb string found routed in `registry.rs`
+# @return [Array<Hash>] the entity's own row, followed by one row per entity command
 def entity_rows(aggregate_id, entity, aggregate_generated, routed_verbs)
   entity_id = "#{aggregate_id}.#{entity.fetch(:name)}"
   rows = [{ kind: "entity", id: entity_id, generated: aggregate_generated }]
@@ -276,6 +318,12 @@ def entity_rows(aggregate_id, entity, aggregate_generated, routed_verbs)
   rows
 end
 
+# Builds one manifest row per operation a port declares, fallback-mode.
+#
+# @param aggregate_id [String] the owning aggregate's dotted id
+# @param port [Hash] the port's IR payload
+# @param routed_verbs [Set<String>] every verb string found routed in `registry.rs`
+# @return [Array<Hash>] one manifest row per port operation
 def port_rows(aggregate_id, port, routed_verbs)
   port.fetch(:operations).map do |operation|
     verb = "#{aggregate_id}.#{port.fetch(:name)}.#{operation.fetch(:name)}"
@@ -292,6 +340,13 @@ def port_rows(aggregate_id, port, routed_verbs)
   end
 end
 
+# Builds one query's own manifest row — always a `whole_kind` gap, since
+# the `query` construct has no generated code path at all.
+#
+# @param aggregate_id [String] the owning aggregate's (or entity's) dotted id
+# @param query [Hash] the query's IR payload
+# @return [Hash] a manifest row: `:kind`, `:id`, `:generated` (always false), `:gap_class`,
+#   `:construct`, `:reason`
 def query_row(aggregate_id, query)
   {
     kind: "query", id: "#{aggregate_id}.#{query.fetch(:name)}", generated: false,
@@ -306,6 +361,12 @@ end
 # aggregate_manifest_rows just above. See the inline comments on the
 # policy/process-manager and lineage rows for why each is shaped the way
 # it is (unverifiable vs. unconditionally generated).
+#
+# @param domain_name [String] the domain's own IR name
+# @param payload [Hash] the domain's canonical IR
+# @return [Array<Hash>] one manifest row per read model (always a `whole_kind` gap), per
+#   policy and process manager (`:generated` nil, unverifiable in fallback mode), and per
+#   lineage-capable aggregate (always generated and routed)
 def domain_wide_manifest_rows(domain_name, payload)
   rows = []
 
@@ -323,7 +384,7 @@ def domain_wide_manifest_rows(domain_name, payload)
   # carry `event_name`/`event_qualifier`/`target_verb`, never the
   # policy's own declared name — there is no string in registry.rs this
   # fallback could match a policy's `id` against with any confidence, so
-  # rather than produce a false IMPLEMENTED or a false gap, `generated`
+  # rather than produce a false `IMPLEMENTED` or a false gap, `generated`
   # is left `nil` — this tool's own report renders that as its own
   # unknown bucket, excluded from the exit-code gate. Same reasoning for
   # process managers (the table for those carries `name` — so it could
@@ -373,6 +434,11 @@ end
 # `p[:verb].inspect => {` pattern regardless of which of the three arm
 # builders (`aggregate_arms`/`entity_arms`/`port_arms`) wrote them, so one
 # regex covers all three.
+#
+# @param payload [Hash] the domain's canonical IR
+# @param mod_dir [String] the domain's `rust/src/generated/<domain>` directory to scan
+# @return [Array<Hash>] every construct's manifest row, derived by regex-scanning
+#   `registry.rs` for routed verbs rather than reading a real `manifest.json`
 def derive_manifest_from_source(payload, mod_dir)
   domain_name = payload.fetch(:name)
   registry_src = File.exist?(File.join(mod_dir, "registry.rs")) ? File.read(File.join(mod_dir, "registry.rs")) : ""
@@ -390,6 +456,11 @@ end
 # the IR declares lands in `findings` exactly once: from the manifest (or
 # the fallback deriver), or as a synthetic `unaccounted` gap when neither
 # recorded it (see the cross-check note below).
+#
+# @param mod_dir [String] the domain's `rust/src/generated/<domain>` directory
+# @return [Array(Hash, Array<Hash>, Symbol)] the parsed IR, the full findings list (manifest
+#   or fallback-derived rows plus any synthetic `unaccounted` gaps), and the mode used
+#   (`:manifest` or `:fallback`)
 def coverage_findings(mod_dir)
   ir_path = File.join(mod_dir, "ir.json")
   File.exist?(ir_path) or abort "#{ir_path}: missing — this generated tree predates ir.json (bin/project_rust " \
@@ -410,7 +481,7 @@ def coverage_findings(mod_dir)
   [ir, manifest + unaccounted_findings(ir, manifest, mode), mode]
 end
 
-# ── The ALLOWLIST — every entry here is sourced from something this
+# ── The `ALLOWLIST` — every entry here is sourced from something this
 # branch's own docs already say, quoted or closely paraphrased, not
 # invented to make a run come back clean. Per this task's own governing
 # rule: a finding only belongs here because it is already documented
@@ -446,17 +517,17 @@ ALLOWLIST = [
                "generated code path. Delete this rule the day that domain is regenerated with a real manifest."
   }
 ].freeze
-# Removed, not widened — the cross-domain-policy `kind: "policy"` entry
-# that used to live here (matching `reason_match: /cross-domain policy/`,
-# 0013's own Consequences: "omitted from the generated table entirely").
-# `rust/project/reactions.rb`'s `emit_cross_domain_policy_table` now
+# Removed, not widened — a cross-domain-policy `kind: "policy"` entry
+# does not belong here (matching `reason_match: /cross-domain policy/`,
+# 0013's own Consequences: "omitted from the generated table entirely")
+# now that `rust/project/reactions.rb`'s `emit_cross_domain_policy_table`
 # represents these instead of dropping them (`CrossDomainPolicyRule`,
 # `kernel::orchestrate`'s own header) — `domain_generator.rb`'s manifest
 # entry for every policy, cross-domain or not, is `generated: true,
-# routed: true` now, so no finding this rule used to match can be
-# produced anymore; leaving a dead rule in place would silently stop
-# testing anything the day it's removed for real, which is worse than
-# just removing it now with this note explaining why.
+# routed: true`, so no finding such a rule could match is ever
+# produced; leaving a dead rule in place would silently stop testing
+# anything the day it's removed for real, which is worse than omitting
+# it now with this note explaining why.
 #
 # What this tool can and cannot attest to, precisely: "generated and
 # reachable through kernel/cli.rs's JSON router" (this file's own header)
@@ -475,18 +546,20 @@ ALLOWLIST = [
 # `LambdaInvoker`) versus what remains structurally-argued-but-
 # unverified-without-live-AWS (`AwsLambdaInvoker` itself). That caveat
 # belongs there, not as a permanent allowlist entry here — this tool's
-# own IMPLEMENTED bucket was never a claim of live-infrastructure proof
+# own `IMPLEMENTED` bucket is never a claim of live-infrastructure proof
 # for any finding in it (a generated Postgres write path isn't re-proven
 # against a live database by this tool either).
-# No longer "structurally can't surface" — this comment used to explain
-# why era/lineage-bound aggregate support had no allowlist entry: nothing
-# in `ir[:aggregates]` (a current-era snapshot) ever named an aggregate's
-# adapter binding, so `expected_from_ir` had no way to even enumerate it
-# as a raw finding here. `Exporter.lineage` (lib/hecks/projector/
-# exporter.rb) closed exactly that gap — `ir[:lineage][:capable_aggregates]`
-# is now a real, exported list, `expected_from_ir`/both manifest builders
-# above both walk it under `kind: "lineage_aggregate"`, and every such
-# aggregate reports IMPLEMENTED: rust/host's `journal::
+#
+# Era/lineage-bound aggregate support is fully enumerable now — not a
+# case this tool structurally cannot surface. A raw read of
+# `ir[:aggregates]` alone (a current-era snapshot) never names an
+# aggregate's adapter binding, so `expected_from_ir` cannot enumerate it
+# as a raw finding from that field alone. `Exporter.lineage`
+# (lib/hecks/projector/exporter.rb) closes that gap:
+# `ir[:lineage][:capable_aggregates]` is a real, exported list,
+# `expected_from_ir`/both manifest builders above both walk it under
+# `kind: "lineage_aggregate"`, and every such aggregate reports
+# `IMPLEMENTED`: rust/host's `journal::
 # read_lineage_head_all/_by_id` (read) and `journal::
 # append_lineage_mutation` (write, already generic before this) cover
 # any aggregate this list ever names, unconditionally — proven for a
@@ -506,12 +579,22 @@ ALLOWLIST = [
 # names as current — not that rust/host can mint an era or detect drift
 # itself. rust/project.rb's own header carries the full architectural
 # argument.
+# Checks whether an allowlist rule's kind/gap_class/construct triple
+# matches a finding's own.
+#
+# @param rule [Hash] one `ALLOWLIST` entry; `:kind`, `:gap_class`, `:construct` are read
+# @param finding [Hash] one finding; `:kind`, `:gap_class`, `:construct` are read
+# @return [Boolean] true if all three fields match (each compared as a String), false otherwise
 def allowlist_rule_matches?(rule, finding)
   rule[:kind] == finding[:kind].to_s &&
     rule[:gap_class] == finding[:gap_class].to_s &&
     rule[:construct] == finding[:construct].to_s
 end
 
+# Finds the first `ALLOWLIST` rule that excuses a finding, if any.
+#
+# @param finding [Hash] one finding to check against the allowlist
+# @return [Hash, nil] the matching allowlist rule, or nil if the finding is not excused
 def allowlisted(finding) = ALLOWLIST.find { |rule| allowlist_rule_matches?(rule, finding) }
 
 # ── Cross-check — every expected [kind, id] pair (derived straight from
@@ -520,6 +603,13 @@ def allowlisted(finding) = ALLOWLIST.find { |rule| allowlist_rule_matches?(rule,
 # telling apart from an honestly-recorded `generated: false`. See this
 # file's own header on why this is the single most dangerous case to
 # miss.
+#
+# @param payload [Hash] the domain's canonical IR
+# @param manifest [Array<Hash>] the manifest rows already collected (from `manifest.json` or
+#   the fallback deriver)
+# @param mode [Symbol] `:manifest` or `:fallback`, used in the synthetic finding's own reason text
+# @return [Array<Hash>] one synthetic `"unaccounted"` finding per `[kind, id]` pair the IR
+#   expects but no manifest row exists for at all
 def unaccounted_findings(payload, manifest, mode)
   manifest_ids = manifest.each_with_object(Hash.new do |h, k|
     h[k] = Set.new
@@ -532,6 +622,11 @@ def unaccounted_findings(payload, manifest, mode)
   end
 end
 
+# Checks whether a finding represents a real functional gap (not
+# generated, or generated but unrouted) rather than an unknown/unverified one.
+#
+# @param finding [Hash] one finding to check
+# @return [Boolean] true if `:generated` is false or `:routed` is false
 def functional_gap?(finding) = finding[:generated] == false || finding[:routed] == false
 
 # **The shrink-only check** — every rule must still excuse at least one real gap
@@ -582,7 +677,7 @@ end
 
 ir, findings, mode = coverage_findings(mod_dir)
 
-# ── CLASSIFY — a construct only counts as IMPLEMENTED when it is both
+# ── Classify — a construct only counts as `IMPLEMENTED` when it is both
 # generated and (where the construct has a routing concept at all)
 # actually reachable through kernel/cli.rs's JSON router. A `dispatch_*`
 # function that compiles but that nothing can ever call is not "working"
@@ -594,6 +689,12 @@ implemented, remainder = findings.partition { |f| f[:generated] && f[:routed] !=
 unknown, remainder     = remainder.partition { |f| f[:generated].nil? }
 deferred, gap          = remainder.partition { |f| allowlisted(f) }
 
+# Prints one report section: a labeled count followed by each entry's
+# kind, id, gap class, and reason.
+#
+# @param label [String] the section heading to print, e.g. `"IMPLEMENTED"`
+# @param entries [Array<Hash>] the findings to list, sorted by kind then id
+# @return [void]
 def print_bucket(label, entries)
   puts "\n#{label} (#{entries.size})"
   entries.sort_by { |e| [e[:kind].to_s, e[:id]] }.each do |e|

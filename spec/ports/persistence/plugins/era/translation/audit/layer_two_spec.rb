@@ -2,13 +2,14 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
 # H5 (docs/audits/2026-08-10-main-bug-audit.md) — a dotted-member compute
-# (`price.cents`) used to exempt the whole top-level attribute (`price`)
-# from Layer 2's cross-execution equivalence gate, because `compute_tops`
-# collapsed every compute path down to its first `.`-segment before
-# rejecting it from both sides of the comparison. A migration that
-# silently nulled or dropped a sibling member of the same value object
-# (`price.currency`, never touched by the compute at all) produced zero
-# violations — exactly the data loss this gate exists to catch.
+# (`price.cents`) exempting the whole top-level attribute (`price`) from
+# Layer 2's cross-execution equivalence gate would happen because
+# `compute_tops` collapses every compute path down to its first
+# `.`-segment before rejecting it from both sides of the comparison. A
+# migration that silently nulled or dropped a sibling member of the same
+# value object (`price.currency`, never touched by the compute at all)
+# would then produce zero violations — exactly the data loss this gate
+# exists to catch.
 #
 # These specs drive `Audit.layer_two!` directly, with plain Ruby
 # declared-rule objects and before/after hashes — no Postgres involved.
@@ -50,8 +51,8 @@ RSpec.describe "Layer 2's cross-execution equivalence gate and dotted-member com
 
     # but a migration that silently nulls the sibling member the compute
     # never touches is real, undeclared data loss — this is the bug: it
-    # used to produce zero violations because the whole "price" top-level
-    # key was exempted along with "price.cents"
+    # would produce zero violations if the whole "price" top-level key
+    # were exempted along with "price.cents"
     sibling_nulled = { "p1" => { "price" => { "cents" => 1, "currency" => nil } } }
     violations = violations_for(declared, before, sibling_nulled)
 
@@ -63,7 +64,8 @@ RSpec.describe "Layer 2's cross-execution equivalence gate and dotted-member com
   it "no longer exempts a sibling member when the dotted compute's from/to paths differ" do
     declared = declared_with_compute(from: "price.cents", to: "price.rounded_cents")
     before = { "p1" => { "price" => { "cents" => 100, "currency" => "USD" } } }
-    sibling_dropped = { "p1" => { "price" => { "rounded_cents" => 100 } } } # "currency" vanished, unexplained
+    # "currency" vanished, unexplained
+    sibling_dropped = { "p1" => { "price" => { "rounded_cents" => 100 } } }
 
     violations = violations_for(declared, before, sibling_dropped)
 

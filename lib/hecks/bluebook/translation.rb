@@ -19,7 +19,7 @@ module Hecks
     # A value object's or entity's own type name changed with its member
     # structure unchanged — the one drift `rename`/`move` cannot express,
     # because the attribute kept its name and only the type it points at
-    # was renamed. Mirrors `was:` one level deeper.
+    # changed name. Mirrors `was:` one level deeper.
     TranslationRetype = Struct.new(:from, :to)
 
     # A computed transform — rescale, reformat, split, merge — whose only
@@ -57,6 +57,23 @@ module Hecks
     class TranslationAggregate
       attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys, :backfills
 
+      # @param name [String, Symbol] the aggregate's name in the destination era
+      # @param was [String, Symbol, nil] the aggregate's name in the origin era, or `nil`
+      #   if it was not renamed
+      # @param renames [Hash{Symbol => Symbol}] each renamed field, old name to new name
+      # @param moves [Array<Bluebook::TranslationMove>] fields crossing a value-object
+      #   boundary
+      # @param converts [Array<Bluebook::TranslationConvert>] fields whose value is
+      #   remapped through a declared lookup table
+      # @param drops [Array<Symbol>] fields deliberately not carried forward
+      # @param retypes [Array<Bluebook::TranslationRetype>] value object or entity type
+      #   renames with their member structure unchanged
+      # @param computes [Array<Bluebook::TranslationCompute>] fields computed by a SQL
+      #   expression evaluated only inside the compiled Postgres head
+      # @param rekeys [Array<Bluebook::TranslationRekey>] SQL expressions that recompute
+      #   the aggregate's own identity
+      # @param backfills [Array<Bluebook::TranslationBackfill>] newly added required
+      #   fields with no source in old data
       def initialize(name:, was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
                      computes: [], rekeys: [], backfills: [])
         @name      = name.to_s
@@ -81,6 +98,13 @@ module Hecks
     class Translation
       attr_reader :domain, :from, :to, :aggregates, :retired
 
+      # @param domain [String, Symbol] the domain this translation carries forward
+      # @param from [String, Symbol] the origin era
+      # @param to [String, Symbol] the destination era
+      # @param aggregates [Array<Bluebook::TranslationAggregate>] each aggregate's own
+      #   translation rules
+      # @param retired [Array<String>] the names of aggregates gone outright in the
+      #   destination era, rather than renamed
       def initialize(domain:, from:, to:, aggregates: [], retired: [])
         @domain     = domain.to_s
         @from       = from
@@ -89,6 +113,11 @@ module Hecks
         @retired    = retired
       end
 
+      # Finds one aggregate's own translation rules by its destination-era name.
+      #
+      # @param name [String, Symbol] the aggregate's name in the destination era
+      # @return [Bluebook::TranslationAggregate, nil] the aggregate's translation, or
+      #   `nil` if `name` carries no translation rules
       def for_aggregate(name) = @aggregates.find { |aggregate| aggregate.name == name.to_s }
     end
   end

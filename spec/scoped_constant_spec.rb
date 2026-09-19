@@ -124,7 +124,8 @@ RSpec.describe "the scoped-constant bridge" do
 
       nested = with_declaration_resolver { ScopedBridgeDomain::ScopedBridgeThing }
       expect(nested).to be_a(Module)
-      expect(nested).not_to be_a(ScopedConstant) # a real constant, found without const_missing at all
+      # a real constant, found without const_missing at all
+      expect(nested).not_to be_a(ScopedConstant)
 
       expect(ScopedBridgeThing.commands).to eq(["make!"])
     end

@@ -120,11 +120,11 @@ module Hecks
       # Runs one command, entity command or port operation, then every policy and saga reaction
       # its events are owed.
       #
-      # **The receiver in `to:`, the facts in `with:`, and nothing else.**
+      # The receiver in `to:`, the facts in `with:`, and nothing else.
       # Loose keyword facts — `dispatch(verb, amount: 5)`, one bag holding
       # both the route and the payload — were deprecated in 1.3.x and are
       # gone: Ruby now refuses them itself, by name ("unknown keyword:
-      # :amount"). Code holding a bag of DATA rather than written keywords
+      # :amount"). Code holding a bag of data rather than written keywords
       # calls `dispatch_flat` below; that door is not going anywhere.
       #
       # @param verb [String] the fully qualified verb: `"Domain::Aggregate.Command"`,

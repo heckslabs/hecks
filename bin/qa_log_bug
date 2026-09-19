@@ -24,9 +24,9 @@
 # below). Default remains `yes`, unchanged: every ordinary bug still
 # demands a demonstration that actually fails.
 #
-# **It also mints the number**. `BUG#<n>` used to be "pick the next Bug
-# number" in `.claude/skills/hecks_qa/SKILL.md` — and a real BUG#21 was
-# assigned twice, by two agents each reading `Bug.All` and each adding
+# **It also mints the number**. Picking the next `BUG#<n>` by hand from
+# prose in `.claude/skills/hecks_qa/SKILL.md` is exactly how a real BUG#21
+# was assigned twice, by two agents each reading `Bug.All` and each adding
 # one before the other's `Log` landed. `next_reference` below reads the
 # highest `sequence` over `Bug.All` and takes the next one, then walks
 # forward past any reference somehow already on file — so a collision
@@ -124,6 +124,11 @@ end
 # command (`bundle exec …`, `bin/…`, `./…`, a bare interpreter, or a
 # direct `Hecks::Fuzzing::Replay.call` snippet) both count; a sentence
 # describing what happened does not.
+#
+# @param str [String, nil] the `--demonstration` value to check
+# @return [Boolean] true if it looks like an existing file path, a shell/interpreter
+#   invocation, a code file extension, or a `Hecks::Fuzzing::Replay` snippet; false
+#   if it reads as prose
 def looks_runnable?(str)
   first = str.to_s.strip.split(/\s+/).first.to_s
   return true if first.start_with?("/") && File.exist?(first)
@@ -178,6 +183,13 @@ rescue StandardError => e
         "(#{e.class}: #{e.message})"
 end
 
+# Runs a query against the QualityControl domain, prefixing the query name so
+# every call site below stays short.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @param name [String] the query name without the `QualityControl::` prefix, e.g. `"Bug.All"`
+# @param args [Hash{Symbol => Object}] the query's declared arguments
+# @return [Array<Hash>] the matching rows, as `Runtime::Instance#query` returns them for the verb
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
 sweep = QualityControl::Sweep.find(options[:sweep])
@@ -192,6 +204,9 @@ abort "no such sweep: #{options[:sweep].inspect} — the sweep id is on bin/qa_s
 # minters both see the same maximum, both try the same number, and the
 # loser's `Log` is refused (`AlreadyExists`) rather than landing a twin —
 # `mint_and_log!` below retries from a fresh read.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @return [Array(Integer, String)] the next free sequence number and its `"BUG#<n>"` reference
 def next_reference(runtime)
   rows = q(runtime, "Bug.All")
   taken = rows.map { |row| row[:reference][:value] }
@@ -200,6 +215,14 @@ def next_reference(runtime)
   [sequence, "BUG##{sequence}"]
 end
 
+# Mints a free `BUG#<n>` reference and logs the bug under it, retrying up
+# to three times if the reference is taken between reading and logging.
+#
+# @param runtime [Runtime::Instance] the booted QualityControl runtime
+# @param sweep [QualityControl::Sweep] the sweep the bug is logged against
+# @param options [Hash{Symbol => Object}] the parsed CLI options: `:title`, `:demonstration`,
+#   `:symptom`, `:expectation`, `:submitter`, `:reproduced` [String], and `:tags` [Array<String>]
+# @return [QualityControl::Bug] the logged bug record
 def mint_and_log!(runtime, sweep, options)
   3.times do
     sequence, reference = next_reference(runtime)

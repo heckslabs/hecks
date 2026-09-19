@@ -31,13 +31,13 @@ RSpec.describe Hecks::Facade::Handle do
   end
 
   # A non-creating verb whose snake-cased name collides with a real
-  # Object/Kernel method (`Freeze` -> `freeze`, `Send` -> `send`) used to
-  # be silently swallowed by the Kernel method rather than dispatched — no
-  # error, no refusal, the transition just never happened.
+  # Object/Kernel method (`Freeze` -> `freeze`, `Send` -> `send`) would
+  # otherwise be silently swallowed by the Kernel method rather than
+  # dispatched — no error, no refusal, the transition just never happens.
   #
-  # The fixture is deliberate, not a convenience. Banking used to be the
+  # The fixture is deliberate, not a convenience. Banking is not the
   # subject here (`Account.Freeze`, `ExternalTransfer.Send` were the only
-  # two colliding verbs in the whole corpus) and both were renamed —
+  # two colliding verbs in the whole corpus, and both are renamed now) —
   # domain vocabulary should not be chosen by what Ruby happens to have
   # taken. That leaves nothing shipped to prove this with, and the
   # protection is for somebody else's domain now : anyone is still free to
@@ -130,12 +130,13 @@ RSpec.describe Hecks::Facade::Handle do
     expect(vault.status).to eq("open")
   end
 
-  # `Handle#run` used to address every non-creating verb with
-  # `{ @ir.identified_by => @id }` — `identified_by` is nil the moment an
-  # identity is composite, so this built `{ nil => @id }`, and dispatch's
-  # own argument gate crashed on `nil.to_sym` reading the args back (worse
-  # still on a zero-attribute command like `Surrender`, where that stray nil
-  # key was the only thing in the payload). `SafeDepositBox`'s
+  # Addressing every non-creating verb with `{ @ir.identified_by => @id }`
+  # would break `Handle#run` — `identified_by` is nil the moment an
+  # identity is composite, so this would build `{ nil => @id }`, and
+  # dispatch's own argument gate would crash on `nil.to_sym` reading the
+  # args back (worse still on a zero-attribute command like `Surrender`,
+  # where that stray nil key would be the only thing in the payload).
+  # `SafeDepositBox`'s
   # `branch_code`/`box_number` identity is banking's one composite head,
   # so it is what proves door sugar addresses a multi-part identity, not
   # just a single one.
@@ -159,16 +160,16 @@ RSpec.describe Hecks::Facade::Handle do
     expect(box.status).to eq("vacant")
   end
 
-  # `to_h` used to be `{ id: @id }.merge(@state)` — `@state` merged last,
+  # `to_h` as `{ id: @id }.merge(@state)` would merge `@state` last,
   # so an aggregate free to declare its own attribute literally named `id`
   # (real corpus now: BurningManPrep's `Item`, `attribute :id, ItemId`,
-  # `identified_by :id`) got that attribute's own wrapped value
-  # object silently clobbering the correctly-unwrapped bare `@id`. The
-  # JSON door's own `/api/:coll` listing is the caller that actually hit
-  # this: every record's own `id` key came back `{value: "..."}` instead
-  # of a bare string, which collapsed an entire collection's own client-
-  # side id-keyed cache down to one entry (every wrapped-hash key stringifies
-  # the same way).
+  # `identified_by :id`) would have that attribute's own wrapped value
+  # object silently clobber the correctly-unwrapped bare `@id`. The
+  # JSON door's own `/api/:coll` listing is the caller that would actually
+  # hit this: every record's own `id` key would come back `{value: "..."}`
+  # instead of a bare string, which would collapse an entire collection's
+  # own client-side id-keyed cache down to one entry (every wrapped-hash
+  # key stringifies the same way).
   # Its own one-off inline chapter (not shared with `boot_banking_in_memory`/
   # `boot_collider` above) — `Thingy::Thing` exists only to declare an
   # attribute literally named `id`, which is the whole point of the example

@@ -17,6 +17,12 @@ module Hecks
   module Rendering
     module_function
 
+    # Renders a value the way it should read inside a refusal message.
+    #
+    # @param value [Object] the value to render
+    # @return [String] `"nil"` for nil, JSON for a Hash/Array or a duck-typed value
+    #   object (unwrapped to its bare scalar when it has exactly one field), or
+    #   `value.inspect` for anything else
     def describe(value)
       case value
       when nil then "nil"

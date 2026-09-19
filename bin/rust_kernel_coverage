@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # The mechanical, comment-tag-free half of the guarantee.
-# bin/project_kernel_capabilities generates the ENUM half — the compiler
+# bin/project_kernel_capabilities generates the enum half — the compiler
 # already refuses to build once `rust/src/kernel/expr.rs`'s
 # `dispatch_operator` stops being exhaustive over a regenerated
 # `OperatorCategory`/`AttributeShape`. But an enum variant existing is
@@ -63,6 +63,16 @@ require "hecks/runtime/value/coercion"
 
 ROOT = File.expand_path("..", __dir__)
 
+# Builds one coverage row per capability name, checking whether its Rust
+# interpretation file exists at the conventional path.
+#
+# @param category_dir [String] subdirectory under `rust/src/kernel` to check,
+#   such as `"attribute_shapes"`
+# @param names [Array<String>] capability names the live Ruby grammar admits for this category
+# @param source [String] label naming where `names` came from, echoed into each row for the report
+# @return [Array<Hash>] one row per name, with keys `:name` [String], `:path` [String] (the
+#   expected file's absolute path), `:present` [Boolean] (whether the file exists on disk), and
+#   `:source` [String] (the `source` argument, verbatim)
 def check(category_dir, names, source)
   names.map do |name|
     path = File.join(ROOT, "rust/src/kernel", category_dir, "#{name}.rs")

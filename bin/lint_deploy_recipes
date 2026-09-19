@@ -122,9 +122,15 @@ module DeployRecipeLint
   # (rather than one target named up front) and to keep each line's
   # real line number around for reporting.
 
+  # Splits a Makefile's text into one recipe-line list per target.
+  #
   # name => [[line_no, raw_text], ...] — raw_text still carries its
   # leading tab (if any) and any trailing "\" continuation; each of the
   # checks below normalizes what it actually needs.
+  #
+  # @param text [String] the full Makefile source to parse
+  # @return [Hash{String => Array<Array(Integer, String)>}] each target name mapped to its
+  #   recipe lines as `[line_no, raw_text]` pairs, `line_no` 0-based within `text`
   def parse_targets(text)
     lines = text.lines
     targets = {}
@@ -160,6 +166,10 @@ module DeployRecipeLint
   # substring "sam deploy" as prose) — neither should count toward
   # either check below, since a comment never executes and a human
   # running `make` never sees it.
+  #
+  # @param recipe_lines [Array<Array(Integer, String)>] one target's raw recipe lines, as
+  #   `parse_targets` records them
+  # @return [Array<Array(Integer, String)>] the same pairs with comment and blank lines removed
   def real_statements(recipe_lines)
     recipe_lines.reject { |_, text| text.sub(/\A\t/, "").start_with?("#") || text.strip.empty? }
   end
@@ -171,6 +181,11 @@ module DeployRecipeLint
   # project_deploy_bug_fixes_spec.rb's own shell_chains convention).
   # Each chain is [[line_no, statement_text], ...] with the leading tab
   # and trailing "\" already stripped.
+  #
+  # @param recipe_lines [Array<Array(Integer, String)>] one target's raw recipe lines, as
+  #   `parse_targets` records them
+  # @return [Array<Array<Array(Integer, String)>>] each independent shell chain as a list of
+  #   `[line_no, statement_text]` pairs, tab and trailing backslash already stripped
   def shell_chains(recipe_lines)
     chains = []
     current = []
@@ -188,6 +203,12 @@ module DeployRecipeLint
     chains
   end
 
+  # Strips a shell statement down to the text the exit-code checks below match
+  # against: a leading Make `@` silencer and a trailing `;` are noise neither
+  # check cares about.
+  #
+  # @param text [String] one statement's text, tab and trailing backslash already stripped
+  # @return [String] the statement with a leading `@` and trailing `;` removed, and trimmed
   def normalize_statement(text)
     text.sub(/\A@/, "").strip.sub(/;\s*\z/, "")
   end
@@ -198,6 +219,11 @@ module DeployRecipeLint
   # to a bare, unconditional `exit 0` later in that same chain — i.e.
   # reports success regardless of what the risky command(s) earlier in
   # the same shell invocation actually did.
+  #
+  # @param target [String] the Makefile target name this recipe belongs to
+  # @param chains [Array<Array<Array(Integer, String)>>] the target's shell chains, as
+  #   `shell_chains` returns them
+  # @return [Array<Violation>] one violation per offending chain, or `[]` if none
   def check_blind_exit_zero(target, chains)
     chains.filter_map do |chain|
       exit_zero = chain.find { |_, stmt| BARE_EXIT_ZERO_REGEX.match?(normalize_statement(stmt)) }
@@ -220,6 +246,11 @@ module DeployRecipeLint
   # $$?` whose immediately preceding statement in the same chain is a
   # benign echo/no-op, not the risky command this exit code is
   # presumably meant to report on.
+  #
+  # @param target [String] the Makefile target name this recipe belongs to
+  # @param chains [Array<Array<Array(Integer, String)>>] the target's shell chains, as
+  #   `shell_chains` returns them
+  # @return [Array<Violation>] one violation per offending chain, or `[]` if none
   def check_stale_dollar_question(target, chains)
     chains.filter_map do |chain|
       idx = chain.index { |_, stmt| DOLLAR_QUESTION_EXIT_REGEX.match?(normalize_statement(stmt)) }
@@ -243,6 +274,12 @@ module DeployRecipeLint
   # earlier echo/validation step anywhere in the recipe — nothing tells
   # a human running this interactively what it's about to do before it
   # does it.
+  #
+  # @param target [String] the Makefile target name this recipe belongs to
+  # @param recipe_lines [Array<Array(Integer, String)>] the target's raw recipe lines, as
+  #   `parse_targets` records them
+  # @return [Array<Violation>] a single-element array with the violation, or `[]` if an
+  #   echo/validation step precedes the first risky command (or there is no risky command)
   def check_prod_touch_without_echo(target, recipe_lines)
     ordered = real_statements(recipe_lines)
     first_risky = ordered.find { |_, text| RISKY_REGEX.match?(text) }
@@ -259,6 +296,12 @@ module DeployRecipeLint
     )]
   end
 
+  # Runs all three checks over every target in one Makefile's text.
+  #
+  # @param text [String] the full Makefile source to lint
+  # @param source [String] a label identifying where `text` came from, stamped onto every
+  #   violation this call returns (a fixture's own description, or a real file path)
+  # @return [Array<Violation>] every violation found, across every target, or `[]` if none
   def lint(text, source:)
     targets = parse_targets(text)
     violations = targets.flat_map do |name, recipe_lines|
@@ -279,6 +322,17 @@ module DeployRecipeLint
   # lints the actual generator output, never a hand-written stand-in
   # for it.
 
+  # Writes a minimal, real bluebook/world pair under `dir`, ready for
+  # `bin/project_deploy` to generate a Makefile from.
+  #
+  # @param dir [String] the directory to write the fixture domain under
+  # @param basename [String] the fixture's directory/file basename, such as
+  #   `"lint_deploy_recipes_fixture_own_fixture"`
+  # @param world_body [String] the Ruby source placed inside the `.world` file's
+  #   `deployed_to("AwsLambda") do ... end` block
+  # @param env_local [String, nil] contents to write to `.env.local` next to the fixture, or
+  #   `nil` to write no `.env.local` file at all
+  # @return [String] the fixture domain's own directory, `dir/basename`
   def write_fixture(dir, basename, world_body, env_local: nil)
     domain_dir = File.join(dir, basename)
     bluebook_dir = File.join(domain_dir, "bluebook")
@@ -320,6 +374,17 @@ module DeployRecipeLint
   # bin/project_deploy actually wrote to (<root>/deploy/<basename> —
   # always there regardless of where the source domain lived, same as
   # every project_deploy_*_spec.rb in this repo already relies on).
+  #
+  # @param root [String] the repository root, so `bin/project_deploy` can be found and run
+  #   and its output resolved
+  # @param basename [String] the fixture's directory/file basename, passed straight to
+  #   `write_fixture`
+  # @param world_body [String] the Ruby source placed inside the `.world` file's
+  #   `deployed_to("AwsLambda") do ... end` block
+  # @param env_local [String, nil] contents to write to `.env.local` next to the fixture, or
+  #   `nil` to write no `.env.local` file at all
+  # @raise [RuntimeError] if `bin/project_deploy` exits non-zero generating the fixture
+  # @return [String] the generated domain's own deploy directory, `root/deploy/basename`
   def generate!(root, basename, world_body, env_local: nil)
     Dir.mktmpdir do |dir|
       domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
@@ -337,6 +402,10 @@ module DeployRecipeLint
   # ("oauth" — deploy:'s own WebRedirectBaseUrl branch, sync-google-oauth).
   # Between the three, every recipe this generator can currently emit
   # gets exercised at least once.
+  #
+  # @return [Hash{String => Array(String, String), Array(String, nil)}] each fixture's label
+  #   mapped to `[world_body, env_local]`; `env_local` is `nil` for the fixtures that need no
+  #   `.env.local` file
   def fixtures
     {
       "own fixture"    => ["region \"us-east-1\"", nil],

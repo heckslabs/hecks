@@ -52,7 +52,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # **Recursive, at every depth** — not just one hop down. An entity can
   # nest its own entities (`entity "Dispatch"`, inside `entity "Handler"`,
   # inside `aggregate "ProcessManager"` — lib/hecks/language/bluebook/
-  # process_manager.bluebook), and walking only `agg.entities` used to
+  # process_manager.bluebook), and walking only `agg.entities` would
   # stop at Handler, leaving Dispatch's own fields
   # (command_name/position/with_spec/compensates_command_name/
   # compensates_with_spec) outside this list entirely — never claimed,

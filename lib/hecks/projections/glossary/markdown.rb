@@ -39,14 +39,27 @@ module Hecks
 
         module_function
 
+        # Titles the document after its chapter.
+        #
+        # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to title after
+        # @return [String] the document's `#` heading text
         def title(bluebook) = "#{bluebook.name} — Glossary"
 
+        # Renders the full `glossary.md` document.
+        #
+        # @param document [Glossary::Document] the assembled document to render
+        # @return [String] the complete Markdown source, ending in a newline
         def render(document)
           parts = [header(document.bluebook)]
           parts += document.sections.map { |section| section_text(section, document) }
           "#{parts.join("\n\n")}\n"
         end
 
+        # Renders the document's title, vision blockquote, lede, and overview map.
+        #
+        # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to render a
+        #   header for
+        # @return [String] the header's Markdown source
         def header(bluebook)
           parts = ["# #{title(bluebook)}"]
           parts << "> #{bluebook.vision}" if bluebook.vision
@@ -55,6 +68,13 @@ module Hecks
           parts.join("\n\n")
         end
 
+        # Renders one `##` section: its opening (an aggregate's, or a standing
+        # group's blurb), followed by every term inside it.
+        #
+        # @param section [Glossary::Section] the section to render
+        # @param document [Glossary::Document] the document `section` belongs to,
+        #   for its bluebook and link index
+        # @return [String] the section's Markdown source
         def section_text(section, document)
           parts = ["## #{section.title}"]
           parts += section.aggregate ? opening(section.aggregate, document.bluebook) : ["> #{STANDING[section.name]}"]
@@ -64,6 +84,12 @@ module Hecks
 
         # What an aggregate is, what it can be, how it fits and moves,
         # and what is always true of it — before a single term.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate to render an opening for
+        # @param bluebook [Bluebook::Behaviour::Chapter] the chapter `aggregate` belongs
+        #   to, for drawing its context diagram
+        # @return [Array<String>] the opening's Markdown blocks, one per paragraph or
+        #   diagram, not yet joined
         def opening(aggregate, bluebook)
           parts = []
           parts << "> #{aggregate.description}" if aggregate.description
@@ -82,6 +108,12 @@ module Hecks
         # one thing this page never shows as an identifier — so each is
         # replaced with how it is said, whole-word, and nothing else in
         # the sentence is touched.
+        #
+        # @param aggregate [Bluebook::Aggregate] the aggregate to gather rules for
+        # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to read every
+        #   construct name from, for de-identifying relationship sentences
+        # @return [Array<String>] `aggregate`'s (and its entities') attribute and
+        #   invariant statements, spoken and deduplicated
         def always_true(aggregate, bluebook)
           names = bluebook.aggregates.flat_map { |other| [other.hecks_name, *other.entities.map(&:hecks_name)] }
           [aggregate, *aggregate.entities].flat_map do |holder|
@@ -90,14 +122,29 @@ module Hecks
           end.uniq
         end
 
+        # Replaces every whole-word construct name in `sentence` with how it is said.
+        #
+        # @param sentence [String] the sentence to de-identify
+        # @param names [Array<String>] every construct name to replace, whole-word
+        # @return [String] `sentence` with each name in `names` replaced by
+        #   `Naming.words(name)`
         def spoken(sentence, names)
           names.reduce(sentence) { |text, name| text.gsub(/\b#{Regexp.escape(name)}\b/, Naming.words(name)) }
         end
 
+        # Renders one term's `###` heading and its paragraphs.
+        #
+        # @param entry [Glossary::Entry] the term to render
+        # @param index [Glossary::Index] the document's link index
+        # @return [String] the term's Markdown source
         def term_text(entry, index)
           ["### #{entry.headword}", *Sentences.paragraphs(entry, index)].join("\n\n")
         end
 
+        # Wraps a Mermaid diagram's source in a fenced code block.
+        #
+        # @param source [String] a Mermaid diagram's own source
+        # @return [String] `source` wrapped in a ` ```mermaid ` fence
         def fence(source) = "```mermaid\n#{source}\n```"
       end
     end

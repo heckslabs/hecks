@@ -6,19 +6,20 @@ require "tempfile"
 # docs/audits/2026-08-11-bug-triage.md) — the in-process read-model path
 # (`Runtime::ReadModelInterpreter#project`) and SQLite's own native,
 # projected-table path (`Adapters::SqliteProjection#query_read_model`)
-# used to diverge on two counts once a real `projected_by` binding
-# actually routes a read model through the native path (nothing in the
-# existing suite did — every other SQLite read-model spec exercises
+# diverge on two counts once a real `projected_by` binding actually
+# routes a read model through the native path (nothing in the existing
+# suite did — every other SQLite read-model spec exercises
 # SqlitePersistence alone, which has no `query_read_model` at all and so
-# always falls back to the in-process loop regardless of adapter):
+# always falls back to the in-process loop regardless of adapter), unless
+# both paths agree:
 #
 # - a missing root reference: in-process refuses with `NotFound`;
-#   the native path answered a silent `{root: nil, ...}`.
+#   the native path would otherwise answer a silent `{root: nil, ...}`.
 # - a chained include (a non-root head that references another
 #   included head rather than the root directly): in-process matches a
 #   head against any already-resolved source, root or not; the native
-#   path always matched only against the root, so a chained head's own
-#   rows came back empty no matter what actually existed.
+#   path would otherwise match only against the root, so a chained head's
+#   own rows would come back empty no matter what actually existed.
 RSpec.describe "Adapters::SqliteProjection#query_read_model" do
   SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "ChainProjectionGrowth" do

@@ -7,10 +7,9 @@
 # DSL (dsl/), and the meta-validator that judges a chapter against the
 # language's own grammar (meta_validator.rb + meta_validator/).
 #
-# The require order below preserves the boot order the flat list in
-# lib/hecks.rb used to spell: expression and IR first (pure
-# declarations), assembly's collaborators before its face, the DSL before
-# the meta-validator that its builders call at build time.
+# The require order below matters: expression and IR load first (pure
+# declarations), assembly's collaborators load before its face, and the DSL
+# loads before the meta-validator that its builders call at build time.
 
 module Hecks
   # Declared as a class, not a module — `Hecks::Bluebook` is a

@@ -163,7 +163,9 @@ RSpec.describe "durable saga/process-manager state" do
           runtime.dispatch_flat("Wire::Wire.Ask", reference: { value: "race" }, amount: { cents: 1 },
                            source: "left", destination: "right")
         rescue StandardError
-          nil # a losing thread may see the destination already credited and refuse downstream — fine, not the point
+          # a losing thread may see the destination already credited and
+          # refuse downstream — fine, not the point
+          nil
         end
       end
       threads.each(&:join)

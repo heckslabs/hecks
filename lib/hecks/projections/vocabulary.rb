@@ -40,6 +40,11 @@ module Hecks
 
       # The projector protocol. `options` is unused: a vocabulary table
       # has nothing to vary.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
+      #   Vocabulary aggregate to project
+      # @param options [Hash] unused; accepted to satisfy the registry's call shape
+      # @return [String] the rendered `lib/hecks/vocabulary.rb` source
       def call(bluebook:, options: {}) = render(bluebook)
 
       # Full rows, not just the first field of each.
@@ -50,12 +55,24 @@ module Hecks
       # Taking the first field of those produced a list of thirty-nine
       # duplicated error names — well-formed and meaningless. So rows are
       # carried whole, and the terms are derived from them.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
+      #   Vocabulary aggregate to read
+      # @return [Hash{String => Array<Hash{String => String}>}] each closed set's name,
+      #   mapped to its member rows with every field stringified
       def tables(bluebook)
         bluebook.aggregate("Vocabulary").value_objects.to_h do |vo|
           [vo.hecks_name, vo.members.map { |row| row.to_h.transform_keys(&:to_s).transform_values(&:to_s) }]
         end
       end
 
+      # Renders `lib/hecks/vocabulary.rb`'s full source: the frozen `TABLES`
+      # and `TERMS` constants and the `fetch`/`rows`/`symbols`/`names` reader
+      # methods, built from `bluebook`'s declared closed sets.
+      #
+      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter declaring the
+      #   Vocabulary aggregate to render
+      # @return [String] the generated Ruby source, ready to write to disk
       def render(bluebook)
         rows = tables(bluebook).sort_by(&:first).map do |name, members|
           "      #{name.inspect} => [\n#{members.map { |row| "        #{row.inspect}.freeze" }.join(",\n")}\n      ].freeze"

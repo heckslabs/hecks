@@ -6,6 +6,11 @@ module Hecks
   # throughout this chapter reach for. See lib/hecks/bluebook.rb's own
   # header for what `Bluebook` is as a whole.
   module Bluebook
+    # Renders a captured Ruby value to its self-describing wire spelling.
+    #
+    # @param value [Object] any value an `emits_ir` field carries, such as a Symbol,
+    #   String, Hash, Array, or literal
+    # @return [String] the value rendered through `Hecks::Literal.render`
     def self.render_value(value) = Literal.render(value)
 
     # A query — an ask, declared on an aggregate or on one of its entities.
@@ -40,6 +45,25 @@ module Hecks
 
       attr_reader :name, :description, :attributes
 
+      # @param name [String, Symbol] the query's declared name
+      # @param description [String, nil] the query's declared prose description
+      # @param attributes [Array<Bluebook::Attribute>] the query's declared result fields
+      # @param wheres [Array<QuerySpecification::Common::WhereClause>] the declared filter
+      #   conditions
+      # @param order_by [QuerySpecification::Common::OrderBy, nil] the declared sort field
+      #   and direction, or `nil` for no explicit ordering
+      # @param limit [QuerySpecification::Common::LimitSpec, nil] the declared row limit,
+      #   or `nil` for none
+      # @param offset [QuerySpecification::Common::OffsetSpec, nil] the declared row offset,
+      #   or `nil` for none
+      # @param cursor [QuerySpecification::Common::CursorSpec, nil] the declared pagination
+      #   cursor, or `nil` for none
+      # @param authorization [QuerySpecification::Common::AuthorizationSpec, nil] the declared
+      #   authorization policy, or `nil` for none
+      # @param null_semantics [QuerySpecification::Common::NullSemantics, nil] how this query
+      #   orders `nil` values; defaults to `NullSemantics.default` when omitted
+      # @param inspection [QuerySpecification::Common::InspectionSpec, nil] the declared
+      #   inspection mode, or `nil` for none
       def initialize(name:, description: nil, attributes: [], wheres: [],
                      order_by: nil, limit: nil, offset: nil, cursor: nil,
                      authorization: nil, null_semantics: nil,
@@ -59,6 +83,9 @@ module Hecks
       # group_by, scope_to). Declared emission covers the settled part
       # and `super` hands it over; the tail stays dynamic, which is the
       # honest description of it.
+      #
+      # @return [Hash] the declared emission, merged with whatever `extra_options_to_h`
+      #   the specification layer currently carries
       def to_h = super.merge(extra_options_to_h)
     end
   end

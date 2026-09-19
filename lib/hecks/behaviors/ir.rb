@@ -8,18 +8,29 @@
 # round-trip machinery a real bluebook construct does. It is a test
 # artifact a runner reads on demand, not a domain a boot needs.
 module Hecks
+  # The `.behaviors` toolkit: the DSL a `.behaviors` file is written against
+  # (`Hecks.behaviors`, dsl.rb), the plain-Struct IR it builds (this file), the runner
+  # that boots a suite's domain and checks each test (runner.rb, expectations.rb), and
+  # an rspec shim for a consuming app's own suite (rspec.rb).
   module Behaviors
     TestSetup = Struct.new(:command, :args, keyword_init: true)
 
     TestCase = Struct.new(:description, :tests_command, :on_aggregate, :kind,
                           :setups, :input, :expect, keyword_init: true) do
+      # Tells whether `tests_command` is already a fully qualified verb name.
+      #
       # An already-dotted tests_command is a literal FQN; otherwise `on:`
       # composes with the domain name resolved once setups/the tested
       # dispatch actually run (see Expectations — the domain isn't known
       # until `loads` is booted, so it's a runtime concern, not a field
       # here).
+      #
+      # @return [Boolean] true when `tests_command` contains a `.`
       def dotted? = tests_command.to_s.include?(".")
 
+      # Tells whether this test case exercises a query rather than a command.
+      #
+      # @return [Boolean] true when `kind` is `:query`
       def query? = kind == :query
     end
 

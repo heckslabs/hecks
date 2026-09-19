@@ -66,6 +66,16 @@ module Hecks
     # resolves its own env var name and passes the resulting string
     # straight through, e.g. `Hecks.boot(path, environment:
     # ENV.fetch("MYAPP_ENV", "development"))`.
+    #
+    # @param path [String] path to a domain directory, or a file inside one
+    # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot`
+    # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
+    #   Ruby facade constants for this boot
+    # @param environment [String, nil] the environment name whose
+    #   `environments/<name>.hecksagon`/`.world` overlay, if present, loads after the
+    #   domain's own
+    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+    #   to the booted domain
     def boot(path, shared: nil, install_facade: true, environment: nil)
       Runtime.boot(path, shared: shared, install_facade: install_facade, environment: environment)
     end
@@ -74,12 +84,30 @@ module Hecks
     # `.hecksagon`, optionally a `.world`), loaded in place from wherever
     # they actually live — see Runtime::Loader.boot_files's own header for
     # why this exists beside `boot` rather than as a special case of it.
+    #
+    # @param paths [String, Array<String>] one or more file paths within the domain
+    #   to load, instead of the whole directory
+    # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot_files`
+    # @param install_facade [Boolean] whether to install the `Widget::Item.Add`-style
+    #   Ruby facade constants for this boot
+    # @param environment [String, nil] the environment name passed through to the
+    #   selected-file loader
+    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+    #   to the booted domain
     def boot_files(paths, shared: nil, install_facade: true, environment: nil)
       Runtime.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
     end
 
+    # Binds the ambient registry for the duration of the block.
+    #
+    # @param registry [Runtime::Registry] the registry to make current for the block
+    # @yield the code that should see `registry` as `current_registry`
+    # @return [Object] the block's result
     def with_registry(registry, &) = Runtime.with_registry(registry, &)
 
+    # Reads the ambient registry a declaration is currently landing in.
+    #
+    # @return [Runtime::Registry, nil] the current registry, or nil outside a boot
     def current_registry = Runtime.current_registry
 
     # Bind who is dispatching for the duration of the block — checked
@@ -96,14 +124,39 @@ module Hecks
     #
     # `as_of` and `scope` are optional too, same shape — see
     # `Runtime.as_caller`'s own header for what each does.
+    #
+    # @param role [String, Symbol] the role to check the caller against
+    # @param actor_id [String, nil] who is calling, checked against a real Governance
+    #   `RoleAssignment` when given; string-equality only against `role` when nil
+    # @param as_of [Integer, nil] Unix epoch seconds to check a matching `RoleAssignment`'s
+    #   own `starts_at` against; unchecked when nil
+    # @param scope [String, nil] the scope to check a matching `RoleAssignment`'s own
+    #   `scope` against; unchecked when nil
+    # @yield the code to run with this caller bound
+    # @return [Object] the block's result
     def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &)
       Runtime.as_caller(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &)
     end
 
+    # Declares a chapter — a `.bluebook` file's top-level word.
+    #
+    # @param name [String] the chapter's declared name
+    # @param version [String, nil] the chapter's pinned version, or nil for unversioned
+    # @yield the chapter's body, evaluated against a `Bluebook::DSL::BluebookBuilder`
+    # @return [Bluebook::Chapter] the built, judged chapter
+    # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
+    # @raise [Bluebook::DSL::Malformed] if the chapter fails the language's own judgment
     def bluebook(name, version: nil, &)
       collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &))
     end
 
+    # Declares a hecksagon — a `.hecksagon` file's top-level word, binding a
+    # domain's aggregates to adapters.
+    #
+    # @param name [String, Symbol] the domain's name the hecksagon binds
+    # @yield the hecksagon's body, evaluated against a `Bluebook::DSL::HecksagonBuilder`
+    # @return [Bluebook::Hecksagon] the built hecksagon
+    # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
     def hecksagon(name, &) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &))
     # Repointed to DomainPortBuilder — the migration DomainPort's own
     # class comment names as its goal, now landed for the top-level
@@ -126,9 +179,35 @@ module Hecks
     # the literal top-level `.port` file entry point, keeps the older,
     # looser rule (see `DomainPortBuilder#initialize`'s own comment).
     def port(name, &) = collect(:add_port, Bluebook::DSL::DomainPortBuilder.build(name, legacy_bare_port: true, &))
+
+    # Declares an adapter — an `.adapter` file's top-level word.
+    #
+    # @param name [String] the adapter's name
+    # @yield the adapter's body, evaluated against a `Bluebook::DSL::AdapterBuilder`
+    # @return [Bluebook::Adapter] the built, judged adapter
+    # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
     def adapter(name, &)   = collect(:add_adapter, Bluebook::DSL::AdapterBuilder.build(name, &))
+
+    # Declares a world — a `.world` file's top-level word, naming a domain's
+    # deployment realm.
+    #
+    # @param name [String, Symbol] the domain's name the world describes
+    # @yield the world's body, evaluated against a `Bluebook::DSL::WorldBuilder`
+    # @return [Bluebook::World] the built, judged world
+    # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
     def world(name, &)     = collect(:add_world, Bluebook::DSL::WorldBuilder.build(name, &))
 
+    # Declares a data translation — a `.translation` file's top-level word,
+    # migrating one domain's stored shape from one era to the next.
+    #
+    # @param name [String, Symbol] the domain this translation carries forward
+    # @param from [String, Symbol] the origin era
+    # @param to [String, Symbol] the destination era
+    # @yield the translation's body, evaluated against a
+    #   `Bluebook::DSL::TranslationBuilder`
+    # @return [Bluebook::Translation] the built, judged translation
+    # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
+    # @raise [Bluebook::DSL::Malformed] if `name`, `from`, or `to` is empty
     def data_translation(name, from:, to:, &)
       collect(:add_translation, Bluebook::DSL::TranslationBuilder.build(name, from: from, to: to, &))
     end

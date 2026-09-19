@@ -63,8 +63,22 @@ if candidates.empty?
   exit 0
 end
 
+# Compacts one candidate's journal, or refuses/skips it, printing which.
+#
 # Returns true when the candidate was refused (a real projection binds
 # to it) so the caller can turn that into a non-zero exit status.
+#
+# @param registry [Runtime::Registry] the booted registry, for looking up
+#   `projected_by` bindings
+# @param candidate [Hash{Symbol => Object}] one aggregate's compaction
+#   candidate, with keys `:domain_name` (String), `:aggregate`
+#   (`Bluebook::Aggregate`), `:repository` (`Ports::Persistence::AppendOnly`),
+#   and `:adapter` (the Heki adapter instance)
+# @param force [Boolean] whether to actually compact, rather than only report
+#   what a compaction would discard
+# @return [Boolean] true if the candidate was refused because a real
+#   `projected_by` binding reads its journal; false otherwise (compacted,
+#   skipped as already empty, or dry-run reported)
 def refused_candidate?(registry, candidate, force:)
   aggregate = candidate[:aggregate]
   adapter   = candidate[:adapter]

@@ -5,6 +5,11 @@
 
 require "json"
 
+# Recursively sorts every Hash's keys within a parsed JSON document, so that key order —
+# which is not semantics — never shows up as diff noise.
+#
+# @param node [Object] a value from `JSON.parse`: `Hash`, `Array`, or a JSON scalar
+# @return [Object] the same shape with every nested `Hash`'s keys sorted by their string form
 def sort_deep(node)
   case node
   when Hash

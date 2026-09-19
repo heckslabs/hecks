@@ -191,8 +191,8 @@ RSpec.describe "the DSL surface is fully covered" do
   end
 
   it "builds no runtime surface at all — the door is the facade's, at bind" do
-    # The builder used to keep `define_readers`/`define_command` private ; now
-    # there is nothing to keep private, because a build produces only IR. The
+    # There is nothing left to keep `define_readers`/`define_command` private
+    # for, because a build produces only IR. The
     # public surface is a per-boot projection installed by Loader.bind_runtime.
     builder = Hecks::Bluebook::DSL::AggregateBuilder
 

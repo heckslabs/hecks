@@ -3,15 +3,15 @@
 # One tick of the practice, mechanical end to end — the thing `/loop
 # hecks_qa` dispatches, and the only thing it dispatches on a clean tick.
 #
-# `.claude/skills/hecks_qa/SKILL.md` used to say, in three separate
-# places and in capitals, that `bin/qa_pr_check` runs first, every tick,
-# no exceptions, before `bin/qa_sweep --all` — a rule an agent was asked
-# to remember, which is exactly the kind of rule that gets skipped the
-# one time it matters. Nobody reads tick history to decide anything, and
-# "the order two scripts run in" is a fact only the process that runs
-# both can enforce — so there is no `Tick` aggregate in the ledger (a
-# record cannot make a script run before another), just this script,
-# which cannot be run in the wrong order because it is the order.
+# That `bin/qa_pr_check` runs first, every tick, no exceptions, before
+# `bin/qa_sweep --all` is a rule an agent would otherwise have to remember
+# from prose in `.claude/skills/hecks_qa/SKILL.md` — exactly the kind of
+# rule that gets skipped the one time it matters. Nobody reads tick
+# history to decide anything, and "the order two scripts run in" is a
+# fact only the process that runs both can enforce — so there is no
+# `Tick` aggregate in the ledger (a record cannot make a script run
+# before another), just this script, which cannot be run in the wrong
+# order because it is the order.
 #
 #   bin/qa_tick
 #
@@ -79,11 +79,21 @@ unless ARGV.empty?
   abort "#{USAGE}\nthis script takes no arguments — one tick is always the same tick"
 end
 
+# Runs a git subcommand in `REPO_DIR` and captures its output rather than
+# letting it write to this process's own stdout/stderr.
+#
+# @param args (forwarded) the git subcommand and its arguments, e.g. `"status", "--porcelain"`
+# @return [Array(String, String, Process::Status)] trimmed stdout, trimmed stderr, and the
+#   subprocess's exit status
 def git(*)
   out, err, status = Open3.capture3("git", *, chdir: REPO_DIR)
   [out.strip, err.strip, status]
 end
 
+# Prints a titled section divider to stdout, ahead of one tick step's own output.
+#
+# @param title [String] the section heading to print
+# @return [void]
 def banner(title)
   puts
   puts "── #{title} " + ("─" * [0, 70 - title.size].max)
@@ -115,6 +125,11 @@ puts "at #{head}"
 
 # ── 3 and 4. the two scripts, in this order, always ───────────────────
 
+# Runs one tick step as a subprocess in `ROOT`, printing its combined
+# stdout/stderr once it finishes.
+#
+# @param command [Array<String>] the subprocess argv to run
+# @return [Integer] the subprocess's exit status
 def run_step(*command)
   output, status = Open3.capture2e(*command, chdir: ROOT)
   puts output
@@ -136,6 +151,13 @@ generated_exit = run_step("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_gene
 
 # ── 5. one report, one exit code ───────────────────────────────────────
 
+# Translates a step's exit code into the human-readable verdict printed
+# in the tick report.
+#
+# @param code [Integer] a step's exit status, typically one of `EXIT_OK`,
+#   `EXIT_FOUND_SOMETHING`, `EXIT_ERROR`
+# @return [String] `"clean"`, `"FOUND SOMETHING"`, `"operational error"`, or `"exit <code>"`
+#   for any other value
 def verdict(code)
   case code
   when EXIT_OK then "clean"

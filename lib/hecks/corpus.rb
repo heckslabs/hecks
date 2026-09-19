@@ -4,14 +4,13 @@ module Hecks
   # **The corpus, discovered** — every place in this repo that holds a real
   # domain, named once.
   #
-  # This used to be spelled out separately by every consumer that walks
-  # it — spec/corpus_spec.rb, spec/model_check_spec.rb, bin/model_check,
-  # spec/parser_parity_spec.rb, bin/fuzz, Fuzzing::CombinationMiner — and
-  # the copies had already drifted: only the model checker saw
+  # One table here, rather than each consumer spelling out its own copy —
+  # spec/corpus_spec.rb, spec/model_check_spec.rb, bin/model_check,
+  # spec/parser_parity_spec.rb, bin/fuzz, Fuzzing::CombinationMiner all did,
+  # and the copies had already drifted: only the model checker saw
   # `qa/bluebook`, only parser parity saw `spec/fixtures`, and nothing but
-  # bin/fuzz's own sweep ever saw `qa/stress_domains`. One table here, and
-  # each consumer names the KINDS it walks rather than re-deriving where
-  # those kinds live.
+  # bin/fuzz's own sweep ever saw `qa/stress_domains`. Each consumer names
+  # the `KINDS` it walks rather than re-deriving where those kinds live.
   #
   # Plain Dir/File only — bin/ scripts require this before (or without)
   # booting anything.
@@ -88,6 +87,13 @@ module Hecks
 
     module_function
 
+    # Lists corpus members of the given kinds (every kind, by default).
+    #
+    # @param kinds [Array<Symbol>] corpus kinds to include, from `KINDS`; every kind
+    #   when empty
+    # @param root [String] repository root to search under
+    # @return [Array<Member>] matching members
+    # @raise [ArgumentError] if `kinds` names a kind not in `KINDS`
     def members(*kinds, root: ROOT)
       kinds = KINDS if kinds.empty?
       kinds.flat_map do |kind|
@@ -107,6 +113,10 @@ module Hecks
     # What a boot loads for a member: a directory kind's bluebook
     # directory, a file kind's own file. `nil` for a directory holding no
     # bluebook at all.
+    #
+    # @param member [Member] the corpus member
+    # @return [String, nil] the path to boot, or nil when a directory member holds
+    #   no bluebook
     def source_of(member)
       DIRECTORY_KINDS.key?(member.kind) ? bluebook_dir(member.path) : member.path
     end
@@ -114,6 +124,9 @@ module Hecks
     # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`
     # (every example and stress domain), or the directory itself
     # (`qa/bluebook`). `nil` when neither holds a bluebook.
+    #
+    # @param domain_path [String] path to a domain directory
+    # @return [Array<String>, nil] `.bluebook` file paths found, or nil when none
     def bluebook_files(domain_path)
       [File.join(domain_path, "bluebook"), domain_path].each do |dir|
         files = Dir[File.join(dir, "*.bluebook")]
@@ -122,6 +135,11 @@ module Hecks
       nil
     end
 
+    # The directory holding `domain_path`'s bluebooks.
+    #
+    # @param domain_path [String] path to a domain directory
+    # @return [String, nil] directory of the first `.bluebook` file found, or nil
+    #   when `domain_path` holds none
     def bluebook_dir(domain_path)
       files = bluebook_files(domain_path)
       files && File.dirname(files.first)
@@ -129,6 +147,9 @@ module Hecks
 
     # The route a repo-relative path takes instead of the sweep — the
     # first one it matches — or `nil` when the sweep boots it.
+    #
+    # @param relative_path [String] a corpus member's path, relative to the repo root
+    # @return [Route, nil] the first matching route, or nil when the sweep boots it
     def route_for(relative_path)
       ROUTES.find { |route| route.pattern.match?(relative_path) }
     end
@@ -141,6 +162,10 @@ module Hecks
     # there, so a clean-corpus gate here would be the wrong check for them.
     MODEL_CHECK_KINDS = %i[example grammar framework qa stress fixture].freeze
 
+    # Every corpus member `bin/model_check` and `spec/model_check_spec.rb` walk.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<Member>] members of `MODEL_CHECK_KINDS`, less any routed elsewhere
     def model_check_members(root: ROOT)
       members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
     end
@@ -162,6 +187,10 @@ module Hecks
     # puts a domain in the rotation and nothing tied that list to the
     # corpus. Promotion only ever printed the `target.identify` line for a
     # human to run.
+    #
+    # @param root [String] repository root to search under
+    # @return [Hash{String => String}] each rotation member's stem/reference mapped
+    #   to its repo-relative path
     def rotation_targets(root: ROOT)
       members(:example, :stress, root: root)
         .to_h { |member| [member.stem, member.path.delete_prefix("#{root}/")] }
@@ -171,6 +200,9 @@ module Hecks
     # Every bootable domain in the project, not a hand-kept list — any
     # directory holding a `.bluebook` no route sends elsewhere, a
     # `bluebook/` folder standing for the domain directory around it.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] absolute paths of every sweepable domain directory
     def sweepable_domains(root = ROOT)
       Dir.chdir(root) do
         Dir.glob("**/*.bluebook")
@@ -184,6 +216,9 @@ module Hecks
 
     # The domain directory a member stands for, spelled the way
     # `sweepable_domains` spells it: a `bluebook/` folder is its parent.
+    #
+    # @param member [Member] the corpus member
+    # @return [String] the member's owning domain directory path
     def domain_dir_of(member)
       dir = File.directory?(member.path) ? member.path : File.dirname(member.path)
       File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
@@ -192,10 +227,10 @@ module Hecks
     # ── The Rust-facing corpus ─────────────────────────────────────────
     #
     # Every Rust-facing list (the fuzz bridge, the codegen drift check,
-    # rust coverage, codegen parity) used to be typed out by hand, and
-    # each had drifted from `rust/Cargo.toml`'s `[features]`: fuzzing saw
-    # 8 of 20 features. These read the one source instead. The
-    # `rust/src/generated/` modules split into buckets, and
+    # rust coverage, codegen parity) reads `rust/Cargo.toml`'s `[features]`
+    # as its one source, rather than being typed out by hand per consumer
+    # and drifting from it — hand-typed, fuzzing once saw only 8 of 20
+    # features. The `rust/src/generated/` modules split into buckets, and
     # spec/corpus_rust_spec.rb proves every Cargo feature and every
     # generated module lands in exactly one of them:
     #
@@ -232,15 +267,27 @@ module Hecks
     # it is deleted here.
     RUST_COVERAGE_PENDING = {}.freeze
 
+    # The Cargo `[features]` table's raw text.
+    #
+    # @param root [String] repository root to search under
+    # @return [String] the table's text, or `""` when `rust/Cargo.toml` has none
     def cargo_features_table(root: ROOT)
       File.read(File.join(root, "rust/Cargo.toml"))[Fuzzing::TargetCapabilities::FEATURES_TABLE] || ""
     end
 
+    # Every feature name Cargo declares with no dependency array of its own.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] feature names, in file order
     def cargo_features(root: ROOT)
       cargo_features_table(root: root).scan(/^(\w+)\s*=\s*\[\]/).flatten
     end
 
     # The feature `bin/project_rust` last wrote as Cargo's `default`.
+    #
+    # @param root [String] repository root to search under
+    # @return [String, nil] the default feature's name, or nil when Cargo.toml
+    #   declares none
     def cargo_default(root: ROOT)
       cargo_features_table(root: root)[/^default\s*=\s*\["(\w+)"\]/, 1]
     end
@@ -250,6 +297,9 @@ module Hecks
     # decides which directory it came from — a directory name alone is not
     # enough: spec/fixtures/qa_discover_external_domains vendors a second
     # `examples/pizzas` that no Cargo feature was ever generated from.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<RustDomain>] each Rust-facing domain, sorted by directory path
     def rust_domains(root: ROOT)
       features = cargo_features(root: root)
       members(*RUST_DOMAIN_KINDS, root: root)
@@ -260,6 +310,12 @@ module Hecks
         .map { |dir, kind| RustDomain.new(File.basename(dir).downcase, dir, kind) }
     end
 
+    # Tells whether `dir` is the real source directory for its Cargo feature.
+    #
+    # @param dir [String] a candidate domain directory
+    # @param features [Array<String>] known Cargo feature names
+    # @param root [String] repository root `dir` is rooted under
+    # @return [Boolean]
     def rust_domain_dir?(dir, features, root)
       feature = File.basename(dir).downcase
       source = generated_source(feature, root: root)
@@ -272,21 +328,41 @@ module Hecks
     # ` (uses_framework "X")` suffix dropped. `nil` when not generated.
     SOURCE_STAMP = %r{GENERATED by bin/project_rust — (.+?)(?: \(uses_framework "\w+"\))?'s own canonical IR,}
 
+    # Where a generated module came from, read off the stamp `bin/project_rust`
+    # writes into its metadata.rs.
+    #
+    # @param module_name [String] a generated module's name
+    # @param root [String] repository root to search under
+    # @return [String, nil] the source path the stamp names, or nil when the module
+    #   is not generated
     def generated_source(module_name, root: ROOT)
       metadata = File.join(root, GENERATED_DIR, module_name, "metadata.rs")
       File.file?(metadata) ? File.read(metadata)[SOURCE_STAMP, 1] : nil
     end
 
+    # Every module directory under `rust/src/generated`.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] generated module names, sorted
     def generated_modules(root: ROOT)
       Dir.children(File.join(root, GENERATED_DIR)).select { |name| File.directory?(File.join(root, GENERATED_DIR, name)) }.sort
     end
 
+    # Tells whether `feature` has already been generated (has a merged.rs).
+    #
+    # @param feature [String] a Cargo feature / domain name
+    # @param root [String] repository root to search under
+    # @return [Boolean]
     def generated?(feature, root: ROOT)
       File.file?(File.join(root, GENERATED_DIR, feature, "merged.rs"))
     end
 
     # Framework members `bin/project_rust` writes a module for as a side
     # effect of some `uses_framework` domain — a module, no merged.rs.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<String>] stems of framework members with a generated module
+    #   but no merged.rs of their own
     def rust_framework_chapters(root: ROOT)
       modules = generated_modules(root: root)
       members(:framework, root: root).map(&:stem)
@@ -296,9 +372,11 @@ module Hecks
     # The regeneration order the drift check runs. Sorted by path, so
     # which domain runs last — and so wins Cargo's `default`, mod.rs's cfg
     # comments and the shared framework modules' attribution stamp — is a
-    # fact of the sorted list, not a hand-picked order. (The old hand list
-    # put waybill last; PR #667 moved to the sort, which makes
-    # has_many_fixture last.) spec/corpus_rust_spec.rb pins last == default.
+    # fact of the sorted list, not a hand-picked order: today that is
+    # `has_many_fixture`. spec/corpus_rust_spec.rb pins last == default.
+    #
+    # @param root [String] repository root to search under
+    # @return [Array<RustDomain>] already-generated Rust domains, in regeneration order
     def rust_regen_order(root: ROOT)
       rust_domains(root: root).select { |domain| generated?(domain.feature, root: root) }
     end
@@ -308,6 +386,11 @@ module Hecks
     # file is named after its role, `aggregate.bluebook`, while its
     # chapter is always "Bluebook"). Scans the whole file: a framework
     # member's header comment can run past any fixed line cap.
+    #
+    # @param bluebook_path [String, Array<String>] a `.bluebook` file path, or an
+    #   array whose first element is used
+    # @return [String, nil] the declared chapter name, or nil when the file never
+    #   declares one
     def chapter_name_of(bluebook_path)
       bluebook_path = Array(bluebook_path).first
       header = File.foreach(bluebook_path).find { |line| line =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }

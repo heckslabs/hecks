@@ -72,7 +72,7 @@ RSpec.describe "bin/heki_compact" do
     it "dry-runs without touching the journal, then compacts for real under --force" do
       bluebook_dir = copy_fixture(HEKI_COMPACT_FIXTURE, "fixture")
       seed_gadget(bluebook_dir)
-      # Heki's own `resolve_path` resolves relative to the boot ROOT
+      # Heki's own `resolve_path` resolves relative to the boot root
       # (`File.dirname` of the bluebook directory itself, per
       # `Runtime::Loader.boot`), not the bluebook directory — so the
       # store lands one level up from `bluebook_dir`, beside it, not

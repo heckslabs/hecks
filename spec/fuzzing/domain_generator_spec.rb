@@ -16,10 +16,10 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator do
     expect(other).not_to eq(first)
   end
 
-  # The two tables may differ, but only in one direction. `FORMS` used to
-  # be `FormCensus::FORMS.keys` outright, so the day the census learned a
+  # The two tables may differ, but only in one direction. If `FORMS` were
+  # `FormCensus::FORMS.keys` outright, then the day the census learned a
   # form this generator has no recipe for (`corrects`, `role_gated`),
-  # `generate` raised KeyError for any seed that drew it. A census form
+  # `generate` would raise KeyError for any seed that drew it. A census form
   # with no builder is fine — it is simply never generated. A builder for
   # something the census cannot measure is not: nothing would ever see
   # the form it claims to be exercising.

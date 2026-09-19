@@ -45,8 +45,8 @@ RSpec.describe "the guides" do
     guide = Doctest.parse(path)
 
     it "#{File.basename(path)} says nothing its examples cannot back", io: guide.postgres do
-      # **The vacuous-pass guard** — this module's own top comment used to
-      # read "a guide with no executable blocks passes trivially" as a
+      # **The vacuous-pass guard** — this module's own top comment would
+      # otherwise read "a guide with no executable blocks passes trivially" as a
       # known, accepted limitation; language-versioning.md sat at zero
       # fences for exactly that reason until this line existed. A `ruby
       # skip` fence still doesn't count (Doctest.parse never adds it to

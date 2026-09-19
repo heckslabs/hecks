@@ -8,6 +8,9 @@ module Hecks
     module SystemClock
       module_function
 
+      # Reads the machine's own current time.
+      #
+      # @return [Integer] the current time, in Unix epoch seconds
       def now = Time.now.to_i
     end
   end

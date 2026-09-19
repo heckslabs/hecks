@@ -67,7 +67,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PARITY_FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
   # Stage 5's own target — narrow, load-bearing unit-test fixtures for
   # other Ruby specs (era/lineage bumps, model-checker findings, dispatch
-  # ordering, reflex/hop-chain tests), never previously pointed at by
+  # ordering, reflex/hop-chain tests), not otherwise pointed at by
   # `hecks-parse` at all. Recursive (`**`) on purpose — note the `eras/`
   # and `model_check/` subdirectories, which a flat `*.bluebook` glob
   # would silently miss.
@@ -107,7 +107,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   end
 
   # A framework member's own stem, disambiguated against a same-named
-  # example ROOT — `lib/hecks/framework/bluebook/compliance.bluebook`
+  # example root — `lib/hecks/framework/bluebook/compliance.bluebook`
   # and `examples/compliance/` both bare-stem to "compliance" (the
   # framework file is, byte for byte, what the example app's own
   # `compliance.bluebook` loads — a real app demonstrating a framework
@@ -169,7 +169,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # reason says it should") the moment this stage's real construction
   # work made it stop failing, not a silent pass. (A second concurrently-
   # landed bonus member, "interview", was promoted here the same way at
-  # the time — the whole Interview domain has since been removed from
+  # the time — the whole Interview domain is now removed from
   # this repo, taking that entry with it.)
   #
   # Stage 5 removes every `spec/fixtures/**/*.bluebook` member too — the
@@ -247,7 +247,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
 
   # Every remaining pending member's own expected diagnostic — plain
   # "not yet implemented" for every one of them, now that Stage 3 moved
-  # the two members that used to surface a different, earlier gate
+  # the two members that surfaced a different, earlier gate
   # failure (`identified_by do ... end`'s multi-path block form — real,
   # confirmed Stage 3 territory, not a Stage 2 regression) into
   # REAL_PARITY_MEMBERS below with `parse::aggregate`/`lex.rs` now
@@ -337,7 +337,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     # --chapter Bluebook` invocation, in the same declared order
     # `MetaValidator.load_grammar_into` itself loads them — real parser
     # work this stage built: `parse::chapter::parse_chapter`'s own
-    # multi-file merge (previously a hard "not yet implemented" the
+    # multi-file merge (a hard "not yet implemented" before this stage the
     # moment a second `Bluebook`-context file showed up), plus two
     # genuinely new constructs `syntax.bluebook`/`vocabulary.bluebook`'s
     # own long `RefusalTemplate` wording needed and no earlier corpus

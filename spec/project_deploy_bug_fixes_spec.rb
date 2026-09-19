@@ -12,10 +12,10 @@ require "open3"
 # once (in a before(:context)) and asserts on the real generated
 # Makefile text.
 #
-#   H13 — a Shared-mode domain's `mint-era` stub used to `exit 1` after
-#         reporting a manual step remains, so `deploy:`'s own
-#         unconditional trailing `$(MAKE) mint-era` made a fully
-#         successful `make deploy` always exit nonzero.
+#   H13 — a Shared-mode domain's `mint-era` stub `exit 1`ing after
+#         reporting a manual step remains would make `deploy:`'s own
+#         unconditional trailing `$(MAKE) mint-era` turn a fully
+#         successful `make deploy` into an always-nonzero exit.
 #   H14 — `scaffold-translation`/`translation-audit` open a real SSM
 #         tunnel to production, then run scripts that resolve their DB
 #         connection from the domain's `.world` file, not from the
@@ -29,10 +29,10 @@ require "open3"
 #         bin/scaffold_translation/bin/translation_audit themselves,
 #         out of this script's own scope).
 #   M28 — adding Google OAuth to an existing (already-deployed) stack
-#         used to deadlock `make deploy`: the pre-deploy `mint-era`
-#         bridge queried PublicSubnetId/BastionSubnetId outputs that
+#         would deadlock `make deploy`: the pre-deploy `mint-era`
+#         bridge queries PublicSubnetId/BastionSubnetId outputs that
 #         don't exist until the OAuth-adding `sam deploy` itself creates
-#         them, so the pre-check failed before that deploy ever ran.
+#         them, so the pre-check would fail before that deploy ever ran.
 #   M29 — RDS master passwords may contain `%`, invalid in libpq's URI
 #         parser; DATABASE_URL now carries a percent-encoded password.
 RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
@@ -127,8 +127,9 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   end
 
   # One own-RDS fixture (a bare `region "us-east-1"` world, no .env.local),
-  # generated once and shared by H14 and M29 below — both used to generate
-  # their own byte-identical copy of this same world under different names.
+  # generated once and shared by H14 and M29 below, rather than each
+  # generating its own byte-identical copy of this same world under a
+  # different name.
   before(:context) { @own_dir = self.class.generate!("h14_m29_own_fixture", <<~WORLD) }
     region "us-east-1"
   WORLD

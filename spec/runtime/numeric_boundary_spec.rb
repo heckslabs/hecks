@@ -25,9 +25,9 @@ RSpec.describe "numeric boundary values" do
       expect(value[:amount]).to eq(2.5)
     end
 
-    # **The actual finding** — before this fix, `given.is_a?(expected)` was
+    # **The actual finding** — `given.is_a?(expected)` alone is
     # true for NaN and both Infinities (each really is a Float), so all
-    # three sailed straight through with no refusal at all. Left
+    # three would sail straight through with no refusal at all. Left
     # unchecked, a NaN reaching `CommandRules::Arithmetic#clamp` crashes
     # with a raw `ArgumentError` (`comparison of Float with 0 failed` —
     # confirmed directly: `Float::NAN.clamp(0, 10)` raises, it does not

@@ -139,10 +139,28 @@ module Hecks
                   "human approved no longer cover the data; re-run bin/translation_audit with --approve"
           end
 
+          # Refuses a mint that found no translation edge, naming the authoring tools —
+          # or, with scaffolding on, the file it just wrote.
+          #
           # No edge yet: the boot refuses toward the authoring loop —
           # naming both tools and the era ordinal. With HECKS_SCAFFOLD=1
           # the boot runs the scaffold first (an explicit flag, never a
           # silent side-effect) and the refusal names the file it wrote.
+          #
+          # @param registry [Runtime::Registry] the registry, forwarded to `scaffold!` when
+          #   scaffolding is on
+          # @param bluebook [Bluebook::Chapter] the domain, named in the refusal
+          # @param lineage [Adapters::PostgresEra::Lineage] the domain's lineage, forwarded
+          #   to `scaffold!` when scaffolding is on
+          # @param latest [Hash{Symbol => Object}] the newest held era, forwarded to
+          #   `scaffold!` when scaffolding is on
+          # @param ordinal [Integer] the ordinal of the era about to be minted, named in
+          #   the refusal
+          # @param directory [String, nil] the domain's bluebook directory; scaffolding
+          #   requires this to be present as well as `HECKS_SCAFFOLD=1`
+          # @return [void] never returns
+          # @raise [Runtime::WiringError] always; the message names the scaffolded file
+          #   when `HECKS_SCAFFOLD=1` and `directory` wrote one
           def refuse_toward_the_scaffold!(registry, bluebook, lineage, latest, ordinal, directory)
             if ENV["HECKS_SCAFFOLD"] == "1" && directory
               path = scaffold!(registry, bluebook, lineage, latest, directory)
@@ -157,9 +175,19 @@ module Hecks
                   "check it with bin/translation_audit, then boot again"
           end
 
-          # Diff the held era against the current shape and write the edge
+          # Diffs the held era against the current shape and writes the edge
           # file — confident rules inline, ambiguities as parse-refusing
-          # `unresolved` lines. Returns the file path.
+          # `unresolved` lines.
+          #
+          # @param _registry [Runtime::Registry] unused; kept so the signature matches its
+          #   caller's own arguments
+          # @param bluebook [Bluebook::Chapter] the domain as currently declared
+          # @param lineage [Adapters::PostgresEra::Lineage] the domain's lineage; named so
+          #   `ensure_named!` can mint a name for `latest` first if it has none
+          # @param latest [Hash{Symbol => Object}] the newest held era, as `Lineage#eras`
+          #   returns it
+          # @param directory [String] the domain's bluebook directory to write the edge under
+          # @return [String] the path `Translation::Scaffold::Writer#write!` wrote
           def scaffold!(_registry, bluebook, lineage, latest, directory)
             ensure_named!(lineage, latest)
             latest = lineage.eras.last
@@ -179,9 +207,17 @@ module Hecks
             Translation::Scaffold.write!(directory, edge)
           end
 
+          # Mints a name for an era that has none yet, leaving an already-named era untouched.
+          #
           # Era names are minted once. An era held before any drift was
           # seen has no name yet; it gets one the moment an edge needs to
           # leave it.
+          #
+          # @param lineage [Adapters::PostgresEra::Lineage] the domain's lineage, which
+          #   records the minted name
+          # @param era [Hash{Symbol => Object}] the era to name, as `Lineage#eras` returns it;
+          #   `:hash` present means it is already named
+          # @return [void]
           def ensure_named!(lineage, era)
             return if era[:hash]
 
