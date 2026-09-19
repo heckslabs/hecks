@@ -170,3 +170,32 @@ account.ports.map(&:name)  # => ["RiskFeed"]
 account.ports.first.operations.map(&:hecks_name)  # => ["Flag"]
 ```
 
+## translates
+
+<!-- generated:begin word=translates -->
+`translates name do ... end` — opens a `Policy` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+A translation boundary between two domains, not a business rule — the exact same `Policy` shape a `policy` block inside a `.bluebook` builds (same `on`/`trigger`, same `PolicyInterpreter` at runtime), just declared here instead, because reacting to a FOREIGN domain's event is a wiring/context-mapping decision (this chapter conforming to another chapter's published fact), the same kind of decision `port`/`uses_framework` already are — not something this domain's own model states about itself.
+
+Only `on`/`trigger` are meaningful inside the block; `where`/`for_each`/`across` all still work exactly as they do inside an ordinary `policy`, since it's the identical builder underneath.
+
+Two things to get right that are easy to get wrong: command and event references use `::` throughout (`Tenant::Register`, never `Tenant.Register`), and `on` should name the FOREIGN aggregate and event WITHOUT the domain prefix (`on Tenant::TenantProvisioned`, not `on Deploy::Tenant::TenantProvisioned`) — matching happens on event name plus the aggregate's own demodulised name only, never the domain, so a domain-qualified reference silently never matches.
+
+```ruby
+Hecks.hecksagon "Tenancy" do
+  Tenancy::Tenant.persisted_by("LocalStorage")
+
+  translates "RegisterProvisionedTenant" do
+    on Tenant::TenantProvisioned
+    trigger Tenant::Register
+  end
+end
+```
+
+Once `Deploy::Tenant.Provision` emits `TenantProvisioned`, this reaction dispatches `Tenancy::Tenant.Register` — the two domains stay separately modeled; this is the one explicit seam where a fact from one becomes a fact in the other.
+
