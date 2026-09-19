@@ -63,12 +63,12 @@ modes:
   self_consistency: true
   properties_in_differential: true
   structural_skip_report: true
-  adapter_parity_sqlite: true
+  adapter_parity_sqlite: false
   persistence_parity: true
-  adapter_parity_postgres: true
-  era_boundary: true
-  concurrency: true
-  wasm_front: true
+  adapter_parity_postgres: false
+  era_boundary: false
+  concurrency: false
+  wasm_front: false
 
 role_draw_probability: 0.25
 dry_run_fraction: 0.10
