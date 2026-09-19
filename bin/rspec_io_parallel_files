@@ -106,18 +106,23 @@ end
 warn "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a matching example " \
      "(#{data['examples'].size} examples total) under `#{tag_args.join(' ')}`"
 
+def named(heading, paths)
+  "  #{heading}:\n    #{paths.join("\n    ")}"
+end
+
 case mode
 when "--write"
-  File.write(list_path, files.join("\n") + "\n")
+  File.write(list_path, "#{files.join("\n")}\n")
 when "--check"
   committed = File.exist?(list_path) ? File.readlines(list_path, chomp: true).reject(&:empty?) : []
   missing = files - committed
   stale = committed - files
   unless missing.empty? && stale.empty?
     warn "#{list_path} is out of date."
-    warn "  carries a matching example but is not listed (would never run in the shards):\n    #{missing.join("\n    ")}" unless missing.empty?
-    warn "  listed but carries no matching example any more:\n    #{stale.join("\n    ")}" unless stale.empty?
-    abort "Refresh it and commit the result:\n  bin/rspec_io_parallel_files --write #{list_path} '#{exclude_pattern_arg}' -- #{tag_args.join(' ')}"
+    warn named("carries a matching example but is not listed (would never run in the shards)", missing) if missing.any?
+    warn named("listed but carries no matching example any more", stale) if stale.any?
+    abort "Refresh it and commit the result:\n  " \
+          "bin/rspec_io_parallel_files --write #{list_path} '#{exclude_pattern_arg}' -- #{tag_args.join(' ')}"
   end
 else
   puts files

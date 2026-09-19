@@ -89,9 +89,10 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     Dir[File.join(InMemoryDomain::ROOT, ".github/{workflows,actions}/**/*.yml")].each do |path|
       YAML.load_file(path).fetch("jobs", {}).each do |name, job|
         job.fetch("steps", []).each do |step|
-          expect(step["run"].to_s.gsub(/^\s*#.*$/, "")).not_to include("merge_group.base_sha"),
-                                                                "#{File.basename(path)}'s #{name} reads merge_group.base_sha — diff against " \
-                                                                "`git merge-base origin/<base_ref> <sha>` instead"
+          script = step["run"].to_s.gsub(/^\s*#.*$/, "")
+          expect(script).not_to include("merge_group.base_sha"),
+                                "#{File.basename(path)}'s #{name} reads merge_group.base_sha — diff against " \
+                                "`git merge-base origin/<base_ref> <sha>` instead"
         end
       end
     end

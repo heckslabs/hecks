@@ -109,6 +109,19 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks/corpus"
 
+def project_rust_in_fork(project_rust, domain)
+  puts "== bin/project_rust #{domain} =="
+  $stdout.flush
+  pid = fork do
+    ARGV.replace([domain])
+    $PROGRAM_NAME = project_rust
+    load project_rust
+  end
+  _, status = Process.wait2(pid)
+  abort "bin/regen_codegen_domains: bin/project_rust #{domain} failed (#{status.inspect})" unless status.success?
+  puts
+end
+
 # embryonaut is never in the list: Hecks::Corpus::RUST_ELSEWHERE routes
 # it (and `meta`) to the check that owns it instead, and
 # spec/corpus_rust_spec.rb proves no in-repo directory carries its name.
@@ -136,20 +149,7 @@ Dir.chdir(repo_root) do
   require "hecks"
   require "hecks/bluebook/meta_validator"
   Hecks::Bluebook::MetaValidator.grammar_registry
-  project_rust = File.join(repo_root, "bin/project_rust")
-
-  domains.each do |domain|
-    puts "== bin/project_rust #{domain} =="
-    $stdout.flush
-    pid = fork do
-      ARGV.replace([domain])
-      $PROGRAM_NAME = project_rust
-      load project_rust
-    end
-    Process.wait(pid)
-    abort "bin/regen_codegen_domains: bin/project_rust #{domain} failed (#{$?.inspect})" unless $?.success?
-    puts
-  end
+  domains.each { |domain| project_rust_in_fork(File.join(repo_root, "bin/project_rust"), domain) }
 
   next unless ARGV.include?("--check")
 

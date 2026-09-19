@@ -48,11 +48,12 @@ def matrix_legs(workflow, job)
   YAML.load_file(File.join(ROOT, ".github/workflows", workflow)).dig("jobs", job, "strategy", "matrix", "group").size
 end
 
+RSPEC_LEGS       = matrix_legs("ci-rspec.yml", "rspec_shard")
+POSTGRES_IO_LEGS = matrix_legs("ci-postgres-io-parallel.yml", "rspec_postgres_io_parallel_shard")
+
 FAMILIES = {
-  "rspec-runtime-group"       => { legs: matrix_legs("ci-rspec.yml", "rspec_shard"),
-                                   baseline: ".github/rspec_runtime_baseline.log" },
-  "postgres-io-runtime-group" => { legs: matrix_legs("ci-postgres-io-parallel.yml", "rspec_postgres_io_parallel_shard"),
-                                   baseline: ".github/postgres_io_runtime_baseline.log" }
+  "rspec-runtime-group"       => { legs: RSPEC_LEGS, baseline: ".github/rspec_runtime_baseline.log" },
+  "postgres-io-runtime-group" => { legs: POSTGRES_IO_LEGS, baseline: ".github/postgres_io_runtime_baseline.log" }
 }.freeze
 
 def baseline_lines(paths)
