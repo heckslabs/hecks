@@ -1,0 +1,7 @@
+{
+  "domain": "examples/roster",
+  "note": "BUG#141/BUG#123's own original repro: Roster::Roster.AddSeat given only an undeclared, wrong-depth routing envelope (legacy/flat-facts shape, no with: key at all, and no facts offered either) refuses TypeMismatch in Ruby (route(to)'s own entity-depth check, effectively the first thing that can raise for a legacy-shaped :aggregate call, per lib/hecks/runtime/invocation.rb#from_call) but used to refuse AbsentArgument in Rust (the structural args-gate ran first, unconditionally, regardless of call shape). Fixed by CommandInvocation#explicit_with() (rust/src/kernel/routing.rs) plus a per-call conditional in the aggregate-command dispatch template (rust/project/registry.rb, rust/codegen/src/registry.rs).",
+  "steps": [
+    {"verb": "Roster::Roster.AddSeat", "args": {"to": {"aggregate": "juliet juliet", "entities": ["gen-76ccd50e"]}}}
+  ]
+}

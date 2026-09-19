@@ -469,19 +469,26 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     naming::ruby_inspect_string(identity)
                 )
             };
-            // ROUTE DEPTH, EAGERLY, FOR EVERY AGGREGATE COMMAND, AND
-            // IDENTITY AFTER THE GATES (roadmap D2) — see
-            // `rust/project/registry.rb`'s identical comments, including
-            // the one explicit-envelope shape this still does not
-            // reproduce. Ruby's `Invocation.route` validates `to:` before
-            // `DISPATCH_ORDER` opens at all, so the depth check leads the
-            // body for a creating and an acting command alike;
-            // `extract_id` is part
-            // of `hydrate`, so it now runs after every argument gate,
-            // which is what BUG#23's standalone `structural_precheck`
-            // splice, BUG#38/#136's discarded `_args_precheck` and
-            // BUG#54's `collision_fallback` were each patching around one
-            // command shape at a time. All three are gone.
+            // ROUTE DEPTH FOR EVERY AGGREGATE COMMAND, CONDITIONALLY
+            // EAGER (BUG#141/BUG#123, qa/bluebook/quality_control.
+            // bluebook), AND IDENTITY AFTER THE GATES (roadmap D2) — see
+            // `rust/project/registry.rb`'s identical comments in full,
+            // including the exact D2-documented gap this closes:
+            // Ruby's `Invocation.route` validates `to:` before
+            // `DISPATCH_ORDER` opens at all, but ONLY for the legacy/
+            // flat-facts shape — the explicit `with:` shape's own
+            // `Invocation.facts_for` validates facts BEFORE `route(to)`
+            // runs, so a wrong-depth route alongside bad `with:`-shaped
+            // facts must refuse the SAME kind Ruby does (UnknownArgument/
+            // AbsentArgument, not TypeMismatch). `CommandInvocation::
+            // explicit_with()` (rust/src/kernel/routing.rs) is what makes
+            // that call-shape distinction available here at all.
+            // `extract_id` is part of `hydrate`, so it still runs after
+            // every argument gate, unchanged from D2 — which is what
+            // BUG#23's standalone `structural_precheck` splice, BUG#38/
+            // #136's discarded `_args_precheck` and BUG#54's `collision_
+            // fallback` were each patching around one command shape at a
+            // time. All three stay gone.
             let route_precheck_line =
                 "if let Some(route) = route { route.require_depth(0)?; }".to_string();
             let id_line = if c.creates {
@@ -499,10 +506,10 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // `AggregateStep::ORDER`. This arm no longer decides which of
             // them wins: reordering them in vocabulary.bluebook reorders
             // the refusals with no change here. See
-            // `rust/project/registry.rb`'s `gates_line` for the full
+            // `rust/project/registry.rb`'s `gates_expr` for the full
             // argument.
-            let gates_line = format!(
-                "let args = crate::kernel::decode_aggregate_arguments(facts_json, &{})?;",
+            let gates_expr = format!(
+                "crate::kernel::decode_aggregate_arguments(facts_json, &{})?",
                 emit_argument_gates_literal(
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
@@ -513,6 +520,16 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                         .map(|check| emit_reference_check(exemplar, check))
                         .collect::<Vec<_>>()
                 )
+            );
+            // BUG#141/BUG#123 — see `route_precheck_line`'s own header,
+            // above, for the full reasoning. A single `if invocation.
+            // explicit_with() { ... } else { ... }` EXPRESSION (its
+            // value bound to `args`) rather than two separately-ordered
+            // statements, so exactly one of the two orders ever actually
+            // runs per call.
+            let args_line = format!(
+                "let args = if invocation.explicit_with() {{ let args = {gates_expr}; {route_precheck_line} args }} \
+                 else {{ {route_precheck_line} {gates_expr} }};"
             );
 
             // BUG#139 — the ANGLE-8 write-side tenant boundary (PR #595),
@@ -562,8 +579,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "let route = invocation.route();".to_string(),
                 "let facts_json = invocation.facts();".to_string(),
             ];
-            body.push(route_precheck_line);
-            body.push(gates_line);
+            body.push(args_line);
             // IDENTITY AFTER THE GATES — `id_line`'s own comment, above;
             // `extra_lines` reads a creating command's bare identity-extra
             // heads, identity too, so it moves with it.
@@ -1075,6 +1091,53 @@ mod tests {
         assert!(generated.contains("store.safedepositbox.find(&id)"));
         assert!(generated.contains("PaymentGatewayReceiveArgs::from_json(facts_json)?"));
         assert!(generated.contains("dispatch_operation_paymentgateway_receive(&id, args)"));
+    }
+
+    // BUG#141/BUG#123 (qa/bluebook/quality_control.bluebook) — D2 (#751)
+    // made the route-depth check run eagerly, unconditionally, ahead of
+    // `decode_aggregate_arguments`, for every aggregate command — correct
+    // for a legacy-shaped call, but D2's own comment (superseded now)
+    // named the gap left open: an explicit `with:` call validates facts
+    // BEFORE `route(to)` on the Ruby side. This pins that the generated
+    // code now branches on `invocation.explicit_with()` at runtime
+    // instead of picking one fixed order — both orders present in the
+    // generated text (only one branch runs per call), neither hard-coded
+    // first.
+    #[test]
+    fn explicit_with_gates_precheck_ordering_for_an_acting_command() {
+        let aggregate = AggregateEntry {
+            name: "Hangar".to_string(),
+            module_name: "hangar".to_string(),
+            record: "Hangar".to_string(),
+            commands: vec![CommandEntry {
+                verb: "Fixture::Hangar.Prioritize".to_string(),
+                name: "Prioritize".to_string(),
+                fn_name: "prioritize".to_string(),
+                args_struct: "PrioritizeArgs".to_string(),
+                creates: false,
+                identity_extra_params: Vec::new(),
+                reference_checks: Vec::new(),
+                tenant_boundary_checks: Vec::new(),
+                reference_specs: Vec::new(),
+                attributes: vec!["priority".to_string()],
+                invariant_check_lines: Vec::new(),
+                role: None,
+            }],
+            entity_commands: Vec::new(),
+            nested_entity_commands: Vec::new(),
+            ports: Vec::new(),
+            chapter_mod: "fixture".to_string(),
+            domain_name: "Fixture".to_string(),
+            reference_specs: Vec::new(),
+            identified_by: vec!["code".to_string()],
+            entities: Vec::new(),
+        };
+
+        let generated = emit_registry(&Exemplar::load(), &[aggregate]);
+
+        assert!(generated.contains("let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates {"));
+        assert!(generated.contains("if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates {"));
+        assert!(generated.contains("Some(route) => route.aggregate().to_string()"));
     }
 
     // BUG#20 (qa/bluebook/quality_control.bluebook) — an ACTING command's

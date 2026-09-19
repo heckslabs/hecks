@@ -1,0 +1,7 @@
+{
+  "domain": "examples/roster",
+  "note": "The other half of BUG#141/BUG#123's own asymmetry, found while verifying the legacy-shape fix end to end: Roster::Roster.AddSeat given an explicit with: (an undeclared fact, bogus_field) ALONGSIDE a wrong-depth to: route. Ruby's Invocation.facts_for runs its own with:-shaped strictness (refuse_unknown_facts!) BEFORE route(to) for an :aggregate-receiver command, so this refuses UnknownArgument. D2 (#751) made Rust's aggregate-command dispatch check route depth eagerly, unconditionally, for every call shape -- correct for the legacy shape (see the sibling bug141_addseat_legacy_shape_* fixture) but wrong here: it refused TypeMismatch instead, a regression D2's own comment on route_precheck_line explicitly named and left open ('every corpus and matrix step uses the loose-keyword form, where Ruby validates to: first and the two agree'). CommandInvocation#explicit_with() (rust/src/kernel/routing.rs) is what lets the generated dispatch tell the two shapes apart and replicate BOTH real orders.",
+  "steps": [
+    {"verb": "Roster::Roster.AddSeat", "args": {"to": {"aggregate": "juliet juliet", "entities": ["gen-76ccd50e"]}, "with": {"bogus_field": 1}}}
+  ]
+}
