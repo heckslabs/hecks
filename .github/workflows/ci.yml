@@ -289,6 +289,7 @@ jobs:
   # `merge-queue-main` ruleset already names.
   rspec:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_impl
     # RUNS ONLY TO FAIL — 2026-09-14. A job skipped by its own `if:` needs
@@ -351,6 +352,7 @@ jobs:
   # check can't afford.
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: checks_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -386,6 +388,7 @@ jobs:
   # this wrapper is the first thing that makes it one.
   rspec_postgres_io:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_postgres_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -449,6 +452,7 @@ jobs:
   # light PR set was removed. spec/ci_summary_jobs_spec.rb pins the shape.
   rspec_postgres_io_parallel:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_postgres_io_parallel_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -510,6 +514,7 @@ jobs:
   # serially inside it.
   rspec_rust_io:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_io_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -550,6 +555,7 @@ jobs:
   # "bin/project_wasm, opted into the all-Rust pipeline" describe block.
   rspec_rust_io_build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job.
@@ -593,6 +599,7 @@ jobs:
   # target/wasmtime (real .wasm builds run under wasmtime).
   rspec_rust_io_deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job.
@@ -619,6 +626,7 @@ jobs:
   # for the rest of this lineage's own comment.
   rspec_rust_parser:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_parser_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -649,6 +657,7 @@ jobs:
   # for the rest of this lineage's own comment.
   rspec_rust_codegen:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_codegen_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -679,6 +688,7 @@ jobs:
   # for the rest of this lineage's own comment.
   rspec_rust_host:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: rspec_rust_host_impl
     # Runs only to fail — see `rspec`'s own `if:` comment above.
@@ -701,6 +711,7 @@ jobs:
 
   rspec_fuzzing:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job.
@@ -763,6 +774,7 @@ jobs:
   # that ran (and finished) first.
   runtime_changed:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     # See `rspec` job's own comment above — cache-warming push doesn't
     # need this job (and `stress_concurrency` below then also skips,
@@ -813,6 +825,7 @@ jobs:
     needs: runtime_changed
     if: needs.runtime_changed.outputs.touched == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     # Real Postgres, same discipline this workflow's own top comment
     # already holds the `rspec_postgres_io`/`rspec_rust_io` jobs to —

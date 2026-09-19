@@ -80,4 +80,17 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
       end
     end
   end
+
+  # A job with no timeout falls back to GitHub's 360 minutes, and a hung
+  # job holds one of the account's 20 concurrent runner slots that whole time.
+  it "gives every job that takes a runner a timeout" do
+    Dir[File.join(InMemoryDomain::ROOT, ".github/workflows/*.yml")].each do |path|
+      YAML.load_file(path).fetch("jobs").each do |name, job|
+        next if job.key?("uses")
+
+        expect(job["timeout-minutes"]).to be_a(Integer).and(be <= 60),
+                                          "#{File.basename(path)}'s #{name} needs a timeout-minutes of at most 60"
+      end
+    end
+  end
 end

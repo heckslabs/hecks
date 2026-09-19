@@ -127,6 +127,7 @@ jobs:
   # says to run through rather than hand-verify is safe.
   postgres_io_relevant_changed:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     outputs:
       touched: ${{ steps.diff.outputs.touched }}
@@ -253,6 +254,7 @@ jobs:
   # cold cache" behavior.
   rspec_postgres_io_parallel_shard:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     needs: postgres_io_relevant_changed
 

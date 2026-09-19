@@ -73,6 +73,7 @@ jobs:
   # split's win.
   checks_fuzz:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment in ci.yml — cache-warming push
     # doesn't need this job. (It skipped a plain pull_request too, under
@@ -89,6 +90,7 @@ jobs:
 
   checks_static:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment in ci.yml — cache-warming push
     # doesn't need this job.
@@ -209,6 +211,7 @@ jobs:
 
   checks_codegen_drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # Cache-warming push only, same as `checks_fuzz` above.
     if: github.event_name != 'push'

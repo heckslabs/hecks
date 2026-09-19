@@ -43,6 +43,7 @@ jobs:
   # own header comment above for why they didn't move here too).
   rspec_rust_io:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
     # need this job.

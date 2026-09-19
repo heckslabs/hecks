@@ -21,6 +21,7 @@ jobs:
   # `--exclude-pattern` comment for the overlap failure that found it.
   rspec_rust_parser:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
     # need this job.
