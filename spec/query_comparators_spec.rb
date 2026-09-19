@@ -9,7 +9,7 @@ require "spec_helper"
 # Account.{Overdrawn,HighBalance,StrictlyAbove,AtMost}, Customer.NotGoodStanding,
 # Account.Reachable and CardPayment.Flagged now carry that coverage instead.
 RSpec.describe "where-clause comparators, exercised on the real banking bluebook" do
-  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
   def boot
     registry = Hecks::Runtime::Registry.new

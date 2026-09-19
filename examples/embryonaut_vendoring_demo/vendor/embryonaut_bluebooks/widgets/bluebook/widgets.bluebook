@@ -1,0 +1,57 @@
+Hecks.bluebook "Widgets" do
+  vision "A vendored package's own smallest domain: one widget, created then retired — the fewest moving parts that still exercise uses_embryonaut_bluebook end to end (create, refuse, retire, query)."
+  supporting
+
+  # THIS FILE LIVES OUTSIDE hecks's OWN lib/ — it ships inside
+  # examples/embryonaut_vendoring_demo/vendor/embryonaut_bluebooks/widgets/
+  # bluebook/, the same place a REAL consumer's `vendor/` directory would
+  # hold a package fetched from github.com/chrisyoung/embryonaut_bluebooks
+  # (lib/hecks/embryonaut_bluebook.rb's own header). Kept inside this repo,
+  # beside the one example domain that attaches it
+  # (uses_embryonaut_bluebook "widgets", ../embryonaut_vendoring_demo.hecksagon),
+  # purely so the corpus/CI proof this domain exists for stays
+  # self-contained — a real vendored package would be a separate,
+  # independently-versioned checkout instead.
+  aggregate "Widget" do
+    description "One widget: available until retired, never the other way around."
+
+    attribute :name,   WidgetName
+    attribute :status, WidgetStatus
+
+    identified_by :name
+
+    value_object("WidgetName") { attribute :value, String }
+
+    value_object "WidgetStatus" do
+      attribute :value, String, one_of: ["available", "retired"]
+    end
+
+    command "Create" do
+      goal "Bring a widget into existence, available"
+
+      attribute :name, WidgetName
+
+      sets :name
+      sets :status, to: "available"
+
+      emits WidgetCreated
+    end
+
+    command "Retire" do
+      goal "Retire a widget — once; a retired widget cannot retire again"
+
+      reference_to Widget
+
+      given("only an available widget may retire") { status.value == "available" }
+
+      sets :status, to: "retired"
+
+      emits WidgetRetired
+    end
+
+    query "Available" do
+      description "Widgets still available — the vendored package's own smallest read model."
+      where(status: "available")
+    end
+  end
+end

@@ -7,7 +7,7 @@ require "uri"
 RSpec.describe Hecks::Forms::App do
   include Rack::Test::Methods
 
-  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
   FORMS_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecks/forms/examples/banking_console.bluebook")
 
   # The same rebind spec/facade/handle_spec.rb already uses —

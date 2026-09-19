@@ -28,7 +28,7 @@ require "json"
 # expression machinery cannot boot the chapter that would configure it —
 # hence the checked-in projection (bin/expression_projection).
 RSpec.describe "the operator domain" do
-  ROOT_DIR = InMemoryDomain::ROOT
+  ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecks/grammar/expression_operators.json"))).freeze
   CHAPTER  = File.join(ROOT_DIR, "lib/hecks/grammar/expression.bluebook")
 

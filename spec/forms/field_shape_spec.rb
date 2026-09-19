@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/forms/field_shape"
 
 RSpec.describe Hecks::Forms::FieldShape do
-  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
   # No persistence adapter, no hecksagon, no verify! — a Field is derived
   # purely from the IR. The extraction port/adapter still has to be there

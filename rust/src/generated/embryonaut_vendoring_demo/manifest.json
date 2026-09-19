@@ -1,0 +1,19 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "EmbryonautVendoringDemo::Gadget",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautVendoringDemo::Gadget.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "EmbryonautVendoringDemo::Gadget.Activate",
+    "generated": true,
+    "routed": true
+  }
+]

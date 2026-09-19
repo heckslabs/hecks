@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/fuzzing"
 
 RSpec.describe "Hecks::Fuzzing::Replay" do
-  ROOT_DIR = InMemoryDomain::ROOT
+  ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   REPLAY_PIZZAS = File.join(ROOT_DIR, "examples/pizzas")
 
   def create_step

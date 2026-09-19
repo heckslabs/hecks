@@ -390,6 +390,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     &mut pos,
                     &mut bluebook,
                     &mut Vec::new(),
+                    &mut Vec::new(),
                     true,
                 )?;
             } else {
@@ -404,6 +405,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     &mut pos,
                     &mut discarded,
                     &mut Vec::new(),
+                    &mut Vec::new(),
                     true,
                 )?;
             }
@@ -414,27 +416,34 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
 }
 
 /// STAGE 8 — `hecks-parse resolve --chapter <Name> <file.hecksagon>`'s
-/// own driver: which OTHER (framework) chapters `<Name>`'s own block
-/// inside this `.hecksagon` file pulls in via `uses_framework`. Reuses
-/// the EXACT same "loop over every top-level `Hecks.hecksagon "..." do
-/// ... end` block, apply only the one whose own declared name matches,
+/// own driver: which OTHER chapters `<Name>`'s own block inside this
+/// `.hecksagon` file pulls in, via EITHER `uses_framework` (a framework
+/// member shipped inside this gem) OR `uses_embryonaut_bluebook` (a
+/// vendored package shipped inside the CONSUMER's own checkout,
+/// `lib/hecks/embryonaut_bluebook.rb`) — both attach onto the SAME
+/// registry the SAME `Kernel.load` way at real Ruby boot time
+/// (that file's own header: "same shape as Framework"), so this Rust-
+/// native resolver reports both from the SAME single scan. Reuses the
+/// EXACT same "loop over every top-level `Hecks.hecksagon "..." do ...
+/// end` block, apply only the one whose own declared name matches,
 /// still gate every sibling block for real" shape `parse_chapter`'s own
 /// `.hecksagon` loop already established (this module's own header, the
 /// STAGE 4 finding on why one file may hold several blocks) — a second,
 /// narrower entry point onto the same real parsing, not a second fact
 /// base. Every block is still fail-closed gated regardless of whether
 /// it matches; `ir::Bluebook::default()` is a throwaway accumulator
-/// here (resolve never emits IR), the collected `uses_framework` names
-/// are the only thing this function returns.
-pub fn resolve_uses_framework(
+/// here (resolve never emits IR), the collected names are the only
+/// thing this function returns.
+pub fn resolve_hecksagon_dependencies(
     chapter_name: &str,
     path: &str,
     source: &str,
-) -> ParseResult<Vec<String>> {
+) -> ParseResult<(Vec<String>, Vec<String>)> {
     let joined = lex::join_continuations(source);
     let lines = lex::lines(&joined);
     let mut pos = 0usize;
-    let mut names: Vec<String> = Vec::new();
+    let mut framework_names: Vec<String> = Vec::new();
+    let mut vendored_names: Vec<String> = Vec::new();
     let mut found = false;
 
     while pos < lines.len() {
@@ -454,7 +463,15 @@ pub fn resolve_uses_framework(
         if declared_name.as_deref() == Some(chapter_name) {
             found = true;
             let mut discarded = ir::Bluebook::default();
-            super::hecksagon::apply(path, &lines, &mut pos, &mut discarded, &mut names, false)?;
+            super::hecksagon::apply(
+                path,
+                &lines,
+                &mut pos,
+                &mut discarded,
+                &mut framework_names,
+                &mut vendored_names,
+                false,
+            )?;
         } else {
             let mut discarded = ir::Bluebook::default();
             super::hecksagon::apply(
@@ -462,6 +479,7 @@ pub fn resolve_uses_framework(
                 &lines,
                 &mut pos,
                 &mut discarded,
+                &mut Vec::new(),
                 &mut Vec::new(),
                 true,
             )?;
@@ -476,7 +494,7 @@ pub fn resolve_uses_framework(
         ));
     }
 
-    Ok(names)
+    Ok((framework_names, vendored_names))
 }
 
 /// Parses a `Hecks.bluebook "Name" do ... end` body INTO an

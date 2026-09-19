@@ -22,8 +22,8 @@ require "tmpdir"
 # stuck state, structurally the same shape as Banking's own `Settlement`
 # sitting in `"awaiting_credit"` this whole arc is about.
 RSpec.describe "durable saga/process-manager state" do
-  WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
-  SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
+  WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
+  SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter") unless defined?(SQLITE_ADAPTER)
 
   around do |example|
     @dir = Dir.mktmpdir("hecks-saga-durability-")

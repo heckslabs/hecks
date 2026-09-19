@@ -15,7 +15,7 @@ require "tmpdir"
 # reason), so refusing the boot outright would make that legitimate
 # choice impossible.
 RSpec.describe "verify! warning for an undurable process_manager" do
-  WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
+  WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
 
   def load_wire(registry)
     Hecks.with_registry(registry) do

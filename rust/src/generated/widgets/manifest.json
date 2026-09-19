@@ -1,0 +1,24 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Widgets::Widget",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Widgets::Widget.Create",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Widgets::Widget.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Widgets::Widget.Available",
+    "generated": true
+  }
+]

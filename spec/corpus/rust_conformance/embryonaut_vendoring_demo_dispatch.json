@@ -1,0 +1,14 @@
+{
+  "domain": "examples/embryonaut_vendoring_demo",
+  "note": "docs/decisions/0058's own conformance proof for uses_embryonaut_bluebook — the same default-Rust-codegen-path dispatch proof examples/banking's own fixtures give uses_framework, scaled down to the smallest package that still exercises it for real: creates the consuming domain's own aggregate (Gadget.Register, Gadget.Activate), creates and dispatches the VENDORED widgets package's own aggregate through the SAME merged Store/dispatch table (Widget.Create, Widget.Retire, Widget.Available), and refuses once on each side (Gadget.Activate on an already-active gadget; Widget.Retire on an already-retired widget) — proving the merged dispatch table routes both a domain-owned and a vendored-chapter verb correctly, including a given failing on each.",
+  "steps": [
+    {"verb": "EmbryonautVendoringDemo::Gadget.Register", "args": {"name": {"value": "g1"}}},
+    {"verb": "EmbryonautVendoringDemo::Gadget.Activate", "args": {"name": {"value": "g1"}}},
+    {"verb": "EmbryonautVendoringDemo::Gadget.Activate", "args": {"name": {"value": "g1"}}},
+    {"verb": "Widgets::Widget.Create", "args": {"name": {"value": "w1"}}},
+    {"query": "Widgets::Widget.Available"},
+    {"verb": "Widgets::Widget.Retire", "args": {"name": {"value": "w1"}}},
+    {"verb": "Widgets::Widget.Retire", "args": {"name": {"value": "w1"}}},
+    {"query": "Widgets::Widget.Available"}
+  ]
+}

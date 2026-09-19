@@ -21,7 +21,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
   end
 
   it "sends every generated module to exactly one bucket" do
-    buckets = features + corpus.rust_framework_chapters + corpus::RUST_ELSEWHERE.keys
+    buckets = features + corpus.rust_framework_chapters + corpus.rust_vendored_chapters + corpus::RUST_ELSEWHERE.keys
     expect(buckets.tally.select { |_, count| count > 1 }.keys).to be_empty
     expect(corpus.generated_modules.sort).to eq(buckets.sort)
   end
@@ -46,6 +46,23 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     corpus.rust_framework_chapters.each do |stem|
       chapter = corpus.chapter_name_of(File.join(root, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
       expect(hecksagons).to match(/^\s*uses_framework\s+"#{chapter}"/), stem
+    end
+  end
+
+  # SAME PROOF, `uses_embryonaut_bluebook`'s own side — a vendored
+  # package's chapter name isn't the file's own stem (the framework
+  # check's assumption above), so it's read off the vendored member's own
+  # bluebook header instead of a fixed `lib/hecks/framework/bluebook/`
+  # path.
+  it "attaches every vendored chapter through some Rust domain's hecksagon" do
+    hecksagons = corpus.rust_domains.flat_map { |domain| Dir.glob(File.join(domain.dir, "**", "*.hecksagon")) }
+                       .map { |path| File.read(path) }.join("\n")
+    vendored_by_stem = corpus.members(:vendored).to_h { |member| [member.stem, member] }
+    corpus.rust_vendored_chapters.each do |stem|
+      member = vendored_by_stem.fetch(stem)
+      chapter = corpus.chapter_name_of(corpus.bluebook_files(member.path))
+      expect(hecksagons).to match(/^\s*uses_embryonaut_bluebook\s+"#{stem}"/), stem
+      expect(chapter).to eq(Hecks::Naming.pascal(stem)), "#{member.path}: chapter #{chapter.inspect} != #{Hecks::Naming.pascal(stem).inspect}"
     end
   end
 

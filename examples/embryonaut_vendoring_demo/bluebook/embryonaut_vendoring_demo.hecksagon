@@ -1,0 +1,28 @@
+Hecks.hecksagon "EmbryonautVendoringDemo" do
+  uses_embryonaut_bluebook "widgets"
+
+  # DOMAIN-LEVEL DEFAULT — every aggregate below inherits this; only one
+  # exists (Gadget), same shape banking.hecksagon's own root-level
+  # `persisted_by "Heki"` gives Banking's own aggregates. Memory here
+  # because this is a spec/example corpus member, not a real deployment
+  # (roster.hecksagon's own comment makes the same call for the same
+  # reason).
+  persisted_by "Memory"
+end
+
+# A FRAMEWORK MEMBER (uses_framework) BRINGS ITS OWN SHAPE, NOT ITS OWN
+# PERSISTENCE — the SAME is true of a VENDORED bluebook
+# (uses_embryonaut_bluebook, above): `EmbryonautBluebook.load!` only
+# loads widgets.bluebook, never binds Widget's own persistence.
+# Binding `Widgets::Widget` INSIDE this domain's own hecksagon block
+# would not work even syntactically-correctly written — see
+# examples/banking/bluebook/banking.hecksagon's own comment for the full
+# reasoning (`Ports::Persistence::BindingPolicy.resolve` looks up
+# `registry.hecksagon(aggregate's OWN domain)`, not the domain doing the
+# attaching). So this is a second, SIBLING hecksagon, same shape
+# banking.hecksagon gives Governance/Identity — a real consumer of a
+# vendored package binds this to something durable instead; Memory here
+# for the same spec/example-corpus reason as above.
+Hecks.hecksagon "Widgets" do
+  Widgets::Widget.persisted_by("Memory")
+end

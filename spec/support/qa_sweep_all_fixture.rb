@@ -35,13 +35,27 @@ require_relative "qa_ledger_role"
 # this fixture rests on — not repeated here to avoid every split file
 # duplicating it.
 RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
+  # `unless defined?(...)` ON EVERY CONSTANT BELOW — this shared_context's
+  # own block body is re-evaluated once per `include_context` call (nine
+  # spec files, above), and a bare `NAME = value` written here still
+  # binds to the SAME top-level lexical constant on every evaluation
+  # (shared_context has no enclosing module/class of its own), not a
+  # fresh one per including group — so without the guard, every file
+  # after the first re-triggers "already initialized constant". Safe to
+  # keep only the first evaluation's value: none of these are
+  # parameterized by `database_name`, all four are static fixture
+  # content.
+  #
   # The "found something" example's own fixture crate — a small
   # standalone Rust crate (own `Cargo.toml`, `spec/fixtures/qa_sweep_all_
   # found_fixture_rust/`, deliberately outside `rust/`'s own workspace/
   # feature list) whose compiled binary always answers a fixed,
   # hand-written mismatch against `spec/fixtures/qa_sweep_all_found_
   # fixture`'s own trivially well-behaved Ruby domain.
-  FIXTURE_RUST_DIR = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
+  unless defined?(FIXTURE_RUST_DIR)
+    FIXTURE_RUST_DIR = File.join(InMemoryDomain::ROOT,
+                                 "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
+  end
 
   # The fixture ledger's own `.hecksagon` — line-for-line what
   # `qa/bluebook/quality_control.hecksagon` declares (every aggregate
@@ -49,7 +63,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # except it binds no adapter for the `CI` port at all — see the
   # original file's own comment (preserved in git history) for why an
   # unbound `CI` port here is harmless.
-  FIXTURE_HECKSAGON = <<~RUBY.freeze
+  FIXTURE_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_HECKSAGON)
     Hecks.hecksagon "QualityControl" do
       uses_framework "Governance"
 
@@ -87,7 +101,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # exercised directly: two racers dispatch the exact same
   # `QualityControl::Target.claim!`, both against the same target
   # reference, and whichever loses prints "refused" and exits 1.
-  CLAIM_RACE_SCRIPT = <<~RUBY.freeze
+  CLAIM_RACE_SCRIPT = <<~RUBY.freeze unless defined?(CLAIM_RACE_SCRIPT)
     root, domain_dir, target_ref, engineer = ARGV
     $LOAD_PATH.unshift File.join(root, "lib")
     require "hecks"
@@ -111,7 +125,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # violate, so a "clean" example never depends on this repository's own
   # actively-changing live QA corpus. No Rust feature, so `bin/qa_sweep`
   # always runs it in `ruby_only` mode.
-  FIXTURE_TARGET_BLUEBOOK = <<~RUBY.freeze
+  FIXTURE_TARGET_BLUEBOOK = <<~RUBY.freeze unless defined?(FIXTURE_TARGET_BLUEBOOK)
     Hecks.bluebook "QaSweepAllFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only so this spec's own 'clean' examples never depend on this repository's own live, actively-changing QA corpus."
 
@@ -152,7 +166,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     end
   RUBY
 
-  FIXTURE_TARGET_HECKSAGON = <<~RUBY.freeze
+  FIXTURE_TARGET_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_TARGET_HECKSAGON)
     Hecks.hecksagon "QaSweepAllFixtureTarget" do
       QaSweepAllFixtureTarget::Widget.persisted_by("Heki")
     end
@@ -162,7 +176,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # `Hecks::Fuzzing::TargetCapabilities` reads off a `.hecksagon` to make
   # a target eligible for `persistence_parity`, and therefore for
   # `--all`'s own second wave.
-  FIXTURE_PG_TARGET_HECKSAGON = <<~RUBY.freeze
+  FIXTURE_PG_TARGET_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_PG_TARGET_HECKSAGON)
     Hecks.hecksagon "QaSweepAllFixtureTarget" do
       QaSweepAllFixtureTarget::Widget.persisted_by("PostgresEra")
     end

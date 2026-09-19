@@ -2,7 +2,7 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Hecks::Facade::Handle do
-  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
   def boot_banking_in_memory
     registry = Hecks::Runtime::Registry.new
