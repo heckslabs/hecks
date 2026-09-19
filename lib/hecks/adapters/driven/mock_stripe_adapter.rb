@@ -2,7 +2,7 @@
 
 module Hecks
   module Adapters
-    # A GENERIC STAND-IN for a real Checkout-Session-style adapter — no
+    # A generic stand-in for a real Checkout-Session-style adapter — no
     # network call, no real account, matching whatever real payment
     # adapter a project pairs it with by shape alone
     # (`create_session(event:, registration_id:, success_url:, cancel_url:)

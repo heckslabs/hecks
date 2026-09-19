@@ -6,7 +6,7 @@ require "tmpdir"
 # `Ports::Query::InMemory.execute` (always passed `registry: nil`),
 # which makes `none_in_state?` unconditionally answer `true` — its own
 # graceful "no registry, no way to look the target up" default — for
-# EVERY `none_in_state` where-clause against ANY Heki-backed aggregate,
+# every `none_in_state` where-clause against any Heki-backed aggregate,
 # always, no matter the actual target state. Silently excluded
 # nothing. Same fixture and query shape
 # spec/query_none_in_state_aggregate_level_growth_spec.rb already

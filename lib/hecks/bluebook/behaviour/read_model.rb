@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT A READ MODEL DOES. Its declared half is the gathered heads
+      # **What a read model does**. Its declared half is the gathered heads
       # and the query shape; these are readings taken off them.
       module ReadModel
         def group_by_fields = @group_by.map { |row| row[:field].to_sym }
@@ -14,11 +14,11 @@ module Hecks
 
         def query_name = Naming.snake(@name)
 
-        # WHICH GATHERED HEADS THE FILTERING APPLIES TO (ADR 0055) — plural,
+        # Which gathered heads the filtering applies to (ADR 0055) — plural,
         # since `where`/`order_by`/`limit`/`offset` can now each independently
         # name a many-side head via `on:` once there's more than one. A read
         # model with a single many-side head keeps the old reading: every
-        # UNTARGETED option (plus `group_by`/`count`/`median`, still
+        # untargeted option (plus `group_by`/`count`/`median`, still
         # single-head-only — ADR 0055) applies to it, same as before `on:`
         # existed. With several many-side heads, only the ones actually named
         # by a targeted option are eligible.
@@ -33,7 +33,7 @@ module Hecks
         end
 
         # The pre-`on:` reading (ADR 0055), unchanged: with exactly one
-        # many-side head, every UNTARGETED option (plus `group_by`/`count`/
+        # many-side head, every untargeted option (plus `group_by`/`count`/
         # `median`, still single-head-only) applies to it — split out only
         # to keep `filtered_head_names` itself under this file's own
         # complexity budget, not because the two questions differ in kind.
@@ -43,13 +43,13 @@ module Hecks
           declared ? [many.first[:as]] : []
         end
 
-        # THE where/order_by/limit/offset THAT APPLY TO ONE ELIGIBLE HEAD
+        # The where/order_by/limit/offset that apply to one eligible head
         # (ADR 0055) — a small view `Ports::Query::InMemory.execute` reads
         # exactly the way it already reads a whole `Query`/`ReadModel`
         # (`.wheres`/`.order_by`/`.limit`/`.offset`/`.null_semantics`), scoped
-        # to `head_as`'s own aggregate: an UNTARGETED option applies when
-        # `head_as` is the read model's ONE many-side head (the pre-`on:`
-        # reading, unchanged) ; a TARGETED one applies when its `target`
+        # to `head_as`'s own aggregate: an untargeted option applies when
+        # `head_as` is the read model's one many-side head (the pre-`on:`
+        # reading, unchanged) ; a targeted one applies when its `target`
         # resolves to `head_as`'s own aggregate.
         FilteredOptions = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics)
 

@@ -69,7 +69,7 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     # `status` is the lifecycle field — a plain text column, not jsonb.
     expect(columns["status"]).to eq("text")
     # `name`, `pizza`, `customer_name` are value objects; `toppings` is a
-    # list — all four are real jsonb columns, never JSON-in-TEXT.
+    # list — all four are real jsonb columns, never JSON-in-text.
     expect(columns["name"]).to eq("jsonb")
     expect(columns["pizza"]).to eq("jsonb")
     expect(columns["customer_name"]).to eq("jsonb")
@@ -170,11 +170,11 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     admin.exec_params("SELECT pg_terminate_backend($1)", [victim_pid])
     admin.close
 
-    # THE CURRENT CALL STILL RAISES — `pg_exec`/`pg_exec_params`'s own
+    # **The current call still raises** — `pg_exec`/`pg_exec_params`'s own
     # comment explains why a lost-in-flight write is never silently
     # retried here.
     expect { adapter.find("p1") }.to raise_error(PG::ConnectionBad)
-    # But the CONNECTION itself healed — a caller that dispatches again
+    # But the connection itself healed — a caller that dispatches again
     # (a saga's own StaleWrite retry, an ordinary next request) is not
     # stuck behind a permanently-broken handle the way chaos-testing
     # found this adapter before this test existed.
@@ -203,7 +203,7 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   it "heals an existing table that predates one of the aggregate's own attributes" do
     adapter # create the table at today's shape
     db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
-    # Simulate a table committed BEFORE `customer_name` was added to the
+    # Simulate a table committed before `customer_name` was added to the
     # bluebook — `CREATE TABLE IF NOT EXISTS` alone would leave it
     # missing forever (chaos-tested against a real rename/add: boot
     # passed, the first `project` died `PG::UndefinedColumn`).
@@ -225,7 +225,7 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
                                       pizza: { price_cents: { cents: 1500 }, size: { value: "small" } }))
 
       # Filters on the two-level nested `pizza.price_cents.cents` path,
-      # orders (ascending) by the declared query's OWN `order_by :name` —
+      # orders (ascending) by the declared query's own `order_by :name` —
       # "Bare" < "Basic" alphabetically, so "cheap" sorts before "mid"
       # even though it is also the cheaper of the two.
       declared = aggregate.query("CostingLessThan")
@@ -233,7 +233,7 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     end
 
     it "orders a jsonb-nested numeric member NUMERICALLY, not lexicographically" do
-      # "900" sorts after "1200" as TEXT ("9" > "1"); a real ::numeric
+      # "900" sorts after "1200" as text ("9" > "1"); a real ::numeric
       # cast is what keeps 900 correctly ahead of 1200. Exactly the bug
       # PostgresEra's own numeric_field? comment describes — proven here
       # against a jsonb-extracted member, where the cast is still needed.
@@ -282,7 +282,7 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   end
 
   describe "a `contains` query over a list attribute — no index, still correct" do
-    # `toppings` (list_of Topping, TWO fields) has no single scalar member
+    # `toppings` (list_of Topping, two fields) has no single scalar member
     # to compare against `contains` at all — the same refusal
     # `list_member` gives every dialect (see sql_query_builder.rb). A
     # single-field value object is what `contains` on a list actually

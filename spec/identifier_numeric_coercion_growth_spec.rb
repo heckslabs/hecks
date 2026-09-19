@@ -4,9 +4,9 @@ require "tempfile"
 # Real dispatch coverage for Value::Coercion#coerce_identifier: when an
 # aggregate's identified_by field is itself numeric (Integer/Float, not the
 # overwhelmingly common String), #from_identifier re-seeding a freshly-
-# hydrated instance from the DERIVED IDENTITY STRING used to round-trip it
+# hydrated instance from the derived identity string used to round-trip it
 # back in as the wrong Ruby type, and #build's own check_numeric_fields (a
-# rule meant to catch a genuine CALLER mismatch) then refused the runtime's
+# rule meant to catch a genuine caller mismatch) then refused the runtime's
 # own internal identity seed instead -- blocking every command on any
 # aggregate with a numeric identity field, unconditionally, valid input or
 # not.

@@ -1,14 +1,14 @@
 require "spec_helper"
 
-# THE ARTIFACT HALF of the OIDC work whose integration half
+# The artifact half of the OIDC work whose integration half
 # spec/oidc_projection_spec.rb already covers. That one proves a verified
 # (issuer, subject) resolves to an identity, that the identity's role is
 # checked, and that the dispatch is refused when either says no. It just
-# had no way to state, up front and as data, WHICH role each command
+# had no way to state, up front and as data, which role each command
 # wants — every answer came from making a real dispatch and seeing what
 # happened.
 #
-# So the two halves are checked AGAINST EACH OTHER here, not merely
+# So the two halves are checked against each other here, not merely
 # allowed to coexist: the manifest's verbs are held equal to the
 # runtime's own verb list, and its roles are held to be exactly the
 # strings the commands declare.
@@ -23,7 +23,7 @@ RSpec.describe Hecks::Projections::OIDC do
   end
 
   describe "scopes" do
-    # THE LOAD-BEARING INVARIANT. A scope naming a command the domain
+    # **The load-bearing invariant**. A scope naming a command the domain
     # does not have would be an authorization rule for nothing — and
     # because both sides derive from the same IR, this catches the
     # projection drifting from the runtime rather than agreeing with
@@ -55,7 +55,7 @@ RSpec.describe Hecks::Projections::OIDC do
   # (`SafeDepositBox.Visit`, `Account.LedgerEntry`, `ATMCard.Withdrawal`
   # are Banking's own), so it is the only domain in the corpus that can
   # show this gap ever existed. Every entity-owned command reaches
-  # `Runtime::Dispatcher#dispatch` through the SAME dotted-verb routing
+  # `Runtime::Dispatcher#dispatch` through the same dotted-verb routing
   # (`command_name.include?(".")`) an ordinary command never uses — a
   # manifest that never names one could never grant a client a scope
   # for it, and would do so silently, not with an error.

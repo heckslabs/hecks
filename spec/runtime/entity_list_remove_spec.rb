@@ -1,9 +1,9 @@
 require "spec_helper"
 
 # BUG#32 (QualityControl ledger) — `remove:` was only ever implemented for
-# VALUE-OBJECT-typed list arguments (`spec/mutation_remove_growth_spec.rb`'s
+# value-object-typed list arguments (`spec/mutation_remove_growth_spec.rb`'s
 # `RemoveDependency`, `spec/runtime/entity_list_mutations_spec.rb`'s
-# `RemoveTag`/`RemoveTagFromBoard`); an ENTITY-typed list's own `remove:`
+# `RemoveTag`/`RemoveTagFromBoard`); an entity-typed list's own `remove:`
 # was a silent no-op — `Hecks::Runtime::Value::Coercion#hydrate_entity_list`
 # had no `value.is_a?(Array)` guard for the single-target shape `remove:`
 # offers, unlike its value-object sibling `#hydrate_value_object_list`, so
@@ -15,7 +15,7 @@ require "spec_helper"
 # runtime regression coverage for the fix, an inline domain so it stays
 # independent of that stress domain's own, separately-tracked findings.
 #
-# An entity is matched by IDENTITY here, never whole-value equality (an
+# An entity is matched by identity here, never whole-value equality (an
 # entity must never answer `.value_object` — `Entity`'s own header
 # comment) — see `EntityElement.list_element_match?`'s own comment for
 # the full reasoning, and `Coercion#hydrate_entity_identity`'s for how

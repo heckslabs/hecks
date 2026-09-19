@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 
 # The recovery path after a held-text integrity refusal. The digest is
-# tamper-EVIDENCE — it catches accident and drift, not an adversary
+# tamper-evidence — it catches accident and drift, not an adversary
 # (anyone who can edit the text can recompute the digest beside it).
 # When it fires, the honest resolution is a human reading the text as
 # it now stands and acknowledging it, on the record — never a psql
-# UPDATE. This tool shows the text and the digests, refuses without
+# update. This tool shows the text and the digests, refuses without
 # --accept, and records an attestation (old digest, new digest, when)
 # in an append-only log beside the store.
 #
@@ -70,7 +70,7 @@ puts "#{bluebook.name} era #{ordinal}: the held text does NOT match its recorded
 puts "  recorded: #{stored || '(none)'}"
 puts "  computed: #{computed}"
 
-# Before anything else: did the edit change the era's SHAPE, or only
+# Before anything else: did the edit change the era's shape, or only
 # its text? A shape change refuses hard — no --accept passes it.
 begin
   verdict = Hecks::Translation::Reattest.shape_guard!(

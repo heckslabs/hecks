@@ -1,17 +1,17 @@
 #!/usr/bin/env ruby
 require "json"
 
-# THE RECORDED FIXTURE for `pattern:`, and how to regenerate it :
+# The recorded fixture for `pattern:`, and how to regenerate it :
 #
 #   bin/pattern-cases > spec/corpus/fixtures/patterns.json
 #
 # spec/pattern_subset_spec.rb reads this fixture and does not generate it —
 # a regression contract for Ruby's own pattern matching, recorded once here
-# rather than computed inline in the spec. This script exists to AUTHOR a
+# rather than computed inline in the spec. This script exists to author a
 # new case: Ruby computes the expected answer, and the fixture holds it.
 #
-# Every pattern here is one the subset ADMITS — validate_pattern_subset
-# answers whether a pattern can be parsed at all; this fixture pins WHAT it
+# Every pattern here is one the subset admits — validate_pattern_subset
+# answers whether a pattern can be parsed at all; this fixture pins what it
 # matches, case by case, so a change in Ruby's own Regexp behavior across
 # versions shows up as a spec failure rather than silently.
 #

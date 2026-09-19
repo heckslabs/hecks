@@ -3,7 +3,7 @@ require "spec_helper"
 # ADR 0025, "Added attributes and absence": the read-side half of S11.
 # GuardState's own nil-read (hydrate_defaults_spec.rb's boot-time half —
 # `Instance.hydrate_with_defaults` — is the write-side companion) used to
-# answer nil for ANY declared-but-absent field, optional or not. That is
+# answer nil for any declared-but-absent field, optional or not. That is
 # exactly right for optional — nil is what optional means — and exactly
 # wrong for a required field with no default: a `given`/`ensures` reading
 # it would silently evaluate against a value nobody ever wrote, the same
@@ -32,7 +32,7 @@ RSpec.describe "reading a declared attribute a record predates" do
     registry.bluebook("Absence").aggregate("Account")
   end
 
-  # `balance` is REQUIRED, no default: — declared, but stripped from the
+  # `balance` is required, no default: — declared, but stripped from the
   # stored state below, exactly as a record written before it existed
   # would arrive off any adapter's own decode.
   def record_predating_balance(aggregate)

@@ -1,12 +1,12 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
-# H5 (docs/audits/2026-08-10-main-bug-audit.md) — a DOTTED-member compute
-# (`price.cents`) used to exempt the WHOLE top-level attribute (`price`)
+# H5 (docs/audits/2026-08-10-main-bug-audit.md) — a dotted-member compute
+# (`price.cents`) used to exempt the whole top-level attribute (`price`)
 # from Layer 2's cross-execution equivalence gate, because `compute_tops`
 # collapsed every compute path down to its first `.`-segment before
 # rejecting it from both sides of the comparison. A migration that
-# silently nulled or dropped a SIBLING member of the same value object
+# silently nulled or dropped a sibling member of the same value object
 # (`price.currency`, never touched by the compute at all) produced zero
 # violations — exactly the data loss this gate exists to catch.
 #
@@ -48,7 +48,7 @@ RSpec.describe "Layer 2's cross-execution equivalence gate and dotted-member com
     recomputed_only = { "p1" => { "price" => { "cents" => 1, "currency" => "USD" } } }
     expect(violations_for(declared, before, recomputed_only)).to be_empty
 
-    # but a migration that silently nulls the SIBLING member the compute
+    # but a migration that silently nulls the sibling member the compute
     # never touches is real, undeclared data loss — this is the bug: it
     # used to produce zero violations because the whole "price" top-level
     # key was exempted along with "price.cents"

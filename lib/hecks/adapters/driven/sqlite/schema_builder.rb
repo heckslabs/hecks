@@ -12,11 +12,11 @@ module Hecks
           @db.execute(
             "CREATE TABLE IF NOT EXISTS #{quoted_table} (id TEXT PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
           )
-          # RIGHT HERE, NOT AS A SEPARATE STEP IN `Sqlite#initialize` —
+          # Right here, not as a separate step in `Sqlite#initialize` —
           # `create_aggregate_table!` is the one piece of DDL `D1`
           # already calls verbatim through this same shared module
           # (`d1.rb`'s own header: "reuses Sqlite::SchemaBuilder and
-          # Sqlite::Codec UNCHANGED"). Folding index creation in here,
+          # Sqlite::Codec unchanged"). Folding index creation in here,
           # right after the table it indexes exists, is what makes D1's
           # own automatic indexing a real, running thing rather than an
           # aspiration that only Sqlite ever calls — no D1-specific
@@ -63,7 +63,7 @@ module Hecks
           @db.execute("ALTER TABLE #{quoted_entry_table} ADD COLUMN mirrors TEXT")
         end
 
-        # THE OPTIONAL saga-persistence capability's own table (§2/§4) —
+        # The optional saga-persistence capability's own table (§2/§4) —
         # shared here so `D1`, which `include`s this module verbatim for
         # its own `events`-table DDL (`d1.rb`), gets this for free too.
         # `domain` stays an explicit column even though SQLite has no
@@ -131,10 +131,10 @@ module Hecks
         # `ensure_head_snapshot!`/`ensure_first_head!` already use) ────
 
         # Every field a declared query ever filters or sorts on, across
-        # the aggregate's OWN queries and every entity's own queries —
+        # the aggregate's own queries and every entity's own queries —
         # `query_surfaces` in `dsl/aggregate_builder.rb` walks the
-        # identical pair. AN ENTITY'S QUERY STILL RUNS AGAINST THIS
-        # TABLE: it compiles through `query_expression`, which is
+        # identical pair. An entity's query still runs against this
+        # table: it compiles through `query_expression`, which is
         # `@aggregate`-scoped, not entity-scoped, so an entity's
         # declared `where`/`order_by` is indexed here too, same as any
         # other declared query — not skipped as "some other table's
@@ -158,14 +158,14 @@ module Hecks
         #     plain-vs-nested decision);
         #   - a non-list value-object attribute, referenced bare or
         #     through a member path (`field` or `field.member`) — an
-        #     EXPRESSION index over `query_expression(field)`'s own
+        #     expression index over `query_expression(field)`'s own
         #     `json_extract(...)` text. Reusing the query compiler's own
         #     expression, not re-deriving the string a second way, is
         #     the whole point: a textual mismatch between the index and
         #     what a real query compiles to is invisible to SQLite's
         #     planner, and two independent copies of this logic can only
         #     drift apart over time;
-        #   - a list-typed attribute — NO index. SQLite's `contains`
+        #   - a list-typed attribute — no index. SQLite's `contains`
         #     compiles to `EXISTS (SELECT 1 FROM json_each(col) WHERE
         #     ...)` (`list_contains_clause`, in `sql_query_builder.rb`)
         #     — an element-membership scan a plain index on the raw
@@ -178,8 +178,8 @@ module Hecks
         #
         # A field naming neither a real attribute nor the lifecycle
         # field can't happen through the DSL today — `seal_query_field`
-        # (`dsl/aggregate_builder.rb`) already refuses it at PARSE time.
-        # This runs at adapter BOOT, not parse time, so it skips rather
+        # (`dsl/aggregate_builder.rb`) already refuses it at parse time.
+        # This runs at adapter boot, not parse time, so it skips rather
         # than crashes ugly if that invariant is ever violated.
         def ensure_index_for_field!(field)
           name, * = field.to_s.split(".")
@@ -195,8 +195,8 @@ module Hecks
           )
         end
 
-        # `idx_<table>_<sanitized field>` — TABLE-PREFIXED because
-        # SQLite index names are GLOBAL to the database, not scoped per
+        # `idx_<table>_<sanitized field>` — table-prefixed because
+        # SQLite index names are global to the database, not scoped per
         # table the way a column name is; two different aggregates each
         # indexing a field called "name" would collide without it. The
         # field itself is sanitized (a dotted path's "." in particular)

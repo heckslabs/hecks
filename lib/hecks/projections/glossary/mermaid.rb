@@ -3,7 +3,7 @@ require_relative "../../naming"
 module Hecks
   module Projections
     module Glossary
-      # THE THREE PICTURES THE GLOSSARY DRAWS, each kept to the handful of
+      # The three pictures the glossary draws, each kept to the handful of
       # things that matter — Evans' "three to five objects central to the
       # issue at hand", never the whole model at once.
       #

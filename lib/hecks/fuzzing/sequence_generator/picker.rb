@@ -1,8 +1,8 @@
 module Hecks
   module Fuzzing
     class SequenceGenerator
-      # Which step to try next: eligibility (what is POSSIBLE from the
-      # state so far) and weighting (what is LIKELY to reach somewhere
+      # Which step to try next: eligibility (what is possible from the
+      # state so far) and weighting (what is likely to reach somewhere
       # new).
       module Picker
         private
@@ -23,7 +23,7 @@ module Hecks
 
         # BUG#11's own preference (adversary.rb) — an entity command two
         # or more hops deep is weighted up the same way an unexercised
-        # verb is, ONLY in adversarial mode: the eligibility rules above
+        # verb is, only in adversarial mode: the eligibility rules above
         # still decide what is possible, and a default-mode pool is
         # exactly the pool it always was.
         def deep_entity_bias(rest)
@@ -31,11 +31,11 @@ module Hecks
           deep * Adversary::DEEP_ENTITY_WEIGHT
         end
 
-        # WHILE THERE IS NOTHING TO FIND, MAKING SOMETHING IS THE ONLY USEFUL MOVE.
+        # While there is nothing to find, making something is the only useful move.
         #
         # A flat weight is right once the domain has records in it, and badly
         # wrong before: banking declares ten queries, and from an empty store
-        # exactly ONE creating command is satisfiable — Customer.Register, the
+        # exactly one creating command is satisfiable — Customer.Register, the
         # verb the whole cascade waits on. Two entries against ten left runs
         # spending their entire budget querying a store nothing had been written
         # to ; one seed answered ten empty queries in a row and emitted nothing
@@ -54,9 +54,9 @@ module Hecks
           @known_ids[entry[:aggregate].hecks_name].any? && satisfiable?(catalog, entry)
         end
 
-        # A ROOTLESS report (no `reference_to` at all) has nothing to wait
+        # A rootless report (no `reference_to` at all) has nothing to wait
         # for — it reads whole tables, the same "always eligible" position
-        # `catalog[:queries]` itself takes. A ROOTED one needs a real
+        # `catalog[:queries]` itself takes. A rooted one needs a real
         # instance of its own `reference_target` to ask about first, same
         # rule `actionable?` already gives an instance command — asking
         # `Banking.disputed_payment_count` before any Account exists would
@@ -66,7 +66,7 @@ module Hecks
           entry[:model].reference_target.nil? || @known_ids[entry[:model].reference_target].any?
         end
 
-        # A COMMAND THAT REFERENCES NOTHING THAT EXISTS CANNOT SUCCEED, so it is
+        # A command that references nothing that exists cannot succeed, so it is
         # not offered until something does.
         #
         # `ValueGenerator.reference_value` has no real id to hand over when its
@@ -78,7 +78,7 @@ module Hecks
         # spent its whole budget being refused.
         #
         # This is the rule instance commands already follow — `known_ids.any?` —
-        # applied to what a command REFERENCES rather than to what it acts on.
+        # applied to what a command references rather than to what it acts on.
         # A target no creating command in this corpus can make (a cross-domain
         # reference, which `CommandRules#resolve_references` skips anyway) is
         # exempt, or the whole domain would starve waiting for it.
@@ -92,7 +92,7 @@ module Hecks
         # Coverage-guided rather than uniformly random : a verb this sequence has
         # not dispatched yet is weighted up, so a run spends its budget on the
         # commands it has not reached instead of re-rolling the ones it has. The
-        # eligibility rules above still decide what is POSSIBLE — this only decides
+        # eligibility rules above still decide what is possible — this only decides
         # what is likely, so a verb gated behind state it does not have yet stays
         # out of the pool entirely rather than being preferred forever.
         def steer(pool)

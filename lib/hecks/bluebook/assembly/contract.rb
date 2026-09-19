@@ -5,14 +5,14 @@ module Hecks
     # struct format itself (this file) plus, reopened in contracts.rb, the
     # `CONTRACTS` table of one `Contract` per construct category.
     class Assembly
-      # WHAT A CONSTRUCT NEEDS THAT THE LANGUAGE CANNOT SAY, and how a claim that a
-      # field needs no assembling is CHECKED.
+      # What a construct needs that the language cannot say, and how a claim that a
+      # field needs no assembling is checked.
       #
       # `derived:` used to be a list of names, and a list of names is a promise with
       # nobody holding it. The coverage gate only asked whether a field was accounted
       # for — so writing `derived: %i[version]` would have satisfied it while dropping
       # a chapter's version in silence, which is the exact shape of every defect this
-      # arc has found. Naming a field derived is a CLAIM, and a claim needs a kind:
+      # arc has found. Naming a field derived is a claim, and a claim needs a kind:
       #
       #   :parent            the containment tree supplies it — a `*_id`, or one of
       #                      the named pointers below. Checked against the name.
@@ -25,16 +25,16 @@ module Hecks
       #   :elsewhere         not a fact about this construct at all. Allow-listed one
       #                      by one, because it is the kind with no other check.
       #
-      # Every one of those can FAIL. That is the whole difference.
+      # Every one of those can fail. That is the whole difference.
       Contract = Struct.new(:holder, :make, :fields, :derived, :rows, :reads, keyword_init: true) do
-        # How a declaration key is read back off a ROW. Absent means the default —
+        # How a declaration key is read back off a row. Absent means the default —
         # `text(row[key])`, a single cell — which is most of them ; present names the
         # shape, because a list needs a reader per element and a folded field is
         # gathered rather than fetched. Same pattern as `rows`, in the other
         # direction: declare the exceptions, default the rest.
         def reader(key) = Hash(reads)[key.to_sym]
 
-        # How an appendable LIST becomes rows the walk can offer. A list absent from
+        # How an appendable list becomes rows the walk can offer. A list absent from
         # here reads straight off the node ; one that is present names the shaper,
         # because the IR keeps a shape the language does not — a transition whose
         # `from` is a list is several rows, an append binds several fields at once,
@@ -45,19 +45,19 @@ module Hecks
 
         def kind_of(field) = derived[field]
 
-        # THE FIELDS THE WALK SUPPLIES — every `derived: { field => :walk }` claim.
+        # The fields the walk supplies — every `derived: { field => :walk }` claim.
         # The language declares them (`attribute :position, Position`) so the
         # judge can order siblings, but no constructor takes one. This is the one
         # place that fact is stated ; `Specializer` and `Model::Deviations` read it
         # here rather than each keeping their own `%i[position]`.
         def walked = derived.select { |_field, kind| kind == :walk }.keys
 
-        # WHERE A FOLDED FIELD ACTUALLY LIVES, as [object, member].
+        # Where a folded field actually lives, as [object, member].
         #
         # `[:folded, :lifecycle, :field]` says the language's `state_field` is the
         # `field` of the IR's one Lifecycle. That is the same fact `Readings` used to
         # state a second time as `node.lifecycle&.field` — so saying it once here
-        # drives BOTH directions: the walk reads the member on the way in, and the
+        # drives both directions: the walk reads the member on the way in, and the
         # reconstruction gathers the members back into the object on the way out.
         #
         # A nil member means the fold has no single member to name — `rows` is a
@@ -71,15 +71,15 @@ module Hecks
           [kind[1], kind[2]]
         end
 
-        # COMPUTED means worked out, not merely answerable.
+        # Computed means worked out, not merely answerable.
         #
         # Asking only whether the holder responds was too weak, and measurably so:
         # `[:computed, :version]` passed, because `Bluebook` does answer to
         # `version` — it just answers with what the constructor was handed. A field
-        # the constructor TAKES is stored, and calling it computed is how a chapter's
+        # the constructor takes is stored, and calling it computed is how a chapter's
         # version would have gone missing while the gate said yes.
         #
-        # So a computed field is one the holder answers AND the constructor does not
+        # So a computed field is one the holder answers and the constructor does not
         # accept. `query_name` qualifies (`Naming.snake(name)`) ; `version` cannot.
         def computes?(method)
           return false unless holder
@@ -99,7 +99,7 @@ module Hecks
         end
       end
 
-      # THE FIELDS THAT POINT AT A PARENT WITHOUT BEING SPELLED `*_id` — the one list,
+      # The fields that point at a parent without being spelled `*_id` — the one list,
       # read by the assembly gate (a `:parent` claim), the model generator and
       # QueryIR (a declared field the model composes instead of storing).
       #
@@ -125,7 +125,7 @@ module Hecks
       #
       #   normalisations   the canonical-form table belongs to the expression grammar.
       #                    A chapter's rules are canonicalised on the way in, so the
-      #                    language models the table — but no chapter STORES one, and
+      #                    language models the table — but no chapter stores one, and
       #                    `Bluebook#to_h` splices it in from Expression.
       ELSEWHERE = {
         Bluebook: %i[normalisations]

@@ -1,31 +1,31 @@
 module Hecks
-  # THE ONE SPELLING FOR A CAPTURED RUBY LITERAL ON THE WIRE.
+  # The one spelling for a captured Ruby literal on the wire.
   #
   # Several `to_h` fields hold a value the author wrote in a bluebook —
   # `where(status: { eq: "open" })`, `then_set append: { direction: { value:
   # "credit" } }`, `dispatch ... with: { number: :source }`, an attribute's
-  # `default:` — as TEXT, because the export has to stand on its own and a
+  # `default:` — as text, because the export has to stand on its own and a
   # String field cannot say "this one was a Symbol". Every such field is the
   # same question and now gets the same answer.
   #
   # It was three answers before, and they disagreed on both axes that matter.
-  # `Mutation#appended_fields` spelled a Symbol BARE and everything else
-  # `inspect`; `QuerySpecification.render_value` spelled a Symbol with a COLON
+  # `Mutation#appended_fields` spelled a Symbol bare and everything else
+  # `inspect`; `QuerySpecification.render_value` spelled a Symbol with a colon
   # and everything else `to_s`. So `:amount` crossed as "amount" in a mutation
   # and ":amount" in a saga binding — the same value, two spellings, and each
   # reader had to know which field it was looking at. Worse, `to_s`/`inspect`
-  # on a Hash is Ruby's OWN rendering, which moved under us: 3.3 writes
+  # on a Hash is Ruby's own rendering, which moved under us: 3.3 writes
   # `{:value=>"credit"}` and 3.4 writes `{value: "credit"}` for the identical
   # Hash, so the wire format was silently pinned to an interpreter version.
   #
-  # SELF-DESCRIBING IS THE RULE, stated once here rather than inherited from
+  # Self-describing is the rule, stated once here rather than inherited from
   # whatever `inspect` happens to do: a symbol wears its colon, a string wears
   # its quotes, a hash wears `{key: value}` braces, a list wears its brackets,
   # and a number, a boolean and nil are bare. `read` is the exact inverse, and
   # is the only thing that should ever take one of these strings apart.
-  # A MUTATION SOURCE THAT READS THE RECORD'S OWN STATE — `sets :positions,
+  # A mutation source that reads the record's own state — `sets :positions,
   # append: { knights: state(:knights) }`. A bare Symbol in a mutation
-  # source always names a command ARGUMENT (and imports it as one when
+  # source always names a command argument (and imports it as one when
   # the target's own field carries the same name — `CommandBuilder
   # #resolve_append_fields!`); before this there was no way to say "the
   # value this field already holds", so a command could not snapshot its
@@ -102,7 +102,7 @@ module Hecks
 
     def read_array(raw) = split_items(raw[1..-2]).map { |item| read(item) }
 
-    # Split on the commas that are actually SEPARATORS — never one inside a
+    # Split on the commas that are actually separators — never one inside a
     # quoted string or a nested brace/bracket. Scanned rather than
     # `String#split(", ")`, which tore `"a, b"` in half and lost the second
     # field of anything nested.

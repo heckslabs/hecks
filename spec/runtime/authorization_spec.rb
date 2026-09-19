@@ -112,9 +112,9 @@ RSpec.describe "role-based command rejections" do
     expect(Order.find("o1").events.map(&:name)).to include("OrderPrepared")
   end
 
-  # THE REAL CHECK — once Governance is attached (every hecksagon above
+  # **The real check** — once Governance is attached (every hecksagon above
   # now carries `uses_framework "Governance"`, the new declare-time
-  # requirement), a caller who ALSO names WHO they are is checked
+  # requirement), a caller who also names who they are is checked
   # against a real `RoleAssignment`, not the string they happened to
   # type. `role:` and `actor_id:` disagreeing is the case that proves
   # identity wins: a caller cannot talk its way past a role it was never
@@ -157,7 +157,7 @@ RSpec.describe "role-based command rejections" do
       end.to raise_error(Hecks::Runtime::Unauthorized)
     end
 
-    # `as_of` — OPT-IN on top of `actor_id`, same shape: unbound, the
+    # `as_of` — opt-in on top of `actor_id`, same shape: unbound, the
     # pre-existing behavior (a future-dated `starts_at` authorizes
     # immediately); bound, the real check.
     describe "as_of — a bound assignment's own starts_at" do

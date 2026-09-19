@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 
 # Regenerates spec/fixtures/persistence_legacy/ — the on-disk/row shapes
-# TODAY'S persistence adapters write for one banking Account and one
+# today's persistence adapters write for one banking Account and one
 # CardPayment (seeds: spec/support/persistence_legacy_fixture.rb).
 #
-# WHY THESE FIXTURES EXIST (Phase 2, Track A, PR A1): nested state decodes
+# Why these fixtures exist (Phase 2, Track A, PR A1): nested state decodes
 # with different key types depending on which adapter wrote/read it
 # (Heki symbolizes only the top level, SQLite/Postgres heads symbolize
 # deep, every journal `entries` reader symbolizes only the top level).
@@ -13,30 +13,30 @@
 # is held to — `spec/ports/persistence_legacy_decode_spec.rb` pins what
 # each adapter decodes from them today.
 #
-# EVERY FIXTURE IS WRITTEN BY THE REAL ADAPTER, never by hand:
+# Every fixture is written by the real adapter, never by hand:
 #   heki/          Hecks::Adapters::Heki#save into a tmpdir; the `.heki`
 #                  snapshot + `.heki.journal` copied out verbatim.
 #   sqlite/        Hecks::Adapters::Sqlite#save into a tmp database file,
 #                  then `sqlite3 <file> .dump` (text, reviewable; `*.db` is
 #                  gitignored anyway).
 #   d1/            Hecks::Adapters::D1#save through an in-memory SQLite
-#                  stand-in for its HTTP transport (D1 IS SQLite); rows
+#                  stand-in for its HTTP transport (D1 is SQLite); rows
 #                  dumped as JSON objects, the shape D1's REST API returns.
 #   postgres/      Hecks::Adapters::Postgres#save into a scratch database;
 #                  head + `_entries` rows dumped exactly as `pg` hands them
 #                  back (every value a String, jsonb as Postgres re-renders
 #                  it). hecks_version kept; `sequence` dropped (identity).
-#   postgres_era/  Hecks::Adapters::PostgresEra#save into ANOTHER scratch
+#   postgres_era/  Hecks::Adapters::PostgresEra#save into another scratch
 #                  database; journal rows (era/ordinal included) and the
 #                  era-1 head_snapshot rows dumped the same way.
 #
-# NEEDS: a reachable local Postgres (`PG.connect(dbname: "postgres")`, the
+# Needs: a reachable local Postgres (`PG.connect(dbname: "postgres")`, the
 # same probe spec/support/postgres_probe.rb uses) and the `sqlite3` CLI.
 # The two scratch databases are created fresh and dropped on exit.
 #
 #   bin/regenerate_persistence_legacy_fixtures
 #
-# Regenerating is ONLY correct while the adapters still write the legacy
+# Regenerating is only correct while the adapters still write the legacy
 # shape — once A3 routes them through the codec, re-running this would
 # replace the legacy baseline with the new one. Don't, after A3.
 

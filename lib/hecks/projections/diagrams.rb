@@ -2,30 +2,30 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # A DOMAIN'S OWN SHAPE, PROJECTED AS MERMAID DIAGRAMS — the same
+    # A domain's own shape, projected as MERMAID diagrams — the same
     # trick `Projections::Reference`/`DocsProjector` already play for
-    # prose, one level further: a diagram generated FROM the
+    # prose, one level further: a diagram generated from the
     # declaration can't drift from it the way a hand-drawn one
     # inevitably does, because there is no second copy to forget to
     # update.
     #
-    # MERMAID, NOT GRAPHVIZ (the two considered) — every diagram type
+    # MERMAID, not Graphviz (the two considered) — every diagram type
     # below has a Mermaid form purpose-built for exactly what the
-    # underlying construct already is (a `lifecycle` IS a state
+    # underlying construct already is (a `lifecycle` is a state
     # machine, `has_many`/`belongs_to` already speaks in cardinality,
-    # `emits`/`trigger` already IS a directed graph), and the output is
+    # `emits`/`trigger` already is a directed graph), and the output is
     # plain text that renders natively wherever this project's own docs
     # already live — GitHub markdown, this repo's generated docs, Claude
     # Artifacts — with no build step and no external binary. Graphviz's
-    # DOT format needs an actual render step (a `dot` binary, or a WASM
+    # dot format needs an actual render step (a `dot` binary, or a WASM
     # port) to become anything viewable, which is a real dependency this
     # repository's own discipline (see rust/parser's Cargo.toml: "no
     # dependency earns its way past std") would rather not take just to
     # draw a diagram.
     #
-    # FOUR DIAGRAM KINDS, one file each per domain except lifecycles
+    # Four diagram kinds, one file each per domain except lifecycles
     # (one per lifecycle-bearing construct, since that's how a reader
-    # actually reaches for it — looking at ONE aggregate's states, not
+    # actually reaches for it — looking at one aggregate's states, not
     # every aggregate's at once):
     #
     #   <Name>_lifecycle.mmd  stateDiagram-v2  one per lifecycle
@@ -47,27 +47,27 @@ module Hecks
     #   <Name>_surface.mmd    flowchart        one per aggregate/entity that
     #                                          declares at least one command
     #                                          or query — everything you can
-    #                                          DO to it and ASK about it,
-    #                                          AND what each command WRITES,
+    #                                          do to it and ask about it,
+    #                                          and what each command writes,
     #                                          in one place
     #   <Name>_saga.mmd       stateDiagram-v2  one per process_manager —
     #                                          its own states, and what
     #                                          each transition dispatches
     #                                          elsewhere in the domain
-    #   frameworks.mmd        flowchart        every OTHER domain this one
+    #   frameworks.mmd        flowchart        every other domain this one
     #                                          depends on — a shared
     #                                          framework it `uses_framework`,
     #                                          or a domain a policy reaches
     #                                          `across` — the one diagram
-    #                                          here that looks OUTWARD past
+    #                                          here that looks outward past
     #                                          this domain's own boundary
     #
-    # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
-    # UNSANITIZED, as Mermaid node/entity ids — safe because this
+    # Construct names (aggregate/entity/command/event) are used bare,
+    # unsanitized, as Mermaid node/entity ids — safe because this
     # language's own word grammar only ever admits simple CamelCase/
     # snake_case identifiers there (confirmed: no space or punctuation
     # appears in any real aggregate/command/event name across the corpus
-    # this projects from). A `role:` STRING IS FREE TEXT, though — the
+    # this projects from). A `role:` string is free text, though — the
     # real corpus already has "Back office"/"Vault officer"/"Branch
     # clerk" — so `roles.mmd` is the one diagram here that sanitizes a
     # name into an id (`role_id`) while keeping the real string as the
@@ -125,8 +125,8 @@ module Hecks
 
       # ── shared ────────────────────────────────────────────────────────
 
-      # AN ENTITY CAN CARRY ITS OWN LIFECYCLE, RELATIONSHIP, OR COMMAND
-      # TOO — its own `lifecycle`/`reference_to`/`command` block,
+      # An entity can carry its own lifecycle, relationship, or command
+      # too — its own `lifecycle`/`reference_to`/`command` block,
       # addressed through its holding aggregate the same way
       # `DocsProjector` already treats an aggregate and its entities
       # alike. Walking both here means a domain's entity gaining any of
@@ -137,7 +137,7 @@ module Hecks
 
       def holders_with_lifecycle(bluebook) = holders(bluebook).select(&:lifecycle)
 
-      # `chapter_name` DRIVES THE RE-RUN HINT ALWAYS — that's the one
+      # `chapter_name` drives the re-run hint always — that's the one
       # argument `bin/project_diagrams` actually takes, regardless of
       # which single aggregate/entity `subject` happens to name. Passing
       # the wrong one here once already produced a real, committed
@@ -169,12 +169,12 @@ module Hecks
 
       # ── relationships -> erDiagram ───────────────────────────────────
 
-      # STANDARD CROW'S-FOOT READING, the same convention every ORM's own
+      # Standard crow's-foot reading, the same convention every ORM's own
       # ERD generator (Rails' erd gem included) already uses:
-      # `has_many`/`has_one` are read from the OWNING side — one Holder
+      # `has_many`/`has_one` are read from the owning side — one Holder
       # relates to many/one Target. `belongs_to`/`reference_to` are read
-      # from the TARGET's side instead — one Target can be pointed at by
-      # MANY Holders — because a bare reference carries no promise about
+      # from the target's side instead — one Target can be pointed at by
+      # many Holders — because a bare reference carries no promise about
       # how many holders point back at it; "many" is the honest default
       # absent a declared uniqueness rule this language doesn't expose.
       # `optional?` only ever softens the side that can genuinely be
@@ -205,8 +205,8 @@ module Hecks
 
       # ── dispatch -> flowchart ─────────────────────────────────────────
 
-      # A COMMAND NODE, STADIUM-SHAPED (`(["..."])`); AN EVENT NODE,
-      # HEXAGONAL (`{{"..."}}`) — one visual vocabulary for "a thing
+      # A command node, stadium-shaped (`(["..."])`); an event node,
+      # hexagonal (`{{"..."}}`) — one visual vocabulary for "a thing
       # someone does" versus "a fact that happened", matching the
       # language's own verb/event distinction. Command ids are qualified
       # by their owning aggregate (`cmd_Order_Purchase`) since two
@@ -235,13 +235,13 @@ module Hecks
         %(    #{command_node(holder.hecks_name, command.hecks_name)} -->|emits| #{event_node(event)})
       end
 
-      # `on_event` IS SOMETIMES AGGREGATE-QUALIFIED
-      # (`"Account.AccountFrozen"`) AND SOMETIMES BARE
+      # `on_event` is sometimes aggregate-qualified
+      # (`"Account.AccountFrozen"`) and sometimes bare
       # (`"CustomerSuspended"`) in the real corpus — `emits` never is,
       # so this always matches against the bare tail, the same
       # normalization a reader has to do by eye today.
       #
-      # A TRIGGER CROSSING INTO ANOTHER DOMAIN (`policy.target_domain`)
+      # A trigger crossing into another domain (`policy.target_domain`)
       # still draws — the target command just has no incoming `emits`
       # edge of its own here, which honestly shows "dispatch continues
       # elsewhere" rather than silently dropping the edge. The label
@@ -261,7 +261,7 @@ module Hecks
 
       # ── roles -> flowchart ────────────────────────────────────────────
 
-      # WHO ISSUES WHAT, ACROSS THE WHOLE DOMAIN — data no existing
+      # Who issues what, across the whole domain — data no existing
       # projection draws at all today (the reference pages' own
       # `command_entry` only ever prints a command's role as a single
       # line of prose, never assembled across commands). A command with
@@ -284,7 +284,7 @@ module Hecks
 
       def role_node(role_name) = %(#{role_id(role_name)}((#{role_name})))
 
-      # A ROLE NAME IS FREE TEXT ("Back office", "Vault officer") —
+      # A role name is free text ("Back office", "Vault officer") —
       # unlike every other name this file uses as a bare id, this one
       # has to be sanitized to become a legal Mermaid identifier. The
       # real string still appears as the node's own label
@@ -293,7 +293,7 @@ module Hecks
 
       # ── ports -> flowchart ───────────────────────────────────────────
 
-      # A PORT OPERATION IS A BOUNDARY TRANSLATION, NOT A VERB OR A FACT —
+      # A port operation is a boundary translation, not a verb or a fact —
       # its own reference page says so plainly ("the builder behind it
       # defines no `given` or `sets`, so an operation cannot read
       # aggregate state or mutate a record itself"), so it gets a third
@@ -302,7 +302,7 @@ module Hecks
       # state landing somewhere, the same reason a data store gets one
       # in an ordinary flowchart.
       #
-      # TWO EDGE KINDS PER OPERATION: a dotted "exposes" edge from the
+      # Two edge kinds per operation: a dotted "exposes" edge from the
       # aggregate the port hangs off (always present — a port always
       # belongs to exactly one aggregate), and a solid "to:" edge to
       # whichever aggregate the operation itself names as its receiver
@@ -311,8 +311,8 @@ module Hecks
       # `emits` reuses `dispatch.mmd`'s own `event_node` unchanged — the
       # same fact, reached from a different direction.
       #
-      # `bluebook.aggregates`, NOT the shared `holders` — unlike a
-      # lifecycle/relationship/command, a port belongs to an AGGREGATE
+      # `bluebook.aggregates`, not the shared `holders` — unlike a
+      # lifecycle/relationship/command, a port belongs to an aggregate
       # only; an entity has no `ports` method at all (confirmed: calling
       # it raises, it isn't just always empty), so walking entities here
       # the way every other diagram in this file does would crash on
@@ -343,17 +343,17 @@ module Hecks
 
       # ── read models -> flowchart ─────────────────────────────────────
 
-      # THE READ-SIDE COMPLEMENT TO `relationships.mmd` — that diagram
-      # shows how aggregates reference each other for WRITES
+      # The read-side complement to `relationships.mmd` — that diagram
+      # shows how aggregates reference each other for writes
       # (`has_many`/`belongs_to`/`reference_to`); this shows how a
-      # `read_model` ASSEMBLES data for READS, from
+      # `read_model` assembles data for reads, from
       # `aggregate_heads` — the same list `where`/`group_by`/`order_by`
       # all operate over, and the one fact every read_model has
       # regardless of whether it's rooted (`reference_target`) or
       # gathers heads with no root at all (a rootless read model, real
       # in the corpus: `AccountsByKind`).
       #
-      # A READ MODEL IS A SUBROUTINE SHAPE (`[[...]]`, "a predefined
+      # A read model is a subroutine shape (`[[...]]`, "a predefined
       # process") — a fourth shape, beside `ports.mmd`'s trapezoid and
       # `dispatch.mmd`'s stadium/hexagon: not a verb, not a fact, not a
       # boundary translation, but a standing, reusable view. Every
@@ -363,7 +363,7 @@ module Hecks
       # (real in banking: `Account` feeds four) merges into one node
       # across the whole diagram.
       #
-      # THE LABEL NAMES THE SHAPE OF THE ANSWER, NOT JUST THE NAME —
+      # The label names the shape of the answer, not just the name —
       # `(count)`/`(median: field)` for the two real aggregations in the
       # corpus, nothing appended for an ordinary row-returning
       # read_model. Still MVP scope: `where`/`group_by`/`order_by`
@@ -381,12 +381,12 @@ module Hecks
         shape = read_model.to_h
         node = %(rm_#{shape[:name]}[["#{read_model_label(shape)}"]])
         Array(shape[:aggregate_heads]).map do |head|
-          # QUOTED, NOT BARE — an edge label containing `[` or `]`
+          # **Quoted, not bare** — an edge label containing `[` or `]`
           # (`accounts[]`, marking the "many" side) breaks Mermaid's own
           # `|label|` parser outright if left unquoted: it reads the
-          # `[` as the START OF A NEW NODE SHAPE mid-label, not text.
+          # `[` as the start of a new node shape mid-label, not text.
           # Confirmed live against the real parser before this quoting
-          # existed — every OTHER edge label in this file happens to be
+          # existed — every other edge label in this file happens to be
           # a bare word or already-quoted string, so this is the one
           # spot that needed it.
           label = head[:many] ? "#{head[:as]}[]" : head[:as]
@@ -403,49 +403,49 @@ module Hecks
 
       # ── surface -> flowchart ─────────────────────────────────────────
 
-      # "WHAT CAN I DO TO THIS, WHAT CAN I ASK ABOUT IT" — one file per
+      # "What can I do to this, what can I ask about it" — one file per
       # holder, unlike every other diagram here: `dispatch.mmd` already
       # shows a command's own onward reaction chain, but never an
-      # aggregate's own FULL command/query menu in one place, and
+      # aggregate's own full command/query menu in one place, and
       # `roles.mmd` shows who issues a command without saying what else
       # that same aggregate answers. This is the one diagram meant to
       # be read starting from the aggregate, not from a verb or a fact.
       #
-      # A QUERY IS A DIAMOND — a fifth shape, beside `dispatch.mmd`'s
+      # A query is a diamond — a fifth shape, beside `dispatch.mmd`'s
       # stadium/hexagon, `ports.mmd`'s trapezoid, and `read_models.mmd`'s
       # subroutine: a question with an answer, not a verb that changes
       # anything. Command edges are solid ("does"); query edges are
       # dotted ("asks") — the same solid/dotted split `ports.mmd`
       # already uses for "routes to:" versus "exposes".
       #
-      # A WRITE TARGET IS A PLAIN RECTANGLE — a sixth shape, the first
+      # A write target is a plain rectangle — a sixth shape, the first
       # here with no special bracket at all: an attribute is the
       # smallest, most passive thing this vocabulary names, a single
-      # field living INSIDE the cylinder rather than a bounded thing of
+      # field living inside the cylinder rather than a bounded thing of
       # its own. `command.mutations` (`sets`/`increment`/`decrement`/
       # `append`) was invisible everywhere before this — not just in a
-      # diagram, in ANY projection, including the prose ones — despite
+      # diagram, in any projection, including the prose ones — despite
       # being the single densest fact in the whole IR (53 real
       # mutations across pizzas + banking). `dispatch.mmd` draws what a
-      # command EMITS; this draws what it WRITES, the other half of
+      # command emits; this draws what it writes, the other half of
       # "what actually happens" a command never showed before.
       #
-      # THE SAME ATTRIBUTE NODE MERGES ACROSS COMMANDS — real in
+      # The same attribute node merges across commands — real in
       # banking: `Account.Credit` and `Account.Debit` both point at the
       # same `balance` node, the same "one node, several incoming
       # edges" merge `read_models.mmd` already does for an aggregate
       # fed by several read_models.
       #
-      # THE LABEL NAMES THE REAL SOURCE, NOT JUST THE VERB — an
+      # The label names the real source, not just the verb — an
       # increment/decrement/set almost always takes its value from an
-      # argument, but not always the SAME-NAMED one: real in banking,
+      # argument, but not always the same-named one: real in banking,
       # `Account.Credit`'s own `balance` is incremented by its
       # `amount` argument, and `LedgerEntry.Amend`'s own `amount` is
       # incremented by its `adjustment` argument. A literal source
       # (pizzas' own `Order.Purchase` sets `status` to the literal
       # `"sold"`, not an argument at all) is named as verbatim as
       # every other fact in this file. `append`'s own fields carry no
-      # single source at all — its own field NAMES are the fact worth
+      # single source at all — its own field names are the fact worth
       # stating (real: `Order.AddTopping` appends `name, amount`).
       def surface_diagram(bluebook, holder)
         lines = holder.commands.map do |command|
@@ -477,9 +477,9 @@ module Hecks
 
       def mutation_label(shape)
         verb = "#{shape[:op]}s"
-        # `fields:` (not `source:`) IS the multi-binding shape
+        # `fields:` (not `source:`) is the multi-binding shape
         # (`Mutation#to_h`'s own `[:append, :delegate, :corrects]`
-        # branch) — checked by the KEY'S PRESENCE, not by re-listing
+        # branch) — checked by the key's presence, not by re-listing
         # which ops use it a second time here, the same lesson
         # `Change.op`'s own `admits: Vocabulary::MutationOp` already
         # drew (command.bluebook's own comment): a second list of "the
@@ -492,7 +492,7 @@ module Hecks
         "#{verb}: #{detail}"
       end
 
-      # A LITERAL VALUE CAN CONTAIN A DOUBLE QUOTE OF ITS OWN — real in
+      # A literal value can contain a double quote of its own — real in
       # banking: `Customer.Reinstate` sets `standing` to a rendered
       # value-object literal, `{:value=>"good"}`, whose own embedded `"`
       # broke this label's outer `|"..."|` quoting outright (caught by
@@ -515,19 +515,19 @@ module Hecks
 
       # ── sagas -> stateDiagram-v2 ─────────────────────────────────────
 
-      # A SAGA HAS A LIFECYCLE TOO — the same `stateDiagram-v2` shape
+      # A saga has a lifecycle too — the same `stateDiagram-v2` shape
       # `lifecycle_diagram` already draws, one file per process_manager
       # the same way lifecycle is one file per lifecycle-bearing holder.
       # What's different is the label: a lifecycle's own edge is labeled
-      # by the COMMAND that causes it (an aggregate transitions because
-      # something was DONE to it); a saga's edge is labeled by the EVENT
-      # that causes it (a saga advances because something HAPPENED,
+      # by the command that causes it (an aggregate transitions because
+      # something was done to it); a saga's edge is labeled by the event
+      # that causes it (a saga advances because something happened,
       # possibly nowhere near the saga itself) — the same command/event
       # split `dispatch.mmd`'s own stadium/hexagon vocabulary already
       # draws, here spent on which noun labels a stateDiagram-v2 edge
       # instead.
       #
-      # THE LABEL ALSO NAMES WHAT THE TRANSITION DISPATCHES — a fact no
+      # The label also names what the transition dispatches — a fact no
       # existing diagram states for a saga at all: a lifecycle's own
       # edge only ever names the one command that caused it; a saga's
       # edge can fire several commands at once (real in banking:
@@ -538,7 +538,7 @@ module Hecks
       # fires lands inside its own bluebook chapter, so this never needs
       # `dispatch.mmd`'s own "triggers in X" cross-domain label.
       #
-      # THE COMPENSATING LEG READS LIKE ANY OTHER — its own trigger is
+      # The compensating leg reads like any other — its own trigger is
       # the literal string "refused" (`ProcessManager::REFUSED`, this
       # language's own Trigger vocabulary), not invented text: a
       # dispatch declined is exactly as real a cause of a state
@@ -556,12 +556,12 @@ module Hecks
         MERMAID
       end
 
-      # THE REFUSED EDGE'S OWN DISPATCH LIST IS PARTLY DERIVED NOW —
+      # The REFUSED edge's own dispatch list is partly derived now —
       # per-dispatch saga compensation (`compensates`) moved a saga's own
-      # compensating dispatches OFF the hand-written `on :refused` leg
+      # compensating dispatches off the hand-written `on :refused` leg
       # and onto whichever forward dispatch each one undoes, so
-      # `handler.dispatches` alone would render an EMPTY compensating
-      # edge for any saga using it — accurate to the DECLARATION, wrong
+      # `handler.dispatches` alone would render an empty compensating
+      # edge for any saga using it — accurate to the declaration, wrong
       # about what the runtime actually does at refusal (it derives and
       # fires every declared `compensates`, newest first). `saga` is
       # passed through for exactly this — only the REFUSED handler needs
@@ -569,7 +569,7 @@ module Hecks
       # everything real about it.
       def saga_edge(handler, saga)
         label = handler.event_type
-        # DERIVED FIRST, then the hand-written body — the same order
+        # Derived first, then the hand-written body — the same order
         # `SagaInterpreter#unwind` actually runs them in (every
         # completed leg's own `compensates` before this leg's own
         # hand-written dispatches), not declaration order on the page.
@@ -591,27 +591,27 @@ module Hecks
 
       # ── frameworks -> flowchart ─────────────────────────────────────
 
-      # EVERY OTHER DIAGRAM IN THIS FILE STAYS INSIDE ONE DOMAIN'S OWN
-      # BOUNDARY — this is the one that steps outside it. A real domain
+      # Every other diagram in this file stays inside one domain's own
+      # boundary — this is the one that steps outside it. A real domain
       # depends on another domain's own aggregates in exactly two ways:
       # `uses_framework "X"` in its `.hecksagon` (`Hecksagon#framework_
-      # members`), which loads X's whole bluebook into THIS registry,
+      # members`), which loads X's whole bluebook into this registry,
       # unconditionally, the moment this domain boots; or a policy's own
       # `across "X"` (`Policy#target_domain`), which only reaches X when
       # the policy's declared event actually fires. Same underlying
       # fact `dispatch.mmd`'s own `trigger_edge` already draws from the
       # command's side ("triggers in X") — this draws it again from the
-      # DOMAIN's side, next to the structural `uses_framework` fact
+      # domain's side, next to the structural `uses_framework` fact
       # `dispatch.mmd` never sees at all (that lives in the `.hecksagon`,
       # which no other diagram here is handed).
       #
-      # NEITHER THIS DOMAIN NOR EACH DEPENDENCY GETS THE holders() TREATMENT
-      # — a whole domain is drawn as ONE cylinder, the same "a bounded,
+      # Neither this domain nor each dependency gets the holders() treatment
+      # — a whole domain is drawn as one cylinder, the same "a bounded,
       # addressable thing" shape every other diagram here already spends
       # on a single aggregate, just scaled up one level: a domain is a
       # bigger box the same kind of box lives inside.
       #
-      # DOTTED FOR `attaches`, SOLID FOR `reaches across` — the reverse
+      # Dotted for `attaches`, solid for `reaches across` — the reverse
       # of which fact is "always true" between the two: attaching a
       # framework is a standing declaration, true every time this domain
       # boots, so it gets the same dotted "this always belongs" treatment
@@ -621,8 +621,8 @@ module Hecks
       # draws for the identical fact, kept solid here so the same
       # relationship reads the same way in both diagrams.
       #
-      # `options[:hecksagon]` IS THE ONE DIAGRAM IN THIS FILE THAT NEEDS
-      # MORE THAN `bluebook` — `framework_members` lives on the
+      # `options[:hecksagon]` is the one diagram in this file that needs
+      # more than `bluebook` — `framework_members` lives on the
       # `Hecksagon`, a sibling IR object `bin/project_diagrams` already
       # has in hand (`registry.hecksagon(chapter_name)`) but `bluebook`
       # itself carries no reference to. No hecksagon handed in (an older

@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 
-# A STAND-IN FOR `claude -p` in spec/qa_mine_combinations_spec.rb. Reads the
+# A stand-in for `claude -p` in spec/qa_mine_combinations_spec.rb. Reads the
 # prompt on stdin, finds the output directory in it, and writes candidates
 # the way FAKE_AGENT_MODE says:
 #   valid   — one bluebook that boots
-#   repair  — one that does not boot; fixed when the prompt is a REPAIR ROUND
+#   repair  — one that does not boot; fixed when the prompt is a repair round
 #   silent  — nothing at all
 
 require "fileutils"

@@ -2,7 +2,7 @@ require "spec_helper"
 
 # A command takes the arguments it declares, and no others.
 #
-# `normalize_args` walked the command's DECLARED attributes over a copy of the
+# `normalize_args` walked the command's declared attributes over a copy of the
 # payload, so anything the command did not declare simply rode along untouched
 # and was never looked at again. A misspelled argument was accepted in silence
 # and did nothing.

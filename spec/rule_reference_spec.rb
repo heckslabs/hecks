@@ -2,7 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/codemod"
 
-# THE THREE RESOLUTION PRIMITIVES `lib/hecks/bluebook/dsl/rule_
+# The three resolution primitives `lib/hecks/bluebook/dsl/rule_
 # reference.rb` extracted from five hand-written builder methods,
 # proven behaviorally here rather than just by the real corpus
 # continuing to boot byte-identical (which it does — see this refactor's
@@ -50,8 +50,8 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
     end
   end
 
-  # PRIMITIVE 1 — CommandBuilder#given's own two-pool chain: its OWN
-  # owner (the piece), then a SIBLING piece's entity-wide pool.
+  # Primitive 1 — CommandBuilder#given's own two-pool chain: its own
+  # owner (the piece), then a sibling piece's entity-wide pool.
   describe "resolve_hash_chain (CommandBuilder#given)" do
     # A minimal but real bluebook proving the hash-chain's two pools (own
     # owner, then sibling entity) — trimming either entity would collapse
@@ -140,9 +140,9 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
     end
   end
 
-  # PRIMITIVE 2 — AggregateBuilder#given's own chapter-wide, owner-keyed
+  # Primitive 2 — AggregateBuilder#given's own chapter-wide, owner-keyed
   # pool: unambiguous when exactly one candidate is registered,
-  # `declared_by:` required once a SECOND, genuinely different
+  # `declared_by:` required once a second, genuinely different
   # candidate registers under the same description.
   describe "resolve_owner_keyed (AggregateBuilder#given)" do
     def two_candidate_chapter
@@ -202,7 +202,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
       BLUEBOOK
     end
 
-    # Needs a THIRD aggregate (Box) sharing no `declared_by:` conflict, to
+    # Needs a third aggregate (Box) sharing no `declared_by:` conflict, to
     # prove the unambiguous path actually resolves rather than merely never
     # hitting the ambiguous branch by omission; a minimal 2-aggregate chapter
     # wouldn't distinguish the two.
@@ -261,7 +261,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
       expect(box.preconditions.first.canonical).to eq('customer.status == "active"')
     end
 
-    # Needs THREE aggregates (A, B, and an unrelated C also naming "x") to
+    # Needs three aggregates (A, B, and an unrelated C also naming "x") to
     # prove ambiguity is about genuinely conflicting candidates, not just any
     # repeated description; a 2-aggregate fixture couldn't show that.
     # rubocop:disable-next RSpec/ExampleLength
@@ -319,8 +319,8 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
     end
   end
 
-  # PRIMITIVE 3 — ValueObjectBuilder#invariant's own live scan over
-  # already-built SIBLING value objects, not a separate pool.
+  # Primitive 3 — ValueObjectBuilder#invariant's own live scan over
+  # already-built sibling value objects, not a separate pool.
   describe "resolve_sibling_scan (ValueObjectBuilder#invariant)" do
     it "resolves against a sibling value object's own already-declared invariant" do
       registry = load(<<~BLUEBOOK)

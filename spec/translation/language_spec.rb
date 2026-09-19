@@ -83,7 +83,7 @@ RSpec.describe "the translation language" do
     # rubocop:disable-next RSpec/ExampleLength
     it "refuses every required-field omission with the pinned wording" do
       # `Layout/HashAlignment`'s repo-wide `table` style (.rubocop.yml) would
-      # force every `=>` below onto the SAME column — matching the widest
+      # force every `=>` below onto the same column — matching the widest
       # single-line proc key — leaving the closing `}` of a multi-line proc
       # entry almost no room before Layout/LineLength's own 130-column
       # limit. Disabled for exactly this one hash literal (a single
@@ -171,7 +171,7 @@ RSpec.describe "the translation language" do
 
     it "refuses an unknown rule rather than skipping it" do
       # WordGate (item #13's remaining builders) replaced the builder's
-      # own hand-written method_missing — a word admitted SOMEWHERE ELSE
+      # own hand-written method_missing — a word admitted somewhere else
       # in the grammar (Aggregate context) but not inside a
       # TranslationAggregate body gets WordGate's own richer, table-
       # driven refusal, naming this context's real legal words.
@@ -179,7 +179,7 @@ RSpec.describe "the translation language" do
         .to eq("'identified_by' is not a word TranslationAggregate admits — legal words here: backfill, " \
                "compute, convert, drop, move, rekey, rename, retype, unresolved")
 
-      # A genuine typo, admitted NOWHERE in the whole grammar — WordGate
+      # A genuine typo, admitted nowhere in the whole grammar — WordGate
       # steps aside entirely for these (word_gate.rb's own comment), so
       # this is Ruby's own plain NoMethodError, not a translation-level
       # refusal `refusal_for` (which only rescues Malformed) can catch.
@@ -220,10 +220,10 @@ RSpec.describe "the translation language" do
     end
   end
 
-  # ADVERSARIAL, not incidental: found by deliberately constructing a
+  # Adversarial, not incidental: found by deliberately constructing a
   # destination that collides with an existing value, not by any
   # example in the corpus. `state[top] ||= {}` only guards nil/false, so
-  # a destination whose top segment ALREADY held a value — most
+  # a destination whose top segment already held a value — most
   # commonly a reference, stored as a bare scalar id — sailed straight
   # through to `state[top][member] =`, i.e. `"team-1"["detail"] =` on a
   # plain Ruby String, raising an unrelated-looking IndexError instead

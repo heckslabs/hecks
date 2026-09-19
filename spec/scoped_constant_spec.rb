@@ -8,17 +8,17 @@ require "tmpdir"
 # which a bare Symbol (today's whole answer, bluebook_builder.rb's own
 # former `resolver = ->(const) { const }`) cannot do.
 #
-# THE RISK NAMED IN THE DOC, verified here rather than assumed: "a real
+# The risk named in the doc, verified here rather than assumed: "a real
 # facade method colliding with a declaration-time constant... the
 # scenario that broke the earlier attempt was two domains in one
 # registry." `attribute_collector.rb`'s own comment on `admits:` records
 # that earlier attempt's exact failure — a Module-returning shim worked
-# only until ANY facade existed, because `Facade::Surface` installs
-# every aggregate name as a TOP-LEVEL constant (both nested under its
-# chapter AND bare), so the shim was then simply never reached again.
+# only until any facade existed, because `Facade::Surface` installs
+# every aggregate name as a top-level constant (both nested under its
+# chapter and bare), so the shim was then simply never reached again.
 #
 # Fixture names are deliberately unlike anything else in the corpus
-# (`ScopedBridge*`) — `Facade::Surface.install` sets REAL top-level
+# (`ScopedBridge*`) — `Facade::Surface.install` sets real top-level
 # Ruby constants that outlive this example, in a suite that shares one
 # process across every spec file; a generic name ("Widget", "Thing")
 # risks colliding with some other file's own fixture.
@@ -86,7 +86,7 @@ RSpec.describe "the scoped-constant bridge" do
     end
   end
 
-  # `Account::Debit` written from WITHIN the domain that declares
+  # `Account::Debit` written from within the domain that declares
   # `Account`, before that domain's own facade exists at all — the
   # common case, and the one every existing corpus bluebook would hit
   # first if S6/S7 used this today.
@@ -96,11 +96,11 @@ RSpec.describe "the scoped-constant bridge" do
     expect(result.to_s).to eq("ScopedBridgeFreshDomain::Something")
   end
 
-  # THE COLLISION THE DOC NAMES. `Surface.install` installs an
-  # aggregate's OWN name as a bare top-level constant (surface.rb's own
+  # **The collision the doc names**. `Surface.install` installs an
+  # aggregate's own name as a bare top-level constant (surface.rb's own
   # `install`), not only nested under its chapter — so once the domain
   # has booted once in this process, `ScopedBridgeThing::Make` written
-  # while declaring some OTHER domain reaches the aggregate DOOR's own
+  # while declaring some other domain reaches the aggregate door's own
   # const_missing directly; `Object.const_missing`/`ConstShim::Hook` is
   # never asked at all, because the name is no longer missing.
   it "resolves a scoped reference through a REAL, already-installed facade module" do
@@ -116,7 +116,7 @@ RSpec.describe "the scoped-constant bridge" do
 
   # "a real facade method with a colliding name still works" — the
   # regression the fix must never cause: a genuine existing constant or
-  # method resolves through ORDINARY Ruby lookup, never reaching
+  # method resolves through ordinary Ruby lookup, never reaching
   # const_missing, so nothing here can shadow it.
   it "never shadows a real facade constant or method with the same name" do
     Dir.mktmpdir do |root|
@@ -124,14 +124,14 @@ RSpec.describe "the scoped-constant bridge" do
 
       nested = with_declaration_resolver { ScopedBridgeDomain::ScopedBridgeThing }
       expect(nested).to be_a(Module)
-      expect(nested).not_to be_a(ScopedConstant) # a REAL constant, found without const_missing at all
+      expect(nested).not_to be_a(ScopedConstant) # a real constant, found without const_missing at all
 
       expect(ScopedBridgeThing.commands).to eq(["make!"])
     end
   end
 
-  # THE ADVERSARIAL CASE, TWO DOMAINS IN ONE REGISTRY: boot A, then
-  # declare a SECOND domain B that references A's aggregate by name —
+  # The adversarial case, two domains in one registry: boot A, then
+  # declare a second domain B that references A's aggregate by name —
   # cross-domain, after A's facade is already real, inside a fresh
   # ConstShim-active declaration of its own.
   it "resolves a cross-domain reference declared AFTER the referenced domain already booted" do
@@ -141,7 +141,7 @@ RSpec.describe "the scoped-constant bridge" do
       result = with_declaration_resolver { ScopedBridgeThing::Make }
       expect(result.to_s).to eq("ScopedBridgeThing::Make")
 
-      # B's own declaration still resolves its OWN barewords normally,
+      # B's own declaration still resolves its own barewords normally,
       # unaffected by A sharing the same ConstShim-active window.
       own = with_declaration_resolver { ScopedBridgeSomethingLocalToB }
       expect(own.to_s).to eq("ScopedBridgeSomethingLocalToB")

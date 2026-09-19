@@ -4,7 +4,7 @@ module Hecks
   module Fuzzing
     # One attribute, one value — in the exact JSON shape the hand-written
     # corpus already uses (a value-object-typed attribute is a nested hash keyed
-    # by its own field names ; a reference is the BARE ID of the head it points
+    # by its own field names ; a reference is the bare ID of the head it points
     # at, because that is what a reference is). Everything
     # returned is a plain, JSON-safe Ruby value : String keys throughout, never
     # symbols, so a generated step can be dumped straight to JSON.
@@ -15,7 +15,7 @@ module Hecks
     # codebase," and a fixed corpus of a few dozen examples rarely happens to
     # exercise the boundary that actually breaks. But mostly not : an attribute
     # named `email`/`currency` almost always needs a specific shape just to get
-    # PAST its own invariant (`address.include?("@")`, `currency.size == 3`) —
+    # past its own invariant (`address.include?("@")`, `currency.size == 3`) —
     # banking's very first fuzz run never got past Customer.Register, because
     # no plain random word ever contains "@". Reaching deep state matters more
     # than edge-casing every single field every single time, so the "normal"
@@ -31,7 +31,7 @@ module Hecks
       # (lib/hecks/runtime/value/coercion.rb) has accepted a bare
       # `"large"` in place of `{"value" => "large"}` for any single-field
       # value object since 86727afd — but until this generator actually
-      # PRODUCES that shape, nothing exercises it: neither the adapter-
+      # produces that shape, nothing exercises it: neither the adapter-
       # agreement gate nor the Rust/WASM `from_json` codegen (rust/project/
       # json_codec.rb) can ever be caught drifting on a shape they're
       # never handed.
@@ -44,22 +44,22 @@ module Hecks
       # PRD 05 (numeric-boundary-coverage) — Bignum (`2**100`, past i64's
       # own ceiling, which Ruby's own `Integer` has no such ceiling for —
       # `rust/src/kernel/json.rs`'s own `integral_i64` doc comment names
-      # exactly this: a Rust kernel value CANNOT represent it, so this
+      # exactly this: a Rust kernel value cannot represent it, so this
       # exercises a real cross-runtime capability gap, not a Ruby-only
       # edge) and its negative twin. Both round-trip through Ruby's own
       # arithmetic/JSON cleanly (confirmed directly: `(2**100).clamp(...)`
       # and `JSON.generate(2**100)` both just work — Integer has no
-      # ceiling here), so nothing in THIS runtime needed a fix for these;
+      # ceiling here), so nothing in this runtime needed a fix for these;
       # they're included so a real generated sequence occasionally
       # produces the value at all, since nothing had, repo-wide, before.
       INTEGER_EDGE_CASES = [0, -1, 2_147_483_647, -2_147_483_648, 2**100, -(2**100)].freeze
       # BUG#35 (QualityControl QA ledger, `lease-clock-json-precision`) —
       # a Bignum edge case (`2**100`, above) landing on an Integer-typed
-      # CLOCK or COUNT reading fires the already-catalogued `Json::Num`/
+      # clock or count reading fires the already-catalogued `Json::Num`/
       # f64 precision-loss class (`rust/src/kernel/json.rs`'s
       # `parse_number` parses every number through `s.parse::<f64>()`
       # before any target-type conversion runs, and `Json::Num` is a
-      # plain `f64` end to end — see that file's own header) on a NEW
+      # plain `f64` end to end — see that file's own header) on a new
       # site every time a new clock/count-shaped field is authored,
       # without adding any new coverage: both engines already refuse
       # (`TypeMismatch`, out of `i64` range either way) for this shape,
@@ -83,7 +83,7 @@ module Hecks
       # as a clock or a count is capped to a narrower, still-real
       # edge-case pool below (still exercises the ordinary i32
       # boundaries, just never a value past f64's own 2**53 exact-
-      # integer ceiling) — every OTHER Integer-typed field (a money
+      # integer ceiling) — every other Integer-typed field (a money
       # amount, an identity sequence, anything not clock/count-shaped)
       # still draws from the full `INTEGER_EDGE_CASES` pool above,
       # unchanged.
@@ -105,7 +105,7 @@ module Hecks
       # (raw `ArgumentError`, not a domain refusal) or `JSON.generate`
       # (`JSON::GeneratorError`, also not a domain refusal) — both fixed
       # at the source now, so these are safe to generate. -0.0 is
-      # deliberately included too even though it was ALREADY safe
+      # deliberately included too even though it was already safe
       # (finite, round-trips through JSON as `-0.0` cleanly) — a signed
       # zero is exactly the kind of boundary a hand-written corpus never
       # happens to type, and the fuzzer existing to cover it is the
@@ -157,10 +157,10 @@ module Hecks
             end
           end
 
-        # `fields.size == 1` — the SAME test `Behaviour::ValueObject#
+        # `fields.size == 1` — the same test `Behaviour::ValueObject#
         # sole_attribute` names: a genuinely single-field value object,
         # not merely "this particular closed-set member happened to pick
-        # one field." Unwrapping ONLY here, not in `invalid_member`
+        # one field." Unwrapping only here, not in `invalid_member`
         # above — a deliberately-wrong combination stays a Hash so its
         # own wrongness is what gets exercised, not a second, unrelated
         # shape question.
@@ -178,10 +178,10 @@ module Hecks
         end
       end
 
-      # THE ID ITSELF. This minted `{"value" => id}` back when a reference was
+      # The ID itself. This minted `{"value" => id}` back when a reference was
       # stored wrapped ; the payload gate refuses that shape now, so a fuzzer
       # still emitting it would have every generated reference refused and
-      # the SILENT guard would report the fuzzer broken rather than
+      # the silent guard would report the fuzzer broken rather than
       # the runtime.
       def reference_value(attribute, random:, known_ids:)
         pool = known_ids[attribute.type.target_name.to_s] || []
@@ -236,7 +236,7 @@ module Hecks
         random.rand(0.01..1000.0).round(2)
       end
 
-      # The bare scalar a generated IDENTITY value stands for, for recording into
+      # The bare scalar a generated identity value stands for, for recording into
       # `known_ids`. An identity is declared as a value object, so this opens one ;
       # a reference pointing at this record is already that scalar and needs no
       # opening at all. The two used to be the same reading and are not any more.

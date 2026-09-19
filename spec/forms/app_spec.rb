@@ -153,7 +153,7 @@ RSpec.describe Hecks::Forms::App do
   # L10 (docs/audits/2026-08-10-main-bug-audit.md) — `run_query`'s own
   # rescue clause listed every domain refusal plus ArgumentError/TypeError,
   # but not `JSON::ParserError` — the one error a malformed line in a
-  # list-of-VALUE-OBJECT query parameter actually raises
+  # list-of-value-object query parameter actually raises
   # (`Params.extract_list`'s own JSON fallback for a multi-attribute list
   # element; a single-attribute VO like Banking's own `Tag`/`CustomerNumber`
   # unwraps to a plain scalar and never hits that branch at all). Both
@@ -244,7 +244,7 @@ RSpec.describe Hecks::Forms::App do
   # could never be reached again — a GET always resolved to the
   # command/query instead. POST never views a record at all
   # (`record_route` only ever answers GET), so command submission for a
-  # DIFFERENT record must stay unaffected.
+  # different record must stay unaffected.
   describe "a record whose id collides with a command/query name" do
     def register_named(id)
       post "/Banking/Customer/Register.html", "reference.value" => id, "name.given" => "Ada",
@@ -256,7 +256,7 @@ RSpec.describe Hecks::Forms::App do
 
       get "/Banking/Customer/Close.html"
       expect(last_response.status).to eq(200)
-      expect(last_response.body).to include("status: active") # the RECORD's state, not a command form
+      expect(last_response.body).to include("status: active") # the record's state, not a command form
       expect(last_response.body).not_to include("<form")
     end
 
@@ -360,10 +360,10 @@ RSpec.describe Hecks::Forms::App do
                                                 "name.family" => "Lovelace", "email.address" => "ada@example.com"
     end
 
-    # Rack::Test's own `get(path)` parses `path` as a URI string BEFORE it
+    # Rack::Test's own `get(path)` parses `path` as a URI string before it
     # ever reaches the app — a raw "?"/"#" in it is parsed as Rack::Test's
-    # OWN query/fragment separator, not delivered to us at all, and a
-    # percent-encoded path is left percent-ENCODED in PATH_INFO instead of
+    # own query/fragment separator, not delivered to us at all, and a
+    # percent-encoded path is left percent-encoded in PATH_INFO instead of
     # decoded. Neither matches a real deployment: every real Rack server
     # decodes percent-escapes into PATH_INFO before the app ever sees it
     # (that decode step is what a browser navigating our own rendered href

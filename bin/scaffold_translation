@@ -21,7 +21,7 @@ registry = Hecks::Runtime::Registry.new(root: File.dirname(directory))
 Hecks.with_registry(registry) do
   loading.load_library
   loading.load_project(loading.shared_root(nil, directory))
-  # deliberately NOT translations/*.bluebook: an unresolved edge file
+  # deliberately not translations/*.bluebook: an unresolved edge file
   # refuses to load, and regenerating it is this tool's whole job
   loading.load_each(directory, %w[*.port *.adapter])
   loading.load_bluebooks(directory)

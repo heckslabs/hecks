@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # C6.3 (docs/semantics/bluebook-semantics.md) — value-object validation
-# runs on construction from INPUT only. State read back from the store is
+# runs on construction from input only. State read back from the store is
 # trusted as it was written, so tightening an invariant never makes an
 # old record unreadable; migration is the era system's job.
 RSpec.describe "trusted stored state (C6.3)" do

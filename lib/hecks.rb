@@ -23,11 +23,11 @@ require_relative "hecks/router"
 require_relative "hecks/runtime"
 require_relative "hecks/adapters"
 require_relative "hecks/projector"
-# AFTER the projector registry and its `Target` mixin are both real —
-# every target registers itself as it loads, so this require IS the
+# After the projector registry and its `Target` mixin are both real —
+# every target registers itself as it loads, so this require is the
 # installation of them.
 require_relative "hecks/projections"
-# AFTER `Projector` (dispatches against the `:cli` projection) and
+# After `Projector` (dispatches against the `:cli` projection) and
 # `Ports::Clock` (fills a staleness rule's `now` at the door) both exist.
 require_relative "hecks/facade/cli_door"
 require_relative "hecks/facade/cli_runner"
@@ -46,14 +46,14 @@ module Hecks
   class LoadOutsideBoot < StandardError; end
 
   class << self
-    # The loading words below collect into the registry the RUNTIME is
+    # The loading words below collect into the registry the runtime is
     # holding open ; booting and that ambient state belong to the runtime
     # layer, so this module is their facade and Hecks::Runtime is where
     # they live.
     # `install_facade:` — see Runtime::Loader.boot. Defaults on; a caller
     # that only dispatches by FQN string can skip the global sugar.
     #
-    # `environment:` — RECOVERED, not new: this parameter (and the
+    # `environment:` — recovered, not new: this parameter (and the
     # `environments/<name>.hecksagon` / `.world` overlay it loads —
     # see Adapters::Folder#load_domain) existed on a prior commit of
     # this repo (933d1dd), was vendored out to a real consumer
@@ -88,14 +88,14 @@ module Hecks
     # default), a command's role stays exactly what it is without this:
     # decoration.
     #
-    # `actor_id` is OPTIONAL — a caller naming only a role is checked by
+    # `actor_id` is optional — a caller naming only a role is checked by
     # string equality against the command's own `role`, exactly as
-    # before. A caller that also names WHO it is lets the check run
+    # before. A caller that also names who it is lets the check run
     # against a real Governance `RoleAssignment` instead, once the
     # command's domain has Governance attached — see
     # `CommandRules::Authorization`'s own header.
     #
-    # `as_of` and `scope` are OPTIONAL too, same shape — see
+    # `as_of` and `scope` are optional too, same shape — see
     # `Runtime.as_caller`'s own header for what each does.
     def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &)
       Runtime.as_caller(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &)
@@ -106,7 +106,7 @@ module Hecks
     end
 
     def hecksagon(name, &) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &))
-    # REPOINTED TO DomainPortBuilder — the migration DomainPort's own
+    # Repointed to DomainPortBuilder — the migration DomainPort's own
     # class comment names as its goal, now landed for the top-level
     # `.port` file callers too (the aggregate-scoped `Thing.port(...)`,
     # binding_proxy.rb, already went through this builder). Every real
@@ -117,12 +117,12 @@ module Hecks
     # identity check) — a pure repoint, no behavior change for any
     # existing caller reading `.verb`/`.signal` off what comes back.
     #
-    # `legacy_bare_port: true` — the ONE real semantic gap this repoint
+    # `legacy_bare_port: true` — the one real semantic gap this repoint
     # would otherwise open: `PortBuilder#build` never refused a
     # completely empty build (no verb, no signal even), a real shape
     # dsl_spec.rb's own "a port" tests exercise (`signal`-only, no
     # `verb`). `DomainPortBuilder`'s own "declares no verb and no
-    # operations" refusal is real and correct for its OTHER two callers
+    # operations" refusal is real and correct for its other two callers
     # (`BindingProxy#port`, `HecksagonBuilder#port_impl`) — only this,
     # the literal top-level `.port` file entry point, keeps the older,
     # looser rule (see `DomainPortBuilder#initialize`'s own comment).

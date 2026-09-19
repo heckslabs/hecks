@@ -3,20 +3,20 @@ require "digest"
 require "json"
 
 # H9 — the meta-validator's verdict cache (`MetaValidator.verdicts`) is a
-# single MODULE-LEVEL hash, shared across every registry a process ever
+# single module-level hash, shared across every registry a process ever
 # builds, keyed on `SHA256(JSON(bluebook.to_h))` (meta_validator.rb#call).
 # Before `ReadModel#to_h` grew `wheres`/`order_by`/`limit` (2026-08-11),
-# two chapters differing ONLY in a read-model's filter hashed identically,
+# two chapters differing only in a read-model's filter hashed identically,
 # so booting chapter A with `where status: "available"`, then — in the
 # same process, e.g. a test suite, a console, hecks_studio — booting an
-# otherwise-identical chapter of the SAME NAME with the filter edited to
-# `"retired"`, handed the second boot the FIRST boot's already-assembled,
+# otherwise-identical chapter of the same name with the filter edited to
+# `"retired"`, handed the second boot the first boot's already-assembled,
 # stale read model.
 #
 # `ReadModel#to_h`'s own fix already retired the underlying cause; these
 # are the regression lock for the meta-validator's own cache key, so a
 # future field this codebase adds to a read model (or to a bluebook) that
-# forgets to reach `to_h` fails HERE rather than silently reintroducing
+# forgets to reach `to_h` fails here rather than silently reintroducing
 # the class of bug.
 RSpec.describe "MetaValidator's verdict cache" do
   def in_registry

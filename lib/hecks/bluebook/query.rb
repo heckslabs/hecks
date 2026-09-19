@@ -8,14 +8,14 @@ module Hecks
   module Bluebook
     def self.render_value(value) = Literal.render(value)
 
-    # A query — an ASK, declared on an aggregate or on one of its entities.
+    # A query — an ask, declared on an aggregate or on one of its entities.
     #
-    # It crosses over as an INSTANCE rather than a class, and the reason is worth
+    # It crosses over as an instance rather than a class, and the reason is worth
     # stating because it is the boundary of the pattern. A query inherits its
     # whole body from `QuerySpecification::Common::Options` — `wheres`,
     # `order_by`, `limit`, `offset`, `cursor`,
     # `authorization`, `null_semantics`, `inspection` — and those
-    # are INSTANCE methods that the runtime and the SQLite adapter both read.
+    # are instance methods that the runtime and the SQLite adapter both read.
     # Hoisting the declaration onto a metaclass would put the identity and the
     # specification on opposite sides of the object.
     #
@@ -54,7 +54,7 @@ module Hecks
         @attributes  = attributes
       end
 
-      # A query's shape is NOT fixed — `extra_options_to_h` carries
+      # A query's shape is not fixed — `extra_options_to_h` carries
       # whatever options the specification layer grew (count, median,
       # group_by, scope_to). Declared emission covers the settled part
       # and `super` hands it over; the tail stays dynamic, which is the

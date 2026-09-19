@@ -1,21 +1,21 @@
 module Hecks
   module Adapters
-    # THE DETERMINISTIC `agent` FULFILLMENT — a hand-loaded queue of raw
+    # **The deterministic `agent` fulfillment** — a hand-loaded queue of raw
     # answers, one queue per operation, so a spec (or `bin/interview`
-    # run against it deliberately) can assert on an EXACT question,
+    # run against it deliberately) can assert on an exact question,
     # proposal, finding, or suggestion with no live model in the room.
     # `reset!` mirrors `SequentialIdentity`'s own convention: this
     # module's state is class-level, not per-boot, so a spec that wants
     # a clean queue calls it explicitly.
     #
-    # RETURNS RAW HASHES, same shape a real `claude` reply unwraps to —
+    # Returns raw hashes, same shape a real `claude` reply unwraps to —
     # this double stands in for `ClaudeCode.call`, not for
     # `Ports::Agent`'s own validation, so a scripted answer still has to
     # survive `Ports::Agent::Answers` exactly like a live one does. A
     # spec proving the loop works against this double is also,
     # incidentally, a spec proving the validation is real.
     #
-    # NEVER required from `driven.rb`, the same trap `SequentialIdentity`
+    # Never required from `driven.rb`, the same trap `SequentialIdentity`
     # already documents there: a second adapter answering the `agent`
     # port unconditionally would make the port permanently ambiguous
     # for every consumer, not just the specs that asked for this one.

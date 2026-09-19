@@ -2,7 +2,7 @@ require "spec_helper"
 require "yaml"
 require "hecks/fuzzing/target_capabilities"
 
-# ENABLED MUST MEAN BUILT — the drift this spec exists for was live:
+# **Enabled must mean built** — the drift this spec exists for was live:
 # `qa/settings.yml` had `wasm_front: true` and `adapter_parity_postgres:
 # true` while `bin/qa_sweep` held no code for either. Neither is a seat,
 # neither folds into the per-seed loop, neither has a `MODE_EXPECTATIONS`
@@ -10,7 +10,7 @@ require "hecks/fuzzing/target_capabilities"
 # logged no Check at all, so the sweep's own report claimed a comparison
 # nobody had written.
 #
-# THE RUNNER ITSELF IS THE ORACLE, not a second hand-kept list: for every
+# The runner itself is the oracle, not a second hand-kept list: for every
 # mode the capability table names, this greps `bin/qa_sweep`'s own code
 # (comments stripped — prose naming a mode is not an implementation of
 # it) and requires that mentioning it and listing it in `RUNNABLE_MODES`

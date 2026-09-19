@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# The plan is read from the language, so these are assertions ABOUT THE LANGUAGE
+# The plan is read from the language, so these are assertions about the language
 # as much as about the reader. If bluebook.bluebook renames a list or moves an
 # append onto a different command, one of these fails — which is the point: the
 # judge is about to be driven by this, and a wrong plan is a silent judge.
@@ -50,9 +50,9 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
 
   describe "the append table — the thing said to be underivable" do
     it "finds the appender for each of a command's lists, by target and not by name" do
-      # The list names ARE the IR's reader names — `givens`, not `rules` — so the
+      # The list names are the IR's reader names — `givens`, not `rules` — so the
       # walk reads a built command straight through with no table in between.
-      # The VERB keeps the language's own word for the act (Rule, Change), which
+      # The verb keeps the language's own word for the act (Rule, Change), which
       # is not a name the walk ever has to match.
       appends = plan.category("Command").appends
 
@@ -86,10 +86,10 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
     end
 
     it "reads a setter whose argument is named differently from its target" do
-      # ActsOn takes `root`, not `references` : a command argument SHADOWS the
+      # ActsOn takes `root`, not `references` : a command argument shadows the
       # aggregate field of the same name inside a given, so the once-only rule
       # could not read the state it guards if the two matched. This is the one
-      # place a differing name is REQUIRED rather than incidental.
+      # place a differing name is required rather than incidental.
       acts_on = plan.category("Command").setters.find { |setter| setter.verb == "ActsOn" }
 
       expect(acts_on.targets).to eq("references" => "root")
@@ -111,7 +111,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
 
   # S17, ADR 0026 — Member is a genuine entity now, nested under
   # ValueObject, so its own commands show up under `.entities`, not
-  # `.commands`, and the judge reaches them through a DOTTED verb.
+  # `.commands`, and the judge reaches them through a dotted verb.
   # Recurses — `Dispatch`, inside `Handler`, nests two levels deep.
   def entity_verbs(prefix, entity)
     dotted = "#{prefix}.#{entity.hecks_name}"

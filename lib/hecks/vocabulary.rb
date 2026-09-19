@@ -1,7 +1,7 @@
-# GENERATED — projected from the language's own Vocabulary aggregate
+# Generated — projected from the language's own Vocabulary aggregate
 # (lib/hecks/language/bluebook/vocabulary.bluebook).
 #
-# DO NOT EDIT. spec/vocabulary_table_spec.rb re-projects this in memory
+# Do not edit. spec/vocabulary_table_spec.rb re-projects this in memory
 # and refuses a diff, so an edit here fails the ordinary suite.
 #
 # Plain data on purpose — no requires, no dependency on the model —
@@ -397,8 +397,8 @@ module Hecks
       ].freeze
     }.freeze
 
-    # THE TERMS — the first field of each row, which for a
-    # one-field vocabulary is the whole of it. Derived ONCE and
+    # The terms — the first field of each row, which for a
+    # one-field vocabulary is the whole of it. Derived once and
     # frozen rather than mapped per call: these are constant
     # tables, and a constant that allocates a new array every
     # time it is read is not one.

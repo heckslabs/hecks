@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 # BUG#33 (QualityControl ledger) — the duplicate-identity guard BUG#13
 # added for a single caller-supplied `append:` (`MutationApplier#
 # check_entity_collision`, mutation_applier.rb) never extended to a
-# whole-list `:set` REPLACE (`sets :entries` bare — `Ledger.
+# whole-list `:set` replace (`sets :entries` bare — `Ledger.
 # ReplaceEntries`, `qa/stress_domains/corrections`, the corpus's first
 # `list_of(ENTITY)` command argument/mutation). `Value::Coercion#
 # hydrate_entity_list` rebuilt each offered element's own declared
@@ -43,7 +43,7 @@ RSpec.describe "Ledger.ReplaceEntries — a whole-list entity replace" do
     expect(refusal[:kind]).to eq("Hecks::Runtime::AlreadyExists")
     expect(refusal[:error]).to eq("a Entry already exists on Ledger — sequence.value 1")
 
-    # THE DUPLICATE NEVER LANDED — the whole mutation refuses, exactly
+    # **The duplicate never landed** — the whole mutation refuses, exactly
     # as `check_entity_collision`'s own append-time guard behaves (a
     # refused dispatch writes nothing).
     instance = history[:instances].values.find { |record| record[:reference].to_h == { value: "L-DUP" } }
@@ -84,10 +84,10 @@ RSpec.describe "Ledger.ReplaceEntries — a whole-list entity replace" do
   end
 end
 
-# THE DIFFERENTIAL COUNTERPART — `bin/rust_conformance qa/stress_domains/
+# **The differential counterpart** — `bin/rust_conformance qa/stress_domains/
 # corrections <script> native`, run by hand against the freshly rebuilt
 # `corrections`-feature binary during this fix's own verification: both
-# the duplicate-identity refusal (verb, kind, AND wording, once
+# the duplicate-identity refusal (verb, kind, and wording, once
 # `entity_list_replace_guard`'s own "offered" rendering was made to
 # unwrap a single-field identity the same way `Rendering.describe` does)
 # and the successful distinct-identity replace agree byte for byte

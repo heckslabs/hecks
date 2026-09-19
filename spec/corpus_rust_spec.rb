@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# EVERY CARGO FEATURE AND EVERY GENERATED RUST MODULE LANDS IN A CHECK —
+# Every cargo feature and every generated Rust module lands in a check —
 # the Rust-facing half of spec/corpus_accounting_spec.rb. A partition, not
 # a filter: each one is an in-repo Rust domain (fuzzed, regenerated,
 # coverage- and parity-checked), a framework chapter, or sent by

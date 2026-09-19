@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# THE MODEL'S SHAPE, HELD TO THE LANGUAGE THAT DECLARES IT.
+# The model's shape, held to the language that declares it.
 #
 # Every construct's `emits_ir` restates what `bluebook.bluebook` already
 # says — and the two are allowed to differ, in five specific ways that
@@ -27,7 +27,7 @@ RSpec.describe "the model's shape, held to the language" do
     "ProcessManager" => Hecks::Bluebook::ProcessManager
   }.freeze
 
-  # THE DEVIATION TABLES LIVE IN lib, not here. They began as this
+  # The deviation tables live in lib, not here. They began as this
   # spec's own constants, which made the gate the only thing that knew
   # them — and a generator cannot read a spec. Moved to
   # Projections::Model::Deviations so the gate and the generator read one
@@ -71,7 +71,7 @@ RSpec.describe "the model's shape, held to the language" do
     end
   end
 
-  # The categories are only worth having if they are ALL load-bearing.
+  # The categories are only worth having if they are all load-bearing.
   it "uses every category it declares" do
     [DEVIATIONS::CONTAINED, DEVIATIONS::FOLDED, DEVIATIONS::COMPUTED, DEVIATIONS::OFF_THE_WIRE, DEVIATIONS::DYNAMIC_TAIL,
      DEVIATIONS::UNPACKED].each do |table|

@@ -1,9 +1,9 @@
 module Hecks
   module Fuzzing
-    # WHAT EACH QUERY VERB THE DIFFERENTIAL COMPARISON SKIPPED WAS HIDING.
+    # What each query verb the differential comparison skipped was hiding.
     #
     # `Differential.manifest_partition` drops a named query or read model
-    # from BOTH sides of the Ruby/Rust comparison only when the binary's own
+    # from both sides of the Ruby/Rust comparison only when the binary's own
     # manifest.json declares it `generated: false`. The drop is correct, but
     # a sweep that dropped every `offset`/`cursor` ask would still read as
     # "agreed across all steps". `bin/qa_sweep` therefore logs one Check per
@@ -29,7 +29,7 @@ module Hecks
         end
       end
 
-      # Every skipped verb whose constructs are NOT all inside `boundary`.
+      # Every skipped verb whose constructs are not all inside `boundary`.
       def outside_boundary(attributed, boundary)
         admitted = boundary.map(&:to_s)
         attributed.select { |entry| entry[:constructs].empty? || (entry[:constructs] - admitted).any? }

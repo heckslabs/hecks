@@ -1,15 +1,15 @@
 require_relative "doctest"
 
-# WHICH MARKDOWN RUNS, AND WHO OWNS WHICH NAME.
+# Which markdown runs, and who owns which name.
 #
 # Two sets of executable documentation now share one process: the guides,
 # which are narratives, and the DSL reference, which is one page per
 # context and one runnable example per word. They are separate specs
 # because they fail for different reasons and a reader chasing a red
-# example should land in the right one — but they are ONE namespace.
+# example should land in the right one — but they are one namespace.
 #
 # `Facade::Surface.install` (lib/hecks/facade/surface.rb) installs a
-# chapter's name AND every one of its aggregates' bare names onto Object,
+# chapter's name and every one of its aggregates' bare names onto Object,
 # and nothing ever uninstalls them. Two files inventing the same chapter
 # would therefore rebind whichever booted last, and under randomized spec
 # order that is a coin flip rather than a failure. So the claim is
@@ -36,29 +36,29 @@ module DoctestNames
 
   def all = guides + reference
 
-  # EVERYTHING AT docs/*.md (one level, not docs/implemented/, not the
-  # ADRs under docs/decisions/, not docs/audits/ or docs/prds/) IS NOT A
-  # GUIDE, and this list is why: planning, status, and survey documents
+  # Everything at docs/*.md (one level, not docs/implemented/, not the
+  # ADRs under docs/decisions/, not docs/audits/ or docs/prds/) is not a
+  # guide, and this list is why: planning, status, and survey documents
   # (1.0-readiness.md, future-features.md, architecture-map.md, ...)
   # rather than the narrative Ruby tutorials `guides` runs. Forcing a
   # runnable fence into "what's the 1.0 blocker" or "what does the
   # architecture map show" would manufacture an example with nothing
   # real to assert, the same vacuous-pass shape `guides_spec.rb` already
-  # refuses to let a zero-fence GUIDE get away with — so these stay out
+  # refuses to let a zero-fence guide get away with — so these stay out
   # of the doctest gate on purpose, not by the accident of a glob that
   # simply never reached this far.
   #
   # That is a real gap, not a comfortable one: these are precisely the
-  # documents that make claims ABOUT the project's own properties
+  # documents that make claims about the project's own properties
   # (durability, isolation, coverage) rather than about the DSL's
   # runtime behavior, and prose claims about a system property are not
   # fence-shaped — no doctest proves "boot is fresh per test" or "no
   # console view exposes this password." The closest thing this project
-  # has to a check on THOSE claims is a periodic manual claim-audit (the
+  # has to a check on those claims is a periodic manual claim-audit (the
   # 2026-08-26 reconciliation pass is the one precedent), not doc_
   # coverage or guides_spec.
   #
-  # This list exists so that gap stays a DECISION, checked below by
+  # This list exists so that gap stays a decision, checked below by
   # `unaccounted_top_level_docs`, rather than driftable-by-accident the
   # moment somebody adds a seventeenth file here without ever deciding
   # whether it belongs in `guides` instead.
@@ -67,6 +67,7 @@ module DoctestNames
     adoption-readiness.md
     architecture-map.md
     command-form-and-query-form-bluebook.md
+    COMMENT_STYLE_GUIDE.md
     dsl-work-slices.md
     event-storming-policies.md
     future-features.md
@@ -91,7 +92,7 @@ module DoctestNames
       UNGATED_STATUS_DOCS
   end
 
-  # Every chapter name each document INVENTS, keyed by path. A document
+  # Every chapter name each document invents, keyed by path. A document
   # that instead `Kernel.load`s a real corpus file never writes that
   # chapter's own `Hecks.bluebook` line itself, so it claims nothing and
   # any number of documents may share one corpus example safely — see

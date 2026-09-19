@@ -1,6 +1,6 @@
 module Hecks
   module Projector
-    # The trivial case, on purpose: canonical IR projected AS canonical
+    # The trivial case, on purpose: canonical IR projected as canonical
     # IR. `Bluebook#to_h` already satisfies every §30 acceptance
     # criterion on its own — no live runtime needed to call it, output is
     # deterministic (the same golden fixtures `spec/ir_golden_spec.rb`

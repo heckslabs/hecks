@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 
-# A CODEMOD FOR ROADMAP I3 — command facts passed to `dispatch` as loose
+# A codemod for roadmap I3 — command facts passed to `dispatch` as loose
 # keyword arguments are deprecated (removed in hecks
 # Hecks::Runtime::Dispatcher::LEGACY_ARGS_REMOVAL); this rewrites existing
 # callers to `to:` / `with:`.
 #
-# TWO STEPS, because the call's text alone cannot say which loose keyword
+# Two steps, because the call's text alone cannot say which loose keyword
 # is the receiver's identity and which is a fact — that is the target
 # command's IR (see lib/hecks/codemod/legacy_dispatch_recorder.rb):
 #
@@ -24,12 +24,12 @@
 #   2. Rewrite — a dry run prints the diff and every skipped site with its
 #      reason; --write applies it:
 #
-#        bin/codemod_legacy_dispatch_args [--write] [--recording PATH]
+#        bin/codemod_legacy_dispatch_args [--write] [--recording path]
 #
 # A call site no recorded run reached is not rewritten (and not listed):
 # a warning names it the first time it runs.
 #
-# NOT `Hecks::Codemod::Runner` — that runner edits .bluebook source and
+# Not `Hecks::Codemod::Runner` — that runner edits .bluebook source and
 # proves the rewrite by re-booting and diffing the IR. The proof here is
 # behavioral instead: run the same command again after --write, with the
 # deprecation raising (spec/spec_helper.rb does), and it must stay green.

@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tempfile"
 
-# Real dispatch coverage for Float/Numeric arithmetic on the EXISTING
+# Real dispatch coverage for Float/Numeric arithmetic on the existing
 # increment/decrement ops: CommandRules::Arithmetic#arithmetic/
 # #arithmetic_value_object were Integer-only before this fix, so any
 # Float-typed field (miette's own organ math, "increment: 0.02") raised

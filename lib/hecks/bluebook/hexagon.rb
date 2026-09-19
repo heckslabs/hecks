@@ -48,7 +48,7 @@ module Hecks
 
     # The built form of a `.world` file, produced by `DSL::WorldBuilder` —
     # a domain's own `realm`/`latest` version markers and its adapter bind
-    # SETTINGS (as opposed to `Hecksagon`'s own bind LIST, above).
+    # settings (as opposed to `Hecksagon`'s own bind list, above).
     # `Behaviour::World` supplies the settings lookups (`for_verb`/
     # `for_binding`); this class holds only the declared data.
     class World

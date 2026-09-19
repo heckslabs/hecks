@@ -4,8 +4,8 @@ require_relative "journal"
 module Hecks
   module Adapters
     class Heki
-      # THE OPTIONAL saga-persistence capability (§2), Heki's own shape —
-      # a SIBLING snapshot+journal file pair, built the exact same way an
+      # The optional saga-persistence capability (§2), Heki's own shape —
+      # a sibling snapshot+journal file pair, built the exact same way an
       # aggregate's own persistence already is: `Snapshot`/`Journal`
       # (heki/snapshot.rb, heki/journal.rb) operate generically on
       # `@path`/`@journal_path`/`@entry_mirrors` and never touch
@@ -15,16 +15,16 @@ module Hecks
       # Reserved file name (`hecks_saga_instances.heki`, matching the
       # `hecks_`-prefix convention every other new saga table in this
       # work uses) avoids colliding with any real aggregate's own
-      # `storage_name`. Lives in the SAME directory an aggregate's own
+      # `storage_name`. Lives in the same directory an aggregate's own
       # `.heki` file would (`File.dirname(@path)`, `Heki`'s own call
       # below) — which, since Heki's `resolve_path` has no per-domain
-      # component at all, is typically shared across EVERY domain
+      # component at all, is typically shared across every domain
       # booted from the same `root`. `domain` is therefore carried
       # inside each record and filtered on read, the same reason
       # Postgres's own `hecks_saga_instances` keeps an explicit `domain`
       # column under schema isolation (§3).
       #
-      # ONE flat records hash, keyed by a composite string (Heki's own
+      # One flat records hash, keyed by a composite string (Heki's own
       # snapshot format is id-keyed, not tuple-keyed) — never exposed
       # outside this class; `each_saga` yields the five real fields a
       # caller actually wants, not the internal key shape.

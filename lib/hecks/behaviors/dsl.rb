@@ -59,7 +59,7 @@ module Hecks
       # nothing and passes whenever dispatch doesn't raise; `count:` on a
       # command and `emits:` on a query are each read by neither runner
       # (Expectations#run_command/#run_query), so they're accepted here
-      # and then silently ignored at run time. Checking both at BUILD
+      # and then silently ignored at run time. Checking both at build
       # time, not in the runners, makes them errors on the file that
       # wrote them rather than green checks nobody questions.
       def validate_expect!
@@ -95,7 +95,7 @@ module Hecks
 
       def vision(text) = @vision = text
 
-      # Relative to THIS `.behaviors` file, never to the filesystem's cwd
+      # Relative to this `.behaviors` file, never to the filesystem's cwd
       # or a same-stem convention — scope is a fact this file declares,
       # not one a runner infers.
       def loads(*paths)

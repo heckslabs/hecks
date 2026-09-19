@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# THE MECHANICAL FIX for a false-positive class that recurred at least
+# The mechanical fix for a false-positive class that recurred at least
 # eight times before this script existed: `.github/workflows/ci-checks.yml`'s
 # `checks_codegen_drift` step used to hardcode a list of `bin/project_rust
 # <domain>` lines, one per domain, and regenerate only those. Any domain
@@ -8,7 +8,7 @@
 # with real, committed `rust/src/generated/<name>/` output — but never
 # manually added to that list — silently stopped being regenerated at all.
 # Its committed Rust output could then drift arbitrarily far behind its own
-# Bluebook source with nothing catching it, until a LATER, unrelated
+# Bluebook source with nothing catching it, until a later, unrelated
 # differential fuzz sweep tripped over the staleness and reported what
 # looked like a fresh Ruby/Rust divergence — but was actually the same
 # already-fixed bug, just never regenerated into the artifact being fuzzed.
@@ -17,25 +17,25 @@
 # existed: `nested_pieces` (BUG#23), `referral_chain`, `has_many_fixture`
 # (BUG#25), `lease_clock`, `corrections` (BUG#126), `chess` (BUG#138), and
 # `generated_entity_no_identity` (BUG#122) — whose own "fix," PR #652,
-# CLAIMED to add it to the old hardcoded list but never actually did
+# claimed to add it to the old hardcoded list but never actually did
 # (confirmed via `git show 63102c4d -- .github/workflows/ci-checks.yml`
 # being empty); a second attempt, PR #664, was still open, unmerged, when
 # this script replaced the whole mechanism. `tenant_ledger` was a known,
-# ACKNOWLEDGED instance of the same gap — flagged in the old comment block
+# acknowledged instance of the same gap — flagged in the old comment block
 # by name, deliberately left unfixed ("left alone rather than silently
 # 'fixed' as a drive-by in an unrelated PR") pending a real structural fix.
 # Auditing the repo directly while building this script found the gap was
 # even wider than any of that history had caught: `generated_reaction_
 # wording`, `generated_revalued_shape`, `generated_route_append`, and
 # `bug28_existence_fixture` all had real, committed `rust/src/generated/`
-# output and were NOT in the old list either — nobody had filed a Bug for
+# output and were not in the old list either — nobody had filed a Bug for
 # any of the four yet, but they were the exact same silent gap, just not
 # yet tripped over by a fuzz sweep.
 #
-# THE MECHANISM, replacing the maintained list entirely: `Hecks::Corpus.
+# The mechanism, replacing the maintained list entirely: `Hecks::Corpus.
 # rust_regen_order` (lib/hecks/corpus.rb, also printed by `bin/corpus
 # --rust-regen-order`) — every corpus domain directory whose name is a
-# Cargo feature and whose `rust/src/generated/<name>/` module ALREADY
+# Cargo feature and whose `rust/src/generated/<name>/` module already
 # exists, with that module's own metadata.rs stamp confirming it came from
 # this directory (so a vendored copy of a domain never regenerates over
 # the real one). This script used to walk three hand-named roots itself;
@@ -46,16 +46,16 @@
 # enforcing instead of relying on someone remembering to also edit this
 # file. A brand-new domain added the normal way — write its Bluebook,
 # `bundle exec bin/project_rust path/to/it` once by hand, commit the
-# output — is auto-discovered on the next run, with ZERO edits to
+# output — is auto-discovered on the next run, with zero edits to
 # ci-checks.yml or this script itself.
 #
-# `embryonaut` NEVER APPEARS as a candidate in the first place: its
+# `embryonaut` never appears as a candidate in the first place: its
 # Bluebook source lives in a separate client repo, not in this checkout
 # (docs/decisions/0033-... and PR #394's own commit message — "embryonaut
 # -> ~/Projects/embryonautfoundersapp/deploy"), so there is no `examples/
 # embryonaut`, `qa/stress_domains/embryonaut`, or `spec/fixtures/
 # rust_project/embryonaut` directory here for the walk to ever find, even
-# though `rust/src/generated/embryonaut/` IS committed. EXCLUDED_DOMAINS
+# though `rust/src/generated/embryonaut/` is committed. EXCLUDED_DOMAINS
 # below still names it explicitly, as a defensive belt-and-suspenders
 # guard against a future SEARCH_ROOTS addition accidentally reaching a
 # directory that happens to contain one — not because it is reachable
@@ -64,25 +64,25 @@
 # coverage: embryonaut" step) already treats it — see that tool's own
 # "Fallback mode" header for exactly what that can and can't prove.
 #
-# ORDER IS NOT ARBITRARY, and this script does not get to pick a
+# Order is not arbitrary, and this script does not get to pick a
 # convenient one — every domain below that declares `uses_framework
 # "Governance"` (today: banking, compliance, pizzas, nested_pieces, and
 # tenant_ledger, once swept in) regenerates `rust/src/generated/
 # governance/*.rs` as a side effect, and each pass stamps that shared
 # output's own "GENERATED by ... examples/<domain>" attribution comment
-# with whichever domain ran LAST — content aside, that comment is real,
+# with whichever domain ran last — content aside, that comment is real,
 # load-bearing text a diff check would otherwise flag on every run
 # regardless of whether anything actually drifted. The same is true of
 # `uses_framework "Identity"` (today: only banking) for `rust/src/
 # generated/identity/`, and of `rust/Cargo.toml`'s `default` feature and
 # `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s, which track
-# whichever domain ran LAST, period, Governance/Identity or not.
+# whichever domain ran last, period, Governance/Identity or not.
 #
-# So: DOMAINS ARE REGENERATED IN A FIXED, DETERMINISTIC ORDER — sorted by
+# So: domains are regenerated in a fixed, deterministic order — sorted by
 # full relative path (`examples/...` before `qa/stress_domains/...` before
 # `spec/fixtures/rust_project/...`, alphabetical within each) — so this
 # can never flap between CI runs, and so which domain "wins" each shared
-# module's stamp is a simple, checkable FACT about the sorted list rather
+# module's stamp is a simple, checkable fact about the sorted list rather
 # than a hand-maintained ordering someone has to keep re-verifying by
 # running every line locally. Under this rule, `tenant_ledger` is the
 # alphabetically-last `uses_framework "Governance"` domain (`qa/
@@ -91,7 +91,7 @@
 # pieces` won it, only because `tenant_ledger` was never in the list at
 # all. `banking` remains the sole `uses_framework "Identity"` domain, so
 # it keeps winning `identity/`'s stamp regardless of sort order. The
-# alphabetically-LAST domain overall — `spec/fixtures/rust_project/
+# alphabetically-last domain overall — `spec/fixtures/rust_project/
 # has_many_fixture` — wins `rust/Cargo.toml`'s `default` feature and
 # `rust/src/generated/mod.rs`'s cfg comments; previously `qa/
 # stress_domains/waybill` won both, only because it was hand-placed last
@@ -140,7 +140,7 @@ Dir.chdir(repo_root) do
   domains.each { |d| puts "  #{d}" }
   puts
 
-  # ONE BOOT, NOT ONE PER DOMAIN. Every `bin/project_rust` run builds
+  # **One boot, not one per domain**. Every `bin/project_rust` run builds
   # `MetaValidator.grammar_registry` — the same value every time, and most
   # of a small domain's whole run. Build it here once and fork: each child
   # inherits the memoized registry and then runs bin/project_rust exactly
@@ -153,7 +153,7 @@ Dir.chdir(repo_root) do
 
   next unless ARGV.include?("--check")
 
-  # THE EXISTING GATE, UNCHANGED — same two paths the old inline step
+  # **The existing gate, unchanged** — same two paths the old inline step
   # always diffed: `rust/src/generated/` (every domain's own generated
   # source, including the shared `governance`/`identity`/`meta` modules
   # any Governance/Identity-using domain above touches as a side effect)

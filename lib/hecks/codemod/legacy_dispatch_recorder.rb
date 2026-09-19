@@ -1,4 +1,4 @@
-# NOTHING HERE REQUIRES A GEM AT LOAD TIME — this file arrives through
+# Nothing here requires a gem at load time — this file arrives through
 # RUBYOPT, ahead of `bundler/setup`, and activating a default gem (json)
 # that early makes Bundler refuse the Gemfile's own version. `json` is
 # required on first write instead, by which point Bundler has resolved.
@@ -6,13 +6,13 @@ require_relative "../deprecation"
 
 module Hecks
   module Codemod
-    # THE OBSERVING HALF OF `bin/codemod_legacy_dispatch_args`. Loaded into a
+    # The observing half of `bin/codemod_legacy_dispatch_args`. Loaded into a
     # test run through RUBYOPT (`bin/codemod_legacy_dispatch_args record --
     # <command>` arms it), it wraps `Runtime::Dispatcher#dispatch` and, for
     # every call that passed loose keyword facts, appends one JSON line
     # saying how that call's facts split between `to:` and `with:`.
     #
-    # WHY RECORD INSTEAD OF READING SOURCE — loose keyword facts carry the
+    # **Why record instead of reading source** — loose keyword facts carry the
     # receiver's identity (`number: { value: "a1" }`, `id: order.id`) mixed
     # in with the command's facts, and which key is which is a property of
     # the target command's IR (its `identified_by`, its declared attributes,
@@ -75,7 +75,7 @@ module Hecks
         end
       end
 
-      # EVERY KEY THE DISPATCH'S OWN EVENTS CARRY. A loose fact reaches the
+      # Every key the dispatch's own events carry. A loose fact reaches the
       # event payload whether the command declares it or not, and a policy
       # with no `with:` projection forwards that payload verbatim — so
       # moving a key out of the facts and into `to:` can silently empty a

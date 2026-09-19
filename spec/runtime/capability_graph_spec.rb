@@ -14,7 +14,7 @@ RSpec.describe Hecks::Runtime::CapabilityGraph do
     File.expand_path("../../lib/hecks/adapters/driven/secure_random_identity.adapter", __dir__)
   end
 
-  # THREE PORTS, TWO BOUND. Persistence and extraction each get their usual
+  # Three ports, two bound. Persistence and extraction each get their usual
   # adapter (Memory, Prism) ; identity_generation is declared, on purpose,
   # with nothing implementing it — the gap the graph exists to name.
   def registry

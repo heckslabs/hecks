@@ -2,27 +2,27 @@
 # frozen_string_literal: true
 
 # Prints, one per line, the `spec/**/*_spec.rb` files assigned to shard
-# GROUP (1-indexed) of a `--group-by runtime` 2-way split, balanced by
+# group (1-indexed) of a `--group-by runtime` 2-way split, balanced by
 # recorded runtime where available. Used by `rspec_shard` in
-# `.github/workflows/ci-rspec.yml`, which passes ONLY the committed
+# `.github/workflows/ci-rspec.yml`, which passes only the committed
 # `.github/rspec_runtime_baseline.log` — every matrix leg must compute the
 # identical grouping from identical inputs, or the legs' file lists stop
 # partitioning the suite (see that workflow's shard-list step for the run
 # where restored caches made them diverge).
 #
-# WHY NOT `parallel_rspec ... --only-group N` (the mechanism
+# Why not `parallel_rspec ... --only-group N` (the mechanism
 # `rspec_postgres_io_parallel_shard` already uses) — that flag forces
 # `num_processes = 1` for whichever group it selects (confirmed by
 # reading parallel_tests-4.10.1's own cli.rb; that job's own header
-# comment explains the same thing). That's the RIGHT tradeoff for a
+# comment explains the same thing). That's the right tradeoff for a
 # Postgres-bound job, where the win is avoiding four processes
 # contending for one shared database/CPU, not raw core count. It's the
-# WRONG tradeoff here: this job's own suite is CPU-bound, in-memory, no
+# wrong tradeoff here: this job's own suite is CPU-bound, in-memory, no
 # Postgres (Phase 4 of the CI speed effort removed it) — running one
 # process per matrix leg would use only 1 of each runner's 4 vCPUs,
 # strictly worse than today's single runner already using all 4 via its
 # own internal `parallel_rspec` workers. This script instead computes
-# the group's own FILE LIST directly via `ParallelTests::Test::Runner.
+# the group's own file list directly via `ParallelTests::Test::Runner.
 # tests_in_groups` (the library method `--only-group` itself calls
 # before forcing single-process) and hands that list to an ordinary
 # `parallel_rspec <files...>` invocation with its own normal internal
@@ -47,8 +47,8 @@ abort "bin/rspec_shard_files: found ZERO spec files under spec/ — refusing to 
 options = { group_by: :runtime, allowed_missing_percent: 100 }
 options[:runtime_log] = runtime_log if runtime_log && File.exist?(runtime_log)
 
-# `allowed_missing_percent: 100` only tolerates missing ENTRIES inside an
-# EXISTING log (parallel_tests' own `set_unknown_runtime` fills those in
+# `allowed_missing_percent: 100` only tolerates missing entries inside an
+# existing log (parallel_tests' own `set_unknown_runtime` fills those in
 # with the known set's average) — it does nothing for a log file that
 # doesn't exist at all yet, which `Runner.runtimes`' own `File.read` has
 # no rescue for (confirmed live: a cold cache with no runtime_log given

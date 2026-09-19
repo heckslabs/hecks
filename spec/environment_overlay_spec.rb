@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 
-# RECOVERED, then GENERALIZED — see Runtime::Loader.boot's own comment
+# Recovered, then generalized — see Runtime::Loader.boot's own comment
 # for the full provenance: `environment:` and `uses_embryonaut_bluebook`
 # existed on a prior commit of this repo (933d1dd), were vendored out to
 # a real consumer (lifeadelics/domain), and were then lost from this
@@ -19,8 +19,8 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     File.write(path, content)
   end
 
-  # A MINIMAL REAL DOMAIN, ONE COMMAND, ONE ROLE — just enough to prove
-  # the ungoverned-role check runs correctly against the MERGED
+  # A minimal real domain, one command, one role — just enough to prove
+  # the ungoverned-role check runs correctly against the merged
   # hecksagon, which is the actual regression this recovery fixes (see
   # Registry::Verification#refuse_ungoverned_roles!'s own comment).
   def bluebook_source(role:)
@@ -78,9 +78,9 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     it "checks the ungoverned-role refusal against the MERGED hecksagon, not each block alone" do
       Dir.mktmpdir do |dir|
         write(dir, "overlaid.bluebook", bluebook_source(role: "Someone"))
-        # BASE DECLARES NO Governance — an overlay-only `uses_framework
+        # Base declares no Governance — an overlay-only `uses_framework
         # "Governance"` must still be enough. Checking each block in
-        # isolation (the pre-recovery behavior) would refuse the BASE
+        # isolation (the pre-recovery behavior) would refuse the base
         # block here even though the final, merged hecksagon is fine.
         write(dir, "overlaid.hecksagon", <<~HECKSAGON)
           Hecks.hecksagon "Overlaid" do
@@ -148,7 +148,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
   describe "uses_embryonaut_bluebook" do
     # One real boot over a vendored package's own bluebook plus a consumer
     # hecksagon; the three expects each inspect a different facet of that
-    # SAME successful boot (registry contents, recorded vendor list, vendor
+    # same successful boot (registry contents, recorded vendor list, vendor
     # dir on disk) — splitting would re-pay the two-file-write-and-boot
     # setup three times to prove nothing more than this one boot already
     # does.

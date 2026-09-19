@@ -20,6 +20,9 @@ module Hecks
 
       attr_reader :registry
 
+      # @param registry [Runtime::Registry, nil] the booted registry the rules read bluebooks,
+      #   repositories and the event log from; nil serves only the rules that read no
+      #   registry, such as `sign_of`
       def initialize(registry)
         @registry = registry
       end

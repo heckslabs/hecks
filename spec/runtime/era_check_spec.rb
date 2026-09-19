@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
-# The boot-time gate for adapters that HAVE eras. Eras are facts about
+# The boot-time gate for adapters that have eras. Eras are facts about
 # stored data some adapter can carry across a shape change, so only a
 # lineage-capable adapter holds them — everything else has no era, holds
 # nothing, and is never lectured about drift it could not act on. (The
@@ -60,10 +60,10 @@ RSpec.describe "the era check at boot" do
 
   it "reads source containing non-ASCII bytes even when the process default external encoding is US-ASCII" do
     # The tebako-packaged production container runs with no locale set,
-    # so Ruby's default external encoding is US-ASCII — a real prose
+    # so Ruby's default external encoding is us-ASCII — a real prose
     # comment (an em-dash, say) in a domain's own .bluebook file made
     # File.foreach/File.read here raise ArgumentError: invalid byte
-    # sequence in US-ASCII the moment a regex touched it, well before
+    # sequence in us-ASCII the moment a regex touched it, well before
     # this spec suite (which always runs under a UTF-8 locale) could
     # ever observe it.
     previous_external = Encoding.default_external
@@ -160,7 +160,7 @@ RSpec.describe "the era check at boot" do
   # source. A plain Ruby syntax error, not a rule the meta-domain
   # enforces (an empty `vision`, say) — S0a's own shadow-parse legacy
   # grammar (docs/dsl-work-slices.md) means `shadow_parse` no longer
-  # refuses THAT, on purpose: a since-tightened meta-domain rule must
+  # refuses that, on purpose: a since-tightened meta-domain rule must
   # not make a frozen era text that once booted fine suddenly
   # unattestable. What still cannot load, under any grammar, is text
   # that is not even valid Ruby.
@@ -190,7 +190,7 @@ RSpec.describe "the era check at boot" do
   # the shared shaped_projection helper (cheap: no real I/O), so
   # nothing here re-pays real setup cost by being split.
   #
-  # a hash minted under a DIFFERENT canonical form would no longer
+  # a hash minted under a different canonical form would no longer
   # match a recomputation — the projection comparison must win, or
   # every cosmetic edit to an old-form era false-refuses
   it "prefers a matching stored projection over a stored_hash minted under a different canonical form" do
@@ -225,7 +225,7 @@ RSpec.describe "the era check at boot" do
     end
   end
 
-  # a stored projection also lets an UNNAMED era be shape-checked —
+  # a stored projection also lets an unnamed era be shape-checked —
   # strictly better than the :unnamed shrug
   it "a stored projection lets an UNNAMED era be shape-checked, not just shrugged at" do
     Dir.mktmpdir do |root|

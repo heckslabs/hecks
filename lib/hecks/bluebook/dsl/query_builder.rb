@@ -29,7 +29,7 @@ module Hecks
         # exactly like any other. No "acts on itself" case to
         # distinguish here the way a command's own reference_to has —
         # a query has no root of its own to act on, only parameters.
-        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        # Renamed from `reference_to` — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable, in
         # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
         def reference_to_impl(type, as: nil, optional: false)
@@ -69,14 +69,14 @@ module Hecks
 
         private
 
-        # A block parameter names one of the OWNER's (the aggregate or entity
+        # A block parameter names one of the owner's (the aggregate or entity
         # this query is declared on) own already-declared attributes —
         # `query "ForDecision" do |decision| where decision: :decision end`
         # on Submission, whose own `attribute :decision, DecisionRef` already
         # says what `decision` is. Restating `attribute :decision, DecisionRef`
         # a second time inside the query was pure duplication; this derives
         # the same type from the owner instead. Only fills in a name the block
-        # body did NOT already declare explicitly (checked AFTER instance_eval
+        # body did not already declare explicitly (checked after instance_eval
         # runs, so an existing bluebook still spelling it out both ways keeps
         # working unchanged — this only removes the need to, never refuses
         # the choice to). A block parameter matching nothing on the owner is
@@ -90,8 +90,8 @@ module Hecks
             owner_attr = owner_attributes.find { |a| a.name == param_name }
             next unless owner_attr
 
-            # `Attribute.new` DIRECTLY, not the public `attribute(...)` DSL
-            # entry — `owner_attr.type` is already SPELLED (a demodulised
+            # `Attribute.new` directly, not the public `attribute(...)` DSL
+            # entry — `owner_attr.type` is already spelled (a demodulised
             # String, `Attribute#spell`'s own doing), not a bareword the
             # bluebook author typed, so it must not run through
             # `AttributeCollector#attribute`'s quoted-type refusal (ADR

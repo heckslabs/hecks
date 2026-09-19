@@ -3,7 +3,7 @@ require "spec_helper"
 # Point 6 of the translation design: a newly-required field with no
 # historical source is an ordinary bluebook `default:`, not a
 # translation rule. `Instance#initialize` always filled defaults for a
-# FRESH instance; loading existing state never ran that same fill, so a
+# fresh instance; loading existing state never ran that same fill, so a
 # record written before the attribute existed hydrated to nil forever.
 # The runtime now fills declared defaults on the hydrate path too.
 RSpec.describe "hydrating stored state through declared defaults" do

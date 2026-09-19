@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-# The BROWSER wasm-bindgen projector — decision
+# The browser wasm-bindgen projector — decision
 # docs/decisions/0015-wasm-bindgen-browser-projection.md. Deliberately a
-# SEPARATE binary from bin/project_wasm's: that script cross-compiles
+# separate binary from bin/project_wasm's: that script cross-compiles
 # rust/src/main.rs (the stdin/stdout WASI CLI) unchanged; this one builds
 # rust/web — a separate crate (docs/decisions/0012's "not rejected
 # forever... a plausible future layer" wasm-bindgen alternative), because
@@ -37,7 +37,7 @@ unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-unkn
 end
 
 # `wasm-bindgen` (the CLI, run below to post-process the .wasm) must be the
-# EXACT same version as the `wasm-bindgen` crate rust/web/Cargo.toml pins —
+# exact same version as the `wasm-bindgen` crate rust/web/Cargo.toml pins —
 # a mismatch fails at CLI-run time, not build time. Pinned with `=` in
 # Cargo.toml for exactly this reason; read it back rather than hardcoding
 # the version a second place.

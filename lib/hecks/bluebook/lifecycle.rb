@@ -3,7 +3,7 @@ require_relative "behaviour/lifecycle"
 module Hecks
   module Bluebook
     # One declared `transition` row — the state a command moves an
-    # aggregate or entity TO, and, when guarded, the state(s) it must
+    # aggregate or entity to, and, when guarded, the state(s) it must
     # currently be in (`from:`) for the transition to apply. An unguarded
     # transition (`from: nil`) applies from any current state.
     class StateTransition

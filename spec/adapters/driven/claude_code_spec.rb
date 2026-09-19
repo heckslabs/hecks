@@ -1,7 +1,7 @@
 require "hecks"
 require_relative "../../../lib/hecks/adapters/driven/claude_code"
 
-# TRANSPORT ONLY — never spawns the real `claude` binary (that would make
+# **Transport only** — never spawns the real `claude` binary (that would make
 # this suite hit a live model on every run: slow, billed, non-deterministic).
 # `Open3.capture2` is stubbed at the boundary; everything upstream of it
 # (prompt construction, argv shape, envelope unwrapping) runs for real.

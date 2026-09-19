@@ -60,7 +60,7 @@ RSpec.describe Hecks::Behaviors::Expectations do
       expect(described_class.runtime_for(suite)).to be(first)
     end
 
-    # THE ISOLATION THE PER-TEST BOOT USED TO BUY: nothing the first test
+    # The isolation the per-test boot used to buy: nothing the first test
     # dispatched is visible to the second — not its events, not its
     # records.
     it "resets everything a test wrote before the next one runs" do

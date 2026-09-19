@@ -77,16 +77,16 @@ RSpec.describe "D1 execution-plan capabilities" do
   end
 
   # `real_sqlite_batch_connection` runs each statement against a genuine
-  # SQLite3::Database, inside `@db.transaction`, in the SAME order — the
+  # SQLite3::Database, inside `@db.transaction`, in the same order — the
   # local proxy for what Connection#batch's own comment says D1 already
   # guarantees server-side ("statements execute in order and a failure
   # rolls the entire sequence back"). `fake_batch_connection` above only
-  # proves the RUBY SIDE issues one batch and no separate `execute`; this
-  # proves the SQL ITSELF is valid and the `WHERE NOT EXISTS` gating
+  # proves the Ruby side issues one batch and no separate `execute`; this
+  # proves the SQL itself is valid and the `WHERE NOT EXISTS` gating
   # genuinely blocks both writes when the row already exists — not just
   # that the code compiles. A real multi-threaded concurrency test (the
   # shape `postgres_atomic_put_spec.rb` uses) is not attempted here: two
-  # Ruby threads sharing ONE SQLite3::Database connection are not a
+  # Ruby threads sharing one SQLite3::Database connection are not a
   # faithful stand-in for D1's own server-side concurrent-batch handling,
   # and would test SQLite3-gem thread-safety more than the SQL's own
   # correctness. What actually closed the gap — moving the check inside
@@ -135,7 +135,7 @@ RSpec.describe "D1 execution-plan capabilities" do
     expect(adapter.entries.size).to eq(1)
     expect(adapter.find("sku-1").state[:label].to_h).to eq(value: "First")
 
-    # THE ROW ALREADY EXISTS — both gated writes must be genuine no-ops,
+    # **The row already exists** — both gated writes must be genuine no-ops,
     # not merely "the method returns :conflicted while quietly still
     # writing," which is precisely the shape the old separate-round-trip
     # check could not rule out under a real race.
@@ -204,7 +204,7 @@ RSpec.describe "D1 execution-plan capabilities" do
     expect(connection.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
   end
 
-  # One HTTP round trip mocked once, asked two questions about that SAME
+  # One HTTP round trip mocked once, asked two questions about that same
   # call — the request it actually sent and the rows it parsed back out.
   # Splitting would re-pay the Net::HTTP/double setup for no real gain.
   # rubocop:disable-next RSpec/ExampleLength

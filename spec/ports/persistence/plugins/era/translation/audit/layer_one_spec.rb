@@ -4,9 +4,9 @@ require "hecks/ports/persistence/plugins/era"
 # M26 (docs/audits/2026-08-10-main-bug-audit.md,
 # docs/audits/2026-08-11-bug-triage.md) — Layer 1's lifecycle-value check
 # compared a translated record's stored state against `Lifecycle#states`
-# (default + every declared TARGET only). A state legitimately declared
+# (default + every declared target only). A state legitimately declared
 # solely as a transition's `from:` — a real, reachable value this era's
-# OWN lifecycle names, just never as anyone's target — was never in that
+# own lifecycle names, just never as anyone's target — was never in that
 # set, so a perfectly valid record holding it was reported as a violation
 # and blocked the mint. `Bluebook::ModelCheck.full_states` is the
 # established fix for this exact hole (see its own comment, and
@@ -34,7 +34,7 @@ RSpec.describe "Layer 1's lifecycle-value check against the full declared state 
     end
   end
 
-  # "retired" is declared ONLY as a transition's `from:` — never this
+  # "retired" is declared only as a transition's `from:` — never this
   # lifecycle's default, and never any transition's target — the exact
   # shape `Lifecycle#states` cannot see (it answers default+targets),
   # and `ModelCheck.full_states` can (default+targets+froms).

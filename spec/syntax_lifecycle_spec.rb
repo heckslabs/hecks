@@ -7,16 +7,16 @@ require "spec_helper"
 # words; only a word entering or leaving the language spells its status.
 #
 # (Constants here carry unique names on purpose: a constant assigned
-# inside an RSpec.describe block lands at TOP LEVEL — the block captures
-# its file's lexical scope — so a KEYWORDS here silently replaced
-# syntax_conformance_spec's stringified KEYWORDS for every file loaded
+# inside an RSpec.describe block lands at top level — the block captures
+# its file's lexical scope — so a keywords here silently replaced
+# syntax_conformance_spec's stringified keywords for every file loaded
 # after it. Found as an order-dependent NoMethodError two files away.)
 #
-# What makes the status LOAD-BEARING rather than decorative is the
+# What makes the status load-bearing rather than decorative is the
 # projection rule this file pins: a proposed or retired word reaches no
 # generated parser table, so to every projected reader such a word simply
 # does not exist — the operator rule, applied at the syntax layer. The
-# language also declares its own VERSION now, on the chapter itself,
+# language also declares its own version now, on the chapter itself,
 # bumped when the admitted surface changes.
 RSpec.describe "the syntax lifecycle" do
   def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
@@ -37,10 +37,10 @@ RSpec.describe "the syntax lifecycle" do
   ARGUMENT_ROWS = SYNTAX_TABLE[:arguments]
   DECLARED_LANGUAGE_VERSION = judged_meta.version
 
-  # AN ABSENT STATUS READS AS ADMITTED — the same convention hecks_eras
+  # An absent status reads as admitted — the same convention hecks_eras
   # uses for a column grown after rows existed (canon_form NULL reads as
   # an implicit 1). Spelling `status: "admitted"` on 197 rows would bury
-  # the table in ceremony, and applying the attribute DEFAULT to member
+  # the table in ceremony, and applying the attribute default to member
   # rows before export would hand the golden IR a field the source never
   # spells — a drift from the declared text bought for nothing. Only a
   # word entering or leaving the language spells its status.
@@ -62,7 +62,7 @@ RSpec.describe "the syntax lifecycle" do
   # ("Nothing mid-transition" was pinned here once — an empty-set gate on
   # any non-admitted row. bin/evolve made it wrong: a proposal must be able
   # to land green. Its job passed to syntax_conformance_spec's lifecycle
-  # directions — a proposed word must be UNANSWERED by its builder, a
+  # directions — a proposed word must be unanswered by its builder, a
   # retired one must be unanswered again, and a live word is held to the
   # builder exactly as before. The suite still names every transition; it
   # just no longer forbids being in one.)

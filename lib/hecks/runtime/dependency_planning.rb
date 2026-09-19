@@ -74,12 +74,12 @@ module Hecks
         STATEFUL_MUTATIONS = %i[append increment decrement multiply clamp remove].freeze
 
         # `root_aggregate:` — Wave 8's own audit surfaced a real bug here,
-        # not merely a missing feature: for an ENTITY-owned command,
+        # not merely a missing feature: for an entity-owned command,
         # `EntityInterpreter` calls this with `aggregate:` set to the
-        # ENTITY itself (`element_interpreter.rb`'s own `Analyzer.call
+        # entity itself (`element_interpreter.rb`'s own `Analyzer.call
         # (aggregate: entity, command:)`), so `owner_fields` was always
         # the entity's own attribute set. A `given`/`ensures` reading
-        # `parent.X` legitimately means the ROOT aggregate's own field —
+        # `parent.X` legitimately means the root aggregate's own field —
         # a genuinely different owner — but `classify_path`'s `:parent`
         # branch checked that read against `owner_fields` (the entity's),
         # which can never contain a root-level field, so every entity
@@ -96,10 +96,10 @@ module Hecks
           @owner_fields << aggregate.lifecycle.field.to_sym if aggregate.lifecycle
           @root_owner_fields = root_aggregate.attributes.to_set(&:name)
           @root_owner_fields << root_aggregate.lifecycle.field.to_sym if root_aggregate.lifecycle
-          # `projects` FIELDS (S12, ADR 0025) ARE OWNER STATE TOO — a
+          # `projects` fields (S12, ADR 0025) are owner state too — a
           # `given`/`ensures` reading one (e.g. `customer_status ==
           # "active"`) is reading this record's own stored field, same
-          # as any attribute, even though nothing here WRITES it via a
+          # as any attribute, even though nothing here writes it via a
           # declared mutation (`CommandInterpreter#seed_projected_fields`
           # populates it outside this analysis entirely). Left out of
           # `known_writes` deliberately: `add_preservation_reads` then
@@ -107,7 +107,7 @@ module Hecks
           # a partial mutation, which is exactly right — a projected
           # field's freshness comes from the interpreter reseeding it on
           # save, not from anything a caller-supplied write set carries.
-          # Applies to BOTH `owner_fields` and `root_owner_fields` — an
+          # Applies to both `owner_fields` and `root_owner_fields` — an
           # entity's own `parent.*` read can name the root aggregate's
           # projected field just as easily as one of its real attributes
           # (`Banking::Withdrawal.Dispute`'s own `parent.account_customer_
@@ -237,7 +237,7 @@ module Hecks
           end
         end
 
-        # KNOWN, HARMLESS GAP: `corrects ..., as: :name`'s bound name
+        # Known, harmless gap: `corrects ..., as: :name`'s bound name
         # (admissibility.rb's `enforce_correction_target`/`enforce_givens`/
         # `enforce_ensures`) isn't special-cased here the way `:old`/
         # `:parent` are — a given/ensures referencing it falls through to
@@ -247,7 +247,7 @@ module Hecks
         # `hydrate_existing` path instead of the `ATOMIC_PUT` fast path.
         # Not a correctness bug — `as:`'s runtime binding (a plain `attrs`
         # merge, exactly like `old:`'s) resolves and evaluates correctly
-        # regardless of what this STATIC analysis concludes — just a real,
+        # regardless of what this static analysis concludes — just a real,
         # deliberately-left optimization gap: closing it would mean
         # threading "which names this command declares as correction
         # bindings" into the Analyzer, which doesn't have that per-command
@@ -258,9 +258,9 @@ module Hecks
           name = head.to_sym
 
           if name == :parent
-            # `root_owner_fields` — NOT `owner_fields`. For an entity-owned
-            # command `owner_fields` is the ENTITY's own attribute set;
-            # `parent.X` always means the ROOT aggregate's own field, a
+            # `root_owner_fields` — not `owner_fields`. For an entity-owned
+            # command `owner_fields` is the entity's own attribute set;
+            # `parent.X` always means the root aggregate's own field, a
             # genuinely different owner (`root_aggregate:`'s own header,
             # above, has the full bug this fixes). Identical for a plain
             # aggregate command, where root_aggregate defaults to aggregate

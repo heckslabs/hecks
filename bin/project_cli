@@ -13,11 +13,11 @@
 #   qa/quality_control bug.discover --help   what it wants, and how it refuses
 #   examples/pizzas/pizzas create_pizza name=Margherita …
 #
-# WHAT IS GENERATED IS A LAUNCHER, NOT A CLI. Each file is a dozen lines
+# What is generated is a launcher, not a CLI. Each file is a dozen lines
 # pinning one directory and handing over to `Facade::CliRunner` — the surface
 # still comes from `Projector.call(:cli, …)` at the moment it runs, so editing
 # a chapter changes the binary's behaviour without regenerating anything. That
-# is the whole reason the projection answers a SURFACE rather than a program:
+# is the whole reason the projection answers a surface rather than a program:
 # a generated dispatcher would need re-minting on every bluebook edit, and
 # would be a second copy of the parse-and-dispatch besides.
 #
@@ -50,7 +50,7 @@ rescue StandardError => e
   nil
 end
 
-# A DOMAIN'S COMMAND LINE LIVES WITH THE DOMAIN.
+# A domain's command line lives with the domain.
 #
 # These used to be minted into `bin/`, which put a chapter's front door a
 # directory away from the chapter, its adapters, its translations and its
@@ -58,7 +58,7 @@ end
 # actually runs it. Beside the domain, a folder is the whole unit: hand
 # somebody `qa/` and they have the tool, not a pointer to one.
 #
-# AND THEN EVERYTHING IS RELATIVE. The launcher sits IN the domain root, so
+# And then everything is relative. The launcher sits in the domain root, so
 # the domain it boots is simply `__dir__` — no path to spell, nothing to
 # re-point when a directory moves. Only `lib` is left to reach, and that is
 # counted from how deep the domain sits: `qa/` is one up, `examples/pizzas/`
@@ -106,7 +106,7 @@ wanted.each do |path|
   File.write(file, launcher(path, name))
   FileUtils.chmod("+x", file)
 
-  # THE OLD ADDRESS IS REMOVED, not left to rot. A stale `bin/pizzas` still
+  # The old address is removed, not left to rot. A stale `bin/pizzas` still
   # boots and still works, which is exactly what makes it dangerous: two
   # launchers for one chapter, and no way to tell from the outside which one
   # somebody's muscle memory is running.

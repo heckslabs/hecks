@@ -30,7 +30,7 @@ module Hecks
         @path      = resolve_path(settings, root)
         @journal_path = "#{@path}.journal"
         @events    = []
-        # THE OPTIONAL saga-persistence capability's own scoping (§2/§4)
+        # The optional saga-persistence capability's own scoping (§2/§4)
         # — falls back to the aggregate's own name for a directly-
         # instantiated adapter (specs), same fallback shape Postgres's
         # own @domain already uses.
@@ -65,7 +65,7 @@ module Hecks
       # threads this through; Heki's own never did, which made
       # `none_in_state?` (Ports::Query::InMemory) unconditionally
       # return `true` (its own graceful "no registry, no way to look
-      # the target up" default) for EVERY `none_in_state` where-clause
+      # the target up" default) for every `none_in_state` where-clause
       # against a Heki-backed aggregate — silently excluding nothing,
       # always, no matter the actual target state.
       def query(specification, args = {}, context: {})
@@ -118,7 +118,7 @@ module Hecks
 
       def record_event(event) = @events << event
 
-      # ── the OPTIONAL saga-persistence capability (§2) — Heki's own
+      # ── the optional saga-persistence capability (§2) — Heki's own
       # shape (a sibling snapshot+journal file pair, `SagaStore`,
       # heki/saga_store.rb) rather than a table in a store this adapter
       # doesn't have.
@@ -158,10 +158,10 @@ module Hecks
       end
 
       # `dir: :default` — a bare Symbol, the framework's own convention
-      # for "a DECLARED value that resolves by convention, never a silent
+      # for "a declared value that resolves by convention, never a silent
       # fallback" — used to crash `File.join` outright
       # (`TypeError: no implicit conversion of Symbol into String`):
-      # `resolve_path` only ever checked for a MISSING `dir` setting,
+      # `resolve_path` only ever checked for a missing `dir` setting,
       # never a Symbol one. Treated the same as no setting at all — falls
       # back to the existing "data" default, not a new special case.
       def resolve_path(settings, root)

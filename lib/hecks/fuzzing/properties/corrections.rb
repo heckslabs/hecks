@@ -1,7 +1,7 @@
 module Hecks
   module Fuzzing
     module Properties
-      # ANGLE-9 — `corrects` (retroactive correction) had exactly one
+      # Angle-9 — `corrects` (retroactive correction) had exactly one
       # declaration anywhere in the corpus (`examples/banking/bluebook/
       # deposit_accounts.bluebook:353`, aggregate-level) and no property
       # anywhere in this file ever checked it, and no `FEATURE_COVERAGE`
@@ -9,7 +9,7 @@ module Hecks
       # stress_domains/corrections` gives it its first real coverage; see
       # that domain's own NOTES.md for what it found (an entity-level
       # `corrects` crashes Ruby at dispatch outright, and Rust's own
-      # generated code has NO admissibility check for it AT ALL — neither
+      # generated code has no admissibility check for it at all — neither
       # engine can be compared on the untested combination this property
       # was written to watch, which is itself the headline finding).
       module Corrections
@@ -19,30 +19,30 @@ module Hecks
         # entities`, below, is the same recursive walk `SequenceGenerator::
         # Catalog#each_entity_chain` already uses, for the identical reason:
         # `Aggregate#entities`/`Entity#entities` nest, ADR 0026, S17). For
-        # every such command, every event THIS history actually recorded
+        # every such command, every event this history actually recorded
         # under one of the command's own `emits` names must have an event
         # named by the command's own `corrects` target — same aggregate-
-        # qualified name, same id — appearing STRICTLY EARLIER in the same
+        # qualified name, same id — appearing strictly earlier in the same
         # history.
         #
         # `history[:events]` is already in occurrence order (`Replay.call`'s
         # own `runtime.events`, appended as each step dispatches) — "earlier"
         # is therefore "earlier in this array," no timestamp comparison
         # needed, and no per-step attribution back to which command produced
-        # which event is needed either: an event's own declared NAME already
+        # which event is needed either: an event's own declared name already
         # identifies the one command in its aggregate that can produce it
         # (`AggregateBuilder::Sealing#seal_correction_targets`'s own
         # `emitted_by` hash reads the identical fact, one level shallower).
         #
-        # WHY THIS CANNOT BE `GUARANTEED_BY_CONSTRUCTION` THE WAY THE
-        # AGGREGATE-LEVEL CASE ALMOST IS: `CommandRules::Admissibility#
+        # Why this cannot be `GUARANTEED_BY_CONSTRUCTION` the way the
+        # aggregate-level case almost is: `CommandRules::Admissibility#
         # enforce_correction_target` (the dispatch-time check) and
         # `AggregateBuilder::Sealing#seal_correction_targets` (the build-time
-        # check) both exist ONLY for an aggregate-level `corrects` —
+        # check) both exist only for an aggregate-level `corrects` —
         # `EntityInterpreter#step_enforce_givens` never calls the former at
         # all, and the latter walks only `@commands` (the aggregate's own
         # top-level list), never `@entities`. An entity-level `corrects`
-        # mutation is invisible to BOTH doors today — this property is the
+        # mutation is invisible to both doors today — this property is the
         # only thing anywhere, on either engine, that would ever catch one
         # going wrong.
         def corrections_reference_an_emitted_event(history)

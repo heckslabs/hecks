@@ -7,9 +7,9 @@ module Hecks
   module Runtime
     # `authorize policy, tenant: :field` declared a tenant boundary that
     # nothing enforced — the policy name and the field were stored and read
-    # by nothing at dispatch time. This is the half that CAN be enforced
+    # by nothing at dispatch time. This is the half that can be enforced
     # without a caller-identity/session system: the boundary itself, made
-    # mandatory. Whether THIS caller actually holds `policy` for THIS
+    # mandatory. Whether this caller actually holds `policy` for this
     # tenant needs real identity infrastructure this runtime does not have
     # — that stays a named, open gap, not something this quietly pretends
     # to answer.
@@ -22,7 +22,7 @@ module Hecks
     # free, with no per-engine code and no way for one engine to forget it.
     # `Scoped` is handed only to those engines as their `declared`/
     # `specification` argument — never returned to a caller that might call
-    # an IR-level method (`filtered_head_name`, `to_h`, …) whose OWN
+    # an IR-level method (`filtered_head_name`, `to_h`, …) whose own
     # internal `wheres` call would resolve against the original object, not
     # this override, since `SimpleDelegator` only intercepts calls made
     # directly on the wrapper.

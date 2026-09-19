@@ -1,19 +1,19 @@
 module Hecks
-  # WHAT A CONSTRUCT EMITS, DECLARED RATHER THAN WRITTEN OUT.
+  # What a construct emits, declared rather than written out.
   #
-  # `IR` is a thing this framework PRODUCES, not a thing its model IS.
+  # `IR` is a thing this framework produces, not a thing its model is.
   # The language self-hosts, and its own bluebook declares aggregates
   # named `Bluebook`, `Aggregate`, `Command`, `Entity`, `ValueObject`,
   # `Policy`, `ReadModel` — there is no `IR` aggregate anywhere in the
   # grammar. Where the grammar's own vision line does say IR it means the
-  # emission: "the IR it STORES must equal the IR the DSL builder
-  # PRODUCES". `IR_VERSION` says the same thing structurally — a version
+  # emission: "the IR it stores must equal the IR the DSL builder
+  # produces". `IR_VERSION` says the same thing structurally — a version
   # stamped on `to_h`'s output rather than on the object is a version of
-  # the EMISSION, which only makes sense if the two are different things.
+  # the emission, which only makes sense if the two are different things.
   #
-  # So emitting IR is a CAPABILITY a construct has, and this is that
+  # So emitting IR is a capability a construct has, and this is that
   # capability: `include Hecks::IR` and declare the shape once.
-  # The model it emits FROM is `Hecks::Bluebook` — a chapter class
+  # The model it emits from is `Hecks::Bluebook` — a chapter class
   # nesting everything a chapter declares. It is deliberately not named
   # after this, its own output.
   #
@@ -36,18 +36,18 @@ module Hecks
   #     canonical_form: -> { CanonicalForm.table } # anything else
   #   )
   #
-  # KEY ORDER IS THE DECLARATION ORDER, and that is load-bearing rather
+  # Key order is the declaration order, and that is load-bearing rather
   # than cosmetic: `spec/golden/ir/*.json` pins the emitted form exactly,
   # so a reordered declaration is a changed artifact and the golden specs
   # will say so.
   module IR
-    # THE TWO SHAPES A CONSTRUCT COMES IN, and why this module has two
+    # The two shapes a construct comes in, and why this module has two
     # doors instead of hiding the difference.
     #
     # `Bluebook`/`Aggregate`/`Policy`/`ReadModel` are ordinary objects —
     # metadata records, one instance per declaration. `Command`/`Entity`/
-    # `ValueObject` are anonymous CLASSES (`Class.new(self)`, see
-    # `Command.declare`), because those three are referenced as TYPES in
+    # `ValueObject` are anonymous classes (`Class.new(self)`, see
+    # `Command.declare`), because those three are referenced as types in
     # a bluebook (`attribute :price, Money`) and a type has to be a real
     # Ruby constant to be named.
     #
@@ -87,7 +87,7 @@ module Hecks
       def one(source)  = One.new(source)
 
       # Walks the superclass chain so a `Class.new(ValueObject)` — which
-      # is what every declared value object actually IS — inherits the
+      # is what every declared value object actually is — inherits the
       # shape its base declared, rather than each anonymous subclass
       # having to redeclare it.
       def ir_spec
@@ -112,7 +112,7 @@ module Hecks
       private
 
       # An instance reads its class's declaration; a class-shaped
-      # construct IS the declaration holder.
+      # construct is the declaration holder.
       def ir_spec_for(construct)
         return construct.ir_spec if construct.respond_to?(:ir_spec)
 

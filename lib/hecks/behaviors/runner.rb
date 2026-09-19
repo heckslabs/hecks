@@ -35,12 +35,12 @@ module Hecks
       attr_accessor :last_suite
 
       # `Kernel.load`s one `.behaviors` file and returns its suite, with
-      # NO test actually executed yet — the cheap half, split out so a
+      # no test actually executed yet — the cheap half, split out so a
       # caller that only needs to know what tests exist (the rspec shim,
       # naming its `it`s at collection time) doesn't pay for running them
       # until it actually wants to. `Behaviors.loading_path` is bound only
       # for the duration of the load, and `last_suite` is reset to nil
-      # BEFORE it — a file that loads without ever calling
+      # before it — a file that loads without ever calling
       # `Hecks.behaviors` is unambiguously a parse error, never a stale
       # suite from whatever loaded before it in a sweep (a real bug in a
       # prior port of this idea: compared only against nil, so after the

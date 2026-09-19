@@ -4,7 +4,7 @@
 # `CargoReservedName` vocabularies (lib/hecks/language/bluebook/
 # vocabulary.bluebook, read through the generated lib/hecks/vocabulary.rb)
 # — the words a generated Rust identifier or a domain's Cargo feature key
-# must not take. Written into BOTH Rust build-tool crates, which share no
+# must not take. Written into both Rust build-tool crates, which share no
 # library dependency (rust/build calls rust/codegen as a subprocess — see
 # rust/build/Cargo.toml):
 #
@@ -14,7 +14,7 @@
 #                                         (cargo_sync.rs)
 #
 # The Ruby side (rust/project/naming.rb, Hecks::Bluebook::ModelCheck) reads
-# the same two tables, so every generator escapes or refuses the SAME words
+# the same two tables, so every generator escapes or refuses the same words
 # instead of hand-typed lists held equal by a comment.
 #
 # Same skeleton as bin/project_refusal_wording: a language-level constant

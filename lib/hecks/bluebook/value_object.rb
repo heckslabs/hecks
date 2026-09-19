@@ -5,7 +5,7 @@ module Hecks
   module Bluebook
     Invariant = Struct.new(:description, :canonical, :predicate, :ast, keyword_init: true)
 
-    # A value object — a DECLARATION HOLDER, never instantiated.
+    # A value object — a declaration holder, never instantiated.
     #
     # `ValueObjectBuilder` returns an anonymous subclass whose singleton
     # carries the declaration : attributes, invariants, members. Nothing ever
@@ -16,11 +16,11 @@ module Hecks
     #
     # `to_h` does not move. It is a byte-for-byte contract pinned by the
     # golden fixtures, so it keeps spelling the short declared name, which
-    # is what `hecks_name` carries. DECLARATIONS IN THE GRAPH, STRINGS IN THE
-    # EXPORT.
+    # is what `hecks_name` carries. Declarations in the graph, strings in the
+    # export.
     class ValueObject
       extend Construct
-      # EXTENDED, not included — this construct is a class, so its
+      # Extended, not included — this construct is a class, so its
       # emission is a class method. See Hecks::IR's own note on
       # the two shapes.
       extend Hecks::IR
@@ -29,7 +29,7 @@ module Hecks
       emits_ir(
         name:       :hecks_name,
         attributes: many(:attributes),
-        # `ast:` — a JSON-serializable rendering of the SAME predicate
+        # `ast:` — a JSON-serializable rendering of the same predicate
         # `canonical` already spells as text, alongside it rather than
         # replacing it (`canonical` stays the human-facing/doctest-facing
         # form; parsing it back would just re-derive what `ast` already
@@ -39,7 +39,7 @@ module Hecks
         # has no kernel crate to parse `canonical` with.
         invariants: -> { invariants.map { |rule| Expression::AstJson.rule_row(rule) } },
         closed_set: :closed_set?,
-        # THE FIELD NAME IS STRINGIFIED, NEVER THE VALUE. A `member` row can
+        # The field name is stringified, never the value. A `member` row can
         # hold any of the scalar types an attribute declares — `Integer 84`
         # (`StatementFrequency#retention_months`, statements.bluebook), not
         # only `String` — and `value.to_s` used to erase that on the way

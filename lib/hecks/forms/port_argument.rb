@@ -5,13 +5,13 @@ module Hecks
     # boot. Two spellings the previous inline version got wrong:
     #
     #   --port=8080   the equals form — the old `ARGV.each_cons(2)` scan
-    #                 only ever recognized "--port", "8080" as TWO
+    #                 only ever recognized "--port", "8080" as two
     #                 separate argv entries, so this spelling matched
     #                 nothing and silently fell through to the default.
     #   -p abc        a non-numeric value — the old code did `.to_i` on
     #                 whatever followed unconditionally, so a typo
     #                 quietly became port 0 (Rackup/WEBrick's actual
-    #                 behavior for `Port: 0` is to bind an EPHEMERAL
+    #                 behavior for `Port: 0` is to bind an ephemeral
     #                 port — arguably useful on purpose elsewhere, but
     #                 never what a mistyped `-p abc` meant to ask for).
     #

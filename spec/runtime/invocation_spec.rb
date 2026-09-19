@@ -22,11 +22,11 @@ module InvocationSpecFixtures
   BY_REF   = Operation.new("Settle", [Attr.new(:payment, false), Attr.new(:amount, false)], Attr.new(:payment, false), nil)
   BY_TO    = Operation.new("Refund", [Attr.new(:payment_id, false), Attr.new(:amount, false)], nil, "Payment")
 
-  # CHARACTERIZATION — every row below was run through the pre-I1 code
+  # Characterization — every row below was run through the pre-I1 code
   # (`Routing.payload` + `Routing.envelope` for aggregate/entity commands,
   # `Dispatcher#port_invocation` for port operations) and its result pinned
   # here verbatim: the args Hash (as ordered pairs), the envelope, or the
-  # refusal class and message. Rows are mined from the BUG# regression specs
+  # refusal class and message. Rows are mined from the bug# regression specs
   # (routing_envelope_spec, routing_envelope_shape_spec, dry_run's BUG#131,
   # the BUG#16/#17 conformance fixtures, query_null_vo_argument_spec's
   # explicit-null shape) plus each branch's refusal precedence.

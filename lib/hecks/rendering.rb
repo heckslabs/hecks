@@ -1,8 +1,8 @@
 require "json"
 
 module Hecks
-  # HOW A VALUE READS INSIDE A REFUSAL, in one place, because a refusal is an
-  # ANSWER and its wording is contract — pinned byte-for-byte by the corpus.
+  # How a value reads inside a refusal, in one place, because a refusal is an
+  # answer and its wording is contract — pinned byte-for-byte by the corpus.
   #
   # `inspect` and JSON agree on scalars and disagree on everything composite :
   # a hash is `{"cents"=>100}` against `{"cents":100}`, an array is `["a", "b"]`
@@ -29,7 +29,7 @@ module Hecks
         # ("#<Hecks::Runtime::Value:0x...>") into an otherwise
         # correct domain refusal. Duck-typed on `respond_to?(:to_h)`
         # rather than naming `Runtime::Value` directly — `Runtime::Value`
-        # itself requires THIS file (`runtime/value.rb`'s own
+        # itself requires this file (`runtime/value.rb`'s own
         # `require_relative "../rendering"`), so naming it here would be
         # circular. A single-field wrapper (the overwhelming common case
         # — an amount, an id, a lifecycle field) unwraps to its bare

@@ -1,33 +1,33 @@
 require "spec_helper"
 require "json"
 
-# A LIST THE CORPUS ONLY EVER FILLS WITH ONE IS A SCALAR AS FAR AS ANYTHING CAN TELL.
+# A list the corpus only ever fills with one is a scalar as far as anything can tell.
 #
 # The corpus specs prove the runtime answers as the frozen IR says it should,
-# and perturbing a DECLARATION shows what changes. Neither can reach a form no
+# and perturbing a declaration shows what changes. Neither can reach a form no
 # corpus bluebook uses at all — there is nothing to run and nothing to perturb —
 # and that is precisely where the composite identity hid.
 #
 # `identified_by` has been `list_of(IdentityPath)` since identity became a path.
 # Every example declared exactly one, so `paths.first()` and "every path, joined"
 # were the same function on the whole corpus. A reader once took the first. It
-# also could not PARSE a second one: `identified_by do` opened a block the
+# also could not parse a second one: `identified_by do` opened a block the
 # aggregate parser never consumed, so every attribute, command and value object
 # after it was swallowed and the aggregate came back empty — silently, because
 # an empty aggregate does not look like a parse failure. Green everywhere, for
 # as long as the corpus said one.
 #
-# So this asks the language what it declares as a LIST, and asks the corpus
+# So this asks the language what it declares as a list, and asks the corpus
 # whether any member ever holds two. A field that never does is not a bug on its
-# own — it is a claim nobody has tested, and it must be NAMED here with a reason,
+# own — it is a claim nobody has tested, and it must be named here with a reason,
 # the way `contracts.rb`'s `derived:` column names what the IR does not carry. A
 # claim needs a kind.
 #
-# ADDING A LIST TO THE LANGUAGE AND NO CORPUS MEMBER THAT FILLS IT TWICE IS WHAT
-# THIS CATCHES. That is the shape of the bug, stated once, instead of waiting for
+# Adding a list to the language and no corpus member that fills it twice is what
+# this catches. That is the shape of the bug, stated once, instead of waiting for
 # the next one.
 RSpec.describe "every list the language declares, filled more than once" do
-  # WHAT THE IR DOES NOT CARRY, in the language's own words rather than mine.
+  # What the IR does not carry, in the language's own words rather than mine.
   # `contracts.rb` already declares which fields are derived and how — a parent
   # pointer, a child collection, something computed, a fold, or somewhere else
   # entirely. A list that never reaches the wire cannot be counted on the wire,
@@ -39,9 +39,9 @@ RSpec.describe "every list the language declares, filled more than once" do
     false
   end
 
-  # WHERE THE LANGUAGE AND THE WIRE DISAGREE ABOUT A NAME.
+  # Where the language and the wire disagree about a name.
   #
-  # EMPTY, AND IT SHOULD STAY EMPTY. "The language spells its fields EXACTLY as
+  # **Empty, and it should stay empty**. "The language spells its fields exactly as
   # the IR spells them. One spelling, so there is no translation table to be
   # quietly wrong in" — and this is that table, so an entry is a defect with a
   # workaround rather than a design.
@@ -52,18 +52,18 @@ RSpec.describe "every list the language declares, filled more than once" do
   # the way out. The wire was the outlier, so the wire moved.
   WIRE_SPELLING = {}.freeze
 
-  # UNREACHED ON PURPOSE — every entry is a claim the corpus does not test, and
+  # **Unreached on purpose** — every entry is a claim the corpus does not test, and
   # every one says why it is not worth a fixture yet. Delete an entry and the
   # spec tells you whether the corpus grew to cover it.
   #
   # Each of these is a real, unverified plurality. None is known-broken; they are
-  # known-UNCHECKED, which is the honest word and the reason they are written
+  # known-unchecked, which is the honest word and the reason they are written
   # down rather than skipped.
   ALLOWED_SINGLETON = {
     # ADR 0026, S15 — genuinely filled with two, for real, on the one
     # chapter that calls it: lib/hecks/language/bluebook/attaches/
     # paging.bluebook declares `attaches_to "Query", "ReadModel"`. Not
-    # visible to THIS check because it walks spec/golden/ir/*.json, and
+    # visible to this check because it walks spec/golden/ir/*.json, and
     # Paging carries no golden fixture of its own (it is a grammar
     # chapter, judged through MetaValidator.grammar_registry the same
     # as Bluebook/World, not a corpus member ir_golden_spec freezes) —
@@ -84,7 +84,7 @@ RSpec.describe "every list the language declares, filled more than once" do
                      "Governance provides authorization with three rows (assignments, grant, " \
                      "transitions) — a framework member, so no golden IR fixture reaches it."
 
-    # EMPTY, and every entry that was here is now a corpus member instead.
+    # Empty, and every entry that was here is now a corpus member instead.
     #
     #   emits             banking: SafeDepositBox.Surrender announces twice,
     #                     a policy on each (market and relay proved this
@@ -132,11 +132,11 @@ RSpec.describe "every list the language declares, filled more than once" do
     end
   end
 
-  # ONE classification pass, shared by the two examples below — each declared
+  # One classification pass, shared by the two examples below — each declared
   # list is either unmeasurable (the wire carries no key for it at all) or
   # measurable, and if measurable, either seen plural or "lonely" (never
   # filled with more than one). Those are two independent claims about the
-  # SAME pass, not two halves of one scenario, so splitting them costs
+  # same pass, not two halves of one scenario, so splitting them costs
   # nothing real: each keeps its own full corpus walk, same as before.
   let(:list_coverage) do
     maxima    = observed_maxima
@@ -147,7 +147,7 @@ RSpec.describe "every list the language declares, filled more than once" do
       next if derived?(category, field)
 
       key = WIRE_SPELLING.fetch(field, field.to_s)
-      # NOT SKIPPED. A declared list the wire does not carry under any name it
+      # **Not skipped**. A declared list the wire does not carry under any name it
       # gave me is the one case this gate cannot measure, and an unmeasurable
       # field passing quietly is the failure this whole spec is about.
       unless maxima.key?(key)
@@ -197,7 +197,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     WHY
   end
 
-  # THE ALLOWLIST IS HELD TO THE CORPUS IN BOTH DIRECTIONS. An entry that the
+  # The allowlist is held to the corpus in both directions. An entry that the
   # corpus has since grown to cover is a stale excuse, and a stale excuse is how a
   # gate quietly stops gating.
   it "carries no excuse the corpus has outgrown" do

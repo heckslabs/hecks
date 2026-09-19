@@ -1,7 +1,7 @@
 module Hecks
   module Grammar
     # The file surgery under bin/evolve: reading and rewriting the
-    # aggregate-local KeywordSeed/ArgumentSeed rows as TEXT, so a
+    # aggregate-local KeywordSeed/ArgumentSeed rows as text, so a
     # proposed word enters the table exactly as a hand would write it
     # and an admitted one loses its ceremony (an absent status reads as
     # admitted — the grown-column convention).
@@ -18,7 +18,7 @@ module Hecks
       module_function
 
       # bin/evolve's own `--name value` flag reader. Only consumes the
-      # NEXT argv element as the value when that element doesn't itself
+      # next argv element as the value when that element doesn't itself
       # look like a flag — otherwise `--foo --bar` would swallow `--bar`
       # as `--foo`'s value (and `--bar` would then never be seen at
       # all), and a value-less `--foo` at the end of argv would bypass
@@ -97,7 +97,7 @@ module Hecks
         row = %(#{indent}member word: "#{word}", context: "#{context}", body: "#{body}", ) +
               %(inner: "#{inner}", opens: "#{opens}", fills: "#{fills}", status: "proposed"\n)
 
-        # At the END of the one_of — grouping by context is a courtesy of
+        # At the end of the one_of — grouping by context is a courtesy of
         # the hand; a proposed row sits at the bottom until admission,
         # when whoever admits it may move it home.
         closing = block.rindex(/^\s*end\s*$/)
@@ -119,7 +119,7 @@ module Hecks
           next line unless member_row?(line, word, context)
 
           stripped = line.sub(/,\s*status: "[^"]*"/, "")
-          # Admitted is the default and stays UNSPELLED — only a word
+          # Admitted is the default and stays unspelled — only a word
           # entering or leaving the language carries its status.
           to == "admitted" ? stripped : stripped.sub(/\n\z/, %(, status: "#{to}"\n))
         end.join
@@ -219,10 +219,10 @@ module Hecks
         block
       end
 
-      # From `value_object "KeywordSeed"` to ITS OWN closing `end` — `member`
+      # From `value_object "KeywordSeed"` to its own closing `end` — `member`
       # rows sit bare now (S3, ADR 0025 — the `one_of do ... end` wrapper
       # is gone), so the first bare `end` line after the opener already
-      # IS the value object's own, the same fact the original one_of-
+      # is the value object's own, the same fact the original one_of-
       # nested version of this method leaned on (nothing else nested
       # inside it either, before or after).
       def keyword_blocks(source) = seed_blocks(source, "KeywordSeed")
@@ -230,7 +230,7 @@ module Hecks
 
       # ── the Argument rows — a word's own arguments, at last with tooling
       # of their own rather than the rename-only cascade above. A word may
-      # carry SEVERAL argument rows (one per position, one per named
+      # carry several argument rows (one per position, one per named
       # kwarg), so identity here is the full (keyword, context, at, named)
       # tuple, not the two-field key a Keyword row answers to.
 
@@ -250,7 +250,7 @@ module Hecks
         end
       end
 
-      # `pairs_shape` — for a `pairs` argument that fills ONE field with a
+      # `pairs_shape` — for a `pairs` argument that fills one field with a
       # whole key/value list rather than naming a field per pair (the
       # shape `Handler.dispatch`'s own `with:` already carries). Without
       # it, `spec/syntax_conformance_spec.rb` reads a pairs argument
@@ -315,7 +315,7 @@ module Hecks
 
       def argument_identity(row) = [row[:keyword], row[:context], row[:at], row[:named]]
 
-      # The rename cascade, ROW-AWARE — only the rows that actually belong
+      # The rename cascade, row-aware — only the rows that actually belong
       # to the renamed word, spelling updated in place, rather than a
       # blind `gsub` on every `keyword: "word",` substring in the file
       # (which a coincidentally-matching row elsewhere could have
@@ -337,7 +337,7 @@ module Hecks
         end
       end
 
-      # From `value_object "ArgumentSeed"` to ITS OWN closing `end` — see
+      # From `value_object "ArgumentSeed"` to its own closing `end` — see
       # `keyword_block`'s own comment for why the first bare `end` after
       # the opener is already the right one, now that `member` rows sit
       # bare (S3, ADR 0025).

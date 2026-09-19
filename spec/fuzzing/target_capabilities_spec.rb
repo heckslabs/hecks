@@ -4,9 +4,9 @@ require "tmpdir"
 require "fileutils"
 require "hecks/fuzzing"
 
-# `Hecks::Fuzzing::TargetCapabilities` — the ONE rule `bin/qa_sweep`
+# `Hecks::Fuzzing::TargetCapabilities` — the one rule `bin/qa_sweep`
 # resolves its modes by (`enabled ∩ eligible`), checked two ways: the
-# inference reads REAL corpus directories (so a regex here can never
+# inference reads real corpus directories (so a regex here can never
 # quietly stop matching what the harness actually ships), and the
 # resolution is pinned against hand-built capability sets so the
 # `MODE_REQUIREMENTS` table is itself a tested fact. `StructuralSkips`
@@ -46,7 +46,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
         rust_dir = File.join(tmp, "rust")
         FileUtils.mkdir_p(rust_dir)
         # `[package] name = "rust"` and `[[bin]] name = "rust"` both name a
-        # domain called `rust` OUTSIDE the features table — neither may
+        # domain called `rust` outside the features table — neither may
         # read as a feature.
         File.write(File.join(rust_dir, "Cargo.toml"), <<~TOML)
           [features]
@@ -110,17 +110,17 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
       expect(described_class::DEFERRED_MODES - described_class::MODE_REQUIREMENTS.keys).to be_empty
 
       # The dial and the requirements table must agree on the mode
-      # vocabulary in BOTH directions — a mode one names and the other
+      # vocabulary in both directions — a mode one names and the other
       # doesn't is exactly the drift `resolve` would silently hide.
       define_dials!
       expect(QualityControlDials::MODES.keys).to match_array(described_class::MODE_REQUIREMENTS.keys)
     end
   end
 
-  # THE DIAL, READ WITHOUT TOUCHING THE LIVE LEDGER — `QualityControlDials`
+  # The dial, read without touching the live ledger — `QualityControlDials`
   # is a constant the bluebook file defines while loading, and a bluebook
   # only loads inside a boot. `IsolatedBoot` (via `Replay.call` with no
-  # steps) boots a throwaway COPY of qa/bluebook rebound to Memory, the
+  # steps) boots a throwaway copy of qa/bluebook rebound to Memory, the
   # same door every fuzz path uses — never the real `hecks_quality_control`
   # database (`spec/quality_control_spec.rb`'s own header on why that
   # would be unacceptable).

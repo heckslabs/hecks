@@ -40,7 +40,7 @@ RSpec.describe "LedgerOrdering" do
     expect(folder[:slips].map { |slip| slip[:reference][:value] }).to eq(["S1"])
   end
 
-  # THE STRESS DISPATCH — the whole reason this domain exists. `to.entity`
+  # **The stress dispatch** — the whole reason this domain exists. `to.entity`
   # names a Slip that was never added; `amount.value` fails its own
   # invariant. Both are true at once — which refusal comes back first is
   # the question, and Ruby's own construction-before-lookup order answers

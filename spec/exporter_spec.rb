@@ -85,7 +85,7 @@ RSpec.describe Hecks::Projector::Exporter do
   end
 
   describe ".lineage" do
-    # A REAL PostgresEra binding, not `boot_in_memory`'s own override to
+    # A real PostgresEra binding, not `boot_in_memory`'s own override to
     # Memory — `Exporter.lineage`'s whole job is answering "which
     # adapter is this aggregate actually bound to," so a spec that
     # rebinds Order to Memory first would only ever prove the empty

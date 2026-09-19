@@ -7,8 +7,8 @@ require_relative "../../runtime/value"
 module Hecks
   module Adapters
     # The one SQL query compilation, shared by the SQLite and Postgres
-    # adapters — each used to carry its own copy of this walk, near-line-
-    # identical, and the copies could only drift. Every declared operator
+    # adapters — one walk rather than a near-line-identical copy per
+    # adapter, because copies can only drift. Every declared operator
     # compiles fully into SQL or the query refuses loudly; the null-policy
     # predicate, the comma-separated `in` convention, and the identity
     # ORDER BY fallback are spelled once, here.
@@ -17,7 +17,7 @@ module Hecks
     # supplies exactly those hooks:
     #
     #   placeholder(binds, value)     — "?" or "$N", recording the bind
-    #   contains_clause(expr, ph)     — instr() or position(), for a SCALAR field
+    #   contains_clause(expr, ph)     — instr() or position(), for a scalar field
     #   list_contains_clause(name, member, ph) — real element containment,
     #                                  for a `list_of` field (json_each /
     #                                  jsonb_array_elements)
@@ -33,6 +33,18 @@ module Hecks
         "eq" => "=", "ne" => "<>", "gt" => ">", "gte" => ">=", "lt" => "<", "lte" => "<="
       }.freeze
 
+      # Compiles a declared query into one SQL statement and runs it through the dialect's
+      # own `execute_query`, so filtering, ordering and paging all happen in the database.
+      #
+      # @param declared [QuerySpecification::Common::Options] the declared query: its
+      #   `wheres`, `order_by`, `limit` and `offset` are compiled; nothing else is read
+      # @param args [Hash{Symbol => Object}] values for the specification's symbolic operands
+      # @param context [Hash] execution context from `Ports::Query.execute`; accepted for the
+      #   port's call shape and not read
+      # @return [Array<Runtime::Instance>] the matching records in declared order, then by
+      #   id; `[]` when none match
+      # @raise [ArgumentError] if a where clause uses an operator this builder cannot compile,
+      #   or `contains` targets a list of a value object with more than one field
       def query(declared, args = {}, context: {})
         sql = "SELECT #{select_list} FROM #{from_relation}"
         binds = []
@@ -91,7 +103,7 @@ module Hecks
           members = in_members(value)
           return empty_in_clause if members.empty?
 
-          # BOTH SIDES AS TEXT. `in` is a textual reading everywhere else
+          # **Both sides as text**. `in` is a textual reading everywhere else
           # — Ports::Query::InMemory#holds? compares `held.to_s` against
           # stringified members, and `in_members` above stringifies its
           # own — so a numeric field was the one shape where the engines
@@ -104,7 +116,7 @@ module Hecks
           # on a String, an Integer, and a value-object member.
           #
           # `eq`/`gt`/`lt` never had this problem because they bind the
-          # value's OWN type and route through `comparable_expression`,
+          # value's own type and route through `comparable_expression`,
           # which Postgres overrides to cast numerics.
           "CAST(#{expression} AS TEXT) IN (#{members.map { |member| placeholder(binds, member) }.join(', ')})"
         else
@@ -112,16 +124,16 @@ module Hecks
         end
       end
 
-      # A REAL ARRAY ALREADY SAYS WHERE ITS MEMBERS END. Splitting one on
+      # A real array already says where its members end. Splitting one on
       # commas re-reads a boundary it already drew — and an id is a
       # domain value (Naming::IDENTITY_JOIN joins a composite identity's
       # own parts, and the parts it joins are whatever an identity path
       # pulled out of real data), so a name carrying a comma would
       # silently become two members matching the wrong rows, or nothing.
-      # This branch used to call `value.to_s` unconditionally, which
-      # meant only a comma-joined STRING ever worked here, while
+      # Calling `value.to_s` unconditionally would mean only a
+      # comma-joined string ever works here, while
       # Ports::Query::InMemory and QueryInterpreter's own `members`
-      # already handled a real Array — three implementations of `in`,
+      # handle a real Array — three implementations of `in`,
       # two readings of it. Narrower than those two on one point,
       # deliberately: they unwrap a value-object/Hash element to its
       # own scalar first (`comparable`) before stringifying, a rule
@@ -140,15 +152,15 @@ module Hecks
       # member the bound value (or the declared types) say is numeric,
       # falling back to the one-field convention `value`.
       #
-      # A REFERENCE IS AN ID, stored as a bare scalar (never wrapped —
+      # A reference is an ID, stored as a bare scalar (never wrapped —
       # `Runtime::Value.refuse_object_reference` guarantees it), so it
-      # takes the SAME plain-column path as any other non-value-object
+      # takes the same plain-column path as any other non-value-object
       # attribute. Excluding it into the value-object member-picking logic
       # compiles a nested read against a row that has no nested key — a
       # path that can never match. Measured, not assumed: a `where` on a
       # has_one/belongs_to/reference_to field returned zero rows against
       # real data until that exclusion was removed.
-      # `member` resolves through two ORDERED fallback tiers — the bound
+      # `member` resolves through two ordered fallback tiers — the bound
       # value's own numeric field first, then the declared value object's
       # numeric-or-sole attribute — each documented above as fixing a
       # real, measured bug (a reference field matching nothing, a
@@ -168,7 +180,7 @@ module Hecks
         member = if path.empty? && value
                    hash = value.is_a?(Runtime::Value) ? value.to_h : value
                    numeric = hash.is_a?(Hash) && hash.find { |_key, item| item.is_a?(Numeric) }
-                   # NOT &.-able: `numeric` can be `false` (hash.is_a?(Hash) came
+                   # Not &.-able: `numeric` can be `false` (hash.is_a?(Hash) came
                    # back false) as well as nil (.find came back empty) — `&.`
                    # only guards nil, so `false.first` raises. False positive.
                    # rubocop:disable-next Style/SafeNavigation
@@ -176,8 +188,8 @@ module Hecks
                  end
         member ||= if path.empty? && attribute && value_object?(attribute)
                      object = @aggregate.value_object(attribute.type)
-                     # A SOLE attribute is the fallback when no member is
-                     # numeric — a single-attribute value object IS its one
+                     # A sole attribute is the fallback when no member is
+                     # numeric — a single-attribute value object is its one
                      # field whatever that field is named (`Behaviour::
                      # ValueObject#sole_attribute`, the same strict rule
                      # `Runtime::Value`'s own `.value` alias enforces), so
@@ -192,11 +204,11 @@ module Hecks
         nested_expression(name, path, member)
       end
 
-      # A NUMERIC MEMBER WINS if the value object has one (Price, Money —
+      # A numeric member wins if the value object has one (Price, Money —
       # what every ordered comparison in the corpus until now compared),
-      # otherwise the SAME single-field fallback `query_expression`'s own
+      # otherwise the same single-field fallback `query_expression`'s own
       # `nested_expression(name, path, member || "value")` already
-      # makes for the COLUMN side — a plain `attribute :value, String`
+      # makes for the column side — a plain `attribute :value, String`
       # value object (IdentityId, RoleName, ...) has no numeric member at
       # all, and returning nil there silently turned an equality
       # comparison into `IS NULL`, matching nothing. Both sides of one
@@ -221,16 +233,16 @@ module Hecks
         !attr.list? && !@aggregate.value_object(attr.type).nil?
       end
 
-      # `contains` on a `list_of` field means real ELEMENT membership, not
+      # `contains` on a `list_of` field means real element membership, not
       # a substring search over the column's raw JSON text — the reading
       # QueryInterpreter#holds? and Ports::Query::InMemory already give a
-      # real Array, and the SQL side used to disagree with it (a substring
-      # match over `[{"value":"not_high_risk"}]` falsely matches
+      # real Array, and a substring search would disagree with it (a
+      # substring match over `[{"value":"not_high_risk"}]` falsely matches
       # "high_risk"). Returns nil for a non-list field (the caller falls
       # back to `contains_clause`, unchanged), "" for a list of bare
       # scalars (no member to walk into), or the one field name a
       # single-field value-object element carries. A list of a
-      # MULTI-field value object has no one scalar to compare against and
+      # multi-field value object has no one scalar to compare against and
       # is refused rather than guessed.
       def list_member(field)
         return nil if field.to_s.include?(".")

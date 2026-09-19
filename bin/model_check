@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# STATIC ANALYSIS OVER THE IR — unreachable lifecycle states, transitions
+# Static analysis over the IR — unreachable lifecycle states, transitions
 # nothing can ever fire, saga states no handler chain reaches, a
 # compensation whose from_state is unreachable (the deadlock class),
 # dispatches to a command that does not exist, handlers listening for an
@@ -37,7 +37,7 @@ def boot(source)
       folder.load_bluebooks(File.dirname(source), [File.basename(source)])
     end
 
-    # THE SIBLING HECKSAGON, IF ONE EXISTS — a port attaches to its
+    # **The sibling hecksagon, if one exists** — a port attaches to its
     # aggregate/chapter from there, not the bluebook (see
     # hecksagon_builder.rb), so a deaf-policy check that never loads it
     # would see a policy reacting to an event nothing appears to emit.
@@ -54,7 +54,7 @@ def boot(source)
   registry
 end
 
-# `known_domains:` — every bluebook/hecksagon name booted ANYWHERE across
+# `known_domains:` — every bluebook/hecksagon name booted anywhere across
 # this run, not just this one target — see `boot_all`'s own comment for
 # how it's built. `nil` for the single-target CLI form (`bin/model_check
 # some/domain`), where only that one target's own boot is ever seen —
@@ -96,7 +96,7 @@ def examine(name, registry, known_domains: nil)
   errors.empty?
 end
 
-# THE LANGUAGE, EXAMINED THROUGH THE SAME DOOR ITS OWN CONFORMANCE SPECS
+# The language, examined through the same door its own conformance specs
 # use — not a standalone Kernel.load of one grammar file. The nine
 # GRAMMAR_FILES only assemble into one real "Bluebook" chapter together
 # (they all open `Hecks.bluebook "Bluebook" do`), and grammar_registry is
@@ -133,21 +133,21 @@ if domain_arg
   registry = boot(Hecks::Corpus.bluebook_dir(domain_arg.chomp("/")) || domain_arg)
   ok = examine(File.basename(domain_arg.chomp("/")), registry)
 else
-  # EVERY CORPUS KIND — examples, grammar chapters, framework members, the
+  # **Every corpus kind** — examples, grammar chapters, framework members, the
   # QA ledger, stress domains and fixtures — read from the one table
   # spec/model_check_spec.rb reads too. Globbed separately, the two once
-  # disagreed in both directions. A fixture a Corpus ROUTE sends elsewhere
+  # disagreed in both directions. A fixture a Corpus route sends elsewhere
   # (the broken-on-purpose model_check fixtures, the conflicting era
   # versions) is checked there, by its own destination, not here.
   targets = Hecks::Corpus.model_check_members
                          .map { |member| [member.stem, Hecks::Corpus.source_of(member)] }
 
-  # TWO PASSES OVER THE SAME BOOTS, not two boots — PASS 1 boots every
+  # Two passes over the same boots, not two boots — pass 1 boots every
   # target once (booting is the expensive part) and accumulates every
-  # bluebook/hecksagon name any of them declares into ONE corpus-wide
-  # set; PASS 2 re-examines each already-booted registry against that
-  # NOW-COMPLETE set, so a cross-domain check on the FIRST target
-  # examined still sees the LAST target's own domain names too — the
+  # bluebook/hecksagon name any of them declares into one corpus-wide
+  # set; pass 2 re-examines each already-booted registry against that
+  # now-complete set, so a cross-domain check on the first target
+  # examined still sees the last target's own domain names too — the
   # exact reason a single boot's own registry (Compliance never loaded
   # in the same registry as Banking, by design) cannot answer "does
   # this target domain exist anywhere in the corpus" on its own.

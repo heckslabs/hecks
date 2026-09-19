@@ -1,7 +1,7 @@
 require "tmpdir"
 require "open3"
 
-# bin/lint_deploy_recipes is a SCRIPT, not a library (bin/stores_spec.rb's
+# bin/lint_deploy_recipes is a script, not a library (bin/stores_spec.rb's
 # own header explains the convention this repo already follows for a bin/
 # tool with nothing to require) — its CLI runs only when invoked as the
 # main program (`if $PROGRAM_NAME == __FILE__`), so `Kernel.load`'ing it
@@ -13,17 +13,17 @@ Kernel.load(File.expand_path("../bin/lint_deploy_recipes", __dir__))
 
 # Proves two things about bin/lint_deploy_recipes:
 #
-#   1. It actually catches the BUG CLASS behind H13/H14 (docs/audits/
+#   1. It actually catches the bug class behind H13/H14 (docs/audits/
 #      2026-08-11-bug-triage.md) — a fabricated recipe reproducing each
 #      shape gets flagged, not just the two now-fixed real instances.
-#   2. It does not cry wolf on what bin/project_deploy generates TODAY —
+#   2. It does not cry wolf on what bin/project_deploy generates today —
 #      the CLI's own no-arguments run lints every target of its three
 #      real generated fixture Makefiles (own/shared/oauth) and must find
 #      zero violations, including the recipes those fixes actually
 #      touched (mint-era, scaffold-translation, translation-audit,
 #      migrate-console-settings, rename-schema, sync-google-oauth).
 #
-# `deploy:` USED TO be excluded from the "known clean" set below — running
+# `deploy:` used to be excluded from the "known clean" set below — running
 # this linter against the real generator used to surface one genuine (if
 # low-severity) finding there: PROD_TOUCH_WITHOUT_ECHO on
 # predeploy_bridge_shell's own `aws cloudformation describe-stacks`
@@ -160,7 +160,7 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
       # "echo" in its own explanation — confirmed live in the real
       # generator's own predeploy_bridge_shell comment, which literally
       # contains the substring "sam deploy" as prose. Neither should ever
-      # satisfy (or trigger) this check; only a REAL, executing shell
+      # satisfy (or trigger) this check; only a real, executing shell
       # statement counts.
       bad = <<~MAKEFILE
         touch-prod:
@@ -184,12 +184,12 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
     end
   end
 
-  # --- 2. End-to-end CLI — including the REAL generator's output ---------
+  # --- 2. End-to-end CLI — including the real generator's output ---------
   #
   # The no-arguments example below is what proves (2) above: it
   # generates the same own/shared/oauth fixture domains
   # (`DeployRecipeLint.fixtures`) through the real bin/project_deploy
-  # and requires ZERO violations across EVERY target in each generated
+  # and requires zero violations across every target in each generated
   # Makefile — a strict superset of the per-target "known clean" checks
   # this file used to run against its own separately-generated copies of
   # those same three fixtures.
@@ -235,7 +235,7 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
     end
 
     describe "with no arguments" do
-      # ONE real no-arguments run (three real bin/project_deploy builds)
+      # One real no-arguments run (three real bin/project_deploy builds)
       # shared by both examples below — the cleanup check needs a
       # finished run, not a second one of its own.
       before(:context) do
@@ -245,8 +245,8 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
 
       it "generates its own fixture domains and lints them (real bin/project_deploy output)" do
         # Used to pin one known, real, reported-not-fixed PROD_TOUCH_WITHOUT_
-        # ECHO finding on `deploy` here — see this file's own top comment.
-        # Now fixed, so a genuinely clean run is expected; ANY violation
+        # echo finding on `deploy` here — see this file's own top comment.
+        # Now fixed, so a genuinely clean run is expected; any violation
         # reappearing here is a regression in bin/project_deploy's own
         # generated recipes.
         expect(@no_args_status.success?).to be(true), @no_args_report
@@ -254,14 +254,14 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
       end
 
       it "cleans up every fixture domain it generates under deploy/, win or lose" do
-        # NAMED, not "the whole listing is unchanged" — that first version
-        # of this check found a real bug in ITSELF, not in
+        # Named, not "the whole listing is unchanged" — that first version
+        # of this check found a real bug in itself, not in
         # bin/lint_deploy_recipes: deploy/ is shared, unscoped scratch
         # space, and other spec files (spec/project_deploy_bug_fixes_spec.rb's
         # own "h14_own_fixture", for one) generate their own fixtures
         # there too. Confirmed live — a before/after directory-listing
         # diff caught "added: [\"h14_own_fixture\"]" that had nothing to
-        # do with this example: a DIFFERENT spec file's own
+        # do with this example: a different spec file's own
         # before(:context), running concurrently in a different
         # parallel_rspec worker, created it in the same shared directory
         # during this example's own before/after window. What this

@@ -11,8 +11,15 @@ module Hecks
         module TailMerge
           # ── fork observability ─────────────────────────────────────────
 
+          # Counts the journal rows an old era wrote after the next era's cut.
+          #
           # Post-cut writes an old era made after the newer era was minted
           # — the divergence between the worlds, observable at any time.
+          #
+          # @param old_era [Integer] ordinal of the superseded era to measure
+          # @return [Integer] number of `old_era` rows past the watermark of era `old_era + 1`;
+          #   0 when the domain holds no such newer era
+          # @raise [Runtime::WiringError] if a held era's text fails its integrity check
           def diverged_count(old_era)
             cut = eras.find { |era| era[:ordinal] == old_era + 1 }&.dig(:watermark)
             return 0 unless cut
@@ -24,6 +31,8 @@ module Hecks
 
           # ── tail-merge ─────────────────────────────────────────────────
           #
+          # Folds every old era's post-cut writes into the current era's heads, under named winners.
+          #
           # The one deliberate command — it marks a business event (an app
           # retiring), never a shape change. One transaction: advance the
           # watermarks, rebuild the head so the tail interleaves by its
@@ -34,13 +43,27 @@ module Hecks
           # re-enters as the newest row and wins structurally — originals
           # stay immutable).
           # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-          # One Postgres transaction (BEGIN…COMMIT) with a manual ROLLBACK
+          # One Postgres transaction (`BEGIN`…`COMMIT`) with a manual `ROLLBACK`
           # at every early refusal, and a snapshot-before-mutation
           # invariant (`new_states` captured before the head rebuild lets
           # the tail interleave). Splitting the steps into separate
           # methods would force each to independently know how to roll
           # back the same shared transaction, and would separate the
           # snapshot from the mutation it must precede.
+          #
+          # @param aggregates [Array<Bluebook::Aggregate>] the current bluebook's aggregates, each
+          #   of which gets its head rebuilt
+          # @param edges [Array<Hash{Symbol => Bluebook::Translation}>] the full edge chain in mint
+          #   order, one `{ translation: }` Hash per step, as `LineageManager.edge_chain` builds it
+          # @param winners [Hash{String => String}] aggregate id to winning side, `"old"` or
+          #   `"new"`; the winner's whole state is appended as the newest row
+          # @param audit [#call, nil] callable run just before `COMMIT` that returns an
+          #   `Array<String>` of violations, empty to pass; nil skips the audit
+          # @return [true] always, once the merge is committed; every refusal raises instead
+          # @raise [Runtime::WiringError] if the domain stands at era 1, if an id touched by both
+          #   worlds since the cut has no entry in `winners`, if `audit` reports a violation, if
+          #   another mint or merge holds the domain lock for over 10s, if Postgres refuses any
+          #   statement, or if a held era's text fails its integrity check
           def merge_tail!(aggregates:, edges:, winners: {}, audit: nil)
             @db.exec("BEGIN")
             @db.exec("SET LOCAL lock_timeout = '10s'")
@@ -159,18 +182,18 @@ module Hecks
           end
           # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
-          # Ids touched by BOTH worlds since the cut — the old world's
+          # Ids touched by both worlds since the cut — the old world's
           # post-cut tail INTERSECTed with the new world's own writes.
           #
-          # KNOWN GAP, not silently risked: this compares raw
+          # Known gap, not silently risked: this compares raw
           # `aggregate_id` values, with no notion of "these two different
           # ids are the same entity, rekeyed." If a domain's history
-          # includes a rekey (see TranslationRekey) and is LATER
+          # includes a rekey (see TranslationRekey) and is later
           # merged here, a record's pre-rekey and post-rekey rows will
           # never intersect — they just silently survive as two separate,
           # unrelated-looking heads (a duplicate, not corruption: nothing
           # here deletes or clobbers either side). Resolve any such
-          # duplicate manually after a merge; teaching this INTERSECT
+          # duplicate manually after a merge; teaching this intersect
           # about a rekey mapping is real, separate work, deliberately
           # out of scope for rekey's first pass.
           def conflict_ids(aggregate, edges, era, cut)

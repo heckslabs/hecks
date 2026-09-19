@@ -11,8 +11,8 @@ end
 require "hecks"
 require_relative "support/ci_skip_backstop"
 
-# LOOSE KEYWORD FACTS IN DISPATCH ARE DEPRECATED (roadmap I3), and the suite
-# REFUSES a new one outright rather than warning, so no spec — nor a doctested
+# Loose keyword facts in dispatch are deprecated (roadmap I3), and the suite
+# refuses a new one outright rather than warning, so no spec — nor a doctested
 # guide, which runs under this helper too — can reintroduce the shape. The
 # sites that already exist are counted, file by file, in
 # spec/support/legacy_dispatch_sites.rb (its own header says what is left and
@@ -68,7 +68,7 @@ module InMemoryDomain
       Kernel.load(PRISM_ADAPTER)
       Kernel.load(PIZZAS_BLUEBOOK)
 
-      # `::` on purpose — a real .hecksagon file is loaded at TOP LEVEL, where an
+      # `::` on purpose — a real .hecksagon file is loaded at top level, where an
       # unresolved constant reaches Object's const_missing (ConstShim ->
       # BindingProxy). This block lives inside a module, so a bare `Pizzas`
       # would be looked up here first and reach no hook at all.
@@ -114,7 +114,7 @@ RSpec.configure do |config|
   config.filter_run_excluding io: true unless ENV["CI"]
 
   # `fuzzing: true` — every example under spec/fuzzing/, tagged by
-  # PATH rather than by hand at each file (`define_derived_metadata`,
+  # path rather than by hand at each file (`define_derived_metadata`,
   # not a per-file `:fuzzing` label to keep in sync). Not `io: true`
   # itself — nothing here does real I/O, it's slow for a different
   # reason: a live-generated-history replay against a real domain,

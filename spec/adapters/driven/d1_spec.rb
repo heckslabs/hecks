@@ -42,7 +42,7 @@ RSpec.describe Hecks::Adapters::D1 do
   end
 
   it "prefers a symbol-keyed :account_id over a string-keyed one, even when the symbol value is falsy" do
-    # `||` would have silently used the STRING key's value here instead
+    # `||` would have silently used the string key's value here instead
     # (`false` at :account_id treated as if absent). Asserting on the exact
     # args `Connection.new` receives is what actually proves the fixed
     # `key?`-gated read, not just that construction happened to succeed.

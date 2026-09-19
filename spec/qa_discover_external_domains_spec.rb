@@ -1,18 +1,18 @@
 require "spec_helper"
 require "open3"
 
-# `bin/qa_discover_external_domains` — the hecks_qa practice's OWN
+# `bin/qa_discover_external_domains` — the hecks_qa practice's own
 # rotation-widening discovery over `~/Projects` (never the ledger read
 # in this spec: `--known-path` bypasses it exactly the way
 # `bin/qa_domain_novelty`'s own spec uses `--against`, so this proves
 # the script itself against a fixture `~/Projects` analog, never a real
 # machine's home directory or a live Postgres ledger).
 RSpec.describe "bin/qa_discover_external_domains" do
-  # NOT `FIXTURES` — `spec/runtime/storage_shape_spec.rb` already owns
-  # that top-level constant with a DIFFERENT value, and every spec file
+  # Not `FIXTURES` — `spec/runtime/storage_shape_spec.rb` already owns
+  # that top-level constant with a different value, and every spec file
   # loads into the same process: whichever file loads last wins, and
   # this one had been silently reading storage_shape_spec's own fixture
-  # root instead of its own (caught only by running the WHOLE suite
+  # root instead of its own (caught only by running the whole suite
   # together, never by running this file alone).
   DISCOVER_EXTERNAL_DOMAINS_FIXTURES =
     File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_discover_external_domains/projects").freeze

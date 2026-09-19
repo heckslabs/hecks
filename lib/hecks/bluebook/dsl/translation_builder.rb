@@ -28,10 +28,10 @@ module Hecks
           @backfills = []
         end
 
-        # RENAMED FROM `rename`/`move`/`convert`/`retype`/`compute`/
+        # Renamed from `rename`/`move`/`convert`/`retype`/`compute`/
         # `rekey`/`backfill` (all seven below) — item #13's full
         # metaprogrammed dispatch (slice 4c). Not bootstrap-reachable
-        # (translation.bluebook describes ITS OWN structure with
+        # (translation.bluebook describes its own structure with
         # aggregate/entity/attribute, never with these — they're
         # words for real, user-authored `.translation` files only,
         # loaded after the grammar table exists), so none need a
@@ -93,7 +93,7 @@ module Hecks
           @computes << TranslationCompute.new(old_path.to_s, to.to_s, sql.to_s)
         end
 
-        # THE AGGREGATE'S OWN IDENTITY, changing what it's computed from —
+        # The aggregate's own identity, changing what it's computed from —
         # not a field crossing a boundary (`move`), not a value's own
         # transform (`compute`): the record's key. No path arguments,
         # unlike every rule above — nothing is consumed from or moved into
@@ -107,8 +107,8 @@ module Hecks
           @rekeys << TranslationRekey.new(sql.to_s)
         end
 
-        # A NEWLY ADDED, required attribute — the addition-side sibling of
-        # `drop`. Nothing to rename, move, or convert FROM, since old data
+        # A newly added, required attribute — the addition-side sibling of
+        # `drop`. Nothing to rename, move, or convert from, since old data
         # never held this field at all; `default` is what an existing
         # record reads until the next command against it writes a real
         # value. Adapter-agnostic, unlike `compute` — applied the same
@@ -128,11 +128,11 @@ module Hecks
         # The scaffold writes this where it cannot decide; a file carrying
         # one can only boot into this refusal — never a guess.
         #
-        # RENAMED FROM `unresolved` — item #13's full metaprogrammed
+        # Renamed from `unresolved` — item #13's full metaprogrammed
         # dispatch (slice 4). Builds its own message with real branching
         # (empty vs. named candidates, a special :identity case), not a
         # fixed string a boolean `refuses:` flag could express — reached
-        # through `calls:` instead, like `attribute`/`role`. NOT
+        # through `calls:` instead, like `attribute`/`role`. Not
         # bootstrap-reachable: translation.bluebook (loaded during
         # bootstrap, to describe the translation DSL itself) never
         # writes `unresolved` — that word is only ever used by real,
@@ -178,7 +178,7 @@ module Hecks
           path.to_s.include?(".") ? path.to_s.inspect : ":#{path}"
         end
 
-        # THE SCAFFOLD'S OWN HINT for the one drift it can detect but never
+        # The scaffold's own hint for the one drift it can detect but never
         # resolve on its own — an aggregate's `identified_by` changed. Not
         # a field to rename/move/drop, so none of the ordinary hints fit;
         # `coverage_check.rb#check_identity_unchanged!` is the real gate,
@@ -211,7 +211,7 @@ module Hecks
           @retired    = []
         end
 
-        # RENAMED FROM `aggregate` — item #13's full metaprogrammed
+        # Renamed from `aggregate` — item #13's full metaprogrammed
         # dispatch (slice 4c). Not bootstrap-reachable — this "Translation"
         # -context `aggregate` (opens a TranslationAggregateBuilder) is a
         # different (context, word) pair than "Bluebook"-context

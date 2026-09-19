@@ -7,7 +7,7 @@ module Hecks
       # is the part no field table can say: which construct holds which, and how a
       # head's references become able to resolve.
       #
-      # It DECIDES NOTHING. Whether a declaration is admissible was settled on the
+      # It decides nothing. Whether a declaration is admissible was settled on the
       # way in, by the language.
       class AggregateAssembly
         def initialize(row)
@@ -29,7 +29,7 @@ module Hecks
             entities:          entities,
             queries:           asks,
             lifecycle:         lifecycle_of(@row),
-            # A policy declared inside a head is HOISTED onto the chapter by the
+            # A policy declared inside a head is hoisted onto the chapter by the
             # builder, and `Aggregate#to_h` never carried it — so the language does
             # not record which head a chapter-level policy was written in. The
             # chapter holds them all, which is what `PolicyInterpreter` reads.
@@ -43,11 +43,11 @@ module Hecks
 
         private
 
-        # What this head points at with an aggregate-level `reference_to`. NOT the
+        # What this head points at with an aggregate-level `reference_to`. Not the
         # self-references its verbs carry — the first version read
         # `commands.filter_map(&:references)` and gave Pizza two targets of "Pizza",
         # its own verbs pointing at itself, where the builder recorded none. An
-        # aggregate-level `reference_to X` leaves a reference ATTRIBUTE behind, so
+        # aggregate-level `reference_to X` leaves a reference attribute behind, so
         # the attributes are where the answer is.
         def reference_targets(fields)
           fields.select(&:reference?).map { |field| field.type.target_name }
@@ -57,7 +57,7 @@ module Hecks
           Build.call("ValueObject", row)
         end
 
-        # S17, ADR 0026 — RECURSES. "That is what `entity` is for, and
+        # S17, ADR 0026 — recurses. "That is what `entity` is for, and
         # `entity` is declared by the language and used zero times in it"
         # — Dispatch, inside Handler, is the first use, so `row[:entities]`
         # is built the same way `row` itself was reached: through this
@@ -75,7 +75,7 @@ module Hecks
 
         # Every reference learns which head declares it, so it can reach the chapter
         # and resolve. Deliberately across every list that can carry one — a
-        # reference the walk misses resolves to nil, and a nil target is SKIPPED
+        # reference the walk misses resolves to nil, and a nil target is skipped
         # rather than refused, so the guarantee would go quiet instead of red.
         def stamp_references(aggregate)
           lists = [aggregate.attributes, *aggregate.commands.map(&:attributes), *aggregate.queries.map(&:attributes)]
@@ -84,7 +84,7 @@ module Hecks
           lists.flatten.select(&:reference?).each { |field| field.type.declared_in = aggregate }
         end
 
-        # S17, ADR 0026 — walks NESTED entities too (Dispatch, inside
+        # S17, ADR 0026 — walks nested entities too (Dispatch, inside
         # Handler), not only an aggregate's own direct ones.
         def entity_reference_lists(entities, lists)
           entities.each do |piece|
@@ -95,7 +95,7 @@ module Hecks
           end
         end
 
-        # THREE LANGUAGE FIELDS, ONE IR OBJECT. `state_field`, `state_start` and
+        # Three language fields, one IR object. `state_field`, `state_start` and
         # `transitions` are separate declarations; the IR keeps one Lifecycle. The
         # contract names them derived, and this is what derives them.
         def lifecycle_of(row)
@@ -110,8 +110,8 @@ module Hecks
         end
 
         # A lifecycle holds [command, StateTransition] pairs and `to_h` expands one
-        # pair whose `from` is a list into several rows. Grouped back by command AND
-        # TARGET, because one declared pair has exactly one target and may have many
+        # pair whose `from` is a list into several rows. Grouped back by command and
+        # target, because one declared pair has exactly one target and may have many
         # froms — grouping by command alone would fuse two declarations that move the
         # same verb to different states.
         def transitions(rows)

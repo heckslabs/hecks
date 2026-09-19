@@ -17,7 +17,7 @@ module Hecks
           end
         end
 
-        # An EXPLICIT, opt-in maintenance operation — never run
+        # An explicit, opt-in maintenance operation — never run
         # automatically after an ordinary save/delete. Heki's journal is
         # not a disposable write-ahead log: it is this adapter's own
         # answer to `entries`, and `entries` is a real port contract
@@ -26,7 +26,7 @@ module Hecks
         # and `Registry#projection_current?` to catch a projection up to
         # its authoritative source, and by `bin/history` to show "every
         # journal entry a domain's append-only adapters hold" — the same
-        # contract Postgres/Sqlite/D1 uphold by way of a journal TABLE
+        # contract Postgres/Sqlite/D1 uphold by way of a journal table
         # that is never pruned. A real example (`examples/banking`,
         # `persisted_by("Heki")` + `projected_by("SqliteProjection")`)
         # depends on this today. Compacting throws that full history away

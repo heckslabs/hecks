@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # Compacts a Heki-backed aggregate's own journal file down to empty,
-# after re-confirming its snapshot is fully caught up — an EXPLICIT,
+# after re-confirming its snapshot is fully caught up — an explicit,
 # opt-in maintenance operation. Never run automatically, and never as
 # a side effect of an ordinary save/delete.
 #
@@ -12,14 +12,14 @@
 # projection_current?` to catch a projection up to its authoritative
 # source, and by `bin/history` to show "every journal entry a
 # domain's append-only adapters hold" — the same contract Postgres/
-# Sqlite/D1 uphold by way of a journal TABLE that is never pruned. A
+# Sqlite/D1 uphold by way of a journal table that is never pruned. A
 # real example (`examples/banking`, `persisted_by("Heki")` +
 # `projected_by("SqliteProjection")`) depends on this today.
 #
 # Compacting throws that full operation history away for whatever
 # happened before the call — only the aggregate's current state
 # survives, exactly what its own `.heki` snapshot already held. Safe
-# ONLY for an aggregate nothing ever projects from. This script
+# only for an aggregate nothing ever projects from. This script
 # refuses outright, with no override, for any aggregate a
 # `projected_by` binding targets — see `binds_for` below — and
 # otherwise still requires `--force` after a dry run shows exactly

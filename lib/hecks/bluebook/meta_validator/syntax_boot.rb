@@ -4,25 +4,25 @@ require "fileutils"
 module Hecks
   module Bluebook
     module MetaValidator
-      # S14, ADR 0026 — DISPATCHES THE LANGUAGE'S OWN GRAMMAR TABLE INTO
-      # ITSELF, once, so `Keyword`/`Argument`'s own `status` genuinely IS a
+      # S14, ADR 0026 — dispatches the language's own grammar table into
+      # itself, once, so `Keyword`/`Argument`'s own `status` genuinely is a
       # lifecycle — checked at real dispatch time (the same admission/
       # coercion/lifecycle-guard door every other command goes through),
       # not merely declared and never exercised.
       #
-      # THE SOURCE STAYS STATIC. Aggregate-local `KeywordSeed`/
+      # **The source stays static**. Aggregate-local `KeywordSeed`/
       # `ArgumentSeed` value objects (still hand-written `member` rows —
-      # now beside the concepts they spell) are what gets WRITTEN ; this
-      # is what turns them into what gets READ. `Judge`/`Reconstruction`
+      # now beside the concepts they spell) are what gets written ; this
+      # is what turns them into what gets read. `Judge`/`Reconstruction`
       # already draw exactly this line everywhere else in the meta-domain
-      # (a chapter's own DECLARATIONS versus what gets DISPATCHED from
+      # (a chapter's own declarations versus what gets dispatched from
       # them) — this runs the same distinction one level further out, for
       # the language's own grammar table.
       #
-      # A DEDICATED RUNTIME, not `MetaValidator.fresh_runtime`. That one
-      # is reserved for `Judge`'s own bootstrap (dispatching a CHAPTER's
-      # declarations INTO the meta-domain's grammar) — a different act
-      # from this one (dispatching the meta-domain's OWN grammar table
+      # A dedicated runtime, not `MetaValidator.fresh_runtime`. That one
+      # is reserved for `Judge`'s own bootstrap (dispatching a chapter's
+      # declarations into the meta-domain's grammar) — a different act
+      # from this one (dispatching the meta-domain's own grammar table
       # data into a live "Bluebook" domain instance). Sharing the runtime
       # would let one boot's own repository state leak into the other's.
       #
@@ -32,7 +32,7 @@ module Hecks
       #
       # each row a plain Hash, string values, `status` included — the
       # exact shape `ParserTable`/`syntax_conformance_spec` already read
-      # off the OLD closed-set members, so neither consumer had to change
+      # off the old closed-set members, so neither consumer had to change
       # what it does with a row, only where the row comes from.
       module SyntaxBoot
         module_function
@@ -43,21 +43,21 @@ module Hecks
         # conformance_spec, bin/reference) should each pay for on every
         # call.
         #
-        # KEYED BY THE GRAMMAR REGISTRY'S OWN CHAPTER SET, not by a
+        # Keyed by the grammar registry's own chapter set, not by a
         # "ready" flag. `boot` reads exactly two things: the registry's
         # "Bluebook" chapter (the core seed rows) and every chapter in the
         # registry that `attaches_to` a core context (Paging's rows). So
-        # the table is a pure function of which chapter OBJECTS the
+        # the table is a pure function of which chapter objects the
         # registry holds — and that is the cache key: the same chapters,
         # by identity, mean the same table; a chapter replaced (the
         # fixpoint judge swapping a raw chapter for its assembled self)
         # or added (`load_attached_grammar_into`) means a fresh boot.
         #
-        # WHY NOT THE EARLIER `grammar_registry_ready?` GUARD. That guard
+        # Why not the earlier `grammar_registry_ready?` guard. That guard
         # was right about the hazard — a snapshot taken mid-build, before
         # Paging attached, would be missing limit/offset/cursor/nulls
         # forever — and wrong about the cost of its cure. It refused to
-        # cache ANYTHING until the whole grammar registry had finished
+        # cache anything until the whole grammar registry had finished
         # building, calling that window "narrow" and recomputing in it
         # "cheap". Measured (hecks_ai_training, a six-entity chess domain,
         # 2026-08-22): every `word_gate_dispatch` landing in that window
@@ -72,7 +72,7 @@ module Hecks
         # chapter objects, so it invalidates this the same way it always
         # invalidated `grammar_registry_ready?`.
         #
-        # `equal?`, NOT `==`, on the chapters — identity is the fact being
+        # `equal?`, not `==`, on the chapters — identity is the fact being
         # tracked. Holding the chapter objects themselves (not their ids)
         # in the key also means a collected chapter can never hand its id
         # to a newcomer behind this cache's back.
@@ -98,16 +98,16 @@ module Hecks
             end
         end
 
-        # CROSS-PROCESS PERSISTENCE for the SAME ~1s-per-build work `call`
-        # above already memoizes IN-process — this file's own chapter-
+        # Cross-process persistence for the same ~1s-per-build work `call`
+        # above already memoizes in-process — this file's own chapter-
         # identity keying only ever helps callers sharing one process (the
         # in-memory fixpoint window, or `bin/reference`'s single run); every
-        # FRESH process (a `qa_sweep --all` child, a `parallel_rspec`
+        # fresh process (a `qa_sweep --all` child, a `parallel_rspec`
         # worker, `bin/qa_sweep` itself) pays both real builds again from
         # scratch even when the grammar source hasn't changed at all since
         # the last process that built it.
         #
-        # NOT A FIX FOR THE TWO-BUILDS-PER-PROCESS SHAPE — investigated and
+        # Not a fix for the two-builds-per-process shape — investigated and
         # confirmed genuine, not waste (see this module's own header
         # history: the previous "wait for the whole registry" design cost
         # 42 rebuilds/32s per process precisely because real callers need a
@@ -117,17 +117,17 @@ module Hecks
         # earlier process has already paid for that exact chapter-set +
         # grammar-content combination.
         #
-        # KEYED THE SAME WAY `same_chapters?` IS, TRANSLATED ACROSS PROCESS
-        # BOUNDARIES — chapter *object identity* (what the in-memory cache
+        # Keyed the same way `same_chapters?` is, translated across process
+        # boundaries — chapter *object identity* (what the in-memory cache
         # keys on) means nothing to a different process; chapter *names*,
         # in the same order, do. Combined with a content hash of every
         # grammar file `boot` can read from (`seed_chapters` walks every
         # bluebook the registry holds, so this must cover the core chapters
-        # AND every attached one, not just "Bluebook" + "Paging") — a
+        # and every attached one, not just "Bluebook" + "Paging") — a
         # source edit anywhere in that set correctly misses the old cache
         # entry rather than silently serving a stale table.
         #
-        # FAILS TOWARD A REAL BOOT, NEVER TOWARD A WRONG TABLE — same
+        # Fails toward a real boot, never toward a wrong table — same
         # loud-not-silent discipline this codebase already holds CI to
         # (`postgres_io_relevant_changed`'s own header). A missing file, a
         # corrupt Marshal blob, a permission error, an unwritable `tmp/` —
@@ -137,7 +137,7 @@ module Hecks
         # lasts artifact (`Storehouse::LOG_ROOT`'s own header names the
         # same convention).
         #
-        # ATOMIC WRITE, NOT A LOCK — `qa_sweep --all` spawns up to 4
+        # **Atomic write, not a lock** — `qa_sweep --all` spawns up to 4
         # children at once, any of which could reach a cold cache
         # simultaneously and each compute the identical real boot result
         # for the identical key. Writing to a PID-suffixed temp file and
@@ -186,7 +186,7 @@ module Hecks
           Digest::SHA256.hexdigest("#{names.join(',')}:#{grammar_content_digest}")
         end
 
-        # EVERY FILE `boot` CAN POSSIBLY READ FROM, via `seed_chapters`
+        # Every file `boot` can possibly read from, via `seed_chapters`
         # walking every bluebook the registry holds — not just "Bluebook"
         # and "Paging" (the two chapters this module's own comments name
         # most often), because World/Hecksagon/any future attached chapter
@@ -207,9 +207,9 @@ module Hecks
           # `MetaValidator.fresh_runtime`, not a brand-new `Runtime::
           # Registry` — the grammar registry's own copy already has
           # "Bluebook" registered (`grammar_registry`'s own boot already
-          # ran `registry.add_bluebook`) AND its adapter ports already
+          # ran `registry.add_bluebook`) and its adapter ports already
           # loaded ; a standalone registry would need both wired by hand.
-          # `fresh_runtime` resets `@repositories` on the SAME registry —
+          # `fresh_runtime` resets `@repositories` on the same registry —
           # the identical isolation `Judge.new` already relies on for
           # every real domain it judges, proven safe by every dispatch
           # this session has ever made.
@@ -231,7 +231,7 @@ module Hecks
           { value: text.to_s }
         end
 
-        # ABSENT STAYS ABSENT. A seed row's own optional columns ("was",
+        # Absent stays absent. A seed row's own optional columns ("was",
         # "at", "named", ...) are empty strings, not nil — `Literal`/CSV-
         # shaped grammar data has no `nil` to write — so this is the one
         # place that decides "" means "not given" for the purpose of an
@@ -243,7 +243,7 @@ module Hecks
           v(text)
         end
 
-        # `Syntax.Declare`'s own `reference_to Bluebook` names the CHAPTER
+        # `Syntax.Declare`'s own `reference_to Bluebook` names the chapter
         # it belongs to — the same fact every other top-level aggregate's
         # own creating command carries (`ProcessManager.Declare`,
         # `Policy.Declare`, ...). This fresh runtime holds no chapter
@@ -262,8 +262,8 @@ module Hecks
                            with: { bluebook: bluebook.hecks_name, name: v(syntax.hecks_name) })
         end
 
-        # `to: "Syntax"` NAMES THE RECORD ALREADY OPENED BY `declare_syntax`
-        # ABOVE — an append onto an existing aggregate, not a second creation
+        # `to: "Syntax"` names the record already opened by `declare_syntax`
+        # above — an append onto an existing aggregate, not a second creation
         # of it. This used to smuggle `name: v("Syntax")` into the payload
         # instead, the pre-routing convention `Judge#appends` (the same
         # append shape, for `ValueObject.Member`/`ProcessManager.Handler`)
@@ -308,12 +308,12 @@ module Hecks
           end
         end
 
-        # EVERY AGGREGATE-LOCAL TABLE IN EVERY LOADED LANGUAGE CHAPTER.
+        # Every aggregate-local table in every loaded language chapter.
         # The table's presence is the registration: no chapter, aggregate,
         # filename, or context catalog is maintained here. This finds the core
         # Bluebook concepts, the sibling artifact languages (World, Hecksagon,
         # Port, Adapter, Translation), and attached sub-languages alike.
-        # Concatenated into ONE sequence because `position` is minted from the
+        # Concatenated into one sequence because `position` is minted from the
         # walk index and must not collide across concepts.
         def all_rows(bluebook, name)
           seed_chapters(bluebook).flat_map { |chapter| rows(chapter, name) }
@@ -340,7 +340,7 @@ module Hecks
           end
         end
 
-        # Reads the dispatched result back into the SAME shape `rows`
+        # Reads the dispatched result back into the same shape `rows`
         # above hands the seed data in as — plain hashes, string values,
         # `status` included — so `ParserTable`/`syntax_conformance_spec`
         # need not know or care that a real dispatch happened in between.

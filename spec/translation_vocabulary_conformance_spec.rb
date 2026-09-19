@@ -28,14 +28,14 @@ RSpec.describe "the declared translation rule kinds" do
   # The builder's own rule methods, introspected rather than listed — add a
   # rule to the DSL without declaring it and this fails; declare one the DSL
   # does not implement and this fails. A rule word "admitted" now means
-  # EITHER a real public method OR one `GenericDispatch` (item #13's full
+  # either a real public method or one `GenericDispatch` (item #13's full
   # metaprogrammed dispatch) executes off the grammar table directly —
   # `drop` moved to the second kind in slice 2 (whole-project table-
   # unification survey) and no longer shows up in `public_instance_
   # methods` at all, the same way `WordGate`'s own admissibility check
   # never counted `method_missing` itself as an answered word. `unresolved`
   # (slice 4) and `rename`/`move`/`convert`/`retype`/`compute`/`rekey`/
-  # `backfill` (slice 4c) all moved to the SAME second kind, but (unlike
+  # `backfill` (slice 4c) all moved to the same second kind, but (unlike
   # `drop`) each kept a real, directly-defined method — just renamed to
   # `*_impl` and reached through `calls:` — so every one of those names has
   # to be excluded from the direct-methods half here too, or it would show
@@ -69,9 +69,9 @@ RSpec.describe "the declared translation rule kinds" do
   # WordGate (item #13's remaining builders) replaced the builder's own
   # hand-written method_missing — a genuine typo (`banana`, admitted
   # nowhere in the whole grammar) now falls through to Ruby's own plain
-  # NoMethodError instead, so the OLD probe (any unknown word producing
+  # NoMethodError instead, so the old probe (any unknown word producing
   # a full "must be X, Y, or Z" list) no longer applies. A word admitted
-  # SOMEWHERE ELSE in the grammar but not in this context still gets
+  # somewhere else in the grammar but not in this context still gets
   # WordGate's own richer, table-driven refusal, which names this
   # context's full legal-word list — `identified_by` (real, Aggregate
   # context) stands in for the old `banana` probe.

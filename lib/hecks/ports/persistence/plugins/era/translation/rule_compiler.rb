@@ -2,23 +2,22 @@ require "json"
 
 module Hecks
   module Translation
-    # The closed, PURE half of Postgres's own SQL compiler
-    # (adapters/driven/postgres_era/lineage/head_compiler.rb) — the part
-    # that turns one TranslationAggregate's declared rules into a
-    # jsonb-transforming SQL expression. No database connection, no
-    # watermark, no era chain, no catalog lookup: those stay exactly
-    # where they were, in head_compiler.rb's own per-mint assembly,
-    # which calls into this module instead of defining these methods
-    # itself.
+    # The closed, pure half of Postgres's own SQL compiler
+    # (ports/persistence/plugins/era/postgres_era/lineage/head_compiler.rb)
+    # — the part that turns one TranslationAggregate's declared rules into
+    # a jsonb-transforming SQL expression. No database connection, no
+    # watermark, no era chain, no catalog lookup: those live in
+    # head_compiler.rb's own per-mint assembly, which calls into this
+    # module instead of defining these methods itself.
     #
-    # Extracted here — not left as private methods on
-    # Adapters::PostgresEra::Lineage — so a SECOND, adapter-agnostic
+    # A module of its own — not private methods on
+    # Adapters::PostgresEra::Lineage — so a second, adapter-agnostic
     # caller (Exporter.translation_aggregate's build-time SQL export,
     # feeding rust/host's own future boot-time mint) can call the exact
-    # SAME code Ruby's own mint path runs, not a hand-ported duplicate
-    # that could silently drift the way `Exporter.translation_hash`
-    # drifted from `hecks_eras`/`hecks_approvals`' real schema before
-    # this file existed (rekeys/backfills were missing for years).
+    # same code Ruby's own mint path runs, not a hand-ported duplicate
+    # that could silently drift the way a hand-kept
+    # `Exporter.translation_hash` can drift from `hecks_eras`/
+    # `hecks_approvals`' real schema (leaving out rekeys and backfills).
     module RuleCompiler
       module_function
 
@@ -51,7 +50,7 @@ module Hecks
         expression
       end
 
-      # Whether THIS edge's declared rules for this aggregate include a
+      # Whether this edge's declared rules for this aggregate include a
       # rekey — checked directly off the raw IR object, the same way
       # every other rule kind is already read in `compile_rules`
       # (`declared.computes`, `declared.moves`, ...), not through the
@@ -60,16 +59,16 @@ module Hecks
       # module builds SQL straight off the IR either way.
       def rekeyed?(declared) = declared && !declared.rekeys.empty?
 
-      # THE ONLY TWO PLACES `aggregate_id` NEEDS TO CHANGE — guarded so
+      # The only two places `aggregate_id` needs to change — guarded so
       # the generated SQL for the overwhelming common case (no rekey
       # declared) stays the bare `aggregate_id` passthrough it always
-      # was — this CASE only appears in an edge that actually declares
+      # was — this case only appears in an edge that actually declares
       # one.
       def id_case(guard, declared)
         "CASE WHEN #{guard} THEN #{compile_id_expression(declared)} ELSE aggregate_id END AS aggregate_id"
       end
 
-      # THE REKEY'S OWN SQL — reading `state` directly, not the
+      # The rekey's own SQL — reading `state` directly, not the
       # progressively-built `expression` chain `compile_compute` reads
       # from. A rekey doesn't consume or move any field the way a move
       # or compute does, so there is no same-edge rename/move ordering
@@ -96,7 +95,7 @@ module Hecks
           "LATERAL (SELECT (__s ->> #{text_literal(from)}) AS #{quote(from)}) __fields)"
       end
 
-      # `PG::Connection.quote_ident` needs the `pg` gem LOADED, not
+      # `PG::Connection.quote_ident` needs the `pg` gem loaded, not
       # connected — required here, lazily, the same "a domain that
       # never wires PostgresEra should never need the gem" reasoning
       # `PostgresEra.connect_for`'s own `require "pg"` already holds

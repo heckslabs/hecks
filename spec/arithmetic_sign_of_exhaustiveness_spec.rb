@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# `Arithmetic#sign_of` used to answer DECREMENT's sign for both an unknown
+# `Arithmetic#sign_of` used to answer decrement's sign for both an unknown
 # op name and a declared, real op that carries no sign at all (set/append/
 # multiply/clamp/remove) — `.find(...)&.sign || -1` can't tell "not found"
 # from "found, sign legitimately nil" apart from "found, sign is -1". Both

@@ -32,7 +32,7 @@ module Hecks
         end
 
         # A vanished aggregate whose full shape reappears under exactly one
-        # new name was renamed. `retired` is only confident when NOTHING
+        # new name was renamed. `retired` is only confident when nothing
         # remains it could plausibly have become — a vanished aggregate
         # beside an unmatched new one might be a rename-plus-reshape, and
         # writing `retired` there would be a guess that strands data.
@@ -61,7 +61,7 @@ module Hecks
         end
 
         # Every changed path in one aggregate, resolved into rules by
-        # signature matching over the FULL path set — top-level names and
+        # signature matching over the full path set — top-level names and
         # dotted members alike. Unique signature pair: a rename (both
         # top-level) or a move (any dotted end). Same path, same members,
         # new type name: a retype. Anything else: unresolved, carrying its
@@ -81,7 +81,7 @@ module Hecks
           appeared = appeared_paths(held_attrs, current_attrs, retyped)
 
           # Mutates `rules` in place (not build-and-concat, like the two
-          # passes above) because it must READ its own earlier writes:
+          # passes above) because it must read its own earlier writes:
           # `taken`, below, is recomputed from `rules` at the top of every
           # iteration, so a target this same loop already claimed for an
           # earlier vanished path is excluded from a later one. Passing a
@@ -92,7 +92,7 @@ module Hecks
         end
 
         # retype pass: same attribute name, same member structure, the
-        # TYPE's own name changed
+        # type's own name changed
         def retype_rules(held_attrs, current_attrs)
           (held_attrs.keys & current_attrs.keys).filter_map do |name|
             held = held_attrs[name]
@@ -166,7 +166,7 @@ module Hecks
           paths
         end
 
-        # THE ONE THING `attribute_rules` COULD NOT SEE BEFORE — the shape
+        # The one thing `attribute_rules` could not see before — the shape
         # projection already carries `"identity"` (`StorageShape
         # .project_aggregate`), it was simply never read here. An
         # unresolved placeholder, not a guess: `coverage_check.rb`'s own

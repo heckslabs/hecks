@@ -16,7 +16,7 @@ require_relative "support/doctest_names"
 #
 # Scope is exactly what the doctest gate parses (DoctestNames.all: the
 # guides, README.md and the DSL reference) — a skip fence means "not run"
-# only where the rest of the file IS run.
+# only where the rest of the file is run.
 RSpec.describe "```ruby skip fences in executable documentation" do
   SKIP_FENCE_CAPS = {
     "README.md"                                                => 5,

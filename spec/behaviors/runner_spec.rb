@@ -92,7 +92,7 @@ RSpec.describe Hecks::Behaviors do
     end
   end
 
-  # THE `to:` COLLISION, PINNED — the fixture's own header comment has
+  # **The `to:` collision, pinned** — the fixture's own header comment has
   # the full story: MovePiece's destination fact is named `to`, the same
   # word Dispatcher#dispatch's routing envelope owns since #335, and the
   # runner once forwarded kwargs loose enough to collide ("to: does not

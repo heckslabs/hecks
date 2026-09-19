@@ -35,12 +35,12 @@ RSpec.describe Hecks::Facade::Handle do
   # be silently swallowed by the Kernel method rather than dispatched — no
   # error, no refusal, the transition just never happened.
   #
-  # THE FIXTURE IS DELIBERATE, not a convenience. Banking used to be the
+  # The fixture is deliberate, not a convenience. Banking used to be the
   # subject here (`Account.Freeze`, `ExternalTransfer.Send` were the only
   # two colliding verbs in the whole corpus) and both were renamed —
   # domain vocabulary should not be chosen by what Ruby happens to have
   # taken. That leaves nothing shipped to prove this with, and the
-  # protection is for somebody ELSE'S domain now : anyone is still free to
+  # protection is for somebody else's domain now : anyone is still free to
   # name a command `Freeze`, so the guard has to keep being tested. A
   # chapter that exists only to collide is the honest way to do that.
   def boot_collider
@@ -105,7 +105,7 @@ RSpec.describe Hecks::Facade::Handle do
     vault.freeze!
 
     expect(vault.status).to eq("frozen")
-    # NOT actually Kernel-frozen — the domain verb ran, the object did not
+    # Not actually Kernel-frozen — the domain verb ran, the object did not
     # become immutable.
     expect(vault.frozen?).to be(false)
     expect(vault.events.map(&:name)).to include("VaultFrozen")
@@ -135,7 +135,7 @@ RSpec.describe Hecks::Facade::Handle do
   # identity is composite, so this built `{ nil => @id }`, and dispatch's
   # own argument gate crashed on `nil.to_sym` reading the args back (worse
   # still on a zero-attribute command like `Surrender`, where that stray nil
-  # key was the ONLY thing in the payload). `SafeDepositBox`'s
+  # key was the only thing in the payload). `SafeDepositBox`'s
   # `branch_code`/`box_number` identity is banking's one composite head,
   # so it is what proves door sugar addresses a multi-part identity, not
   # just a single one.
@@ -153,16 +153,16 @@ RSpec.describe Hecks::Facade::Handle do
     box.issue_key!(serial: { value: "K1" })
     expect(box[:keys].size).to eq(1)
 
-    # Zero declared attributes — the identity payload is the ENTIRE args
+    # Zero declared attributes — the identity payload is the entire args
     # hash, so a stray `nil` key had nowhere to hide.
     box.surrender!
     expect(box.status).to eq("vacant")
   end
 
-  # `to_h` used to be `{ id: @id }.merge(@state)` — `@state` merged LAST,
+  # `to_h` used to be `{ id: @id }.merge(@state)` — `@state` merged last,
   # so an aggregate free to declare its own attribute literally named `id`
   # (real corpus now: BurningManPrep's `Item`, `attribute :id, ItemId`,
-  # `identified_by :id`) got that attribute's own WRAPPED value
+  # `identified_by :id`) got that attribute's own wrapped value
   # object silently clobbering the correctly-unwrapped bare `@id`. The
   # JSON door's own `/api/:coll` listing is the caller that actually hit
   # this: every record's own `id` key came back `{value: "..."}` instead

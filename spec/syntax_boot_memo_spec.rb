@@ -2,31 +2,31 @@ require "spec_helper"
 
 # `SyntaxBoot.call` dispatches the language's own ~284-row grammar table
 # into a live "Bluebook" runtime — real work, ~0.76s — and memoizes the
-# result. What this file pins is WHEN that memo is allowed to answer.
+# result. What this file pins is when that memo is allowed to answer.
 #
 # The previous guard cached nothing until `grammar_registry_ready?`, i.e.
 # until the grammar registry had finished judging itself and attaching
 # Paging. Right hazard (a snapshot taken before Paging attached is missing
 # limit/offset/cursor/nulls), wrong cure: every `word_gate_dispatch` that
 # landed inside that window re-ran the whole boot. Measured at 42 boots
-# and 32 of a 35-second `Hecks.boot` — 95% of booting ANY domain, spent
+# and 32 of a 35-second `Hecks.boot` — 95% of booting any domain, spent
 # re-deriving the same table from the same chapters.
 #
 # The cache is now keyed on the grammar registry's chapter set, by
 # identity — the exact inputs `boot` reads — so it is served precisely
 # while those inputs are unchanged and never otherwise. Three facts:
 #
-# DISK CACHE OFF FOR THIS WHOLE FILE. `SyntaxBoot` also persists its
-# result to disk across PROCESSES, keyed on chapter NAMES (not object
+# Disk cache off for this whole file. `SyntaxBoot` also persists its
+# result to disk across processes, keyed on chapter names (not object
 # identity — a different process has no way to compare identity) plus a
 # content hash of the grammar files on disk. That is a coarser, correctly
 # content-addressed cache: two structurally-identical inputs, even
 # encountered at different moments, legitimately share one answer. This
 # file's own "boots again... and again once it leaves" example below
-# deliberately reverts the chapter NAME list to an earlier state within
-# ONE process (add a throwaway chapter, then remove it) specifically to
-# pin the IN-MEMORY memo's object-identity boundary — a real re-boot on
-# ANY identity change, never mind whether the reverted content happens to
+# deliberately reverts the chapter name list to an earlier state within
+# one process (add a throwaway chapter, then remove it) specifically to
+# pin the in-memory memo's object-identity boundary — a real re-boot on
+# any identity change, never mind whether the reverted content happens to
 # match something already seen. The disk cache would otherwise correctly
 # serve that reverted, byte-identical state from what example 1 already
 # wrote, which is right for the disk cache's own contract and wrong for
@@ -52,7 +52,7 @@ RSpec.describe "SyntaxBoot's memo" do
   end
 
   # One process-global grammar registry mutated twice (a chapter joins,
-  # then leaves via ensure) proving the memo re-boots on BOTH edges;
+  # then leaves via ensure) proving the memo re-boots on both edges;
   # splitting would mean duplicating the add/remove dance across
   # examples or risking the shared global registry left dirty between
   # them.
@@ -92,12 +92,12 @@ RSpec.describe "SyntaxBoot's memo" do
     SyntaxBootUnderTest.call
   end
 
-  # THE MEASURED BUG, PINNED. Building the grammar registry from cold
+  # **The measured bug, pinned**. Building the grammar registry from cold
   # walks through a handful of distinct chapter sets — the raw load, then
   # one replacement per language chapter as the fixpoint judge swaps each
   # raw chapter for its assembled self, then Paging attaching — and every
   # `word_gate_dispatch` inside that build asks for the syntax table. One
-  # boot per DISTINCT chapter set is the most a correct cache can need;
+  # boot per distinct chapter set is the most a correct cache can need;
   # the old guard did 42.
   it "boots at most once per distinct chapter set while the grammar registry builds itself from cold" do
     boots = 0
@@ -106,10 +106,10 @@ RSpec.describe "SyntaxBoot's memo" do
       m.call(*args)
     end)
 
-    # SAVED AND RESTORED, not just reset — @grammar_registry is process-
+    # Saved and restored, not just reset — @grammar_registry is process-
     # global and memoized. Left nil'd-then-rebuilt with no restore, a
     # golden-fixture spec sharing this process later (ir_golden_spec.rb)
-    # would compare against a registry built at THIS moment in suite
+    # would compare against a registry built at this moment in suite
     # history instead of the pristine one its fixture was captured
     # against — the exact intermittent parallel_rspec-only flake this
     # file's own sibling test (fixpoint_spec.rb) was found doing the same

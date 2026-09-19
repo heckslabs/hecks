@@ -7,12 +7,12 @@ require_relative "../hecks"
 
 module Hecks
   # The sublanguage grammar domains (grammar/*.bluebook) and the one boot
-  # path for reading them as DATA — the expression chapter replayed
+  # path for reading them as data — the expression chapter replayed
   # through its own admission ledger, so anything derived from it (the
   # operator projections, the conformance specs) reads the set that
   # actually survived the Admit gates, never a hand-copied list.
   #
-  # Booted on CALL, never at require: the Prism adapter normalises every
+  # Booted on call, never at require: the Prism adapter normalises every
   # predicate through CanonicalForm while a bluebook loads, so the
   # expression machinery cannot boot the chapter that configures it —
   # this module exists precisely so generators and specs boot it in a
@@ -77,15 +77,15 @@ module Hecks
       registry.repository("Expression", aggregate).all
     end
 
-    # THE OPERATORS THE LANGUAGE STANDS ON. Every guard and invariant in
+    # The operators the language stands on. Every guard and invariant in
     # the language's own chapters — the meta-domain (Bluebook, World) and
     # the grammar chapters beside this file — evaluates through the very
     # operator table the ledger admits. An operator one of those
-    # predicates uses is SELF-BEARING: retire it and the language can no
+    # predicates uses is self-bearing: retire it and the language can no
     # longer read its own rules — found the hard way, as a projection
     # missing `!=` that could not boot the chapter to fix itself. This
     # derives the set, with a usage site per operator, so the generator
-    # and the conformance spec can refuse the retirement BY NAME instead
+    # and the conformance spec can refuse the retirement by name instead
     # of wedging.
     def self_bearing_operators
       sites = Hash.new { |h, k| h[k] = [] }
@@ -146,7 +146,7 @@ module Hecks
       walk_operators(node, evaluator).uniq
     end
 
-    # A recursive descent over a CLOSED, declared set of AST node types
+    # A recursive descent over a closed, declared set of AST node types
     # (Evaluator's boolean/compare/include nodes, Resolver's arithmetic
     # nodes, and the generic Struct fallback) — each branch does the
     # same one thing (name the node's own operator, recurse into its

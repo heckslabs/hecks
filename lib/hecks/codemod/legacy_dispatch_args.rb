@@ -3,7 +3,7 @@ require "prism"
 
 module Hecks
   module Codemod
-    # THE REWRITING HALF OF `bin/codemod_legacy_dispatch_args` — reads what
+    # The rewriting half of `bin/codemod_legacy_dispatch_args` — reads what
     # `LegacyDispatchRecorder` observed and rewrites each agreed call site
     # from loose keyword facts to `to:` / `with:`:
     #
@@ -11,7 +11,7 @@ module Hecks
     #   # becomes
     #   runtime.dispatch("Banking::Account.FreezeAccount", to: "a")
     #
-    # A key that carried receiver identity AND is a declared fact of the
+    # A key that carried receiver identity and is a declared fact of the
     # command appears in both `to:` and `with:`, and only when its expression
     # is safe to evaluate twice.
     #
@@ -207,10 +207,10 @@ module Hecks
         end
       end
 
-      # EVERY FACT KEEPS ITS OWN LINE, RE-ALIGNED. A fact that used to
+      # Every fact keeps its own line, re-aligned. A fact that used to
       # start a line was aligned under whatever the call opened with; once
       # the facts sit inside `with: { `, that column means nothing, so each
-      # following fact is re-indented under the FIRST fact's new column
+      # following fact is re-indented under the first fact's new column
       # (ordinary Ruby hash alignment) and any line inside a single fact's
       # own value is shifted by the same amount, keeping its shape.
       def assemble(keywords, kept, facts, route)

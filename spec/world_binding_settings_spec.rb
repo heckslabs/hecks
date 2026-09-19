@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# `World#for_binding`'s generic-settings fallback used to answer for ANY
+# `World#for_binding`'s generic-settings fallback used to answer for any
 # adapter bound under the same verb, not just the one the generic entry
 # actually names. A hecksagon binding two aggregates to two different
 # adapters under one verb (one to Heki, one to Memory) sent Memory's own
@@ -12,7 +12,7 @@ require "spec_helper"
 # asked about.
 RSpec.describe "World#for_binding" do
   # The inline domain (two aggregates, two adapters under one hecksagon)
-  # IS the regression fixture — it needs both a Heki-bound and a
+  # is the regression fixture — it needs both a Heki-bound and a
   # Memory-bound sibling under the same verb to reproduce the exact
   # generic-settings leak this pins shut.
   # rubocop:disable-next RSpec/ExampleLength

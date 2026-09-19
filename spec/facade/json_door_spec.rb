@@ -141,7 +141,7 @@ RSpec.describe Hecks::Facade::JsonDoor do
         customer_name: nil,
         status:        "available"
       )
-      # Not just equal in VALUE — nothing left is still a Runtime::Value,
+      # Not just equal in value — nothing left is still a Runtime::Value,
       # two levels down (Order -> Pizza -> Price), which `#eq` alone
       # wouldn't catch since Runtime::Value defines `==` by content.
       expect(result[:pizza][:price_cents]).to be_a(Hash)

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # Projects the chapter's own Syntax aggregate into the Rust parser's
-# keyword table — the parser's grammar knowledge DERIVED from
+# keyword table — the parser's grammar knowledge derived from
 # hecks's self-description rather than hand-typed a second time.
 #
 # The projection itself is Projections::ParserTable; this asks the

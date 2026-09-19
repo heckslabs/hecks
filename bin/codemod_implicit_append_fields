@@ -1,17 +1,17 @@
 #!/usr/bin/env ruby
 
-# A CODEMOD, not an agent — for the class of redundancy
+# A codemod, not an agent — for the class of redundancy
 # `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/
 # command_builder.rb) makes obsolete: a command's own `attribute
 # :field, Type` line that byte-for-byte repeats what an `append:`
-# mutation's target list ELEMENT construct already declares for that
+# mutation's target list element construct already declares for that
 # same field name, fed through a bare self-referential `sets :list,
 # append: { field: :field, ... }`.
 #
 # The boot/safety-net machinery (edit -> reboot -> diff-or-revert,
 # per-candidate isolation for the self-hosted meta-domain, the process-
 # lifetime AST cache fix) lives in `Hecks::Codemod` — this file is
-# only the two things specific to THIS rule: how to find a candidate
+# only the two things specific to this rule: how to find a candidate
 # (`find_candidates`, replaying `resolve_append_fields!`'s own lookup
 # against the already-booted IR) and how to remove one
 # (`remove_attribute_line`, scoped to the text between a command's own
@@ -34,8 +34,8 @@ def identical_attribute?(candidate, owner_attr)
   %i[type pattern optional? admits].all? { |m| candidate.public_send(m) == owner_attr.public_send(m) }
 end
 
-# The SAME lookup `CommandBuilder#resolve_append_fields!` makes at
-# declare time, replayed here against the ALREADY-BOOTED IR instead —
+# The same lookup `CommandBuilder#resolve_append_fields!` makes at
+# declare time, replayed here against the already-booted IR instead —
 # this script never touches the DSL builder internals, only the same
 # public shape every other Projector reads.
 find_candidates = lambda do |registry|

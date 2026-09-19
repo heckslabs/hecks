@@ -3,61 +3,61 @@ require_relative "../../bluebook/expression/evaluator"
 module Hecks
   module Fuzzing
     module Properties
-      # THE TRANSACTIONAL OUTBOX'S OWN CONTRACT (`Runtime::Outbox`, that
+      # The transactional outbox's own contract (`Runtime::Outbox`, that
       # file's own header), held to the history a replay actually produced
       # rather than trusted. Two facts, each independently checkable from
       # `history[:outbox_traces]` (`Replay#call`'s own before/after
       # capture, one entry per step whose dispatch enqueued at least one
       # row):
       #
-      #   1. "DELIVERY IS INLINE BY DEFAULT" — a row THIS replay's own
+      #   1. "delivery is inline by default" — a row this replay's own
       #      dispatch enqueued must not still be `pending`/`claimed` once
-      #      that SAME call returns (nothing here ever simulates a
+      #      that same call returns (nothing here ever simulates a
       #      crash), and must not be `failed` either — `deliver_row`'s
       #      own rescue only reaches `failed` for a genuine defect in the
-      #      RELAY's own consumer resolution (a row naming a policy/
+      #      relay's own consumer resolution (a row naming a policy/
       #      process_manager `run_consumer`'s own independent registry
       #      lookup cannot find — `WiringError`), never an ordinary
       #      domain refusal (`PolicyInterpreter#deliver`/`SagaInterpreter#
-      #      advance` both rescue those THEMSELVES, recording `delivered:
+      #      advance` both rescue those themselves, recording `delivered:
       #      false` on the reaction/saga log and letting `run_consumer`
       #      return normally). Both checked for every row, `saga:` and
       #      `policy:` alike.
       #
-      #   2. A `policy:` ROW SPECIFICALLY — `PolicyInterpreter#deliver`
+      #   2. A `policy:` row specifically — `PolicyInterpreter#deliver`
       #      returns `nil` (no `reaction_log` entry appended at all)
-      #      EXACTLY when its own `where` (or, for a fan-out policy, the
-      #      SAME `where`, gating the whole `for_each`) does not hold;
-      #      every OTHER outcome (delivered, refused, a defect,
+      #      exactly when its own `where` (or, for a fan-out policy, the
+      #      same `where`, gating the whole `for_each`) does not hold;
+      #      every other outcome (delivered, refused, a defect,
       #      reaction-depth-reached) is still a non-nil record `#react`
-      #      appends. So a `delivered` policy row with NO matching
-      #      `reaction_log` entry is legitimate ONLY when that policy's
-      #      own `where`, independently RE-EVALUATED here against the
+      #      appends. So a `delivered` policy row with no matching
+      #      `reaction_log` entry is legitimate only when that policy's
+      #      own `where`, independently re-evaluated here against the
       #      row's own recorded event, genuinely does not hold. A
-      #      `for_each` policy's own fan-out correctness (how MANY rows
+      #      `for_each` policy's own fan-out correctness (how many rows
       #      it should have dispatched to) is `fanout_dispatches_once_
       #      per_matching_row`'s job, not this one's.
       #
-      # A `saga:` ROW HAS NO EQUIVALENT SECOND CHECK, DELIBERATELY — this
-      # was the first shape this property shipped with, and it was WRONG,
+      # A `saga:` row has no equivalent second check, deliberately — this
+      # was the first shape this property shipped with, and it was wrong,
       # caught live against `examples/banking` before this comment
       # existed: `Fanout.sagas`' own `listens?` (starts_on/ends_on/
-      # handler_for matching the event NAME alone) says nothing about
-      # whether a CORRELATION resolves or a LIVE INSTANCE exists, and
+      # handler_for matching the event name alone) says nothing about
+      # whether a correlation resolves or a live instance exists, and
       # `begin_saga`/`end_saga` (saga_interpreter.rb) both have silent,
-      # perfectly ordinary no-op paths that append NOTHING to `saga_log`
+      # perfectly ordinary no-op paths that append nothing to `saga_log`
       # — `begin_saga` when an instance under that correlation already
-      # exists, `end_saga` when NO live instance exists to end (an
+      # exists, `end_saga` when no live instance exists to end (an
       # `AccountOpened` fired by opening an account directly, bypassing
       # the onboarding flow whose `ends_on` names that same event,
       # reproduces this exactly: `Fanout.listens?` enqueues the row
-      # because the event NAME matches `ends_on`, `end_saga` finds
+      # because the event name matches `ends_on`, `end_saga` finds
       # nothing under that correlation to delete, and neither logs a
       # word). A `saga:` row draining to `delivered` with zero matching
-      # `saga_log` entries is therefore NOT a finding — only check 1
+      # `saga_log` entries is therefore not a finding — only check 1
       # applies to it.
       #
-      # NOT A GRAMMAR CONSTRUCT — `FEATURE_COVERAGE`'s own `dry_runs_
+      # **Not a grammar construct** — `FEATURE_COVERAGE`'s own `dry_runs_
       # leave_no_trace` precedent: the outbox is a runtime door
       # (`Runtime::Outbox`), not a word a bluebook declares, so there is
       # no feature string here to claim.
@@ -117,14 +117,14 @@ module Hecks
         # with itself (the same rule `resolve_dispatch_binding`'s own
         # comment states). `Evaluator.call` (the raw-string entry, parsed
         # and cached — never `call_rule`, which needs the policy's own
-        # BUILD-TIME `where_rule` AST, an object this history has no
+        # build-time `where_rule` AST, an object this history has no
         # reason to carry) is the exact same call `Replay#fan_out_finding`
         # already makes for the identical fact one property over
         # (`policy.where.to_s.empty? || Evaluator.call(policy.where, {},
         # payload)`), reused rather than re-derived a second, slightly
         # different way. `rescue`d to `nil`, not `false`: a where clause
         # that cannot be re-evaluated from the row's own recorded payload
-        # alone is INCONCLUSIVE, not proof either way — the same "never a
+        # alone is inconclusive, not proof either way — the same "never a
         # claimed pass or a claimed mismatch from a resolution this replay
         # cannot actually reproduce" discipline `build_guard_check`'s own
         # rescue clause already follows.

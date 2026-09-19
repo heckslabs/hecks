@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# THE ANTI-DRIFT GATE for every checked-in `oidc.json` — the same shape
+# The anti-drift gate for every checked-in `oidc.json` — the same shape
 # spec/vocabulary_table_spec.rb and spec/parser_table_spec.rb already use
 # for their own generated artifacts: regenerate in memory from the
 # domain's own bluebook and refuse a diff, so a manifest that stopped
@@ -34,7 +34,7 @@ RSpec.describe "committed OIDC manifests (bin/project_oidc)" do
     relative = path.delete_prefix("#{ROOT}/")
     domain   = File.dirname(relative)
 
-    # `:io` — this boots WHATEVER domain committed this manifest, which
+    # `:io` — this boots whatever domain committed this manifest, which
     # today is only examples/pizzas (PostgresEra-bound) but is discovered
     # dynamically (see this file's own header): a future domain with its
     # own committed oidc.json would generate a new example here with no

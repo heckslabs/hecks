@@ -91,7 +91,7 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
     Object.send(:remove_const, :Realm) if Object.const_defined?(:Realm, false)
   end
 
-  # A REAL GAP, HIT LIVE: `install_namespace_entry` installs one method per
+  # **A real gap, hit live**: `install_namespace_entry` installs one method per
   # declared verb, so an aggregate reached only through the router surface
   # had no `.find`/`.all`/`.count` at all — the read/CRUD half of what a
   # plain `Hecks.boot` already gives for free via `AggregateDoor`. A
@@ -179,7 +179,7 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
   end
 
   # Proves both halves of the same claim — default resolves to latest, and
-  # options(version:) pins the old one — against the SAME two-version
+  # options(version:) pins the old one — against the same two-version
   # domain; each needs its own write_domain + boot, so splitting would
   # re-pay that setup twice for no gain.
   # rubocop:disable-next RSpec/ExampleLength
@@ -287,7 +287,7 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
 
   # Shared verbatim by the two examples that need a Book aggregate with a
   # query as well as a command (dispatch-and-route, and namespace-alias
-  # installation) — DRY, not a behavior difference between them.
+  # installation) — dry, not a behavior difference between them.
   def catalog_book_with_query_bluebook
     <<~RUBY
       aggregate "Book" do

@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/fuzzing/isolated_boot"
 require "time"
 
-# THE REAL, SHIPPED WIRING — not a hand-composed registry. Banking's own
+# **The real, shipped wiring** — not a hand-composed registry. Banking's own
 # `.hecksagon` declares `uses_framework "Governance"` (see
 # examples/banking/bluebook/banking.hecksagon), so a plain `Hecks.boot`
 # already attaches Governance to the same registry ; `GovernanceAuthorization`
@@ -170,7 +170,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     expect(allowed).to be(false)
 
     # Never reached in a real app — no `as_caller`, no dispatch. Proved
-    # here by dispatching UNAUTHENTICATED (no caller bound at all), which
+    # here by dispatching unauthenticated (no caller bound at all), which
     # `CommandRules::Authorization` itself would let through since a role
     # check is inert with no ambient caller — the port's "no" is what has
     # to stop the app from ever getting here, not the runtime.
@@ -239,7 +239,7 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
       end
       expect(suspended.events.map(&:name)).to eq(["CustomerSuspended"])
 
-      # RESTORED. Still inside the OUTER as_caller, no nested block in the
+      # Restored. Still inside the outer as_caller, no nested block in the
       # way — "Branch clerk" is authorized for Register, so this only
       # succeeds if the role actually went back.
       registered = register_customer(business, reference: "C-2")

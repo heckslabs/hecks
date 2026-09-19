@@ -53,7 +53,7 @@ RSpec.describe Hecks::QuerySpecification::FieldPath do
 
   describe ".read" do
     it "prefers the symbol spelling when both a true string value and a false symbol value are held" do
-      # THE ADVERSARIAL CASE: if the symbol side genuinely holds `false`,
+      # **The adversarial case**: if the symbol side genuinely holds `false`,
       # nothing may fall through to the string side even when the string
       # side holds something else entirely — presence at the symbol key
       # decides the read outright.

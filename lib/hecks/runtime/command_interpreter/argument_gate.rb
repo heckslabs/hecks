@@ -11,18 +11,18 @@ module Hecks
         private
 
         # Anything else used to ride along in the payload untouched —
-        # normalize_args walks the DECLARED attributes, so a name the command
+        # normalize_args walks the declared attributes, so a name the command
         # never had was simply never looked at. A misspelled argument did
         # nothing, in silence.
         #
-        # The keys that are legitimately not attributes are the ones that ADDRESS
+        # The keys that are legitimately not attributes are the ones that address
         # the aggregate rather than describe it : `id`, whatever the aggregate is
         # identified by, and the reference key of the root a command reaches
         # through. Refusing those would refuse every dispatch there is.
         #
         # `extra_identity_heads:` — EntityInterpreter's own callers only. An
         # entity dispatch addresses not just the root aggregate but every
-        # entity ALONG THE CHAIN it walks to reach the piece the command
+        # entity along the chain it walks to reach the piece the command
         # actually belongs to (`Handler.Dispatch.Bind` is two hops), and each
         # hop's own `identity_heads` is addressing the same way the root's
         # are — `element_of` (entity_element.rb) reads them straight out of
@@ -33,7 +33,7 @@ module Hecks
           addressing = [:id, *aggregate.identity_heads, *extra_identity_heads, reference_key(command)] +
                        correlation_keys(domain)
           known      = (command.attributes.map(&:name) + addressing).compact.map(&:to_sym)
-          # SORTED. Payload order is whatever the caller happened to write, and
+          # Sorted. Payload order is whatever the caller happened to write, and
           # refusal wording is contract — pinned byte-for-byte by the corpus, so
           # it cannot depend on hash iteration order.
           unknown = (args.keys.map(&:to_sym) - known).sort
@@ -45,12 +45,12 @@ module Hecks
                                            declared: declared_names(command))
         end
 
-        # And it takes ALL of them. The other half of the same sentence, missing
+        # And it takes all of them. The other half of the same sentence, missing
         # until fuzz went looking : a name the command never declared was refused,
-        # while a name it DID declare could simply be left out.
+        # while a name it did declare could simply be left out.
         #
         # `Customer.Register` without its `name` used to be refused — but by
-        # ACCIDENT, and with a lie for a message. `then_set :name, to: :name` found
+        # accident, and with a lie for a message. `then_set :name, to: :name` found
         # nothing to resolve, passed the literal symbol on, and coercion reported
         # `name is a PersonName — pass its fields as an object`, which describes a
         # mistake the caller did not make. The real mistake — an argument simply
@@ -60,16 +60,16 @@ module Hecks
         # all eight chapters, zero — so there is no optional argument for this to
         # step on. Every declared attribute is a fact the command needs.
         #
-        # `aggregate:` — PRESENT ONLY FOR A PORT OPERATION. An aggregate
+        # `aggregate:` — present only for a port operation. An aggregate
         # command's own self-address never reaches this list at all
         # (`CommandBuilder#reference_to`'s bare self-reference mints no
         # attribute to be absent) — but `PortOperationBuilder#reference_to`
-        # ALWAYS mints one (this file's own header on `PortOperation`: "no
+        # always mints one (this file's own header on `PortOperation`: "no
         # creates?/acts_on distinction to protect"), because an operation
-        # historically had no OTHER way to say which record it addressed.
+        # historically had no other way to say which record it addressed.
         # `to:` is that other way now (`Dispatcher#port_invocation`
         # promotes the identity attribute's own value out of the payload
-        # and into routing) — which left the attribute still DECLARED,
+        # and into routing) — which left the attribute still declared,
         # still non-optional, and now never present in `args` at all: every
         # operation with an identity attribute refused its own well-formed
         # calls, dispatched exactly the way `to:` intends. Exempted here on
@@ -80,7 +80,7 @@ module Hecks
           exempt   = aggregate && command.respond_to?(:identity_attribute) &&
                      command.identity_attribute(aggregate.hecks_name)&.name
           required = command.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym } - [exempt]
-          # SORTED, for the same reason the unknown list is : refusal wording is
+          # Sorted, for the same reason the unknown list is : refusal wording is
           # contract, and a pinned wording cannot depend on the order a set
           # difference happens to be computed in.
           absent = (required - given).sort
@@ -92,7 +92,7 @@ module Hecks
                                            declared: declared_names(command))
         end
 
-        # A COMMAND THAT DECLARES NOTHING STILL HAS TO SAY SO. `Account
+        # **A command that declares nothing still has to say so**. `Account
         # .Freeze` is `reference_to Account` and no attributes at all, so
         # `{declared}` rendered empty and the sentence trailed off mid-
         # clause : "Freeze does not declare standing — it takes ". Read
@@ -106,12 +106,12 @@ module Hecks
         # `refuse_unknown_arguments`' own note on sorting for why).
         def declared_names(command) = command.attributes.map(&:name)
 
-        # What a process manager correlates by is ROUTING, not description. A saga
+        # What a process manager correlates by is routing, not description. A saga
         # threads its correlation key through every leg it dispatches so the event
         # each leg emits carries it and the next step can be correlated — so the key
         # arrives on commands that never declare it, and legitimately.
         #
-        # This is the weakest part of the gate. Correlation is the SAGA's business,
+        # This is the weakest part of the gate. Correlation is the saga's business,
         # and the better shape is for the saga to stamp its own key onto the event
         # it caused rather than smuggle it through the command's payload. Until it
         # does, refusing the key here would break every saga in the corpus.

@@ -49,7 +49,7 @@ RSpec.describe "sets arithmetic" do
     runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
     runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
 
-    # Refused at the payload gate as a DOMAIN refusal, not deep in a predicate
+    # Refused at the payload gate as a domain refusal, not deep in a predicate
     # as an EvaluationError — the latter is not in DOMAIN_REFUSALS, so it used
     # to be recorded beside genuine refusals while actually being a crash.
     expect { runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: "lots" }) }
@@ -71,7 +71,7 @@ RSpec.describe "sets arithmetic" do
                                                                   ])
   end
 
-  # A mutation names a target — but must the target EXIST?
+  # A mutation names a target — but must the target exist?
   #
   # The language says only `given("a mutation names a target") { !target.value
   # .to_s.empty? }`. Non-emptiness, nothing more. So a sets naming a field
@@ -125,7 +125,7 @@ RSpec.describe "sets arithmetic" do
               reference_to Widget
               attribute :nickname, Label
 
-              # :nickname is NOT an attribute of Widget — :label is the only one.
+              # :nickname is not an attribute of Widget — :label is the only one.
               sets :nickname
 
               emits "WidgetRenamed"

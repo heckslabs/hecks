@@ -10,6 +10,10 @@ module Hecks
         # `Runtime::StaleWrite` (runtime/errors.rb) and `AppendOnly#save`.
         STATUSES = %i[inserted replaced updated conflicted missing saved stale].freeze
 
+        # @param status [Symbol, String] one of `STATUSES`; stored as a Symbol
+        # @param instance [Runtime::Instance, Object, nil] the record the write concerned, as
+        #   the repository reports it; nil when there is none
+        # @raise [ArgumentError] if `status` is not one of `STATUSES`
         def initialize(status:, instance: nil)
           normalized = status.to_sym
           raise ArgumentError, "unknown persistence outcome #{status.inspect}" unless STATUSES.include?(normalized)

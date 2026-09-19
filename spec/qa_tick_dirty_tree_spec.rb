@@ -2,8 +2,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_tick_fixture"
 
-# `bin/qa_tick`, PROVEN AGAINST THE REAL THING — a real subprocess that
-# runs the REAL `bin/qa_pr_check` and the REAL `bin/qa_sweep --all` as
+# `bin/qa_tick`, proven against the real thing — a real subprocess that
+# runs the real `bin/qa_pr_check` and the real `bin/qa_sweep --all` as
 # its own subprocesses, against a disposable PostgresEra ledger
 # (`spec/support/qa_ledger_fixture.rb`) and a throwaway git repository
 # with its own bare `origin`. One of four sibling files split out of the

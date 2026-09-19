@@ -4,7 +4,7 @@ require_relative "../../../support/postgres_probe"
 
 RSpec.describe "PostgresEra execution-plan capabilities", :io do
   # Not SPEC_DB — a constant assigned inside an RSpec.describe block lands
-  # at TOP LEVEL (load_hygiene_spec.rb's own "lets no two spec files
+  # at top level (load_hygiene_spec.rb's own "lets no two spec files
   # disagree about a top-level constant"), and postgres_era_spec.rb
   # already claims that name for a different database.
   EXECUTION_PLAN_DB = "hecks_postgres_era_execution_plan_spec".freeze

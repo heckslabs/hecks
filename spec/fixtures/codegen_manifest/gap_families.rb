@@ -1,4 +1,4 @@
-# EVERY SKIP FAMILY, PLANTED — the corpus generates everything today, so
+# **Every skip family, planted** — the corpus generates everything today, so
 # its manifests carry no gaps and the two generators' `construct` choices
 # would never be compared. This adds one ungeneratable query, read model,
 # command, port operation and aggregate per construct family to a copy of

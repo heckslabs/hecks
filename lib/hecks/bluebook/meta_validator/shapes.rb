@@ -27,8 +27,8 @@ module Hecks
             # bluebook that no longer says what it said.
             optional:     text(field[:optional]).to_s == "true",
             pattern:      presence(text(field[:pattern])),
-            # THE ROUND TRIP IS THE ONLY WAY IN. The grammar registry keeps the
-            # ASSEMBLED graph — the language as its own judge read it back — so a
+            # The round trip is the only way in. The grammar registry keeps the
+            # assembled graph — the language as its own judge read it back — so a
             # fact dropped here is a fact no downstream projection ever sees, no
             # matter how plainly the .bluebook file declares it.
             admits:       presence(text(field[:admits])),
@@ -36,8 +36,8 @@ module Hecks
           }
         end
 
-        # A TYPE THIS AGGREGATE OWNS, offered as its id and read back as its name.
-        # Prefixed with the owner and the identity join, because that IS the value
+        # A type this aggregate owns, offered as its id and read back as its name.
+        # Prefixed with the owner and the identity join, because that is the value
         # object's identity — the aggregate it belongs to, then its name.
         def owned_type(type, aggregate_id)
           prefix = Naming.identity([aggregate_id, ""])
@@ -46,7 +46,7 @@ module Hecks
           type.delete_prefix(prefix)
         end
 
-        # ONE PART OF AN IDENTITY, read back as the path it went in as. The inverse
+        # One part of an identity, read back as the path it went in as. The inverse
         # of `Marks#identity_path`, and named the same so the two directions read
         # as one table.
         def identity_path(part) = text(part[:value]).to_s
@@ -54,7 +54,7 @@ module Hecks
         # An argument, a parameter, a piece's attribute — the three places an
         # attribute is written that carry no owner id to strip... except a
         # piece's own attribute now does : an entity is its own root (repeating
-        # the aggregate's whole shape one level down), so ITS attributes name a
+        # the aggregate's whole shape one level down), so its attributes name a
         # value object exactly the way an aggregate's own do (`Judge#cell`'s own
         # comment), and reconstruction has to undo the same owned-vs-reference
         # split `attribute`, below, already undoes for an aggregate — not the
@@ -66,11 +66,11 @@ module Hecks
         # argument or a parameter carries no value-object type at all — see
         # entity.bluebook's/command.bluebook's own comments on why — so the
         # generic reader path calls this with one argument and gets the
-        # OLD reading unchanged), is the piece's OWNING aggregate — the same
+        # old reading unchanged), is the piece's owning aggregate — the same
         # one its own attribute types were resolved against on the way in
         # (`Judge#owning_aggregate_ref`).
         #
-        # A REFERENCE among the other two came in as the head's ID, because
+        # A reference among the other two came in as the head's ID, because
         # that is what Command/Query.Reference offer, so it goes back out as
         # the encoding the IR spells. A qualified name is the tell : an
         # ordinary type names something declared beside it (`Money`,
@@ -83,7 +83,7 @@ module Hecks
 
           {
             name:         text(field[:name])&.to_sym,
-            # A QUALIFIED name is the tell : an ordinary type names something
+            # A qualified name is the tell : an ordinary type names something
             # declared beside it (`Money`, `AccountNumber`) and carries no join at
             # all, where a head's id always does (chapter + name, joined the way
             # every derived id is).
@@ -97,7 +97,7 @@ module Hecks
           }
         end
 
-        # An ABSENT pattern is nil, not "". The language holds every field as
+        # An absent pattern is nil, not "". The language holds every field as
         # text, so a field nobody set comes back as the empty string — and ""
         # is a real regex (it matches everything), so keeping it would turn
         # "no pattern" into "a pattern that always passes" and quietly cost the
@@ -130,17 +130,17 @@ module Hecks
         # `default:`.
         def provenance(row) = decode_literal(text(row[:provenance]))
 
-        # `command "Debit", from: "open"` — the SAME literal encoding
+        # `command "Debit", from: "open"` — the same literal encoding
         # `provenance`/`default:` already ride (S10, ADR 0025), one
         # state or an array of them, or nil for a command with no
         # lifecycle guard.
         def from(row) = decode_literal(text(row[:from]))
 
-        # A FLAG IS HELD AS TEXT ("true"/"false") and emitted as a boolean —
+        # A flag is held as text ("true"/"false") and emitted as a boolean —
         # `Policy#expect_undelivered` on the wire.
         def expect_undelivered?(row) = text(row[:expect_undelivered]).to_s == "true"
 
-        # THE OPTION ROWS, GATHERED BACK into the shapes `extra_options_to_h` spells.
+        # The option rows, gathered back into the shapes `extra_options_to_h` spells.
         #
         # One row per part, so a compound option is several rows and a repeated one is
         # several groups told apart by `at`. Grouping by option name and then by `at`
@@ -161,8 +161,8 @@ module Hecks
                   .map { |group| group.to_h { |part| [text(part[:key]).to_sym, text(part[:value])] } }
         end
 
-        # The IR keeps a where's field as a STRING, not a symbol — it is read back
-        # out, never called. The value stays RAW TEXT here on purpose : this
+        # The IR keeps a where's field as a string, not a symbol — it is read back
+        # out, never called. The value stays raw text here on purpose : this
         # feeds the declaration hash Assembly::Marks#where_clause decodes
         # from (via `read`), and decoding twice is worse than once — a
         # kwarg reference (":ceiling") decoded here into the Symbol :ceiling
@@ -209,22 +209,22 @@ module Hecks
 
         def group_by_field(row) = { field: text(row[:field]) }
 
-        # `count`'s own boolean, read back the SAME way `head`'s own
+        # `count`'s own boolean, read back the same way `head`'s own
         # `many` is (`text(row[:many]).to_s == "true"`) — except a
-        # `ReadModel.Count` command is dispatched AT ALL only when
+        # `ReadModel.Count` command is dispatched at all only when
         # `@count` was truthy (`MetaValidator::Judge#setters` skips a
         # setter whose every source is absent), so an undeclared read
         # model's own `count` field never gets written and comes back
         # `nil` here, never `"false"` — matching `ReadModel#to_h`'s own
         # `true`/`nil` pair (never `false`) exactly, rather than the
         # unconditional `true`/`false` `head`'s own `many` needs (every
-        # head DOES get a `Gather` dispatch, declared or derived).
+        # head does get a `Gather` dispatch, declared or derived).
         def read_model_count(row) = (true if text(row[:count]).to_s == "true")
 
-        # THE APPEND FLATTENING, IN REVERSE.
+        # The append flattening, in reverse.
         #
         # An append binds several fields at once and the language's Change holds one
-        # field/kind/source triple, so the walk offers an append once PER BINDING.
+        # field/kind/source triple, so the walk offers an append once per binding.
         # Rebuilding groups those rows back into the single mutation the IR keeps —
         # the only place here that undoes something rather than simply reading it.
         def mutations(row)
@@ -233,7 +233,7 @@ module Hecks
             .map { |(target, op), bindings| mutation(target, op, bindings) }
         end
 
-        # `sign:` — read the SAME way the declared side computes it
+        # `sign:` — read the same way the declared side computes it
         # (`Bluebook::Mutation.sign_for`, item #5 of the whole-project
         # table-unification survey), not stored on any row here — the
         # meta-domain's own Change entity carries no `sign` field of its
@@ -245,7 +245,7 @@ module Hecks
         def mutation(target, oper, bindings)
           base = { target: target.to_sym, op: oper.to_sym, sign: Hecks::Bluebook::Mutation.sign_for(oper) }
           # `:delegate`/`:corrects` (CommandBuilder#delegates_to's and
-          # #corrects_impl's own comments) ride the SAME multi-binding
+          # #corrects_impl's own comments) ride the same multi-binding
           # shape `:append` does.
           return base.merge(fields: appended(bindings)) if ["append", "delegate", "corrects"].include?(oper)
 

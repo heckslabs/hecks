@@ -1,13 +1,13 @@
 require "spec_helper"
 
-# THE ANTI-DRIFT GATE for lib/hecks/vocabulary.rb — the same shape
+# The anti-drift gate for lib/hecks/vocabulary.rb — the same shape
 # spec/parser_table_spec.rb uses for the Rust parser's keyword table:
 # regenerate in memory from the language's own declaration and refuse a
 # diff, so a checked-in artifact that stopped matching its source fails
 # the ordinary suite rather than the next person to read it.
 #
-# WHY THE TABLE IS CHECKED IN AT ALL, rather than built at boot: several
-# of these sets are read WHILE A BLUEBOOK IS BEING PARSED
+# Why the table is checked in at all, rather than built at boot: several
+# of these sets are read while a bluebook is being parsed
 # (`Attribute::PRIMITIVES` is consulted by the DSL itself). A table built
 # from the judged grammar at load time would need the framework to have
 # loaded before the framework could load.
@@ -27,7 +27,7 @@ RSpec.describe "the generated vocabulary table" do
   # The point of generating rather than gating. Together with the
   # regeneration check above, this is what holds each Ruby constant equal
   # to the language: there is no longer a second thing to hold equal — the
-  # constant IS the table.
+  # constant is the table.
   describe "the constants read the table rather than repeating it" do
     {
       "Primitive"             => -> { Hecks::Bluebook::Attribute::PRIMITIVES },
@@ -43,13 +43,13 @@ RSpec.describe "the generated vocabulary table" do
       end
     end
 
-    # THE FOUR THAT LOOKED LIKE THEY COULD NOT BE DERIVED, and could.
+    # The four that looked like they could not be derived, and could.
     #
     # Each had a reason that did not survive being written down:
     # DOMAIN_REFUSALS "maps to classes rather than names" (one const_get),
     # REFUSED "is a single constant, not a set" (Trigger declares exactly
     # it), and the two DISPATCH_ORDERs "name methods" — which is true, and
-    # is why a SEPARATE gate already checks every declared step resolves to
+    # is why a separate gate already checks every declared step resolves to
     # a real handler. Naming them here and resolving them there are
     # different jobs.
     it "DomainRefusal resolves to the exception classes the module defines" do
@@ -80,7 +80,7 @@ RSpec.describe "the generated vocabulary table" do
   end
 
   describe "the table itself" do
-    # Several vocabularies carry MORE than a term — Comparison declares
+    # Several vocabularies carry more than a term — Comparison declares
     # the algebra each operator computes with. Rendering only the first
     # field of each row turned RefusalTemplate into thirty-nine
     # duplicated error names: well-formed, and meaningless.

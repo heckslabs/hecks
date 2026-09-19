@@ -3,16 +3,16 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # AN OIDC CLIENT/SCOPE MANIFEST derived from a domain's own IR: what
+    # An OIDC client/scope manifest derived from a domain's own IR: what
     # an identity provider has to know about this domain before it can
     # issue a token that means anything here.
     #
-    # THE ARTIFACT HALF OF SOMETHING ALREADY HALF-BUILT.
-    # `spec/oidc_projection_spec.rb` covers the INTEGRATION half — verified
+    # The artifact half of something already half-built.
+    # `spec/oidc_projection_spec.rb` covers the integration half — verified
     # claims in, `IdentityResolution.resolve` → `Authorization.holds_role?`
     # → a dispatch scoped by `Hecks.as_caller(role:)`. That half enforces
     # a role per command. It just had no way to say, up front and as data,
-    # WHICH role each command wants — every answer came from asking the
+    # which role each command wants — every answer came from asking the
     # live runtime one dispatch at a time.
     #
     # This is that catalogue, and the two are checked against each other
@@ -24,12 +24,12 @@ module Hecks
     # `Ports::Authorization.holds_role?` compares against a real
     # `Governance::RoleAssignment`.
     #
-    # ROLES COME FROM THE COMMANDS, NOT FROM GOVERNANCE. A command's own
+    # Roles come from the commands, not from governance. A command's own
     # `role "Compliance officer"` is in the bluebook IR
     # (`Command#role`), whereas `uses_framework "Governance"` is
     # declared in the `.hecksagon` — which `call(bluebook:, options:)`
     # cannot see at all. Reading the commands is both the only thing
-    # available here AND the more accurate source: it says what each
+    # available here and the more accurate source: it says what each
     # command actually demands, not merely which role vocabulary the
     # application happened to mount.
     #
@@ -93,7 +93,7 @@ module Hecks
       end
 
       # `banking:account.open` — the shape an OIDC scope is conventionally
-      # spelled in, and snake_cased through the SAME `Naming.snake` the
+      # spelled in, and snake_cased through the same `Naming.snake` the
       # facade uses to name a command's own door method, so a scope and
       # the Ruby call that satisfies it cannot drift apart.
       def command_scopes(commands, verb_prefix, scope_prefix)

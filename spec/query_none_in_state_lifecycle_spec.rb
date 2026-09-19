@@ -1,13 +1,13 @@
 require "spec_helper"
 require "tempfile"
 
-# THE SHAPE THE OTHER `query_none_in_state_*_spec.rb` FILES DON'T COVER —
+# The shape the other `query_none_in_state_*_spec.rb` files don't cover —
 # every one of them (growth, aggregate_level_growth, heki) declares its
 # target aggregate's state as a plain `attribute :state, ...`, never a
 # real `lifecycle :field, ...`. Most aggregates in this codebase (and
 # every aggregate `none_in_state` was actually written to answer
 # questions about) use `lifecycle :status` instead, which is a real state
-# MACHINE, not a bare attribute — and `Comparison#none_in_state?` used to
+# machine, not a bare attribute — and `Comparison#none_in_state?` used to
 # hardcode `record.state[:state]`, silently reading `nil` off any
 # lifecycle-backed record no matter what it actually held (`comparable
 # (nil) != state` is true unconditionally, so `none_in_state` answered
@@ -128,7 +128,7 @@ RSpec.describe "none_in_state against a lifecycle-backed target" do
 
     rows = runtime.query("AntiJoinLifecycle::Board.Assignment.Unclaimed")
 
-    # Before the fix, `record.state[:state]` read `nil` for EVERY row
+    # Before the fix, `record.state[:state]` read `nil` for every row
     # (this target has no `:state` attribute at all, only `:status` via
     # `lifecycle`), so `c1` -- genuinely still "held" -- would have been
     # wrongly included alongside `c2` and `nonexistent`.

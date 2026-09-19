@@ -27,7 +27,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
 
-    # A SECOND CUSTOMER, HOLDING NOTHING. The suspension below is here to
+    # **A second customer, holding nothing**. The suspension below is here to
     # give the standing query something to find, and `FreezeAccounts
     # OnSuspension` now really does freeze every open account a suspended
     # customer holds — so suspending c1 would empty the account-comparator
@@ -60,7 +60,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime
   end
 
-  # Seeded ONCE per file, not per example — every `it` below only queries
+  # Seeded once per file, not per example — every `it` below only queries
   # afterward (`seed` is the only place anything is dispatched), so the
   # same seeded runtime is safe to share.
   before(:context) { @runtime = seed(boot) }

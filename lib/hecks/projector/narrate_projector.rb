@@ -3,20 +3,20 @@ require_relative "../forms/field_shape"
 
 module Hecks
   module Projector
-    # A BLUEBOOK, PROJECTED AS PROSE AN SME CAN READ BACK AND CONFIRM.
+    # A bluebook, projected as prose an SME can read back and confirm.
     #
-    # WHAT THIS IS FOR. `DocsProjector` already answers "what can I call and
+    # **What this is for**. `DocsProjector` already answers "what can I call and
     # what does it want" for the person implementing against a domain —
     # tables of arguments, shapes, refusal reasons. That is the wrong
     # register for the person who can actually say whether the domain is
-    # RIGHT: the subject-matter expert who knows what an account is and has
+    # right: the subject-matter expert who knows what an account is and has
     # never read a markdown table in their life. This projects the same IR
     # as sentences instead — "Debit — take money out. Issued by a Teller. It
     # only goes through if the balance covers it." — so a domain can be
     # read back to the person who can validate it without them learning the
     # DSL first.
     #
-    # SAME SOURCE, SAME GUARANTEE `DocsProjector` gives: nothing here is
+    # Same source, same guarantee `DocsProjector` gives: nothing here is
     # invented. Every sentence quotes a `description`, `goal`, or `given`
     # already declared in the chapter; where a chapter says nothing, this
     # says nothing rather than manufacturing a sentence out of an
@@ -24,7 +24,7 @@ module Hecks
     # (`Projector.call(:narrate, bluebook: ...)`), same aggregate-scoping
     # via `options[:aggregate]`.
     #
-    # WHAT IT DOES NOT DO: replace `DocsProjector`. A shape table still says
+    # **What it does not do**: replace `DocsProjector`. A shape table still says
     # "id of a Customer" more precisely than any sentence would, and an
     # implementer still wants that. This is the other document the same IR
     # is owed — one written for the reader who is being asked "is this
@@ -128,7 +128,7 @@ module Hecks
         "#{header}\n\n#{body}"
       end
 
-      # ONE PARAGRAPH, BUILT FROM INDEPENDENT SENTENCES — each sentence
+      # One paragraph, built from independent sentences — each sentence
       # below states one unrelated fact about `command` (its goal, who
       # issues it, whether it creates the holder, what it takes, what it
       # references, what gates it, what it guarantees, what it emits), in
@@ -149,7 +149,7 @@ module Hecks
         ].compact.join(" ")
       end
 
-      # THE GOAL, VERBATIM — same rule `DocsProjector` holds to: quoted
+      # The goal, verbatim — same rule `DocsProjector` holds to: quoted
       # exactly as declared, not recased to fit mid-sentence, because the
       # promise this whole projector makes is that a sentence here is a
       # sentence the chapter actually wrote.
@@ -163,8 +163,8 @@ module Hecks
         "Issued by #{a_or_an(command.role)} #{command.role}."
       end
 
-      # `acts_on.nil?`, NOT `creates?` — `creates?` answers true for every
-      # verb an ENTITY declares (it never references itself; see
+      # `acts_on.nil?`, not `creates?` — `creates?` answers true for every
+      # verb an entity declares (it never references itself; see
       # `Command#acts_on`'s own comment), so reading it directly here would
       # tell an SME that `LedgerEntry.Amend` brings a new ledger entry into
       # being, which is exactly backwards.
@@ -208,7 +208,7 @@ module Hecks
         "It records `#{command.emits.join('`, `')}` as a fact."
       end
 
-      # EVERY REQUIRED CONDITION, STATED AS SOMETHING THAT MUST BE TRUE —
+      # Every required condition, stated as something that must be true —
       # the same three sources `DocsProjector#refusals_of` reads (the
       # lifecycle edge, a reference's existence, and the command's own
       # `given`s), but kept positive rather than phrased as a refusal
@@ -241,7 +241,7 @@ module Hecks
         lines = queries.map do |query|
           shape   = query.to_h
           takes   = Array(shape[:attributes]).map { |a| Forms::Humanize.label(a[:name].to_s).downcase }
-          # `w[:value]` ALREADY WEARS ITS OWN QUOTES OR COLON — it is a
+          # `w[:value]` already wears its own quotes or colon — it is a
           # `Literal.render`ed string (see lib/hecks/literal.rb), not a raw
           # Ruby value, so wrapping it in `.inspect` here would quote an
           # already-quoted string a second time.

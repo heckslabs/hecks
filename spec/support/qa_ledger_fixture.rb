@@ -4,26 +4,26 @@ require "open3"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
 
-# A DISPOSABLE, POSTGRES-BACKED `QualityControl` LEDGER FOR SPECS THAT
-# DRIVE THE REAL `bin/qa_*` SCRIPTS AS SUBPROCESSES — the exact pattern
+# A disposable, Postgres-backed `QualityControl` ledger for specs that
+# drive the real `bin/qa_*` scripts as subprocesses — the exact pattern
 # `spec/support/qa_sweep_all_fixture.rb` established (read that file's own header
-# FIRST for the full reasoning: why Memory cannot serve a cross-process
+# first for the full reasoning: why Memory cannot serve a cross-process
 # claim, why the chapter is symlinked and never copied, why only the
-# WIRING is swapped). Extracted here so `spec/qa_tick_spec.rb`,
+# wiring is swapped). Extracted here so `spec/qa_tick_spec.rb`,
 # `spec/qa_open_pr_spec.rb` and `spec/qa_log_bug_spec.rb` share one
 # implementation instead of three drifting copies of the same
 # `before(:all)`; `qa_sweep_all_fixture.rb` keeps its own, deliberately — it
-# also builds a fixture TARGET domain and a fixture Rust crate this
+# also builds a fixture target domain and a fixture Rust crate this
 # helper has no reason to know about.
 #
-# ONE DATABASE PER SPEC FILE (`database:`), so `parallel_rspec` can run
+# One database per spec file (`database:`), so `parallel_rspec` can run
 # the callers side by side without one file's `reset!` scrubbing another
-# file's rows mid-example. Constants live INSIDE this module on purpose —
+# file's rows mid-example. Constants live inside this module on purpose —
 # `spec/qa_sweep_persistence_parity_spec.rb`'s own header explains how a
 # bare `FIXTURE_HECKSAGON = …` inside an `RSpec.describe` block lands on
 # `Object` and silently overwrites every other spec's copy.
 module QaLedgerFixture
-  # LINE-FOR-LINE `qa/bluebook/quality_control.hecksagon`'s bindings, with
+  # Line-for-line `qa/bluebook/quality_control.hecksagon`'s bindings, with
   # the `CI`/`IssueTracker` ports declared but unbound — see
   # `spec/support/qa_sweep_all_fixture.rb`'s `FIXTURE_HECKSAGON` comment on why an
   # unbound port is exactly as dormant here as the real file's own
@@ -77,7 +77,7 @@ module QaLedgerFixture
       FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                      File.join(@dir, "quality_control.bluebook"))
       File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
-      # THE SAME URL SHAPE THE REAL LEDGER BINDS, as `hecks_qa`, an
+      # The same URL shape the real ledger binds, as `hecks_qa`, an
       # ordinary owner role — PostgresEra refuses to boot as the ambient
       # superuser (BUG#24); `bin/qa_postgres_role`, run for real below
       # through `QaLedgerRole`, is what makes the URL connectable.
@@ -103,7 +103,7 @@ module QaLedgerFixture
       FileUtils.remove_entry(@root) if @root
     end
 
-    # A FRESH SCHEMA BEFORE EVERY EXAMPLE — a row a prior example left
+    # A fresh schema before every example — a row a prior example left
     # behind must never leak into the next one's own ledger.
     def reset!
       scrub = PG.connect(dbname: @database)
@@ -113,7 +113,7 @@ module QaLedgerFixture
       QaLedgerRole.own_public!(@database)
     end
 
-    # Booted IN-PROCESS, briefly, to seed or read rows — never to run
+    # Booted in-process, briefly, to seed or read rows — never to run
     # the script under test, which is always a real subprocess.
     def boot
       Hecks.boot(@dir)

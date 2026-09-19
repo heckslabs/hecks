@@ -4,30 +4,30 @@ require "securerandom"
 
 module Hecks
   module Fuzzing
-    # A FRESH, IN-PROCESS ADAPTER FOR EVERY EPHEMERAL BOOT.
+    # A fresh, in-process adapter for every ephemeral boot.
     #
     # Fuzzing/replay copies a domain to a tmpdir and boots from there
     # specifically to get zero-history state — `rm_rf`ing the copy's own
     # `data/` achieves that for a file-based adapter (Memory,
-    # SqlitePersistence, Heki), because copying the DIRECTORY copies the
+    # SqlitePersistence, Heki), because copying the directory copies the
     # store. It achieves nothing for an adapter that lives outside the
     # copied directory entirely — Postgres, named by a fixed connection
     # string in `.world` (examples/pizzas/bluebook/pizzas.world, for
     # instance). Copying the directory does not copy or isolate the
-    # DATABASE, so a "fresh" boot against a Postgres-bound domain would
+    # database, so a "fresh" boot against a Postgres-bound domain would
     # still see every record any other run, ever, wrote to it.
     #
     # So every `.hecksagon` in the copy gets its persistence binding
     # rewritten to Memory before booting, and any `projected_by` bind
     # dropped outright (optional — `Registry#read_repository` already
     # falls back to the authoritative repository when none exists). The
-    # domain's own rules and shape are untouched ; only WHICH adapter this
+    # domain's own rules and shape are untouched ; only which adapter this
     # one ephemeral copy answers through changes. What the domain is
     # bound to for real deployment is never touched — only this tmp copy.
     #
     # `adapter:` (PRD 02) — Memory is the default and the only mode every
     # existing caller still gets with no change. `:sqlite` rebinds to the
-    # REAL SQLite adapter instead of the in-memory one, for exactly the
+    # real SQLite adapter instead of the in-memory one, for exactly the
     # same reason PRD 02 exists: 15 declared properties (properties.rb)
     # and every fuzz/replay run has only ever been checked against
     # Memory's own hand-written repository, never against a real,
@@ -44,8 +44,8 @@ module Hecks
     # `root:`, which `Hecks.boot(copy)` passes as this ephemeral copy's
     # own directory — a fresh, empty `data/` per run, exactly like
     # Memory's own zero-history guarantee, just backed by a real SQLite
-    # file instead of a Hash. STALE AS OF THIS PARAGRAPH'S ORIGINAL
-    # WRITING — both `Postgres` (PRD 02, docs/prds/02-fuzzer-real-
+    # file instead of a Hash. Stale as of this paragraph's original
+    # writing — both `Postgres` (PRD 02, docs/prds/02-fuzzer-real-
     # adapters.md) and `PostgresEra` (this mode's own header, below,
     # `rebind_to_postgres_era!`) since gained real `adapter:` modes here.
     # Each writes its own fresh `.world` per `.hecksagon` rather than
@@ -54,7 +54,7 @@ module Hecks
     # connection safely" turned out not to be true: `:postgres` sources
     # one shared, permanent scratch database/schema this module itself
     # owns (see `FUZZ_POSTGRES_DATABASE`'s own header); `:postgres_era`
-    # instead requires the CALLER to supply (and own the lifecycle of) its
+    # instead requires the caller to supply (and own the lifecycle of) its
     # own throwaway `database:`/`schema:`, since its only caller
     # (`bin/qa_sweep --persistence-parity`) already has to manage a
     # disposable database of its own, never a shared one this module could
@@ -62,7 +62,7 @@ module Hecks
     module IsolatedBoot
       module_function
 
-      # PRD 02 (docs/future-features.md) — `adapter:` picks WHICH real
+      # PRD 02 (docs/future-features.md) — `adapter:` picks which real
       # persistence this one ephemeral boot answers through, not just
       # Memory. `:memory` is the original, zero-config behavior (every
       # other caller in this codebase that doesn't pass `adapter:` gets
@@ -75,7 +75,7 @@ module Hecks
       # so `bin/fuzz --adapter postgres` is meant to run with smaller
       # seed/step counts than the Memory default, not as a like-for-like
       # swap; see that flag's own comment.
-      # `database:`/`schema:` are ONLY meaningful for `adapter: :postgres_era`
+      # `database:`/`schema:` are only meaningful for `adapter: :postgres_era`
       # — see `rebind_to_postgres_era!`'s own header for why that mode takes
       # caller-supplied connection identity instead of a hardcoded shared
       # constant the way `:postgres` does. Every other adapter ignores both;
@@ -100,8 +100,8 @@ module Hecks
         end
       end
 
-      # SYMLINKS ARE FOLLOWED, NOT COPIED. `FileUtils.cp_r` reproduces a
-      # symlink AS a symlink, and a RELATIVE one then points at nothing
+      # Symlinks are followed, not copied. `FileUtils.cp_r` reproduces a
+      # symlink as a symlink, and a relative one then points at nothing
       # from a tmpdir — `lib/hecks/framework/bluebook/compliance
       # .bluebook` is exactly that, a link to
       # `examples/compliance/bluebook/compliance.bluebook`, so the whole
@@ -109,7 +109,7 @@ module Hecks
       # path under /var/folders that had never existed. Nothing about the
       # domain was wrong; the copy was.
       #
-      # `FileUtils.cp` follows a symlink and copies its CONTENT, which is
+      # `FileUtils.cp` follows a symlink and copies its content, which is
       # what an isolated boot wants: the copy has to stand alone, since
       # rebind! rewrites files in it and must not reach back through a
       # link into the real tree.
@@ -140,8 +140,8 @@ module Hecks
         rewrite_bindings!(copy, "Memory")
         strip_translations!(copy)
 
-        # THE SETTINGS, NOT JUST THE BIND — `WorldBuilder#method_missing`
-        # stores a settings block under BOTH "verb:adapter" and the bare
+        # **The settings, not just the bind** — `WorldBuilder#method_missing`
+        # stores a settings block under both "verb:adapter" and the bare
         # "verb" (world_builder.rb:32-33), so a bind rewritten to Memory
         # still falls back to whatever adapter's settings were declared
         # bare — Postgres's `database:`, which Memory does not take and
@@ -154,7 +154,7 @@ module Hecks
         Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
       end
 
-      # SAME DANCE AS MEMORY, ONE ADAPTER OVER — `Adapters::Sqlite#
+      # Same dance as memory, one adapter over — `Adapters::Sqlite#
       # resolve_path` (adapters/driven/sqlite.rb) defaults to
       # `data/<table>.db` under the boot's own root when no `database`
       # setting is declared, which `data/` already being cleared makes a
@@ -168,24 +168,24 @@ module Hecks
         Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
       end
 
-      # THE EXPENSIVE ONE — Postgres has no zero-config default the way
+      # **The expensive one** — Postgres has no zero-config default the way
       # Sqlite/Memory do (`Adapters::Postgres.connect_for` refuses outright
       # with no `database` setting), so dropping `.world` the way the
       # other two do would just move the WiringError from "wrong adapter"
       # to "no adapter." Every domain name this copy declares gets a
-      # FRESH `.world` written for it instead — not a rewrite of whatever
+      # fresh `.world` written for it instead — not a rewrite of whatever
       # was there, a replacement, same reasoning `rewrite_bindings!`
       # already applies to `.hecksagon`: this ephemeral boot owns every
       # binding decision, nothing about a real deployment's own settings
       # is relevant or safe to half-preserve here.
       #
-      # ONE SHARED SCHEMA, DROPPED AND RECREATED BEFORE EVERY BOOT — not a
+      # One shared schema, dropped and recreated before every boot — not a
       # fresh randomly-named one per call. `bin/fuzz` drives every
       # ephemeral boot sequentially (one `IsolatedBoot.call` fully exits
       # before the next begins — see that file's own single-threaded
       # `while` loop), so nothing is ever concurrent here ; a fresh name
       # every time would just leak schemas in `FUZZ_POSTGRES_DATABASE`
-      # forever with nothing to ever drop them. If a caller ever DOES
+      # forever with nothing to ever drop them. If a caller ever does
       # start running fuzz adapters concurrently, this needs to move to a
       # process-unique schema name (`SecureRandom.hex` is already
       # `require`d here for exactly that day) — flagged, not solved,
@@ -199,11 +199,11 @@ module Hecks
         strip_translations!(copy)
         ensure_fuzz_schema!
 
-        # ONE `.world` PER DIRECTORY A `.hecksagon` ACTUALLY LIVES IN, not
+        # One `.world` per directory a `.hecksagon` actually lives in, not
         # one at `copy`'s own root — `Folder#load_domain` resolves a
-        # SINGLE `bluebook_directory` and globs `*.world` there, non-
+        # single `bluebook_directory` and globs `*.world` there, non-
         # recursively (`Folder#load_each`); a domain can hold several
-        # `Hecks.hecksagon "<Name>" do ... end` SIBLING blocks in that one
+        # `Hecks.hecksagon "<Name>" do ... end` sibling blocks in that one
         # file (banking.hecksagon declares "Banking", "Governance", and
         # "Identity" together), so every name found in one `.hecksagon`
         # file gets bundled into one `.world` written beside it, not
@@ -225,7 +225,7 @@ module Hecks
           end.join("\n"))
         end
 
-        # Any PRE-EXISTING `.world` this copy shipped with (a real
+        # Any pre-existing `.world` this copy shipped with (a real
         # deployment's own connection string) is now redundant with — and
         # would conflict with, `Registry#add_world`'s own header on
         # loading the same domain name twice — the fresh one just
@@ -236,20 +236,20 @@ module Hecks
         end
       end
 
-      # ADMIN CONNECTION LIVES OUTSIDE THE TMP COPY ENTIRELY — same as
+      # Admin connection lives outside the tmp copy entirely — same as
       # every other real-Postgres spec in this repo (`support/
       # postgres_probe.rb`'s own header). Database created once per
       # process and remembered (`@fuzz_database_ready` on this module's
       # own singleton, the same memoization shape `PostgresProbe
       # .available?` already uses) ; the schema inside it is dropped and
-      # recreated on EVERY call, which is what actually isolates one
+      # recreated on every call, which is what actually isolates one
       # ephemeral boot's data from the next.
       def ensure_fuzz_schema!
-        # `Adapters::Postgres#initialize` opens ONE real `PG::Connection`
-        # PER AGGREGATE and never explicitly closes it — fine for a
+        # `Adapters::Postgres#initialize` opens one real `PG::Connection`
+        # per aggregate and never explicitly closes it — fine for a
         # process that boots once and runs, exactly what every other
         # caller of this adapter is. A fuzz run boots dozens to hundreds
-        # of EPHEMERAL times in one process (every seed does at least a
+        # of ephemeral times in one process (every seed does at least a
         # generate + a replay, `replay_is_deterministic` doubles that,
         # shrinking multiplies it further), and `PG::Connection` only
         # actually closes its socket when Ruby's GC finalizes the
@@ -261,7 +261,7 @@ module Hecks
         # ephemeral boots, `PG::ConnectionBad: ... "too many clients
         # already"`. A `GC.start` here — right before the next ephemeral
         # boot's connections open, not on some timer — reclaims every
-        # connection the PREVIOUS boot's now-unreferenced adapters held,
+        # connection the previous boot's now-unreferenced adapters held,
         # keeping the live count bounded regardless of run length. This
         # is a real constraint on running Postgres in a loop, not
         # something to route around by connecting less carefully.
@@ -278,7 +278,7 @@ module Hecks
         end
 
         db = PG.connect(dbname: FUZZ_POSTGRES_DATABASE)
-        # QUIET ON PURPOSE — same as `Adapters::Postgres.connect_for`'s
+        # **Quiet on purpose** — same as `Adapters::Postgres.connect_for`'s
         # own `SET client_min_messages`: a `DROP SCHEMA ... CASCADE` that
         # actually has something to drop (every boot after the first)
         # NOTICEs once per dropped object, which is the ordinary case
@@ -292,11 +292,11 @@ module Hecks
         db.close
       end
 
-      # THE ADAPTER `:postgres` NEVER TOUCHES — `Postgres` and `PostgresEra`
-      # are SIBLING, NOT interchangeable, adapters (see postgres_era.rb's
+      # The adapter `:postgres` never touches — `Postgres` and `PostgresEra`
+      # are sibling, not interchangeable, adapters (see postgres_era.rb's
       # own header: "the only one that declares the LINEAGE capability").
       # PRD 02 (docs/prds/02-fuzzer-real-adapters.md) shipped `:postgres`
-      # and explicitly scoped `PostgresEra` OUT: "nothing here touches
+      # and explicitly scoped `PostgresEra` out: "nothing here touches
       # era/lineage machinery." That gap is real, not cosmetic —
       # `examples/directory` (a `compute`/`rekey` translation edge, the
       # one domain in this corpus that actually exercises PostgresEra-
@@ -305,20 +305,20 @@ module Hecks
       # `:memory` included, structurally cannot reach it. This mode closes
       # that — `bin/qa_sweep --persistence-parity` is its first caller.
       #
-      # NO SHARED CONSTANT DATABASE, UNLIKE `:postgres` ABOVE — deliberate.
+      # No shared constant database, unlike `:postgres` above — deliberate.
       # `rebind_to_postgres!`'s own `FUZZ_POSTGRES_DATABASE`/`_SCHEMA` are
       # module-level constants because `bin/fuzz --adapter postgres` is a
       # general-purpose, run-it-anytime tool with no caller-tracked
       # lifecycle of its own. This mode's only caller
       # (`bin/qa_sweep --persistence-parity`) is different: it dispatches
       # through `QualityControl::Target.claim!`'s own cross-process lock
-      # first (see that script's own header), so at most ONE sweep is ever
+      # first (see that script's own header), so at most one sweep is ever
       # touching a given target's own disposable database at a time — but
-      # the caller, not this module, is what OWNS that database's name and
+      # the caller, not this module, is what owns that database's name and
       # lifecycle (created, and genuinely dropped, by the caller itself),
       # exactly the discipline `spec/support/qa_sweep_all_fixture.rb`'s own header
       # describes and this repository's persistence-parity work is
-      # required to follow. Accepting `database:`/`schema:` as REQUIRED
+      # required to follow. Accepting `database:`/`schema:` as required
       # keyword arguments (never a fallback constant) is what keeps that
       # ownership from silently drifting back onto this module the way
       # `:postgres`'s own `FUZZ_POSTGRES_DATABASE` already has.
@@ -334,25 +334,25 @@ module Hecks
         rewrite_bindings!(copy, "PostgresEra")
         ensure_postgres_era_schema!(database: database, schema: schema)
 
-        # SAME ONE-`.world`-PER-`.hecksagon`-DIRECTORY SHAPE `rebind_to_
+        # Same one-`.world`-per-`.hecksagon`-directory shape `rebind_to_
         # postgres!` already uses, for the identical reason (`Folder#
         # load_domain` globs `*.world` non-recursively) — see that
         # method's own comment on `world_path` above. `PostgresEra`
-        # additionally takes `schema:` (postgres_era.rb's own "SHARED-
-        # INSTANCE ISOLATION" comment): the caller-supplied throwaway
+        # additionally takes `schema:` (postgres_era.rb's own "shared-
+        # instance isolation" comment): the caller-supplied throwaway
         # schema is what actually isolates this one ephemeral boot from
         # the next, the same job `FUZZ_POSTGRES_SCHEMA` does for `:postgres`
         # — `connect_for` itself idempotently `CREATE SCHEMA IF NOT
-        # EXISTS`s it, so this method only ever needs to DROP it first
+        # EXISTS`s it, so this method only ever needs to drop it first
         # (in `ensure_postgres_era_schema!`, below) for the zero-history
         # guarantee every other adapter mode already gives.
         #
-        # `allow_superuser true` — ON THE RECORD, ON PURPOSE. A bare
+        # `allow_superuser true` — on the record, on purpose. A bare
         # `database` connects as the ambient Postgres user, and
         # PostgresEra refuses to boot at all when that user is a
         # superuser (its era write-fence is row-level security, which a
         # superuser walks through — `Lineage#check_fence_applies!`,
-        # BUG#24). That refusal protects a REAL ledger from an old
+        # BUG#24). That refusal protects a real ledger from an old
         # checkout's stale writes; nothing here is one. This is an
         # ephemeral boot into a throwaway schema the caller itself
         # creates and drops, whose data no second checkout ever shares,
@@ -386,18 +386,18 @@ module Hecks
         end
       end
 
-      # THE ZERO-HISTORY GUARANTEE FOR THIS MODE — `DROP SCHEMA ... CASCADE`
+      # The zero-history guarantee for this mode — `DROP SCHEMA ... CASCADE`
       # before every ephemeral boot, mirroring `ensure_fuzz_schema!` above
       # (same `GC.start`-before-connecting fix for the identical
       # `max_connections` exhaustion that method's own comment documents —
       # `PostgresEra` opens real `PG::Connection`s exactly like `Postgres`
-      # does, same unclosed-until-GC'd lifetime). The DATABASE itself is
+      # does, same unclosed-until-GC'd lifetime). The database itself is
       # created here too, idempotently (`CREATE DATABASE IF NOT EXISTS`
       # has no Postgres spelling, hence the existence check) — but never
-      # DROPPED here: this module creates it once per process because
+      # dropped here: this module creates it once per process because
       # `Hecks.boot` needs it to exist before `PostgresEra.connect_for`'s
       # own `PG.connect(dbname: ...)` can succeed at all, but dropping it
-      # again is the CALLER's own job (its name and lifecycle belong to
+      # again is the caller's own job (its name and lifecycle belong to
       # the caller — see `rebind_to_postgres_era!`'s own header), not
       # something this per-ephemeral-boot helper should ever do mid-sweep.
       def ensure_postgres_era_schema!(database:, schema:)
@@ -417,7 +417,7 @@ module Hecks
         db.close
       end
 
-      # THE SHARED REWRITE — factored out of `rebind_to_memory!` when
+      # The shared rewrite — factored out of `rebind_to_memory!` when
       # Sqlite/Postgres modes needed the identical `.hecksagon` surgery
       # with only the target adapter name differing. `persisted_by`/
       # `projected_by` can be spelled two ways: aggregate-scoped
@@ -431,41 +431,41 @@ module Hecks
       # #read_repository` already falls back to the authoritative
       # repository when none exists, so a read model this ephemeral copy
       # never wires is simply unread, not broken.
-      # A `compute`/`rekey` TRANSLATION EDGE REFUSES TO BOOT AT ALL UNDER
-      # ANY NON-LINEAGE-CAPABLE ADAPTER — found live, wiring this very
+      # A `compute`/`rekey` translation edge refuses to boot at all under
+      # any non-lineage-capable adapter — found live, wiring this very
       # mode up against `examples/directory`: `Runtime::EraCheck
-      # .check_compute_rules!` (era_check.rb) runs UNCONDITIONALLY for
+      # .check_compute_rules!` (era_check.rb) runs unconditionally for
       # every loaded bluebook once the era plugin is loaded at all
       # (`bin/qa_sweep`'s own top-of-file `require "hecks/ports/
       # persistence/plugins/era"`, needed for the ledger's own
       # PostgresEra-bound aggregates), and refuses outright — "compute
-      # rules require the Postgres adapter" — for ANY aggregate whose
-      # lineage carries a `compute` rule and whose BOUND adapter is not
+      # rules require the Postgres adapter" — for any aggregate whose
+      # lineage carries a `compute` rule and whose bound adapter is not
       # lineage-capable. `PostgresEra` is the only adapter that answers
       # `lineage_capable? == true` (postgres_era.rb's own `self.
-      # lineage_capable? = true`) — plain `Postgres` does NOT, so this
+      # lineage_capable? = true`) — plain `Postgres` does not, so this
       # refusal was already real for `:postgres`/`:sqlite`/`:memory`
       # alike, for any domain with a translation edge, before this
       # mode's own `:postgres_era` ever existed. This is very likely the
-      # MECHANICAL reason `examples/directory` had to be shelved out of
+      # mechanical reason `examples/directory` had to be shelved out of
       # `hecks_qa`'s own rotation in the first place — not merely "less
-      # interesting to fuzz on Memory," but "cannot BOOT on Memory at
+      # interesting to fuzz on Memory," but "cannot boot on Memory at
       # all" once the era plugin is loaded, which every real
       # `bin/qa_sweep` invocation already does.
       #
-      # THE FIX IS TO DROP THE EDGE, NOT TO CHASE THE REFUSAL — an
+      # The fix is to drop the edge, not to chase the refusal — an
       # ephemeral, zero-history replay boot (every mode `IsolatedBoot`
       # offers) never has a pre-existing era-1 row to translate in the
-      # first place, so the translation edge is IRRELEVANT to anything a
+      # first place, so the translation edge is irrelevant to anything a
       # fuzz/replay run actually exercises (ordinary command dispatch
-      # against a fresh boot) — it only ever matters at MINT time,
+      # against a fresh boot) — it only ever matters at mint time,
       # against a real, pre-existing database
       # (`PostgresEra::LineageManager.check!`, a wholly separate,
       # human-approved path this harness was never meant to reach).
       # Dropping it here is exactly the same move `rebind_to_memory!`
       # already makes for `.world` (irrelevant/conflicting settings for
       # an ephemeral boot, deleted outright) — never called for
-      # `:postgres_era` itself, where the bound adapter genuinely IS
+      # `:postgres_era` itself, where the bound adapter genuinely is
       # lineage-capable and the edge causes no refusal to begin with.
       def strip_translations!(copy)
         Dir.glob(File.join(copy, "**", "translations", "*.bluebook")).each { |path| File.delete(path) }

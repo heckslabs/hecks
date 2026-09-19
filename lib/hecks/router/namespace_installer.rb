@@ -77,16 +77,16 @@ module Hecks
         end
       end
 
-      # `.find`/`.all`/`.count`/`.events`/`.repository` — the SAME read/CRUD
+      # `.find`/`.all`/`.count`/`.events`/`.repository` — the same read/CRUD
       # surface `Facade::Surface::AggregateDoor` gives a plain `Hecks
       # .boot`, missing here until now: `install_namespace_entry` above
-      # installs ONE method per declared VERB, so an aggregate with no
+      # installs one method per declared verb, so an aggregate with no
       # commands or queries of its own shape (or simply never asked for
       # a `find`-shaped query) had no way to look up one record by id
       # through the router surface at all — real gap, hit live building
       # a `List` aggregate meant to be read this way. Grouped by
       # (realm, domain, aggregate) rather than installed per-verb,
-      # because unlike a command or query this is the SAME five methods
+      # because unlike a command or query this is the same five methods
       # regardless of which verb happened to trigger this aggregate's
       # own namespace module into existing.
       def install_aggregate_doors!

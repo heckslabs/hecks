@@ -11,7 +11,7 @@ module Hecks
   module Ports
     module Persistence
       module Plugins
-        # ADR 0033 — requiring THIS FILE is installing the plugin. Nothing in
+        # ADR 0033 — requiring this file is installing the plugin. Nothing in
         # Hecks core requires it; an app that binds `PostgresEra`, or wants
         # schema-translation support at all, requires it explicitly — the
         # same shape every adapter-specific spec fixture already uses to
@@ -19,6 +19,8 @@ module Hecks
         module Era
           module_function
 
+          # Registers this plugin's era gates on one boot's gate list.
+          #
           # `Runtime::Loader.run_boot_gates!` asks every loaded persistence
           # plugin to contribute here, generically — it never mentions
           # `EraCheck` or "era" by name. Two gates, both `:pre_verify`:
@@ -29,11 +31,19 @@ module Hecks
           # unchanged) — this is the rich, adapter-aware version of that
           # check; `Runtime::Loader`'s own structural backstop (plain
           # `Bluebook::Translation` data, no plugin-specific class) only
-          # ever fires when NO persistence plugin is loaded at all.
+          # ever fires when no persistence plugin is loaded at all.
           #
           # `:era_check` — conditional, exactly ADR 0031's own gate,
           # unchanged: registered only when this registry has an aggregate
           # actually bound to a lineage-capable adapter.
+          #
+          # @param registry [Runtime::Registry] the registry being booted, asked whether any
+          #   bluebook's first aggregate is bound to a lineage-capable adapter
+          # @param gates [Runtime::BootGates] this boot's gate list, registered onto in place
+          # @return [Runtime::BootGates, nil] `gates` when `:era_check` was registered; nil when
+          #   the registry binds nothing lineage-capable, so only `:era_compute_rules` was added
+          # @raise [Runtime::WiringError] if an aggregate's persistence binding is missing,
+          #   ambiguous, or carries an unsupported role
           def contribute_boot_gates(registry, gates)
             gates.register(:era_compute_rules, lambda { |reg, _dir|
               Runtime::EraCheck.check_compute_rules_for_registry!(reg)

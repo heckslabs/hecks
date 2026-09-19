@@ -6,7 +6,7 @@ require_relative "../../runtime/errors"
 
 module Hecks
   module Adapters
-    # SHARED BY every adapter that holds decoded Ruby records rather than
+    # Shared by every adapter that holds decoded Ruby records rather than
     # running real SQL (Memory, Lambda, Heki) — the identical dotted-path
     # value-object member-picking Postgres/Sqlite/D1's own
     # order_expression does (numeric member wins, else the one-field
@@ -16,7 +16,7 @@ module Hecks
     module InMemoryOrdering
       module_function
 
-      # order_by IS A RUNTIME VALUE (an HTTP query param, in the
+      # order_by is a runtime value (an HTTP query param, in the
       # console's case), not framework-authored bluebook source — see
       # postgres.rb's own all for the full reasoning. Whitelisted the
       # identical way before FieldPath.dig ever runs.
@@ -46,7 +46,7 @@ module Hecks
         vo = aggregate.value_object(attribute.type)
         return field.to_s unless vo
 
-        # Numeric member first, then the SOLE attribute whatever it is
+        # Numeric member first, then the sole attribute whatever it is
         # named (single-attribute value objects strictly answer `.value`
         # — the same generalization `SqlQueryBuilder#query_expression`
         # makes for the column side, kept in lockstep so Memory and SQL

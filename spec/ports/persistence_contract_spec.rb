@@ -4,7 +4,7 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../support/persistence_legacy_fixture"
 require_relative "../support/postgres_probe"
 
-# ONE ROUND-TRIP CONTRACT, EVERY PERSISTENCE ADAPTER (Phase 2, Track A,
+# One round-trip contract, every persistence adapter (Phase 2, Track A,
 # PR A3). Since A3 every adapter writes through
 # `Ports::Persistence::StateCodec.encode` and reads through `decode`, so
 # they must all agree on exactly what a saved record reads back as —
@@ -13,12 +13,12 @@ require_relative "../support/postgres_probe"
 # spec/adapters/driven/d1_spec.rb uses), Postgres and PostgresEra.
 #
 # The shapes, from `examples/banking` (PersistenceLegacyFixture::SEEDS):
-# Account — nested MULTI-field value objects (Money), a list of ENTITIES
+# Account — nested multi-field value objects (Money), a list of entities
 # each holding its own nested value objects plus its own lifecycle field
 # (`ledger`), a reference (`customer`), the lifecycle field (`status`), a
-# SEEDED projected field (`customer_status`). CardPayment — a list of
-# VALUE OBJECTS (`tags`), a required and a nil optional reference, and a
-# NEVER-seeded projected field (`account_customer_status`).
+# seeded projected field (`customer_status`). CardPayment — a list of
+# value objects (`tags`), a required and a nil optional reference, and a
+# never-seeded projected field (`account_customer_status`).
 #
 # Every adapter here is guarded exactly as `RepositoryFactory.build`
 # guards it (`CodecBoundary.guard!`) and driven through `AppendOnly`, so a
@@ -61,7 +61,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
 
   def live(name) = fixture.instances.find { |instance| instance.aggregate.name == name }
 
-  # The raw `state:` the LAST `Instance.new` inside the block was handed.
+  # The raw `state:` the last `Instance.new` inside the block was handed.
   def decoded_state
     captured = []
     allow(Hecks::Runtime::Instance).to receive(:new).and_wrap_original do |original, **kwargs|
@@ -84,7 +84,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
         let(:record) { live(name) }
         let(:repository) { repository_for(aggregate) }
 
-        # The save goes INSIDE the capture: Memory builds its record's
+        # The save goes inside the capture: Memory builds its record's
         # Instance when it projects, not when it is read, so the last
         # construction is the projected copy there and the read's decode
         # everywhere else.
@@ -174,7 +174,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
   end
 
   describe Hecks::Adapters::D1 do
-    # ONE in-memory SQLite per example, shared by every adapter the example
+    # One in-memory SQLite per example, shared by every adapter the example
     # builds — so a "second adapter over the same store" really is one.
     def connection = (@connection ||= fixture.fake_d1_connection)
 
@@ -291,7 +291,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
 
     # Nested string keys under a declared value object: undecoded to the
     # boundary, still accepted by hydration's own input door. A string
-    # TOP-LEVEL key is refused everywhere since A4 (Value.hydrate).
+    # top-level key is refused everywhere since A4 (Value.hydrate).
     def undecoded_nested = { status: "open", balance: { "cents" => 1, "currency" => "USD" } }
 
     it "does nothing to an Instance built outside any adapter call" do

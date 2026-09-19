@@ -13,7 +13,7 @@ module Hecks
     # path; `forget`/`forget_all` exist for a caller that reloads an edited
     # file in-process (see their own comment).
     module Prism
-      # NOT frozen — a real cache, keyed by file path and mutated by
+      # Not frozen — a real cache, keyed by file path and mutated by
       # #tree_for below (`TREES[file] ||= ...`) and #forget/#forget_all.
       # False positive for Style/MutableConstant.
       # rubocop:disable-next Style/MutableConstant
@@ -58,12 +58,12 @@ module Hecks
         TREES[file] ||= ::Prism.parse(File.read(file)).value
       end
 
-      # `TREES` caches for the life of the PROCESS, keyed by path, with
+      # `TREES` caches for the life of the process, keyed by path, with
       # no staleness check — correct for every ordinary caller (a file
       # loads once per process: one `bin/ir` run, one rspec worker,
-      # never edited out from under it), but WRONG for anything that
+      # never edited out from under it), but wrong for anything that
       # legitimately reloads an edited file in-process: a stale cached
-      # tree reports a `given`/`ensures` block at its OLD line number,
+      # tree reports a `given`/`ensures` block at its old line number,
       # which no longer matches the freshly re-executed file's own
       # `block.source_location` — surfacing as "did not survive
       # extraction" on a perfectly valid file. Found for real building

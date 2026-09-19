@@ -3,9 +3,9 @@
 # Generates the two capability enums the hand-written Rust kernel
 # (rust/src/kernel/attribute_shapes/*.rs, rust/src/kernel/
 # expression_operators/*.rs) is matched against — read this alongside
-# bin/project_rust's own header, which generates the DOMAIN-SPECIFIC
+# bin/project_rust's own header, which generates the domain-specific
 # side of the same crate from a bluebook's canonical IR. This generates
-# the LANGUAGE-LEVEL side: not "what commands does Pizzas declare" but
+# the language-level side: not "what commands does Pizzas declare" but
 # "what attribute shapes and expression operators does the Ruby grammar
 # itself admit, that every generated domain's hand-written kernel floor
 # has to interpret correctly no matter which domain is compiled in."
@@ -19,7 +19,7 @@
 #                        once, right where the branching happens.
 #
 #   expression operators <- Hecks::Grammar.admitted_operators, the
-#                        SAME live-booted call bin/expression_projection
+#                        same live-booted call bin/expression_projection
 #                        uses to write lib/hecks/bluebook/expression/
 #                        projection.json — replaying the real admission
 #                        ledger through the real Expression chapter, never
@@ -27,15 +27,15 @@
 #                        field Evaluator::PROJECTION already partitions
 #                        comparison operators by (evaluator.rb:26) — this
 #                        script reuses the same field for the coarser,
-#                        per-INTERPRETER-NODE grouping the kernel actually
+#                        per-interpreter-node grouping the kernel actually
 #                        branches on (six comparison symbols collapse to
 #                        one `Compare` node, three sign-test symbols to
 #                        one `SignTest` node — see expr.rs).
 #
-# WRITES rust/src/kernel/attribute_shapes/mod.rs and rust/src/kernel/
-# expression_operators/mod.rs — the `pub mod <name>;` lines AND the enum,
+# Writes rust/src/kernel/attribute_shapes/mod.rs and rust/src/kernel/
+# expression_operators/mod.rs — the `pub mod <name>;` lines and the enum,
 # together, on purpose: the individual `<name>.rs` files under each
-# directory are HAND-WRITTEN interpretation logic (this script never
+# directory are hand-written interpretation logic (this script never
 # touches them), but the roster of which names must exist is grammar-
 # derived, so regenerating after a grammar change can point `pub mod` at
 # a file nobody has written yet — a plain "unresolved module" compile
@@ -43,8 +43,8 @@
 # sites give once a human closes the gap by adding the file
 # (bin/rust_kernel_coverage checks for exactly that file, mechanically).
 #
-# A THIRD CAPABILITY USED TO BE WRITTEN HERE TOO, AND NO LONGER IS —
-# WORTH RECORDING WHY, since its absence could otherwise look like an
+# A third capability used to be written here too, and no longer is —
+# worth recording why, since its absence could otherwise look like an
 # oversight rather than a decision. `Hecks::QuerySpecification::
 # Common::COMPARATORS` (lib/hecks/query_specification/common/
 # comparators.rb) — `eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`in`/`contains`, the
@@ -58,26 +58,26 @@
 # hand.
 #
 # That day came: `rust/src/kernel/cli.rs`'s ad hoc, single-comparator
-# "query" step (the OBJECT form) now dispatches over this enum for real,
+# "query" step (the object form) now dispatches over this enum for real,
 # in `query_comparators.rs` itself — see that file's own header for the
-# full story, including what still, deliberately, does NOT dispatch (a
-# NAMED/declared bluebook query, the STRING form of the same step). Once
+# full story, including what still, deliberately, does not dispatch (a
+# named/declared bluebook query, the string form of the same step). Once
 # a real dispatch site exists, this capability stops looking like
 # `attribute_shapes`/`expression_operators` (a generator-owned roster
 # plus hand-written interpretation files behind it) and starts looking
-# like every OTHER hand-written file under rust/src/kernel/ — the enum
-# and its interpretation are ONE file, hand-maintained together, the same
+# like every other hand-written file under rust/src/kernel/ — the enum
+# and its interpretation are one file, hand-maintained together, the same
 # way `cli.rs`/`dispatch.rs`/`repository.rs` already are. Regenerating it
 # here would have nothing left to do but overwrite that hand-written
 # dispatch logic with the old bare enum — so this script no longer
 # touches `query_comparators.rs` at all. This prediction already came
-# true once — `Vocabulary::QueryComparator` HAD grown a ninth name
+# true once — `Vocabulary::QueryComparator` had grown a ninth name
 # (`none_in_state`) before this script's own comment above caught up to
 # say so; `QueryComparator::ALL`/`parse`/`matches`/`none_in_state_matches`
 # in that file got that human's own hand (item #9, whole-project table-
 # unification survey) — the same way a ninth `AttributeShape` would need
 # a human to write `rust/src/kernel/attribute_shapes/<name>.rs`. This
-# script's `emit_mod` only ever wrote the ROSTER for that capability,
+# script's `emit_mod` only ever wrote the roster for that capability,
 # never the interpretation, either.
 #
 #   bin/project_kernel_capabilities
@@ -152,7 +152,7 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
   write_atomically(target, content)
 end
 
-# ── ATTRIBUTE SHAPES ──────────────────────────────────────────────────
+# ── Attribute SHAPES ──────────────────────────────────────────────────
 shape_names = Hecks::Runtime::Value::Coercion::SHAPES
 emit_mod(
   File.join(ROOT, "rust/src/kernel/attribute_shapes/mod.rs"),
@@ -167,8 +167,8 @@ emit_mod(
   doc_line:  "Coercion::SHAPES"
 )
 
-# ── EXPRESSION OPERATORS ──────────────────────────────────────────────
-# `category`, in FIRST-APPEARANCE order over the live admission ledger —
+# ── Expression operators ──────────────────────────────────────────────
+# `category`, in first-appearance order over the live admission ledger —
 # never alphabetized, so a re-run doesn't reshuffle variant order for no
 # reason and produce a no-op-but-noisy diff.
 operator_categories = Hecks::Grammar.admitted_operators.map { |op| op[:category] }.uniq
@@ -185,7 +185,7 @@ emit_mod(
   doc_line:  "Grammar.admitted_operators's own `category` field"
 )
 
-# ── QUERY COMPARATORS — no longer generated here. See this script's own
+# ── **Query comparators** — no longer generated here. See this script's own
 # header for the full story: rust/src/kernel/query_comparators.rs is now
 # hand-maintained, with a real dispatch site, the same as every other
 # hand-written file under rust/src/kernel/.

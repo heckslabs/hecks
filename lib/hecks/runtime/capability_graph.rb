@@ -1,12 +1,12 @@
 module Hecks
   module Runtime
-    # WHICH PORTS A BOOT CAN ACTUALLY FULFILL, read off the registry it already
+    # Which ports a boot can actually fulfill, read off the registry it already
     # holds. `registry.ports` names every port a domain declared a dependency
     # on ; `registry.adapters` names every adapter wired to implement one — the
     # same `adapter.port == port.name` match `Ports::Extraction` and
     # `Ports::IdentityGeneration` already make for themselves, one at a time,
     # each time they resolve. This is that same question asked once, for
-    # every port at once, so a gap in the wiring is something a caller can ASK
+    # every port at once, so a gap in the wiring is something a caller can ask
     # about rather than something a live dispatch discovers by refusing.
     #
     # `cycles` answers `[]`, always, and honestly: nothing in this port model

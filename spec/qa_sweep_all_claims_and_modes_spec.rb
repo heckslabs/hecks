@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` / single-target — CLAIM RACES AND MODES. One of
+# `bin/qa_sweep --all` / single-target — claim races and modes. One of
 # seven sibling files split out of the original `qa_sweep_all_spec.rb`
 # (Phase 2 of the CI speed effort — see `spec/qa_sweep_all_lifecycle_
 # spec.rb`'s own header and `spec/support/qa_sweep_all_fixture.rb` for
@@ -36,7 +36,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(outcomes.map { |o| o[:output] }).to contain_exactly("claimed", "refused")
   end
 
-  # MODES ARE DATA — `bin/qa_sweep` prints the one rule's answer
+  # **Modes are data** — `bin/qa_sweep` prints the one rule's answer
   # (`enabled ∩ eligible`, `Hecks::Fuzzing::TargetCapabilities`) on its
   # own `resolved modes:` line, and `--modes` overrides the enabled set
   # for one run. The fixture target binds Heki and has no Cargo feature,

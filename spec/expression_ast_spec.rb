@@ -2,8 +2,8 @@ require "spec_helper"
 require "json"
 require "hecks/fuzzing/bounded_exhaustive_expressions"
 
-# EVERY RULE ROW CARRIES ITS STRUCTURED FORM, AND THAT FORM IS THE WHOLE
-# MEANING.
+# Every rule row carries its structured form, and that form is the whole
+# meaning.
 #
 # A `given`/`ensures`/invariant/precondition/policy `where` travels in
 # the IR as `{description, canonical, ast}` (`Expression::AstJson.
@@ -17,11 +17,11 @@ require "hecks/fuzzing/bounded_exhaustive_expressions"
 #      is a pure function of `canonical`.
 #   2. It is plain JSON: serialising and re-reading it is the identity,
 #      byte-for-byte deterministic.
-#   3. Its `"op"` tags are a CLOSED roster (`ExprAstJson::OPS`), and paths
+#   3. Its `"op"` tags are a closed roster (`ExprAstJson::OPS`), and paths
 #      are segment arrays, never dotted strings.
 #   4. It carries the whole meaning: for every well-typed expression the
 #      bounded-exhaustive generator can spell, reading the emitted `ast`
-#      back into evaluator nodes and interpreting THOSE answers exactly
+#      back into evaluator nodes and interpreting those answers exactly
 #      what interpreting the parsed text answers — same value, or the
 #      same `EvaluationError`.
 #   5. Emission is total: no generated expression makes `ExprAstJson` raise.

@@ -4,11 +4,11 @@ module Hecks
   module Bluebook
     # A read model — an ask that gathers heads from more than one aggregate.
     #
-    # Like a query it crosses over as an INSTANCE, and for the same reason: its
+    # Like a query it crosses over as an instance, and for the same reason: its
     # body is inherited from `QuerySpecification::ReadModel::Specification`, whose
     # readers the runtime and the SQLite adapter both call on the object. It gains
     # an identity and an owner ; it keeps the name it always had, because only a
-    # CLASS ever had a competing answer for `name`.
+    # class ever had a competing answer for `name`.
     class ReadModel < QuerySpecification::ReadModel::Specification
       include Construct
 
@@ -29,7 +29,7 @@ module Hecks
       attr_reader :name, :description, :reference_name, :reference_target, :aggregate_heads, :group_by,
                   :count, :median_field
 
-      # `reference_name:`/`reference_target:` are nil for a ROOTLESS read
+      # `reference_name:`/`reference_target:` are nil for a rootless read
       # model (no `reference_to` declared) — `&.` throughout, rather than
       # the `.to_s`/`.to_sym` this used to require unconditionally, so
       # `reference_target.nil?` stays a real, checkable fact for the
@@ -47,11 +47,11 @@ module Hecks
         # `group_by_fields` is the convenience reader everything but
         # `to_h`/the Judge's own generic walk actually wants.
         @group_by         = group_by
-        # ABSENT IS NOT FALSE. `@count` stays nil rather than becoming
+        # **Absent is not false**. `@count` stays nil rather than becoming
         # `false` when undeclared — the same "if you declare it, declare
         # something" reading `Lifecycle`'s own optional fields rely on
         # (MetaValidator::Judge#setters skips a setter whose every
-        # source is `nil`, so an ALWAYS-false `@count` would dispatch
+        # source is `nil`, so an always-false `@count` would dispatch
         # `ReadModel.Count` on every read model that never wrote the
         # word at all). `!!count` collapses a truthy DSL `true` (or a
         # reconstructed `true`) to the same `true`/`nil` pair either path
@@ -60,15 +60,15 @@ module Hecks
         @median_field     = median_field&.to_sym
       end
 
-      # `.to_sym` regardless of source — the DIRECT builder path stores
+      # `.to_sym` regardless of source — the direct builder path stores
       # symbols, but `Reconstruction::Shapes#group_by_field` (the
-      # replayed-from-the-meta-domain path every REAL boot actually
+      # replayed-from-the-meta-domain path every real boot actually
       # goes through) reads the field back as a String, the same way
-      # `aggregate_heads`' own `:as` does. Row hash KEYS built by
+      # `aggregate_heads`' own `:as` does. Row hash keys built by
       # `Value.materialize_unwrapped` are symbols (`attr.name`), so
       # this has to be too, or `row[field]` in `nest` silently misses.
 
-      # `wheres`/`order_by`/`limit` are spelled explicitly here, the SAME
+      # `wheres`/`order_by`/`limit` are spelled explicitly here, the same
       # mechanism `Query#to_h` already uses (query.rb, read directly
       # before this was written) — always present, `wheres` a (possibly
       # empty) array and `order_by`/`limit` nil when undeclared, exactly
@@ -78,16 +78,16 @@ module Hecks
       # than a reader needing to learn a second one. See this file's own
       # `filtered_head_name` and language/bluebook/syntax.bluebook's
       # `ReadModel` `where`/`order_by`/`limit` member rows for the history
-      # of why this WAS narrower, and 2026-08-11's read-model where/
+      # of why this was narrower, and 2026-08-11's read-model where/
       # order_by/limit task for why it stopped being.
       # Same dynamic tail as a Query's, plus two collections whose
-      # ROWS are plain hashes rather than constructs — they are
+      # rows are plain hashes rather than constructs — they are
       # normalised here rather than by `many`, which recurses through
       # `to_h` and would have nothing to call.
-      # `count`/`median_field` are ABSENT (no key at all), not `nil`,
+      # `count`/`median_field` are absent (no key at all), not `nil`,
       # when undeclared — unlike `group_by` (always a `[]`, never
-      # missing) they are the FIRST fields this construct has ever
-      # added that no OLDER real corpus member could possibly carry, so
+      # missing) they are the first fields this construct has ever
+      # added that no older real corpus member could possibly carry, so
       # merging them unconditionally would have put a `null` onto every
       # existing read model's own wire shape (banking's
       # `ComplianceDashboard`/`CustomerPortfolio`, the language's own

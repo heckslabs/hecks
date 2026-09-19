@@ -5,7 +5,7 @@ module Hecks
     # Paths are dotted ("price.cents") for a VO member, bare otherwise.
     TranslationMove = Struct.new(:from, :to)
 
-    # One field whose VALUE, not just its name or position, changed —
+    # One field whose value, not just its name or position, changed —
     # an old value has nothing in common with a new one, so the only
     # honest way to bridge it is a declared, exhaustive lookup table.
     # Paths follow `TranslationMove`'s convention (dotted reaches a VO
@@ -16,7 +16,7 @@ module Hecks
     # rubocop:disable-next Lint/StructNewOverride
     TranslationConvert = Struct.new(:from, :to, :values)
 
-    # A value object's or entity's own TYPE NAME changed with its member
+    # A value object's or entity's own type name changed with its member
     # structure unchanged — the one drift `rename`/`move` cannot express,
     # because the attribute kept its name and only the type it points at
     # was renamed. Mirrors `was:` one level deeper.
@@ -29,7 +29,7 @@ module Hecks
     # every other adapter.
     TranslationCompute = Struct.new(:from, :to, :sql)
 
-    # The aggregate's own IDENTITY changed what it's computed from — not
+    # The aggregate's own identity changed what it's computed from — not
     # a field crossing a boundary (that's `move`), a value objects's type
     # name (`retype`), or a value transform (`compute`): the record's own
     # key. No `from:`/`to:` path, unlike every other rule here, because
@@ -41,7 +41,7 @@ module Hecks
     TranslationRekey = Struct.new(:sql)
 
     # A newly added, required attribute with no source in old data at
-    # all — not a rename, move, or convert, all of which need a FROM
+    # all — not a rename, move, or convert, all of which need a from
     # path in the old shape. `default` is the value an existing record
     # reads until the next command against it writes a real one; unlike
     # `compute`, this is adapter-agnostic — applied in-process by

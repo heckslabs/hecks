@@ -3,7 +3,7 @@ require_relative "support/doctest"
 require "tempfile"
 
 # The doctest harness, proven on itself before any guide trusts it. The
-# one that matters most is the LINE-MAPPING case: a failing claim must
+# one that matters most is the line-mapping case: a failing claim must
 # name the guide's true line, or every future failure sends its reader
 # to the wrong paragraph.
 RSpec.describe Doctest do
@@ -21,7 +21,7 @@ RSpec.describe Doctest do
   # One guide exercising every fence kind together — bluebook, boot,
   # shared locals across blocks, a passing claim, a refusal claim, and
   # a skipped fence — is the actual claim under test: that the harness
-  # runs a WHOLE guide coherently. Splitting the guide loses that.
+  # runs a whole guide coherently. Splitting the guide loses that.
   # rubocop:disable-next RSpec/ExampleLength
   it "runs a whole guide — declarations, wiring, shared locals, claims, refusals" do
     path = guide(<<~MD)
@@ -123,7 +123,7 @@ RSpec.describe Doctest do
     expect(described_class.run(path)).to be(true)
   end
 
-  # Proves a second bluebook/boot pair, later in the SAME guide, gets
+  # Proves a second bluebook/boot pair, later in the same guide, gets
   # its own wave and its own boot while still seeing the first wave's
   # locals — a claim about cross-wave interaction that only a guide
   # with both waves present, run as one, can establish.
@@ -203,7 +203,7 @@ RSpec.describe Doctest do
 
     parsed = described_class.parse(path)
     expect(parsed.postgres).to be(true)
-    # Only the fresh `Hecks.bluebook` invention counts as OWNED — the
+    # Only the fresh `Hecks.bluebook` invention counts as owned — the
     # hecksagon/world block wires an already-declared chapter and is not
     # itself an invented name (see declared_domains' own comment).
     expect(described_class.declared_domains(parsed)).to contain_exactly("DoctestSampleB")

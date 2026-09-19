@@ -1,8 +1,8 @@
 module Hecks
   module Fuzzing
-    # WHAT ONE SWEEP HAS ALREADY REACHED, AND WHERE THE NEXT SEED STARTS.
+    # What one sweep has already reached, and where the next seed starts.
     #
-    # `SequenceGenerator` steers WITHIN one sequence (an unexercised verb is
+    # `SequenceGenerator` steers within one sequence (an unexercised verb is
     # weighted up — picker.rb's `steer`), but every seed of a sweep used to
     # start from nothing and forget everything the seeds before it reached.
     # Roughly half of the QA ledger's bugs are refusal-kind splits (BUG#2–4,
@@ -12,23 +12,23 @@ module Hecks
     # a 25-step random walk never reached `Annotate` at all. Uniform seeds
     # reach those corners by luck; this makes the sweep remember.
     #
-    # THE COVERAGE UNIT IS A TUPLE, NOT A VERB — `verb | step kind |
+    # The coverage unit is a tuple, not a verb — `verb | step kind |
     # lifecycle state before | adversarial mutation | outcome` (see
     # `SequenceGenerator#coverage_tuple`). "Renew refused LifecycleRefused
     # from free" and "Renew ok from held" are different places a runtime can
     # be wrong, where a verb-level count calls them the same.
     #
-    # TWO LEVERS, BOTH EXPRESSED AS PLAIN GENERATOR ARGUMENTS SO A SEED
-    # STAYS REPRODUCIBLE FROM ONE CALL:
+    # Two levers, both expressed as plain generator arguments so a seed
+    # stays reproducible from one call:
     #
-    #   1. SPLICING (`prefix:`). A sequence that reached a NEW tuple joins
+    #   1. Splicing (`prefix:`). A sequence that reached a new tuple joins
     #      the corpus, cut at its last new tuple. A later seed may start by
     #      re-generating a random-length prefix of a corpus entry — the same
     #      seed, favor and nested prefix, so the same steps, dispatched for
-    #      real, reaching the same state — and then carries on with its OWN
+    #      real, reaching the same state — and then carries on with its own
     #      seed's randomness from there. Deep state gets reached once and
     #      explored many times, instead of re-rolled per seed.
-    #   2. FAVOR (`favor:`). The verbs this sweep has hit least often —
+    #   2. Favor (`favor:`). The verbs this sweep has hit least often —
     #      including declared verbs it has never hit at all — are weighted
     #      up for the next seed.
     #

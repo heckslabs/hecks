@@ -9,7 +9,7 @@ RSpec.describe Hecks::Forms::FieldShape do
   # (`identified_by { ... }` recovers its own canonical text through it at
   # declare time), the one piece of wiring a bare `Kernel.load` can't skip.
   #
-  # Booted ONCE per file, not per example — nothing below ever dispatches,
+  # Booted once per file, not per example — nothing below ever dispatches,
   # only reads the loaded IR back out, so a shared load is safe.
   before(:context) do
     registry = Hecks::Runtime::Registry.new

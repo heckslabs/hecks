@@ -8,7 +8,7 @@ require_relative "behaviors/runner"
 # lib/hecks/fuzzing.rb, the shape this file mirrors) is opt-in too.
 module Hecks
   class << self
-    # `Hecks.behaviors "Name" do ... end` — deliberately NOT routed
+    # `Hecks.behaviors "Name" do ... end` — deliberately not routed
     # through `collect` the way `bluebook`/`hecksagon`/`world` are: a
     # behaviors suite is a test artifact a runner reads on demand, never
     # a thing a live domain boot needs, so it has no business landing in

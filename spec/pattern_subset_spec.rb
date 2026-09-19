@@ -1,20 +1,20 @@
 require "spec_helper"
 require "json"
 
-# WHICH REGEXES A BLUEBOOK MAY SAY.
+# **Which regexes a bluebook may say**.
 #
 # A `pattern:` is declared data, so it stays inside what regex engines agree
 # on. A pattern one engine admits and another refuses is a bluebook that
 # loads in one place and not another, which is the failure this exists to stop.
 RSpec.describe Hecks::Bluebook::PatternSubset do
-  # PATTERNS_CONTRACT, not CONTRACT : a constant assigned inside an RSpec.describe
+  # PATTERNS_CONTRACT, not contract : a constant assigned inside an RSpec.describe
   # block lands on Object, so a bare `CONTRACT` here silently overwrote the one in
   # naming_spec and broke a test in a file this one never mentions. Whichever
   # loaded second won, which made it look like load-order flakiness.
   PATTERNS_CONTRACT = File.join(InMemoryDomain::ROOT, "spec/corpus/fixtures/patterns.json").freeze
 
   describe "the constructs it refuses" do
-    # The first four only a backtracking engine can PARSE. The last two every
+    # The first four only a backtracking engine can parse. The last two every
     # engine parses — and means differently, which is the dangerous half :
     # nothing errors, engines just quietly disagree about whether a value is
     # valid.
@@ -55,7 +55,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
       end
     end
 
-    # An ESCAPED construct is a literal, not a violation.
+    # An escaped construct is a literal, not a violation.
     it "reads an escaped construct as the characters it spells" do
       expect(described_class.validate('\(\?=')).to be_nil
       expect(described_class.validate("(?<year>[0-9]{4})")).to be_nil
@@ -64,7 +64,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
   end
 
   describe "character-class interiors" do
-    # A `*` or `+` INSIDE `[...]` is a literal character, not a quantifier —
+    # A `*` or `+` inside `[...]` is a literal character, not a quantifier —
     # the walk must not mistake it for a possessive-quantifier attempt.
     [
       "[*+]",
@@ -83,7 +83,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
 
     # A genuine possessive quantifier — including the bounded `{n}+` form,
     # which the old scan never even looked for — is still refused when it
-    # occurs OUTSIDE any character class.
+    # occurs outside any character class.
     {
       "a{2}+"    => "possessive quantifier",
       "a{2,4}+"  => "possessive quantifier",
@@ -99,7 +99,7 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
     end
   end
 
-  # A RECORDED CONTRACT, not a re-derived one : the fixture holds the
+  # A recorded contract, not a re-derived one : the fixture holds the
   # expected verdicts, so a regression in the walk is caught against what was
   # agreed rather than against whatever the walk now says. Recording the
   # implementation's own answers and diffing it against itself would have

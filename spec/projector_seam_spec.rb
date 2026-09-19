@@ -14,10 +14,10 @@ require "spec_helper"
 # expected to `extend Projector::Target` and `projects_as` a real key,
 # self-registering at require time ("requireing a target is the whole of
 # installing it" — target.rb's own words). This spec confirms nothing
-# sits there unregistered, and separately names the OTHER two kinds
+# sits there unregistered, and separately names the other two kinds
 # `lib/hecks/projector.rb`'s own header already distinguishes — an
-# EXPORT (needs a declaration's bindings, which `call(bluebook:,
-# options:)` has no channel for) or a STATE PROJECTION (reads records,
+# export (needs a declaration's bindings, which `call(bluebook:,
+# options:)` has no channel for) or a state projection (reads records,
 # not a declaration) — so "why isn't X registered" has one checked
 # answer, not archaeology, the same "never silence" discipline
 # spec/fuzzing/meta_domain_coverage_spec.rb already holds the grammar to.
@@ -54,10 +54,10 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
   end
 
   it "extends Projector::Target from every file that declares a projects_as key" do
-    # THE OTHER DIRECTION — a file that calls `projects_as` without also
+    # **The other direction** — a file that calls `projects_as` without also
     # `extend`ing `Target` would raise NoMethodError the moment it loads,
     # so this can't silently drift the way the first check could; kept
-    # as its own example anyway, so a future refactor that changes HOW
+    # as its own example anyway, so a future refactor that changes how
     # `projects_as` is reached (a module method instead of an `extend`)
     # gets a spec failure here rather than this file's own comment going
     # stale about what "the sanctioned way" currently is.
@@ -75,13 +75,13 @@ RSpec.describe "the seam between canonical IR and its projections (ADR 0027)" do
 
   # Real, named, reasoned — not an escape hatch. Each entry is a
   # construct that genuinely fits one of `lib/hecks/projector.rb`'s
-  # OTHER two kinds (EXPORT or STATE PROJECTION), read and confirmed
+  # other two kinds (export or state projection), read and confirmed
   # against its own real code before being listed here, the same
   # discipline `spec/fuzzing/meta_domain_coverage_spec.rb`'s own
   # META_DOMAIN_KNOWN_GAPS holds every entry to.
   #
   # `Layout/HashAlignment`'s repo-wide `table` style (.rubocop.yml) would
-  # force every reason string below onto the SAME column, leaving almost
+  # force every reason string below onto the same column, leaving almost
   # no room to wrap under Layout/LineLength's own 130-column limit.
   # rubocop:disable-next Layout/HashAlignment
   KNOWN_NON_PROJECTIONS = {

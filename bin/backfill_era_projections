@@ -7,7 +7,7 @@
 # (`verify_integrity!` -> `backfill_frozen_facts!`,
 # lib/hecks/adapters/driven/postgres_era/lineage/era_store.rb). No new
 # backfill logic lives here — this just calls that existing path and
-# reports what it found, so an operator can PROVE every row is migrated
+# reports what it found, so an operator can prove every row is migrated
 # before any consumer that refuses, rather than computes one, on a row
 # still missing its projection.
 #
@@ -70,7 +70,7 @@ end
 begin
   # The side effect this tool exists to trigger, explicitly — no new
   # backfill logic, just calling the path Ruby already takes
-  # incidentally. Raises on the FIRST row that fails its own digest
+  # incidentally. Raises on the first row that fails its own digest
   # check — a genuinely tampered row, a different problem than a
   # merely-legacy one, and not something backfilling should paper over.
   lineage.eras

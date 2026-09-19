@@ -39,7 +39,7 @@ RSpec.describe "the domain's own English statements" do
     expect(Pizzas.project(Hecks::Projections::Statements)).to eq(expected)
   end
 
-  # THE BUG THE EXAMPLE OUTPUT ACTUALLY HAD, caught by eye against real
+  # The bug the example output actually had, caught by eye against real
   # banking output before this spec existed ("A ATMCard", "a Account") —
   # pinned here so it can't come back silently.
   it "never gets the indefinite article wrong, anywhere in a real, richly-relational domain" do

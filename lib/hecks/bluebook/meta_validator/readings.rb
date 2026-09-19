@@ -6,10 +6,10 @@ module Hecks
       # The language now spells its fields exactly as the IR spells them, so the
       # judge reads almost everything straight through: `command.givens`,
       # `value_object.invariants`, `read_model.aggregate_heads`. What remains here
-      # is not naming drift — it is places where the IR's SHAPE differs from the
+      # is not naming drift — it is places where the IR's shape differs from the
       # language's, and no amount of renaming would close that:
       #
-      #   transitions    one declaration expands to SEVERAL rows, because `from`
+      #   transitions    one declaration expands to several rows, because `from`
       #                  may be a list of states
       #   value_objects  the IR holds objects ; the language holds their names
       #   normalisations not on the bluebook at all — they come from the canonical
@@ -18,11 +18,11 @@ module Hecks
       #   lifecycle      one IR object feeding two separate fields
       #
       # Everything in this file is a difference in shape. If something here is
-      # only a difference in NAME, it is in the wrong file: rename the language.
+      # only a difference in name, it is in the wrong file: rename the language.
       module Readings
         # A list the walk is about to offer, as rows it can shape into dispatches.
         #
-        # FROM THE TABLE. This was nine hand-written cases keyed "Category.list", and
+        # From the table. This was nine hand-written cases keyed "Category.list", and
         # every one of them was a fact `Assembly::Contracts` is the right place to
         # keep: which shaper turns this list into rows. A list with no shaper reads
         # straight off the node, which is most of them.
@@ -34,17 +34,17 @@ module Hecks
         end
 
         # A where-clause is read through its own to_h, which is where the IR spells a
-        # symbol argument as ":ceiling". Reading the OBJECT instead lost the colon,
+        # symbol argument as ":ceiling". Reading the object instead lost the colon,
         # and nothing downstream could tell an argument from a literal of the same
         # name.
         def where_rows(node) = Array(node.wheres).map(&:to_h)
 
-        # The language holds a value object's NAME here ; the IR holds the object.
+        # The language holds a value object's name here ; the IR holds the object.
         def value_object_names(node) = node.value_objects.map { |shape| { name: shape.hecks_name } }
 
-        # AN IDENTITY IS A LIST OF PARTS, so it is offered one part at a time — the
+        # An identity is a list of parts, so it is offered one part at a time — the
         # same way attributes and transitions are. The IR holds the paths ; the
-        # language holds a row per path, and the ORDER between them is the whole
+        # language holds a row per path, and the order between them is the whole
         # meaning, because the identity is their join.
         def identity_rows(node) = node.identity_paths.map { |path| { value: path } }
 
@@ -53,10 +53,10 @@ module Hecks
         # argument became indistinguishable from one carrying a literal string.
         def with_spec_rows(node) = pair_rows(node.to_h[:with_spec])
 
-        # THE SAME READ, ONE LEVEL IN — `compensates` folds `DispatchSpec`
+        # The same read, one level in — `compensates` folds `DispatchSpec`
         # into the language's own `compensates_command_name`/
         # `compensates_with_spec` (`Assembly::Contracts`' own comment on
-        # "Dispatch"), so its OWN with_spec pairs live nested one hash
+        # "Dispatch"), so its own with_spec pairs live nested one hash
         # down from where `with_spec_rows` looks. `&.dig(...)` — no
         # compensation at all is not an error, it is `pair_rows(nil)`, empty.
         def compensates_with_spec_rows(node) = pair_rows(node.to_h[:compensates]&.dig(:with_spec))
@@ -70,7 +70,7 @@ module Hecks
         def normalisation_table(_node) = normalisation_rows
 
         # `lifecycle :status do transition "Retire" => "retired", from: ["issued", "active"] end`
-        # is ONE declaration and TWO transitions. Offering it once would leave the
+        # is one declaration and two transitions. Offering it once would leave the
         # second unjudged, which is the whole failure this judge exists to avoid.
         def transition_rows(node)
           lifecycle = node.respond_to?(:lifecycle) ? node.lifecycle : nil
@@ -84,17 +84,17 @@ module Hecks
           end
         end
 
-        # An OPEN MAP — a member's fields, a dispatch's argument bindings — has no
+        # An open map — a member's fields, a dispatch's argument bindings — has no
         # value object that can hold it, so each entry becomes its own row. This is
         # why Member and Dispatch are roots in the language rather than lists.
         def pair_rows(map)
           Array(map&.to_h).map { |key, value| { key: key, value: value } }
         end
 
-        # EVERY SPECIFICATION OPTION AN ASK CARRIES, flattened to rows.
+        # Every specification option an ask carries, flattened to rows.
         #
         # `offset`, `cursor`, `nulls`, `authorize` and `inspect_query` are
-        # five options, one compound (authorize names a policy AND a
+        # five options, one compound (authorize names a policy and a
         # tenant). `extra_options_to_h` already spells every one of them
         # and drops the absent ones, so this reads that rather than
         # naming them here — a sixth option needs no change on either
@@ -103,18 +103,18 @@ module Hecks
         # `filters: true` adds a read model's wheres, order_by and limit —
         # `at` tells repeated rows apart, so two wheres do not collapse.
         #
-        # THE LANGUAGE MAY HOLD MORE THAN `to_h` CARRIES, and this is where that
+        # The language may hold more than `to_h` carries, and this is where that
         # mattered. Until 2026-08-11, `ReadModel#to_h` omitted all three —
         # `extra_options_to_h` rejects them by name, still does — so a read
         # model's filtering had never been in the wire contract, and I first
         # read that as a wall: if the wire cannot carry it, the language cannot
         # hold it, and a graph assembled from the language must lose it.
         #
-        # That was the wrong conclusion. `to_h` is a PROJECTION ; the language
-        # is the SOURCE. They have to agree about everything
+        # That was the wrong conclusion. `to_h` is a projection ; the language
+        # is the source. They have to agree about everything
         # to_h spells, not about everything the language knows. Held as option
         # rows, the filters survived the round trip regardless of whether the
-        # wire carried them too — which is exactly why, when a LATER task
+        # wire carried them too — which is exactly why, when a later task
         # (Rust read-model codegen) needed `wheres`/`order_by`/`limit` on the
         # wire for an unrelated reason, `ReadModel#to_h` could be extended to
         # spell them (the same mechanism `Query#to_h` already used) without
@@ -153,8 +153,8 @@ module Hecks
           end
         end
 
-        # A mutation is ONE declaration, but the language's Change holds a single
-        # field/kind/source triple — and an append binds SEVERAL fields at once
+        # A mutation is one declaration, but the language's Change holds a single
+        # field/kind/source triple — and an append binds several fields at once
         # (`append: { name: :name, amount: :amount }`). So an append is offered
         # once per binding, and each one is judged.
         #
@@ -164,7 +164,7 @@ module Hecks
         def mutation_rows(node)
           Array(node.mutations).flat_map do |mutation|
             # `:delegate`/`:corrects` (CommandBuilder#delegates_to's and
-            # #corrects_impl's own comments) ride the SAME multi-binding
+            # #corrects_impl's own comments) ride the same multi-binding
             # shape `:append` does — `with: {...}`/the assembled
             # `as:`/`reason:`/`reverses:` hash is a field map, same as
             # append's own `fields:`.
@@ -174,7 +174,7 @@ module Hecks
               # Spelled the way Mutation#appended_fields spells it, because
               # Assembly::Marks reads this row back through the same reader it
               # reads that field with. `then_set :marks, append: { direction:
-              # "out" }` binds a LITERAL, and storing it raw made it
+              # "out" }` binds a literal, and storing it raw made it
               # indistinguishable from an argument called out.
               { target: mutation.target, op: mutation.op, field: field,
                 kind: argument.is_a?(Symbol) ? "argument" : "literal",
@@ -215,7 +215,7 @@ module Hecks
           []
         end
 
-        # What the BLUEBOOK calls a node, whichever kind of thing the node is.
+        # What the bluebook calls a node, whichever kind of thing the node is.
         #
         # This used to sniff — `respond_to?(:hecks_name) ? … : node.name` — because
         # only value objects had crossed over. Every construct answers now, so
@@ -225,7 +225,7 @@ module Hecks
 
         # One field of a Declare payload. Mostly a reader of the same name — the
         # exceptions are fields the IR keeps somewhere else, or not at all.
-        # READ FROM THE TABLE, not from a branch per category.
+        # Read from the table, not from a branch per category.
         #
         # These were eight hand-written cases — `Entity.owner`, `Member.shape`, two
         # lifecycle members twice over, and three of a query's — each one restating
@@ -237,7 +237,7 @@ module Hecks
           return declared_name(node) if field == :name
 
           contract = Assembly.contract(category)
-          # A setter names its target as a STRING and a Declare field arrives a Symbol,
+          # A setter names its target as a string and a Declare field arrives a Symbol,
           # so the lookup keys on a Symbol either way. The case statement this replaced
           # was type-blind because it interpolated ; a Hash is not.
           named    = field.to_sym
@@ -246,19 +246,19 @@ module Hecks
           object, member = contract.folded(named)
           return through(node, object, member) if member
 
-          # `limit` is a language field AND an object in the IR — `Array(an_object)`
+          # `limit` is a language field and an object in the IR — `Array(an_object)`
           # wraps rather than destructures, so offering it stored
           # "#<struct LimitSpec value=3>".
           return node.limit&.to_h&.fetch(:value, nil) if "#{category}.#{field}" == "Query.limit"
 
-          # `provenance from: {...}` is a HASH offered into a text field, and
+          # `provenance from: {...}` is a hash offered into a text field, and
           # handing it over raw let the runtime's own coercion spell it — which
           # meant Ruby's `Hash#to_s`, whose spelling changed under us between
           # 3.3 and 3.4. Encoded here, the same way `default:` already is and the
           # same way Shapes#provenance reads it back.
           return encode_literal(node.provenance) if field == :provenance
 
-          # `identified_by` is no longer a FIELD of any declaration — it is a list,
+          # `identified_by` is no longer a field of any declaration — it is a list,
           # filled by Identify one part at a time, so it is read through `identity_rows`
           # like every other list rather than special-cased here. What this branch
           # existed to protect is now structural : a path cannot come back as its head,
@@ -268,7 +268,7 @@ module Hecks
         end
 
         # One member of the object a field folds into. `to_h` first, because the
-        # member names are the ones the IR SPELLS — a Lifecycle's `default`, an
+        # member names are the ones the IR spells — a Lifecycle's `default`, an
         # OrderBy's `direction` — and reading the object raw is how a colon or a type
         # goes missing.
         def through(node, object, member)
@@ -279,7 +279,7 @@ module Hecks
         end
 
         # What a setting command writes. A setter whose source is absent is not
-        # dispatched at all — ABSENT is not EMPTY, and offering "" would turn every
+        # dispatched at all — absent is not empty, and offering "" would turn every
         # "if you declare it, declare something" rule into "you must declare it".
         def setter_value(category, node, target)
           # `rows` folds into `closed_set` and `members` between them, with no single
@@ -292,7 +292,7 @@ module Hecks
           node.respond_to?(target) ? node.public_send(target) : nil
         end
 
-        # Only a DECLARED closed set has a row count. An empty one is the defect,
+        # Only a declared closed set has a row count. An empty one is the defect,
         # so `rows` must stay absent rather than arrive as zero.
         def closed_set_size(node)
           return nil unless node.respond_to?(:closed_set?) && node.closed_set?
@@ -300,7 +300,7 @@ module Hecks
           Array(node.members).size
         end
 
-        # `Reference<Customer>` is an IR ENCODING, not a domain fact. The fact is
+        # `Reference<Customer>` is an IR encoding, not a domain fact. The fact is
         # that the attribute points at Customer's head — so the language is offered
         # that head's ID, and resolution does the rest. Encoding and decoding both
         # live here, because this is where the IR's shape differs from the
@@ -308,24 +308,24 @@ module Hecks
         def points_at(row, aggregate_id)
           return nil unless row.reference?
 
-          # THE CHAPTER THIS HEAD IS IN, AND THE HEAD IT POINTS AT — which is exactly
+          # The chapter this head is in, and the head it points at — which is exactly
           # how an aggregate is identified, so it is built the same way rather than
-          # spelled again with a separator of its own. This is dispatched as a REAL
-          # REFERENCE VALUE (`Aggregate.Reference`'s `points_at:`), resolved by
-          # `repository.find` against the target Aggregate-within-Meta record's OWN
-          # stored id — so it MUST equal what that record's identity actually
+          # spelled again with a separator of its own. This is dispatched as a real
+          # reference value (`Aggregate.Reference`'s `points_at:`), resolved by
+          # `repository.find` against the target Aggregate-within-Meta record's own
+          # stored id — so it must equal what that record's identity actually
           # derives, not a wire-format spelling. `reference_type`, below, is the
           # separate later reader that un-derives it back into "Reference<X>".
           Naming.identity([aggregate_id.split(Naming::IDENTITY_JOIN).first, row.type.target_name])
         end
 
-        # A LITERAL, written so it can be read back exactly.
+        # A literal, written so it can be read back exactly.
         #
         # The language holds a default and a literal mutation source as text, and
         # `to_s` threw the type away: 0.0 came back "0.0", and `{ value: "good" }`
         # came back its inspect string with nowhere to say it had been a hash. The
         # language already stores code as text — `canonical: "cents >= 0"` — so an
-        # encoding is in keeping; it simply has to be SELF-DESCRIBING. That rule is
+        # encoding is in keeping; it simply has to be self-describing. That rule is
         # now Hecks::Literal's, stated once and shared with every other
         # to_h-bound literal field ; Shapes#decode_literal reads it back.
         #
@@ -334,23 +334,23 @@ module Hecks
         def encode_literal(value) = value.nil? ? nil : Literal.render(value)
 
         # The way back out: an aggregate id becomes the type the IR spells. The
-        # id is a JOIN of chapter + name (Naming::IDENTITY_JOIN, the same join
+        # id is a join of chapter + name (Naming::IDENTITY_JOIN, the same join
         # `points_at` built it with, not the "::" a real bluebook's own type
         # names never carry) ; the wire format wants only the bare name.
         def reference_type(points_at_id) = "Reference<#{points_at_id.to_s.split(Naming::IDENTITY_JOIN).last}>"
 
         # One value out of a row, named by the value object's field.
         def row_value(row, field)
-          # A Hash FIRST. Hash answers to `key` (Hash#key(value)) and to `value` on
+          # A Hash first. Hash answers to `key` (Hash#key(value)) and to `value` on
           # some rows, so asking respond_to? before checking for a Hash reads a
           # member pair through entirely the wrong method.
           return row[field] if row.is_a?(Hash)
           return row.public_send(field) if row.respond_to?(field)
-          # A Struct answers to [] but RAISES for a member it does not have, so it
+          # A Struct answers to [] but raises for a member it does not have, so it
           # is read through to_h — a field the row simply lacks reads as absent.
           return row.to_h[field] if row.respond_to?(:to_h) && !row.is_a?(String)
 
-          # A bare scalar row — `emits` is a list of event NAMES, and the
+          # A bare scalar row — `emits` is a list of event names, and the
           # Announcement value object has to call that string something.
           row
         end

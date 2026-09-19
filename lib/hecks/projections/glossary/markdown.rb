@@ -6,7 +6,7 @@ require_relative "../statements"
 module Hecks
   module Projections
     module Glossary
-      # THE DOCUMENT ITSELF — `glossary.md`, the one source the page is
+      # **The document itself** — `glossary.md`, the one source the page is
       # rendered from. Written in the handful of Markdown constructs
       # GitHub renders as-is (headings, blockquotes, ```mermaid fences,
       # lists, in-page links), so the file is a complete, readable
@@ -62,7 +62,7 @@ module Hecks
           parts.join("\n\n")
         end
 
-        # What an aggregate IS, what it can be, how it fits and moves,
+        # What an aggregate is, what it can be, how it fits and moves,
         # and what is always true of it — before a single term.
         def opening(aggregate, bluebook)
           parts = []
@@ -75,7 +75,7 @@ module Hecks
           parts
         end
 
-        # THE STATEMENTS PROJECTION'S OWN SENTENCES, SPOKEN. An invariant
+        # The statements projection's own sentences, spoken. An invariant
         # is the author's words and stays exactly so. A relationship
         # sentence is built mechanically from construct names ("An
         # ATMCard references an Account."), and a construct name is the

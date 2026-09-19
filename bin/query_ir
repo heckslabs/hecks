@@ -1,14 +1,14 @@
 #!/usr/bin/env ruby
 
-# STRUCTURED QUERIES AGAINST THE LANGUAGE'S OWN IR — for a session
-# working ON the language (adding a resolution rule, checking a
+# Structured queries against the language's own IR — for a session
+# working on the language (adding a resolution rule, checking a
 # propagation checklist) rather than a domain running on top of it.
 # `bin/ir` already dumps a whole domain's raw JSON; this answers the
-# SPECIFIC questions that recurred across five real feature rounds
+# specific questions that recurred across five real feature rounds
 # (docs/decisions/0028-.../ and .claude/skills/bluebook-construct-
 # creator/SKILL.md) without hand-grepping corpus text or hand-reading
-# Ruby source each time. This is a THIN TEXT FRONT END — the real
-# logic AND the text formatting live in Hecks::QueryIR
+# Ruby source each time. This is a thin text front end — the real
+# logic and the text formatting live in Hecks::QueryIR
 # (lib/hecks/query_ir.rb), shared with
 # bin/hecks_query_ir_mcp so the two front ends can never drift
 # into two different answers — or two different renderings of the
@@ -16,12 +16,12 @@
 #
 #   bin/query_ir constructs [Name ...]
 #     For each Ruby IR class (or just the one named), the real
-#     STRUCTURAL diff between what it emits and what the self-hosted
+#     structural diff between what it emits and what the self-hosted
 #     meta-domain declares for it. Answers "does Entity already have
-#     field X" without opening entity.rb AND entity.bluebook by hand.
+#     field X" without opening entity.rb and entity.bluebook by hand.
 #
 #   bin/query_ir duplicates [--meta] [domain_dir ...]
-#     Every given/ensures/invariant DECLARATION across the given
+#     Every given/ensures/invariant declaration across the given
 #     domains (all real examples + the self-hosted meta-domain by
 #     default), grouped by (kind, description, canonical), reporting
 #     every group with more than one independently-declared rule.
@@ -31,7 +31,7 @@
 #     construct-creator/SKILL.md walks in prose, checked structurally
 #     for one construct/field pair — which ones already show signs of
 #     it, which don't. Advisory, not a gate (see the doc comment on
-#     Hecks::QueryIR.impact_preview for what a NOT YET can mean).
+#     Hecks::QueryIR.impact_preview for what a not yet can mean).
 #
 # Boots the lightweight way (Hecks::Codemod's own path) — no live
 # Postgres needed for a Postgres-backed domain like compliance.

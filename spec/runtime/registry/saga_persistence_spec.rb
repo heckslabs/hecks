@@ -3,7 +3,7 @@ require "spec_helper"
 # `Registry#saga_persistence` — the resolution half of §2's saga-
 # persistence capability (the adapter-side `save_saga`/`delete_saga`/
 # `each_saga` implementations land per adapter in §3/§4 and get their
-# own dedicated round-trip specs there; this proves the RESOLUTION
+# own dedicated round-trip specs there; this proves the resolution
 # logic itself: which adapter instance (or the no-op fallback) a
 # domain's saga state would persist through, entirely independent of
 # whether any real adapter answers the capability yet).
@@ -19,10 +19,10 @@ RSpec.describe "Registry#saga_persistence" do
   end
 
   # `Ports::Extraction`'s Prism adapter locates a block's own source by
-  # (file, START LINE) alone (`Adapters::Prism#block_node_at`) — nesting
-  # `identified_by`'s block on the SAME LINE as its own enclosing
+  # (file, start line) alone (`Adapters::Prism#block_node_at`) — nesting
+  # `identified_by`'s block on the same line as its own enclosing
   # `aggregate`/`bluebook` blocks makes all three BlockNodes share one
-  # start line, and the line-only lookup returns the OUTERMOST match
+  # start line, and the line-only lookup returns the outermost match
   # instead, extracting far more source than intended. One block per
   # line, matching `dsl_spec.rb`'s own `build_aggregate` helper (the
   # same reason it's shaped that way there).
@@ -59,13 +59,13 @@ RSpec.describe "Registry#saga_persistence" do
     expect(registry.saga_persistence("Hexed")).to be(Hecks::Ports::Persistence::NULL_SAGA_STORE)
   end
 
-  # THE RESCUE PATH — a hecksagon exists (this domain's wiring IS being
+  # **The rescue path** — a hecksagon exists (this domain's wiring is being
   # decided explicitly) but its own anchor aggregate declares no bind
   # at all, which `Ports::Persistence::BindingPolicy.resolve` refuses
   # loudly (`missing_binding`) rather than silently defaulting. Saga
   # persistence degrades to the same no-op default an unbound domain
   # gets instead of raising out of what would otherwise be a
-  # successful dispatch — deliberately NOT calling `verify!` here,
+  # successful dispatch — deliberately not calling `verify!` here,
   # since `verify!` would itself raise on this exact gap (by design,
   # for a domain's own real persistence) and this test is about what
   # `saga_persistence` alone does when asked anyway.

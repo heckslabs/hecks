@@ -15,11 +15,11 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 
 if ARGV.delete("--meta")
-  # THE LANGUAGE'S OWN IR — Bluebook, Aggregate, Command, ValueObject,
+  # The language's own IR — Bluebook, Aggregate, Command, ValueObject,
   # Query, Entity, Member, Policy, ProcessManager, Handler, Dispatch,
   # Vocabulary, Syntax, ReadModel, declared across
   # lib/hecks/language/bluebook/*.bluebook and merged into one
-  # chapter. This is the ONLY thing in this repository that exercises
+  # chapter. This is the only thing in this repository that exercises
   # the full breadth of what the language itself allows — composite
   # identity with a component that isn't even a declared attribute,
   # multi-field closed sets, cross-type `then_set` coercion — none of

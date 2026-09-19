@@ -1,11 +1,11 @@
 module RuboCop
   module Cop
     module Hecks
-      # FLAGS THE EXACT SHAPE behind 8+ real bugs already fixed one at a
+      # Flags the exact shape behind 8+ real bugs already fixed one at a
       # time across this codebase (Tiers 1-5): `holder[a] || holder[b]` —
-      # the SAME receiver looked up by two different keys, falling back to
+      # the same receiver looked up by two different keys, falling back to
       # the second lookup whenever the first is falsy. `||` cannot tell a
-      # genuinely STORED `false` from a MISSING key — both are falsy in
+      # genuinely stored `false` from a missing key — both are falsy in
       # Ruby — so a real `false` sitting at `holder[a]` is silently
       # discarded and `holder[b]` (usually absent, so `nil`) is returned
       # instead. Every one of those 8+ instances was the identical
@@ -13,26 +13,26 @@ module RuboCop
       # `h[k.to_sym] || h[k]`, reading a value that could arrive keyed
       # either by symbol or by string off the wire).
       #
-      # THE FIX THIS CODEBASE ALREADY CONVERGED ON — see
+      # The fix this codebase already converged on — see
       # `lib/hecks/query_specification/field_path.rb#read`, the shared
       # digger this whole bug class got consolidated behind: check
-      # `key?` FIRST, never fall back through `||`.
+      # `key?` first, never fall back through `||`.
       #
       #   sym = segment.to_sym
       #   return current.key?(sym) ? current[sym] : current[segment]
       #
       # That method's own comment says it plainly: "`key?` first, never
       # `||`, because `||` falls through a genuinely-stored `false` to
-      # the OTHER spelling (usually absent) and returns `nil` instead."
-      # This cop exists so the NEXT `holder[a] || holder[b]` gets caught
+      # the other spelling (usually absent) and returns `nil` instead."
+      # This cop exists so the next `holder[a] || holder[b]` gets caught
       # mechanically, before it becomes bug #9, rather than found by
       # hand again in a future audit.
       #
-      # SCOPED TO THE `[]`/`[]` SHAPE ONLY, deliberately — a receiver
+      # Scoped to the `[]`/`[]` shape only, deliberately — a receiver
       # method-call is compared by AST structure (`==`, which ignores
       # source location), so `hash[a] || hash[b]` is flagged whether
       # `hash` is a local variable, a method call, or a constant, but
-      # `a[k] || b[k]` (DIFFERENT receivers) and `value || default`
+      # `a[k] || b[k]` (different receivers) and `value || default`
       # (an ordinary default, not a second lookup at all) are both left
       # alone — neither one can silently drop a stored `false` the way
       # a same-receiver double-lookup can.
@@ -65,11 +65,11 @@ module RuboCop
           rhs_receiver, rhs_key = bracket_lookup(node.rhs)
           return unless rhs_receiver
 
-          # THE STRUCTURAL EQUALITY CHECK — `==` on an AST node (from the
+          # **The structural equality check** — `==` on an AST node (from the
           # `ast` gem `Node` this compiles down to) compares `type` and
           # `children` recursively and ignores source location, so
           # `hash[a] || hash[b]` matches even though the two `hash`
-          # sub-nodes are two distinct node OBJECTS parsed from two
+          # sub-nodes are two distinct node objects parsed from two
           # different source ranges. A different receiver on each side
           # (`a[k] || b[k]`) fails this check and is correctly left alone.
           return unless lhs_receiver == rhs_receiver

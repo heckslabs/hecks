@@ -6,7 +6,7 @@ require "spec_helper"
 # persistence, the two properties neither `trigger` nor a saga's own
 # `dispatches` can give (both commit the triggering command first and
 # rescue the target's own refusal). See spec/word_coverage_spec.rb's own
-# EXEMPT entry for `delegates_to` — this file is that word's real,
+# exempt entry for `delegates_to` — this file is that word's real,
 # running, dispatch-level coverage.
 RSpec.describe "an aggregate command that delegates_to one nested entity command" do
   DELEGATES_TO_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
@@ -46,14 +46,14 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     expect(square(runtime, name: "b1").to_h).to eq(file: 5, rank: 5)
   end
 
-  # A REAL BUG, found live building this fixture's own downstream
+  # A real bug, found live building this fixture's own downstream
   # consumer (a chess domain): `with:` only remaps what it names, and a
   # first draft of `step_delegate_to_entity` built `target_args` from
-  # `with:` ALONE — so a policy reacting to the delegated command's own
+  # `with:` alone — so a policy reacting to the delegated command's own
   # emitted event, trying to re-locate Board by its own identity
   # (`name`, never named in `with: { id:, to: }`), found nothing and its
   # reaction was rescued and recorded rather than raised (the same
-  # commit-then-react shape every OTHER policy reaction has). Fixed by
+  # commit-then-react shape every other policy reaction has). Fixed by
   # starting `target_args` from a copy of the delegating command's own
   # already-resolved args, so ambient context a caller never had to
   # name explicitly still flows through, same as a direct entity

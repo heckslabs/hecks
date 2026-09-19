@@ -8,10 +8,10 @@ require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
-    # THE RUBY-VS-RUST COMPARISON OF ONE GENERATED SEQUENCE — moved here,
+    # The Ruby-vs-Rust comparison of one generated sequence — moved here,
     # unchanged, out of `bin/qa_sweep`'s own `diff_ruby_vs_rust` so a second
     # caller (`bin/qa_generated_domains --rust`, which compares domains the
-    # generator wrote rather than ones on the rotation) runs the SAME
+    # generator wrote rather than ones on the rotation) runs the same
     # comparison rather than a re-derived one. `bin/qa_sweep` delegates to
     # it; its own comments on the known-gap filtering, the wire-precision
     # reduction and the deep copy taken before `strip_emitted_flags!` apply
@@ -20,10 +20,10 @@ module Hecks
     # `differ` is anything answering `RustConformanceHelpers`' comparison
     # helpers (spec/support/rust_conformance_helpers.rb) plus a
     # `structural_skips` set — duck-typed, so lib never requires spec/.
-    # Which query verbs may diverge is NOT the differ's call: it is read
+    # Which query verbs may diverge is not the differ's call: it is read
     # off the binary's own manifest.json (`manifest_partition`, below).
     #
-    # RETURNS ONE DIVERGENCE LIST PER ACTIVE MODE — `{ differential: [...],
+    # Returns one divergence list per active mode — `{ differential: [...],
     # self_consistency: [...], properties_in_differential: [...],
     # adapter_parity_sqlite: [...] }`, keys present only for the modes in
     # `modes:` (`differential` always). `adapter_parity_sqlite:` is the
@@ -32,7 +32,7 @@ module Hecks
     module Differential
       module_function
 
-      # THE ONE PLACE A RUBY/RUST QUERY DIVERGENCE MAY BE TOLERATED — and
+      # The one place a Ruby/Rust query divergence may be tolerated — and
       # only for a verb `gaps` (a `RustGapManifest`) declares not generated.
       # Rust refuses such a verb outright while Ruby answers it for real
       # (or refuses it for its own business reason), so both sides' rows for
@@ -42,7 +42,7 @@ module Hecks
       #
       # `skipped` is every tolerated verb this history actually reached (for
       # the sweep's structural_skip_report). `stale` is a divergence per
-      # tolerated verb Rust nonetheless ANSWERED with a query row: the
+      # tolerated verb Rust nonetheless answered with a query row: the
       # manifest says "not generated" but the binary disagrees, so the
       # tolerance itself is wrong and must not silently hold.
       def manifest_partition(gaps, ruby_refusals:, rust_refusals:, ruby_queries:, rust_queries:)

@@ -5,8 +5,8 @@
 # committed pages. The golden spec refuses a tree where the two drifted.
 #
 # Goes through the projector registry (Projections::Reference), which is
-# the first projection to emit a TREE rather than one artifact — see its
-# own `emits: :files`. README's generated indexes are a SECOND output,
+# the first projection to emit a tree rather than one artifact — see its
+# own `emits: :files`. README's generated indexes are a second output,
 # rooted elsewhere, so they stay a separate call rather than being
 # folded into a map keyed by paths from two different roots.
 #
@@ -28,7 +28,7 @@ Hecks::Doc::Reference.write_readme!(root)
 
 puts "wrote #{written.size} pages to docs/implemented/reference/, and regenerated README.md's own indexes"
 
-# BOTH COVERAGE GATES, reported together — regeneration is when a new
+# Both coverage gates, reported together — regeneration is when a new
 # word first appears on a page, so it is the moment somebody can see
 # what they now owe it. `bin/doc_coverage` asks the same two questions
 # as its own exit status, for the pre-push hook.

@@ -6,15 +6,15 @@ require "spec_helper"
 # before either mechanism is used to convert the meta-domain's own
 # Member/Dispatch to real entities.
 RSpec.describe "an entity's own list-typed attribute" do
-  # NOT `FIXTURE` — a real, pre-existing gotcha this file's own first
+  # Not `FIXTURE` — a real, pre-existing gotcha this file's own first
   # draft rediscovered: `RSpec.describe "..." do ... end` is an
-  # ORDINARY Ruby block, lexically scoped to wherever it was WRITTEN
+  # ordinary Ruby block, lexically scoped to wherever it was written
   # (this file's own top level, i.e. `Object`) — so `FIXTURE = ...`
   # here does not become a constant on this describe block's own
   # anonymous class, it becomes the single process-wide
   # `Object::FIXTURE`. `spec/runtime/rebuild_sweep_spec.rb` already
   # names its own fixture path the same bare way; whichever spec file
-  # RSpec happens to `require` LAST silently wins that constant for
+  # RSpec happens to `require` last silently wins that constant for
   # the rest of the process, and every earlier spec sharing the name
   # loads whatever path won instead of its own — reproduced for real:
   # this file passed alone and failed only inside the full suite,
@@ -110,7 +110,7 @@ RSpec.describe "an entity's own list-typed attribute" do
   # instances, never through the value object's own `pattern:`/
   # `invariant` checks. `SetTags`/`RemoveTagFromBoard` exist on this
   # fixture's `Board` aggregate (not `TaggedList`, its entity — this is
-  # the AGGREGATE-level path) purely to exercise that repro shape.
+  # the aggregate-level path) purely to exercise that repro shape.
   it "hydrates a bare-sets-populated value-object list into real Values, not raw Hashes" do
     runtime = boot
     runtime.dispatch("EntityListMutations::Board.OpenBoard", name: { value: "b5" })

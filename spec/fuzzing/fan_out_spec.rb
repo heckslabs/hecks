@@ -2,18 +2,18 @@ require "spec_helper"
 require "hecks/fuzzing"
 
 # `Replay.fan_out_findings` cannot be exercised through `Replay.call`
-# itself — that needs a domain PATH to boot fresh from disk
+# itself — that needs a domain path to boot fresh from disk
 # (`IsolatedBoot`), and `for_each` has no on-disk fixture yet (the same
 # "Rust parser does not build where/for_each" reason `spec/runtime/
-# policy_spec.rb` builds its own Fanout domain INLINE — see that file's
+# policy_spec.rb` builds its own Fanout domain inline — see that file's
 # own header). So this spec builds the identical inline runtime and
 # calls the oracle directly against real dispatches, proving the
-# INDEPENDENT recomputation (`Ports::Query::InMemory` against the live
+# independent recomputation (`Ports::Query::InMemory` against the live
 # repository) actually agrees with what `PolicyInterpreter#deliver_for_each`
 # really dispatched — the same two-engines-compared shape
 # `query_answers_match_reference` already trusts, aimed at fan-out.
 RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
-  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # One inline bluebook, declared whole — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
@@ -115,8 +115,8 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   end
 
   # Mirrors `Replay.call`'s own snapshot-before-dispatch — the real
-  # `deliver_for_each` runs its query synchronously, inside this SAME
-  # dispatch, so the oracle has to read the SAME "before this step"
+  # `deliver_for_each` runs its query synchronously, inside this same
+  # dispatch, so the oracle has to read the same "before this step"
   # state the real query read, not whatever the fan-out's own dispatched
   # commands (`Account.Review`) already mutated by the time this method
   # gets to look.

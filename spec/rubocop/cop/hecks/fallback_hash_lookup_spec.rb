@@ -1,14 +1,14 @@
 require "rubocop"
-# NOT "rubocop/rspec/support" — that file's own top-level `RSpec.configure
+# Not "rubocop/rspec/support" — that file's own top-level `RSpec.configure
 # { |config| config.include CopHelper; ... }` installs CopHelper's `registry`
-# method onto EVERY example group in the whole process the instant this file
+# method onto every example group in the whole process the instant this file
 # is required, not just this one. That collided in a real, reproducible way
 # with unrelated specs elsewhere in this suite that also define their own
 # `registry` (a `let(:registry)` or a same-named local var) — `bisect`
 # confirmed the resulting failures as order-dependent, and isolating just
 # this cop's own describe block (below) to only the two mixins it actually
 # needs, `require_relative`'d directly instead of via that global-installing
-# file, is the fix: CopHelper/ExpectOffense stay fully functional for THIS
+# file, is the fix: CopHelper/ExpectOffense stay fully functional for this
 # cop's own examples, and nothing leaks into any other spec file.
 require "rubocop/rspec/cop_helper"
 require "rubocop/rspec/expect_offense"
@@ -33,9 +33,9 @@ RSpec.describe RuboCop::Cop::Hecks::FallbackHashLookup do
   # FallbackHashLookup: ` badge `MessageAnnotator` would otherwise prepend.
   let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
 
-  # THE EXACT HISTORICAL BUG SHAPE — a value that could arrive keyed
+  # **The exact historical bug shape** — a value that could arrive keyed
   # either by symbol or by string, read with a `||` fallback that silently
-  # drops a genuinely stored `false` and returns the OTHER spelling's value
+  # drops a genuinely stored `false` and returns the other spelling's value
   # (usually `nil`) instead. This is the shape `lib/hecks/query_specification
   # /field_path.rb#read` was rewritten away from — see that method's own
   # comment ("`key?` first, never `||`").
@@ -46,7 +46,7 @@ RSpec.describe RuboCop::Cop::Hecks::FallbackHashLookup do
     RUBY
   end
 
-  # A REGRESSION FIXTURE matching the actual shape fixed in
+  # A regression fixture matching the actual shape fixed in
   # `lib/hecks/query_specification/field_path.rb#read` before it was
   # rewritten to the `key?`-first form — reconstructed here (not by
   # reverting that file) so this cop is proven to catch it.

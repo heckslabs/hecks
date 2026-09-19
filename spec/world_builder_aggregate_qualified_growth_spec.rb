@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # Real coverage for issue #143: a `.world` file's own aggregate-qualified
-# bind mirror (`Pizzas::Order.charged_by("Stripe") do ... end` — the SAME
+# bind mirror (`Pizzas::Order.charged_by("Stripe") do ... end` — the same
 # visual shape `.hecksagon` files already write, since `.world`/`.hecksagon`
 # are meant to mirror each other line for line) raised
 # `NameError: uninitialized constant Pizzas` — `WorldBuilder`, unlike

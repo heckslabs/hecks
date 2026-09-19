@@ -134,7 +134,7 @@ RSpec.describe "relationship declarations" do
   # `has_many`'s target resolves through `Naming.singularize`, the
   # crude undo of `Naming.plural` (naming_spec.rb's own "undoes
   # plural's -es rule" pins the rule itself) — a target aggregate whose
-  # own name ends in s/x/z/ch/sh must round-trip through the SAME
+  # own name ends in s/x/z/ch/sh must round-trip through the same
   # "-es" suffix `plural` would mint for it, or `has_many Boxes` names
   # a phantom "Boxe" this chapter never declares instead of the real
   # aggregate named Box.

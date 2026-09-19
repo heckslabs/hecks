@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# THE ADR 0037 FUZZ BRIDGE, POINTED AT ADR 0039'S DEPLOY GATE.
+# The ADR 0037 fuzz bridge, pointed at ADR 0039'S deploy gate.
 #
 # `bin/project_deploy`'s generated `verify-parity-<LogicalId>` Makefile
 # target (ADR 0039) runs `bin/rust_conformance` against
@@ -12,7 +12,7 @@
 # fuzz bridge (`Hecks::Fuzzing::SequenceGenerator`, driving
 # `spec/rust_conformance_fuzz_spec.rb`) is what actually found six real
 # divergences a hand-authored corpus never surfaced — this script is that
-# same generator, wired to run against a REAL compiled artifact
+# same generator, wired to run against a real compiled artifact
 # (`native` or a `.wasm`) instead of only inside `rspec`, so the deploy
 # gate gets it too.
 #
@@ -23,7 +23,7 @@
 # rust_conformance_helpers.rb already factors it once for the two specs;
 # this is the same discipline for the non-rspec caller).
 #
-# KNOWN, CATALOGUED FAILURE MODE, NOT A BUG IN THIS SCRIPT: ADR 0037
+# Known, catalogued failure mode, not a bug in this script: ADR 0037
 # documents three real, confirmed, not-yet-fixed divergences (Findings
 # 3-5) that fire on ordinary generated sequences for pizzas and banking
 # today. Wiring this into a domain's `verify-parity-<LogicalId>` target
@@ -34,7 +34,7 @@
 #
 #   bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]
 #
-# Exits non-zero on the FIRST seed that diverges — a deploy gate needs
+# Exits non-zero on the first seed that diverges — a deploy gate needs
 # one clear failure and a reproduction command, not an exhaustive report
 # of every seed the way a diagnostic sweep would want.
 
@@ -53,7 +53,7 @@ steps    = Integer(ARGV.shift || ENV["STEPS"] || 25)
 rust_conformance = File.expand_path("rust_conformance", __dir__)
 
 # Written under this repo's own tmp/, not Dir.mktmpdir — a failing seed's
-# script needs to survive THIS process exiting non-zero so the
+# script needs to survive this process exiting non-zero so the
 # reproduction command below actually has a file to point at.
 scratch_dir = File.expand_path("../tmp/rust_conformance_fuzz/#{File.basename(domain)}", __dir__)
 FileUtils.rm_rf(scratch_dir)

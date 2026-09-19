@@ -19,16 +19,16 @@ module Hecks
           @db.exec(
             "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
           )
-          # SELF-HEALING, SAME IDIOM AS `ensure_indexes!` BELOW —
-          # `CREATE TABLE IF NOT EXISTS` above does NOT retroactively add a
+          # **Self-healing, same idiom as `ensure_indexes!` below** —
+          # `CREATE TABLE IF NOT EXISTS` above does not retroactively add a
           # column to an already-existing table (a committed database from
           # before optimistic-concurrency CAS existed), so this runs
           # unconditionally on every boot and no-ops once the column is
-          # there. ADAPTER BOOKKEEPING ONLY — never listed in
+          # there. Adapter bookkeeping only — never listed in
           # `persisted_fields` (Codec), so it never appears in `decode`'s
           # domain-state hash or `Instance#to_h`.
           @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS hecks_version bigint NOT NULL DEFAULT 1")
-          # SAME SELF-HEALING SHAPE, FOR DOMAIN ATTRIBUTES THEMSELVES —
+          # Same self-healing shape, for domain attributes themselves —
           # `hecks_version` above only heals the adapter's own bookkeeping
           # column; a bluebook attribute added (or, via `translations/`,
           # renamed) after this table already exists is not bookkeeping,
@@ -47,7 +47,7 @@ module Hecks
             @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS " \
                      "#{quote_ident(field[:name])} #{field[:sql_type]}")
           end
-          # RIGHT HERE, NOT A SEPARATE STEP IN `Postgres#initialize` —
+          # Right here, not a separate step in `Postgres#initialize` —
           # same idiom Sqlite::SchemaBuilder's own `create_aggregate_table!`
           # uses: index creation runs unconditionally, right after the
           # table it indexes exists, the same self-healing shape
@@ -118,11 +118,11 @@ module Hecks
         # Derived from every declared query's `where`/`order_by` fields —
         # no bluebook author opts in, matching every other self-healing
         # schema move this adapter makes. Walks the aggregate's own
-        # queries AND each entity's own queries — the same enumeration
+        # queries and each entity's own queries — the same enumeration
         # `dsl/aggregate_builder.rb`'s own `query_surfaces` walks at
         # declaration-seal time — but an entity's own fields never
         # produce an index below: an entity has no table of its own, its
-        # rows live inside a LIST-typed attribute on the AGGREGATE's own
+        # rows live inside a list-typed attribute on the aggregate's own
         # table (`QueryInterpreter#entity_rows` resolves it that way, and
         # answers an entity query entirely in memory over `repository.all`
         # — it never reaches this adapter's own `query` method at all).
@@ -154,15 +154,15 @@ module Hecks
         # FROM jsonb_array_elements(...) ...)` (see `list_contains_clause`
         # below), a SQL shape neither a plain btree on the raw jsonb
         # column nor even a GIN jsonb index (`@>`, `?`) accelerates —
-        # Postgres's own GIN jsonb operators match a DIFFERENT SQL shape
+        # Postgres's own GIN jsonb operators match a different SQL shape
         # than the `EXISTS` + `jsonb_array_elements` this codebase always
         # compiles a list `contains` to. An index here would be dead
         # weight, not free correctness, so none is attempted.
         def index_field!(field)
-          # A HOP PATH ("owner/field" — `Bluebook::AggregateBuilder`'s own
+          # A hop path ("owner/field" — `Bluebook::AggregateBuilder`'s own
           # convention for a field reached by crossing a reference,
           # `aggregate_builder.rb`'s own `field.to_s.include?("/")`
-          # checks) IS NEVER INDEXED HERE — same reasoning as `list_of`
+          # checks) is never indexed here — same reasoning as `list_of`
           # below: `query_expression`/`nested_expression` below have no
           # dialect for this shape at all (they'd compile the whole
           # "owner/field" string as one bare column/jsonb-path segment,
@@ -173,10 +173,10 @@ module Hecks
           # Skipping the index is always safe, the same way skipping a
           # `list_of` index is: an index is a perf optimization, not
           # correctness, so "never built" beats "built wrong." Whether a
-          # hop-path field can be QUERIED at all against this adapter is
+          # hop-path field can be queried at all against this adapter is
           # a separate, still-open question this skip does not answer —
           # see docs/future-features.md's fuzzer-adapter entry, and
-          # docs/1.0-readiness.md item 2 for this gap's OTHER two
+          # docs/1.0-readiness.md item 2 for this gap's other two
           # independent failure points (Postgres querying, Rust codegen's
           # `OpenForSuspendedCustomers` — bin/rust_coverage's own
           # allowlist) — tracked together, not as three unrelated bugs.
@@ -186,7 +186,7 @@ module Hecks
           attribute = @aggregate.attribute(name)
           return if attribute&.list?
 
-          # THE SAME EXPRESSION THE QUERY ITSELF COMPILES TO — calling
+          # The same expression the query itself compiles to — calling
           # `query_expression`/`plain_column`, the real dialect methods,
           # rather than a second, hand-rolled derivation of the same
           # path that could silently drift from it. An index whose
@@ -211,7 +211,7 @@ module Hecks
           @db.exec("CREATE INDEX IF NOT EXISTS #{quote_ident(name)} ON #{quoted_table} ((#{expression}))")
         end
 
-        # Postgres identifiers cap at 63 bytes. Hashing TABLE + FIELD
+        # Postgres identifiers cap at 63 bytes. Hashing table + field
         # together keeps every generated index name well under that no
         # matter how long an aggregate or attribute name gets, and keeps
         # two distinct fields — on the same table or different ones —

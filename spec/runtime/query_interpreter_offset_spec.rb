@@ -3,7 +3,7 @@ require "spec_helper"
 # QueryInterpreter#interpret/#reference_interpret never read declared.offset
 # — confirmed by grep returning nothing before this fix. Latent because the
 # adapter-backed path (Ports::Query::InMemory, fixed by PR #324-326) already
-# applied offset correctly; this is the OTHER path, native-vs-REFERENCE
+# applied offset correctly; this is the other path, native-vs-reference
 # (runtime.query vs runtime.reference_query, the fuzzer's own oracle
 # comparison in query_answers_match_reference), which took no adapter at all
 # and went straight through this file instead. ATMCard.ByFee (`limit 3;
@@ -26,7 +26,7 @@ RSpec.describe "QueryInterpreter applies offset" do
     end
   end
 
-  # FOUR ACTIVE CARDS, DISTINCT FEES — `limit 3, offset 1` over four rows
+  # Four active cards, distinct fees — `limit 3, offset 1` over four rows
   # ordered by fee names rows 2-4 ($2, $3, $4), never row 1 ($1) and never
   # nothing. Offset silently vanishing (the bug) would have answered rows
   # 1-3 instead — a page that starts one row too early, indistinguishable

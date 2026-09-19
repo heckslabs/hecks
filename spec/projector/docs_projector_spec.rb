@@ -1,8 +1,8 @@
 require "spec_helper"
 
-# A BLUEBOOK, PROJECTED AS ITS OWN USAGE DOCUMENTATION.
+# A bluebook, projected as its own usage documentation.
 #
-# Exercised against BANKING and PIZZAS rather than against the chapter this was
+# Exercised against banking and pizzas rather than against the chapter this was
 # written beside. Nothing in the projector knows what any particular domain is,
 # and a spec that only ever projected the one it was developed against could
 # not tell — the `Policy` accessors were guessed wrong on the first pass and it
@@ -54,7 +54,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
       expect(banking).to include("Identified by `number`")
     end
 
-    # THE SINGLE MOST COMMON MISTAKE AT THIS BOUNDARY is sending a bare scalar
+    # The single most common mistake at this boundary is sending a bare scalar
     # where a value object is wanted, so the document shows the fields rather
     # than the type name.
     it "expands a value object into the shape a caller actually sends" do
@@ -92,7 +92,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
       expect(banking).to include("### Open *(creates)*")
     end
 
-    # THE PART A CALLER CANNOT GET FROM AN ARGUMENT LIST, and most of what a
+    # The part a caller cannot GET from an argument list, and most of what a
     # domain actually is. Three sources, one list.
     describe "the refusals" do
       it "names the states a lifecycle verb may be issued from" do
@@ -137,7 +137,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # WHAT HAPPENS WITHOUT ANYBODY ASKING — undiscoverable from any verb list.
+  # **What happens without anybody asking** — undiscoverable from any verb list.
   describe "reactions" do
     it "tabulates each policy as the dispatch it causes, and where it lands" do
       expect(banking).to include("## Reactions")
@@ -153,7 +153,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # A MISSPELLING SHOULD COST A SENTENCE, NOT A PUZZLE. This returned "" and
+  # A misspelling should cost a sentence, not a puzzle. This returned "" and
   # exit 0 on the first pass, which is the silent-wrong-answer shape this
   # repository has already been bitten by twice in its query engine — a caller
   # cannot tell an empty document from an empty domain.
@@ -179,7 +179,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
   end
 
-  # THE HALF THAT MAKES IT GET USED.
+  # The half that makes it GET used.
   describe "as a method on a booted domain" do
     it "answers on the chapter, beside vision and aggregates" do
       boot_in_memory

@@ -9,15 +9,15 @@ require_relative "glossary/html"
 
 module Hecks
   module Projections
-    # A CHAPTER, PROJECTED AS ITS UBIQUITOUS LANGUAGE — a glossary for the
-    # whole team, in the sense Evans meant (DDD ch. 2): ONE language,
+    # A chapter, projected as its ubiquitous language — a glossary for the
+    # whole team, in the sense Evans meant (DDD ch. 2): one language,
     # shared by domain experts and developers, written the same way in
     # conversation, diagrams, documents and code, so that a subject-matter
     # expert can read the model and say "yes, that's how it works" or
     # "no, that's wrong". A banker, a support rep, the CEO and an engineer
     # read the same page.
     #
-    # THREE THINGS FOLLOW FROM THAT AUDIENCE. First, no type jargon: a
+    # **Three things follow from that audience**. First, no type jargon: a
     # term is a term, not "an Aggregate" or "a Value Object", and every
     # identifier is spelled as a person says it (`Naming.words`: `ATMCard`
     # is "ATM card"). Second, nothing invented: every sentence is either
@@ -29,7 +29,7 @@ module Hecks
     # reader thinks "what does Account mean" before "what starts with A",
     # and once there reads the way a dictionary reads.
     #
-    # TWO FILES FROM ONE SOURCE. `glossary.md` is the document — every
+    # **Two files from one source**. `glossary.md` is the document — every
     # construct in it renders on GitHub as-is (headings, blockquotes,
     # ```mermaid fences, lists, in-page links). `html/index.html` is that
     # exact Markdown string rendered into a page with a navigation rail;
@@ -72,7 +72,7 @@ module Hecks
         Document.new(bluebook: bluebook, sections: sections, index: Index.new(sections))
       end
 
-      # AGGREGATES FIRST, A TO Z BY THEIR SPOKEN NAME ("Account" before
+      # Aggregates first, a to Z by their spoken name ("Account" before
       # "ATM card"), then the three groups nothing homes to one aggregate.
       def sections(bluebook, entries)
         grouped = entries.group_by(&:section)
@@ -87,7 +87,7 @@ module Hecks
         list
       end
 
-      # A HEADWORD IS QUALIFIED ONLY WHEN IT WOULD REPEAT within its own
+      # A HEADWORD is qualified only when it would repeat within its own
       # section — "Open" the action and "Open (the list)" the question;
       # "Return (key issuance)" beside another Return — never numbered
       # (Chicago 18.9, MDN's disambiguation pages: qualify the headword).
@@ -111,14 +111,14 @@ module Hecks
 
       # ── gathering ────────────────────────────────────────────────────
 
-      # AN ENTITY CAN CARRY ITS OWN COMMANDS AND QUERIES TOO — walked the
+      # An entity can carry its own commands and queries too — walked the
       # same one level down `DocsProjector` and `Projections::Diagrams`
       # already walk it.
       def holders(bluebook)
         bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
       end
 
-      # EVERY HOLDER'S OWN AGGREGATE, ONE HOP OR ZERO — an aggregate maps
+      # Every holder's own aggregate, one hop or zero — an aggregate maps
       # to itself, an entity to whichever aggregate declared it. The one
       # fact the grouping is built on.
       def holder_aggregate(bluebook)
@@ -128,8 +128,8 @@ module Hecks
         end
       end
 
-      # EVERY EVENT'S RAISERS — an event is never declared, only emitted,
-      # so its home is whichever aggregate the FIRST command that raises
+      # Every event's raisers — an event is never declared, only emitted,
+      # so its home is whichever aggregate the first command that raises
       # it belongs to; a policy or saga reacting to it inherits that home.
       def event_raisers(bluebook)
         holders(bluebook).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |holder, map|
@@ -165,7 +165,7 @@ module Hecks
         end
       end
 
-      # AGGREGATES ONLY — an entity declares no value objects of its own
+      # Aggregates only — an entity declares no value objects of its own
       # (`Bluebook::Entity` deliberately does not answer `value_objects`).
       def value_object_entries(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
@@ -213,7 +213,7 @@ module Hecks
         end
       end
 
-      # CROSS-CUTTING BY NATURE — `System` and `Customer` issue commands
+      # Cross-cutting by nature — `System` and `Customer` issue commands
       # across half the aggregates here — so a role belongs to no single
       # one and gets its own section.
       def role_entries(bluebook)
@@ -236,7 +236,7 @@ module Hecks
 
       # ── anchors ──────────────────────────────────────────────────────
 
-      # GITHUB'S OWN HEADING SLUGS, REPRODUCED — lowercase, punctuation
+      # **GitHub's own heading slugs, reproduced** — lowercase, punctuation
       # dropped, spaces to hyphens, a repeat gets "-1", "-2" in document
       # order. Computed here, once, in the order the headings will appear,
       # so a link written into the Markdown lands on the same heading
@@ -261,8 +261,8 @@ module Hecks
         end
       end
 
-      # WHERE A DECLARED REFERENCE POINTS — keyed structurally (a command
-      # by its holder AND name, an event by its bare name), never by
+      # **Where a declared reference points** — keyed structurally (a command
+      # by its holder and name, an event by its bare name), never by
       # searching prose for a matching word. Anything not declared here
       # (a cross-domain command like `Notifications.Send`) answers nil,
       # and the sentence says it in words with no link.

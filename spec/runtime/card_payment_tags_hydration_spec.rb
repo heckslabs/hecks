@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# ADR 0047 — regression coverage against the REAL, shipped corpus command
+# ADR 0047 — regression coverage against the real, shipped corpus command
 # the bug was traced against (`Banking::CardPayment.Authorize`'s own bare
 # `sets :tags`, `list_of(Tag)`), not just the synthetic fixture in
 # spec/runtime/entity_list_mutations_spec.rb. Deliberately its own file,

@@ -2,12 +2,12 @@ require "spec_helper"
 require "hecks/fuzzing"
 
 # QualityControl BUG#125 — `Value::Coercion#check_scalar_shapes` used to
-# tolerate ANY non-composite scalar (Integer, Float, true/false) for a
+# tolerate any non-composite scalar (Integer, Float, true/false) for a
 # String-typed value-object field, refusing only Array/Hash. Rust's
 # generated `from_json` requires a JSON string node for a String-typed
 # field unconditionally, refusing anything else immediately. The gap: a
 # command whose declared arguments are each independently invalid in
-# DIFFERENT ways diverged on REFUSAL KIND, not just wording — Ruby's
+# different ways diverged on refusal kind, not just wording — Ruby's
 # leniency let a bad `id` sail past its own check and fail later on an
 # unrelated field, while Rust refused on `id` first.
 #
@@ -17,21 +17,21 @@ require "hecks/fuzzing"
 # (tmp/qa-shrunk/SW-chess-1789342745-differential.json), pinned here.
 #
 # The fix is narrowly scoped: `Value::Coercion.judge_bootstrapping?`
-# (coercion.rb) exempts ONLY `MetaValidator::Judge#send_to` — the choke
-# point every one of the language's OWN self-hosted grammar dispatches
+# (coercion.rb) exempts only `MetaValidator::Judge#send_to` — the choke
+# point every one of the language's own self-hosted grammar dispatches
 # goes through while walking a bluebook's declarations into the
 # "Bluebook" meta-domain. `Judge#appends`' generic walk-index handling
 # for any field literally named "position" collides with
 # `NormalisationRule`/`Normalise`'s own domain field of the same name,
 # which is `RuleText` (String) rather than the `Position` (Integer) type
-# every OTHER "position" field in the language's grammar uses — so
+# every other "position" field in the language's grammar uses — so
 # `Judge#v(index)` hands that one field a raw Integer, on every domain's
 # first boot (the language self-judges its own grammar). The record this
 # produces is provably never read back (`normalisations` is spliced
-# straight from `Expression::CanonicalForm.table`, an ELSEWHERE/derived
+# straight from `Expression::CanonicalForm.table`, an elsewhere/derived
 # field — assembly/contracts.rb) — a walk-index/domain-field name
 # collision inside Judge, not a genuine semantic need for `position` to
-# arrive numeric — but unexempted, this DOES break every domain's boot
+# arrive numeric — but unexempted, this does break every domain's boot
 # today (`MetaValidator.call` raises the instant a judge's refusals are
 # non-empty). Every boot in the suite — the chess replays below included —
 # exercises that exemption, so an ordinary domain booting clean needs no

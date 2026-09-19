@@ -4,10 +4,10 @@ require "fileutils"
 require "open3"
 
 # `lib/hecks/deploy/bluebook/deploy.bluebook`'s own header explains
-# WHY this domain exists: `deployed_to("AwsLambda")`'s settings used to
+# why this domain exists: `deployed_to("AwsLambda")`'s settings used to
 # be validated nowhere in the language — a bare `fetch(:region) { abort
 # ... }` chain in bin/project_deploy, the exact raw-Ruby-refusal pattern
-# every OTHER kind of bluebook mistake in this codebase does NOT use.
+# every other kind of bluebook mistake in this codebase does not use.
 # This asserts the domain itself validates correctly, and that
 # bin/project_deploy genuinely dispatches into it rather than falling
 # back to hand-rolled checks.
@@ -102,14 +102,14 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       .to raise_error(Hecks::Runtime::InvariantViolation)
   end
 
-  # THE END-TO-END PROOF — bin/project_deploy itself dispatches into
+  # **The end-to-end proof** — bin/project_deploy itself dispatches into
   # this domain, not a parallel hand-rolled check that happens to agree
   # with it today and silently drifts tomorrow.
   describe "bin/project_deploy, driven through a scratch fixture domain", :io do
     # `bin/project_deploy` always writes to `<repo_root>/deploy/
-    # <domain_basename>` regardless of where the SOURCE domain lives
+    # <domain_basename>` regardless of where the source domain lives
     # (`root`/`out_dir` in bin/project_deploy are computed from the
-    # SCRIPT's own location, not the input path) — so the domain
+    # script's own location, not the input path) — so the domain
     # basename here is deliberately unique and the generated directory
     # is removed after every run, or each example would leave a real,
     # permanent `deploy/scratch/` behind in the actual repo.
@@ -201,7 +201,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       expect(status).to be_success, stderr
     end
 
-    # `owner_stack` — an escape hatch for a REAL drift already live in
+    # `owner_stack` — an escape hatch for a real drift already live in
     # this account: Embryonaut's own stack is "hecksagain-embryonaut"
     # (a legacy prefix, generated before the "hecks-<name>" convention
     # existed), not "hecks-embryonaut" the ordinary convention would
@@ -243,7 +243,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       FileUtils.rm_rf(generated_dir)
     end
 
-    # `stack_prefix` — `owner_stack`'s counterpart for THIS domain's own
+    # `stack_prefix` — `owner_stack`'s counterpart for this domain's own
     # names: Embryonaut's live stack, both Lambda functions, and its
     # Google OAuth secret all carry the legacy "hecksagain-" prefix.
     # Reads the generated files directly for the same reason the

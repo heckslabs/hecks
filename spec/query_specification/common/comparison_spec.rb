@@ -1,10 +1,10 @@
 require "spec_helper"
 
 # M1, M2, M4 (docs/audits/2026-08-10-main-bug-audit.md) — all three were
-# reported against `Ports::Query::InMemory`'s OWN, separate comparator
+# reported against `Ports::Query::InMemory`'s own, separate comparator
 # copy, before it and `Runtime::QueryInterpreter`'s copy were unified into
 # this one shared module (see this file's own header comment). Re-verified
-# here against the CURRENT, shared implementation: all three are already
+# here against the current, shared implementation: all three are already
 # fixed by that unification and this file exists to pin the fix down with
 # a real regression test, not to re-fix anything.
 RSpec.describe Hecks::QuerySpecification::Common::Comparison do

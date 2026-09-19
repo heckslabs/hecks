@@ -2,12 +2,12 @@ require "spec_helper"
 require "json"
 require "hecks/fuzzing"
 
-# THE CALLER DRAW, THE DRY-RUN DRAW, AND THE LATE-STAGE PRECEDENCE PAIRS
-# (items 2, 3 and 5 of the detection plan; ANGLE-5) — checked against
-# REAL generated sequences the way `adversary_spec.rb` checks the
+# The caller draw, the dry-run draw, and the late-stage precedence pairs
+# (items 2, 3 and 5 of the detection plan; angle-5) — checked against
+# real generated sequences the way `adversary_spec.rb` checks the
 # argument mutations: the seed contract holds (same seed, same script;
 # off is byte-identical and carries no metadata), every shape actually
-# appears, and each shape's fingerprint is IN the step's own keys —
+# appears, and each shape's fingerprint is in the step's own keys —
 # `role`/`actor_id`/`dry_run` — which is what both `Fuzzing::Replay`
 # and `kernel/cli.rs` read, so the generator's inline dispatch and both
 # replays bind the same caller.
@@ -91,10 +91,10 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       end
       # Only grants whose `role_name` the argument layer left alone — a
       # `refusal_precedence`/`omit_mapped_argument` mutation can corrupt or
-      # drop it AFTER the steer (that is exactly its job); a `caller_role`
+      # drop it after the steer (that is exactly its job); a `caller_role`
       # note touches no argument at all.
       # The grant verb is whatever the loaded authorization provider
-      # DECLARES (`provides "authorization", grant: ...`), not a constant.
+      # declares (`provides "authorization", grant: ...`), not a constant.
       bluebooks   = Hecks::Fuzzing::Replay.call(ROLE_BANKING, [])[:bluebooks]
       grant_verbs = bluebooks.values.filter_map { |b| b.provided_verb("authorization", :grant) }
       expect(grant_verbs).to eq(["Governance::RoleAssignment.Assign"])
@@ -116,7 +116,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
 
       history = Hecks::Fuzzing::Replay.call(ROLE_BANKING, mismatched)
       # Every one refused (nothing a wrong hat dispatches ever lands), and
-      # the ONLY refusals ahead of Unauthorized are the argument-gate
+      # the only refusals ahead of Unauthorized are the argument-gate
       # stages `DISPATCH_ORDER` places before `refuse_role_mismatch`.
       expect(history[:refusals].size).to eq(mismatched.size)
       expect(history[:events]).to be_empty
@@ -140,11 +140,11 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
 
       history = Hecks::Fuzzing::Replay.call(ROLE_PIZZAS, steps)
       expect(history[:dry_runs].size).to eq(dry.size)
-      # `dry_runs` ITSELF STAYS exactly `{verb:, ok:, error?:}` — the same
+      # `dry_runs` itself stays exactly `{verb:, ok:, error?:}` — the same
       # shape the compiled Rust binary's own `dry_run` answers, so
       # `spec/rust_conformance_spec.rb`'s direct comparison against it
       # never sees a key Rust doesn't have; `before:`/`after:` live on the
-      # SEPARATE, parallel `dry_run_traces` array instead.
+      # separate, parallel `dry_run_traces` array instead.
       expect(history[:dry_runs]).to all(include(:verb, :ok))
       expect(history[:dry_runs]).to all(satisfy { |e| !e.key?(:before) && !e.key?(:after) })
       expect(Hecks::Fuzzing::Properties.dry_runs_leave_no_trace(history)).to be(true)
@@ -182,13 +182,13 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
     end
 
     # `lifecycle+mismatch` is offered only when a transition-guarded,
-    # non-creating command is ADDRESSED — rare at `adversarial: 1.0`,
+    # non-creating command is addressed — rare at `adversarial: 1.0`,
     # where nearly every creating step is mutated into a refusal and
     # little state exists to act on — so its applicability is pinned
     # directly against a hand-built entry rather than left to the draw.
     it "offers lifecycle+mismatch exactly to a transition-guarded, non-creating command with flat addressing" do
       bluebooks = Hecks::Fuzzing::Replay.call(ROLE_BANKING, [])[:bluebooks]
-      # The first guarded, non-creating command that ALSO declares an
+      # The first guarded, non-creating command that also declares an
       # argument to mismatch (`Transfer.Settle` is guarded but takes none,
       # so `mismatch` has nothing to corrupt there — `lifecycle` pairs
       # only with `mismatch` by design).

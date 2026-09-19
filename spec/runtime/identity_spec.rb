@@ -4,7 +4,7 @@ require "hecks"
 # `Identity.from` used to read a nested hash with `h[k.to_sym] || h[k]`,
 # which drops a genuinely-stored `false` to `nil` (`false || h[k]` falls
 # through). A composite/dotted identity part that is itself a boolean
-# used to resolve to `nil` and take down the WHOLE identity with it
+# used to resolve to `nil` and take down the whole identity with it
 # (`Identity.of` refuses any part that is `nil`), not merely mis-read
 # that one part.
 RSpec.describe Hecks::Runtime::Identity do
@@ -45,8 +45,8 @@ RSpec.describe Hecks::Runtime::Identity do
     # R4 (docs/audits/2026-08-11-bug-triage.md) — the Rust kernel's own
     # `to_id_component` (rust/src/kernel/json.rs) used to accept an
     # empty-string identity component and persist a record under it, a
-    # real, live divergence from THIS behavior: an empty string names
-    # nothing here, the same as a genuinely absent part, and the WHOLE
+    # real, live divergence from this behavior: an empty string names
+    # nothing here, the same as a genuinely absent part, and the whole
     # identity is refused (`nil`) rather than resolving to a blank-but-
     # real id. `to_id_component_refuses_an_empty_string`
     # (rust/src/kernel/json.rs's own `#[cfg(test)]` module) is the same
@@ -63,7 +63,7 @@ RSpec.describe Hecks::Runtime::Identity do
   # a derived part with a bare `part.empty?`, which raises `NoMethodError`
   # on any part that isn't a String (an Integer, an Array, a Hash — the
   # exact shape a reference-typed identity head can resolve to when its
-  # own attribute lookup falls through). Re-verified against the CURRENT
+  # own attribute lookup falls through). Re-verified against the current
   # file: the blank-part guard now checks `part.respond_to?(:empty?)`
   # first, so a non-string part is compared by identity/`nil?` alone and
   # never reaches a bare `.empty?` call — these lock that in as a

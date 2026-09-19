@@ -3,12 +3,12 @@ require "hecks"
 # §2's demonstration: a caller acting under one role, temporarily assuming
 # another to dispatch a command that role does not itself hold — checked
 # against Governance's `RoleTransition`, then scoped with
-# `Hecks.as_caller`. TWO SEPARATE REGISTRIES, on purpose: Governance's
+# `Hecks.as_caller`. Two separate registries, on purpose: Governance's
 # own, and Pizzas' — checking authority and dispatching a business command
 # are two independent steps an application already coordinates in plain
 # Ruby, so nothing here composes them into one registry.
 #
-# NO CHANGE TO CommandInterpreter, Dispatcher, OR CommandRules::Authorization
+# No change to CommandInterpreter, Dispatcher, or CommandRules::Authorization
 # backs this — `Caller.as` already scopes a role to a nested dispatch and
 # restores it after, via ordinary Ruby `ensure`, and `refuse_role_mismatch`
 # already does nothing when no caller is bound. This spec is the proof: the
@@ -59,7 +59,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
   let(:governance) { governance_runtime }
   let(:pizzas) { pizzas_runtime }
 
-  # THE APPLICATION-LEVEL CHECK. Not library code — the same reasoning
+  # The application-level check. Not library code — the same reasoning
   # `Ports::IdentityGeneration`'s own spec demonstrates a real dispatch
   # against, rather than inventing facade machinery for a pattern that
   # composes out of what already exists. `Allowed` returns the record
@@ -90,7 +90,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
 
     created = nil
     Hecks.as_caller(role: "Customer") do
-      # `CreatePizza` needs "Chef" — the OUTER caller is "Customer" and does
+      # `CreatePizza` needs "Chef" — the outer caller is "Customer" and does
       # not hold it. The nested `as_caller` is what makes this dispatch
       # authorized at all.
       created = Hecks.as_caller(role: "Chef") do
@@ -103,9 +103,9 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
         )
       end
 
-      # RESTORED. `Caller.current` is "Customer" again the moment the
+      # Restored. `Caller.current` is "Customer" again the moment the
       # nested block returns — proved by dispatching a "Customer"-only
-      # command right here, still inside the OUTER as_caller, with no
+      # command right here, still inside the outer as_caller, with no
       # nested block in the way.
       purchased = business.dispatch(
         "Pizzas::Order.Purchase", id: created.instance.id,
@@ -116,7 +116,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     end
   end
 
-  # THE GUARDED CALL an application actually makes: check Governance, and
+  # The guarded call an application actually makes: check Governance, and
   # only reach the nested dispatch if it says yes. `dispatched` records
   # whether the block ran at all, so the refusal path can prove the
   # dispatch was never attempted — not merely that it would have failed.

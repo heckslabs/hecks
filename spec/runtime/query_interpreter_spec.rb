@@ -4,7 +4,7 @@ require "tempfile"
 # `QueryInterpreter#call`/`#reference_call` build every returned row as
 # `{ id: record.id }.merge(record.state)` (or `r.state` for `Instance` —
 # the `interpret`/`reference_interpret` in-memory paths). Merging `state`
-# LAST let a declared attribute literally named `id` (real corpus now:
+# last let a declared attribute literally named `id` (real corpus now:
 # BurningManPrep's `Item`, `attribute :id, ItemId`) clobber the correctly
 # bare `record.id` with that attribute's own wrapped value object — the
 # exact bug `Facade::Handle#to_h` already had (see handle_spec.rb), just

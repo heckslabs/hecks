@@ -16,6 +16,29 @@ module Hecks
     module CommandRequest
       module_function
 
+      # Splits one external request into routing (`to:`) and facts (`with:`), accepting
+      # either the explicit envelope or a flat Hash, and refuses a receiver that does
+      # not fit the kind of command being called.
+      #
+      # Keys are symbolized at every depth first, so a parsed JSON body and a Ruby Hash
+      # are treated alike. In a flat Hash everything but `to` (or the legacy receiver
+      # keys) is a fact.
+      #
+      # @param input [Hash, Object] the request, with String or Symbol keys; anything
+      #   that is not a Hash is refused
+      # @param receiver [Symbol, nil] the kind of receiver the command takes:
+      #   `:aggregate` (an identity), `:entity` (a Hash of `aggregate:` and `entity:`
+      #   identities), or `nil` for a command that takes none, such as a creating command
+      # @param legacy_receiver [Symbol, String, Hash{Symbol => Symbol, String}, nil] where
+      #   a flat request without `to` may carry its receiver instead: one key name (such
+      #   as `:id`) for an `:aggregate` receiver, or `{ aggregate: key, entity: key }` for
+      #   an `:entity` receiver; `nil` accepts no legacy spelling
+      # @return [Hash{Symbol => Object}] `{ with: facts }`, plus `to:` holding the route
+      #   whenever `receiver` is not `nil`; ready to pass to `Dispatcher#dispatch_flat`
+      # @raise [Runtime::TypeMismatch] if `input` or its `with:` is not a Hash, if an
+      #   explicit envelope carries keys other than `to:` and `with:`, or if the route
+      #   is missing, blank, malformed, or given to a command that takes no receiver
+      # @raise [ArgumentError] if `receiver` is not `nil`, `:aggregate` or `:entity`
       def normalize(input, receiver:, legacy_receiver: nil)
         request = symbolize(input)
         raise Runtime::TypeMismatch, "a command request must be a hash" unless request.is_a?(Hash)

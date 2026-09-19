@@ -3,17 +3,17 @@ require_relative "traits"
 module Hecks
   module Bluebook
     module Behaviour
-      # WHAT ONE PORT OPERATION DOES.
+      # **What one port operation does**.
       module PortOperation
         include Indexed
 
-        # An operation declares no reference of its own — the OWNER is
+        # An operation declares no reference of its own — the owner is
         # what it acts for, and `identity_attribute` is how that is found.
         def references = nil
 
-        # NEVER a creating command — a port operation always acts on an
+        # Never a creating command — a port operation always acts on an
         # aggregate that already exists (`operation.to`/`identity_attribute`
-        # both name where its RECEIVER comes from, never a birth). Answered
+        # both name where its receiver comes from, never a birth). Answered
         # explicitly, not derived from `references` the way `Command
         # #creates?` is (`references.nil?` would read every operation as
         # creating, since `references` above is unconditionally nil) —
@@ -27,10 +27,10 @@ module Hecks
           @attributes.find { |attribute| attribute.reference? && attribute.type.target_name == owner_name.to_s }
         end
 
-        # THE SAME READING `Command#addressing_key_for` gives, minus its
+        # The same reading `Command#addressing_key_for` gives, minus its
         # self-addressing branch — a port operation's `references` is
         # unconditionally nil (above), so it never means "this verb is
-        # declared ON the very aggregate it acts on" the way a command's
+        # declared on the very aggregate it acts on" the way a command's
         # does; a port operation's only path back to its owner is a real,
         # declared reference-typed attribute, which is exactly what
         # `identity_attribute` already finds. Needed for the identical
@@ -40,7 +40,7 @@ module Hecks
         def addressing_key_for(aggregate_name) = identity_attribute(aggregate_name)&.name
       end
 
-      # WHAT A PORT DOES — one finder over its declared operations.
+      # **What a port does** — one finder over its declared operations.
       module DomainPort
         def operation(named) = @operations.find { |op| op.hecks_name == named.to_s }
       end

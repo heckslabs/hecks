@@ -1,9 +1,9 @@
 require "spec_helper"
 
 # Round 7 — `EntityBuilder#invariant`: a piece's own shape rule,
-# checked against EVERY instance the aggregate holds, at the SAME two
+# checked against every instance the aggregate holds, at the same two
 # checkpoints (after every mutation, before save) the aggregate's own
-# invariants already run at. NOT a separate enforcement boundary — see
+# invariants already run at. Not a separate enforcement boundary — see
 # Admissibility#enforce_invariants' own comment on why this does not
 # contradict "there is no separate entity invariant."
 #

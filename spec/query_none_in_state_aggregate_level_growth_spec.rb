@@ -6,7 +6,7 @@ require "tempfile"
 # the fallback when no adapter implements :query) already had
 # none_in_state -- Ports::Query::InMemory#holds? ("the path that
 # actually runs for a memory- or heki-backed aggregate query" per its
-# own existing comment) never had a matching case, so an ORDINARY
+# own existing comment) never had a matching case, so an ordinary
 # aggregate-level none_in_state where-clause against a Memory-backed
 # aggregate silently fell to the else branch (held == want, an id
 # string against "Aggregate:state", never equal) and excluded every

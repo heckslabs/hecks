@@ -22,59 +22,84 @@ module Hecks
           MutationOp.new(name: row["name"], sign: row["sign"].empty? ? nil : Integer(row["sign"]))
         end.freeze
 
-        # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and
+        # Reads what a mutation's source means: an argument's value for a Symbol, the literal
+        # itself for anything else.
+        #
+        # A mutation's source is either the name of an argument or a literal, and
         # the two are told apart by type : a Symbol is always a name, a String or a
         # number is always a value. Checked across all eight chapters — `to: :name`
         # and `to: "sold"`, never a Symbol meant as a value.
         #
-        # `&& args.key?(source)` used to guard the lookup, and that guard is what
-        # made an ABSENT argument fall through to `source` and return THE SYMBOL
-        # ITSELF as the value. `Customer.Register` without its `name` set name to
-        # the literal `:name`, coercion met a Symbol where a PersonName belonged,
-        # and the refusal read "name is a PersonName — pass its fields as an
+        # The lookup is unconditional, with no `&& args.key?(source)` guard: such a
+        # guard makes an absent argument fall through to `source` and return the symbol
+        # itself as the value. `Customer.Register` without its `name` would set name to
+        # the literal `:name`, coercion would meet a Symbol where a PersonName belongs,
+        # and the refusal would read "name is a PersonName — pass its fields as an
         # object, not :name" — a message describing a mistake the caller had not
-        # made. The real mistake, an absent argument, was never the one refused,
+        # made. The real mistake, an absent argument, would never be the one refused,
         # which is what fuzz surfaced.
         #
-        # STALE (as of the equivalence-gap plan's own audit): this used to
-        # say "the language cannot yet say which arguments are optional" —
-        # it already can, and always could once `attribute ..., optional:
-        # true` existed (`CommandBuilder#attribute_impl`,
-        # `attribute_collector.rb`): `sets` already sources correctly from
+        # An absent argument resolving to nil is correct, not pending work. The
+        # language can say which arguments are optional (`attribute ...,
+        # optional: true` — `CommandBuilder#attribute_impl`,
+        # `attribute_collector.rb`): `sets` sources correctly from
         # an optional attribute, resolving absent to nil exactly as this
-        # method does, and REFUSING it here would be wrong, not merely
+        # method does, and refusing it here would be wrong, not merely
         # undone work — `TillRoom::Till.TakeIn`'s own `note` (spec/
         # fixtures/till.bluebook) and Banking's `CardPayment.Authorize`'s
         # `tags` (payment_cards.bluebook) are real, live commands whose
         # `sets` mutation is deliberately sourced from an optional
         # attribute the caller may omit — `spec/runtime/command_rules_spec
-        # .rb`'s own "says an absent OPTIONAL argument is nil, not the
+        # .rb`'s own "says an absent optional argument is nil, not the
         # name of the argument" pins exactly this as correct, not pending.
         # The meta-domain's own self-hosted commands (Command.Declare's
         # `role`/`goal`/`provenance`/`from`/`position`, and ~35 more sites
         # across the language) all lean on the identical pattern — nil is
-        # the RIGHT answer for a `sets` sourced from a declared-optional
+        # the right answer for a `sets` sourced from a declared-optional
         # attribute the caller left out, every time.
         #
-        # The one thing that WAS still a real, narrow gap — a `sets`
-        # source Symbol naming NOTHING the command declares at all (a
-        # typo, not an optional argument) — silently resolved to nil
-        # forever the same way, indistinguishable at either build or run
-        # time from a legitimate optional absence. Closed at BUILD time
+        # The one narrow gap that leaves — a `sets` source Symbol naming
+        # nothing the command declares at all (a typo, not an optional
+        # argument), which would resolve to nil here, indistinguishable
+        # from a legitimate optional absence — is closed at build time
         # instead of here: `CommandBuilder#refuse_unknown_argument_sources!`
         # refuses it the moment the `.bluebook` file loads, mirroring
         # `AggregateBuilder#seal_query_argument`'s identical check for a
-        # query's own where-clause argument. This function stays exactly
-        # what it always was — a pure, unconditional lookup — because by
-        # the time ANY mutation reaches it, the source has already been
-        # proven to name either a real, possibly-optional argument, or a
-        # StateRef/literal; there is nothing left here to refuse.
+        # query's own where-clause argument. This function stays a pure,
+        # unconditional lookup because by the time any mutation reaches
+        # it, the source has already been proven to name either a real,
+        # possibly-optional argument, or a StateRef/literal; there is
+        # nothing left here to refuse.
+        #
+        # @param source [Symbol, Object] a mutation's source: a Symbol names a command argument,
+        #   anything else (String, Numeric, Array, Hash, `StateRef`) is returned as is
+        # @param args [Hash{Symbol => Object}] the normalized command arguments
+        # @return [Object, nil] the named argument's value, nil when the caller left that
+        #   argument out; otherwise `source` itself
         def resolve_source(source, args)
           return args[source] if source.is_a?(Symbol)
 
           source
         end
 
+        # Adds or subtracts `amount` from an attribute's current value, on a bare number or on
+        # the one numeric field two value objects share.
+        #
+        # @param current [Numeric, Runtime::Value, nil] the attribute's pre-dispatch value; nil
+        #   (never set) counts as 0
+        # @param amount [Numeric, Runtime::Value] how much to move by; a value object is combined
+        #   field by field with a value-object `current`, and otherwise unwrapped to its single
+        #   numeric field
+        # @param target [Symbol, String] name of the attribute, used only to word a refusal
+        # @param sign [Integer] 1 to increment, -1 to decrement, as `sign_of` answers
+        # @return [Numeric, Runtime::Value] the new value: a `Runtime::Value` when both sides
+        #   are value objects, otherwise a bare number the caller re-wraps
+        # @raise [Runtime::TypeMismatch] if `amount` or `current` is not numeric, or two value
+        #   objects do not share exactly one numeric field
+        # @raise [Runtime::InvariantViolation] if a value-object result breaks one of its own
+        #   invariants
+        # @raise [Bluebook::Expression::EvaluationError] if the result does not fit a signed
+        #   64-bit Integer, or is a non-finite Float
         def arithmetic(current, amount, target, sign)
           op = sign.positive? ? "increment" : "decrement"
           current ||= 0
@@ -85,7 +110,7 @@ module Hecks
           # `amount` arrives VO-wrapped — a real command argument typed the
           # same as the attribute, but with nothing to combine field-by-
           # field against yet (that is what `arithmetic_value_object`,
-          # above, is for once BOTH sides carry real fields). Before this,
+          # above, is for once both sides carry real fields). Before this,
           # falling straight to `unless amount.is_a?(Numeric)` below
           # refused with "increment needs an Integer, got 500" — true of
           # nothing: 500 is exactly the Integer it asked for, just still
@@ -116,11 +141,23 @@ module Hecks
 
         # C3.3/C3.4 — an effect's arithmetic is held to the same value
         # model an expression's is: Integer is signed 64-bit, Float is
-        # finite. A result outside that is an evaluation FAULT (never a
+        # finite. A result outside that is an evaluation fault (never a
         # refusal, C8.3), worded as the Rust kernel's own generated
         # `checked_add`/`checked_sub`/`checked_mul` word it.
         INT64_RANGE = (-(2**63))..((2**63) - 1)
 
+        # Passes an arithmetic result through only if it fits the value model: a signed 64-bit
+        # Integer or a finite Float.
+        #
+        # @param result [Numeric] the computed value to check
+        # @param oper [String] the op's name (`"increment"`, `"decrement"`, `"multiply"`),
+        #   the first word of the fault message
+        # @param lhs [Numeric] the left operand, quoted in the fault message
+        # @param rhs [Numeric] the right operand; its absolute value is quoted
+        # @param symbol [String] the operator to print between the operands: `"+"`, `"-"`, `"*"`
+        # @return [Numeric] `result`, unchanged
+        # @raise [Bluebook::Expression::EvaluationError] if an Integer result is outside
+        #   `INT64_RANGE`, or a Float result is NaN or infinite
         def bounded(result, oper, lhs, rhs, symbol)
           if result.is_a?(Integer)
             return result if INT64_RANGE.cover?(result)
@@ -134,6 +171,22 @@ module Hecks
                 "#{oper} overflowed: #{lhs} #{symbol} #{rhs.abs} is not a finite number"
         end
 
+        # Adds or subtracts on the one numeric field two value objects share, answering a new
+        # value object of `current`'s type.
+        #
+        # @param current [Runtime::Value] the attribute's pre-dispatch value
+        # @param amount [Runtime::Value] how much to move by, coerced to the attribute's type
+        # @param target [Symbol, String] name of the attribute, used only to word a refusal
+        # @param sign [Integer] 1 to add, -1 to subtract
+        # @param oper [String] `"increment"` or `"decrement"`, for refusal and fault wording
+        # @return [Runtime::Value] a copy of `current` with the shared field replaced, rebuilt
+        #   and re-validated through `Value#with`
+        # @raise [Runtime::TypeMismatch] if the two do not share exactly one numeric field, or
+        #   the rebuilt value object refuses the new field value
+        # @raise [Runtime::InvariantViolation] if the new field value breaks one of the value
+        #   object's own invariants
+        # @raise [Bluebook::Expression::EvaluationError] if the result does not fit a signed
+        #   64-bit Integer, or is a non-finite Float
         def arithmetic_value_object(current, amount, target, sign, oper)
           current_fields = current.to_h
           amount_fields  = amount.to_h
@@ -156,10 +209,12 @@ module Hecks
                                       current[field], amount[field], sign.positive? ? "+" : "-"))
         end
 
-        # Not a bare `.find(...)&.sign || -1` — that silently answered
-        # DECREMENT'S sign for BOTH an op this table has never heard of
-        # AND a declared, real op that simply carries no sign at all
-        # (set/append/multiply/clamp/remove — see MUTATION_OPS above).
+        # Looks up whether a mutation op adds or subtracts, from the generated `MUTATION_OPS` table.
+        #
+        # Not a bare `.find(...)&.sign || -1` — that would silently answer
+        # decrement's sign for both an op this table has never heard of
+        # and a declared, real op that simply carries no sign at all
+        # (set/append/multiply/clamp/remove — see `MUTATION_OPS` above).
         # Callers today only ever reach this for :increment/:decrement
         # (both MutationApplier#apply and EntityInterpreter#
         # apply_to_element gate every other op through their own `case`
@@ -167,11 +222,19 @@ module Hecks
         # raise is not a real runtime path yet — it is the same
         # backstop one level down, in case a future caller reaches
         # #sign_of directly for an op that was never meant to have one.
+        #
+        # @param oper [Symbol, String] the mutation op's name, such as `:increment`
+        # @return [Integer] 1 for increment, -1 for decrement
+        # @raise [Runtime::WiringError] if the op is unknown, or is declared with no sign
+        #   (set, append, multiply, clamp, remove, delegate, corrects)
         def sign_of(oper)
           MUTATION_OPS.find { |candidate| candidate.name == oper.to_s }&.sign ||
             raise(WiringError, "no sign declared for mutation op #{oper.inspect} — add one before calling #sign_of")
         end
 
+        # Scales an attribute's current value by `amount`, on a bare number or on the one numeric
+        # field two value objects share.
+        #
         # Vendored addition, not (yet) upstream hecks (migration plan
         # task 4, i106): `current * amount` -- the scaling counterpart to
         # increment/decrement's add/subtract. Same raw-vs-value-object
@@ -179,6 +242,21 @@ module Hecks
         # rather than duplicated verb-for-verb (a `Proc` picks the actual
         # arithmetic; everything else -- the Value unwrap/rewrap, the
         # TypeMismatch refusals -- is identical to the additive pair).
+        #
+        # @param current [Numeric, Runtime::Value, nil] the attribute's pre-dispatch value; nil
+        #   (never set) counts as 0
+        # @param amount [Numeric, Runtime::Value] the factor; a value object is combined field
+        #   by field with a value-object `current`, and otherwise unwrapped to its single
+        #   numeric field
+        # @param target [Symbol, String] name of the attribute, used only to word a refusal
+        # @return [Numeric, Runtime::Value] the product: a `Runtime::Value` when both sides are
+        #   value objects, otherwise a bare number the caller re-wraps
+        # @raise [Runtime::TypeMismatch] if `amount` or `current` is not numeric, or two value
+        #   objects do not share exactly one numeric field
+        # @raise [Runtime::InvariantViolation] if a value-object result breaks one of its own
+        #   invariants
+        # @raise [Bluebook::Expression::EvaluationError] if the product does not fit a signed
+        #   64-bit Integer, or is a non-finite Float
         def multiply(current, amount, target)
           current ||= 0
 
@@ -202,7 +280,7 @@ module Hecks
         end
 
         # Vendored addition, not (yet) upstream hecks (migration plan
-        # task 4, i106): bound the CURRENT value into `[min, max]` -- no
+        # task 4, i106): bound the current value into `[min, max]` -- no
         # "amount" to combine, so it does not go through
         # #arithmetic/#multiply's shared-numeric-field matching at all;
         # it clamps whichever single numeric field the wrapping value
@@ -210,12 +288,12 @@ module Hecks
         # one, per Part 3a's auto-synthesis).
         def clamp(current, bounds, target)
           min, max = bounds
-          # THE SAME `current ||= 0` #arithmetic/#multiply both give a
-          # PHANTOM (never-set) numeric field, one line up from each —
+          # The same `current ||= 0` #arithmetic/#multiply both give a
+          # phantom (never-set) numeric field, one line up from each —
           # this was the one arithmetic op that didn't, so a VO-typed
           # attribute with no declared `default:` (genuinely absent,
           # `Instance.defaults`/`#default_for`) hit TypeMismatch on the
-          # FIRST clamp. (#arithmetic/#multiply's OWN absent-current gap
+          # first clamp. (#arithmetic/#multiply's own absent-current gap
           # was a real, separate bug this comment used to describe wrong —
           # they did not "silently treat the same absent field as zero";
           # they raised too, blaming a perfectly valid `amount` for not
@@ -243,14 +321,14 @@ module Hecks
         # `amount` arrives VO-wrapped whenever the command's own declared
         # attribute type says so (a real `Money`, not a bare Integer) —
         # true whether or not `current` has ever been set. Only meaningful
-        # to call once `current` is known NOT to be a Value itself (the
+        # to call once `current` is known not to be a Value itself (the
         # `current.is_a?(Value) && amount.is_a?(Value)` branch, above in
         # both callers, already owns the case where both sides carry real
         # fields to combine). Refuses rather than guesses when more than
         # one field is numeric — genuinely ambiguous which one an absent
         # `current` should be treated as zero for, the same reasoning
         # `combine_value_object`'s own `shared_numeric.size == 1` check
-        # already holds to when both sides ARE present.
+        # already holds to when both sides are present.
         def unwrap_single_numeric_field(value)
           fields = value.to_h
           numeric_fields = fields.keys.select { |field| fields[field].is_a?(Numeric) }

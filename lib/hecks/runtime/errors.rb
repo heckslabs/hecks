@@ -7,12 +7,12 @@ module Hecks
     class EnsuresNotMet < StandardError; end
 
     # `detail` — the failing comparison's own resolved operands, "left: X,
-    # right: Y" — set only when the given's TOP-LEVEL shape is a bare
+    # right: Y" — set only when the given's top-level shape is a bare
     # comparison (`Evaluator.comparison_detail`'s own comment has the full
-    # scoping); nil otherwise. Deliberately NOT folded into `#message`:
+    # scoping); nil otherwise. Deliberately not folded into `#message`:
     # that string is pinned byte-for-byte across this corpus's own specs
     # (`raise_error(GivenNotMet, "...")`, command_rules_spec.rb and every
-    # domain that vendors this gem) as CONTRACT, so changing its shape by
+    # domain that vendors this gem) as contract, so changing its shape by
     # default would be a breaking change for every one of them. Riding on
     # `#detailed_message` instead (Ruby 3.2+, what irb/a Rails console's
     # own unhandled-exception banner already calls to show more than
@@ -39,7 +39,7 @@ module Hecks
     # is the right name carrying the wrong thing, this one is a name the command
     # never had. Both are the payload gate refusing before any rule runs.
     class UnknownArgument < StandardError; end
-    # The third of the trio, and the one that was missing : a name the command DOES
+    # The third of the trio, and the one that was missing : a name the command does
     # declare, absent. TypeMismatch is the right name carrying the wrong thing,
     # UnknownArgument a name that was never declared, AbsentArgument a declared name
     # that never arrived. Between them they say a command takes exactly the
@@ -56,18 +56,18 @@ module Hecks
     # `given`/`ensures`/`invariant` that reads the field would otherwise
     # evaluate against a value nobody wrote, which is the same silent-
     # wrong-answer class as an unpopulated projection reading "not
-    # active" (ADR 0025, "Added attributes and absence"). An OPTIONAL
+    # active" (ADR 0025, "Added attributes and absence"). An optional
     # attribute in the same spot reads nil instead — that is what
     # optional means, and this refusal is deliberately narrower than the
     # nil-read it sits beside, not a replacement for it.
     class AttributeAbsent < StandardError; end
-    # THE SAME SILENT-WRONG-ANSWER CLASS AS ABOVE, one line up — a
+    # The same silent-wrong-answer class as above, one line up — a
     # `projects` field (S12, ADR 0025) this record predates, or that no
     # rebuild sweep has populated yet, read by a `given`/`ensures`/
     # `invariant` as though it carried a real value. `GuardState` is
     # the one place this is raised, the same way AttributeAbsent is —
-    # a DECLARED field the record does not yet carry, distinguished
-    # from that one only in WHY: an ordinary attribute is absent
+    # a declared field the record does not yet carry, distinguished
+    # from that one only in why: an ordinary attribute is absent
     # because nobody backfilled it, a projected field is absent
     # because nobody has swept it yet.
     class ProjectionAbsent < StandardError; end
@@ -79,14 +79,14 @@ module Hecks
     class Unauthorized < StandardError; end
     # `corrects` names a past event this record must have already emitted
     # (CommandBuilder#corrects_impl's own comment) — a fact the expression
-    # evaluator cannot check (it is not a predicate over the record's OWN
+    # evaluator cannot check (it is not a predicate over the record's own
     # fields, it is "did this exact record ever announce this"), so it is
     # raised structurally, the same way AlreadyExists/NotFound are, rather
     # than being expressible as an ordinary `given`. Raised by
     # `CommandRules::Admissibility#enforce_correction_target`.
     class NothingToCorrect < StandardError; end
 
-    # A RUNTIME FAULT, NOT A DOMAIN REFUSAL — deliberately absent from
+    # A runtime fault, not a domain refusal — deliberately absent from
     # `DOMAIN_REFUSALS` below and from `vocabulary.bluebook`'s own
     # `DomainRefusal` list. Raised when an optimistic-concurrency CAS write
     # (`AppendOnly#save`'s `expected_version:`) finds the stored version has
@@ -102,29 +102,29 @@ module Hecks
 
     # A Lambda-routed domain's own refusal (rust/host, `Runtime::
     # RemoteDispatcher`), carrying Rust's own refusal text verbatim —
-    # NOT yet mapped back to the specific matching class above
+    # not yet mapped back to the specific matching class above
     # (GivenNotMet vs. EnsuresNotMet vs. ...), a real, known,
     # documented gap: the WASM projector's own event/refusal-wording
-    # parity work (ADR 0021) makes the TEXT match Ruby's, but nothing
+    # parity work (ADR 0021) makes the text match Ruby's, but nothing
     # yet parses that text back into a typed Ruby exception the way a
     # local dispatch already raises one directly. Callers that only
     # need "the domain said no" (not which specific rule) are
-    # unaffected; callers pattern-matching a SPECIFIC refusal class
+    # unaffected; callers pattern-matching a specific refusal class
     # against a Lambda-routed domain are the ones this gap would bite.
     class RemoteRefusal < StandardError; end
 
-    # The domain saying NO — the errors a reaction may legitimately meet and
+    # The domain saying no — the errors a reaction may legitimately meet and
     # record as an undelivered outcome. A policy whose target refuses is a fact
     # about the domain ; the originating command still stands.
     #
-    # Everything ELSE is a defect : a NoMethodError in an interpreter, a
+    # Everything else is a defect : a NoMethodError in an interpreter, a
     # NameError from a missing constant, a TypeError from a bad assumption. A
     # blanket `rescue StandardError` used to fold both into one line —
     # `delivered: false, reason: "..."` — so a crash in the runtime was
     # indistinguishable from a rule doing its job, and read as normal operation
     # in the log.
     #
-    # UnknownVerb IS one of these, and deliberately : a cross-domain policy
+    # UnknownVerb is one of these, and deliberately : a cross-domain policy
     # (`across "Notifications"`) fires in deployments where that domain is not
     # loaded, and recording the undelivered reaction rather than raising is the
     # design — spec/policy_spec states it in so many words, "records a reaction
@@ -133,12 +133,12 @@ module Hecks
     # its own rule is the domain saying no as plainly as a given is — but the
     # class is declared over in value.rb and never made the list, so the policy
     # and saga interpreters, which rescue exactly these, would let it propagate
-    # as though the RUNTIME had broken. A reaction whose target violates an
+    # as though the runtime had broken. A reaction whose target violates an
     # invariant is declined, not crashed. Found by spec/domain_refusal_spec on
     # its first run : every corpus refusal must be a class named here, and 23
     # of banking's were InvariantViolation.
-    # THE NAMES COME FROM THE LANGUAGE, the classes from this module.
-    # `DomainRefusal` declares WHICH refusals are the domain's own —
+    # The names come from the language, the classes from this module.
+    # `DomainRefusal` declares which refusals are the domain's own —
     # a rule the caller broke — as against a runtime fault. Resolving
     # each name here means a refusal declared but never defined fails
     # at load with a NameError, rather than being quietly absent from

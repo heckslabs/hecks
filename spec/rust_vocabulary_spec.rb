@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# THE ANTI-DRIFT GATE for rust/src/kernel/vocab/ — the same shape
+# The anti-drift gate for rust/src/kernel/vocab/ — the same shape
 # spec/vocabulary_table_spec.rb uses for lib/hecks/vocabulary.rb:
 # re-project in memory from vocabulary.bluebook and refuse a diff, so a
 # committed Rust table that stopped matching the language fails the

@@ -4,17 +4,17 @@ require_relative "resolver"
 module Hecks
   module Bluebook
     module Expression
-      # ── AST → JSON — walks the REAL Evaluator/Resolver AST (the same
+      # ── AST → JSON — walks the real Evaluator/Resolver AST (the same
       # objects a live dispatch parses `given`/`ensures`/invariant text
       # into — see docs/implemented/guides/running-a-runtime.md's "The
       # expression grammar") and emits plain, JSON-serializable Ruby
       # Hashes, tagged by `"op"`.
       #
-      # THE SAME TWO-METHOD WALK `rust/project/expr_emitter.rb`'s own
-      # `emit_bool`/`emit_resolver` already do, over the SAME AST — that
-      # file's own methods build RUST SOURCE-CODE STRINGS for `rust/
+      # The same two-method walk `rust/project/expr_emitter.rb`'s own
+      # `emit_bool`/`emit_resolver` already do, over the same AST — that
+      # file's own methods build Rust source-code strings for `rust/
       # project`'s codegen (`rust/src/kernel::expr::Expr` literals, baked
-      # into a generated domain's own compiled binary); this builds DATA
+      # into a generated domain's own compiled binary); this builds data
       # instead, for a genuinely different consumer with a genuinely
       # different constraint: `rust/host` can never link the `rust`
       # (kernel) crate at all (a real, load-bearing build constraint —
@@ -22,25 +22,25 @@ module Hecks
       # path dependency would statically bake every domain's generated
       # dispatch code into every Lambda binary), so a value object's own
       # `invariant` predicate has to travel as something `rust/host` can
-      # deserialize and interpret itself, at RUNTIME, from `ir.json` — the
+      # deserialize and interpret itself, at runtime, from `ir.json` — the
       # exact same relationship `rust/project`'s own `Expr` literals
       # already have to the compiled kernel, one layer further out.
       #
-      # LIVES IN CORE `lib/hecks`, NOT `rust/project/` — `rust/project.rb`
+      # Lives in core `lib/hecks`, not `rust/project/` — `rust/project.rb`
       # is a separate, downstream toolchain
       # (`lib/hecks/projector.rb`'s own header: "a whole separate Ruby
       # program"), never `require`d by core `lib/hecks/bluebook/*.rb`
       # files (confirmed: no core file does). `value_object.rb`'s own
-      # `invariants:` IR emission needs this for EVERY domain's ordinary
+      # `invariants:` IR emission needs this for every domain's ordinary
       # `to_h`/`ir.json` export — golden fixtures, `hecks-parse`'s parity
       # comparisons, and any deploy artifact, not only a `bin/project_rust`
       # run — so it belongs beside `Evaluator`/`Resolver` themselves, not
       # bolted onto a tool that only sometimes runs.
       #
-      # COMPLETE, not corpus-scoped: every node this grammar admits gets
+      # Complete, not corpus-scoped: every node this grammar admits gets
       # a real arm, the identical "raise, don't silently drop" discipline
       # `expr_emitter.rb`'s own `emit_bool`/`emit_resolver` already hold
-      # to — even though, as of this writing, no real corpus VALUE OBJECT
+      # to — even though, as of this writing, no real corpus value object
       # invariant exercises `Include`/`Modulo`/`BlockPredicate`/`Find`/
       # `Array`/`MatchesRegex`/`Presence`/`Assignment`/`Split`/`StartsWith`/
       # `EndsWith`/`First`/`Last` (only `given`/`ensures` clauses do, elsewhere in
@@ -48,15 +48,15 @@ module Hecks
       # `rust/host/src/expr_json.rs`'s own header names exactly which of
       # these its interpreter evaluates for real today versus refuses
       # cleanly — a narrower, deliberate, documented boundary on the
-      # INTERPRETING side, not on this EMITTING side: an author is free
-      # to write ANY real expression in a value object's own `invariant`,
+      # interpreting side, not on this emitting side: an author is free
+      # to write any real expression in a value object's own `invariant`,
       # and this always emits it faithfully; whether `rust/host` can yet
-      # CHECK it at mint time is that file's own question to answer, not
+      # check it at mint time is that file's own question to answer, not
       # this one's to pre-empt by refusing to even try.
       module AstJson
         module_function
 
-        # THE CLOSED OP ROSTER — every `"op"` tag the walkers below can
+        # **The closed op roster** — every `"op"` tag the walkers below can
         # emit, pinned so a reader (or a spec) can refuse a tag it does
         # not know instead of guessing. A new node kind is a new entry
         # here, a new arm below, and a new arm in every reader.
@@ -68,7 +68,7 @@ module Hecks
           matches_regex presence assignment split starts_with ends_with
         ].freeze
 
-        # ONE RULE ROW, THE WAY EVERY RULE SITE EMITS IT — description and
+        # One rule row, the way every rule site emits it — description and
         # canonical text (what every reader has always had) plus the
         # structured form, derived from the same text. `ast` is a pure
         # function of `canonical`: the IR carries both so a reader that
@@ -149,9 +149,9 @@ module Hecks
 
         # The JSON-target sibling of `expr_emitter.rb`'s own
         # `emit_include` — see that method's own comment for the full
-        # reasoning (a LITERAL array haystack has no `Expr::Include`-
-        # representable shape on EITHER target, kernel or host, so both
-        # rewrite it identically into an OR-of-equalities at emission
+        # reasoning (a literal array haystack has no `Expr::Include`-
+        # representable shape on either target, kernel or host, so both
+        # rewrite it identically into an or-of-equalities at emission
         # time rather than carrying a shape neither interpreter could
         # evaluate). A non-literal haystack still emits `include`
         # unchanged.
@@ -172,7 +172,7 @@ module Hecks
         end
 
         # One case arm per Resolver node type — the class header above is
-        # explicit that this dispatch must stay COMPLETE and in one place
+        # explicit that this dispatch must stay complete and in one place
         # ("every node this grammar admits gets a real arm"); splitting it
         # into several methods would hide whether the set is still
         # exhaustive instead of making that visible at a glance.
@@ -184,7 +184,7 @@ module Hecks
           when Resolver::StringLiteral  then { "op" => "str", "value" => node.value }
           when Resolver::BoolLiteral    then { "op" => "bool", "value" => node.value }
           when Resolver::NilLiteral     then { "op" => "nil" }
-          # `path` is the SAME shape `find.path` already has — segments, not
+          # `path` is the same shape `find.path` already has — segments, not
           # a dotted string a reader would have to split by its own rule.
           when Resolver::Lookup         then { "op" => "lookup", "path" => node.path.split(".") }
           when Resolver::Addition       then { "op" => "add", "left" => emit_resolver(node.left), "right" => emit_resolver(node.right) }
