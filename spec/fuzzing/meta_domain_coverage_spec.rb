@@ -267,6 +267,40 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                      "declares — a rename or removal left a property's claim pointing at nothing"
   end
 
+  # THE THIRD TABLE HAD NO ROT CHECK, AND SAID SO — `Properties`' own
+  # comment on `dispatch_binding_fidelity` records the consequence: two
+  # `Dispatch#*` entries sat here naming strings the grammar walk never
+  # produces, so they exempted nothing and nothing noticed. A gap naming
+  # a feature that no longer exists is worse than no entry at all: it
+  # reads like an accounted-for hole while accounting for nothing.
+  it "never lets a gap rot either — every META_DOMAIN_KNOWN_GAPS entry names a feature the live grammar still declares" do
+    stale = META_DOMAIN_KNOWN_GAPS.keys - META_DOMAIN_ALL_FEATURES
+
+    expect(stale).to be_empty,
+                     "META_DOMAIN_KNOWN_GAPS names #{stale.join(', ')}, which the language's own grammar no longer " \
+                     "declares — delete the entry, or fix the name it was meant to point at"
+  end
+
+  # EVERY PROPERTY THE BATTERY RUNS DECLARES WHAT IT ANSWERS FOR. This
+  # file walks grammar -> claim; nothing walked property -> claim, so a
+  # property could join `Properties.check` and never appear in
+  # `FEATURE_COVERAGE` at all — which is how `commands_respect_tenant_scope`
+  # and `corrections_reference_an_emitted_event` both ran for real while
+  # that file's own stated discipline ("EVERY PROPERTY DECLARES THE
+  # LANGUAGE FEATURE IT COVERS") quietly did not hold for them. Read off
+  # the source, not by calling `check` — that needs a real history.
+  it "lets no property run unclaimed — every property in Properties.check appears in FEATURE_COVERAGE" do
+    source = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/fuzzing/properties.rb"))
+    body = source[/def check\(history\)(.*?)\n      end/m, 1].to_s
+    checked = body.scan(/([a-z_]+):/).flatten.map(&:to_sym).uniq
+    unclaimed = checked - META_DOMAIN_PROPERTY_COVERAGE.keys
+    retired = META_DOMAIN_PROPERTY_COVERAGE.keys - checked
+
+    expect(checked).not_to be_empty, "could not read Properties.check's own property list from the source"
+    expect(unclaimed).to be_empty, "these properties run but claim no feature: #{unclaimed.join(', ')}"
+    expect(retired).to be_empty, "these claim a feature but no longer run: #{retired.join(', ')}"
+  end
+
   it "never lets a construction guarantee rot either — the same drift check, aimed at GUARANTEED_BY_CONSTRUCTION" do
     stale = META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys - META_DOMAIN_ALL_FEATURES
 

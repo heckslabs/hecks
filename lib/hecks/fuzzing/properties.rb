@@ -113,7 +113,26 @@ module Hecks
         # as dry_runs_leave_no_trace right above: `Runtime::Outbox` is
         # something a persistence adapter provides underneath a booted
         # domain, never a word a bluebook declares.
-        outbox_rows_match_reactions:                      []
+        outbox_rows_match_reactions:                      [],
+        # THE `corrects` MUTATION'S OWN TARGET — this property reads
+        # `command.mutations.select { op == :corrects }` and asks whether
+        # the event each one names was ever actually emitted, so the
+        # feature it answers for is the mutation list, the same one
+        # `mutations_match_recompute` reads for a different question.
+        # (NOT `Command#references`: that field is the dangling-reference
+        # question no property asks yet, and it stays a named gap.)
+        corrections_reference_an_emitted_event:           %w[Command#mutations],
+        # NO FEATURE STRING EXISTS FOR WHAT THIS ONE READS. It depends on
+        # an argument's own `relationship` (which reference-typed argument
+        # points at which aggregate) — but `Argument` is a VALUE OBJECT,
+        # and the meta-domain walk enumerates aggregate and entity fields
+        # only, so no `Argument#…` name is claimable. The declaration side
+        # it shares with queries, `authorize …, tenant:`, is
+        # `Query#options`, already claimed by `authorize_scopes_or_refuses`;
+        # claiming it twice would say this property covers a query
+        # question it never asks. Listed (empty) rather than omitted, the
+        # same discipline the two runtime doors above keep.
+        commands_respect_tenant_scope:                    []
       }.freeze
 
       # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
