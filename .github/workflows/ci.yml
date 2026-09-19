@@ -25,72 +25,20 @@ name: CI
 # path structurally, testing the same already-merged commit a third
 # time on `push` for GATING purposes bought nothing but a duplicate
 # full CI run on every merge. That reasoning is unchanged and is still
-# why every job below except `rspec_postgres_io_parallel` carries
-# `if: github.event_name != 'push'`.
+# why every job below skips on `push`.
 #
-# `push: branches: [main]` IS BACK BELOW, though — added 2026-09-11, for
-# a DIFFERENT reason than the one removed above: CACHE WARMTH, not
-# testing. `rspec_postgres_io_parallel`'s own runtime-log cache (see that
-# job's "Restore rspec runtime log cache" step) only ever gets restored
-# from the current ref, the PR's base branch, or the DEFAULT branch
-# (github.com/en/actions/how-tos/writing-workflows/choosing-what-your-
-# workflow-does/caching-dependencies-to-speed-up-workflows: "Workflow
-# runs can restore caches created in either the current branch or the
-# default branch (usually main). If a workflow run is triggered for a
-# pull request, it can also restore caches created in the base branch").
-# Since this workflow only ever ran on `pull_request`/`merge_group`, no
-# run was ever scoped to `main` itself — so no run ever produced a cache
-# entry AT default-branch scope, only ever at a PR branch's own scope or
-# a merge_group run's own ephemeral `refs/heads/gh-readonly-queue/...`
-# ref scope (which does NOT inherit the source PR branch's cache — that
-# ref is new to Actions' cache index every time, confirmed live via a
-# cache-miss log line on PR #570's own merge_group run, which fell back
-# to filesize grouping and ran up to 5m34s on one worker despite the PR
-# branch that authored it having a fully warm cache of its own). The
-# result: every merge_group run — the LAST CI run before every merge,
-# and the one whose wall-clock actually gates how fast a PR lands — cold
-# started this job's grouping, indefinitely, no matter how many PRs had
-# already warmed their own branch-scoped caches.
-#
-# The fix is scoped to just that one job, not a second full-suite run:
-# every job below EXCEPT `rspec_postgres_io_parallel` carries `if:
-# github.event_name != 'push'`, so a genuine push to `main` runs only
-# the one job whose cache actually needs default-branch scope to be
-# useful — not `rspec`/`checks`/`rspec_postgres_io`/the four
-# `rspec_rust_*` jobs/`rspec_fuzzing`/`runtime_changed` (whose own
-# `stress_concurrency` dependent then also skips, via `needs:`, with no
-# `if:` of its own needed). `rspec_postgres_io_parallel` used to need no
-# `if:` of its own for THIS reason — it already ran on
-# `pull_request`/`merge_group` and this push trigger just adds a third
-# event it should also run under.
-#
-# THAT'S NO LONGER THE WHOLE STORY — added 2026-09-11, a genuinely
-# different reason: `rspec_postgres_io_parallel` now ALSO carries a real
-# skip gate against `postgres_io_relevant_changed` (see that job's own
-# header comment, immediately above `rspec_postgres_io_parallel` below),
-# so a change that touches nothing this job could ever catch a
-# regression in doesn't have to pay for it. The two `if:`s don't
-# conflict: the skip gate explicitly exempts `push` from itself
-# (`github.event_name == 'push' || ...`), so a genuine push to `main`
-# still runs this job unconditionally, same as this paragraph always
-# required — the skip gate only ever has a say on `pull_request`/
-# `merge_group`.
-#
-# `rspec_postgres_io_parallel` ITSELF IS NOW JUST AN AGGREGATOR — added
-# later the same day (2026-09-11), a real GitHub Actions `strategy:
-# matrix` split (see `rspec_postgres_io_parallel_shard`'s own header
-# comment, right where the old single job used to be). Every claim in
-# THIS paragraph and the two above about "`rspec_postgres_io_parallel`'s
-# own `if:`" is now literally true of `rspec_postgres_io_parallel_shard`
-# instead — that's the job carrying both the push exemption and the
-# `postgres_io_relevant_changed` skip gate, and the one whose runtime-log
-# cache steps this file's earlier paragraphs describe. The name
-# `rspec_postgres_io_parallel` itself moved to a tiny aggregator job
-# (`needs: rspec_postgres_io_parallel_shard`, `if: always()`) that exists
-# SOLELY to keep being the exact required-status-check context the
-# `merge-queue-main` ruleset already names — a matrix job's own checks
-# report as `<id> (<matrix value>)`, never the bare id, so the real work
-# had to move to a new id and something had to keep the old one.
+# `push: branches: [main]` IS STILL A TRIGGER BELOW, AND NOW RUNS NOTHING
+# THAT COSTS ANYTHING. It came back on 2026-09-11 so the Postgres legs'
+# restored runtime-log cache would exist at default-branch scope. That
+# cache was replaced by a committed baseline on 2026-09-14
+# (.github/postgres_io_runtime_baseline.log), and the legs stopped running
+# on `push` once nothing read what they produced there. What is left of a
+# push run is `postgres_io_relevant_changed` alone — a checkout and a diff.
+# The caches that do need main scope are warmed by cache-warm.yml, on its
+# own push trigger. Removing this trigger outright means rewriting the
+# `github.event_name` conditions on every job and wrapper below, which
+# spec/ci_summary_jobs_spec.rb pins; it buys no runner time, so it has not
+# been done.
 
 # EIGHT JOBS, RUN CONCURRENTLY (no `needs:` between any of them, so
 # GitHub Actions schedules all eight the moment the workflow starts) —
