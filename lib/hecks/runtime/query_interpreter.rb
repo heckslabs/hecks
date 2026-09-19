@@ -102,8 +102,8 @@ module Hecks
       def interpret(records, declared, args, domain: nil)
         matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args, domain: domain) } }
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
-        # Offset first, then limit — the order SQL means by `limit n
-        # offset m`, and the order Ports::Query::InMemory#execute already
+        # **Offset first, then limit** — the order SQL means by `LIMIT n
+        # OFFSET m`, and the order Ports::Query::InMemory#execute already
         # applies (see that file's own comment). This interpreter used to
         # never read declared.offset at all — offset silently vanished for
         # any query answered here, not just come out reversed.
@@ -128,7 +128,7 @@ module Hecks
           end
         end
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
-        # Offset first, then limit — same fix, same reasoning, as
+        # **Offset first, then limit** — same fix, same reasoning, as
         # #interpret's own rows above.
         skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
         capped  = declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
@@ -137,7 +137,7 @@ module Hecks
         capped.map { |r| r.state.merge(id: r.id) }
       end
 
-      # The naive reading of a hop: not a fold, not an id set — for
+      # **The naive reading of a hop**: not a fold, not an id set — for
       # each candidate row, walk the reference by hand and dig the
       # field out of whatever it actually points at. A nil reference,
       # or one that resolves to nothing (a dangling id), makes the
@@ -177,7 +177,7 @@ module Hecks
 
         ordered = ordered_elements(rows, declared.order_by, declared.null_semantics,
                                    parent_key, entity.identity_heads)
-        # Offset first, then limit — same fix, same reasoning, as
+        # **Offset first, then limit** — same fix, same reasoning, as
         # #interpret's own rows above. `entity_rows` is the only engine
         # for entity/sub-list queries, so a declared offset here silently
         # vanished for every entity query, not merely one path among

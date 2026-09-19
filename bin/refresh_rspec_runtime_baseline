@@ -2,12 +2,13 @@
 # frozen_string_literal: true
 
 # Regenerates the committed runtime baselines the sharded CI jobs group
-# from — the ONLY grouping input, never a restored cache (see the shard-list
+# from — the only grouping input, never a restored cache (see the shard-list
 # step in `.github/workflows/ci-rspec.yml` for the run where cached logs
 # made the legs split the suite differently).
 #
 #   bin/refresh_rspec_runtime_baseline --from-run <run-id>   # preferred: one CI run's own timings
-#   bin/refresh_rspec_runtime_baseline [workers]             # fallback: this machine, spec shards only
+#   bin/refresh_rspec_runtime_baseline [workers]             # fallback: this machine, spec shards
+#   only
 #
 # `--from-run` downloads the per-leg runtime logs that `rspec_shard` and
 # `rspec_postgres_io_parallel_shard` upload as artifacts and writes
@@ -15,8 +16,8 @@
 #   .github/postgres_io_runtime_baseline.log  (from every `postgres-io-runtime-group-N` leg)
 # Runner seconds, not a laptop's: subprocess-heavy specs run ~2.7x slower on
 # a runner, relative to the rest of the suite, than locally (PR #688's run),
-# which a local baseline cannot see. Only a SUCCESSFUL run is read, and a
-# family is written only when EVERY one of its legs uploaded a log — a
+# which a local baseline cannot see. Only a successful run is read, and a
+# family is written only when every one of its legs uploaded a log — a
 # partial set would give the missing legs' files the average and quietly
 # skew the split. Postgres-io legs run only in the merge queue or on a PR
 # labeled `full-ci`.
@@ -34,7 +35,7 @@ ROOT  = File.expand_path("..", __dir__)
 REPO  = "heckslabs/hecks"
 USAGE = "usage: bin/refresh_rspec_runtime_baseline --from-run <run-id> | [workers]"
 
-# ONLY `spec/…_spec.rb:<seconds>` LINES — RSpec also writes its own
+# **Only `spec/…_spec.rb:<seconds>` lines** — RSpec also writes its own
 # "Run options: exclude {…}" line into the formatter's --out file, once per
 # worker, and `parallel_tests`' reader would merely skip it; this refuses to
 # copy it into a committed file. Seconds can arrive in exponent form

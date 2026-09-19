@@ -6,35 +6,35 @@ require "open3"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `adapter_parity_sqlite` mode, PROVEN AGAINST THE REAL
-# THING — same discipline `spec/qa_sweep_persistence_parity_spec.rb`
-# (read that file's own header first) already established: a REAL
-# `bin/qa_sweep` subprocess against a REAL, disposable Postgres-backed
-# fixture LEDGER, never the real `hecks_quality_control` ledger itself.
+# `bin/qa_sweep`'s `adapter_parity_sqlite` mode, proven against the real
+# thing — same discipline `spec/qa_sweep_persistence_parity_spec.rb`
+# (read that file's own header first) already established: a real
+# `bin/qa_sweep` subprocess against a real, disposable Postgres-backed
+# fixture ledger, never the real `hecks_quality_control` ledger itself.
 #
-# THE SWEPT TARGET, UNLIKE THAT FILE'S OWN, NEEDS NO PostgresEra BINDING
-# AT ALL — that is the entire point of this mode. `sqlite` is a
-# capability EVERY domain has (`Hecks::Fuzzing::TargetCapabilities.infer`
+# The swept target, unlike that file's own, needs no PostgresEra binding
+# at all — that is the entire point of this mode. `sqlite` is a
+# capability every domain has (`Hecks::Fuzzing::TargetCapabilities.infer`
 # always includes it, proven in `spec/fuzzing/target_capabilities_spec.rb`),
 # and this mode's own pair (`Hecks::Fuzzing::PersistenceParity.diff(left:
 # :memory, right: :sqlite)`, `QualityControlDials::ADAPTER_PARITY_PAIRS`)
 # needs no disposable database or schema lifecycle the way `persistence_
 # parity`'s Memory-vs-PostgresEra pair does — see that module's own
-# header. So unlike `persistence_parity`, this mode is not a DEFERRED
+# header. So unlike `persistence_parity`, this mode is not a deferred
 # mode (`TargetCapabilities::DEFERRED_MODES` does not name it) and is
 # not a wave of its own: it folds straight into the ordinary per-seed
-# loop, on ANY target, the moment `QualityControlDials::MODES[
+# loop, on any target, the moment `QualityControlDials::MODES[
 # :adapter_parity_sqlite]` (or `--modes`) turns it on — proven here on
 # the plainest possible target, a Memory-bound one with no PostgresEra
 # binding in sight.
 RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
   QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE = "hecks_qa_sweep_adapter_parity_sqlite_spec".freeze
 
-  # LINE-FOR-LINE `spec/support/qa_sweep_all_fixture.rb`'s OWN `FIXTURE_HECKSAGON`,
-  # RENAMED — see that file's own comment (and `spec/fuzzing/
+  # Line-for-line `spec/support/qa_sweep_all_fixture.rb`'s own `FIXTURE_HECKSAGON`,
+  # renamed — see that file's own comment (and `spec/fuzzing/
   # persistence_parity_spec.rb`'s own, longer one) on why every spec file
   # that boots a throwaway `QualityControl` ledger must give its own
-  # top-level fixture constants a name no OTHER spec file also uses:
+  # top-level fixture constants a name no other spec file also uses:
   # `CONST = value` inside an `RSpec.describe do ... end` block assigns
   # at the block's own lexical (top-level) scope, so two files reusing
   # the same bare name silently overwrite each other's fixture text.
@@ -71,7 +71,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     end
   RUBY
 
-  # THE SAME TRIVIAL WIDGET `spec/support/qa_sweep_all_fixture.rb`'s OWN
+  # The same trivial widget `spec/support/qa_sweep_all_fixture.rb`'s own
   # `FIXTURE_TARGET_BLUEBOOK` uses, renamed — bound to `Memory` (not
   # `PostgresEra`, not even `Heki`) to make the point as plainly as
   # possible: this mode reaches a target that declares nothing about
@@ -139,15 +139,15 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
       end
     RUBY
 
-    # LIVING INSIDE THE REAL REPO ROOT, exactly `spec/qa_sweep_all_spec
+    # Living inside the real repo root, exactly `spec/qa_sweep_all_spec
     # .rb`'s own reasoning — `bin/qa_sweep` resolves a `Target`'s own
     # `path` as `File.join(ROOT, target_path)` against the real
     # repository root.
-    # PREFIXED `qa-sweep-aps-target-`, DELIBERATELY NOT THE MODE'S OWN
-    # FULL NAME — `Target.path`'s own basename becomes the fuzzed
+    # Prefixed `qa-sweep-aps-target-`, deliberately not the mode's own
+    # full name — `Target.path`'s own basename becomes the fuzzed
     # `feature`/domain string `bin/qa_sweep` prints on every line, and a
     # prefix that itself spells out "adapter_parity_sqlite" would make
-    # every assertion below that checks for the MODE NAME accidentally
+    # every assertion below that checks for the mode name accidentally
     # true regardless of whether the mode actually ran (found live while
     # writing this spec: a temp-dir prefix that embedded the full mode
     # name made "stays off" pass for the wrong reason).
@@ -208,7 +208,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     expect(stdout).to include("seed 1: held (ruby_only, adapter_parity_sqlite)")
     expect(stdout).to include("clean — sqlite-parity concluded and released.")
 
-    # THE LEDGER'S OWN RECORD — `check_for`'s `[mode]`-prefixed subject
+    # **The ledger's own record** — `check_for`'s `[mode]`-prefixed subject
     # (bin/qa_sweep's own `MODE_EXPECTATIONS`/`check_for`) is what
     # actually distinguishes this axis from `ruby_only` in the durable
     # ledger, not merely in this process's own stdout; proven here by

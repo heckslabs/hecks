@@ -15,7 +15,7 @@ RSpec.describe "Pizzas" do
   end
 
   describe "asking through the nested value object" do
-    # The dotted-path queries, answered by the REFERENCE interpreter here —
+    # The dotted-path queries, answered by the reference interpreter here —
     # the same declarations answer identically through Postgres against the
     # live example domain, which is the whole point of FieldPath being one
     # walk. Margherita costs 1200, Bare 900 (created below).
@@ -211,7 +211,7 @@ amount: { value: 2 }).state
       pizza = registry.bluebook("Pizzas").aggregate("Order")
       expect(registry.repository("Pizzas", pizza)).to be_a(Hecks::Ports::Persistence::AppendOnly)
 
-      # `name:` was written TWICE here — once as a bare string, once as the value
+      # `name:` was written twice here — once as a bare string, once as the value
       # object — and Ruby warned on every run while silently keeping the second.
       runtime.dispatch("Pizzas::Order.CreatePizza",
                        name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })

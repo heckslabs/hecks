@@ -4,7 +4,7 @@ require "rack"
 
 module Hecks
   module Adapters
-    # The driving side — code an outside caller reaches in through,
+    # **The driving side** — code an outside caller reaches in through,
     # rather than code the domain reaches out through. Every existing
     # file under `adapters/driven/` is the latter: a store or reader a
     # `persisted_by`/`port` binding resolves to, called by this
@@ -13,7 +13,7 @@ module Hecks
     # the outside world and turns it into a dispatch — so this is the
     # first entry, and the directory itself is new.
     module Driving
-      # A GitHub webhook receiver, transport only — the same split
+      # **A GitHub webhook receiver, transport only** — the same split
       # `Hecks::Adapters::GithubChecks` (qa/adapters/github_checks.rb,
       # this class's own pull-side sibling) already draws for itself:
       # this file owns proving a request really came from GitHub and
@@ -37,7 +37,7 @@ module Hecks
       # `rack` installed, the same "opt in by requiring the file at all"
       # contract `hecks/forms.rb` already has for `Forms::App`.
       #
-      # Subclass responsibility: implement `#handle_event(event, action,
+      # **Subclass responsibility**: implement `#handle_event(event, action,
       # payload)`, returning `[http_status, response_body_hash]`. Called
       # only after the signature has verified and the body has parsed as
       # JSON — a subclass never has to re-check either. `event` is
@@ -51,7 +51,7 @@ module Hecks
       # subclass at all; there is nothing domain-specific to decide
       # about it.
       class GithubWebhook
-        # Refused, loudly — the same shape a domain refusal already takes
+        # **Refused, loudly** — the same shape a domain refusal already takes
         # everywhere else in this codebase (`Runtime::DOMAIN_REFUSALS`,
         # `Forms::App`'s own `{error:, message:}` JSON body for a bad
         # command). A request that cannot prove it came from GitHub gets
@@ -60,7 +60,7 @@ module Hecks
         # exactly like success in a log nobody re-reads.
         class InvalidSignature < StandardError; end
 
-        # The body did not even parse — distinct from a signature refusal:
+        # **The body did not even parse** — distinct from a signature refusal:
         # this body genuinely came from whoever signed it (checked
         # first, before parsing ever runs — see `#call`), and simply
         # is not JSON. Still refused, never guessed at.

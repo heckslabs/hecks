@@ -242,7 +242,7 @@ module Hecks
     # assuming it's fresh duplication," not as an automatic signal
     # either way.
     #
-    # The identical gap, one level down: chapter-wide entity-scoped
+    # **The identical gap, one level down**: chapter-wide entity-scoped
     # sharing (`EntityBuilder#given`'s own bare form,
     # `docs/implemented/resolution-rules/chapter-entity-given.md`) hits this same wall for
     # the same structural reason — `SafeDepositBox.Visit` still shows
@@ -278,7 +278,7 @@ module Hecks
     end
     private_class_method :declaration_count
 
-    # Shared text formatting — both `bin/query_ir` (a text CLI) and
+    # **Shared text formatting** — both `bin/query_ir` (a text CLI) and
     # `bin/hecks_query_ir_mcp` (an MCP tool result, itself a text
     # block) want the identical human-readable rendering; only the
     # outer framing differs (plain stdout vs. a JSON-RPC content array).
@@ -303,7 +303,7 @@ module Hecks
       end.join("\n\n")
     end
 
-    # One hand-typed construct-name per reconstruction method — the only
+    # **One hand-typed construct-name per reconstruction method** — the only
     # two `MetaValidator::Reconstruction` methods not driven generically
     # through `Assembly::Contracts`' own table (its own header explains
     # why: `aggregate(row)`/`entity(row)` predate the table and were
@@ -367,7 +367,7 @@ module Hecks
     # textually because there is no live AST here, only a file to grep a
     # slice of. `nil` (not `false`) for every other construct — this
     # touchpoint genuinely does not apply to them (`RECONSTRUCTION_
-    # methods` only names the two hand-typed methods), and collapsing
+    # METHODS` only names the two hand-typed methods), and collapsing
     # "does not apply" into "not done" would misreport a construct that
     # was never supposed to have this touchpoint at all.
     def reconstruction_reads?(name, field)

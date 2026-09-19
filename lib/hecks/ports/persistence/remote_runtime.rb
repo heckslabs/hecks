@@ -3,7 +3,7 @@ require_relative "../../runtime/registry"
 module Hecks
   module Ports
     module Persistence
-      # The other shape an adapter can be. `AppendOnly` names one shape
+      # **The other shape an adapter can be**. `AppendOnly` names one shape
       # already — something that stores bytes, locally (Postgres, SQLite,
       # Heki) or over the network (D1), doesn't matter, the point is it
       # does real local interpretation and has real entries to replay.

@@ -16,7 +16,7 @@ module Hecks
     # `given`/`invariant` here, where they are declarations any reader of the
     # meta-domain can consume instead of behavior buried in a builder.
     #
-    # This migration is partial, not done. As of this writing the meta-domain
+    # **This migration is partial, not done**. As of this writing the meta-domain
     # declares 62 given/invariant/ensures rules (`Hecks::QueryIR.collect_rules`
     # against `grammar_registry.bluebook("Bluebook")` enumerates them) —
     # `spec/meta_rule_reachability_spec.rb` is what proves, per declaration,
@@ -45,7 +45,7 @@ module Hecks
     # The meta-domain is loaded once and its registry reused ; each bluebook is
     # judged in a fresh in-memory store so no domain can see another's records.
     module MetaValidator
-      # The folder is the chapter. Files are grouped by the domain concept they
+      # **The folder is the chapter**. Files are grouped by the domain concept they
       # describe and every one reopens the same `Hecks.bluebook "Bluebook"`.
       # `BluebookBuilder.build` keeps one builder open per chapter name across
       # calls, so the sorted folder accumulates one domain. Adding or renaming a
@@ -181,7 +181,7 @@ module Hecks
       # for the reason recorded there. Otherwise the same stack-restore shape
       # `while_shadow_parsing`/`while_forcing_fixpoint` use, not a bare env
       # toggle any more — it used to be exactly that (`ENV["HECKS_META_
-      # validation"] == "off"`, read directly, with no `previous`/`ensure` of
+      # VALIDATION"] == "off"`, read directly, with no `previous`/`ensure` of
       # its own), and the gap between "bare toggle" and "stack-restore" was
       # not cosmetic: a test's temporary window could reach code it was never
       # meant to touch. If `grammar_registry`'s one-time lazy build (below)
@@ -337,7 +337,7 @@ module Hecks
               "#{translation.domain}'s translation is not well formed; #{refusals.join('; ')}"
       end
 
-      # The language hands the graph back.
+      # **The language hands the graph back**.
       #
       # This used to return the bluebook it was given — dispatch every declaration
       # in, collect refusals, throw the records away — which is all judging needs
@@ -427,7 +427,7 @@ module Hecks
           # correctly, but one still missing the attached chapters (Paging's
           # `attaches_to` among them) — see grammar_registry_ready? below.
           @grammar_registry = registry
-          # The fixpoint made load-bearing. The bootstrap loaded the language
+          # **The fixpoint made load-bearing**. The bootstrap loaded the language
           # raw ; now the language judges itself, its records are read back,
           # and the assembled graph replaces the raw one — so every bluebook
           # judged from here on is judged by the language the language itself
@@ -474,7 +474,7 @@ module Hecks
         @grammar_registry && @grammar_ready_for == @grammar_registry.object_id
       end
 
-      # Attached chapters load after the fixpoint, not during bootstrap —
+      # **Attached chapters load after the fixpoint, not during bootstrap** —
       # they are declared in the language the language just finished
       # judging itself through, so they are ordinary bluebooks, judged the
       # ordinary way (`Hecks.bluebook` → `BluebookBuilder#build` →
@@ -487,7 +487,7 @@ module Hecks
         end
       end
 
-      # The one place the grammar's own boot sequence is spelled — ports, the
+      # **The one place the grammar's own boot sequence is spelled** — ports, the
       # memory/prism adapters, the (now nine-file) chapter itself, then the
       # sibling world grammar. `grammar_registry` uses this for its memoised
       # singleton ; anything that needs an isolated registry (a spec wanting a

@@ -19,7 +19,7 @@ module Hecks
       #      process_manager `run_consumer`'s own independent registry
       #      lookup cannot find — `WiringError`), never an ordinary
       #      domain refusal (`PolicyInterpreter#deliver`/`SagaInterpreter#
-      #      advance` both rescue those THEMSELVES, recording `delivered:
+      #      advance` both rescue those themselves, recording `delivered:
       #      false` on the reaction/saga log and letting `run_consumer`
       #      return normally). Both checked for every row, `saga:` and
       #      `policy:` alike.
@@ -57,7 +57,7 @@ module Hecks
       # `saga_log` entries is therefore not a finding — only check 1
       # applies to it.
       #
-      # Not a grammar construct — `FEATURE_COVERAGE`'s own `dry_runs_
+      # **Not a grammar construct** — `FEATURE_COVERAGE`'s own `dry_runs_
       # leave_no_trace` precedent: the outbox is a runtime door
       # (`Runtime::Outbox`), not a word a bluebook declares, so there is
       # no feature string here to claim.

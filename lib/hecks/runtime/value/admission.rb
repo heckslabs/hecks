@@ -40,7 +40,7 @@ module Hecks
           member.all? { |field, value| fields[field].to_s == value.to_s }
         end
 
-        # The same refusal, for a set named somewhere else.
+        # **The same refusal, for a set named somewhere else**.
         #
         # `admit_member` above refuses a non-member when the value object being
         # built is itself the closed set — which is the only shape `one_of` can
@@ -110,7 +110,7 @@ module Hecks
           fields.size == 1 ? fields.values.first : value
         end
 
-        # A field of a value object may name a set too.
+        # **A field of a value object may name a set too**.
         #
         # Beside check_patterns and for the same reason: `Query::Filter.op` is a
         # plain String field that admits `Vocabulary::QueryComparator`, and the

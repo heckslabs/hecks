@@ -6,7 +6,7 @@ require_relative "../runtime/saga_interpreter"
 
 module Hecks
   module Fuzzing
-    # A second comparison axis — every other check this practice runs is
+    # **A second comparison axis** — every other check this practice runs is
     # differential: Ruby vs the compiled Rust conformance binary, on the
     # same generated sequence (`bin/qa_sweep`'s own `diff_ruby_vs_rust`,
     # `Properties.check`). Differential comparison structurally cannot
@@ -29,7 +29,7 @@ module Hecks
     #   3. `check_value_object_round_trip` — does every value object the
     #      sequence actually built survive `to_json` then rebuilt back?
     #
-    # The rehydration path, found, not guessed. hecks is not event-sourced
+    # **The rehydration path, found, not guessed**. hecks is not event-sourced
     # at the aggregate level — there is no `AccountOpened`-shaped log a
     # `CommandInterpreter` folds to rebuild state. What there is, real and
     # already shipping, is `Ports::Persistence::AppendOnly` (lib/hecks/
@@ -78,7 +78,7 @@ module Hecks
       # compare stored state against live state.
       def guarded_heki(**) = Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(**))
 
-      # The whole pass — called once, with the runtime still live (inside
+      # **The whole pass** — called once, with the runtime still live (inside
       # `Replay.call`'s own `IsolatedBoot.call` block, before the tmp
       # directory and its adapters go out of scope) and the `history`
       # `Replay.call` is about to return. Nothing here boots a second
@@ -283,7 +283,7 @@ module Hecks
       # keyword the outbox relay already uses to run one consumer alone
       # (`Runtime::Outbox::Relay#run_consumer`).
       #
-      # Which event to redeliver — `runtime.registry.saga_log`'s own last
+      # **Which event to redeliver** — `runtime.registry.saga_log`'s own last
       # `advanced: true` row for this (process manager, correlation) names
       # the event by name only; the real `Runtime::Event` object (payload,
       # aggregate, id, `correlation` — everything `saga_correlation`/
@@ -299,7 +299,7 @@ module Hecks
       # its own `saga_log` row's `on:` is the synthetic `REFUSED` trigger
       # name, never a real domain event, so there is nothing to redeliver.
       #
-      # Simulating "JUST RESTARTED" — the live registry's own in-memory
+      # Simulating "just restarted" — the live registry's own in-memory
       # `saga_instances[pm][correlation]` slot is overwritten, in place,
       # with whatever a cold Heki read of the same checkpoint answers
       # (exactly what `Registry#rehydrate_sagas!` does for real on every
@@ -348,7 +348,7 @@ module Hecks
 
       # ── Rust-side self-consistency ───────────────────────────────────
       #
-      # The compiled binary's own rehydration door, already shipping —
+      # **The compiled binary's own rehydration door, already shipping** —
       # `kernel/cli.rs`'s `run` accepts an optional top-level `"seed"` key
       # ("the exact 'Domain::Aggregate#id' -> state shape this run's own
       # 'instances' output already produces... lets a host seed prior
@@ -399,7 +399,7 @@ module Hecks
         parsed["instances"]
       end
 
-      # Check 1, Rust side — seeding a fresh invocation with a prior
+      # **Check 1, Rust side** — seeding a fresh invocation with a prior
       # invocation's own live `"instances"` must reproduce that same
       # state, unchanged. `live_instances` is `rust_output["instances"]`
       # — the exact same value `bin/qa_sweep`'s own differential compare
@@ -411,7 +411,7 @@ module Hecks
         [{ field: "rust_rehydration", live: live_instances, rehydrated: rehydrated }]
       end
 
-      # Check 2, Rust side — seeding with what a first seed round trip
+      # **Check 2, Rust side** — seeding with what a first seed round trip
       # already produced, a second time, must not drift any further. The
       # same "replay it again, byte for byte" claim `check_idempotency`
       # proves for Ruby, aimed at the one rehydration door this compiled
@@ -491,7 +491,7 @@ module Hecks
         end
       end
 
-      # `SagaStore#each_saga` only ever symbolizes `memory`'S own top-level
+      # `SagaStore#each_saga` only ever symbolizes `memory`'s own top-level
       # keys (`heki/saga_store.rb`'s own `each_saga`, one level deep) —
       # `Registry::SagaPersistence#warn_stalled_saga` already documents
       # this exact asymmetry for the one reserved key production code
@@ -635,7 +635,7 @@ module Hecks
         end
       end
 
-      # Recurses through a `Value`'S own fields via `#[]`, not `#to_h` —
+      # Recurses through a `Value`'s own fields via `#[]`, not `#to_h` —
       # `#to_h` already materializes every field (`Value.materialize`),
       # which would hide a nested `Value` from this walk before it ever
       # got here. In practice a value object's own composite fields

@@ -2,17 +2,17 @@ require "spec_helper"
 require "hecks/fuzzing"
 require "tempfile"
 
-# `Hecks::Fuzzing::QaSettings`, THE ADAPTER FOR `qa/settings.yml` — proven
+# `Hecks::Fuzzing::QaSettings`, the adapter for `qa/settings.yml` — proven
 # here against tiny fixture files of its own, the same discipline
 # `spec/rotation_priority_spec.rb`/`spec/sweep_depth_spec.rb` keep for
 # their sibling modules: no ledger boot, nothing borrowed from the real
 # dial file, so a change to this class's own contract fails here first.
-# The REAL file (`qa/settings.yml`) loading cleanly, with the SAME values
+# The real file (`qa/settings.yml`) loading cleanly, with the same values
 # the old Ruby literals carried, is proven by `spec/quality_control_spec.rb`
 # booting the real chapter — this file is only about the adapter's own
 # refuse-or-accept behaviour.
 RSpec.describe Hecks::Fuzzing::QaSettings do
-  # A MINIMAL, COMPLETE FIXTURE — every key `EXPECTED_TYPES` names, small
+  # **A minimal, complete fixture** — every key `EXPECTED_TYPES` names, small
   # values chosen for clarity rather than realism (the real numbers are
   # `qa/settings.yml`'s job to carry, not this file's).
   def valid_yaml

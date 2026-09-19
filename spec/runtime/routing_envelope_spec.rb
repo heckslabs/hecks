@@ -68,7 +68,7 @@ RSpec.describe "receiver routing outside the command payload" do
   end
 
   # BUG#18 — a routing envelope naming only the aggregate (`entities: []`,
-  # or `entity`/`entities` absent altogether) on an AGGREGATE-level command
+  # or `entity`/`entities` absent altogether) on an aggregate-level command
   # (entity_depth 0) used to satisfy `envelope`'s own `entities.size !=
   # entity_depth` check trivially (`0 != 0` is false) and reach the
   # command's own validation instead of being refused as a malformed
@@ -125,7 +125,7 @@ RSpec.describe "receiver routing outside the command payload" do
   # combination (TypeMismatch, "with: plus loose kwargs" — unrelated to
   # what `with:` actually contains), but Rust silently dropped the
   # sibling fact and judged `with:`'s own value as the facts instead,
-  # refusing UnknownArgument — a different KIND for the identical
+  # refusing UnknownArgument — a different kind for the identical
   # malformed step (rust/src/kernel/routing.rs's own regression test,
   # `refuses_with_beside_a_sibling_legacy_fact_the_same_as_ruby_does`,
   # pins the Rust side of this same alignment).

@@ -50,7 +50,7 @@ module Hecks
       # refused step reaches no new state and a sequence of them is silent.
       MALFORMED_ARGUMENT_PROBABILITY = 0.12
 
-      # How often an optional argument is simply not given — a fair coin,
+      # **How often an optional argument is simply not given** — a fair coin,
       # because that is exactly what `optional:` means: present or absent,
       # both legal, neither the interesting case.
       #
@@ -102,7 +102,7 @@ module Hecks
         new(domain_path, seed: seed, steps: steps, **).call
       end
 
-      # The same generation, with what it reached — `coverage` is
+      # **The same generation, with what it reached** — `coverage` is
       # `[[attempt_index, tuple], ...]` (`coverage_tuple`), `verbs` every
       # verb the booted catalog offered, so a campaign can tell a verb it
       # never hit from one that does not exist.
@@ -198,7 +198,7 @@ module Hecks
       # catalog, same draws — the same steps, and the same known ids and
       # exercised verbs carried forward into this seed.
       #
-      # The prefix is on top of this seed's own budget, not out of it. A
+      # **The prefix is on top of this seed's own budget, not out of it**. A
       # spliced seed still makes all `steps` attempts of its own after the
       # prefix; a prefix is capped at `steps` attempts, so a spliced
       # sequence is at most twice as long as an unspliced one. Taking the

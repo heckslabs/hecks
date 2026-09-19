@@ -1,4 +1,4 @@
-# Hand-written — the block-predicate/find family of the leaf grammar
+# **Hand-written** — the block-predicate/find family of the leaf grammar
 # (`Bluebook::Expression::Resolver`'s own `.all?`/`.any?`/`.none?`/
 # `.find` suffixes), split into this sibling file to keep resolver.rb
 # under Metrics/ModuleLength (350) : this reopens the same `Resolver`

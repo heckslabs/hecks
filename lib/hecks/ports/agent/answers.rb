@@ -1,7 +1,7 @@
 module Hecks
   module Ports
     module Agent
-      # Where a raw hash becomes a struct — the one place, so every
+      # **Where a raw hash becomes a struct** — the one place, so every
       # adapter (the real `claude_code` one, and any scripted double
       # standing in for it in a spec) is held to the identical shape.
       # An adapter's whole job ends at "here is what came back, already

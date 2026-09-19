@@ -3,7 +3,7 @@ require_relative "../saga_pending_dispatch"
 module Hecks
   module Runtime
     class Registry
-      # Saga persistence — no new DSL verb, no new world setting.
+      # **Saga persistence** — no new DSL verb, no new world setting.
       # Whatever adapter a domain's own aggregates already use for
       # durability, its sagas use the same one, automatically: three
       # optional adapter methods (`save_saga`/`delete_saga`/`each_saga`),
@@ -23,7 +23,7 @@ module Hecks
         # for the rarer domain genuinely split across more than one
         # local adapter with no default declared.
         #
-        # Genuinely lazy, genuinely POST-boot — unlike `rehydrate_sagas!`
+        # **Genuinely lazy, genuinely POST-boot** — unlike `rehydrate_sagas!`
         # below (boot-only), this is called from live dispatch
         # (`SagaInterpreter#checkpoint`/`#end_saga`, on every saga
         # transition), so the first call for a given domain can come from

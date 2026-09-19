@@ -1,13 +1,13 @@
 require "spec_helper"
 
-# THE LANGUAGE IS THE SOURCE, and this is what holds it to that.
+# The language is the source, and this is what holds it to that.
 #
 # `MetaValidator.call` returns `Assembly.call(held[:declaration])` — the graph the
-# meta-domain HOLDS — and `Hecks.bluebook` registers whatever comes back, so the
+# meta-domain holds — and `Hecks.bluebook` registers whatever comes back, so the
 # runtime runs the language's graph and not the builder's. The builder's own graph
 # exists only to be dispatched in ; nothing keeps it.
 #
-# This spec compares the two graphs FIELD BY FIELD, TYPE INCLUDED, and there is
+# This spec compares the two graphs field by field, type included, and there is
 # nothing left in the gap list. Type included is the whole point: `to_h`
 # stringifies, so byte equality cannot see a Symbol that came back a String, and
 # five real breaks hid exactly there —
@@ -32,15 +32,15 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
-  # EMPTY, AND IT HAS TO STAY THAT WAY.
+  # **Empty, and it has to stay that way**.
   #
   # It held thirteen entries, all of them justified by the same wrong belief: that
   # the language may only hold what `to_h` carries. `ReadModel#to_h` omits a read
   # model's filters, and a hoisted
   # policy lost which head declared it — so all of that looked unrecoverable.
   #
-  # It was not. `to_h` is a PROJECTION for consumers ; the language is the
-  # SOURCE. They must agree about everything to_h spells and need not be the same
+  # It was not. `to_h` is a projection for consumers ; the language is the
+  # source. They must agree about everything to_h spells and need not be the same
   # size. Both are held now — the filters as option rows, the policy's head as a
   # field — and the wire format did not move, so no consumer noticed.
   #
@@ -61,7 +61,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     registry
   end
 
-  # Walks OBJECT STATE. Deliberately not `to_h`: that is the wire spelling, and it
+  # Walks object state. Deliberately not `to_h`: that is the wire spelling, and it
   # is where the types go.
   SKIP = %i[@hecks_owner @declared_in @predicate].freeze
 
@@ -126,7 +126,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
 
   it "registers the language's graph, not the one the builder made" do
     # The swap, asserted rather than described: what comes back from the door
-    # `Hecks.bluebook` registers through is a DIFFERENT object from the one handed
+    # `Hecks.bluebook` registers through is a different object from the one handed
     # in, assembled from records. Sabotaging the assembly fails 136 examples, which
     # is the other half of the same proof — the runtime depends on this, it does not
     # merely tolerate it.

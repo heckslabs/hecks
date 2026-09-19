@@ -15,7 +15,7 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # Cloudflare D1 — SQLite, managed, reached over its rest API rather
+    # Cloudflare D1 — SQLite, managed, reached over its REST API rather
     # than a local file. D1 is SQLite, dialect and all, so this file
     # reuses Sqlite::SchemaBuilder and Sqlite::Codec unchanged (the DDL
     # and the column encode/decode) and SqlQueryBuilder's dialect hooks
@@ -24,7 +24,7 @@ module Hecks
     # persistent local sqlite3 handle). See sqlite.rb's own header
     # comment: "this file supplies only SQLite's dialect" — true here too.
     class D1
-      # The transport — mirrors just the slice of SQLite3::Database's own
+      # **The transport** — mirrors just the slice of SQLite3::Database's own
       # interface (execute/get_first_row/get_first_value, rows as
       # column-name-keyed hashes) that Sqlite::SchemaBuilder, Sqlite::Codec,
       # and this file's own methods already assume. One stateless HTTP call
@@ -45,7 +45,7 @@ module Hecks
         # D1 batches are SQL transactions: statements execute in order and a
         # failure rolls the entire sequence back. Keep the tuple-shaped local
         # seam small so adapter code and focused fakes do not need to know the
-        # rest request envelope.
+        # REST request envelope.
         # https://developers.cloudflare.com/d1/worker-api/d1-database/#batch
         def batch(statements)
           payload = {
@@ -257,8 +257,8 @@ module Hecks
       # (Connection#batch's own comment) — the exact guarantee the single-
       # connection adapters' own `@db.transaction do ... end` gets locally.
       # So the existence check moves inside the batch as its own first
-      # statement, and the two writes are individually gated with `where not
-      # exists (...)` against that same table, evaluated in the same
+      # statement, and the two writes are individually gated with `WHERE NOT
+      # EXISTS (...)` against that same table, evaluated in the same
       # transaction — a row that already existed makes both writes into
       # real, zero-row no-ops rather than skipping them from the Ruby side,
       # matching Sqlite#atomic_put's `next` (skip append and project both,
@@ -421,7 +421,7 @@ module Hecks
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 
-      # SQLite (and D1, the same engine) has no bare offset — limit -1 is
+      # SQLite (and D1, the same engine) has no bare OFFSET — LIMIT -1 is
       # its own documented unbounded spelling, exactly for this case.
       def unbounded_limit = " LIMIT -1"
 

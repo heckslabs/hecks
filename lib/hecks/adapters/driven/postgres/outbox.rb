@@ -3,7 +3,7 @@ require_relative "../../../runtime/outbox"
 
 module Hecks
   module Adapters
-    # The outbox, Postgres-shaped — shared verbatim by `Postgres` and the
+    # **The outbox, Postgres-shaped** — shared verbatim by `Postgres` and the
     # era plugin's `PostgresEra`, the same way their `events` and
     # `hecks_saga_instances` DDL is copied between them: nothing here is
     # lineage-specific. Needs `@db` (a `PG::Connection`) and `table`
@@ -12,10 +12,10 @@ module Hecks
     # for the SQL idioms (`ON CONFLICT DO NOTHING` = idempotent enqueue,
     # `WHERE status = 'pending'` = the compare-and-set claim).
     module PostgresOutbox
-      # Re-entrant — `Interpreting#run_dispatch_order` opens one
+      # **Re-entrant** — `Interpreting#run_dispatch_order` opens one
       # transaction around save+emit+outbox and the adapter's own
       # `append`/`atomic_put`/`delete` each open theirs; PG refuses
-      # begin inside begin, so an inner call joins the open one.
+      # BEGIN inside BEGIN, so an inner call joins the open one.
       def transaction(&)
         return yield unless @db.transaction_status == PG::PQTRANS_IDLE
 

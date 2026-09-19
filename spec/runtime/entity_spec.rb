@@ -77,7 +77,7 @@ narrative: { text: "" })
 
     # LedgerEntry.Reverse also carries its own explicit `given("entry is
     # posted")` (a customer/account/entry status guard) — since
-    # `enforce_givens` runs BEFORE `admissible_transition` in
+    # `enforce_givens` runs before `admissible_transition` in
     # DISPATCH_ORDER, an already-reversed entry is refused there first:
     # GivenNotMet, not the lifecycle's own LifecycleRefused. Still refused
     # either way — see spec/runtime/command_rules_spec.rb's own matching
@@ -95,7 +95,7 @@ narrative: { text: "" })
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
-      # The message names the declared PATH now ("sequence.value"), not just the
+      # The message names the declared path now ("sequence.value"), not just the
       # head — the same precision every construct's not-found message carries.
     end.to raise_error(Hecks::Runtime::NotFound,
                        'no LedgerEntry with sequence.value 99 on Account "a1"')
@@ -104,7 +104,7 @@ narrative: { text: "" })
   it "refuses an element by an identity that fails its own type's invariant as NotFound, not InvariantViolation" do
     # BUG#3 (found live by `bin/qa_sweep`, banking fuzz seed 23) —
     # `LedgerSequence`'s own "a ledger sequence is positive" invariant used
-    # to be checked WHILE locating the element, before this method ever
+    # to be checked while locating the element, before this method ever
     # asked whether one existed — so `sequence: 0` (which can never be a
     # real, posted entry's sequence) raised InvariantViolation instead of
     # the same NotFound `sequence: 99` (a valid-shaped but nonexistent

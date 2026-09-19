@@ -5,7 +5,7 @@ require_relative "../../rendering"
 module Hecks
   module Runtime
     class Value
-      # How a `list_of` attribute's own elements GET hydrated — entity-typed
+      # **How a `list_of` attribute's own elements GET hydrated** — entity-typed
       # and value-object-typed alike — split out of `Coercion` (this file's
       # sibling, extended into `Value` alongside it exactly the way
       # `Admission` already is) once `Coercion` itself grew past

@@ -207,7 +207,7 @@ module Hecks
         end
       end
 
-      # Every fact keeps its own line, re-aligned. A fact that used to
+      # **Every fact keeps its own line, re-aligned**. A fact that used to
       # start a line was aligned under whatever the call opened with; once
       # the facts sit inside `with: { `, that column means nothing, so each
       # following fact is re-indented under the first fact's new column

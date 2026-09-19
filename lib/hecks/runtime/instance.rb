@@ -13,7 +13,7 @@ module Hecks
     class Instance
       attr_reader :aggregate, :id
       attr_accessor :state
-      # Out-of-band adapter bookkeeping, not domain state — the optimistic-
+      # **Out-of-band adapter bookkeeping, not domain state** — the optimistic-
       # concurrency version a CAS-capable adapter (Postgres today) stamps
       # on a record it reads/writes, so a later `save` can assert "commit
       # only if nobody has written since". Deliberately absent from
@@ -106,7 +106,7 @@ module Hecks
       # the correct bare identity. `@id` merged last always wins.
       def to_h = @state.merge(id: @id)
 
-      # A copy a mutation may touch. Every adapter but Memory hands `find`
+      # **A copy a mutation may touch**. Every adapter but Memory hands `find`
       # a freshly-decoded Instance already; Memory's holds the record it
       # eventually saves — the same state Hash, aliased. Before `ensures`
       # existed, nothing could refuse between apply_mutations and save, so

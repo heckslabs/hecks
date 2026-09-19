@@ -6,14 +6,14 @@ require_relative "../naming"
 
 module Hecks
   module Runtime
-    # The transactional outbox — the durable hand-off between "a command
+    # **The transactional outbox** — the durable hand-off between "a command
     # committed" and "everything that was owed because it committed":
     # the policies that react to its events, the process managers that
     # advance on them, and (through a policy whose trigger is an
     # outbound port operation) the external effects those reactions
     # cause. `future-features.md` item 8, built.
     #
-    # The shape. One row per (event, consumer). A consumer is a named
+    # **The shape**. One row per (event, consumer). A consumer is a named
     # policy or process manager that would react to the event — resolved
     # at enqueue time from the registry (`Fanout`), so the outbox records
     # who was owed what, not just that an event happened. Rows move
@@ -33,7 +33,7 @@ module Hecks
     #              tracks delivery, not the domain's answer.
     #   failed     the consumer raised a defect (non-refusal error).
     #
-    # Delivery is inline by default — the dispatcher drains the rows it
+    # **Delivery is inline by default** — the dispatcher drains the rows it
     # just wrote, in the same call, in the order C10.2 fixes (per event
     # in `emits` order: that event's policy rows, then its saga rows —
     # the emitting domain's own policies before other domains'). Nothing about the
@@ -44,7 +44,7 @@ module Hecks
     # `Relay#redrive!` — run at boot by `Loader.run_boot_gates!` —
     # finds it.
     #
-    # What redrive does, and deliberately doesn't. A `pending` row is
+    # **What redrive does, and deliberately doesn't**. A `pending` row is
     # redriven: its consumer provably never started (claiming is the
     # first thing delivery does), so running it now is exactly-once by
     # construction. A `claimed` row is not auto-redriven: the consumer
@@ -57,7 +57,7 @@ module Hecks
     # unique per store, so a re-enqueue of the same fact to the same
     # consumer is a no-op rather than a second row.
     #
-    # Which adapters. Memory (in-process rows — visible to specs,
+    # **Which adapters**. Memory (in-process rows — visible to specs,
     # gone with the process, exactly like everything else Memory holds),
     # Sqlite and Postgres (a `hecks_outbox` table in the aggregate's own
     # database — the only way the enqueue can share the save's
@@ -121,7 +121,7 @@ module Hecks
         end
       end
 
-      # Who is owed what — the same selection `PolicyInterpreter#policies_for`
+      # **Who is owed what** — the same selection `PolicyInterpreter#policies_for`
       # and `SagaInterpreter#advance` make at delivery time, made once at
       # enqueue time so the row names its consumer. Policy rows first,
       # then saga rows, event order preserved within each: exactly the
@@ -194,7 +194,7 @@ module Hecks
         end
       end
 
-      # The relay — one per `Dispatcher`. Enqueues into a repository's
+      # **The relay** — one per `Dispatcher`. Enqueues into a repository's
       # store, drains rows inline, and redrives what a previous process
       # left behind.
       class Relay
@@ -287,7 +287,7 @@ module Hecks
           stores.flat_map { |repository| repository.outbox_rows(status: status) }
         end
 
-        # Boot-time reconciliation. Redrives `pending` rows (never
+        # **Boot-time reconciliation**. Redrives `pending` rows (never
         # claimed — safe by construction); surfaces `claimed` rows and
         # redrives them only when told to (`claimed: true`).
         def redrive!(claimed: false)

@@ -91,7 +91,7 @@ module Hecks
           @expect_undelivered = expect_undelivered == true
         end
 
-        # The guard — same extraction CommandBuilder#given/#ensures already
+        # **The guard** — same extraction CommandBuilder#given/#ensures already
         # use (Ports::Extraction reads the block's source ; the block itself
         # is never called, here or at runtime — Runtime::PolicyInterpreter
         # evaluates the extracted text through the same
@@ -120,7 +120,7 @@ module Hecks
           @where = canonical
         end
 
-        # The fan-out source — a query verb, "Aggregate.query_name" or
+        # **The fan-out source** — a query verb, "Aggregate.query_name" or
         # "Domain::Aggregate.query_name", the same qualified-or-not shape a
         # saga's own `dispatch` command name already takes
         # (SagaInterpreter#qualified). Runtime::PolicyInterpreter runs the

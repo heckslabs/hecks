@@ -2,7 +2,7 @@ module Hecks
   module Bluebook
     module DSL
       class AggregateBuilder
-        # The "SEAL_*" pass — everything `#build` runs once every
+        # **The "SEAL_*" pass** — everything `#build` runs once every
         # declaration (attributes, entities, commands, queries, the
         # lifecycle) is otherwise in place, checking that what a command,
         # query, or default names actually exists elsewhere on the
@@ -378,7 +378,7 @@ module Hecks
                   "matches nothing and refuses nothing"
           end
 
-          # ORDER BY refuses a hop outright, right here — unlike a where
+          # ORDER BY refuses a hop outright, right here — unlike a WHERE
           # hop (deferred below), this doesn't need the target's shape to
           # answer: an ask is ordered by what its own answering rows
           # hold, and a hop answers with a candidate set, not a sort key

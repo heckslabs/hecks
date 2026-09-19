@@ -1,7 +1,7 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
 
-# INVESTIGATION: docs/decisions/ (see the concurrency-model ADR/gap writeup
+# Investigation: docs/decisions/ (see the concurrency-model ADR/gap writeup
 # committed alongside this spec) traced the dispatch pipeline
 # (lib/hecks/runtime/command_interpreter.rb) and found no lock, transaction,
 # or version check spanning the read (hydrate) and the write (save) for any
@@ -11,12 +11,12 @@ require_relative "../../support/postgres_probe"
 # (lib/hecks/runtime/dependency_planning.rb:26-31). `Postgres#atomic_put`
 # takes a `pg_advisory_xact_lock` (lib/hecks/adapters/driven/postgres.rb:197-218),
 # but `Postgres#save` — the path every state-dependent command actually
-# takes — takes NO lock at all (postgres.rb:186-189), and the read that
+# takes — takes no lock at all (postgres.rb:186-189), and the read that
 # feeds the `given` check (`CommandInterpreter#hydrate_existing`,
 # command_interpreter.rb:271-293, calling `Postgres#find`, postgres.rb:109-114)
 # happens entirely before that write-side transaction even opens.
 #
-# A DELIBERATELY MINIMAL DOMAIN, not examples/banking — Banking::Account
+# A deliberately minimal domain, not examples/banking — Banking::Account
 # declares a real, unrelated Postgres adapter gap of its own (a cross-
 # aggregate `where(:"customer/status" => ...)` query that
 # postgres/schema_builder.rb's own index builder cannot translate, raising
@@ -26,9 +26,9 @@ require_relative "../../support/postgres_probe"
 # reads prior aggregate state, on a command Postgres persists through the
 # plain, lock-free `save` path.
 #
-# THIS SPEC DEMONSTRATES THE GAP, IT DOES NOT FIX IT. Two independent
+# **This spec demonstrates the gap, it does not fix it**. Two independent
 # Dispatcher instances (the same shape two separate application processes
-# take in production) both bound to the SAME Postgres database and the same
+# take in production) both bound to the same Postgres database and the same
 # "a" account row. Both concurrently dispatch `Debit` for an amount that
 # individually satisfies `given("the balance covers it")` against the
 # balance each one reads, but which together overdraw the account. A
@@ -67,7 +67,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
   # set from the payload, nothing read first) and `Debit` (state-dependent
   # — its own `given` reads `balance`, and `decrement` reads it again to
   # compute the new value). `Debit` is exactly the shape
-  # DependencyPlanning::Analyzer marks NOT state_independent
+  # DependencyPlanning::Analyzer marks not state_independent
   # (dependency_planning.rb:80-99), so `strategy_for` always falls back to
   # TRANSACTIONAL_FALLBACK (dependency_planning.rb:26-31) — the plain
   # `Postgres#find` + `Postgres#save` path this spec targets.
@@ -77,7 +77,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
   # production; the only thing they share is the Postgres row for account
   # "a".
   #
-  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # **One inline bluebook, declared whole** — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
@@ -159,16 +159,16 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
 
   # Forces the exact interleaving CommandInterpreter's own pipeline never
   # guards against: both dispatches complete their `find` — the read half
-  # of `hydrate_existing` — before EITHER reaches its own `save`. `find` is
+  # of `hydrate_existing` — before either reaches its own `save`. `find` is
   # not a fabricated seam; it is the one real method every state-dependent
   # dispatch already calls at exactly this point.
   #
-  # ONLY THE FIRST `find` PER ADAPTER PAUSES. The fix under test retries a
+  # **Only the first `find` per adapter pauses**. The fix under test retries a
   # losing dispatch's whole `#call` on `StaleWrite` (CommandInterpreter's
-  # own optimistic-concurrency CAS) — a real, correct SECOND `find` inside
-  # that retry, re-reading the FIRST debit's now-committed balance. That
+  # own optimistic-concurrency CAS) — a real, correct second `find` inside
+  # that retry, re-reading the first debit's now-committed balance. That
   # second read must run free, not queue up waiting for a `release` token
-  # this helper only ever hands out once per adapter; only the INITIAL
+  # this helper only ever hands out once per adapter; only the initial
   # read is the one this test needs to force into the race window.
   def synchronize_after_find(*adapters)
     ready = Queue.new
@@ -193,7 +193,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
     seed = boot
     seed.dispatch("ConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
 
-    # TWO SEPARATE PROCESSES, MODELED HONESTLY — each `boot` is its own
+    # **Two separate processes, modeled honestly** — each `boot` is its own
     # Registry, its own Dispatcher, its own real `PG.connect`.
     first  = boot
     second = boot
@@ -210,7 +210,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
       end
     end
 
-    # Release both only once BOTH have read — the lost-update window this
+    # Release both only once both have read — the lost-update window this
     # gap leaves open.
     2.times { ready.pop }
     2.times { release << true }
@@ -218,10 +218,10 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
 
     results = Array.new(2) { outcomes.pop }
 
-    # THE INVARIANT: a $10,000 account can never honor two $6,000 debits.
+    # **The invariant**: a $10,000 account can never honor two $6,000 debits.
     # Correctly serialized, exactly one of these two concurrent Debits is
     # admitted and the other is refused by "the balance covers it" —
-    # re-checked against the FIRST debit's committed balance, not the
+    # re-checked against the first debit's committed balance, not the
     # stale snapshot both actually read. This is the assertion that fails
     # today: both are admitted.
     expect(results).to contain_exactly(:succeeded, :refused)

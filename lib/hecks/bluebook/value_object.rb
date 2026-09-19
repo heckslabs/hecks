@@ -39,7 +39,7 @@ module Hecks
         # has no kernel crate to parse `canonical` with.
         invariants: -> { invariants.map { |rule| Expression::AstJson.rule_row(rule) } },
         closed_set: :closed_set?,
-        # The field name is stringified, never the value. A `member` row can
+        # **The field name is stringified, never the value**. A `member` row can
         # hold any of the scalar types an attribute declares — `Integer 84`
         # (`StatementFrequency#retention_months`, statements.bluebook), not
         # only `String` — and `value.to_s` used to erase that on the way

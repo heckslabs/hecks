@@ -1,18 +1,19 @@
 #!/usr/bin/env ruby
 
-# SURFACES SIBLING-REPO BLUEBOOK DOMAINS AS ROTATION CANDIDATES — REPORT
-# ONLY. The `hecks_qa` practice widens its own rotation from domains it
+# **Surfaces sibling-repo bluebook domains as rotation candidates** — report
+# only. The `hecks_qa` practice widens its own rotation from domains it
 # already owns (`bin/qa_seed_targets`, `bin/qa_domain_novelty`); this is
-# the one that looks OUTSIDE this repo, at `~/Projects` (or wherever
-# `--projects-dir` points), for a domain some OTHER project built against
+# the one that looks outside this repo, at `~/Projects` (or wherever
+# `--projects-dir` points), for a domain some other project built against
 # the real `hecks` gem.
 #
 #   bin/qa_discover_external_domains
 #   bin/qa_discover_external_domains --projects-dir ~/Projects
 #   bin/qa_discover_external_domains --max-depth 4
-#   bin/qa_discover_external_domains --known-path <path> ...   # bypass the ledger read (this script's own spec uses this)
+#   bin/qa_discover_external_domains --known-path <path> ...   # bypass the ledger read (this
+#   script's own spec uses this)
 #
-# NEVER IDENTIFIES ANYTHING ITSELF. A domain a sibling repo owns is
+# **Never identifies anything itself**. A domain a sibling repo owns is
 # outside this practice's control in a way `qa/stress_domains/*` never
 # is — the decision to fuzz it belongs to a person, not this script. It
 # prints the exact `bin/run qa/bluebook identify reference=… path=…`
@@ -20,9 +21,9 @@
 # the `bin/qa_mine_combinations` precedent (PR #658): an explicit script
 # a person runs, never wired into `bin/qa_tick`'s own default rotation,
 # and no `QualityControlDials`/`qa/settings.yml` entry turns it on —
-# there is nothing here FOR a dial to gate.
+# there is nothing here for a dial to gate.
 #
-# THE SHAPE CHECKED, AND WHY GLOBBING `*.bluebook` IS NOT ENOUGH. Every
+# **The shape checked, and why globbing `*.bluebook` is not enough**. Every
 # domain this repo already sweeps is `<name>/bluebook/<name>.bluebook`
 # (`examples/pizzas/bluebook/pizzas.bluebook`, `qa/stress_domains/
 # corrections/bluebook/corrections.bluebook` — `bin/qa_domain_novelty`
@@ -30,24 +31,24 @@
 # exactly that file for `source_text`). A bare `*.bluebook` glob would
 # also catch every `.adapter`/`.port`-adjacent fixture and every helper
 # file a real domain's own `bluebook/` directory carries beside its
-# entry point — this only reports a directory whose OWN name is repeated
+# entry point — this only reports a directory whose own name is repeated
 # as the file inside its `bluebook/` subdirectory, exactly the one file
 # `Hecks.boot` and `bin/project_rust` both treat as the domain's root.
 #
-# TWO SHAPES, ONE CHECK — NESTED AND REPO-ROOT. The name-repetition rule
-# above is applied uniformly at every depth the walk visits, INCLUDING
+# **Two shapes, one check** — nested and repo-ROOT. The name-repetition rule
+# above is applied uniformly at every depth the walk visits, including
 # depth 0 (the sibling repo's own root): a repo whose own name is
 # `foo` and that carries `foo/bluebook/foo.bluebook` at its own top
 # matches the identical way `examples/pizzas/bluebook/pizzas.bluebook`
 # does one level down — there is no special-casing needed, and none
 # exists. Verified against two real siblings, not just fixtures:
-# `~/Projects/playaprep` IS one domain at its own root
+# `~/Projects/playaprep` is one domain at its own root
 # (`playaprep/bluebook/playaprep.bluebook`) and is reported as
 # `playaprep/playaprep`; `~/Projects/embryonautfoundersapp` has the same
 # root shape (`bluebook/embryonautfoundersapp.bluebook`, beside sibling
 # `adapters/`/`translations/` dirs the walk correctly never descends
 # into — the `next if child == "bluebook"` guard below) but is correctly
-# NOT reported, because ITS `Gemfile` depends on `hecksagain` (vendored,
+# not reported, because its `Gemfile` depends on `hecksagain` (vendored,
 # aliased `Hecks = Hecksagain` for DSL readability), never on the real
 # `hecks` gem — same exclusion `near_miss_repo` in this script's own
 # fixtures exists to pin, just at depth 0 instead of depth 1
@@ -57,47 +58,47 @@
 # its `main`) ever lands — real `gem "hecks", "~> 1.3"` in its Gemfile —
 # this script starts reporting it with no code change at all.
 #
-# THE SECOND GUARD: DOES THE PROJECT ACTUALLY DEPEND ON `hecks`. A
+# **The second guard**: does the project actually depend on `hecks`. A
 # `*.bluebook` file living in some unrelated project that happens to
 # share this naming accident is not a hecks domain. `hecks.gemspec`
 # names this gem "hecks" (`spec.name = "hecks"`); a real dependent
 # either vendors it (`gem "hecks", path: "vendor/hecks"`, exactly
 # `hecks_playground`'s own `Gemfile`) or pins a published/git version —
 # either way, a line in `Gemfile` or a `specs:` entry in `Gemfile.lock`
-# names it. Checked BEFORE the recursive shape walk (cheap, two file
+# names it. Checked before the recursive shape walk (cheap, two file
 # reads) so a project with no `hecks` dependency at all is skipped
 # without ever touching its filesystem tree.
 #
-# DEPTH IS BOUNDED, DELIBERATELY, AND VALIDATED AGAINST REAL SIBLINGS —
-# NOT ARBITRARY. `--max-depth` counts path segments below the sibling
+# **Depth is bounded, deliberately, and validated against real siblings** —
+# not arbitrary. `--max-depth` counts path segments below the sibling
 # repo's own root (the repo root itself is depth 0, so it too can be a
-# candidate: a project that IS one domain, `<repo>/bluebook/<repo>.
+# candidate: a project that is one domain, `<repo>/bluebook/<repo>.
 # bluebook` at its own top). This repo's two conventions span depth 2
 # (`examples/pizzas`) and depth 3 (`qa/stress_domains/corrections`),
 # which sets the default. Checked for real against `~/Projects/
 # hecks_playground` (a large, real hecks dependent): unbounded recursion
-# finds ~100 shape matches, because EVERY aggregate inside its
+# finds ~100 shape matches, because every aggregate inside its
 # `hecks_playground_conception/aggregates/framework/*` tree individually
 # satisfies `<name>/bluebook/<name>.bluebook` — they are framework
-# CHAPTERS of one much larger domain, not standalone targets, and
+# chapters of one much larger domain, not standalone targets, and
 # reporting all of them would bury the handful that actually are behind
 # noise a person cannot usefully review. Depth 3 cuts that to ten real
 # candidates. A person can still widen `--max-depth` by hand if a
 # sibling's real domains live deeper.
 #
-# WHAT IS STILL NOT CHECKED, ON PURPOSE: whether a candidate actually
-# BOOTS standalone (`Hecks.boot` on it might still fail — a framework
+# **What is still not checked, on purpose**: whether a candidate actually
+# boots standalone (`Hecks.boot` on it might still fail — a framework
 # chapter one level shallower than `--max-depth` would catch could still
 # slip through). This script's whole point is to be cheap enough to run
 # often and never touch the sibling repo's own Ruby environment; boot-
 # checking a candidate is exactly the kind of confirmation the human
 # review step (or `bin/run <path> ask …`, by hand) is for, same as
-# `bin/qa_domain_novelty` is a SEPARATE, later gate for a domain already
+# `bin/qa_domain_novelty` is a separate, later gate for a domain already
 # chosen — never folded into discovery itself.
 #
-# A REAL, DISCOVERED LIMITATION WORTH NAMING HERE: `bin/qa_sweep`
+# **A real, discovered limitation worth naming here**: `bin/qa_sweep`
 # resolves every `Target.path` as `File.join(ROOT, target_path)` — ROOT
-# being THIS repo's own root. An external, absolute path survives
+# being this repo's own root. An external, absolute path survives
 # `identify` (`TargetPath` only forbids whitespace) but `qa_sweep` has
 # no code path today that sweeps a target whose real location is outside
 # ROOT. Printing the `identify` command anyway is still correct — the
@@ -105,7 +106,7 @@
 # call — but a sweep of an enrolled external target needs that gap
 # closed first; this script does not attempt to close it.
 #
-# EXIT CODES: 0 ran cleanly (whether or not it found anything to
+# **Exit codes**: 0 ran cleanly (whether or not it found anything to
 # report); 1 usage or an operational error (projects dir missing, the
 # ledger unreadable and no --known-path given).
 
@@ -120,9 +121,9 @@ USAGE = "usage: bin/qa_discover_external_domains [--projects-dir <path>] [--max-
 DEFAULT_PROJECTS_DIR = File.expand_path("~/Projects").freeze
 DEFAULT_MAX_DEPTH = 3
 
-# Never worth descending into, anywhere in a sibling repo: VCS internals,
+# Never worth descending into, anywhere in a sibling repo: vcs internals,
 # vendored/installed dependency trees (a project vendoring `hecks`
-# itself would otherwise re-surface every one of THIS repo's own
+# itself would otherwise re-surface every one of this repo's own
 # `examples/*`/`qa/stress_domains/*` as a "new" external candidate — see
 # `hecks_playground/vendor/hecks`), and this practice's own worktree
 # scratch space (`.claude/worktrees/…`, which duplicates whatever the
@@ -190,7 +191,7 @@ def bluebook_shaped_dirs(repo_root, max_depth)
 end
 
 # Read-only, exactly `bin/qa_domain_novelty`'s own `ledger_target_paths`
-# — a subprocess `ask`, never a boot of the ledger in THIS process, so
+# — a subprocess `ask`, never a boot of the ledger in this process, so
 # running discovery alongside a live `bin/qa_tick`/`bin/qa_sweep` is
 # always safe. Existing paths are normalized to absolute: a target this
 # repo seeded (`examples/pizzas`) is stored ROOT-relative, one this

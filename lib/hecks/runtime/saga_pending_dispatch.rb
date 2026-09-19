@@ -6,7 +6,7 @@ module Hecks
     # durable outbox): a marker that survives exactly the window a crash
     # in `advance_saga`/`unwind` can otherwise hide.
     #
-    # The problem this closes — `checkpoint` persists a saga's new state
+    # **The problem this closes** — `checkpoint` persists a saga's new state
     # before the leg that justifies it (`handler.dispatches`) runs, and
     # deliberately so: the mutex it holds is not reentrant, and a
     # dispatch can re-enter this same interpreter. If the process dies
@@ -15,7 +15,7 @@ module Hecks
     # domain never got asked), not a defect (nothing raised), just
     # silence indistinguishable from a leg that finished cleanly.
     #
-    # The fix — `checkpoint` now writes this key into the same already-
+    # **The fix** — `checkpoint` now writes this key into the same already-
     # durable `memory` blob (no new column, no adapter/schema change:
     # `memory` is already an opaque, adapter-agnostic JSON blob every
     # `save_saga` implementation round-trips verbatim) whenever it
@@ -28,7 +28,7 @@ module Hecks
     # fuzzer/doc consumer of a saga's memory ever sees this key — it
     # exists only in the persisted blob) and surfaces it loudly instead.
     #
-    # What this deliberately does not do — auto-redrive the pending leg.
+    # **What this deliberately does not do** — auto-redrive the pending leg.
     # Redelivering a dispatch whose outcome is genuinely unknown is only
     # safe with idempotent delivery (the downstream command recognizing
     # and no-op'ing a duplicate), which hecks's command/event pipeline

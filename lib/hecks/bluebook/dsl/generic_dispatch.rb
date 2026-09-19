@@ -155,7 +155,7 @@ module Hecks
 
         module_function
 
-        # The static predicate — does this (context, word) pair fall
+        # **The static predicate** — does this (context, word) pair fall
         # within this slice's own verified scope, without executing
         # anything? The same row-shape checks `try` itself runs before
         # ever touching a real argument, shared so a conformance spec
@@ -197,7 +197,7 @@ module Hecks
           end
         end
 
-        # The one place row shape is judged — returns a small Hash naming
+        # **The one place row shape is judged** — returns a small Hash naming
         # which of the four safe shapes (context, word) is, or `nil` if
         # it falls outside this slice's own verified scope. No argument
         # values are read here; this only ever looks at the table.

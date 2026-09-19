@@ -1,11 +1,11 @@
 require "spec_helper"
 require_relative "support/legacy_dispatch_sites"
 
-# THE DEPRECATION'S OWN WORKLIST, HELD EXACTLY (roadmap I3). Passing command
+# The deprecation's own worklist, held exactly (roadmap I3). Passing command
 # facts to `dispatch`/`dispatch_port` as loose keyword arguments is deprecated
 # — the shape behind nine past routing bugs, because the receiver's identity
 # and the command's facts arrive in one undifferentiated bag. spec_helper.rb
-# already makes a NEW one raise; this is the other half, and it is static, so
+# already makes a new one raise; this is the other half, and it is static, so
 # it also covers a call site no run in the suite ever reaches.
 #
 # The counts live in spec/support/legacy_dispatch_sites.rb, next to the
@@ -35,11 +35,11 @@ RSpec.describe "loose keyword facts in dispatch" do
   # The framework's own doors hand their argument bag to `dispatch_flat`, so
   # a loose call arriving through `Hecks::Router`, the namespace shortcut, the
   # forms app, the CLI/JSON doors or a reaction re-entry is reported at the
-  # CALLER's line. Nothing under lib/ may reintroduce a loose call of its own,
+  # caller's line. Nothing under lib/ may reintroduce a loose call of its own,
   # or the deprecation would name a line its reader cannot change.
   #
-  # THE THREE FILES PINNED HERE ARE NOT DISPATCHER CALLS — they forward to a
-  # DIFFERENT door of the same name, which only reads the same to a parser:
+  # **The three files pinned here are not dispatcher calls** — they forward to a
+  # different door of the same name, which only reads the same to a parser:
   # `Router.dispatch(address, **args)` and the namespace shortcut's own
   # `method_missing` hand their keywords to `Router#dispatch`, and
   # `Storehouse.dispatch(runtime:, command:, args:)` is Storehouse's own

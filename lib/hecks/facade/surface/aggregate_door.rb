@@ -88,7 +88,7 @@ module Hecks
             aggregate.commands.map { |c| "#{Naming.snake(c.hecks_name)}!" }.sort
           end
           door.define_singleton_method(:queries) { aggregate.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
-          # One aggregate's usage document — the same projection the chapter
+          # **One aggregate's usage document** — the same projection the chapter
           # answers with, narrowed to this head. `commands` above already
           # answers "what can I call"; this answers "and what does each one
           # want, refuse, and guarantee", which is the rest of the question.
@@ -96,7 +96,7 @@ module Hecks
             Projector.call(:docs, bluebook: dispatcher.registry.bluebook(domain),
                                   options:  options.merge(aggregate: aggregate.hecks_name))
           end
-          # One aggregate, read back in english — the same narrowing `:docs`
+          # **One aggregate, read back in english** — the same narrowing `:docs`
           # takes, aimed at `:narrate` instead.
           door.define_singleton_method(:narrate) do |**options|
             Projector.call(:narrate, bluebook: dispatcher.registry.bluebook(domain),
@@ -116,7 +116,7 @@ module Hecks
             end
           end
 
-          # The same reason `method_missing` below exists at all — a facade
+          # **The same reason `method_missing` below exists at all** — a facade
           # left over from a previous boot in this process shadows the fresh
           # `BindingProxy` a `.hecksagon` would otherwise reach through
           # `ConstShim`/`const_missing`, so `Pizzas::Pizza.port(...)` lands

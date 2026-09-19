@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # What a hecksagon does — the lookups over its declared binds.
+      # **What a hecksagon does** — the lookups over its declared binds.
       module Hecksagon
         # Aggregate-specific bind wins when one was declared; otherwise
         # falls back to a domain-level default (`b.aggregate.nil?` — see
@@ -21,7 +21,7 @@ module Hecks
         end
       end
 
-      # What a world does — settings lookup, with the adapter-specific
+      # **What a world does** — settings lookup, with the adapter-specific
       # entry falling back to the verb's own.
       module World
         def for_verb(verb) = @settings.fetch(verb.to_s, {})

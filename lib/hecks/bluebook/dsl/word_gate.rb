@@ -161,7 +161,7 @@ module Hecks
           keywords = rows[:keywords]
           admitted = keywords.select { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) }
 
-          # The type-position fallback — item #13's full metaprogrammed
+          # **The type-position fallback** — item #13's full metaprogrammed
           # dispatch (slice 5). `one_of`/`list_of`, called inside an
           # attribute's own type argument (`attribute :x,
           # one_of("a","b")`), run with `self` as whatever builder is

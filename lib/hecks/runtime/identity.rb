@@ -3,7 +3,7 @@ require_relative "value"
 
 module Hecks
   module Runtime
-    # The scalar an identity path names.
+    # **The scalar an identity path names**.
     #
     # An identity is declared as a path — `identified_by :number` — and
     # this is the one place that reads one. It follows the path and nothing else.
@@ -86,7 +86,7 @@ module Hecks
         unless rest.empty?
           held = args[head]
           held = held.to_h if held.respond_to?(:to_h)
-          # An ID is always a scalar. The path says which field carries it, so a
+          # **An ID is always a scalar**. The path says which field carries it, so a
           # caller may hand that field's value straight over — a string or a
           # number, never a serialised object. Only a value object that actually
           # arrived whole has to be opened.
@@ -104,7 +104,7 @@ module Hecks
         raw       = args[head]
         return raw unless attribute
 
-        # An ID is always a scalar — same contract the dotted branch above
+        # **An ID is always a scalar** — same contract the dotted branch above
         # already keeps, just reached a different way here: a bare
         # (undotted) identity path names one of this construct's own
         # declared attributes directly, and when that attribute's type is
@@ -133,7 +133,7 @@ module Hecks
         construct.identity_paths.join(", ")
       end
 
-      # Best-effort, for a lock key only — `Runtime::AggregateLock`'s own
+      # **Best-effort, for a lock key only** — `Runtime::AggregateLock`'s own
       # per-record striping needs some id to key on before dispatch has run
       # far enough to hydrate for real, so this walks the identical chain
       # `CommandInterpreter#hydrate_existing`/`#hydrate_prior_or_initial`

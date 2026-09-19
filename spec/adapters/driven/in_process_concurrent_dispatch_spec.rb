@@ -1,26 +1,26 @@
 require "hecks"
 require "tmpdir"
 
-# THE HEKI/MEMORY COUSIN OF spec/adapters/driven/postgres_concurrent_dispatch_spec.rb
+# The heki/memory cousin of spec/adapters/driven/postgres_concurrent_dispatch_spec.rb
 # — same fixture (an "Account" with a state-dependent `Debit`), same
 # invariant (two concurrent $6,000 debits against a $10,000 balance must
-# never both succeed), but modeling the shape THESE two adapters actually
+# never both succeed), but modeling the shape these two adapters actually
 # have: process-local data, no second process to model, so "concurrent" here
-# means real `Thread`s inside ONE process sharing ONE `Registry` (and so the
-# SAME adapter instance — `Registry#repository` memoizes), not two separate
+# means real `Thread`s inside one process sharing one `Registry` (and so the
+# same adapter instance — `Registry#repository` memoizes), not two separate
 # `boot`s the way the Postgres spec needs.
 #
 # Neither adapter declares `:optimistic_concurrency` — the mechanism under
 # test here is `Runtime::AggregateLock`'s per-key `Mutex`
 # (`CommandInterpreter#call`/`EntityInterpreter#call`'s own
 # `run_dispatch_order_with_isolation`), not CAS+retry. A correctly-held
-# lock means the second dispatch's own `hydrate` can never even START until
+# lock means the second dispatch's own `hydrate` can never even start until
 # the first dispatch's `save` has landed — so, unlike the Postgres spec,
 # there is no window where both threads' `find` calls overlap; proving the
-# lock works means proving that window CANNOT be forced open, not that a
+# lock works means proving that window cannot be forced open, not that a
 # retry recovers from it.
 RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Memory)" do
-  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # **One inline bluebook, declared whole** — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
@@ -32,8 +32,8 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      # MEMORY, ALWAYS — same as postgres_concurrent_dispatch_spec.rb's own
-      # `boot`: `registry.verify!` checks a usable DEFAULT adapter exists
+      # **Memory, always** — same as postgres_concurrent_dispatch_spec.rb's own
+      # `boot`: `registry.verify!` checks a usable default adapter exists
       # regardless of which one this domain actually binds.
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       unless adapter_name == "Memory"
@@ -111,9 +111,9 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
     dispatcher.registry.repository("ConcurrencyGap", aggregate)
   end
 
-  # Marks the FIRST thread to reach `find` and pauses it briefly, giving a
+  # Marks the first thread to reach `find` and pauses it briefly, giving a
   # concurrent dispatch a chance to also reach `find` before it resumes —
-  # the exact race window a missing lock leaves open. BOUNDED, not a hang:
+  # the exact race window a missing lock leaves open. Bounded, not a hang:
   # under a correctly serializing lock, no other thread can ever reach
   # `find` while the first holds it (the lock wraps the whole dispatch, not
   # just the read), so the wait simply times out and the first thread
@@ -154,9 +154,9 @@ RSpec.describe "concurrent dispatch against one process-local aggregate (Heki/Me
 
       results = Array.new(2) { outcomes.pop }
 
-      # THE INVARIANT: a $10,000 account can never honor two $6,000
+      # **The invariant**: a $10,000 account can never honor two $6,000
       # debits. The lock means the second dispatch's own `given` is
-      # checked against the FIRST debit's already-committed balance, not
+      # checked against the first debit's already-committed balance, not
       # a stale snapshot — so it refuses for real, via `GivenNotMet`, not
       # merely "doesn't crash".
       expect(results).to contain_exactly(:succeeded, :refused)

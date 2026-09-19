@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# FLAT STRINGS IN, NESTED TYPED ARGUMENTS OUT — the translation a command line
+# **Flat strings in, nested typed arguments out** — the translation a command line
 # needs and `JsonDoor` does not, because JSON arrives already nested and
 # already typed.
 RSpec.describe Hecks::Facade::CliDoor do
@@ -25,7 +25,7 @@ RSpec.describe Hecks::Facade::CliDoor do
       .to eq(pizza: { price_cents: { cents: 1500 }, size: { value: "large" } })
   end
 
-  # THE TYPE COMES FROM THE PROJECTION, NEVER FROM THE VALUE. A door that
+  # **The type comes from the projection, never from the value**. A door that
   # guessed would send the Integer 99 for a version string of "99" and be wrong
   # in a way nothing downstream could detect.
   describe "typing" do
@@ -47,7 +47,7 @@ RSpec.describe Hecks::Facade::CliDoor do
     end
   end
 
-  # ALMOST EVERY VALUE OBJECT IN THIS CORPUS HAS ONE FIELD, so the short form
+  # Almost every value object in this corpus has one field, so the short form
   # is what anybody types.
   describe "the short form" do
     it "expands a value object with exactly one option beneath it" do
@@ -59,7 +59,7 @@ RSpec.describe Hecks::Facade::CliDoor do
       expect(described_class.arguments(spec, ["sequence=99"])[:sequence][:value]).to eq(99)
     end
 
-    # TWO CANDIDATES IS A GUESS ABOUT WHICH FIELD WAS MEANT, and a wrong guess
+    # Two candidates is a guess about which field was meant, and a wrong guess
     # here is a silently misplaced value.
     it "refuses to guess when more than one option shares the prefix" do
       expect { described_class.arguments(spec, ["pizza=1500"]) }

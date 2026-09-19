@@ -18,7 +18,7 @@ module Hecks
         # with a small boolean algebra: compares_less_than/compares_equal choose
         # which primitive(s) or together, negated inverts the result.
         #
-        # Read, not restated. This table is the checked-in projection of the
+        # **Read, not restated**. This table is the checked-in projection of the
         # grammar chapter's admitted set (bin/expression_projection), joined with
         # the algebra Vocabulary::Comparison declares. The evaluator cannot
         # boot the chapter that configures it — the Prism adapter normalises
@@ -65,7 +65,7 @@ module Hecks
           interpret(ast_cache[expr] ||= parse(expr), state, attrs)
         end
 
-        # The rule-shaped entry — evaluates a Given/Invariant (anything
+        # **The rule-shaped entry** — evaluates a Given/Invariant (anything
         # answering `canonical` and `ast`) by walking its structured form,
         # never re-parsing the text: the one parse happened at DSL-build
         # time behind `AstJson`, and `AstReader` turns that tree back into

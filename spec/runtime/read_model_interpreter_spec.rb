@@ -43,8 +43,8 @@ RSpec.describe "a read model's query options" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  # ADR 0055's own `on:` — a SECOND read_model added to the real,
-  # already-loaded Banking domain FROM RUBY, not from a new file under
+  # ADR 0055's own `on:` — a second read_model added to the real,
+  # already-loaded Banking domain from Ruby, not from a new file under
   # `examples/banking/bluebook/` (see the spec below that uses this for
   # why: `rust/parser` reads that directory's own files, never this
   # method's in-memory addition).
@@ -87,10 +87,10 @@ RSpec.describe "a read model's query options" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  # ELEVEN disputed amounts (S13, ADR 0025 — coverage standard,
+  # Eleven disputed amounts (S13, ADR 0025 — coverage standard,
   # ComplianceDashboard gained a real `offset 5` alongside its own
-  # `limit 5`) — enough for TWO full pages (the top 5, then the next
-  # 5) plus one beyond both, so the cap trims something on EACH page,
+  # `limit 5`) — enough for two full pages (the top 5, then the next
+  # 5) plus one beyond both, so the cap trims something on each page,
   # not just the first. A twelfth, undisputed payment proves
   # `where(status: "disputed")` actually filters, not just "everything
   # CardPayment holds".
@@ -120,7 +120,7 @@ RSpec.describe "a read model's query options" do
     rows = runtime.query("Banking.compliance_dashboard", account: "acct-1")
     payments = rows.first[:card_payments]
 
-    # `offset 5` (S13, ADR 0025) skips the top 5 — the SECOND page, not
+    # `offset 5` (S13, ADR 0025) skips the top 5 — the second page, not
     # the first, still ordered and still capped at 5.
     expect(payments.map { |p| p[:amount][:cents] }).to eq([300, 250, 200, 150, 100])
   end
@@ -154,7 +154,7 @@ RSpec.describe "a read model's query options" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /includes 0 many-side aggregates, not exactly one/)
   end
 
-  # The inline domain (3 aggregates) IS the fixture proving this one
+  # The inline domain (3 aggregates) is the fixture proving this one
   # build-time refusal — trimming it would lose the "more than one
   # many-side head" shape the refusal message itself asserts against.
   # rubocop:disable-next RSpec/ExampleLength
@@ -207,11 +207,11 @@ RSpec.describe "a read model's query options" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /includes 2 many-side aggregates, not exactly one/)
   end
 
-  # `on:` naming an aggregate that ISN'T one of the read model's own
+  # `on:` naming an aggregate that isn't one of the read model's own
   # many-side heads — a real typo shape (naming the wrong included type,
   # or the root itself), distinct from the "forgot `on:` entirely"
   # ambiguity the spec just above already covers. `Account` here is the
-  # ROOT (a single row — ordering/paging/filtering one row means
+  # root (a single row — ordering/paging/filtering one row means
   # nothing), never a many-side head, so it can never be a legal target
   # regardless of how many many-side heads exist.
   # rubocop:disable-next RSpec/ExampleLength
@@ -264,22 +264,22 @@ RSpec.describe "a read model's query options" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /doesn't name one of its own many-side included aggregates/)
   end
 
-  # THE REAL GAP THIS SESSION CLOSES (ADR 0055) — a `NovelSummary`-shaped
+  # The real gap this session closes (ADR 0055) — a `NovelSummary`-shaped
   # read model (children-of-the-light's own production use, four
   # many-side includes around one root, wanting to filter exactly one)
   # used to be impossible: `where`/`order_by`/`limit`/`offset` refused
   # outright the moment a read model declared more than one many-side
   # `include`, with no way to name which one a caller meant. `on:` closes
   # that: `CardPayment` here is filtered to its own disputed set (the
-  # SAME set `ComplianceDashboard` already narrows to, minus its own
-  # `limit`/`offset`) while `ATMCard` — a SECOND many-side head with no
+  # same set `ComplianceDashboard` already narrows to, minus its own
+  # `limit`/`offset`) while `ATMCard` — a second many-side head with no
   # `on:` of its own at all — comes back whole, untouched.
   #
   # Declared here, not in `examples/banking/bluebook/` on disk (ADR
   # 0055's own Rust-parity section): `rust/parser`'s own `.bluebook` text
   # parser doesn't yet recognize `on:` and would misparse it as an
   # ordinary where-field literally named "on" — this domain is loaded
-  # from the REAL corpus files by `load_bluebook_files` below, unchanged,
+  # from the real corpus files by `load_bluebook_files` below, unchanged,
   # then extended in Ruby, so the files `rust/parser`/codegen actually
   # read never carry this syntax at all.
   it "filters one many-side collection with `on:`, leaving another untouched" do
@@ -303,17 +303,17 @@ RSpec.describe "a read model's query options" do
       .to contain_exactly(100, 600, 300, 500, 200, 400, 150, 550, 250, 450, 50, 999)
   end
 
-  # ADVERSARIAL, not incidental: read_model_builder.rb's own `include`
+  # Adversarial, not incidental: read_model_builder.rb's own `include`
   # comment says this is "Order-independent" — the `:many` flag really
   # is, resolved at build time once @reference_target is known. The
-  # JOIN never was: this loop used to match a many-side head against
+  # join never was: this loop used to match a many-side head against
   # whatever was already accumulated in `projected`, which is empty
-  # the very first time through — so a many-side head declared BEFORE
+  # the very first time through — so a many-side head declared before
   # the root silently returned an empty array, no error, just a
   # wrong, too-small answer. Every real corpus read model (both of
   # Banking's) happens to declare its root first, so this never
   # surfaced there; caught only by deliberately reversing the order.
-  # An adversarially-ordered inline domain (many side declared BEFORE
+  # An adversarially-ordered inline domain (many side declared before
   # the root) is the whole point of this regression test — the exact
   # ordering that broke, proven end-to-end through a real dispatch and
   # query. Splitting or trimming the domain would weaken the adversary.
@@ -357,7 +357,7 @@ RSpec.describe "a read model's query options" do
             end
           end
 
-          # THE MANY SIDE DECLARED FIRST — the exact ordering that
+          # **The many side declared first** — the exact ordering that
           # broke, deliberately, not the accidentally-working order
           # every real corpus read model happens to use.
           read_model "Search" do
@@ -385,18 +385,18 @@ RSpec.describe "a read model's query options" do
     expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
   end
 
-  # THE ROOT-FIRST FIX'S OWN GAP — root-first alone only guarantees the
-  # ROOT is in `projected` before any other head is matched. A CHAIN of
+  # **The root-first fix's own gap** — root-first alone only guarantees the
+  # root is in `projected` before any other head is matched. A chain of
   # non-root heads (a head referencing another non-root head, not the
   # root) is one level deeper than that reaches: `include Coupon` before
   # `include Promotion`, where Coupon references Promotion (which
   # references the root, Item), used to silently return an empty
   # `coupons` array — Coupon was matched while `projected` held only
   # Item, one level short of what it needed (Promotion). Declared in
-  # the WORST order for the old code (deepest dependency declared
+  # the worst order for the old code (deepest dependency declared
   # first, root last) to prove this isn't declaration order working by
   # accident.
-  # A three-aggregate chain declared in the WORST possible order (proven
+  # A three-aggregate chain declared in the worst possible order (proven
   # deliberately, per the comment above) is the fixture under test —
   # every aggregate and the read_model's declared order matter to what
   # this regression proves, so nothing here is safe to trim or reuse.
@@ -440,7 +440,7 @@ RSpec.describe "a read model's query options" do
             end
           end
 
-          # References Promotion, NOT the root (Item) — one level
+          # References Promotion, not the root (Item) — one level
           # deeper than the root-first fix's own reach.
           aggregate "Coupon" do
             identified_by :ref
@@ -457,10 +457,10 @@ RSpec.describe "a read model's query options" do
             end
           end
 
-          # THE WORST DECLARATION ORDER for the old code: the deepest
+          # The worst declaration order for the old code: the deepest
           # dependency (Coupon, which needs Promotion already resolved)
-          # declared FIRST, its own dependency (Promotion) second, and
-          # the root (Item) LAST.
+          # declared first, its own dependency (Promotion) second, and
+          # the root (Item) last.
           read_model "Search" do
             reference_to Item
             include Coupon
@@ -490,8 +490,8 @@ RSpec.describe "a read model's query options" do
     expect(rows.first[:coupons].map { |c| c[:id] }).to eq(["c1"])
   end
 
-  # THE TOPOLOGICAL SORT'S OWN BLIND SPOT — `include` accepts a nested
-  # ENTITY (declared with `entity "X" do ... end` inside an aggregate),
+  # **The topological sort's own blind spot** — `include` accepts a nested
+  # entity (declared with `entity "X" do ... end` inside an aggregate),
   # not just a top-level `aggregate`, exactly the way the language's own
   # `WholeBluebook` read model includes `Member`/`Handler`/`Dispatch`
   # (nested entities under ValueObject/ProcessManager, spec/executes_spec.rb).
@@ -503,12 +503,12 @@ RSpec.describe "a read model's query options" do
   # single record was ever read. `records`, the pre-existing runtime
   # matcher, already tolerated this (a nil aggregate reads as "no rows
   # of its own"), so an entity head has always come back empty rather
-  # than erroring — this pins that the STATIC ordering pass tolerates
-  # it too, and that a real dependency chain among the OTHER (resolvable)
+  # than erroring — this pins that the static ordering pass tolerates
+  # it too, and that a real dependency chain among the other (resolvable)
   # heads is still ordered correctly around it.
   # A nested-entity head mixed into the same worst-case chain as the
   # test above — the point is proving the entity head doesn't crash
-  # the ordering pass AND the real chain around it still resolves
+  # the ordering pass and the real chain around it still resolves
   # correctly, one coherent claim the split domain exists to prove.
   # rubocop:disable-next RSpec/ExampleLength
   it "tolerates an included head that is a nested entity, not a top-level aggregate, without crashing" do
@@ -538,7 +538,7 @@ RSpec.describe "a read model's query options" do
               sets :name
             end
 
-            # A NESTED ENTITY, not a top-level aggregate — the same shape
+            # A nested entity, not a top-level aggregate — the same shape
             # Member/Handler/Dispatch have in the language's own grammar.
             entity "Note" do
               identified_by :ref
@@ -561,7 +561,7 @@ RSpec.describe "a read model's query options" do
             end
           end
 
-          # WORST ORDER for the real (resolvable) chain, same as the
+          # Worst order for the real (resolvable) chain, same as the
           # test above — Promotion (which depends on the root, Item)
           # declared before Item — with the unresolvable entity head
           # (Note) mixed in first, so a crash there would hide whether
@@ -590,7 +590,7 @@ RSpec.describe "a read model's query options" do
 
     expect(rows.first[:item][:id]).to eq("headlamp")
     expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
-    # NOT what a bluebook author would want long-term (a real gap,
+    # Not what a bluebook author would want long-term (a real gap,
     # already flagged elsewhere: an entity head has no repository of
     # its own to read from at all) — but empty, not a crash, is the
     # honest current answer, and the one this fix restores.
@@ -598,20 +598,20 @@ RSpec.describe "a read model's query options" do
   end
 
   # A distinct real boot (Sqlite adapter, real tmp db file) proving the
-  # SAME options apply against a real SQLite-backed AUTHORITATIVE store
+  # same options apply against a real SQLite-backed authoritative store
   # — the boot shape is specific to this adapter and reuses
   # seed_disputed_card_payments already, so nothing left here is
   # duplicated setup.
   #
-  # NOT SQLite's own NATIVE path, despite this example's own former
+  # Not SQLite's own native path, despite this example's own former
   # title claiming it was — no `projected_by` is bound anywhere below,
   # so `Runtime::Registry#read_repository` never has a projection
   # repository to hand back and always falls through to the plain
   # `SqlitePersistence`-backed one, which has no `query_read_model` at
   # all (only `Adapters::SqliteProjection` does). This example was, and
-  # remains, still the IN-PROCESS `ReadModelInterpreter` path — just
+  # remains, still the in-process `ReadModelInterpreter` path — just
   # backed by a real SQLite file instead of an in-memory Hash. Renamed
-  # to say that; the actual native-path proof is the NEXT example.
+  # to say that; the actual native-path proof is the next example.
   # rubocop:disable-next RSpec/ExampleLength
   it "applies the same options through a real Sqlite-backed authoritative store (in-process path)" do
     Dir.mktmpdir do |dir|
@@ -642,7 +642,7 @@ RSpec.describe "a read model's query options" do
 
       seed_disputed_card_payments
 
-      # THE ONLY REPOSITORY IN PLAY IS SqlitePersistence — confirms the
+      # The only repository in play is SqlitePersistence — confirms the
       # claim above by construction rather than by comment alone. A
       # future edit that adds a stray `projected_by` here would move
       # this example onto the native path silently; this guard turns
@@ -659,23 +659,23 @@ RSpec.describe "a read model's query options" do
     end
   end
 
-  # THE REAL NATIVE-PATH PROOF — M19's own two fixed bugs
+  # **The real native-path proof** — M19's own two fixed bugs
   # (`spec/adapters/sqlite_projection_read_model_spec.rb`) are the only
   # existing coverage of `SqliteProjection#query_read_model` against
   # `ReadModelInterpreter#project`, and neither exercises a read model
   # with real `where`/`order_by`/`limit`/`offset` options at all — the
-  # ADR 0055 `on:` feature (this whole file's own subject) had ZERO
+  # ADR 0055 `on:` feature (this whole file's own subject) had zero
   # coverage proving the two engines agree on it, the previous example's
   # own mislabeled title notwithstanding.
   #
   # `projected_by` is bound for real here, and `assert_native_path!`
   # (below) refuses to let this example silently fall back to the
-  # in-process path the way the PREVIOUS example's own former title
+  # in-process path the way the previous example's own former title
   # incorrectly assumed it already was — a false pass here would prove
   # nothing about the native path this example exists to cover.
   #
-  # Compares the NATIVE result against a SEPARATE, plain in-process
-  # boot (no `projected_by` at all) fed the IDENTICAL seed data, rather
+  # Compares the native result against a separate, plain in-process
+  # boot (no `projected_by` at all) fed the identical seed data, rather
   # than a second hand-typed literal — two independently-hand-typed
   # "expected" arrays could drift the same wrong way together and
   # neither example would ever fail.
@@ -739,14 +739,14 @@ RSpec.describe "a read model's query options" do
 
   # `count`/`median` — the other two reductions `group_by` has siblings
   # in (read_model_builder.rb's own `seal_aggregation`). The success/
-  # empty-set cases below dispatch banking.bluebook's OWN real
+  # empty-set cases below dispatch banking.bluebook's own real
   # `DisputedPaymentCount`/`DisputedPaymentMedian` read models (added
   # alongside this task, the real corpus member `spec/judge_coverage_
-  # spec.rb` needs to ever OFFER `ReadModel.Count`/`ReadModel.Median` to
+  # spec.rb` needs to ever offer `ReadModel.Count`/`ReadModel.Median` to
   # the meta-domain at all — a verb the judge never offers is a verb
   # every rule about it is decoration for, that spec's own header) — the
   # `build` helper above already loads and persists the whole chapter,
-  # so no reopening is needed for them. The two REFUSAL cases (a median
+  # so no reopening is needed for them. The two refusal cases (a median
   # field that doesn't exist, or exists but isn't numeric) are declared
   # on tiny read models reopening the same already-loaded "Banking"
   # chapter instead (`Hecks.bluebook "Banking" do ... end` a second time
@@ -764,7 +764,7 @@ RSpec.describe "a read model's query options" do
         load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.bluebook("Banking") do
           # A field that exists but is not numeric (a single-String
-          # value object, `MerchantName{value}`) — refused at QUERY
+          # value object, `MerchantName{value}`) — refused at query
           # time, not at build time, the same as `median`'s missing-
           # field case below and `group_by_target`'s own field checks.
           read_model "BadMedianField" do
@@ -822,7 +822,7 @@ RSpec.describe "a read model's query options" do
       runtime = build
       open_account(runtime, customer: "c-acct-count", account: "acct-count")
       [100, 200, 300].each_with_index { |cents, i| dispute(account: "acct-count", index: i, cents: cents) }
-      # An UNDISPUTED payment too, so a count of 3 (not 4) proves `where`
+      # An undisputed payment too, so a count of 3 (not 4) proves `where`
       # actually filtered rather than the read model counting everything.
       Banking::CardPayment.authorize!(account: "acct-count", authorisation: { value: "auth-undisputed" },
                                       amount: { cents: 999 }, merchant: { value: "Undisputed" })
@@ -848,7 +848,7 @@ RSpec.describe "a read model's query options" do
       expect(rows.first[:card_payments]).to eq(300)
     end
 
-    # THE DEFINITIONAL CHOICE THIS SESSION MADE, PROVEN: the AVERAGE of
+    # **The definitional choice this session made, proven**: the average of
     # the two middle values (300 and 500, sorted from [500, 100, 300,
     # 700] -> [100, 300, 500, 700]), not the lower of the two (which
     # would silently read 300 here too) or the upper (500) — a real
@@ -944,7 +944,7 @@ RSpec.describe "a read model's query options" do
       end.to raise_error(Hecks::Bluebook::DSL::Malformed, %r{declares count/median together with group_by})
     end
 
-    # The inline two-aggregate domain IS the fixture for this one
+    # The inline two-aggregate domain is the fixture for this one
     # build-time refusal; trimming it would lose the "more than one
     # many-side head" shape the refusal message asserts against.
     # rubocop:disable-next RSpec/ExampleLength
@@ -989,13 +989,13 @@ end
 
 # A read model used to always need exactly one root record — `reference_to`
 # was required, and dispatch always took exactly one id argument. `group_by`
-# is what a report can't do without either: nesting an aggregate's OWN whole
+# is what a report can't do without either: nesting an aggregate's own whole
 # table by its own field values has no root to anchor to. So `reference_to`
-# became optional (a ROOTLESS read model, bulk, no id at dispatch), and
+# became optional (a rootless read model, bulk, no id at dispatch), and
 # `group_by` nests one eligible head's rows into a Hash — unwrapping every
 # single-attribute value object on that head's own rows to its bare scalar
 # along the way, since grouping needs a real scalar to key by regardless.
-# Every OTHER report (no group_by declared) is provably unaffected — see
+# Every other report (no group_by declared) is provably unaffected — see
 # "leaves a read model with no declared options exactly as before" above,
 # unchanged by this feature.
 RSpec.describe "a rootless read model's own group_by" do
@@ -1030,7 +1030,7 @@ RSpec.describe "a rootless read model's own group_by" do
     Banking::Account.open!(customer: "c1", number: { value: "a3" }, kind: { name: "current" }, daily_limit: { cents: 0 })
   end
 
-  # THE REAL CORPUS MEMBER, not a synthetic fixture — `AccountsByKind`,
+  # The real corpus member, not a synthetic fixture — `AccountsByKind`,
   # banking.bluebook's own third report, exists specifically so this
   # feature is proven against a real, already-model-checked domain, the
   # same discipline `judge_coverage_spec`/`plurality_coverage_spec`
@@ -1053,14 +1053,14 @@ RSpec.describe "a rootless read model's own group_by" do
 
     row = runtime.query("Banking.accounts_by_kind").first[:accounts]["current"]["a1"]
 
-    # `number`/`kind` are BOTH group_by fields here (AccountsByKind
+    # `number`/`kind` are both group_by fields here (AccountsByKind
     # groups by `:kind, :number`), so neither survives into the leaf —
     # already spent, as the keys that reached it (the "current" => "a1"
-    # nesting IS `number`'s own unwrapped value; a still-wrapped
+    # nesting is `number`'s own unwrapped value; a still-wrapped
     # `{value: "a1"}` couldn't have been a Hash key at all). `daily_
-    # limit` (DailyLimit{cents}) is a DIFFERENT single-attribute VO,
+    # limit` (DailyLimit{cents}) is a different single-attribute VO,
     # not part of group_by, so it's the one still actually present to
-    # check: bare Integer, not `{cents: 0}`, the way every OTHER
+    # check: bare Integer, not `{cents: 0}`, the way every other
     # report's own output still wraps it (see "leaves a read model
     # with no declared options exactly as before").
     expect(row[:daily_limit]).to eq(0)
@@ -1082,14 +1082,14 @@ RSpec.describe "a rootless read model's own group_by" do
         vision "x"
         generic
 
-        # "Gadget", not "Widget" — half a dozen OTHER spec files declare
+        # "Gadget", not "Widget" — half a dozen other spec files declare
         # their own bare, top-level "Widget" domain (dsl_spec.rb,
         # mutation_spec.rb, smoke_test_spec.rb, ...), and this is the
         # only one that nests its "Widget" under an outer "Nested"
         # domain. A real, measured collision: whichever ran first left
         # `Nested::Widget` sitting in the global constant table, and
-        # under `config.order = :random` the NEXT example to declare
-        # its OWN bare `Widget` domain sometimes found Ruby's constant
+        # under `config.order = :random` the next example to declare
+        # its own bare `Widget` domain sometimes found Ruby's constant
         # lookup climbing into `Nested::Widget` before ever reaching
         # `::Widget` — `uninitialized constant Nested::Widget::Item`,
         # order-dependent, reproduced directly (not guessed at).
@@ -1177,7 +1177,7 @@ RSpec.describe "a rootless read model's own group_by" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares group_by but includes 0 many-side/)
   end
 
-  # The inline two-aggregate domain IS the fixture for this one
+  # The inline two-aggregate domain is the fixture for this one
   # build-time refusal; trimming it would lose the "more than one
   # many-side head" shape the refusal message asserts against.
   # rubocop:disable-next RSpec/ExampleLength
@@ -1252,7 +1252,7 @@ RSpec.describe "a rootless read model's own group_by" do
 
       grouped = runtime.query("Banking.accounts_by_kind").first[:accounts]
       expect(grouped.keys.sort).to eq(%w[current savings])
-      # "current" => "a1" IS number's own unwrapped value (see the
+      # "current" => "a1" is number's own unwrapped value (see the
       # in-memory unwrap test's own comment) — `daily_limit` is the
       # still-present single-attribute VO to check here.
       expect(grouped["current"]["a1"][:daily_limit]).to eq(0)

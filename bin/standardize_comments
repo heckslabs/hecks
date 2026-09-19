@@ -38,7 +38,9 @@ module CommentStyle
     "missing_raise"          => "method raises but doc comment lacks @raise",
     "undocumented_class"     => "class or module has no doc comment",
     "unstructured_class_doc" => "long class doc has no ## section headers",
+    "missing_summary"        => "doc comment has tags but no lead sentence",
     "all_caps"               => "all-caps emphasis",
+    "bare_constant"          => "capitalised word matches a constant here: backtick or lowercase it",
     "design_history"         => "narrates design history instead of citing an ADR",
     "long_line"              => "comment line exceeds #{MAX_LINE} characters"
   }.freeze
@@ -47,11 +49,11 @@ module CommentStyle
 
   # Initialisms and keywords that are correctly written in capitals.
   ACRONYMS = %w[
-    ABC ACID ADR API ASC AST AWS BFS BYPASSRLS CAS CDN CEO CI CLI CPU CRUD CSRF CSS CSV CTE DB DBA DDD DDL
+    ABC ACID ADR API ASC ASCII AST AWS BFS BYPASSRLS CAS CDN CEO CI CLI CPU CRUD CSRF CSS CSV CTE DB DBA DDD DDL
     DELETE DESC DFS DML DNS DSL ENV ERB ERD FIFO FIXME FK FQN GC GET GIN HMAC HTML HTTP HTTPS ID INSERT IO IR ISO
     JS JSON JSONB JSONL JWKS JWT LIFO LRU MCP MDN MRI MVP NAMEDATALEN NIL NULL OIDC OK ORM OS
-    PATCH PG PK PM POSIX POST PR PRAGMA PRD PUT QA QC RAM RBAC README REPL RLS RNG RPC RUBYOPT
-    SAVEPOINT SDK SELECT SHA SME SQL SSH SSL SSM SW STDERR STDIN STDOUT TCP TLA TLS TOCTOU TODO TTL UID UL
+    PATCH PG PID PK PM POSIX POST PR PRAGMA PRD PUT QA QC RAM RBAC README REPL REST RLS RNG RPC RUBYOPT
+    SAM SAVEPOINT SDK SELECT SHA SME SQL SSH SSL SSM SW STDERR STDIN STDOUT TCP TLA TLS TOCTOU TODO TTL UID UL
     URI URL UTC UTF UUID VO WASM XML YAML
   ].to_set.freeze
 
@@ -72,8 +74,26 @@ module CommentStyle
     /\bALTER (?:TABLE|ROLE|SCHEMA)\b/, /\bDROP (?:TABLE|COLUMN|INDEX|SCHEMA|POLICY)\b/,
     /\bADD (?:COLUMN|CONSTRAINT)\b/, /\bDELETE FROM\b/, /\bUNION ALL\b/, /\bSET LOCAL\b/,
     /\bBEGIN (?:IMMEDIATE|EXCLUSIVE|DEFERRED)\b/, /\bROW LEVEL SECURITY\b/,
-    /\bIF (?:NOT )?EXISTS\b/, /\b(?:LEFT|INNER|OUTER|CROSS) JOIN\b/, /\bLIMIT \d+\b/
+    /\bCREATE \.\.\. PARTITION OF\b/, /\bPARTITION OF\b/, /\bIF (?:NOT )?EXISTS\b/,
+    /\b(?:LEFT|INNER|OUTER|CROSS) JOIN\b/, /\bLIMIT \d+\b/
   ).freeze
+
+  # SQL keywords that are rarely English emphasis. Kept in capitals on a line
+  # that reads as SQL, and always kept in a file that talks to a database.
+  SQL_STRONG = %w[
+    ALTER ATTACH BEGIN CASCADE COMMIT CONCURRENTLY DETACH DISTINCT GRANT LIMIT MATERIALIZED NULLS
+    OFFSET PARTITION RETURNING REVOKE ROLLBACK SERIALIZABLE VACUUM
+  ].to_set.freeze
+
+  # SQL keywords that are also everyday emphasis targets (`FROM`, `FIRST`, `SET`).
+  SQL_WEAK = %w[
+    COLUMN CONSTRAINT CREATE DEFAULT DROP EXCLUSIVE EXISTS FIRST FROM INDEX JOIN LAST LOCK POLICY
+    REFERENCES ROLE SCHEMA SET SHARE TABLE TRANSACTION TRIGGER UNION UNIQUE UPDATE VALUES VIEW WHERE
+  ].to_set.freeze
+
+  SQL_NEUTRAL = %w[ALL AND AS BY FOR IN IS NOT OF ON OR TO].to_set.freeze
+
+  SQL_PATH = %r{sql|postgres|/d1|_era|/era|lineage|outbox|schema|persistence}
 
   PROTECTED_SPANS = Regexp.union(
     /`[^`]*`/, /"[^"]*"/, /'[^'\s]*'/, %r{\b[a-z]+://\S+}, SQL_PHRASES
@@ -89,7 +109,7 @@ module CommentStyle
     /\bused to\b/i, /\bwas originally\b/i, /\boriginally (?:was|were|used|lived|named|called)\b/i,
     /\bpreviously\b/i, /\bformerly\b/i, /\bhistorically\b/i, /\bstale as of\b/i,
     /\b(?:was|were|been|got) renamed\b/i, /\brenamed from\b/i, /\bhas since\b/i,
-    /\bbefore (?:this|the) (?:change|fix|refactor|split|rename|pr|commit|patch)\b/i,
+    /\bbefore (?:this|the) (?:change|fix|refactor|split|rename|pr|commit|patch)\b/i, /\bBefore this, /,
     /\ban? earlier (?:version|revision|draft|pass)\b/i, /\bwhen this was (?:written|added)\b/i,
     /\b(?:in|since|by|after|before|until) (?:PR )?\#\d{2,}/i, /\bPR \#?\d{2,}\b/
   ].freeze
@@ -103,6 +123,12 @@ module CommentStyle
 
   # Stands in for a protected span so it still reads as a word, not a gap.
   FILLER = "\u00A7"
+
+  # What may sit between the words of one all-caps heading run.
+  GAP = %r{\A(?:[\s,/&'\-\d]|#{FILLER}|[A-Z]{2,})*\z}
+
+  # What ends a heading run: an em dash, or sentence punctuation.
+  HEADING_END = /\A(?:\s+—|[.:!?](?:\s|\z))/
 
   CODE_NOISE = %i[on_comment on_sp on_nl on_ignored_nl].freeze
 
@@ -129,6 +155,7 @@ module CommentStyle
       @lines = @source.lines
       @comments = lex_comments
       @by_line = @comments.to_h { |c| [c.line, c] }
+      @open_spans = open_spans
       @constants = @source.scan(/^\s*([A-Z][A-Z0-9]+)\s*=(?!=)/).flatten.to_set
     end
 
@@ -190,13 +217,23 @@ module CommentStyle
       @comments.flat_map do |comment|
         next [] if comment.text.match?(DIRECTIVE)
 
-        caps_violations(comment) + history_violations(comment) + length_violations(comment)
+        caps_violations(comment) + constant_violations(comment) + history_violations(comment) +
+          length_violations(comment)
       end
     end
 
     def caps_violations(comment)
       caps_words(comment).map do |_, word, replacement|
         Violation.new(path, comment.line, "all_caps", "#{word} -> #{replacement}")
+      end
+    end
+
+    # A capitalised word that is also a constant defined in this file could be
+    # either prose or a reference, so it is reported rather than rewritten.
+    def constant_violations(comment)
+      words = mask(comment).scan(CAPS_WORD).uniq
+      words.select { |word| @constants.include?(word) && !ACRONYMS.include?(word) }.map do |word|
+        Violation.new(path, comment.line, "bare_constant", word)
       end
     end
 
@@ -217,16 +254,77 @@ module CommentStyle
 
     # @return [Array<Array(Integer, String, String)>] offset, word, replacement
     def caps_words(comment)
-      masked = comment.text.gsub(PROTECTED_SPANS) { |span| quoted_heading?(span) ? span : FILLER * span.length }
-      found = []
-      masked.scan(CAPS_WORD) do
-        match = Regexp.last_match
+      masked = mask(comment)
+      matches = []
+      masked.scan(CAPS_WORD) { matches << Regexp.last_match }
+      sql = sql_keywords(comment, matches.map { |match| match[0] })
+      found = matches.filter_map do |match|
         word = match[0]
-        next if word != "A" && keep_capitals?(word)
+        next if word != "A" && (keep_capitals?(word) || sql.include?(word))
 
-        found << [match.begin(0), word, recase(word, sentence_start?(comment, masked, match.begin(0)))]
+        [match.begin(0), word, recase(word, sentence_start?(comment, masked, match.begin(0)))]
       end
-      drop_stray_articles(found)
+      (drop_stray_articles(found) + possessives(masked)).sort_by(&:first)
+    end
+
+    # The comment with every span that must keep its capitals blanked out. A
+    # backtick span can wrap across lines, so whether this line opens inside
+    # one comes from the lines above it.
+    def mask(comment)
+      text = comment.text
+      head = ""
+      if @open_spans[comment.line]
+        lead = text[/\A#+\s*/].length
+        close = text.index("`", lead)
+        cut = close ? close + 1 : text.length
+        head = text[0, lead] + (FILLER * (cut - lead))
+        text = text[cut..]
+      end
+      body = text.gsub(PROTECTED_SPANS) { |span| quoted_heading?(span) ? span : FILLER * span.length }
+      open = body.rindex("`")
+      body = body[0, open] + (FILLER * (body.length - open)) if open
+      head + body
+    end
+
+    # Which lines begin inside a backtick span opened earlier in the paragraph.
+    def open_spans
+      inside = false
+      @comments.each_with_object({}) do |comment, open|
+        above = @by_line[comment.line - 1]
+        continues = comment.full_line && above&.full_line && !above.text.match?(/\A#+\s*\z/)
+        inside = false unless continues
+        open[comment.line] = inside
+        inside ^= comment.text.count("`").odd?
+      end
+    end
+
+    # Capitalised SQL keywords to leave alone on this line. A keyword such as
+    # `FROM` or `SET` is only SQL when the rest of the line reads as SQL too.
+    def sql_keywords(comment, words)
+      bare = words.map { |word| word.sub(/'[A-Z]{1,2}\z/, "") } - ["A"]
+      strong = bare.select { |word| SQL_STRONG.include?(word) }
+      weak = bare.select { |word| SQL_WEAK.include?(word) }
+      database_file = path.match?(SQL_PATH)
+      return bare.to_set if reads_as_sql?(bare, strong, weak, database_file)
+      return (strong + weak).to_set if comment.text.match?(SQL_PHRASES)
+
+      database_file ? strong.to_set : Set.new
+    end
+
+    def reads_as_sql?(bare, strong, weak, database_file)
+      only_sql = bare.all? do |word|
+        [SQL_STRONG, SQL_WEAK, SQL_NEUTRAL, ACRONYMS].any? { |set| set.include?(word) }
+      end
+      return false unless only_sql
+
+      database_file ? (strong.any? || weak.size >= 2) : (strong.any? && (strong + weak).size >= 2)
+    end
+
+    # `Finding`'s: the capital follows a code span, so `CAPS_WORD` never sees it.
+    def possessives(masked)
+      found = []
+      masked.scan(/(?<=#{FILLER})'S\b/) { found << [Regexp.last_match.begin(0) + 1, "S", "s"] }
+      found
     end
 
     # An "A" is only emphasis when a word beside it is being fixed too.
@@ -242,7 +340,10 @@ module CommentStyle
 
     # A quoted run of capitals is another comment's heading, not a literal.
     def quoted_heading?(span)
-      span.start_with?('"') && span.scan(/\b[A-Z]{2,}\b/).size >= 3
+      return false unless span.start_with?('"') && !span.match?(SQL_PHRASES)
+
+      capitals = span.scan(/\b[A-Z]{2,}\b/).size
+      capitals >= 3 || (capitals == 2 && !span.match?(/[a-z]/))
     end
 
     def recase(word, sentence_start)
@@ -261,7 +362,7 @@ module CommentStyle
     def sentence_start?(comment, masked, offset)
       before = masked[0, offset].sub(/\A#+\s*/, "")
       return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/)
-      return true unless before.strip.empty?
+      return true if before.match?(/\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/)
       return false if masked[0, offset].match?(/\A#\s{3,}/)
 
       previous = comment.full_line ? @by_line[comment.line - 1] : nil
@@ -284,10 +385,35 @@ module CommentStyle
 
     def fix_caps(comment)
       text = comment.text.dup
-      caps_words(comment).reverse_each do |offset, word, replacement|
-        text[offset, word.length] = replacement
-      end
-      text
+      found = caps_words(comment)
+      found.reverse_each { |offset, word, replacement| text[offset, word.length] = replacement }
+      first, last = heading_run(comment, found)
+      return text unless first
+
+      text.insert(last, "**").insert(first, "**")
+    end
+
+    # An all-caps run that opens a paragraph and stops at a dash or a full stop
+    # is that paragraph's heading, so it becomes bold rather than plain text.
+    #
+    # @return [Array(Integer, Integer), nil] start and end offsets of the run
+    def heading_run(comment, found)
+      masked = mask(comment)
+      return unless found.size >= 2 && paragraph_start?(comment, masked, found.first[0])
+
+      run = found.slice_when { |(a, word, _), (b, _, _)| !masked[(a + word.length)...b].match?(GAP) }.first
+      finish = run.last[0] + run.last[1].length
+      finish += 2 if masked[finish, 2] == "'s"
+      return unless run.size >= 2 && masked[finish..].match?(HEADING_END)
+
+      [run.first[0], finish]
+    end
+
+    def paragraph_start?(comment, masked, offset)
+      return false if masked[0, offset].sub(/\A#+\s*/, "").match?(/[[:alnum:]#{FILLER}]/)
+
+      above = comment.full_line ? @by_line[comment.line - 1] : nil
+      !above&.full_line || above.text.match?(/\A#+\s*\z/)
     end
 
     # Splits one over-long prose comment line in two. Lines with no safe
@@ -297,6 +423,7 @@ module CommentStyle
       return whole if whole.chomp.length <= MAX_LINE
 
       lead = text[/\A#+\s*/]
+      lead += "  " if text.match?(/\A#+\s*@\w/)
       cut = text[0, MAX_LINE - indent.length + 1].rindex(" ")
       return whole if cut.nil? || cut <= lead.length || text[0, cut].count("`").odd?
 
@@ -348,10 +475,16 @@ module CommentStyle
       if block && !doc.match?(/@yield|@param\s+(?:\[[^\]\n]*\]\s*)?#{Regexp.escape(block)}\b/)
         found << violation(method, "missing_param", "lacks @yield for &#{block}")
       end
+      found << violation(method, "missing_summary", "") if tags_only?(doc) && method.name != "initialize"
       returns = method.name == "initialize" || method.name.end_with?("=") || doc.include?("@return")
       found << violation(method, "missing_return", "") unless returns
       found << violation(method, "missing_raise", "") if method.raises && !doc.include?("@raise")
       found
+    end
+
+    def tags_only?(doc)
+      first = doc.lines.map { |line| line.sub(/\A\s*#+\s?/, "").strip }.reject(&:empty?).first
+      first.to_s.start_with?("@")
     end
 
     def violation(method, category, detail)

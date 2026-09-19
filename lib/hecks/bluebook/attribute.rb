@@ -63,7 +63,7 @@ module Hecks
         @relationship = relationship&.to_s
       end
 
-      # A bare constant in a bluebook is a name, even when Ruby has heard of it.
+      # **A bare constant in a bluebook is a name, even when Ruby has heard of it**.
       #
       # `BluebookBuilder.build` says exactly this and installs a `const_missing`
       # resolver that hands back the symbol — `attribute :target, Target` becomes

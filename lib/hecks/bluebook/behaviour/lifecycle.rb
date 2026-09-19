@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # What a lifecycle does. Its declared half is a field, a starting
+      # **What a lifecycle does**. Its declared half is a field, a starting
       # state and a transition list. Everything here reads that — which
       # states exist, which transition a command takes, and how one
       # declared transition expands into the several rows the emission

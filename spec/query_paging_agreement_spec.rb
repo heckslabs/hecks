@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# LIMIT AND OFFSET TOGETHER, ON EVERY ENGINE, ANSWERING THE SAME.
+# **Limit and offset together, on every engine, answering the same**.
 #
 # `Ports::Query::InMemory` applied `limit` before `offset` — take n, then
 # drop m — where `SqlQueryBuilder` emits `LIMIT n OFFSET m`, which SQL
@@ -10,7 +10,7 @@ require "spec_helper"
 # that genuinely ran out of rows.
 #
 # The existing adapter-agreement gate did not catch it because nothing in
-# the corpus declares BOTH words on one query — banking's `Overdrawn` has
+# the corpus declares both words on one query — banking's `Overdrawn` has
 # a limit and no offset, and no query anywhere has an offset with a
 # limit. This is that missing case, written as the arithmetic rather than
 # as a comparison, so it holds even for an engine nobody has added yet.
@@ -42,7 +42,7 @@ RSpec.describe "limit and offset on one query" do
             order_by :number
           end
 
-          # PAGE TWO, written the way anybody pages: skip a page, take a
+          # Page two, written the way anybody pages: skip a page, take a
           # page. The bug made this answer nothing at all.
           query "SecondPage" do
             order_by :number
@@ -92,7 +92,7 @@ RSpec.describe "limit and offset on one query" do
     expect(numbers("SkipTwo")).to eq(%w[t-3 t-4 t-5])
   end
 
-  # THE ARITHMETIC, not a fixture — paging is only correct if the pages
+  # The arithmetic, not a fixture — paging is only correct if the pages
   # reassemble into the whole, in order, with nothing dropped or seen
   # twice. Stated this way it stays true for any page size.
   it "reassembles every row exactly once across consecutive pages" do

@@ -5,7 +5,7 @@ module Hecks
     # Command, ValueObject, Query, ...); see `Contract`'s own header
     # (contract.rb) for the struct format each entry below fills in.
     class Assembly
-      # One table, where there were five hand-written mirrors of it.
+      # **One table, where there were five hand-written mirrors of it**.
       #
       # `bluebook.bluebook` already declares what every construct is made of, and
       # `Plan` already reads it — parent, fields, lists, setters. What the language
@@ -24,7 +24,7 @@ module Hecks
       # about whether a declaration is admissible — the language settled that on the
       # way in. This is only how a spelling becomes an object again.
       #
-      # Why a table and not a method per category. The judge used to carry one
+      # **Why a table and not a method per category**. The judge used to carry one
       # hand-written branch per category, and the price was fourteen verbs the
       # language declared and the walk never offered — every rule hanging off them
       # decoration, and nothing red, because a branch that does not exist cannot
@@ -215,7 +215,7 @@ module Hecks
           holder: ProcessManager, make: :new,
           fields: {
             name:          [:name,          :plain],
-            # A symbol. `SagaInterpreter` does `event.payload[pm.correlates_by]` — a
+            # **A symbol**. `SagaInterpreter` does `event.payload[pm.correlates_by]` — a
             # hash lookup on a symbol-keyed payload — and `value == pm.correlates_by`
             # when resolving a leg s bindings. A String there finds nothing and
             # resolves to nothing, so the wire never advanced and a drawer that

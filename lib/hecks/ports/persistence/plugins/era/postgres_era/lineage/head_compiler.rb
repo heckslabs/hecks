@@ -60,14 +60,14 @@ module Hecks
               # `mint_era!` is already mid-transaction (its manual
               # `BEGIN`, held open for the era row, every aggregate's
               # matview, and the advisory lock advance_era! relies on).
-              # `@db.transaction` is a bare begin/commit with no savepoint
+              # `@db.transaction` is a bare BEGIN/COMMIT with no savepoint
               # nesting (see H2 in docs/audits/2026-08-10-main-bug-
               # audit.md) — called while already inside a transaction, its
-              # commit would end that transaction early, releasing mint's
+              # COMMIT would end that transaction early, releasing mint's
               # advisory lock and letting a later step run uncommitted.
               # `nested_transaction` tells the two cases apart and uses a
               # SAVEPOINT for the second, so the surrounding mint stays
-              # one real transaction from begin to its own commit
+              # one real transaction from BEGIN to its own COMMIT
               # regardless of how deep this is called from.
               nested_transaction("hecks_head_snapshot") do
                 @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_head_snapshot:' || $1))", [name])
@@ -79,8 +79,8 @@ module Hecks
                 # from an ancestor era. `compile_head!`'s union below then
                 # had nothing current-era to outrank the ancestor
                 # matview's own (still-live-looking) `save` row with, so a
-                # deleted ancestor-carried record kept winning `distinct
-                # on` forever. A delete now upserts a tombstone row here
+                # deleted ancestor-carried record kept winning `DISTINCT
+                # ON` forever. A delete now upserts a tombstone row here
                 # instead (`operation = 'delete'`, `state` NULL) — the
                 # exact same ordinal-guarded upsert every write already
                 # uses, so it participates in the union/`DISTINCT ON`
@@ -112,7 +112,7 @@ module Hecks
           end
 
           # The exact reduction era 1's old live view used to run on every
-          # single read — distinct on latest-per-id, saves only — now
+          # single read — DISTINCT ON latest-per-id, saves only — now
           # chunked through `ResumableBackfill#chunked_backfill!` instead
           # of one blocking `INSERT ... SELECT` over the whole journal:
           # each chunk reads the next page of distinct ids (a plain SELECT,
@@ -157,14 +157,14 @@ module Hecks
 
           # A transaction wrapper safe to call from inside an already-open
           # transaction, unlike `PG::Connection#transaction` (bare
-          # begin/commit, no savepoint nesting — see H2). Standalone
+          # BEGIN/COMMIT, no savepoint nesting — see H2). Standalone
           # (`PQTRANS_IDLE`), this is `@db.transaction` itself: a real
           # transaction, committed or rolled back on the way out. Nested
           # (anything else — `PQTRANS_INTRANS` from a manual `BEGIN` like
           # mint_era!'s, or the gem's own `#transaction`), it's a SAVEPOINT
           # instead: released on success, rolled back to (then the error
           # re-raised) on failure, and either way the surrounding
-          # transaction is never touched — no early commit, no early
+          # transaction is never touched — no early COMMIT, no early
           # release of whatever advisory lock it holds.
           def nested_transaction(name, &)
             return @db.transaction(&) if @db.transaction_status == PG::PQTRANS_IDLE
@@ -210,7 +210,7 @@ module Hecks
           # exactly and needs no such reasoning.
           # Only the latest ancestor entry per ID is observable. The head,
           # the tail-merge, and the audit all reduce by
-          # distinct on (aggregate_id) ORDER BY ordinal DESC before anyone
+          # DISTINCT ON (aggregate_id) ORDER BY ordinal DESC before anyone
           # reads a state, so an entry with a newer sibling can never
           # reach a reader. Translating those siblings computes and stores
           # rows nothing can observe — on an append-only journal a record
@@ -231,7 +231,7 @@ module Hecks
               "FROM (#{tail}) tail_entries ORDER BY aggregate_id, ordinal DESC"
           end
 
-          # The layered build — era N from era N-1's matview, not from raw
+          # **The layered build** — era N from era N-1's matview, not from raw
           # history. Returns nil when it cannot apply, and the caller
           # falls back to the full chain above.
           #
@@ -384,7 +384,7 @@ module Hecks
           # rows — read from its snapshot table, not re-derived from raw
           # history — in a plain view.
           #
-          # The frozen-tail invariant. This materialized view is correct
+          # **The frozen-tail invariant**. This materialized view is correct
           # by construction only because both of these hold:
           #   1. journal rows are never updated or deleted (immutability
           #      by privilege), and
@@ -404,7 +404,7 @@ module Hecks
           # layering on one would carry a cut that no longer exists.
           #
           # The live half used to be `WHERE era = era AND aggregate = name`
-          # over the raw journal — a distinct on that re-reduced this era's
+          # over the raw journal — a DISTINCT ON that re-reduced this era's
           # entire write history on every single read, the exact cost this
           # snapshot table exists to avoid (PostgresEra#append keeps it
           # current, transactionally, as of every write). The union below
@@ -458,7 +458,7 @@ module Hecks
             # under this era specifically.
             ensure_head_snapshot!(storage_name, era)
             @db.exec("DROP VIEW IF EXISTS #{quote(head_view(storage_name))}")
-            # The current-era side reads its own `operation` column now —
+            # **The current-era side reads its own `operation` column now** —
             # H3 (docs/audits/2026-08-10-main-bug-audit.md). This used to
             # hardcode `'save' AS operation` here, on the reasoning that a
             # delete simply removed its row from the snapshot table. But

@@ -25,7 +25,7 @@ module Hecks
         # accepted (ADR 0025, S6 — "events first-class"), resolved
         # through `ConstShim` the same way `on_impl`/`transition_impl`
         # resolve an event reference — but through `Naming.
-        # event_name_ref`, NOT `Naming.event_ref` (that method's own
+        # event_name_ref`, not `Naming.event_ref` (that method's own
         # header has the full account: `SagaInterpreter` matches
         # `pm.starts_on`/`pm.ends_on` against a bare `event.name`, never
         # a "." qualified one). A plain String still passes through
@@ -127,7 +127,7 @@ module Hecks
             # header has the full account, found live wiring a real
             # migrated corpus site into `bin/model_check` for the first
             # time: `SagaInterpreter#advance_saga` matches `handler.
-            # event_type` against a BARE `event.name`, never a "."
+            # event_type` against a bare `event.name`, never a "."
             # qualified one — a policy's own cross-aggregate match
             # works differently, splitting the qualifier apart from the
             # name rather than comparing the whole string). Writing the
@@ -201,7 +201,7 @@ module Hecks
                                          "nothing would tie its events to one instance"
           end
 
-          # The field, named — never the value object that carries it. A bare
+          # **The field, named** — never the value object that carries it. A bare
           # `correlates_by :end_to_end` reads whatever the payload holds under
           # that key as the correlation key, and what a non-scalar key even
           # is stays open (the object itself? its serialised text?).
@@ -315,7 +315,7 @@ module Hecks
             spec
           end
 
-          # The nested scope `dispatch ... do ... end` opens — one word
+          # **The nested scope `dispatch ... do ... end` opens** — one word
           # only (`compensates`), the compensating half of the dispatch it
           # sits inside. Its own `compensates_impl` builds a second
           # `DispatchSpec`, shape-identical to `HandlerBuilder#dispatch_

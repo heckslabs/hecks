@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# THE GLOSSARY EVERY DOMAIN CARRIES WITH IT — `<domain>/glossary/` (the two
+# **The glossary every domain carries with it** — `<domain>/glossary/` (the two
 # examples, and the QA ledger under qa/) is a projection of the bluebook
 # beside it, and this refuses a diff the
 # same way spec/diagrams_spec.rb refuses one for the diagrams: regenerate
@@ -8,7 +8,7 @@ require "spec_helper"
 # checked for the three promises Projections::Glossary makes to a reader
 # outside engineering — no identifiers, no type labels, every link lands.
 RSpec.describe "the glossary a domain carries with it" do
-  # DOMAIN FOLDER (relative to the repo root) => THE CHAPTER IT DECLARES.
+  # Domain folder (relative to the repo root) => the chapter it declares.
   GLOSSARY_DOMAINS = {
     "examples/pizzas"  => "Pizzas",
     "examples/banking" => "Banking",

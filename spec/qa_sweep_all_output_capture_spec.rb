@@ -2,21 +2,21 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_sweep_all_fixture"
 
-# `bin/qa_sweep --all` — OUTPUT CAPTURE. One of seven sibling files split
+# `bin/qa_sweep --all` — output capture. One of seven sibling files split
 # out of the original `qa_sweep_all_spec.rb` (Phase 2 of the CI speed
 # effort — see `spec/qa_sweep_all_lifecycle_spec.rb`'s own header and
 # `spec/support/qa_sweep_all_fixture.rb` for the full context). Split
 # again from `qa_sweep_all_report_and_parity_spec.rb` on 2026-09-18 — that
 # file alone cost 196s (four real end-to-end `bin/qa_sweep` runs in one
 # file `parallel_rspec` could never distribute across workers), the
-# single longest file in the whole postgres_io_parallel suite. THIS FILE
+# single longest file in the whole postgres_io_parallel suite. This file
 # proves the consolidated report never interleaves concurrent children's
 # own output. Own throwaway database: `hecks_qa_sweep_all_output_spec`.
 RSpec.describe "bin/qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_output_spec"
 
-  # A GENUINE FINDING, AN OPERATIONAL ERROR, AND A CLEAN TARGET, ALL AT
-  # ONCE — three children writing to three SEPARATE temp files the whole
+  # A genuine finding, an operational error, and a clean target, all at
+  # once — three children writing to three separate temp files the whole
   # time (bin/qa_sweep's own `spawn_sweep_child`), so nothing here is
   # racing anything else's stdout. `found_one` points at
   # `spec/fixtures/qa_sweep_all_found_fixture`, a trivially well-behaved
@@ -38,9 +38,9 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(stdout).to include("clean (1): clean_one", "OPERATIONAL ERRORS (1)",
                               "-- broken_one (exit 1) --", "FOUND SOMETHING (1)")
 
-    # THE UN-INTERLEAVED, UN-ABRIDGED PROOF — `found_one`'s own report is
-    # the LAST section this script ever prints, so everything from its
-    # own header to the end of output came from ONE child's own temp
+    # **The un-interleaved, un-abridged proof** — `found_one`'s own report is
+    # the last section this script ever prints, so everything from its
+    # own header to the end of output came from one child's own temp
     # file, never touched by `clean_one`/`broken_one`'s own concurrent
     # writes.
     found_report = stdout[/^#{'#' * 72}\n# found_one\n.*\z/m]
@@ -49,7 +49,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
                                     "-- instances --", "-- events --")
     expect(found_report).not_to include("clean_one", "broken_one")
 
-    # SUSPENDED, NOT HELD — by the ledger's own `SuspendOnSurprise`
+    # **Suspended, not held** — by the ledger's own `SuspendOnSurprise`
     # policy, fired inside the child's `Sweep.Check.Surprised` dispatch
     # against real PostgresEra.
     expect(found_report).to include("target found_one SUSPENDED", "--release --notes")

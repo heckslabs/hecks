@@ -27,7 +27,7 @@ module Hecks
             # bluebook that no longer says what it said.
             optional:     text(field[:optional]).to_s == "true",
             pattern:      presence(text(field[:pattern])),
-            # The round trip is the only way in. The grammar registry keeps the
+            # **The round trip is the only way in**. The grammar registry keeps the
             # assembled graph — the language as its own judge read it back — so a
             # fact dropped here is a fact no downstream projection ever sees, no
             # matter how plainly the .bluebook file declares it.
@@ -221,7 +221,7 @@ module Hecks
         # head does get a `Gather` dispatch, declared or derived).
         def read_model_count(row) = (true if text(row[:count]).to_s == "true")
 
-        # The append flattening, in reverse.
+        # **The append flattening, in reverse**.
         #
         # An append binds several fields at once and the language's Change holds one
         # field/kind/source triple, so the walk offers an append once per binding.

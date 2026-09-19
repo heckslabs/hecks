@@ -86,8 +86,8 @@ module Hecks
           # `CREATE TABLE IF NOT EXISTS` above is a no-op against a table
           # this same domain already created before this column existed
           # — the same reason Postgres's own `create_saga_table!` needs
-          # its own `ADD COLUMN IF NOT EXISTS`. SQLite/D1's own `alter
-          # table ... ADD COLUMN` has no `IF NOT EXISTS` guard on every
+          # its own `ADD COLUMN IF NOT EXISTS`. SQLite/D1's own `ALTER
+          # TABLE ... ADD COLUMN` has no `IF NOT EXISTS` guard on every
           # version this adapter supports, so a duplicate-column error
           # is caught and treated as "already there" rather than relied
           # on to never happen.
@@ -166,7 +166,7 @@ module Hecks
         #     planner, and two independent copies of this logic can only
         #     drift apart over time;
         #   - a list-typed attribute — no index. SQLite's `contains`
-        #     compiles to `exists (SELECT 1 FROM json_each(col) where
+        #     compiles to `EXISTS (SELECT 1 FROM json_each(col) WHERE
         #     ...)` (`list_contains_clause`, in `sql_query_builder.rb`)
         #     — an element-membership scan a plain index on the raw
         #     column (or even an expression index on it) does nothing to

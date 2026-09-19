@@ -77,7 +77,7 @@ module Hecks
       registry.repository("Expression", aggregate).all
     end
 
-    # The operators the language stands on. Every guard and invariant in
+    # **The operators the language stands on**. Every guard and invariant in
     # the language's own chapters — the meta-domain (Bluebook, World) and
     # the grammar chapters beside this file — evaluates through the very
     # operator table the ledger admits. An operator one of those

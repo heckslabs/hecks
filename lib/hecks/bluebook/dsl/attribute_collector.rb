@@ -332,7 +332,7 @@ module Hecks
             raise Malformed, "#{context_name}'s identity value objects form a cycle: #{cycle}"
           end
 
-          # A bare field derives one scalar. `identified_by :ref` (or one leg
+          # **A bare field derives one scalar**. `identified_by :ref` (or one leg
           # of a compound `identified_by :a, :b`) names a single field, and
           # deriving its path only makes sense while every value object along
           # the way wraps exactly one field itself — the same "single-field

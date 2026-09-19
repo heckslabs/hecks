@@ -3,11 +3,11 @@ require "hecks"
 # `AppendOnly#record_event` used to be an endless method with a trailing
 # `if` modifier — `def record_event(event) = @adapter.record_event(event)
 # if @adapter.respond_to?(:record_event)`. That modifier binds to the
-# WHOLE `def`, not just its body, so it evaluated `@adapter.respond_to?`
+# whole `def`, not just its body, so it evaluated `@adapter.respond_to?`
 # against `@adapter` at class-body time (still nil, before any instance
 # exists) and silently skipped defining the method at all — the exact
 # gotcha `events` right above it in append_only.rb already carries a
-# comment warning about. Every adapter's OWN `record_event` (Memory,
+# comment warning about. Every adapter's own `record_event` (Memory,
 # Postgres, PostgresEra, Sqlite, D1) was, and is, written correctly;
 # `emission.rb`'s `repository.record_event(event) if
 # repository.respond_to?(:record_event)` simply never reached them,

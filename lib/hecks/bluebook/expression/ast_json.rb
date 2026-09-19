@@ -56,7 +56,7 @@ module Hecks
       module AstJson
         module_function
 
-        # The closed op roster — every `"op"` tag the walkers below can
+        # **The closed op roster** — every `"op"` tag the walkers below can
         # emit, pinned so a reader (or a spec) can refuse a tag it does
         # not know instead of guessing. A new node kind is a new entry
         # here, a new arm below, and a new arm in every reader.
@@ -68,7 +68,7 @@ module Hecks
           matches_regex presence assignment split starts_with ends_with
         ].freeze
 
-        # One rule row, the way every rule site emits it — description and
+        # **One rule row, the way every rule site emits it** — description and
         # canonical text (what every reader has always had) plus the
         # structured form, derived from the same text. `ast` is a pure
         # function of `canonical`: the IR carries both so a reader that

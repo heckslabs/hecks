@@ -10,7 +10,7 @@ module Hecks
     # a sanity check that the domain still says what someone thinks it
     # says).
     #
-    # Never invents a sentence from nothing — `DocsProjector`'s own
+    # **Never invents a sentence from nothing** — `DocsProjector`'s own
     # discipline, held here too: a relationship's sentence is built
     # mechanically from its own declared shape (holder, target,
     # relationship kind — the same facts `Projections::Diagrams`'s own
@@ -77,7 +77,7 @@ module Hecks
         end
       end
 
-      # "AN ACCOUNT", not "A ACCOUNT" — every subject/object noun here is
+      # "An account", not "A ACCOUNT" — every subject/object noun here is
       # a bare construct name (`ATMCard`, `ExternalTransfer`, `Account`),
       # never free text, so the ordinary "starts with a vowel LETTER"
       # heuristic is safe: this language's own naming never produces the
@@ -87,7 +87,7 @@ module Hecks
       # word starting with a consonant letter but a vowel sound.
       def article(word) = word.to_s.match?(/\A[AEIOUaeiou]/) ? "An" : "A"
 
-      # Invariants live in two places — directly on the holder (an
+      # **Invariants live in two places** — directly on the holder (an
       # aggregate-level rule, checked after every command) and on every
       # value object nested inside it — `DocsProjector#rules_of`'s own
       # `value_object_for` lookup is the precedent for walking both.
@@ -97,7 +97,7 @@ module Hecks
         (own + nested).map { |invariant| invariant_statement(invariant) }
       end
 
-      # The domain author's own words, capitalized and punctuated —
+      # **The domain author's own words, capitalized and punctuated** —
       # nothing else. `invariant("a pizza is named")` already reads as
       # a sentence; this is the entire transformation.
       def invariant_statement(invariant)

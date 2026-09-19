@@ -16,7 +16,7 @@ module Hecks
         # field with a single unambiguous rendering.
         def saga_correlation(process_manager, event)
           path  = process_manager.correlates_by.to_s.split(".")
-          # A later event may already hold the scalar. `reference.value` digs a
+          # **A later event may already hold the scalar**. `reference.value` digs a
           # value object's field out of a fresh declaration (TransferRequested's
           # `reference` is a TransferReference) — but a downstream event this
           # same value was smuggled through as a passthrough argument
@@ -32,7 +32,7 @@ module Hecks
           end
           return value unless value.to_s.empty?
 
-          # The stamp — `deliver_saga_dispatch` marks its own event before this
+          # **The stamp** — `deliver_saga_dispatch` marks its own event before this
           # saga's next step ever asks, for a leg whose command declares
           # neither the correlation field itself nor the emitting aggregate's
           # own reference key (the two tiers above). command_interpreter/

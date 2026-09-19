@@ -157,7 +157,7 @@ module Hecks
 
         private
 
-        # The new spelling — `attribute :name, String, one_of: %w[...]`,
+        # **The new spelling** — `attribute :name, String, one_of: %w[...]`,
         # overriding `AttributeCollector`'s own refusal (every other
         # includer has no meaningful use for this). Private, like the
         # module's own version it overrides — it is a callback `attribute`

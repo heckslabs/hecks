@@ -55,7 +55,7 @@ module Hecks
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
 
-      # The outbox's boot-time reconciliation — after the dispatcher
+      # **The outbox's boot-time reconciliation** — after the dispatcher
       # exists (a row's consumer runs through its interpreters, so this
       # cannot be a plain registry gate the way saga rehydration is) and
       # after saga rehydration (a redriven row may advance a saga, which
@@ -69,7 +69,7 @@ module Hecks
         dispatcher.outbox.redrive!
       end
 
-      # The explicit-file form — `paths` names the exact bluebook/hecksagon/
+      # **The explicit-file form** — `paths` names the exact bluebook/hecksagon/
       # world files to boot, in place, wherever they actually live. `boot`
       # above only ever takes a directory and globs it; that is the right
       # shape for a real deployment (`examples/banking`, a domain someone
@@ -79,7 +79,7 @@ module Hecks
       # (`Hecks::Behaviors`), but this carries no behaviors-specific
       # logic and is not gated behind requiring that module.
       #
-      # No copying, no temp directory. A prior port of this same idea
+      # **No copying, no temp directory**. A prior port of this same idea
       # (vendored into a downstream consumer, read before writing this)
       # scoped a per-test boot by copying files into `Dir.mktmpdir` — which
       # destroys real relative paths, and worse, makes a `persisted_by`
@@ -191,7 +191,7 @@ module Hecks
         RemoteDispatcher.new(registry, region: settings.fetch(:region, "us-east-1"), function: settings[:function])
       end
 
-      # The door is installed here, not stamped. This used to write the
+      # **The door is installed here, not stamped**. This used to write the
       # dispatcher onto every aggregate's class (`ruby_class.runtime =`) — the
       # class-level global that made two boots in one process share one
       # name. The facade's modules close over this dispatcher instead, so the

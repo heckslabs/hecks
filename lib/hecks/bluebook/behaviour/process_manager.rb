@@ -1,13 +1,13 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # What a process manager does. Its declared half is the trigger,
+      # **What a process manager does**. Its declared half is the trigger,
       # the states and the handlers; the compensation half — `saga` — is
       # derived from the handler that answers a refusal, not declared.
       module ProcessManager
         def hecks_name = @name
 
-        # The leg that answers — selected by (event, current state), C10.3
+        # **The leg that answers** — selected by (event, current state), C10.3
         # (docs/semantics/bluebook-semantics.md). Two legs may answer the
         # same event from different states; which one runs is decided by
         # the state the instance is in, never by declaration order. With
@@ -25,7 +25,7 @@ module Hecks
 
         def handles?(event) = @handlers.any? { |h| h.event_type == event.to_s }
 
-        # Whether a state is one this procedure declares — asked of a value
+        # **Whether a state is one this procedure declares** — asked of a value
         # a real run left a saga instance holding (its live or rehydrated
         # state), the way `Lifecycle#states` is asked of an aggregate's
         # resting field. A rehydrated instance in a state no handler could

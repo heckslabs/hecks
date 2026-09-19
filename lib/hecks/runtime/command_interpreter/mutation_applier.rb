@@ -19,7 +19,7 @@ module Hecks
           end
         end
 
-        # A case statement over a closed, declared set — every mutation op
+        # **A case statement over a closed, declared set** — every mutation op
         # the grammar can emit gets its own branch, including the `else`
         # backstop for the day a new op reaches this method undeclared (see
         # its own comment). Splitting each branch into its own method would
@@ -176,7 +176,7 @@ module Hecks
         # task 4): the removal counterpart to #appended -- matches by
         # value equality, element-wise, no read-modify-write (plan.
         # bluebook's own words: "so a concurrent Add can never be lost")
-        # -- Unless the target list is itself entity-typed (BUG#32,
+        # -- unless the target list is itself entity-typed (BUG#32,
         # QualityControl ledger), in which case `EntityElement.
         # list_element_match?` matches by the entity's own identity
         # field instead -- see that method's own comment for the full

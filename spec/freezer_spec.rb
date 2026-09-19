@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# WHAT THE DOMAIN FREEZES, ASSERTED AGAINST A REAL DISPATCH.
+# **What the domain freezes, asserted against a real dispatch**.
 #
 # Freezing has been fixed four times in four places — list attributes,
 # the event log, query rows, value objects — and each fix topped the
@@ -8,7 +8,7 @@ require "spec_helper"
 # added or removed and nothing else, so a caller reaches through and
 # edits in place. Every one of those fixes looked complete.
 #
-# So this asks the question of a REAL result rather than a constructed
+# So this asks the question of a real result rather than a constructed
 # one, and asks it about the whole reachable graph rather than the object
 # on top.
 RSpec.describe Hecks::Freezer do
@@ -58,10 +58,10 @@ RSpec.describe Hecks::Freezer do
                        pizza: { price_cents: { cents: 500 }, size: { value: "small" } })
     end
 
-    # THE BUG THIS EXISTS FOR. `@fields.freeze` left the String inside a
+    # **The bug this exists for**. `@fields.freeze` left the String inside a
     # value object mutable, so `vo[:value] << "!"` edited it in place —
     # demonstrated on a real dispatch, not supposed.
-    # Asserted on the value object's OWN fields, not on `to_h` — that
+    # Asserted on the value object's own fields, not on `to_h` — that
     # answers a fresh hash by design, so its mutability says nothing
     # about the value it came from.
     it "is frozen through, not merely on top" do
@@ -78,7 +78,7 @@ RSpec.describe Hecks::Freezer do
     end
 
     # A value object has no identity to change over, so the immutable
-    # answer is a NEW one — which must itself be frozen through.
+    # answer is a new one — which must itself be frozen through.
     it "answers a frozen value object from `with`" do
       grown = result.instance.state[:name].with(:value, "Napoli")
 
@@ -107,7 +107,7 @@ RSpec.describe Hecks::Freezer do
       expect { event.payload["forged"] = 1 }.to raise_error(FrozenError)
     end
 
-    # The event ITSELF, not merely its payload. This could not be
+    # The event itself, not merely its payload. This could not be
     # asserted while correlation was merged onto already-emitted events;
     # it is set at construction now, because correlation is part of the
     # transaction and known before anything is emitted.
@@ -128,7 +128,7 @@ RSpec.describe Hecks::Freezer do
     end
   end
 
-  # THE WALK, POINTED AT A REAL DISPATCH. These are the three the QA
+  # **The walk, pointed at a real dispatch**. These are the three the QA
   # branch fixed and never landed — found by pointing `unfrozen_within`
   # at a booted domain rather than by reasoning about which paths exist.
   describe "collections the domain hands back" do
@@ -156,7 +156,7 @@ RSpec.describe Hecks::Freezer do
       expect(described_class.unfrozen_within(rows)).to be_nil
     end
 
-    # Every value ON a hydrated record, rather than the record's own
+    # Every value on a hydrated record, rather than the record's own
     # state holder — that stays mutable so a command can change it.
     it "freezes every value read back out of the store" do
       state = repository.find("Frozen").state
@@ -165,7 +165,7 @@ RSpec.describe Hecks::Freezer do
     end
   end
 
-  # NOT EVERYTHING IS FROZEN, and the exceptions are the point rather
+  # Not everything is frozen, and the exceptions are the point rather
   # than an oversight — a policy that froze the instance's own state
   # would refuse every command that changes anything.
   describe "what is deliberately NOT frozen" do

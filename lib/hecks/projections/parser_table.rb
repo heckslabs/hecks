@@ -42,7 +42,7 @@ module Hecks
                            pair_key_fills pair_value_fills pairs_shape status variadic minimum].freeze
 
       # A Rust string literal for one field's value — every field here is
-      # plain ascii (a word, a context name, a digit, "true"/"false"), so this
+      # plain ASCII (a word, a context name, a digit, "true"/"false"), so this
       # only has to be safe against the two characters Rust string literals
       # themselves reserve.
       def rust_string(value) = "\"#{value.to_s.gsub('\\', '\\\\\\\\').gsub('"', '\\"')}\""

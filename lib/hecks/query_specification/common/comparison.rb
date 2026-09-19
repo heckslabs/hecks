@@ -4,7 +4,7 @@ require_relative "../../runtime/value"
 module Hecks
   module QuerySpecification
     module Common
-      # The one comparator table. There were two, near-identical copies of
+      # **The one comparator table**. There were two, near-identical copies of
       # this — `Ports::Query::InMemory` (the path a Memory- or Heki-backed
       # aggregate query actually runs) and `Runtime::QueryInterpreter`
       # (entity/sub-list queries, and any adapter implementing no `:query`)
@@ -145,7 +145,7 @@ module Hecks
           held.to_s.include?(want.to_s)
         end
 
-        # A cross-aggregate anti-join — `where ref: { none_in_state:
+        # **A cross-aggregate anti-join** — `where ref: { none_in_state:
         # "Claim:held" }` holds when no record in the named aggregate,
         # keyed by this record's own field value, is in the named state.
         # No registry — no way to look the target up — reads as "not

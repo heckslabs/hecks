@@ -1,22 +1,22 @@
 #!/usr/bin/env ruby
 
-# ONE TICK OF THE PRACTICE, MECHANICAL END TO END — the thing `/loop
+# **One tick of the practice, mechanical end to end** — the thing `/loop
 # hecks_qa` dispatches, and the only thing it dispatches on a clean tick.
 #
 # `.claude/skills/hecks_qa/SKILL.md` used to say, in three separate
-# places and in capitals, that `bin/qa_pr_check` runs FIRST, every tick,
+# places and in capitals, that `bin/qa_pr_check` runs first, every tick,
 # no exceptions, before `bin/qa_sweep --all` — a rule an agent was asked
 # to remember, which is exactly the kind of rule that gets skipped the
 # one time it matters. Nobody reads tick history to decide anything, and
-# "the order two scripts run in" is a fact only the PROCESS that runs
+# "the order two scripts run in" is a fact only the process that runs
 # both can enforce — so there is no `Tick` aggregate in the ledger (a
 # record cannot make a script run before another), just this script,
-# which cannot be run in the wrong order because it IS the order.
+# which cannot be run in the wrong order because it is the order.
 #
 #   bin/qa_tick
 #
-# WHAT ONE TICK IS, IN ORDER:
-#   1. REFUSE unless the working tree is clean (`git status
+# **What one tick is, in order**:
+#   1. Refuse unless the working tree is clean (`git status
 #      --porcelain` empty). A tick that rebased over uncommitted work
 #      would be the quiet divergence this practice hunts, in its own
 #      runner; the persistent worktree is expected to be left clean by
@@ -26,17 +26,17 @@
 #      prior tick's PR may have merged). A rebase that stops is aborted
 #      and reported, never left half-done.
 #   3. `bin/qa_pr_check` — the CI watch over every PR the ledger tracks
-#      as open, ALWAYS before a fresh sweep (that script's own header
+#      as open, always before a fresh sweep (that script's own header
 #      explains the gap it closes).
 #   4. `bin/qa_sweep --all` — the whole rotation, bounded and with stale
 #      holds reclaimed (that script's own header).
 #   5. `bin/qa_generated_domains --from-dials` — domains nobody wrote,
 #      checked the way the rotation is (that script's own header); off
 #      when `QualityControlDials::GENERATED_DOMAINS_PER_TICK` is 0.
-#      (`bin/qa_mine_combinations` — an AGENT writing candidate domains —
-#      is deliberately NOT a step: it is opt-in, run by a person.)
-#   6. One consolidated report, and ONE exit code with `bin/qa_sweep
-#      --all`'s own precedence applied across EVERY step:
+#      (`bin/qa_mine_combinations` — an agent writing candidate domains —
+#      is deliberately not a step: it is opt-in, run by a person.)
+#   6. One consolidated report, and one exit code with `bin/qa_sweep
+#      --all`'s own precedence applied across every step:
 #        2  either step found something (a newly-red PR, or a target
 #           that surprised) — an agent's judgment is needed, and the
 #           report above says exactly where;
@@ -44,7 +44,7 @@
 #           operational error (including this script's own refusals);
 #        0  both clean.
 #      The report also counts `reclaimed stale hold:` lines from the
-#      sweep — a target that has to be reclaimed EVERY tick is a sweep
+#      sweep — a target that has to be reclaimed every tick is a sweep
 #      whose release keeps failing to land, and that pattern is only
 #      visible across ticks if each tick says the number out loud.
 #
@@ -52,10 +52,10 @@
 # repository's own root (the runner's persistent worktree is a checkout
 # of it). `QA_SWEEP_DOMAIN_DIR` is inherited by steps 3–4 the way
 # `bin/qa_sweep --all`'s own children already inherit it — one setting,
-# the whole tree. Both exist so `spec/qa_tick_spec.rb` can drive a REAL
+# the whole tree. Both exist so `spec/qa_tick_spec.rb` can drive a real
 # run of this script against a throwaway repo and a disposable ledger.
 #
-# WHAT THIS DELIBERATELY DOES NOT DO: any judgment. It never logs a bug,
+# **What this deliberately does not do**: any judgment. It never logs a bug,
 # never releases a suspended target, never opens a PR — `bin/qa_log_bug`,
 # `bin/qa_sweep --release`, `bin/qa_open_pr` are those doors, and each
 # is a decision a person or an agent makes after reading this report.

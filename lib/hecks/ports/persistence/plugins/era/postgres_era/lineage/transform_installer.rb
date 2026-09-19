@@ -84,7 +84,7 @@ module Hecks
             SQL
           end
 
-          # Adversarial finding: a destination whose top segment already
+          # **Adversarial finding**: a destination whose top segment already
           # holds a value — most commonly a reference, a bare scalar id
           # — used to be silently overwritten with an empty object the
           # moment a dotted destination needed to nest under it. That is

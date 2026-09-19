@@ -60,7 +60,7 @@ module Hecks
       # module builds SQL straight off the IR either way.
       def rekeyed?(declared) = declared && !declared.rekeys.empty?
 
-      # The only two places `aggregate_id` needs to change — guarded so
+      # **The only two places `aggregate_id` needs to change** — guarded so
       # the generated SQL for the overwhelming common case (no rekey
       # declared) stays the bare `aggregate_id` passthrough it always
       # was — this case only appears in an edge that actually declares

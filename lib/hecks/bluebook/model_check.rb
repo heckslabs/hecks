@@ -12,7 +12,7 @@ module Hecks
     # transition target, a dispatch to nowhere, a compensation nothing
     # can ever reach).
     #
-    # The rare property this rests on: the model is the implementation.
+    # **The rare property this rests on**: the model is the implementation.
     # A checker over TLA+ verifies a spec a human keeps in sync with
     # code by hand ; this verifies the same IR the runtime dispatches
     # against, so there is no second copy to drift.
@@ -21,7 +21,7 @@ module Hecks
         def to_s = "#{severity.to_s.upcase.ljust(7)} #{kind.to_s.ljust(20)} #{subject}  —  #{message}"
       end
 
-      # A finding shipped, not silenced — the coverage-gate idiom, empty
+      # **A finding shipped, not silenced** — the coverage-gate idiom, empty
       # allowlists enforced both directions (spec/model_check_spec.rb holds
       # this exact table: an error the checker reports and this does not
       # name is a regression, an entry the checker no longer reports is
@@ -346,7 +346,7 @@ module Hecks
         end
       end
 
-      # One handler's own findings — deaf_handler, unknown_dispatch (one
+      # **One handler's own findings** — deaf_handler, unknown_dispatch (one
       # per dispatch), and unarmed_compensation (one per compensating
       # dispatch), pulled out of saga_findings' own handler loop; each
       # check reads only this handler plus the domain-wide emitted/verbs
@@ -366,7 +366,7 @@ module Hecks
         end
 
         handler.dispatches.each do |dispatch|
-          # Always this domain — same fix, same reason, as `SagaInterpreter
+          # **Always this domain** — same fix, same reason, as `SagaInterpreter
           # #qualified` (BUG#6). This used to guess: a dispatch whose own
           # `command_name` still carried a leftover `::` after `Naming.
           # command_ref`'s own rewrite was read as "already qualified" and
@@ -381,7 +381,7 @@ module Hecks
           # — instead of maintaining its own, independently-wrong copy of
           # the same guess.
           #
-          # Compared as a triple, not a string — `Naming.command_ref`'s
+          # **Compared as a triple, not a string** — `Naming.command_ref`'s
           # own rewrite of an entity reference (`Manifest::Slot::Fill`)
           # collapses to "Manifest::Slot.Fill" (`::` between aggregate and
           # entity, `.` before the command); `verbs_of`'s own entity
@@ -490,7 +490,7 @@ module Hecks
         # "#{domain}::#{trigger_command}" — the same join `verbs_of` builds
         # independently, so the two spellings have to be compared as FQNs.
         #
-        # Compared as a triple, not a string — `handler_findings`'s own
+        # **Compared as a triple, not a string** — `handler_findings`'s own
         # `unknown_dispatch` check (BUG#6) already applies this fix for a
         # saga's dispatch; a policy's `trigger` needed the identical one. A
         # policy triggering an `asks`/`tells` port operation (`Aggregate::
@@ -529,7 +529,7 @@ module Hecks
       # banking.hecksagon`'s own hand-written note explaining why
       # Compliance is reached via `across`, never `uses_framework`).
       #
-      # No new keyword anywhere — ADR 0025 principle 1 ("one idea, one
+      # **No new keyword anywhere** — ADR 0025 principle 1 ("one idea, one
       # spelling") refuses a `relationship:`/`as:` argument that would
       # just restate, as a string, the fact the chosen keyword (
       # `uses_framework` vs `across`) already states completely. The
@@ -557,7 +557,7 @@ module Hecks
                                            "relationship declarations contradict each other for the same " \
                                            "target domain")
         elsif hecksagon.subscriptions.none? { |subscribed| Naming.qualifier(subscribed) == target }
-          # This is what finally gives `subscribe` real teeth — checked
+          # **This is what finally gives `subscribe` real teeth** — checked
           # here, at model-check time, still never routed at runtime
           # (nothing dispatches off a `subscribe` line; see hecksagon.md's
           # own "checked, not routed" section). ADR 0025 names `subscribe`
@@ -570,7 +570,7 @@ module Hecks
                                            "attach it in-process instead")
         end
 
-        # Typo detection, deliberately weaker — `known_domains` can only
+        # **Typo detection, deliberately weaker** — `known_domains` can only
         # ever be a monorepo-scoped heuristic: a real external hecks
         # consumer's own domain (this repo's own embryonaut/lifeadelics-
         # shaped case) lives in a genuinely separate repository this
@@ -592,7 +592,7 @@ module Hecks
         findings
       end
 
-      # A declared undelivered target, held to its declaration. The two
+      # **A declared undelivered target, held to its declaration**. The two
       # findings an unreachable `across` target raises (unknown target,
       # unacknowledged relationship) are what the policy declared it
       # expects, so they are not raised. What is raised is the declaration
@@ -621,7 +621,7 @@ module Hecks
 
       # ── shared enumeration ────────────────────────────────────────────
 
-      # A port operation emits too — the primary/driving port an adapter
+      # **A port operation emits too** — the primary/driving port an adapter
       # outside the bluebook calls through (see hecksagon_builder.rb) is a
       # second, real source of events, alongside a command's own `emits`.
       # Ports attach to the aggregate/bluebook from the sibling `.hecksagon`
@@ -652,7 +652,7 @@ module Hecks
         (aggregate_emits + chapter_emits).flatten.compact.uniq
       end
 
-      # One operation, either of its own sources of events — an inbound
+      # **One operation, either of its own sources of events** — an inbound
       # `tells` names its own via `.emits`; an outbound `asks` has none
       # (`PortOperationBuilder#refuse_wrong_words!` refuses one that
       # tries) and names its two real endings `.answers`/`.refuses`
@@ -678,7 +678,7 @@ module Hecks
         end
       end
 
-      # An aggregate-owned port operation is a triggerable verb too —
+      # **An aggregate-owned port operation is a triggerable verb too** —
       # `ReactionInvocation#resolve_target`'s own port-operation branch
       # resolves one by the exact same two-segment tail shape ("Aggregate::
       # Port.Operation", the aggregate then the port then the operation,
@@ -697,7 +697,7 @@ module Hecks
         end
       end
 
-      # Every triggerable verb, as a triple — `verbs_of` (ordinary/entity
+      # **Every triggerable verb, as a triple** — `verbs_of` (ordinary/entity
       # commands) plus `port_verbs_of` (port operations), each parsed
       # through `Naming.split_verb` so a caller never has to compare two
       # spellings of the same verb as strings (see `policy_findings`'s own

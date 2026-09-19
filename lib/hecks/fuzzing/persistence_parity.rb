@@ -4,7 +4,7 @@ require_relative "nondeterministic"
 
 module Hecks
   module Fuzzing
-    # The second differential axis — bin/qa_sweep's own `diff_ruby_vs_rust`
+    # **The second differential axis** — bin/qa_sweep's own `diff_ruby_vs_rust`
     # compares two different engines (the Ruby interpreter vs the compiled
     # Rust kernel) against the same persistence (Memory, always — see
     # `SequenceGenerator`'s own header: sequence generation stays

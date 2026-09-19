@@ -1,16 +1,16 @@
 require "spec_helper"
 require "hecks/corpus"
 
-# EVERY DOMAIN THIS REPOSITORY OWNS IS IN THE ROTATION, OR NOTHING SWEEPS
-# IT. `bin/qa_seed_targets` carried a hand-typed list naming three of the
+# Every domain this repository owns is in the rotation, or nothing sweeps
+# it. `bin/qa_seed_targets` carried a hand-typed list naming three of the
 # thirteen stress domains; the other ten had never been swept once. They
 # were authored, argued for in their own NOTES.md, several promoted by
 # `bin/qa_generated_domains --promote` — and invisible to the practice,
 # because a `Target` row is what puts a domain in the rotation and
-# nothing tied that list to the corpus. `--promote` only ever PRINTED the
+# nothing tied that list to the corpus. `--promote` only ever printed the
 # `target.identify` line for a human to run.
 #
-# THE LIST IS DERIVED NOW, and this file is what keeps it that way: the
+# The list is derived now, and this file is what keeps it that way: the
 # corpus is the oracle, and the seeder is checked for still reading it.
 RSpec.describe "the QA rotation's own targets" do
   let(:root) { InMemoryDomain::ROOT }
@@ -34,7 +34,7 @@ RSpec.describe "the QA rotation's own targets" do
     expect(missing).to be_empty, "these rotation targets hold no bluebook: #{missing.keys.join(', ')}"
   end
 
-  # THE SEEDER READS THE CORPUS, NOT A LIST — the drift this whole file
+  # **The seeder reads the corpus, not a list** — the drift this whole file
   # exists to stop is someone re-typing the membership somewhere. If that
   # happens again it fails here, rather than ten domains later going
   # quietly unswept.

@@ -61,7 +61,7 @@ module Hecks
       # PostgresEra carries an era_check! for the boot gate to delegate to.
       def self.lineage_capable? = true
 
-      # Tenant-capable — see Runtime::TenantCheck's own header for the
+      # **Tenant-capable** — see Runtime::TenantCheck's own header for the
       # full reasoning. `connect_for`'s own `schema:` setting (the
       # Storehouse shared-instance mechanism, already built, already
       # proven for eras) is what keeps two tenant boots' tables apart:
@@ -79,7 +79,7 @@ module Hecks
         )
       end
 
-      # Both spellings of a setting are honored — a world's settings hash
+      # **Both spellings of a setting are honored** — a world's settings hash
       # may arrive symbol-keyed (built straight in Ruby) or string-keyed
       # (round-tripped through JSON), and a domain that names one is not
       # obligated to also skip the other. `key?` decides which spelling
@@ -98,7 +98,7 @@ module Hecks
       end
 
       def self.connect_for(name, settings)
-        # Lazy, on purpose — same reasoning as Sqlite's own initialize:
+        # **Lazy, on purpose** — same reasoning as Sqlite's own initialize:
         # a domain that never wires PostgresEra should never need the gem.
         require "pg"
 
@@ -116,17 +116,17 @@ module Hecks
             PG.connect(dbname: declared)
           end
 
-        # Shared-instance isolation. A domain that declares `schema` is
+        # **Shared-instance isolation**. A domain that declares `schema` is
         # sharing its Postgres instance with other domains (the
         # storehouse) — every unqualified table/view/function reference
         # this adapter and its lineage classes ever construct resolves
-        # through search_path, so this one set is what makes alter
-        # table ... Set schema migrations transparent to the rest of the
+        # through search_path, so this one SET is what makes ALTER
+        # TABLE ... SET SCHEMA migrations transparent to the rest of the
         # adapter. A domain with no `schema` setting keeps Postgres's
         # own default search_path (public), same as before this existed.
         schema = setting(settings, :schema)
         if schema.to_s != ""
-          # The schema itself, idempotently — a domain naming a `schema:`
+          # **The schema itself, idempotently** — a domain naming a `schema:`
           # nobody has created yet used to fail on its first table-
           # creation attempt with Postgres's own "no schema has been
           # selected to create in", found live provisioning tenant_
@@ -141,7 +141,7 @@ module Hecks
           connection.exec("SET search_path TO #{connection.quote_ident(schema)}")
         end
 
-        # Quiet on purpose. Provisioning re-runs its own idempotent
+        # **Quiet on purpose**. Provisioning re-runs its own idempotent
         # `CREATE ... IF NOT EXISTS` checks on every boot — a schema that
         # already exists is the ordinary case, not news, and Postgres
         # surfaces every one as a notice by default. `bin/set-password`
@@ -209,7 +209,7 @@ module Hecks
         # promise.
         @era = settings.key?(:era) ? settings[:era] : settings["era"]
         @era ||= @lineage.current_era
-        # The in-process half of the era fence. `EraResolver.check!` sets
+        # **The in-process half of the era fence**. `EraResolver.check!` sets
         # `registry.superseded_eras[domain]` for a held-but-superseded
         # boot only, and `RepositoryFactory.build` merges it in here as
         # `superseded_by:` — so this is nil for every current-era boot and
@@ -237,7 +237,7 @@ module Hecks
         # (principle 3 — no bluebook keyword), self-healing and
         # idempotent like everything else booted here. `@field_caches`
         # maps field -> cache-table name; `query` below consults it to
-        # decide whether a declared query can skip the distinct on
+        # decide whether a declared query can skip the DISTINCT ON
         # reduction entirely.
         @field_caches = ensure_field_caches!
         create_event_table!
@@ -298,7 +298,7 @@ module Hecks
       # this can only ever narrow what phase two has to look at, never
       # change what a clause means.
       #
-      # Falls back to `super` whenever no clause can be accelerated — a
+      # **Falls back to `super` whenever no clause can be accelerated** — a
       # query with no `where` at all (order_by-only — no cache table
       # exists for these, see field_cache.rb), a query whose only clauses
       # target fields with no cache table, or a domain that has never
@@ -555,7 +555,7 @@ module Hecks
             "state = EXCLUDED.state WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
             [entry.id, ordinal, state_json]
           )
-          # Same transaction, same ordinal — every field cache stays
+          # **Same transaction, same ordinal** — every field cache stays
           # exactly as current as the snapshot it's derived from, for
           # the identical reason `postgres_era.rb`'s own header comment
           # gives for the journal/snapshot pair: if this transaction
@@ -579,7 +579,7 @@ module Hecks
           # id, exactly like a real re-save already did ("re-saves are
           # masked correctly" — the audit's own phrasing for why that
           # half of this was never broken) — it just carries `operation
-          # = 'delete'` instead of `'save'`, so `head_view`'s own `where
+          # = 'delete'` instead of `'save'`, so `head_view`'s own `WHERE
           # operation = 'save'` still correctly hides it. Ordinal-guarded
           # the same as every other upsert here, so an out-of-order
           # replay can never let a stale delete clobber a newer save.
@@ -656,9 +656,9 @@ module Hecks
         numeric_field?(field) ? "(#{expression})::numeric" : expression
       end
 
-      # Postgres defaults to nulls last on ASC; the port's in-memory
+      # Postgres defaults to NULLS LAST on ASC; the port's in-memory
       # semantics (NullPolicy.order, which SQLite's own default happens
-      # to match) put null rows first ascending and last
+      # to match) put null rows FIRST ascending and LAST
       # descending. Compile the placement explicitly so a declared query
       # answers identically no matter which adapter serves it.
       def order_clause(order_by, policy)
@@ -754,7 +754,7 @@ module Hecks
                                                                value).nil?
       end
 
-      # Phase one — candidate ids, no reduction touched. One SELECT per
+      # **Phase one** — candidate ids, no reduction touched. One SELECT per
       # cached clause against its own narrow (id, ordinal, value) table,
       # `INTERSECT`ed into the set that satisfies every cached clause at
       # once. Reuses `where_clause` (SqlQueryBuilder, private, already
@@ -774,7 +774,7 @@ module Hecks
         @db.exec_params(clauses.join("\nINTERSECT\n"), binds).map { |row| row["id"] }
       end
 
-      # Phase two — `head_view`, restricted to phase one's candidate ids
+      # **Phase two** — `head_view`, restricted to phase one's candidate ids
       # plus whatever clauses phase one couldn't accelerate, applied
       # exactly the way `SqlQueryBuilder#query` (`super`) already applies
       # every clause today: against the fully-reduced view, which is

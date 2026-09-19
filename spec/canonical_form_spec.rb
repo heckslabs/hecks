@@ -34,7 +34,7 @@ RSpec.describe Hecks::Bluebook::Expression::CanonicalForm do
     end
 
     # M7 (docs/audits/2026-08-10-main-bug-audit.md) — normalisation used to
-    # be quote-blind, rewriting a string literal's own CONTENTS the same
+    # be quote-blind, rewriting a string literal's own contents the same
     # as the surrounding source. A literal is data a predicate compares
     # against, not syntax to normalise — collapsing its whitespace or
     # folding `.length`→`.size` inside the quotes silently changes what

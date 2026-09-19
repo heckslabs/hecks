@@ -22,7 +22,7 @@ module Hecks
       module Readings
         # A list the walk is about to offer, as rows it can shape into dispatches.
         #
-        # From the table. This was nine hand-written cases keyed "Category.list", and
+        # **From the table**. This was nine hand-written cases keyed "Category.list", and
         # every one of them was a fact `Assembly::Contracts` is the right place to
         # keep: which shaper turns this list into rows. A list with no shaper reads
         # straight off the node, which is most of them.
@@ -53,7 +53,7 @@ module Hecks
         # argument became indistinguishable from one carrying a literal string.
         def with_spec_rows(node) = pair_rows(node.to_h[:with_spec])
 
-        # The same read, one level in — `compensates` folds `DispatchSpec`
+        # **The same read, one level in** — `compensates` folds `DispatchSpec`
         # into the language's own `compensates_command_name`/
         # `compensates_with_spec` (`Assembly::Contracts`' own comment on
         # "Dispatch"), so its own with_spec pairs live nested one hash
@@ -308,7 +308,7 @@ module Hecks
         def points_at(row, aggregate_id)
           return nil unless row.reference?
 
-          # The chapter this head is in, and the head it points at — which is exactly
+          # **The chapter this head is in, and the head it points at** — which is exactly
           # how an aggregate is identified, so it is built the same way rather than
           # spelled again with a separator of its own. This is dispatched as a real
           # reference value (`Aggregate.Reference`'s `points_at:`), resolved by

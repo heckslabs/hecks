@@ -1,188 +1,166 @@
 # Comment style guide
 
-This is the standard for comments and doc comments across `lib/`, `spec/`, and
-`examples/`. `bin/standardize_comments` checks a source tree against it
-mechanically for the categories that can be checked mechanically; the rest is
-a checklist for the person (or agent) reading the diff.
+The standard for comments in this repository's Ruby: `lib/`, `bin/`, `spec/`
+and `examples/`. `bin/standardize_comments` checks the parts of it a machine
+can check. The rest is a checklist for whoever reads the diff.
 
-Nothing enforces this in CI. It exists so a large, incremental cleanup (see
-`docs/decisions/` for how this codebase records that kind of decision) has one
-target to converge on, one file at a time, instead of every file re-deriving
-its own voice.
+Nothing enforces this in CI. `bin/standardize_comments` is run by hand.
 
-## 1. Public methods get RDoc
+## 1. Public methods carry YARD tags
 
-Every public method gets a doc comment directly above its `def`, with tags in
-this order:
+Doc comments use [YARD](https://yardoc.org) tags with Markdown markup (see
+`.yardopts`). Every public method gets a comment directly above its `def`:
 
 ```ruby
-# Finds the adapter bound to a port, refusing when the wiring is ambiguous.
+# Finds the single adapter bound to a port, refusing an ambiguous wiring.
 #
 # @param registry [Runtime::Registry] the booted registry to search
-# @param port [String] the port name, e.g. `"authorization"`
-# @return [Class] the adapter class implementing `port`
-# @raise [Runtime::WiringError] if zero or more than one adapter implements it
+# @param port [String] the port name, such as `"authorization"`
+# @return [Module] the adapter implementing `port`
+# @raise [Runtime::WiringError] if no adapter, or more than one, implements it
 def adapter_for(registry, port:)
-  ...
-end
 ```
 
-- `@param name [Type] description` — one line per parameter, in declaration
-  order, keyword or positional. A block parameter gets `@yield` (and
-  `@yieldparam`/`@yieldreturn` when the block's own arguments or return value
-  matter to the caller).
-- `@return [Type] description` — omit only for `initialize` and `attr`-style
-  writers (`foo=`), where the return value is never the point.
-- `@raise [ErrorClass] condition` — one line per exception the method itself
-  raises (not one it merely propagates from something it calls), only when
-  that's part of the contract a caller needs to know, not incidental to the
-  implementation.
-- A leading prose line (like the `Finds the adapter...` line above) is
-  required and stands on its own — it says what the method *does*, not what
-  its tags already say structurally.
+- **Lead sentence.** Required, except on `initialize`. It starts with a verb,
+  says what the method does for its caller, and adds something the name does
+  not. A blank `#` line separates it from the tags. Existing prose that
+  explains *why* stays, above the tags.
+- **`@param name [Type] description`**, one per parameter, in declaration
+  order. A block takes `@yield`, plus `@yieldparam` and `@yieldreturn` when
+  the block's arguments or result matter to the caller.
+- **`@return [Type] description`**. Omitted only on `initialize` and on
+  writers (`name=`). A method called for its effect is `@return [void]`.
+- **`@raise [ErrorClass] condition`** for every exception a caller could
+  reasonably rescue, wherever it originates, including one raised by a
+  delegate. Any literal `raise` in the body must be covered. Skip accidents
+  such as `NoMethodError`.
+- Every tag has a description. State units and formats ("Unix epoch
+  seconds"), Hash keys, and what `nil` or `[]` means.
+- A line that would pass 100 characters continues on the next line, indented
+  two spaces past the tag.
 
-A trivial, self-evident method (`to_s`, `==`, a plain `attr_reader`) doesn't
-need this ceremony. If you'd have to strain to write a `@return` that says
-more than the method signature already does, that's the signal it's trivial.
+### Types
 
-### Private methods
+Types come from the code, never from the parameter's name or nearby prose.
+Read the body, what it calls, and at least two callers.
 
-Document a private method only when its logic isn't obvious from its name and
-body — a non-obvious algorithm, a subtle precondition, an ordering
-requirement. Skip RDoc tags for private methods; a one- or two-line prose
-comment explaining the *why* is enough. Most private methods need nothing at
-all.
+- Name the most concrete type the code supports: `Bluebook::Bind`,
+  `Array<Persistence::AppendOnly::Entry>`, `Hash{Symbol => String}`.
+- Namespaces are written relative to `Hecks`.
+- If a caller passes `nil`, the body guards against it, or the default is
+  `nil`, the type includes `nil`. If any path returns `nil`, so does `@return`.
+- `[Object]` is for a value the code truly accepts in any shape. When the
+  shape belongs to an adapter this repository does not ship, write `[Object]`
+  and say "adapter-defined".
+- Identifiers go in backticks. Do not use YARD `{Link}` syntax.
+
+### Exemptions
+
+- Methods whose contract is fixed by Ruby itself need nothing: `to_s`,
+  `inspect`, `==`, `eql?`, `hash`, `<=>`, `to_h`, `to_a`, `to_proc`,
+  `method_missing`, `respond_to_missing?`.
+- `(see #other_method)`, `@api private` and `:nodoc:` stand in for tags.
+- Private methods take no tags. Give one a short comment only when its logic
+  is not obvious from its name and body.
+- Helper methods defined inside a `*_spec.rb` file are test scaffolding, not
+  API, and take no tags. Shared helpers under `spec/support` and
+  `spec/fixtures` are documented like any other code.
 
 ## 2. Classes and modules: what it is, not what it contains
 
-A class or module doc comment answers "what is this," "why does it exist as
-its own thing," and (when non-obvious) "what is it not" — never an inventory
-of the methods below it, which the reader can already see.
+A class or module comment says what the thing is, why it exists as its own
+thing, and, where it helps, what it is not. It never inventories the methods
+below it.
 
-Use `##` markdown headers to break up anything longer than a few lines:
-
-```ruby
-# The single point every dispatch, query, and boot goes through.
-#
-# ## Why this exists
-#
-# A caller never talks to a `Registry` or `Dispatcher` directly — every
-# door onto a domain (CLI, HTTP, a test) goes through this module so there
-# is exactly one place that knows how a `summary:`/`source:` pair becomes
-# an audited call.
-#
-# ## What it is not
-#
-# Not a place to add new vocabulary. If a caller needs a new way to talk
-# to a domain, that belongs in the domain's own bluebook.
-module Facade
-```
-
-A class doc longer than ~25 lines *must* use `##` headers — see
-`bin/standardize_comments`'s `unstructured_class_doc` check. If you can't
-find a natural section break, the doc is probably trying to say too much;
-consider whether some of it belongs at the ADR it should be citing instead
-(see §4).
-
-A module reopened across multiple files only needs this once, at whichever
-opening reads most like the "primary" one.
-
-## 3. Code comments: explain why, not what
-
-A comment on a line of code earns its place by saying something the code
-can't say on its own:
-
-- **Why** this approach and not the obvious alternative.
-- **What edge case** this line exists for, stated at the line handling it —
-  not three paragraphs above, disconnected from the code that acts on it.
-- **What invariant** the surrounding code is relying on that isn't visible
-  from the immediate context.
+A comment longer than about 25 lines is broken up with `##` Markdown headers:
 
 ```ruby
-# nil first: Postgres and Memory disagree on NULL ordering by default,
-# so this pins it explicitly rather than depending on either engine's
-# comparator default.
-rows.sort_by { |r| [r[field].nil? ? 0 : 1, r[field]] }
+# What time it is, the one fact a domain cannot derive and must not invent.
+#
+# ## Why a port and not `Time.now`
+#
+# A staleness rule is untestable against the real clock...
+module Clock
 ```
 
-Don't restate the code:
+A module reopened across several files is documented once, at its primary
+opening.
+
+## 3. Code comments explain why
+
+A comment earns its place by saying what the code cannot: why this approach
+and not the obvious one, which edge case a line exists for (stated at that
+line), or which invariant the surrounding code relies on.
 
 ```ruby
-# increment the counter
-counter += 1
+# nil first: Postgres and Memory disagree on NULL ordering by default, so
+# this pins it rather than depending on either engine's comparator.
+rows.sort_by { |row| [row[field].nil? ? 0 : 1, row[field]] }
 ```
 
-If a comment would just narrate the next line in English, delete it and let
-the code speak. If the code is confusing enough to need narration, the fix is
-usually a better name or an extracted method, not a comment.
+A comment that narrates the next line in English is deleted. If the code
+needs narrating, it needs a better name or an extracted method.
 
-## 4. No design history — cite an ADR instead
+## 4. No design history
 
-Comments narrate the *current* system, not how it got here. Banned phrasings
-(the linter's `design_history` check flags these): "used to", "was
+Comments describe the system as it is. The linter flags "used to", "was
 originally", "previously", "formerly", "historically", "renamed from",
-"before this change", "in PR #NNN", "an earlier version".
+"before this change", "an earlier version", "has since", and pull request
+numbers.
 
-That history is real and worth keeping — it belongs in
-`docs/decisions/NNNN-slug.md` (see any file already in `docs/decisions/` for
-the shape), not scattered through comments where it rots the moment someone
-reads it without the context of when it was written. A comment that needs to
-explain "why not the other way" cites the ADR:
+Rewrite the comment in the present tense and keep the reason, which is the
+valuable part:
 
 ```ruby
-# Bad:
-# This module used to be named McpDoor before the survey renamed it.
-
-# Good:
-# See ADR 0025 for why this is a bus, not a per-protocol door.
+# Before: This used to raise, which hid a half-written snapshot. It now
+#         returns nil.
+# After:  Returns nil rather than raising, because raising hides a
+#         half-written snapshot.
 ```
 
-If there's no ADR yet for a decision worth recording, write one instead of
-leaving the history in the comment.
+The history itself belongs in `docs/decisions/NNNN-slug.md`. A comment may
+cite an ADR, an audit document, a spec, or a bug ID that already exists.
+Never invent one.
 
-## 5. Markdown emphasis, never ALL CAPS
+## 5. Markdown emphasis, never all caps
 
-Use `**bold**` for emphasis, `` `backticks` `` for code/identifiers, and `##`
-headers for structure. Don't use ALL CAPS as an emphasis device.
+All-caps words are not emphasis. Use backticks for identifiers, `##` headers
+for structure, and `**bold**` sparingly.
+
+The one routine use of bold is a paragraph's heading phrase, the short
+lead-in before a dash or full stop:
 
 ```ruby
-# Bad:
-# THE BUS, NOT A DOOR — every call goes through here.
-
-# Good:
 # **The bus, not a door** — every call goes through here.
 ```
 
-Capitals stay capitals when they're actually capitalized in real life:
-acronyms and initialisms (`SQL`, `JSON`, `ADR`, `HTTP`), SQL keywords used as
-SQL (`SELECT ... FROM`, `ON CONFLICT DO NOTHING`), real proper nouns (`Ruby`,
-`Rust`, `GitHub`, `Postgres`), and this codebase's own real constant names
-(`Runtime::WiringError`, `BOOT_ROOT`). None of those are "emphasis" — they're
-just spelled that way.
+Emphasis on a single word in running prose is normally just dropped. Keep it,
+as bold, only where the sentence misreads without it.
 
-## 6. Comment lines under 100 characters
+Capitals stay where they are the correct spelling: initialisms (`SQL`, `REST`,
+`ADR`), SQL written as SQL (`SELECT ... FROM`, `BEGIN`/`COMMIT`), proper nouns
+(`Ruby`, `Postgres`, `GitHub`), and constant names. A constant named in prose
+goes in backticks (`` `NAME` ``); the linter reports a bare one as
+`bare_constant` because it cannot tell a reference from a shout.
 
-Matches the line-length convention the rest of this codebase already uses.
-Wrap prose at a word boundary; don't wrap in the middle of a
-`` `backtick-quoted identifier` `` or a URL.
+## 6. Comment lines stay under 100 characters
 
-## 7. Doc coverage vs. doctest coverage
-
-This guide is about comment *style*. Whether a documented behavior is backed
-by a runnable example is a separate, already-solved concern — see
-`bin/doc_coverage` and `docs/implemented/` for the doctest-presence gate, and
-its own header comment for exactly what it does and doesn't guarantee. Don't
-duplicate that mechanism here.
+Wrap at a word boundary. Do not break inside a backtick span or a URL.
 
 ## Checking a tree
 
 ```
-bin/standardize_comments --report lib/hecks       # summary tables
-bin/standardize_comments --check  lib/hecks       # one line per violation
-bin/standardize_comments --fix    lib/hecks       # rewrites all_caps + long_line only
+bin/standardize_comments --report lib/hecks             # summary tables
+bin/standardize_comments --check  lib/hecks             # one line per violation
+bin/standardize_comments --fix    lib/hecks             # all_caps and long_line only
+bin/standardize_comments --code-unchanged main lib      # prove an edit was comment-only
 ```
 
-Everything else — missing RDoc, missing `@return`, design-history phrasing,
-an undocumented class — needs a person to read the code and write the real
-comment. The `--fix` mode is a mechanical first pass, not a substitute for
-that reading.
+`--fix` rewrites only the two mechanical categories. Do not run it over doc
+comments written by hand without reading the result. Everything else needs
+someone to read the code. `--code-unchanged REF` compares each file's
+non-comment tokens with `REF` and fails if any differ, which is how a
+comment-only change is shown to be one.
+
+Whether documented behaviour is backed by a running example is a separate
+concern with its own gate: see `bin/doc_coverage`.

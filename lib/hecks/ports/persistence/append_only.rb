@@ -130,7 +130,7 @@ module Hecks
           @adapter.record_event(event) if @adapter.respond_to?(:record_event)
         end
 
-        # One commit boundary for save + emit + outbox — `Interpreting#
+        # One COMMIT boundary for save + emit + outbox — `Interpreting#
         # run_dispatch_order` runs the `save` and `emit` steps inside
         # this block, so an adapter that owns a real transaction
         # (Sqlite, Postgres) commits the aggregate row, its journal
@@ -158,7 +158,7 @@ module Hecks
           yield
         end
 
-        # The outbox contract — four optional adapter methods, probed
+        # **The outbox contract** — four optional adapter methods, probed
         # together the way `save_saga`/`delete_saga`/`each_saga` are
         # (`Registry::SagaPersistence`): an adapter either has an outbox
         # or it doesn't, never half of one. See `Runtime::Outbox`.

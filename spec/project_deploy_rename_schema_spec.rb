@@ -7,14 +7,14 @@ require "open3"
 # lookup and an `ALTER SCHEMA "..." RENAME TO "..."`) with nothing checking
 # their shape first -- operator-only (this is a `make rename-schema
 # OLD=<old> NEW=<new>` command line, not user-facing web input), but
-# against production RDS, so a typo'd or copy-pasted value containing SQL
-# metacharacters could execute unintended SQL. Fixed by allowlisting OLD
-# and NEW as bare identifiers (schema names can't be bound as a SQL
+# against production rds, so a typo'd or copy-pasted value containing SQL
+# metacharacters could execute unintended SQL. Fixed by allowlisting old
+# and new as bare identifiers (schema names can't be bound as a SQL
 # parameter the way a value can, so escaping isn't the available option --
 # refusing anything that isn't `^[A-Za-z_][A-Za-z0-9_]*$` is).
 #
-# Like spec/project_deploy_contract_spec.rb, this tests the THING THAT
-# ACTUALLY MATTERS in the real generated output, not a re-derivation of
+# Like spec/project_deploy_contract_spec.rb, this tests the thing that
+# actually matters in the real generated output, not a re-derivation of
 # the same Ruby text that produced it: bin/project_deploy is a script, not
 # a library (nothing to require), so the fixture below is generated once
 # and its Makefile's rename-schema recipe is inspected directly, the same
@@ -98,11 +98,11 @@ RSpec.describe "bin/project_deploy's rename-schema OLD/NEW allowlist, in its own
   end
 
   it "reads OLD/NEW as real shell environment variables for the guard, not Make-spliced text" do
-    # $(OLD)/$(NEW) is Make substituting raw text into the recipe line
+    # $(Old)/$(new) is Make substituting raw text into the recipe line
     # *before* the shell ever parses it -- a value containing `"` or `;`
     # would break out of the guard's own shell command and run before the
     # pattern match sees it (confirmed live: this is exactly how it was
-    # bypassable while the guard used $(OLD)/$(NEW) instead of $$OLD/$$NEW).
+    # bypassable while the guard used $(old)/$(new) instead of $$OLD/$$NEW).
     # $$OLD/$$NEW is Make's escaping for a literal `$OLD`/`$NEW`, which the
     # shell resolves as one opaque environment variable regardless of its
     # contents -- `make` auto-exports command-line-assigned variables.

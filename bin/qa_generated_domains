@@ -1,15 +1,18 @@
 #!/usr/bin/env ruby
 
-# DOMAINS NOBODY WROTE, CHECKED THE WAY THE ROTATION IS.
+# **Domains nobody wrote, checked the way the rotation is**.
 #
-#   bin/qa_generated_domains [--domains N] [--start SEED] [--forms a,b] [--seeds K] [--steps M]
-#                            [--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget D]
-#   bin/qa_generated_domains --blueprint <blueprint.json> [--rust] …   (re-check one saved blueprint)
-#   bin/qa_generated_domains --source <file.bluebook> [--source …] [--rust] …   (check bluebooks written elsewhere)
+#   bin/qa_generated_domains [--domains N] [--start seed] [--forms a,b] [--seeds K] [--steps M]
+#                            [--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget
+#                            D]
+#   bin/qa_generated_domains --blueprint <blueprint.json> [--rust] …   (re-check one saved
+#   blueprint)
+#   bin/qa_generated_domains --source <file.bluebook> [--source …] [--rust] …   (check bluebooks
+#   written elsewhere)
 #   bin/qa_generated_domains --promote <finding-dir> --name <stress_domain_name>
 #
 # Every stress domain in `qa/stress_domains/` was written by hand, and the
-# ledger's most productive sweeps were each one's FIRST: `corrections`
+# ledger's most productive sweeps were each one's first: `corrections`
 # found four bugs, `referral_chain` four, `tenant_ledger` two. The bugs
 # lived where two declared forms met on one aggregate for the first time.
 # This writes those meetings mechanically (`Hecks::Fuzzing::
@@ -18,45 +21,45 @@
 # the same comparisons `bin/qa_sweep` runs, over sequences generated
 # against each one.
 #
-# ONE DOMAIN, ONE CHILD PROCESS. Every generated domain is named
+# **One domain, one child process**. Every generated domain is named
 # `QaGenerated`, so two shapes never share a Ruby process: this script
 # re-invokes itself with `--check <dir>` per domain (and per shrink
 # candidate) and reads back one `QA_GENERATED_RESULT <json>` line.
 #
-# A FINDING IS SHRUNK TWICE. First the DOMAIN — `DomainGenerator.
+# **A finding is shrunk twice**. First the domain — `DomainGenerator.
 # shrink_candidates` removes one element at a time (a query, a command,
 # an entity, an aggregate, a given…), keeping a removal only while a
 # child still reports the same mode and a signature containing the
 # original's (`--domain-shrink-budget` candidates at most). Then the
-# STEPS, inside the final child (`Hecks::Fuzzing::Shrinker`). The report
+# steps, inside the final child (`Hecks::Fuzzing::Shrinker`). The report
 # names both, the minimal domain on disk, and a replay line.
 #
-# `--rust` ALSO COMPARES AGAINST A COMPILED BINARY. The domain is
-# projected (`bin/project_rust` with `HECKS_RUST_DIR`) into a SCRATCH
+# `--rust` also compares against a compiled binary. The domain is
+# projected (`bin/project_rust` with `HECKS_RUST_DIR`) into a scratch
 # copy of the crate under tmp/qa-generated/rust — never the checked-in
 # `rust/` tree — and built with `--features qa_generated`; the one fixed
 # feature name is what keeps rebuilds incremental. A domain whose
 # projection or build fails is itself reported: a valid bluebook the Rust
 # projection cannot compile is exactly BUG#25's class.
 #
-# WHAT HAPPENS TO A FINDING. This script never touches the QA ledger.
+# **What happens to a finding**. This script never touches the QA ledger.
 # `--promote` copies a finding's minimal domain into `qa/stress_domains/
 # <name>/` (renamed, with a NOTES.md recording where it came from) and
 # prints the ordinary next steps — novelty gate, Rust projection, `target.
 # identify` — after which the rotation sweeps it and the usual
 # `bin/qa_log_bug` flow applies.
 #
-# `--source FILE` — A BLUEBOOK NOBODY GENERATED EITHER. Each file (one
+# `--source FILE` — a bluebook nobody generated either. Each file (one
 # chapter; `bin/qa_mine_combinations`' agent writes them) is adopted
 # under the `QaGenerated` name and checked, built and step-shrunk exactly
 # like a generated domain. It has no blueprint to remove elements from,
 # so domain-level shrinking is skipped; a `HYPOTHESIS.md` beside the file
 # rides along into the blueprint and, on `--promote`, into NOTES.md.
 #
-# A DOMAIN THAT DOES NOT BOOT is `invalid`: a generator defect, counted
+# A domain that does not boot is `invalid`: a generator defect, counted
 # and printed, never a finding.
 #
-# EXIT CODES: 0 every valid domain clean; 2 at least one finding; 1 an
+# **Exit codes**: 0 every valid domain clean; 2 at least one finding; 1 an
 # operational error (usage, a failed scratch-crate sync, or no domain
 # valid at all).
 
@@ -181,7 +184,7 @@ if options[:promote]
   puts "next:"
   puts "  bin/qa_domain_novelty qa/stress_domains/#{name}"
   puts "  bin/project_rust qa/stress_domains/#{name}        # when the finding needs the Rust comparison"
-  # ONE COMMAND, AND IT READS THE CORPUS. This used to print a hand-typed
+  # **One command, and it reads the corpus**. This used to print a hand-typed
   # `target.identify` for the promoted name, which is exactly how ten
   # promoted or authored stress domains ended up never swept: the line
   # was printed, nobody ran it, and nothing anywhere noticed the domain
@@ -373,7 +376,7 @@ puts "generated domains: #{options[:domains]} starting at seed #{start}; #{optio
 
 counts = Hash.new(0)
 findings = []
-# `--blueprint FILE` — ONE SAVED BLUEPRINT INSTEAD OF GENERATED ONES: a
+# `--blueprint FILE` — one saved blueprint instead of generated ones: a
 # finding's own `blueprint.json`, re-checked (after a fix, say) exactly
 # as it was written, through the same check/shrink/report path.
 blueprints =

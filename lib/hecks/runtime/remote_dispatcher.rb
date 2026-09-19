@@ -9,7 +9,7 @@ require_relative "../ports/persistence/remote_runtime"
 
 module Hecks
   module Runtime
-    # The write-side half of lambda routing — `Runtime::Loader.boot`
+    # **The write-side half of lambda routing** — `Runtime::Loader.boot`
     # constructs this instead of `Dispatcher` when the booted domain's
     # own `.world` declares Lambda routing (see loader.rb's own
     # `dispatcher_class_for`). Matches `Dispatcher`'s public shape
@@ -19,7 +19,7 @@ module Hecks
     # `@dispatcher.dispatch("#{fqn}.#{command}", **identity, **args).instance.state`,
     # and both classes answer that identically.
     #
-    # Reads delegate, writes don't. `query`/`reference_query` hand off
+    # **Reads delegate, writes don't**. `query`/`reference_query` hand off
     # to a real `Dispatcher` built over the same registry — since that
     # registry's own repositories are already Lambda-backed
     # (`Adapters::Lambda`, `persisted_by("Lambda")`, Phase 2's other

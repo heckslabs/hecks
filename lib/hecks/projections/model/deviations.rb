@@ -51,7 +51,7 @@ module Hecks
           "Policy"      => { where_ast:      "the structured form of `where`, derived from the same text at emission" }
         }.freeze
 
-        # Declared, and deliberately not emitted. The category that had no
+        # **Declared, and deliberately not emitted**. The category that had no
         # home anywhere before — each of these was a comment and nothing
         # more.
         OFF_THE_WIRE = {

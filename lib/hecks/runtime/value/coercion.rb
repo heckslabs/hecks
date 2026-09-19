@@ -12,7 +12,7 @@ module Hecks
       # typed Value. Extended into Value, so every method here reads as
       # `Value.for`, `Value.build`, … — `self` is the Value class.
       module Coercion
-        # The four SHAPES an attribute's value can take — named here because
+        # **The four SHAPES an attribute's value can take** — named here because
         # `for_attribute` immediately below is the one place that actually
         # branches on all four, and nowhere else in the language collects
         # them into a single closed list. `Attribute#list?`/`#optional?`
@@ -78,7 +78,7 @@ module Hecks
           return hydrate_entity_list(aggregate, attribute, value) if attribute.list? # :list
           return value unless aggregate.respond_to?(:value_object)
 
-          # The set the attribute names is checked where the attribute is known.
+          # **The set the attribute names is checked where the attribute is known**.
           # `build` below sees only the value object, never which attribute asked
           # for it, so a command argument's `admits:` has to be read here — this
           # is the door every argument and every head field comes through.
@@ -378,7 +378,7 @@ module Hecks
           end
         end
 
-        # The full door a value object's own fields pass through — shared by
+        # **The full door a value object's own fields pass through** — shared by
         # `build` (the outer value object) and `normalize_composite_fields`
         # (every nested one), so a nested `Price`/`Size` is refused exactly
         # the same way, with exactly the same wording, as the identical type
@@ -520,7 +520,7 @@ module Hecks
         # it carried said retiring it meant changing how references are stored ;
         # that is what happened.
 
-        # A reference is an ID, so anything else is not one.
+        # **A reference is an ID, so anything else is not one**.
         #
         # Nothing coerces a reference — `for_attribute` misses on
         # "Reference<Account>", which is no value object's name, and hands the
@@ -776,7 +776,7 @@ module Hecks
         # `unknown_keys` before reading a single declared field. So a
         # Hash offering both an unrecognized key and a missing required
         # one (BUG#41's own second demonstration case: `label: {extra:
-        # "bogus"}` — unknown AND missing `value`) refuses the same
+        # "bogus"}` — unknown and missing `value`) refuses the same
         # UnknownArgument on both engines, not two different refusal
         # kinds for one malformed call.
         private def check_unknown_fields(value_object, fields)

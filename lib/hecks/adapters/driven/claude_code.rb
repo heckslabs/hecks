@@ -6,14 +6,14 @@ require_relative "../../ports/agent"
 
 module Hecks
   module Adapters
-    # The real `agent` fulfillment — shells out to the `claude` CLI
+    # **The real `agent` fulfillment** — shells out to the `claude` CLI
     # itself, `claude -p --output-format json`, one process per call.
     # `Ports::Agent`'s own scripted double (`spec/fixtures/scripted_
     # agent.{adapter,rb}`) is the deterministic sibling every spec binds
     # instead, the same relationship `SecureRandomIdentity` already has
     # to `SequentialIdentity`.
     #
-    # This file owns transport only — spawning the process, unwrapping
+    # **This file owns transport only** — spawning the process, unwrapping
     # the CLI's own JSON envelope (`{"result": "..."}`) down to the
     # model's raw text, and parsing that text as JSON. It hands back a
     # plain Hash. Whether that Hash has the keys a caller asked for, and
@@ -40,7 +40,7 @@ module Hecks
 
       module_function
 
-      # The next best question. `state` is whatever
+      # **The next best question**. `state` is whatever
       # `Interview::Session#declaration`/`#gaps` produced — passed
       # through as JSON, not reformatted, so this adapter never
       # re-derives what the session already knows.
@@ -66,7 +66,7 @@ module Hecks
         )
       end
 
-      # What is wrong with this as a model — closed to the same kind
+      # **What is wrong with this as a model** — closed to the same kind
       # vocabulary `Ports::Agent::CRITIQUE_KINDS` declares, spelled out
       # here too since the system prompt is the only place the model
       # itself ever sees that list.
@@ -82,7 +82,7 @@ module Hecks
         )
       end
 
-      # Vocabulary help. Named `suggest_name`, not `name` — see
+      # **Vocabulary help**. Named `suggest_name`, not `name` — see
       # `Ports::Agent#suggest_name`'s own comment for why `name` is
       # never a safe module-function name here.
       def suggest_name(meaning:, kind:, near:)

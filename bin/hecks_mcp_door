@@ -1,26 +1,26 @@
 #!/usr/bin/env ruby
 
-# AN MCP DOOR ONTO THE STOREHOUSE BUS — one MCP server for EVERY booted
+# **An MCP door onto the storehouse bus** — one MCP server for every booted
 # domain, not one per command. `docs/hecks-survey-what-we-wish-we-had.md`
 # and `docs/future-features.md`'s own "if we build three" #1 pick,
 # extended past the original six tools with the rest of that same
 # survey's ranked wishlist: `dispatch` (with `dry_run`/`steps`/`source`),
 # `query`, `state`, `catalog`, `describe`, `validate` (with `deep`),
-# `domains`, `history`, `behaviors`, `follow`. ALL the logic and the JSON
+# `domains`, `history`, `behaviors`, `follow`. All the logic and the JSON
 # shape it answers with live in `Hecks::Storehouse` (lib/hecks/
 # storehouse.rb) — the bus itself, transport-blind. This file is JSON-RPC
-# plumbing ONLY, hand-rolled over stdio exactly the way
+# plumbing only, hand-rolled over stdio exactly the way
 # `bin/hecks_query_ir_mcp` already is (no gem dependency; newline-delimited
-# JSON, flushed after every write) — ONE projection of the bus, not the
+# JSON, flushed after every write) — one projection of the bus, not the
 # whole thing. A second door of a different shape (a plain CLI, an HTTP
 # door) would sit beside this one, calling `Hecks::Storehouse` the exact
 # same way, sharing its audit log and caller-identity handling without
 # ever speaking MCP.
 #
-# `dispatch`/`query` ALSO TAKE `role:`/`actor_id:` — a caller-asserted
+# `dispatch`/`query` also take `role:`/`actor_id:` — a caller-asserted
 # identity, bound for the call's duration via `Hecks.as_caller`, so a
 # role-gated command's authorization is checked against it rather than
-# merely documented by `describe`. `dispatch` REQUIRES `role:` for any
+# merely documented by `describe`. `dispatch` requires `role:` for any
 # command that declares one — omitting it refuses rather than running
 # unbound. This is self-asserted, not authenticated: nothing in this
 # process verifies that a caller claiming `role: "Chef"` is entitled to
@@ -28,7 +28,7 @@
 # real `Governance::RoleAssignment` lookup) — see the transport note
 # below for what that does and does not guard against.
 #
-# EVERY DOMAIN-SCOPED TOOL TAKES `domain:` — a directory containing a
+# Every domain-scoped tool takes `domain:` — a directory containing a
 # `.hecksagon` (`examples/banking`, `examples/pizzas`, …), the same
 # argument `bin/run` takes. An MCP server's cwd is wherever the client
 # launched it from, not necessarily inside a domain, so there is no
@@ -36,14 +36,14 @@
 # sitting in one already — `domains` exists precisely so a caller who
 # doesn't already know a path can find one.
 #
-# ONE BOOT PER CALL — `Hecks.boot(domain, install_facade: false)` is cheap
+# **One boot per call** — `Hecks.boot(domain, install_facade: false)` is cheap
 # (a bluebook is a few hundred lines of Ruby DSL, not a network round
 # trip) and it means one long-lived server process can answer calls
 # against two different domains back to back with no shared, staling
 # state between them.
 #
-# STDIO ONLY — THIS DOOR HAS NO AUTHENTICATION AND MUST NOT BE EXPOSED
-# OVER A NETWORK. `role:`/`actor_id:` are a caller-asserted identity, not
+# **Stdio only** — this door has no authentication and must not be exposed
+# over a network. `role:`/`actor_id:` are a caller-asserted identity, not
 # a credential this process verifies; the only thing standing between a
 # caller and this bus today is that reaching stdin/stdout means already
 # being able to run this process as a subprocess. `domain:` is confined
@@ -318,7 +318,7 @@ def call_tool(name, args)
     { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}" }
   end
 rescue StandardError => e
-  # A DEFECT, NOT A REFUSAL — every DOMAIN refusal is already caught inside
+  # **A defect, not a refusal** — every domain refusal is already caught inside
   # `Hecks::Storehouse` itself and answered as `{ok: false, error: "..."}`.
   # Reaching here means something this door did not anticipate (args bad
   # domain path, args malformed argument shape `Facade::JsonDoor` couldn't

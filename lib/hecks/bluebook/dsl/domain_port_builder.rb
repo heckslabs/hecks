@@ -38,7 +38,7 @@ module Hecks
           @legacy_bare_port = legacy_bare_port
         end
 
-        # What the outside tells us — an external fact arriving, translated
+        # **What the outside tells us** — an external fact arriving, translated
         # into this domain's own word for it. Spelled `operation` before it
         # had a twin, and `operation` still works: the corpus is full of it,
         # and renaming a word costs every chapter that uses it for no gain a
@@ -54,7 +54,7 @@ module Hecks
           @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :inbound, &)
         end
 
-        # What we ask of the outside — the direction this language did not
+        # **What we ask of the outside** — the direction this language did not
         # have. Before this, a domain could be called by an adapter and never
         # call one. An `asks` is dispatched like any other port operation, so
         # a `policy` can trigger it off an event, and it comes back as one of
@@ -68,7 +68,7 @@ module Hecks
           @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :outbound, &)
         end
 
-        # The driven half of the same word. `operation`/`emits` translates an
+        # **The driven half of the same word**. `operation`/`emits` translates an
         # inbound fact into this domain's own event vocabulary — there is no
         # channel back to a caller beyond the events it emits. `verb` is the
         # opposite direction: the domain calling out to a swappable adapter
@@ -96,7 +96,7 @@ module Hecks
         def verb(value)   = @verb = value.to_s
         def signal(value) = @signal = value.to_sym
 
-        # The method contract — `PortBuilder#answers`'s own twin, added
+        # **The method contract** — `PortBuilder#answers`'s own twin, added
         # here after the fact: a `.port` file migrated to parse through
         # this builder (the repoint `lib/hecks.rb#port`'s own comment
         # describes) can still declare one (`extraction.port`'s own

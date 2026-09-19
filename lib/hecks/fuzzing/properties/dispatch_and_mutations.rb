@@ -1,7 +1,7 @@
 module Hecks
   module Fuzzing
     module Properties
-      # A dry run leaves no trace — `Dispatcher#dry_run?`'s whole contract
+      # **A dry run leaves no trace** — `Dispatcher#dry_run?`'s whole contract
       # ("the command evaluated hypothetically, nothing saved or emitted,
       # no reaction"), held to the store rather than trusted: `Replay`
       # snapshots every instance and the event count on either side of
@@ -302,7 +302,7 @@ module Hecks
         # same distinction `owner_for_verb`'s own comment already draws
         # for `:append`. Confirmed by reading `apply_to_element` directly:
         # its own `:set` branch resolves the source through `rules.
-        # resolve_source` UNCONDITIONALLY (no `StateRef` branch at all —
+        # resolve_source` unconditionally (no `StateRef` branch at all —
         # unlike the aggregate-level `apply`, an entity-owned `sets` has
         # no declared corpus site using `state(:x)` today, so this
         # reproduces what ships, not a hypothetical), reads the

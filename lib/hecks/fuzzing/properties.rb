@@ -64,7 +64,7 @@ module Hecks
 
       module_function
 
-      # Which language feature each property is answerable for. Not
+      # **Which language feature each property is answerable for**. Not
       # exhaustive of everything a property's body happens to touch —
       # `Command#attributes`, say, is exercised by nearly every property
       # here without being what any of them was written to guard — but
@@ -102,19 +102,19 @@ module Hecks
         aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field],
         stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants Entity#invariants],
         group_by_matches_recompute:                       %w[ReadModel#group_by],
-        # A runtime door, not a grammar construct — `Dispatcher#dry_run?`
+        # **A runtime door, not a grammar construct** — `Dispatcher#dry_run?`
         # is something an application asks of a booted domain, not a
         # word a bluebook can declare, so there is no feature string
         # for it to claim. Listed (empty) rather than omitted so the
         # discipline this table states — every property names what it
         # is answerable for — has no silent exception.
         dry_runs_leave_no_trace:                          [],
-        # Another runtime door, not a grammar construct — same reasoning
+        # **Another runtime door, not a grammar construct** — same reasoning
         # as dry_runs_leave_no_trace right above: `Runtime::Outbox` is
         # something a persistence adapter provides underneath a booted
         # domain, never a word a bluebook declares.
         outbox_rows_match_reactions:                      [],
-        # The `corrects` mutation's own target — this property reads
+        # **The `corrects` mutation's own target** — this property reads
         # `command.mutations.select { op == :corrects }` and asks whether
         # the event each one names was ever actually emitted, so the
         # feature it answers for is the mutation list, the same one
@@ -122,7 +122,7 @@ module Hecks
         # (Not `Command#references`: that field is the dangling-reference
         # question no property asks yet, and it stays a named gap.)
         corrections_reference_an_emitted_event:           %w[Command#mutations],
-        # No feature string exists for what this one reads. It depends on
+        # **No feature string exists for what this one reads**. It depends on
         # an argument's own `relationship` (which reference-typed argument
         # points at which aggregate) — but `Argument` is a value object,
         # and the meta-domain walk enumerates aggregate and entity fields
@@ -145,7 +145,7 @@ module Hecks
       # every adapter — never per-domain logic a future domain could
       # accidentally route around.
       #
-      # The bluebook/hecksagon boundary is why this works: a bluebook
+      # **The bluebook/hecksagon boundary is why this works**: a bluebook
       # declares shape (attribute types, patterns, closed sets, VO
       # invariants — see docs/decisions/0009), and shape is enforced by
       # one coercion door every domain's every attribute passes through

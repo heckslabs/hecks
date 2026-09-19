@@ -152,7 +152,7 @@ module Hecks
         record.merge(delivered: false, reason: e.message, defect: true, error_class: e.class.name)
       end
 
-      # The fan-out — `policy.for_each` names a query ; this runs it
+      # **The fan-out** — `policy.for_each` names a query ; this runs it
       # against the triggering event's own payload (the same source
       # `deliver`'s own ordinary path forwards to `trigger` wholesale) and
       # fires `trigger` once per row, merging each row's own id into the
@@ -229,7 +229,7 @@ module Hecks
         args
       end
 
-      # What the trigger is given. Undeclared, the event's whole payload
+      # **What the trigger is given**. Undeclared, the event's whole payload
       # forwards verbatim — the behaviour every policy had before `with:`
       # existed, and still the right default for a trigger shaped like
       # its event.
@@ -261,7 +261,7 @@ module Hecks
           label:     "#{policy.name}'s trigger"
         )
 
-        # The raw inputs `args` was resolved from — same additive,
+        # **The raw inputs `args` was resolved from** — same additive,
         # Ruby-only shape SagaInterpreter#deliver_saga_dispatch's own
         # saga_dispatch_log gets, for Properties.dispatch_binding_
         # fidelity's own independent re-derivation of Policy#with_spec's

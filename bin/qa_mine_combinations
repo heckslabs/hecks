@@ -1,30 +1,35 @@
 #!/usr/bin/env ruby
 
-# AN AGENT MINES THE ADVERSARIAL CORPUS FOR THE NEXT COMBINATION — OPT-IN.
+# **An agent mines the adversarial corpus for the next combination** — opt-in.
 #
 #   bin/qa_mine_combinations                       # 3 candidates, Ruby-only checks
-#   bin/qa_mine_combinations --candidates 5 --rust # 5 candidates, also against a compiled Rust binary
-#   bin/qa_mine_combinations --brief               # print the agent's prompt and stop; no agent, no checks
-#   bin/qa_mine_combinations --from <candidates-dir> [--rust]   # re-check an earlier run's candidates
-#   bin/qa_mine_combinations --agent "my-agent --flag"          # any command reading the prompt on stdin
-#   bin/qa_mine_combinations --against <domain> [--against …]   # census only these domains (its spec uses one)
+#   bin/qa_mine_combinations --candidates 5 --rust # 5 candidates, also against a compiled Rust
+#   binary
+#   bin/qa_mine_combinations --brief               # print the agent's prompt and stop; no agent, no
+#   checks
+#   bin/qa_mine_combinations --from <candidates-dir> [--rust]   # re-check an earlier run's
+#   candidates
+#   bin/qa_mine_combinations --agent "my-agent --flag"          # any command reading the prompt on
+#   stdin
+#   bin/qa_mine_combinations --against <domain> [--against …]   # census only these domains (its
+#   spec uses one)
 #
 # `bin/qa_generated_domains` puts two census forms on one aggregate from a
 # seed, blind to why a meeting should break. The bugs the ledger actually
 # logged came from reading a stress domain beside a bug title and guessing
 # where the next divergence hides. This asks an agent to do that reading
 # (`Hecks::Fuzzing::CombinationMiner` — read its header) and write
-# candidate bluebooks, each with a HYPOTHESIS.md, then checks them WITHOUT
+# candidate bluebooks, each with a HYPOTHESIS.md, then checks them without
 # the agent: every candidate that boots goes to `bin/qa_generated_domains
 # --source`, the same differential / self-consistency / Rust-build checks,
 # step shrinking, report and `--promote` a generated domain gets.
 #
-# NOT PART OF THE TICK OR THE FULL SWEEP. `bin/qa_tick` never runs this and
+# **Not part of the tick or the full sweep**. `bin/qa_tick` never runs this and
 # no `QualityControlDials` entry enables it: an agent call costs real money
 # and minutes, and answers differently each run, which is the opposite of
 # what a rotation needs. A person (or a session a person asked) runs it.
 #
-# IN ORDER:
+# **In order**:
 #   1. The brief — `FormCensus` over every `qa/stress_domains/*` and
 #      `examples/*` domain: unmet form pairs, pairs only one aggregate
 #      carries, and recent `BUG#` commit subjects — rendered into
@@ -43,7 +48,7 @@
 #   5. `bin/qa_generated_domains --source …` over the survivors; its report
 #      is this script's report.
 #
-# EXIT CODES: 0 every checked candidate clean; 2 at least one finding (the
+# **Exit codes**: 0 every checked candidate clean; 2 at least one finding (the
 # "On a generated-domain finding" section of .claude/skills/hecks_qa/
 # SKILL.md applies unchanged); 1 an operational error (usage, the agent
 # failed or wrote nothing, or no candidate booted).

@@ -1,51 +1,51 @@
 #!/usr/bin/env ruby
 
-# DOES A NEW STRESS DOMAIN EARN ITS PLACE? — the gate `.claude/skills/
+# **Does a new stress domain earn its place**? — the gate `.claude/skills/
 # hecks_qa/SKILL.md`'s "Authoring a new stress domain" step runs before
 # a domain is identified as a `QualityControl::Target`.
 #
 #   bin/qa_domain_novelty <domain-path>
 #   bin/qa_domain_novelty <domain-path> --against <path> [<path> ...]
 #
-# THE QUESTION IT ANSWERS, MECHANICALLY. Every bug class the QA loop has
+# **The question it answers, mechanically**. Every bug class the QA loop has
 # found so far (BUG#1–#23) came from either a new adversarial argument
-# shape or a new CONSTRUCT COMBINATION — two declared forms meeting on
+# shape or a new construct combination — two declared forms meeting on
 # one aggregate for the first time (`spec/combination_coverage_spec.rb`'s
 # own header has the four original defects, every one of them a pair).
 # So the honest test of "is this domain new" is not "does it look
 # different" but: does it put two forms together, on one aggregate, that
-# NO domain the ledger already sweeps does? `Hecks::Fuzzing::FormCensus`
+# no domain the ledger already sweeps does? `Hecks::Fuzzing::FormCensus`
 # (lib/hecks/fuzzing/form_census.rb) is the one table both this script
 # and that spec measure with — extracted from the spec so the two can
 # never drift on what a form is.
 #
-# WHAT IT COMPARES AGAINST. By default, every `Target.path` the ledger
+# **What it compares against**. By default, every `Target.path` the ledger
 # holds — read through `bin/run qa/bluebook ask target.all`, read-only,
 # so it needs the same `PGUSER` the ledger boots under. `--against`
 # names the paths directly instead (its own spec uses this; so can a
 # session with no ledger in reach). A path that is not on disk is
 # reported and skipped, never silently dropped — a stale ledger row is a
 # fact worth seeing. The candidate's own path, if it is already a
-# target, is left OUT of the comparison: measuring a domain against
+# target, is left out of the comparison: measuring a domain against
 # itself always answers "nothing new."
 #
-# A SATURATED CENSUS ANSWERS "NOTHING NEW" — AND THAT IS THE POINT. The
+# A saturated census answers "nothing new" — and that is the point. The
 # thirteen original forms are already met pairwise by banking alone, so
 # no domain can be novel in them: the first thing a new stress domain
-# does is NAME the form it exists for, in `FormCensus::FORMS` (each entry
+# does is name the form it exists for, in `FormCensus::FORMS` (each entry
 # there cites the gap it is one step from), and only then does this gate
-# have something to find. `qa/stress_domains/referral_chain` (ANGLE-2)
+# have something to find. `qa/stress_domains/referral_chain` (angle-2)
 # is the worked example — three reference-hop forms, none of which any
 # target paired with anything until it did.
 #
-# THE PATH SHAPE IS ENFORCED HERE TOO. A stress domain is
+# **The path shape is enforced here too**. A stress domain is
 # `<name>/bluebook/<name>.bluebook` — `bin/project_rust` reads exactly
 # that file for `source_text`, and a flat `<name>.bluebook` breaks it
 # (qa/stress_domains/ledger_ordering/NOTES.md, on PR #516's naming
 # constraint). Refused up front, before any ledger read, so the
 # mistake costs seconds rather than a failed Rust projection later.
 #
-# EXIT CODES — an agent reads these, not the prose:
+# **Exit codes** — an agent reads these, not the prose:
 #   0  at least one new pair; the domain earns its place
 #   1  no new pair; every pair it puts together is already met somewhere
 #   2  usage, or a candidate that is not shaped like a stress domain

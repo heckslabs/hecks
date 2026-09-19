@@ -52,7 +52,7 @@ module Hecks
 
         attr_reader :refusals
 
-        # The records survive the verdict.
+        # **The records survive the verdict**.
         #
         # Judging a bluebook and holding one differ by exactly this: whether anyone
         # keeps the runtime the declarations were dispatched into. Nobody did, so
@@ -85,7 +85,7 @@ module Hecks
           { value: text.to_s }
         end
 
-        # A reference is an ID, and an ID is a scalar.
+        # **A reference is an ID, and an ID is a scalar**.
         #
         # Every other field goes to the meta-domain as a one-field value object,
         # because that is what it is. A reference is not: it carries the id of a
@@ -131,7 +131,7 @@ module Hecks
           end
         end
 
-        # The receiver, spelled the way a real caller addresses it.
+        # **The receiver, spelled the way a real caller addresses it**.
         #
         # `receiver` is an internal accumulator — it tracks the aggregate this
         # walk is inside and, once it crosses into a real entity-owned category
@@ -235,7 +235,7 @@ module Hecks
           sealers(plan, category, receiver)
         end
 
-        # What a child's own `extra` starts from. An entity-owned child's
+        # **What a child's own `extra` starts from**. An entity-owned child's
         # own dotted dispatch needs every ancestor's identity, which is
         # exactly `identity` — already accumulated one level at a time by
         # `detail_node` itself (regardless of whether each ancestor is
@@ -347,7 +347,7 @@ module Hecks
           end
         end
 
-        # An entity may nest further entities — S17, ADR 0026's own words:
+        # **An entity may nest further entities** — S17, ADR 0026's own words:
         # "That is what `entity` is for, and `entity` is declared by the
         # language and used zero times in it." `Dispatch`, inside
         # `Handler`, is the first real use. The generic "Entity" category
@@ -501,7 +501,7 @@ module Hecks
           Naming.identity([owning_aggregate_id(aggregate_id, value), value])
         end
 
-        # A head's own attributes — an aggregate's, or an entity's (its own root,
+        # **A head's own attributes** — an aggregate's, or an entity's (its own root,
         # one level down). Every other "attributes" list belongs to something that
         # is not a head at all (a command's arguments, a value object's own
         # fields), and a type written there is a name, not a reference — the same
@@ -596,7 +596,7 @@ module Hecks
           Array(node.entities).any? { |entity| entity.hecks_name == row.type.to_s }
         end
 
-        # A record's ID is its declared identity, joined — the same join the runtime
+        # **A record's ID is its declared identity, joined** — the same join the runtime
         # does, off the same declaration, because there is only one way to name a
         # thing and it should be written once.
         #

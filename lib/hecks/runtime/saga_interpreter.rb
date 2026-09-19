@@ -213,7 +213,7 @@ module Hecks
         # real mismatch instead of vanishing into a tautology.
         @registry.saga_log << record.merge(advanced: true, from: pre_state, to: instance[:state])
 
-        # Derived compensation first, newest-first — only for `unwind`'s
+        # **Derived compensation first, newest-first** — only for `unwind`'s
         # own call (`drain_compensations: true`): every leg this instance
         # actually completed that declared its own `compensates`, popped
         # and dispatched in reverse completion order, before any
@@ -234,7 +234,7 @@ module Hecks
           deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain)
         end
 
-        # The clear — guarded by the same identity check `end_saga`'s own
+        # **The clear** — guarded by the same identity check `end_saga`'s own
         # `.delete` return value implies: `deliver_saga_dispatch`'s
         # `@door.reenter` can synchronously trigger this same correlation's
         # `ends_on` event as a nested reaction (a leg's own dispatch is
@@ -282,7 +282,7 @@ module Hecks
         end
 
         if @door.reaction_depth_reached?
-          # The ceiling is not a domain decision either — same reasoning as a
+          # **The ceiling is not a domain decision either** — same reasoning as a
           # crash, below — but unlike a crash there is nothing ambiguous
           # about it: the leg unambiguously did not run, so it unwinds
           # exactly like a refusal instead of stranding the instance for a
@@ -451,7 +451,7 @@ module Hecks
                           drain_compensations: true)
       end
 
-      # A derived compensation — `entry[:args]` is already resolved
+      # **A derived compensation** — `entry[:args]` is already resolved
       # (`record_completed_compensation`'s own comment for why), so this
       # skips `dispatch_args` entirely and goes straight to delivery,
       # through the same retry-on-defect path an ordinary forward leg

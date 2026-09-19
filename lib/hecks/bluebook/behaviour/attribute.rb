@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # What an attribute does. The declared half — name, type, list,
+      # **What an attribute does**. The declared half — name, type, list,
       # default, optional, pattern, admits — is what the language states
       # in `aggregate.bluebook`'s own `Field`. These are the questions
       # readers ask about that shape, which no declaration states.
@@ -10,7 +10,7 @@ module Hecks
         def scalar?    = !@list
         def reference? = @type.is_a?(Reference)
 
-        # May this fact be left out?
+        # **May this fact be left out**?
         #
         # Required is the default and by far the common case — a command takes
         # the arguments it declares, and all of them — so the exception is what

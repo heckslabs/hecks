@@ -1,15 +1,15 @@
 require "spec_helper"
 
-# The language does not only judge a bluebook — it HOLDS one, and gives it back.
+# The language does not only judge a bluebook — it holds one, and gives it back.
 #
 # `bluebook.bluebook`'s own vision says "loading a domain becomes dispatching
 # commands into this meta-domain ; the IR it stores must equal the IR the DSL
 # builder produces." Only the first half was true. The judge dispatched every
 # declaration in, collected refusals, and threw the records away — which is all
-# JUDGING needs, and exactly why the language could only validate.
+# judging needs, and exactly why the language could only validate.
 #
 # The reason was structural and slightly absurd: the meta-domain declared twelve
-# categories and thirty-four verbs and NOT ONE QUERY. It was write-only. A store
+# categories and thirty-four verbs and not one query. It was write-only. A store
 # you cannot read cannot be the source of anything.
 #
 # So the way back is declared, on the aggregates themselves, and read through
@@ -32,15 +32,15 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     end
   end
 
-  # Dispatch a real bluebook into the meta-domain and KEEP the runtime, which is
+  # Dispatch a real bluebook into the meta-domain and keep the runtime, which is
   # the only difference between judging and holding.
   #
-  # `pizzas` REFERENCED FIRST, on purpose. It loads Pizzas through the normal
-  # `MetaValidator.call` path, which judges (and so DISPATCHES a
+  # `pizzas` referenced first, on purpose. It loads Pizzas through the normal
+  # `MetaValidator.call` path, which judges (and so dispatches a
   # `Bluebook.Declare` for "Pizzas") into `grammar_registry`'s own shared
   # repositories — the same registry `fresh_runtime` wraps, not a copy.
-  # Resetting repositories AFTER that means the manual `judge!` below dispatches
-  # its own `Bluebook.Declare` into a clean store ; resetting BEFORE meant the
+  # Resetting repositories after that means the manual `judge!` below dispatches
+  # its own `Bluebook.Declare` into a clean store ; resetting before meant the
   # two declarations collided, and the collision guard (added once creating a
   # command twice was refused rather than silently overwritten) is what turned
   # a harmless double-write into a real failure — this was always two
@@ -106,10 +106,10 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "keeps declaration order when read a level at a time" do
-    # The IR is a contract field for field AND INDEX FOR INDEX, so the order a
+    # The IR is a contract field for field and index for index, so the order a
     # bluebook declares its commands in is a fact about the source. `DeclaredIn`
     # preserves it.
-    # "Pizzas:Order" — the Aggregate-within-Bluebook record's OWN derived id
+    # "Pizzas:Order" — the Aggregate-within-Bluebook record's own derived id
     # (bluebook:name.value), not the real "Pizzas::Order" Ruby constant path.
     rows = runtime.query("Bluebook::Command.DeclaredIn", aggregate: { value: "Pizzas:Order" })
 
@@ -120,8 +120,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   it "keeps the order that changes behaviour" do
     # Not all order is equal, and only one kind has to survive a round trip.
     #
-    # BEHAVIOUR-BEARING: mutations are applied in sequence, so a sets reading a
-    # field an earlier one wrote depends on the order; a lifecycle takes the FIRST
+    # **Behaviour-bearing**: mutations are applied in sequence, so a sets reading a
+    # field an earlier one wrote depends on the order; a lifecycle takes the first
     # transition that matches; a compensation credits the source before reversing
     # the transfer. Reorder any of those and the domain does something else.
     whole    = runtime.query("Bluebook.whole_bluebook", bluebook: "Pizzas").first
@@ -134,7 +134,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "normalises the order that does not" do
-    # PRESENTATION ONLY: which order an aggregate's commands happen to be listed
+    # **Presentation only**: which order an aggregate's commands happen to be listed
     # in. Nothing looks a command up by position — find_command is by name — so
     # ReadModelInterpreter#matching ending `.sort_by(&:id)` is not a loss, it is a
     # canonical form. And it is the right call: no hand-written store can be
@@ -209,7 +209,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # the language already used for value objects and now uses for all of them.
     # One separator now, everywhere a head's id is stored — the internal
     # identity join, not the real Ruby "::" constant path (that spelling
-    # survives only in the WIRE FORMAT, "Reference<Customer>", produced on the
+    # survives only in the wire format, "Reference<Customer>", produced on the
     # way back out ; see the next test).
     held = held_account_attributes
 
@@ -219,7 +219,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "re-encodes a reference into the type the IR spells" do
-    # `Reference<Customer>` is an ENCODING. The meta-domain holds the head, and the
+    # `Reference<Customer>` is an encoding. The meta-domain holds the head, and the
     # spelling is derived on the way out — in Readings, the one place that knows the
     # IR's shape differs from the language's.
     reader = Object.new.extend(Hecks::Bluebook::MetaValidator::Readings)
@@ -230,7 +230,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "reads through the aggregate's own query, not a repository" do
-    # Persistence is an adapter BELOW the aggregate. If the way back reached into
+    # Persistence is an adapter below the aggregate. If the way back reached into
     # a repository it would bypass the rules, the authorisation and the shape that
     # every writer goes through — and the read side would drift from the write
     # side exactly as independently hand-kept tables always do.

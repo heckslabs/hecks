@@ -16,7 +16,7 @@ module Hecks
 
         STRATEGIES = Hecks::Vocabulary.fetch("NormalisationStrategy")
 
-        # Read, not restated — the admitted normalisation rules, projected
+        # **Read, not restated** — the admitted normalisation rules, projected
         # from the grammar chapter by bin/expression_projection exactly as
         # the evaluator's operator table is. See Evaluator::PROJECTION for
         # why a projection rather than a boot.

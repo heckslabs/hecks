@@ -3,7 +3,7 @@ require_relative "../../rust/project/naming"
 require_relative "../../rust/project/bridging"
 
 # `attribute :refunded_amount, Money, default: { cents: 0 }` — Money's
-# own `currency` attribute carries its OWN `default: "USD"`, so the
+# own `currency` attribute carries its own `default: "USD"`, so the
 # literal hash names only `cents`, relying on Money's per-field default
 # for the rest. No domain in the corpus banking/pizzas/compliance
 # examples declared this shape (confirmed: every Hash-typed attribute

@@ -17,7 +17,7 @@ module Hecks
   # specific procs (`find_candidates`, `apply_candidate`) and inherits
   # the boot/safety-net machinery rather than rediscovering it.
   #
-  # A codemod is not pattern-matching alone. Deciding "is this line safe
+  # **A codemod is not pattern-matching alone**. Deciding "is this line safe
   # to delete" means knowing what the runtime would resolve it to — so
   # every codemod built on this module follows the same three steps:
   #   1. Boot the real domain (or the self-hosted meta-domain) and read
@@ -167,7 +167,7 @@ module Hecks
       [nil, "#{e.class}: #{e.message}"]
     end
 
-    # The reusable runner — every real bug fix this module carries lives
+    # **The reusable runner** — every real bug fix this module carries lives
     # here, not in a caller's own script. A caller supplies:
     #
     #   find_candidates: ->(registry) { [...] }
@@ -324,7 +324,7 @@ module Hecks
           live_meta[target_file] = text
           Codemod::META_FILES.each { |f| File.write(f, live_meta[f]) }
 
-          # Dry run still verifies — see run_example_domains' own
+          # **Dry run still verifies** — see run_example_domains' own
           # comment; the edit is always written and rebooted for real,
           # then always reverted afterward when dry-run (whether or not
           # it was safe) so the next candidate is judged against the

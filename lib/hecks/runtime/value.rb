@@ -96,7 +96,7 @@ module Hecks
         end
       end
 
-      # Reduces an append-only sub-log to its current state — the same
+      # **Reduces an append-only sub-log to its current state** — the same
       # "a later fact supersedes an earlier one" reduction this runtime
       # already performs replaying an aggregate's own command history
       # into its current attributes, applied here to a single `list_of`
@@ -106,7 +106,7 @@ module Hecks
       # Array of `Value`, in append order — and `key` names the field
       # that identifies "the same logical thing" across entries.
       #
-      # Grouping only, never interpretation. What counts as "removed,"
+      # **Grouping only, never interpretation**. What counts as "removed,"
       # how to order what survives — that meaning belongs to whichever
       # domain declared the field, never here: a generic reduction that
       # started guessing domain semantics would need to keep guessing
@@ -151,7 +151,7 @@ module Hecks
 
       private
 
-      # The `.value` alias for indexed access — the same language rule
+      # **The `.value` alias for indexed access** — the same language rule
       # `method_missing` above enforces for method reads, applied to
       # `[]`/`key?`/`with`: `:value` names a single-attribute value
       # object's sole field whatever that field is actually called. A

@@ -65,7 +65,7 @@ module Hecks
           def hash = @path.hash
         end
 
-        # A scoped name is written as text, not as a constant path — see the
+        # **A scoped name is written as text, not as a constant path** — see the
         # note on `admits:` in AttributeCollector. A resolver returning a
         # Module (so that `Vocabulary::QueryComparator` reaches a second
         # `const_missing`) was tried and cannot be made to hold : `Facade::

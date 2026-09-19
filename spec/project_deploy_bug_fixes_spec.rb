@@ -5,7 +5,7 @@ require "open3"
 # Regression coverage for four bugs found in the 2026-08-10 audit
 # (docs/audits/2026-08-10-main-bug-audit.md, triaged in
 # docs/audits/2026-08-11-bug-triage.md) against bin/project_deploy's
-# GENERATED Makefile output. Structural/text-based, mirroring the
+# generated Makefile output. Structural/text-based, mirroring the
 # existing convention in this directory (project_deploy_contract_spec.rb,
 # project_deploy_shared_rust_oauth_spec.rb): bin/project_deploy is a
 # script with nothing to require, so each context here shells out to it
@@ -20,7 +20,7 @@ require "open3"
 #         tunnel to production, then run scripts that resolve their DB
 #         connection from the domain's `.world` file, not from the
 #         DATABASE_URL/HECKS_SCHEMA this recipe exports — silently
-#         scaffolding/auditing the LOCAL dev database while reporting
+#         scaffolding/auditing the local dev database while reporting
 #         success. Fixed here by refusing (loudly) unless
 #         ALLOW_LOCAL_DB=1 is set, rather than silently doing the wrong
 #         thing — see translation_recipe's own `db_env_blind` comment
@@ -33,7 +33,7 @@ require "open3"
 #         bridge queried PublicSubnetId/BastionSubnetId outputs that
 #         don't exist until the OAuth-adding `sam deploy` itself creates
 #         them, so the pre-check failed before that deploy ever ran.
-#   M29 — RDS master passwords may contain `%`, invalid in libpq's URI
+#   M29 — rds master passwords may contain `%`, invalid in libpq's URI
 #         parser; DATABASE_URL now carries a percent-encoded password.
 RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   def self.root = File.expand_path("..", __dir__)
@@ -97,14 +97,14 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     start = lines.index { |l| l == "#{target}:\n" } or raise "no #{target}: target found in the generated Makefile"
     # Recipe lines proper start with a tab; a target's own explanatory
     # comments (e.g. mint_era_recipe's Shared-mode branch) are written
-    # at column 0, with NO leading tab, sitting between "target:" and
+    # at column 0, with no leading tab, sitting between "target:" and
     # the tab-prefixed recipe lines — still part of this target's own
     # block (Make just ignores them), so they're included here too.
     lines[(start + 1)..].take_while { |l| l == "\n" || l.start_with?("\t") || l.start_with?("#") }
   end
 
   # Splits a recipe's lines into independent shell chains — a "chain"
-  # break happens after any line that does NOT end in a backslash
+  # break happens after any line that does not end in a backslash
   # continuation (Make runs each such segment as its own separate shell
   # invocation). Comment lines are dropped; they sit between chains,
   # never inside one (bin/project_deploy's own documented rule — a
@@ -126,7 +126,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
     chains
   end
 
-  # ONE own-RDS fixture (a bare `region "us-east-1"` world, no .env.local),
+  # One own-rds fixture (a bare `region "us-east-1"` world, no .env.local),
   # generated once and shared by H14 and M29 below — both used to generate
   # their own byte-identical copy of this same world under different names.
   before(:context) { @own_dir = self.class.generate!("h14_m29_own_fixture", <<~WORLD) }
@@ -177,7 +177,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
         expect(recipe).to include("REFUSING")
         expect(recipe).to match(/resolves its OWN database connection from .* \.world file, NOT from DATABASE_URL/)
 
-        # The guard must be the recipe's OWN first chain (before the
+        # The guard must be the recipe's own first chain (before the
         # "Looking up $(STACK)'s VPC/security group..." lookup, the
         # bastion stand-up, or the tunnel) — otherwise this is a fix
         # that reports the danger only after already causing it.
@@ -233,7 +233,7 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
       expect(recipe).to include("OutputKey=='PublicSubnetId'")
       expect(recipe).to include("skipping the pre-deploy bridge")
       # The dangerous branch (calling mint-era pre-deploy) must still be
-      # reachable when the output IS already live — this isn't a
+      # reachable when the output is already live — this isn't a
       # blanket skip.
       expect(recipe).to include("$(MAKE) mint-era || exit 1")
     end

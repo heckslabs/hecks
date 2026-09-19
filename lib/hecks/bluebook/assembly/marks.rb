@@ -35,7 +35,7 @@ module Hecks
             # wrote it.
             optional:     field[:optional] ? true : false,
             pattern:      field[:pattern],
-            # The same lesson, one fact later. `admits` is not on `to_h` — the
+            # **The same lesson, one fact later**. `admits` is not on `to_h` — the
             # wire does not carry it, on purpose — but it must still survive the
             # round trip, because the grammar registry keeps the assembled graph
             # and downstream projections read the link off that. Dropped here, the
@@ -52,7 +52,7 @@ module Hecks
         # both — `Aggregate.Attribute` and `Command.Argument` are separate verbs.
         def shape_field(field) = attribute(field)
 
-        # One part of an identity. It goes in as a row so the language can hold an
+        # **One part of an identity**. It goes in as a row so the language can hold an
         # ordered list of them, and comes back out as the path it always was —
         # a String, because `identity_paths` splits paths and never symbols.
         def identity_path(part) = part[:value].to_s

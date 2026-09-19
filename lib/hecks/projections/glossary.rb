@@ -9,7 +9,7 @@ require_relative "glossary/html"
 
 module Hecks
   module Projections
-    # A chapter, projected as its ubiquitous language — a glossary for the
+    # **A chapter, projected as its ubiquitous language** — a glossary for the
     # whole team, in the sense Evans meant (DDD ch. 2): one language,
     # shared by domain experts and developers, written the same way in
     # conversation, diagrams, documents and code, so that a subject-matter
@@ -17,7 +17,7 @@ module Hecks
     # "no, that's wrong". A banker, a support rep, the CEO and an engineer
     # read the same page.
     #
-    # Three things follow from that audience. First, no type jargon: a
+    # **Three things follow from that audience**. First, no type jargon: a
     # term is a term, not "an Aggregate" or "a Value Object", and every
     # identifier is spelled as a person says it (`Naming.words`: `ATMCard`
     # is "ATM card"). Second, nothing invented: every sentence is either
@@ -29,11 +29,11 @@ module Hecks
     # reader thinks "what does Account mean" before "what starts with A",
     # and once there reads the way a dictionary reads.
     #
-    # Two files from one source. `glossary.md` is the document — every
+    # **Two files from one source**. `glossary.md` is the document — every
     # construct in it renders on GitHub as-is (headings, blockquotes,
     # ```mermaid fences, lists, in-page links). `html/index.html` is that
     # exact Markdown string rendered into a page with a navigation rail;
-    # it is built from the Markdown, not beside it, so the two cannot
+    # it is built FROM the Markdown, not beside it, so the two cannot
     # drift. `bin/project_glossary` writes both to `<domain>/glossary/` beside
     # the bluebook (examples/banking, examples/pizzas, and the QA ledger in qa/).
     #
@@ -111,14 +111,14 @@ module Hecks
 
       # ── gathering ────────────────────────────────────────────────────
 
-      # An entity can carry its own commands and queries too — walked the
+      # **An entity can carry its own commands and queries too** — walked the
       # same one level down `DocsProjector` and `Projections::Diagrams`
       # already walk it.
       def holders(bluebook)
         bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
       end
 
-      # Every holder's own aggregate, one hop or zero — an aggregate maps
+      # **Every holder's own aggregate, one hop or zero** — an aggregate maps
       # to itself, an entity to whichever aggregate declared it. The one
       # fact the grouping is built on.
       def holder_aggregate(bluebook)
@@ -128,7 +128,7 @@ module Hecks
         end
       end
 
-      # Every event's raisers — an event is never declared, only emitted,
+      # **Every event's raisers** — an event is never declared, only emitted,
       # so its home is whichever aggregate the first command that raises
       # it belongs to; a policy or saga reacting to it inherits that home.
       def event_raisers(bluebook)
@@ -165,7 +165,7 @@ module Hecks
         end
       end
 
-      # Aggregates only — an entity declares no value objects of its own
+      # **Aggregates only** — an entity declares no value objects of its own
       # (`Bluebook::Entity` deliberately does not answer `value_objects`).
       def value_object_entries(bluebook)
         bluebook.aggregates.flat_map do |aggregate|
@@ -213,7 +213,7 @@ module Hecks
         end
       end
 
-      # Cross-cutting by nature — `System` and `Customer` issue commands
+      # **Cross-cutting by nature** — `System` and `Customer` issue commands
       # across half the aggregates here — so a role belongs to no single
       # one and gets its own section.
       def role_entries(bluebook)
@@ -236,7 +236,7 @@ module Hecks
 
       # ── anchors ──────────────────────────────────────────────────────
 
-      # GitHub's own heading slugs, reproduced — lowercase, punctuation
+      # **GitHub's own heading slugs, reproduced** — lowercase, punctuation
       # dropped, spaces to hyphens, a repeat gets "-1", "-2" in document
       # order. Computed here, once, in the order the headings will appear,
       # so a link written into the Markdown lands on the same heading
@@ -261,7 +261,7 @@ module Hecks
         end
       end
 
-      # Where a declared reference points — keyed structurally (a command
+      # **Where a declared reference points** — keyed structurally (a command
       # by its holder and name, an event by its bare name), never by
       # searching prose for a matching word. Anything not declared here
       # (a cross-domain command like `Notifications.Send`) answers nil,

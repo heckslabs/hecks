@@ -3,7 +3,7 @@ require "hecks/naming"
 
 module Hecks
   module Fuzzing
-    # What a compiled Rust binary declares it did not generate — read off the
+    # **What a compiled Rust binary declares it did not generate** — read off the
     # `manifest.json` files `rust/project/domain_generator.rb` writes beside
     # every generated module, never inferred from Rust's refusal wording.
     #
@@ -16,7 +16,7 @@ module Hecks
     # `gap_class` and `construct` that explain why. A refusal the manifest
     # does not account for stays in the comparison and fails it.
     #
-    # Which manifests describe a binary. `build_and_pin` (spec/support/
+    # **Which manifests describe a binary**. `build_and_pin` (spec/support/
     # rust_conformance_helpers.rb) and `bin/qa_generated_domains` both pin a
     # feature's binary at `<rust_dir>/target/debug/rust-<feature>`. That
     # binary compiles `src/generated/<feature>/` plus every shared framework
@@ -25,7 +25,7 @@ module Hecks
     # those manifests are domain-qualified, so a chapter a domain never
     # attaches contributes entries no sequence for that domain can name.
     #
-    # A missing manifest tolerates nothing. A hand-written fixture crate, or
+    # **A missing manifest tolerates nothing**. A hand-written fixture crate, or
     # a tree generated before manifests existed, has no declaration to
     # honour, so every refusal it produces is compared as-is. That is the
     # fail-closed direction.

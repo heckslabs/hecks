@@ -29,7 +29,7 @@ module Hecks
         @event_log    = []
         @reaction_log = []
         @saga_log = []
-        # Additive, Ruby-only — never merged into saga_log/reaction_log.
+        # **Additive, Ruby-only** — never merged into saga_log/reaction_log.
         # rust/src/kernel/orchestrate.rs ports those two arrays' exact
         # shape byte-for-byte (spec/rust_conformance_spec.rb's own
         # equality check) — a landmine found by reading that spec before
@@ -59,7 +59,7 @@ module Hecks
         @repositories = {}
         @projection_repositories = {}
         @bluebook_builders = {}
-        # Eager, not lazy — see `#resolved_eras`'s own comment for why. Built
+        # **Eager, not lazy** — see `#resolved_eras`'s own comment for why. Built
         # here rather than `@resolved_eras ||= {}` on first access so there is
         # no window, post-boot, where two concurrently dispatching threads
         # could race creating this Hash (Hecks/ThreadSharedIvarMutation; the
@@ -79,7 +79,7 @@ module Hecks
         # half that holds even for a connection row-level security cannot
         # bite (BUG#24). Eager for exactly the reason `@resolved_eras` is.
         @superseded_eras = {}
-        # Eager, not lazy — see `#capability_graph`'s own comment for why.
+        # **Eager, not lazy** — see `#capability_graph`'s own comment for why.
         # `CapabilityGraph.new` only stores the registry reference; there is
         # no reason to defer it, and doing so removes the exact same
         # first-access race `#resolved_eras` above does, while preserving the
@@ -100,7 +100,7 @@ module Hecks
         @outbox = Outbox::Relay.new(self)
       end
 
-      # The outbox relay — one per registry, for its whole life (built
+      # **The outbox relay** — one per registry, for its whole life (built
       # here, never swapped, so no thread ever sees a different one).
       # It can enqueue from the moment the registry exists; a Dispatcher
       # attaches the interpreters that let it deliver. See
@@ -116,7 +116,7 @@ module Hecks
         @bluebook_builders[name.to_s] ||= yield
       end
 
-      # Boot-time-only, single-threaded — every `add_*` below (through
+      # **Boot-time-only, single-threaded** — every `add_*` below (through
       # `add_translation`) is called exclusively from `Hecks.collect`
       # (hecks.rb), which is what `Hecks.bluebook`/`.hecksagon`/`.port`/
       # `.adapter`/`.world`/`.translation` run inside while a `.bluebook`/
@@ -132,7 +132,7 @@ module Hecks
       # rubocop:disable Hecks/ThreadSharedIvarMutation
       def add_bluebook(item) = @bluebooks[item.name] = item
 
-      # Merged, not replaced — recovered, not new (see Runtime::Loader
+      # **Merged, not replaced** — recovered, not new (see Runtime::Loader
       # .boot's own comment for the provenance). A domain's hecksagon can
       # now load in more than one block for the same domain (base file
       # plus an `environments/<name>.hecksagon` overlay), and the second
@@ -146,7 +146,7 @@ module Hecks
       def add_port(item) = @ports[item.name] = item
       def add_adapter(item) = @adapters[item.name] = item
 
-      # Merged, not replaced — the same generalization for `World` that
+      # **Merged, not replaced** — the same generalization for `World` that
       # `add_hecksagon` above recovers for `Hecksagon`: an
       # `environments/<name>.world` overlay (or a host-owned tenancy
       # overlay world, same mechanism) can now add or override settings
@@ -298,7 +298,7 @@ module Hecks
         )
       end
 
-      # Recovered and generalized — see `add_world`'s own comment. `realm`/
+      # **Recovered and generalized** — see `add_world`'s own comment. `realm`/
       # `latest` are scalars, so the overlay's value wins when present,
       # else the base's survives; `settings` is a shallow merge keyed by
       # verb (and `"verb:adapter"`) — an overlay entry for a key the base

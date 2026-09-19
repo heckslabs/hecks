@@ -39,7 +39,7 @@ module Hecks
 
       attr_reader :registry
 
-      # The declared order — Vocabulary::EntityDispatchOrder
+      # **The declared order** — Vocabulary::EntityDispatchOrder
       # (language/bluebook/vocabulary.bluebook), read off the generated table
       # the same way CommandInterpreter's own DISPATCH_ORDER is.
       # `refuse_unknown_arguments`/`refuse_absent_arguments` now lead it, same
@@ -98,7 +98,7 @@ module Hecks
           new(entity_names: entity_names, chain: chain, command_name: command_name, command: command)
         end
 
-        # One hop per dotted segment — `ProcessManager.Handler.Dispatch.Bind`
+        # **One hop per dotted segment** — `ProcessManager.Handler.Dispatch.Bind`
         # (once the dispatcher has already stripped "Domain::Aggregate.")
         # walks Handler off the aggregate, then Dispatch off Handler, each
         # step reading `.entities` exactly the way the single-level case
@@ -158,7 +158,7 @@ module Hecks
           # entity). See DependencyPlanning::Analyzer.call's own header
           # for the bug this closes.
           ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command, root_aggregate: aggregate)
-          # Resolved here, once — see CommandInterpreter#call's own comment;
+          # **Resolved here, once** — see CommandInterpreter#call's own comment;
           # `step_hydrate_parent` reads `ctx.repository` without re-fetching.
           ctx.repository = @registry.repository(domain, aggregate)
           lock_id = Identity.best_effort(aggregate, args, route)
@@ -173,7 +173,7 @@ module Hecks
 
       private
 
-      # A no-op, and untraced — Vocabulary::EntityDispatchOrder's
+      # **A no-op, and untraced** — Vocabulary::EntityDispatchOrder's
       # decode_arguments. See CommandInterpreter#step_decode_arguments.
       def step_decode_arguments(_ctx); end
 
@@ -239,7 +239,7 @@ module Hecks
       # command's `corrects` names even exist" is checked here too, once,
       # before the entity's own `given`s.
       #
-      # Admissibility is checked against the parent/root, not the entity —
+      # **Admissibility is checked against the parent/root, not the entity** —
       # deliberately `ctx.instance`/`ctx.aggregate` (the parent aggregate
       # record and the root aggregate construct), never `ctx.view`/
       # `ctx.entity` (the entity's own pre-mutation view/construct). This

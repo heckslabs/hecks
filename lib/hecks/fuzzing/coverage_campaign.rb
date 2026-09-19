@@ -1,6 +1,6 @@
 module Hecks
   module Fuzzing
-    # What one sweep has already reached, and where the next seed starts.
+    # **What one sweep has already reached, and where the next seed starts**.
     #
     # `SequenceGenerator` steers within one sequence (an unexercised verb is
     # weighted up — picker.rb's `steer`), but every seed of a sweep used to
@@ -12,7 +12,7 @@ module Hecks
     # a 25-step random walk never reached `Annotate` at all. Uniform seeds
     # reach those corners by luck; this makes the sweep remember.
     #
-    # The coverage unit is a tuple, not a verb — `verb | step kind |
+    # **The coverage unit is a tuple, not a verb** — `verb | step kind |
     # lifecycle state before | adversarial mutation | outcome` (see
     # `SequenceGenerator#coverage_tuple`). "Renew refused LifecycleRefused
     # from free" and "Renew ok from held" are different places a runtime can

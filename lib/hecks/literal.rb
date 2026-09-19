@@ -1,5 +1,5 @@
 module Hecks
-  # The one spelling for a captured Ruby literal on the wire.
+  # **The one spelling for a captured Ruby literal on the wire**.
   #
   # Several `to_h` fields hold a value the author wrote in a bluebook —
   # `where(status: { eq: "open" })`, `then_set append: { direction: { value:

@@ -2,33 +2,33 @@ require "spec_helper"
 require "json"
 require "open3"
 
-# THE DIFFERENTIAL HARNESS — the anti-drift mechanism for the Rust parser,
+# **The differential harness** — the anti-drift mechanism for the Rust parser,
 # modeled directly on spec/rust_conformance_spec.rb's own cargo-build-then-
 # subprocess-inside-rspec pattern, and on spec/corpus_spec.rb's own
 # Dir.glob-derived (never hand-listed) corpus enumeration, so a new
 # example/grammar-chapter/framework member is covered here automatically.
 #
-# STAGE 1 left every real corpus member PENDING — the parser built no IR
-# at all yet. STAGE 2 shrunk PENDING_MEMBERS by exactly one
+# Stage 1 left every real corpus member pending — the parser built no IR
+# at all yet. Stage 2 shrunk PENDING_MEMBERS by exactly one
 # (`pizzas.bluebook` + its `.hecksagon`, ~60% of the language surface in
 # one small file — the plan's own deliberately-first target) and added a
-# REAL byte-exact assertion for it in REAL_PARITY_MEMBERS below: shell out
+# real byte-exact assertion for it in REAL_PARITY_MEMBERS below: shell out
 # to `hecks-parse chapter --chapter Pizzas <bluebook> <hecksagon>` and
 # compare the stdout JSON, byte for byte, against Ruby's own
-# `JSON.pretty_generate(Exporter.call(...))` for the SAME two files loaded
+# `JSON.pretty_generate(Exporter.call(...))` for the same two files loaded
 # the same order `bin/project_rust` itself loads them (`.bluebook` first,
 # registering every aggregate; `.hecksagon` second, mutating those
-# already-registered aggregates' own `ports`). STAGE 3 does the identical
+# already-registered aggregates' own `ports`). Stage 3 does the identical
 # thing for the framework trio — `identity.bluebook`/`governance.bluebook`/
 # `console_settings.bluebook`, each standing alone (no `.hecksagon` of its
 # own — see REAL_PARITY_MEMBERS' own comment on why). Every other corpus
 # member stays pending, untouched, for a later stage. By Stage 6 both
 # tables are empty.
 #
-# A parse error for anything OUTSIDE the pending list — or a PENDING
+# A parse error for anything outside the pending list — or a pending
 # member that no longer fails the way its own reason says it should, or a
 # REAL_PARITY_MEMBERS entry whose output doesn't byte-match — is a spec
-# FAILURE with the parser's own stderr inlined, never a silent skip.
+# failure with the parser's own stderr inlined, never a silent skip.
 # `io: true` — a `cargo build` subprocess spawn is real I/O by this
 # suite's own convention (see spec_helper.rb's `io: true` note). The build
 # lives in a `before(:context)` hook, not the `describe` body, because
@@ -47,14 +47,14 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
 
   before(:context) { self.class.build_parser! }
 
-  # THE SAME bluebook lookup and corpus enumeration every other corpus
+  # The same bluebook lookup and corpus enumeration every other corpus
   # walk uses — Hecks::Corpus — so this can never silently drift from
   # what "the corpus" means elsewhere in this suite.
   def self.bluebooks_in(domain)
     Hecks::Corpus.bluebook_files(domain) || []
   end
 
-  # The SAME domain's own `.hecksagon`, if it has one — `bin/project_rust`
+  # The same domain's own `.hecksagon`, if it has one — `bin/project_rust`
   # loads it right after the `.bluebook`, and `hecks-parse chapter` needs
   # it fed the same way for a REAL_PARITY_MEMBERS comparison.
   def self.hecksagon_in(domain)
@@ -65,8 +65,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PARITY_EXAMPLE_ROOTS = Hecks::Corpus.members(:example).map(&:path).freeze
   PARITY_GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
   PARITY_FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
-  # STAGE 5's OWN TARGET — narrow, load-bearing unit-test fixtures for
-  # OTHER Ruby specs (era/lineage bumps, model-checker findings, dispatch
+  # Stage 5's own target — narrow, load-bearing unit-test fixtures for
+  # other Ruby specs (era/lineage bumps, model-checker findings, dispatch
   # ordering, reflex/hop-chain tests), never previously pointed at by
   # `hecks-parse` at all. Recursive (`**`) on purpose — note the `eras/`
   # and `model_check/` subdirectories, which a flat `*.bluebook` glob
@@ -74,9 +74,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PARITY_FIXTURES_ROOT = File.join(InMemoryDomain::ROOT, "spec/fixtures")
   PARITY_FIXTURE_MEMBERS = Hecks::Corpus.members(:fixture).map(&:path).freeze
 
-  # STAGE 6's OWN TARGET — the self-hosted grammar itself: every concept file
+  # Stage 6's own target — the self-hosted grammar itself: every concept file
   # `Hecks::Bluebook::MetaValidator::GRAMMAR_FILES` discovers, which
-  # together constitute ONE `Hecks.bluebook "Bluebook", version: "1"`
+  # together constitute one `Hecks.bluebook "Bluebook", version: "1"`
   # declaration (`meta_validator.rb`'s own comment: "`BluebookBuilder
   # .build` keeps one builder open per chapter name across calls ... so
   # loading the folder in order accumulates one domain, not several" —
@@ -90,13 +90,13 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # chapter --chapter <Name>` expects; every real corpus `.bluebook` file
   # declares `Hecks.bluebook "<Name>"` on its own first line, so it's read
   # directly off the file rather than guessed from the filename (a grammar
-  # chapter's own file is named after its ROLE — aggregate.bluebook — not
+  # chapter's own file is named after its role — aggregate.bluebook — not
   # its chapter name, which is always "Bluebook").
   def self.chapter_name_of(bluebook_path)
     Hecks::Corpus.chapter_name_of(bluebook_path)
   end
 
-  # A FIXTURE'S OWN STEM keeps its subdirectory (`"eras/base"`,
+  # A fixture's own stem keeps its subdirectory (`"eras/base"`,
   # `"model_check/lifecycle_findings"`) rather than the bare basename
   # every other member uses — `eras/base.bluebook` and a hypothetical
   # future `model_check/base.bluebook` would otherwise collide, and the
@@ -106,8 +106,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     path.delete_prefix("#{PARITY_FIXTURES_ROOT}/").delete_suffix(".bluebook")
   end
 
-  # A FRAMEWORK MEMBER'S OWN STEM, disambiguated against a same-named
-  # EXAMPLE ROOT — `lib/hecks/framework/bluebook/compliance.bluebook`
+  # A framework member's own stem, disambiguated against a same-named
+  # example root — `lib/hecks/framework/bluebook/compliance.bluebook`
   # and `examples/compliance/` both bare-stem to "compliance" (the
   # framework file is, byte for byte, what the example app's own
   # `compliance.bluebook` loads — a real app demonstrating a framework
@@ -118,12 +118,12 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # PARITY_CORPUS_MEMBERS entries shared the stem "compliance", and
   # `Array#-`'s own multiplicity-blind subtraction (PENDING_MEMBERS,
   # then the "accounts for every real corpus member" spec below) struck
-  # BOTH the moment `REAL_PARITY_MEMBERS` named "compliance" once for
+  # both the moment `REAL_PARITY_MEMBERS` named "compliance" once for
   # the example — so this framework file was never independently fed
   # to `hecks-parse` by its own path at all, and nothing caught it: the
   # accounting checks passed clean while quietly certifying zero
   # coverage for one of the two files answering to that name. The three
-  # OTHER framework members (identity/governance/console_settings)
+  # other framework members (identity/governance/console_settings)
   # collide with nothing and keep their bare stem — referenced by it
   # elsewhere in this file's own `REAL_PARITY_MEMBERS` merge.
   def self.framework_stem(member)
@@ -136,7 +136,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     PARITY_GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
     PARITY_FRAMEWORK_MEMBERS.map { |member| [framework_stem(member), member] } +
     PARITY_FIXTURE_MEMBERS.map { |member| [fixture_stem(member), member] } +
-    # STAGE 6 — one member, several concept files (see PARITY_LANGUAGE_GRAMMAR_FILES'
+    # Stage 6 — one member, several concept files (see PARITY_LANGUAGE_GRAMMAR_FILES'
     # own comment). Stemmed "bluebook_language" rather than bare
     # "bluebook" to keep it visibly distinct from
     # `lib/hecks/language/bluebook/bluebook.bluebook` — one of the
@@ -144,17 +144,17 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     [["bluebook_language", PARITY_LANGUAGE_GRAMMAR_FILES]]
   ).compact.freeze
 
-  # EVERY MEMBER WAS PENDING AT STAGE 1, each with the SAME honest reason.
-  # STAGE 2 removed "pizzas" — it got a REAL byte-match assertion instead
-  # (REAL_PARITY_MEMBERS below). STAGE 3 removed the framework trio
-  # ("identity", "governance", "console_settings") the SAME way. STAGE 4
+  # Every member was pending at stage 1, each with the same honest reason.
+  # Stage 2 removed "pizzas" — it got a real byte-match assertion instead
+  # (REAL_PARITY_MEMBERS below). Stage 3 removed the framework trio
+  # ("identity", "governance", "console_settings") the same way. Stage 4
   # removes "banking" — entities, composite identity, process managers,
   # read models with every query option, `provenance`, a nested `policy`,
   # `belongs_to`, and `on`'s blockless form — the deliberately "big one"
   # per the plan.
   #
   # "expression"/"translation" (Stage 3) and, now, "compliance"
-  # (Stage 4) ALSO come out here, a genuine bonus neither stage set out
+  # (Stage 4) also come out here, a genuine bonus neither stage set out
   # to build: a concurrently-landed real corpus member
   # (`examples/compliance/`) that Stage 4's own real construction work
   # (entity/process_manager/read-model-options/provenance/nested-policy)
@@ -165,19 +165,19 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # be exactly the kind of false claim this whole harness exists to make
   # impossible, so it's promoted rather than left stale — this is also
   # exactly the safety net working as designed: it showed up as a
-  # spec FAILURE ("a PENDING member that no longer fails the way its own
+  # spec failure ("a pending member that no longer fails the way its own
   # reason says it should") the moment this stage's real construction
   # work made it stop failing, not a silent pass. (A second concurrently-
   # landed bonus member, "interview", was promoted here the same way at
   # the time — the whole Interview domain has since been removed from
   # this repo, taking that entry with it.)
   #
-  # STAGE 5 removes EVERY `spec/fixtures/**/*.bluebook` member too — the
+  # Stage 5 removes every `spec/fixtures/**/*.bluebook` member too — the
   # plan's own Stage 5 was narrowed (see this file's own history/the
   # session that added this comment) to "wire the fixtures in and confirm
   # byte-exactness," since the grammar-chapters half already landed as
   # Stage 3/4 bonuses. All twenty fixtures round-tripped byte-exact
-  # against Ruby's own `ir.json` against the parser AS IT ALREADY STOOD,
+  # against Ruby's own `ir.json` against the parser as it already stood,
   # with three small real gaps found and fixed along the way (not
   # overfit to these files alone — each is a genuine, general parser/
   # grammar fix): `transition`'s own Ruby-hash-literal shorthand spelling
@@ -191,8 +191,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # string (`attribute :name, "Name"`, a value object declared later in
   # the same aggregate — `syntax.bluebook`'s own new `text`-kind row +
   # `parse::mod::resolve_type_expression`).
-  # STAGE 6 removes the LAST member — "bluebook_language", the
-  # self-hosted grammar itself — leaving PENDING_MEMBERS EMPTY for good,
+  # Stage 6 removes the last member — "bluebook_language", the
+  # self-hosted grammar itself — leaving PENDING_MEMBERS empty for good,
   # per the plan. See `REAL_PARITY_MEMBERS`' own comment on the two real
   # constructs this stage's own real parsing work found and built:
   # adjacent-string-literal concatenation across a backslash-continued
@@ -200,9 +200,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # enclosing bracket at all — both genuinely new, both real corpus
   # syntax (vocabulary.bluebook's own long `RefusalTemplate` wording).
   #
-  # "roster" — a LATER bonus, the same shape as "compliance"'s own
+  # "roster" — a later bonus, the same shape as "compliance"'s own
   # above: a concurrently-landed real corpus member
-  # (`examples/roster/`, literally written AS the block-predicates'
+  # (`examples/roster/`, literally written as the block-predicates'
   # own worked example — `.none?`/`.any?`/`.all?`/`.find { |x| … }`
   # over a value-object list, an entity list, and a value-object list
   # holding references, including one block nested inside another) that
@@ -210,7 +210,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # discipline as every other promotion here: confirmed byte-exact
   # against Ruby's own `ir.json` before moving out of PENDING_MEMBERS,
   # not left stale — the safety net doing exactly its job, catching a
-  # PENDING member that stopped failing the way its own reason claimed.
+  # pending member that stopped failing the way its own reason claimed.
   #
   # "chess" — a new real corpus member (`examples/chess/`, ADR 0026's
   # own named gap: `entity`, `lifecycle`/`transition`, `policy`, and
@@ -235,7 +235,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # `ir.json` before being added here, same discipline as every other
   # promotion above, not left in PENDING_MEMBERS to claim a parser gap
   # this domain does not actually have. (Its own translation edge under
-  # `bluebook/translations/` is a SEPARATE sub-language this file's own
+  # `bluebook/translations/` is a separate sub-language this file's own
   # PARITY_CORPUS_MEMBERS enumeration never reaches — `bluebooks_in`
   # only globs `bluebook/*.bluebook`, one level, the same way
   # `spec/corpus_spec.rb`'s own `bluebook_in` does.)
@@ -245,25 +245,25 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
-  # Every remaining PENDING member's own expected diagnostic — plain
+  # Every remaining pending member's own expected diagnostic — plain
   # "not yet implemented" for every one of them, now that Stage 3 moved
-  # the two members that used to surface a DIFFERENT, earlier gate
+  # the two members that used to surface a different, earlier gate
   # failure (`identified_by do ... end`'s multi-path block form — real,
   # confirmed Stage 3 territory, not a Stage 2 regression) into
   # REAL_PARITY_MEMBERS below with `parse::aggregate`/`lex.rs` now
   # actually building it. Kept as a `Hash.new` default (rather than
-  # deleted outright) so a FUTURE stage that finds another member
+  # deleted outright) so a future stage that finds another member
   # stopping at a different, real, earlier gate than "not yet
   # implemented" has the same place to name it Stage 2 already did.
   PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").freeze
 
   # stem -> [chapter name, files...] — the files fed to `hecks-parse
-  # chapter`, IN THE SAME ORDER `bin/project_rust` itself loads them: the
+  # chapter`, in the same order `bin/project_rust` itself loads them: the
   # domain's own `.bluebook` first (registers every aggregate), then its
   # `.hecksagon` if it has one (mutates those already-registered
   # aggregates' own `ports` — `Pizzas::Order.port "PaymentGateway" do
   # ... end`, real syntax confirmed by reading pizzas.hecksagon directly).
-  # Derived the SAME way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
+  # Derived the same way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
   # `hecksagon_in`/`chapter_name_of`), not hand-listed, so this stays
   # honest if pizzas.bluebook's own file ever moves.
   REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster chess directory].to_h do |stem|
@@ -274,22 +274,22 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     chapter_name = chapter_name_of(bluebooks) or raise "#{bluebooks.first} has no 'Hecks.bluebook \"Name\"' header"
     [stem, [chapter_name, bluebooks + [hecksagon_in(domain)].compact]]
   end.merge(
-    # THE FRAMEWORK TRIO (Stage 3). A framework bluebook has no
+    # The framework trio (Stage 3). A framework bluebook has no
     # `.hecksagon` of its own (confirmed by reading
     # lib/hecks/framework/bluebook/ directly): the comparison target
     # is `hecks-parse chapter --chapter <Name> <bluebook>` standing
     # alone, no `uses_framework`/`resolve` multi-file step needed (that
-    # mechanism only matters for a CONSUMING app's own `.hecksagon`,
+    # mechanism only matters for a consuming app's own `.hecksagon`,
     # e.g. banking.hecksagon's real `uses_framework "Governance"`/
     # `"Identity"` — real Stage 4 territory, and banking.hecksagon's own
-    # sibling `Hecks.hecksagon "Governance"`/`"Identity"` blocks, a SEPARATE
+    # sibling `Hecks.hecksagon "Governance"`/`"Identity"` blocks, a separate
     # finding `parse::chapter`'s own header explains).
     #
     # "interview" (Stage 4's own bonus member, PARITY_FRAMEWORK_MEMBERS)
     # was removed along with the whole Interview domain — dropped, not
     # kept in this repo.
     #
-    # "compliance" JOINS THE TRIO HERE TOO — same standalone shape (no
+    # "compliance" joins the trio here too — same standalone shape (no
     # `.hecksagon`, `lib/hecks/framework/bluebook/compliance.bluebook`
     # has none), but keyed through `framework_stem` rather than its own
     # bare basename: it collides with `examples/compliance`'s own
@@ -298,8 +298,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     # byte-exact against Ruby's own `ir.json` standalone before being
     # added — the file's own compliance.bluebook content is a literal
     # copy of the framework one, but that had never actually been
-    # confirmed by feeding THIS path to `hecks-parse`, only inferred
-    # from the fact that `examples/compliance`'s OWN entry (below,
+    # confirmed by feeding this path to `hecks-parse`, only inferred
+    # from the fact that `examples/compliance`'s own entry (below,
     # which additionally feeds `compliance.hecksagon`) already passes.
     %w[identity governance console_settings compliance].to_h do |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
@@ -308,7 +308,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       [framework_stem(bluebook), [chapter_name, [bluebook]]]
     end
   ).merge(
-    # THE BONUS — "expression"/"translation", see PENDING_MEMBERS' own
+    # **The bonus** — "expression"/"translation", see PENDING_MEMBERS' own
     # comment on why these two `PARITY_GRAMMAR_CHAPTERS` members (Stage
     # 5's own named target) are here already. Same standalone shape as
     # the framework trio: a grammar chapter has no `.hecksagon` either.
@@ -319,7 +319,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       [stem, [chapter_name, [bluebook]]]
     end
   ).merge(
-    # STAGE 5 — EVERY `spec/fixtures/**/*.bluebook` member, not
+    # Stage 5 — every `spec/fixtures/**/*.bluebook` member, not
     # hand-listed (see PARITY_FIXTURE_MEMBERS' own `Dir.glob`, above), so
     # a future fixture is covered automatically. Same standalone shape as
     # the framework trio/grammar chapters: parity reads the bluebook alone.
@@ -332,25 +332,25 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       [stem, [chapter_name, [bluebook]]]
     end
   ).merge(
-    # STAGE 6 — the self-hosted grammar itself, all nine
-    # `PARITY_LANGUAGE_GRAMMAR_FILES` fed to ONE `hecks-parse chapter
-    # --chapter Bluebook` invocation, in the SAME declared order
+    # Stage 6 — the self-hosted grammar itself, all nine
+    # `PARITY_LANGUAGE_GRAMMAR_FILES` fed to one `hecks-parse chapter
+    # --chapter Bluebook` invocation, in the same declared order
     # `MetaValidator.load_grammar_into` itself loads them — real parser
     # work this stage built: `parse::chapter::parse_chapter`'s own
     # multi-file merge (previously a hard "not yet implemented" the
-    # moment a SECOND `Bluebook`-context file showed up), plus two
+    # moment a second `Bluebook`-context file showed up), plus two
     # genuinely new constructs `syntax.bluebook`/`vocabulary.bluebook`'s
     # own long `RefusalTemplate` wording needed and no earlier corpus
     # member ever exercised: a backslash-continued line whose two
     # adjacent quoted string literals concatenate (Ruby's own
     # adjacent-literal rule — `lex::join_continuations`'s own
     # `ends_with_bare_backslash` + `ruby_value::scan_adjacent_strings`),
-    # and a bare trailing-comma argument-list continuation with NO
+    # and a bare trailing-comma argument-list continuation with no
     # enclosing bracket at all for `bracket_delta` to track (`member
     # refusal: "X", site: "Y",` + `template: "Z"` on the next physical
     # line — `lex::join_continuations`'s own `ends_with_bare_comma`).
     # Confirmed byte-exact against `MetaValidator.grammar_registry`'s own
-    # reconstructed graph BEFORE this entry was added — see
+    # reconstructed graph before this entry was added — see
     # `ruby_ir_json`'s own comment on why this one member's oracle path
     # is different from every other's.
     { "bluebook_language" => [chapter_name_of(PARITY_LANGUAGE_GRAMMAR_FILES.first), PARITY_LANGUAGE_GRAMMAR_FILES] }
@@ -360,31 +360,31 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     Open3.capture3(PARITY_BINARY_PATH, "chapter", "--chapter", chapter_name, *paths)
   end
 
-  # Ruby's OWN oracle — the exact sequence `bin/project_rust` itself
+  # Ruby's own oracle — the exact sequence `bin/project_rust` itself
   # loads a domain through (persistence/extraction ports, the memory +
   # prism adapters, then the domain's own files in order), exported the
-  # SAME way `Exporter.call`/`JSON.pretty_generate` already are — never
+  # same way `Exporter.call`/`JSON.pretty_generate` already are — never
   # the key-sorted `spec/golden/ir/*.json` fixtures (those are
   # deliberately re-sorted for human-readable diffs, per
   # `spec/ir_golden_spec.rb`'s own `rendered`/`sorted` — Ruby Hash
   # insertion order, unsorted, is the real wire contract this parser has
   # to match).
   #
-  # "bluebook_language" is the ONE STEM that can't go through the
+  # "bluebook_language" is the one stem that can't go through the
   # ordinary `Kernel.load`-in-a-fresh-registry path every other member
   # uses: `Hecks.bluebook` always calls `MetaValidator.call` the moment a
-  # file finishes loading UNLESS `MetaValidator.bootstrapping?` is true,
+  # file finishes loading unless `MetaValidator.bootstrapping?` is true,
   # and loading `aggregate.bluebook` (the self-hosted grammar's own
-  # SECOND file) that way refuses immediately — it references
-  # `ValueObject`/`Entity`, both declared in LATER files. Confirmed real:
+  # second file) that way refuses immediately — it references
+  # `ValueObject`/`Entity`, both declared in later files. Confirmed real:
   # attempting the ordinary path here raises exactly that Malformed.
-  # `MetaValidator.load_grammar_into` is the ONLY door that sets
+  # `MetaValidator.load_grammar_into` is the only door that sets
   # `@bootstrapping = true` around the whole nine-file load (its own
   # header: "every caller of the grammar must go through here for
-  # exactly that reason"), deferring validation to the ONE fixpoint judge
+  # exactly that reason"), deferring validation to the one fixpoint judge
   # `MetaValidator.grammar_registry` itself runs afterward — and by the
-  # time `grammar_registry` returns, its `Bluebook` entry IS the
-  # RECONSTRUCTED (post-`MetaValidator.call`) graph, the exact same
+  # time `grammar_registry` returns, its `Bluebook` entry is the
+  # reconstructed (post-`MetaValidator.call`) graph, the exact same
   # "MetaValidator's own reconstructed graph, not the builder's raw one"
   # target every other member reaches via its own ordinary
   # `Hecks.bluebook`-triggered call — just reached through the one door
@@ -410,13 +410,13 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     "#{JSON.pretty_generate(strip_invariant_ast(ir))}\n"
   end
 
-  # Rule rows' `ast` is now FULLY parity-tested: `hecks-parse` carries the
+  # Rule rows' `ast` is now fully parity-tested: `hecks-parse` carries the
   # expression parser (`rust/parser/src/expr`, moved from `rust/codegen`
   # when codegen switched to reading `ast` instead of re-parsing
   # `canonical`) and emits `AstJson`'s exact tree on every rule row —
   # the opt-in all-Rust pipeline (`rust/project_rust_pipeline.rb`) needs
   # it there, because `hecks-codegen` no longer parses text at all. The
-  # byte comparison below therefore pins BOTH the structural IR shape
+  # byte comparison below therefore pins both the structural IR shape
   # and the expression parse itself; the old blanket `:ast` strip (and
   # its long rationale) is gone with the second parser it protected.
   #
@@ -432,12 +432,12 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     expect(PARITY_CORPUS_MEMBERS).not_to be_empty
   end
 
-  # THE COMPLIANCE COLLISION, GUARDED AGAINST RECURRING — a duplicate
-  # stem doesn't just look untidy, it defeats the THREE checks right
+  # **The compliance collision, guarded against recurring** — a duplicate
+  # stem doesn't just look untidy, it defeats the three checks right
   # below: `Array#-` strips every occurrence of a matching element
   # regardless of how many there are on either side, so PENDING_MEMBERS
   # and "accounts for every real corpus member" both silently treat two
-  # same-stemmed members as fully accounted for the moment ONE of them
+  # same-stemmed members as fully accounted for the moment one of them
   # gets a PENDING_MEMBERS or REAL_PARITY_MEMBERS entry — exactly how
   # `lib/hecks/framework/bluebook/compliance.bluebook` went completely
   # unfed to `hecks-parse` while every accounting check here passed

@@ -1,12 +1,12 @@
 module Hecks
-  # A vendored, external bluebook — same shape as Framework (framework.rb),
+  # **A vendored, external bluebook** — same shape as Framework (framework.rb),
   # for members that don't ship inside hecks's own lib/ at all: a
   # separate, independently-versioned package
   # (github.com/chrisyoung/embryonaut_bluebooks) that a consuming project
   # vendors into its own checkout, the same way a project already vendors
   # hecks itself (bin/vendor_hecks, vendor/hecks/).
   #
-  # Recovered, not rebuilt — this module and its `uses_embryonaut_bluebook`
+  # **Recovered, not rebuilt** — this module and its `uses_embryonaut_bluebook`
   # DSL word (hecksagon_builder.rb) were built on a prior commit of this
   # repo (933d1dd), vendored out to a real consumer (lifeadelics/domain,
   # for embryonaut_bluebooks/payments), and then lost from this repo's own
@@ -27,7 +27,7 @@ module Hecks
   # itself only runs at hecksagon-build time, when a real registry is
   # current.
   #
-  # Every `.bluebook` file in the package, sorted — not just one. Unlike a
+  # **Every `.bluebook` file in the package, sorted** — not just one. Unlike a
   # framework member (one file, named by its own stem), a vendored package
   # can span several bluebook files that reopen the same `Hecks.bluebook`
   # (embryonaut_bluebooks/payments/bluebook/{payment,payments,policies}
@@ -37,7 +37,7 @@ module Hecks
   # payment < payments < policies, the same reason that package's own
   # files are named to fall in that order in the first place.
   #
-  # Only the bluebook files — same restriction Framework draws, same
+  # **Only the bluebook files** — same restriction Framework draws, same
   # reason: a `.hecksagon`/`.port`/`.adapter` is a wiring decision
   # (persistence, which processor adapter is bound) that belongs to
   # whoever is deploying, never baked into the vendored package itself.

@@ -8,7 +8,7 @@ require_relative "projector"
 require_relative "runtime/errors"
 
 module Hecks
-  # The bus, not a door — `docs/hecks-survey-what-we-wish-we-had.md` and
+  # **The bus, not a door** — `docs/hecks-survey-what-we-wish-we-had.md` and
   # `docs/future-features.md` both name the sibling project's own
   # "Storehouse" the single highest-priority gap this repo had: "no
   # per-command tool... the bluebook is the contract, the [door] just
@@ -88,7 +88,7 @@ module Hecks
     # guessed default.
     SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
 
-    # The bus's own audit trail — a JSONL file per domain, one line per
+    # **The bus's own audit trail** — a JSONL file per domain, one line per
     # `dispatch`/`query`/`state`/dry-run call, `follow` tails it back.
     # `tmp/`, not the domain's own directory: this is the bus's record
     # of what was asked of it, not part of the domain's own persisted
@@ -96,7 +96,7 @@ module Hecks
     # local, disposable-but-useful-while-it-lasts file.
     LOG_ROOT = File.expand_path("../../tmp/storehouse", __dir__)
 
-    # The root every `domain:`/`under:` must resolve under — the project
+    # **The root every `domain:`/`under:` must resolve under** — the project
     # directory by default, `HECKS_STOREHOUSE_ROOT` to widen or move it.
     # `Hecks.boot` `Kernel.load`s the `.hecksagon`/`.bluebook`/`.world`
     # files a domain path resolves to, and those are Ruby, not a data
@@ -108,7 +108,7 @@ module Hecks
     # project tree.
     BOOT_ROOT = File.expand_path(ENV["HECKS_STOREHOUSE_ROOT"] || File.expand_path("../..", __dir__))
 
-    # Refused, not silently clamped — a path outside `BOOT_ROOT` is either
+    # **Refused, not silently clamped** — a path outside `BOOT_ROOT` is either
     # an honest mistake (a relative path typed against the wrong cwd) or
     # the exact thing this check exists to catch, and both deserve the
     # same clear refusal rather than a silent rewrite to something the
@@ -124,7 +124,7 @@ module Hecks
 
     # ── shared resolution helpers ────────────────────────────────────
 
-    # The one bluebook a domain directory boots. Every `bin/*` script that
+    # **The one bluebook a domain directory boots**. Every `bin/*` script that
     # projects a whole-domain CLI or doc set makes this same assumption
     # (`Facade::CliRunner#call`'s own `bluebook = runtime.registry.
     # bluebooks.values.first`) — one `.hecksagon` names one chapter.
@@ -139,7 +139,7 @@ module Hecks
                                  "known: #{bluebook.aggregates.map(&:hecks_name).sort.join(', ')}"
     end
 
-    # The same alias table `CliRunner` resolves a typed word against — a
+    # **The same alias table `CliRunner` resolves a typed word against** — a
     # short name when it's unambiguous, the qualified `Aggregate.Verb`
     # form always. Shared here so `dispatch` and `query` (and their error
     # messages) never drift from what a human typing `bin/run` sees.
@@ -178,11 +178,11 @@ module Hecks
       raise Runtime::TypeMismatch, "actor_id: requires role: too — a caller names WHO through WHICH role they hold"
     end
 
-    # Bound for the duration of one call, then gone — `Hecks.as_caller`
+    # **Bound for the duration of one call, then gone** — `Hecks.as_caller`
     # is itself a `Thread.current`-scoped `ensure`-guarded block, so
     # nothing here needs its own cleanup. `role: nil` yields unbound —
     # for `query`, exactly as before: `CommandRules::Authorization#
-    # refuse_role_mismatch` is OPT-IN on the domain side (`return unless
+    # refuse_role_mismatch` is opt-in on the domain side (`return unless
     # caller`), and query authorization runs on a wholly separate
     # mechanism (`authorize policy, tenant: :field`, checked against an
     # explicit `tenant:` argument — see `Runtime::TenantScope`), so
@@ -199,7 +199,7 @@ module Hecks
       Hecks.as_caller(role: role, actor_id: actor_id, &block)
     end
 
-    # The fail-open half `with_caller` itself cannot close — ADR 0025's
+    # **The fail-open half `with_caller` itself cannot close** — ADR 0025's
     # Governance RBAC work fixed what a *bound* role is checked against
     # (a live `Governance::RoleAssignment` lookup instead of a bare
     # string match), but changed nothing about a caller who binds no
@@ -323,7 +323,7 @@ module Hecks
       ok(summary: summary, would_succeed: false, error: e.message)
     end
 
-    # One call, many steps — the survey's own `bin/run <domain> script`
+    # **One call, many steps** — the survey's own `bin/run <domain> script`
     # shape, so an agent issuing a known sequence of commands (open an
     # account, then fund it) pays one round trip instead of N. Every step
     # goes through `dispatch` itself — same resolution, same audit log
@@ -370,7 +370,7 @@ module Hecks
       ok(summary: summary, rows: rows.map { |row| Facade::JsonDoor.materialize(row) }).merge(verb: spec[:verb])
     end
 
-    # What is actually stored — no verb, no interpretation, the repository
+    # **What is actually stored** — no verb, no interpretation, the repository
     # itself. `id:` given answers one record (`NotFound` when it names
     # nothing); omitted answers every record the aggregate currently
     # holds. This is the difference `query` can't cover: a query answers a
@@ -405,7 +405,7 @@ module Hecks
 
     # ── the four zoom levels ─────────────────────────────────────────
 
-    # Zoom level zero — every domain directory a root actually holds,
+    # **Zoom level zero** — every domain directory a root actually holds,
     # discovered rather than typed from memory. Every other tool takes
     # `domain:` as a directory it assumes the caller already knows; this
     # is how a caller who doesn't finds out. `Adapters::Folder#domain?`
@@ -422,7 +422,7 @@ module Hecks
       ok(under: under, domains: found.map { |name| File.join(under, name) })
     end
 
-    # Zoom level one — every aggregate this domain declares, and every
+    # **Zoom level one** — every aggregate this domain declares, and every
     # command/query name each answers to, snake_cased exactly as
     # `dispatch`/`query` want it. Enough to pick a target; `describe` is
     # the next level down for what one of them actually takes.
@@ -439,7 +439,7 @@ module Hecks
       refused(e)
     end
 
-    # Zoom level two — the exact same usage document a human gets from
+    # **Zoom level two** — the exact same usage document a human gets from
     # `bin/docs <domain> [aggregate]` (`Projector::DocsProjector`, the
     # identical projection `Surface::AggregateDoor#docs` calls one door
     # over): every command's arguments, the states it may be issued
@@ -454,7 +454,7 @@ module Hecks
       refused(e)
     end
 
-    # Zoom level three — is the wiring sound at all: every bind names a
+    # **Zoom level three** — is the wiring sound at all: every bind names a
     # declared aggregate, every adapter satisfies the port it claims, the
     # default adapter is usable. `Registry#verify!` (`runtime/registry/
     # verification.rb`) is the one place this repo already answers that
@@ -547,7 +547,7 @@ module Hecks
         runs:        Array(result.runs).map { |run| { description: run.description, status: run.status, message: run.message } } }
     end
 
-    # A live tail without a live process — `bin/hecks_mcp_door` (its
+    # **A live tail without a live process** — `bin/hecks_mcp_door` (its
     # transport of MCP-over-stdio) answers one request at a time, no push
     # channel to a client that only ever asks. This is the honest version
     # of the survey's `storehouse follow` for that shape: not a
@@ -628,7 +628,7 @@ module Hecks
 
     def ok(**fields) = { ok: true }.merge(fields)
 
-    # An honest refusal, not a crash — the survey's own item #9: "an
+    # **An honest refusal, not a crash** — the survey's own item #9: "an
     # explicit, structured refusal a caller can act on" rather than a
     # stack trace an agent has to parse to find the one line that
     # mattered. The domain's own refusal text travels verbatim

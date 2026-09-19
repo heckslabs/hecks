@@ -75,7 +75,7 @@ module Hecks
         attributes.any? { |candidate| candidate.reference? && hop_name(candidate) == head }
       end
 
-      # One step: does `field`'s head hop through one of `attributes`'
+      # **One step**: does `field`'s head hop through one of `attributes`'
       # own references? Answers the resolved `Hop` plus the string
       # still left to walk (itself possibly another `/`-hop, against
       # the target's own attributes, or a plain `.`-dotted field walk

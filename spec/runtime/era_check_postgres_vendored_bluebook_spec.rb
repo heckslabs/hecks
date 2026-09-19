@@ -4,26 +4,26 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 
-# THE MULTI-BLUEBOOK / POSTGRESERA GAP, FOUND LIVE against a real,
+# The multi-bluebook / postgresera gap, found live against a real,
 # private project (children-of-the-light) attaching a vendored chapter
 # via `uses_embryonaut_bluebook`: PostgresEra's own era-1 self-mint for
-# the SECOND bluebook loaded into a registry wrote the FIRST (target)
+# the second bluebook loaded into a registry wrote the first (target)
 # bluebook's own source text into `hecks_eras.held_text` — not the
 # second bluebook's own. The very next boot re-derived the second
-# bluebook's REAL shape, found it didn't match the (wrongly) stored
+# bluebook's real shape, found it didn't match the (wrongly) stored
 # text, and refused to boot toward a scaffold for drift that never
 # actually happened. 100% reproducible, not a race — confirmed twice in
 # a row against real Postgres before this spec existed.
 #
-# ROOT CAUSE — `EraCheck.source_text_for` (era_check.rb): its own
+# **Root cause** — `EraCheck.source_text_for` (era_check.rb): its own
 # single-file-directory fallback only excluded a bluebook known to
 # `Framework.members` (a `uses_framework` member, e.g. Governance) from
-# being handed the ONE OTHER file that happens to sit in the domain's
+# being handed the one other file that happens to sit in the domain's
 # own directory. A `uses_embryonaut_bluebook`-vendored chapter has no
 # equivalent registry to check against — its real source lives under
 # `vendor/embryonaut_bluebooks/<name>/bluebook/`, entirely outside the
 # domain's own directory — so the guard let it fall straight through
-# and hand back the TARGET domain's own single file as if it were the
+# and hand back the target domain's own single file as if it were the
 # vendored bluebook's own source. Fixed by teaching `source_text_for`
 # to ask the registry itself whether any hecksagon recorded a
 # `uses_embryonaut_bluebook` call whose name Pascal-cases to this
@@ -31,14 +31,14 @@ require_relative "../support/fenced_owner"
 # the vendored package's own directory — the same path
 # `EmbryonautBluebook.load!` itself already resolves from.
 #
-# NEVER EXERCISED TOGETHER BEFORE THIS SPEC — confirmed by reading the
+# **Never exercised together before this spec** — confirmed by reading the
 # existing suite: `spec/runtime/era_check_spec.rb` only ever boots a
-# SINGLE bluebook (Memory-backed, no era system in play at all — "holds
+# single bluebook (Memory-backed, no era system in play at all — "holds
 # nothing for an adapter that has no eras"); every `uses_framework`/
 # `uses_embryonaut_bluebook` spec (`tenant_isolation_spec.rb`,
 # `spec/act_as_spec.rb`, etc.) boots Memory or a bare `uses_framework
 # "Governance"` — which is a `Framework.members` name, so it never took
-# the single-file fallback's WRONG branch — and every real PostgresEra
+# the single-file fallback's wrong branch — and every real PostgresEra
 # era-minting spec (`spec/adapters/driven/postgres_era_spec.rb`,
 # `spec/adapters/driven/postgres_era/lineage_spec.rb`) boots exactly one
 # bluebook at a time, directly through `LineageManager.check!`, never
@@ -116,7 +116,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     File.write(path, content)
   end
 
-  # A target domain whose own bluebook directory holds EXACTLY ONE
+  # A target domain whose own bluebook directory holds exactly one
   # `.bluebook` file of its own — the single-file shape the fallback in
   # `EraCheck.source_text_for` special-cases — attaching a second,
   # vendored bluebook via `uses_embryonaut_bluebook`. Both hecksagons
@@ -199,7 +199,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
       notes_row  = rows.find { |row| row["domain"] == "Notes" }
 
       expect(target_row["held_text"]).to include('Hecks.bluebook "Target"')
-      # THE BUG, PINNED: before the fix, this held the TARGET's own
+      # **The bug, pinned**: before the fix, this held the target's own
       # text (byte-identical to target_row["held_text"]) instead of
       # Notes' own.
       expect(notes_row["held_text"]).to include('Hecks.bluebook "Notes"')

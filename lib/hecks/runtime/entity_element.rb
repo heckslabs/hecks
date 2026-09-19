@@ -8,7 +8,7 @@ require_relative "instance"
 
 module Hecks
   module Runtime
-    # One entity element, located and mutated — the walk-and-write half of
+    # **One entity element, located and mutated** — the walk-and-write half of
     # dispatching into a piece an aggregate holds, factored out of
     # `EntityInterpreter` so a second caller (`CommandInterpreter`'s own
     # `delegate_to_entity` step) can locate and mutate the same element the
@@ -33,7 +33,7 @@ module Hecks
       UNMATCHABLE = Object.new.freeze
       private_constant :UNMATCHABLE
 
-      # One hop per chain entry. `container` starts as `instance` (the root
+      # **One hop per chain entry**. `container` starts as `instance` (the root
       # aggregate record) and becomes each just-located element in turn —
       # Dispatch's own element is found inside the Handler element
       # `locate_chain` located the step before, never inside `instance`
@@ -63,7 +63,7 @@ module Hecks
         container
       end
 
-      # One element, matched on every part of its identity — not just the first.
+      # **One element, matched on every part of its identity** — not just the first.
       # A piece's identity may be several paths, the same shape a head's can be,
       # so a dispatch that names the element has to supply every part and every
       # part has to agree with the stored one. `routed_identity`, when given,

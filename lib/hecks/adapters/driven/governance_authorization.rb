@@ -2,7 +2,7 @@ require "time"
 
 module Hecks
   module Adapters
-    # The `authorization` port, fulfilled by governance — same registry,
+    # **The `authorization` port, fulfilled by governance** — same registry,
     # same boot, so "ask Governance" is a dispatch against records
     # already sitting in the store this adapter is handed, not a bridge
     # to a second runtime. `Runtime::Dispatcher.new(registry)` is cheap
@@ -67,7 +67,7 @@ module Hecks
         false
       end
 
-      # The other half — may role X act as role Y. `RoleTransition.Allowed`
+      # **The other half** — may role X act as role Y. `RoleTransition.Allowed`
       # is identified by the exact pair, so at most one row ever comes
       # back ; still read as `.any?` rather than trusting that structurally,
       # the same defensiveness `holds_role?` already has to have anyway
@@ -97,7 +97,7 @@ module Hecks
         live && live[:role_name][:value]
       end
 
-      # The verb, read from the provider's own declaration — `provides
+      # **The verb, read from the provider's own declaration** — `provides
       # "authorization", assignments: ..., transitions: ...` on whichever
       # loaded chapter declares it (Governance's, in every boot today).
       # Exactly one provider, the same "the runtime will not choose for

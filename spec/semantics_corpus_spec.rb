@@ -4,15 +4,15 @@ require "open3"
 require "hecks/fuzzing"
 require_relative "support/rust_conformance_helpers"
 
-# THE SEMANTICS CORPUS — the executable half of
-# docs/semantics/bluebook-semantics.md. Every fixture carries a FROZEN
+# **The semantics corpus** — the executable half of
+# docs/semantics/bluebook-semantics.md. Every fixture carries a frozen
 # `expect` (seeded once by bin/seed_semantics_corpus, reviewed against
-# the clauses, then the definition); this spec holds BOTH runtimes to
+# the clauses, then the definition); this spec holds both runtimes to
 # the file, never to each other. That is the difference from
 # spec/rust_conformance_spec.rb, which proves the runtimes agree — a
 # shared bug passes there and fails here the day a clause decides it.
 #
-# Refusals are compared WITH their kind (the refusal class, C8.2);
+# Refusals are compared with their kind (the refusal class, C8.2);
 # events without `occurred_at` (environmental, C7.3/C9.1).
 RSpec.describe "the semantics corpus" do
   SEMANTICS_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/semantics", "*.json")).freeze
@@ -35,7 +35,7 @@ RSpec.describe "the semantics corpus" do
     end
   end
 
-  # THE REVERSE OF THE CHECK BELOW — every fixture the document cites
+  # **The reverse of the check below** — every fixture the document cites
   # must exist. Stage 5 wrote seven citations ahead of their files, and
   # nothing noticed until a reader went looking; a cited fixture that
   # does not exist is a clause pinned by nothing.
@@ -57,7 +57,7 @@ RSpec.describe "the semantics corpus" do
     end
   end
 
-  # A PARTITION, NOT A FILTER. Every fixture lands in exactly one bucket:
+  # **A partition, not a filter**. Every fixture lands in exactly one bucket:
   # held to the Rust kernel below (gating), or `ruby_only` — and a
   # ruby_only fixture is not a silent exclusion: it carries a
   # `ruby_only_reason`, checked here against what it claims (a missing
@@ -148,7 +148,7 @@ RSpec.describe "the semantics corpus" do
       end
     end
 
-    # NON-GATING, BY DESIGN — it reports, it never fails. A ruby_only
+    # **Non-gating, by design** — it reports, it never fails. A ruby_only
     # fixture Rust now answers exactly is a flag waiting to be removed;
     # this is where that shows up. Build failures are reported, not
     # raised: the gating examples above own "the crate builds".

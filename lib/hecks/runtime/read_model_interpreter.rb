@@ -24,7 +24,7 @@ module Hecks
 
       private
 
-      # Root-first, then the SQLite escape hatch, then the join loop —
+      # **Root-first, then the SQLite escape hatch, then the join loop** —
       # each step's own comment names a real, previously-shipped bug the
       # current order fixes (the reference/TenantScope refusal ordering
       # above, the root-first head processing below). Splitting this
@@ -73,7 +73,7 @@ module Hecks
           end
         end
 
-        # Root first, always — regardless of `include` order in the
+        # **Root first, always** — regardless of `include` order in the
         # bluebook. `read_model_builder.rb`'s own `include` is
         # documented "Order-independent" (the `:many` flag is resolved
         # at build time, once `@reference_target` is known), but that
@@ -145,7 +145,7 @@ module Hecks
         end]
       end
 
-      # The root-first fix's own fix — root-first alone only reaches one
+      # **The root-first fix's own fix** — root-first alone only reaches one
       # level: it guarantees the root is in `projected` before any other
       # head is matched, but a chain of non-root heads (a head that
       # references another non-root head, not the root) is still
@@ -303,7 +303,7 @@ module Hecks
         target
       end
 
-      # The standard definition. An odd count's median is its one true
+      # **The standard definition**. An odd count's median is its one true
       # middle value, sorted ; an even count's median is the average of
       # its two middle values — the common convention (as opposed to,
       # say, always taking the lower of the two), and the one this

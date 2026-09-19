@@ -69,13 +69,13 @@ module Hecks
         ctx.result = step(:emit) { ctx.operation.outbound? ? ask(ctx) : emit(ctx) }
       end
 
-      # The domain calling out, and both endings recorded.
+      # **The domain calling out, and both endings recorded**.
       #
       # The adapter is found the same way every other port's is — by name,
       # across whatever adapters this boot loaded — so an `asks` is bound by
       # an adapter declaring `port "IssueTracker"` and nothing new to learn.
       #
-      # Every failure is an answer. A raise from the far side of a boundary is
+      # **Every failure is an answer**. A raise from the far side of a boundary is
       # not an exception in this domain's terms, it is the outside saying no,
       # and the chapter already named the word for that. So the rescue is
       # deliberately wide: a timeout, a bad credential, an adapter that does
@@ -83,7 +83,7 @@ module Hecks
       # `refuses` event, carrying what was said. A policy reacts to it, a
       # retry counter reads it, and nothing has to catch anything.
       #
-      # An ask is handed the record it is about.
+      # **An ask is handed the record it is about**.
       #
       # An inbound operation deliberately cannot read state — it is the
       # anti-corruption boundary, translating a fact from outside, and letting
@@ -108,7 +108,7 @@ module Hecks
         announce(ctx, ctx.operation.refuses, ctx.args.merge(refusal: { value: "#{e.class}: #{e.message}" }))
       end
 
-      # The answer is spread, not nested — and that is what makes the loop
+      # **The answer is spread, not nested** — and that is what makes the loop
       # close. A policy re-enters its target with the event payload verbatim;
       # it cannot reach inside a key. So an answer tucked under `answered:`
       # can be read by a human and by nothing else, and the command that
@@ -137,7 +137,7 @@ module Hecks
         end
       end
 
-      # The record, if there is one. A record that does not exist yet is not
+      # **The record, if there is one**. A record that does not exist yet is not
       # an error here — the ask still goes, carrying only its arguments, and
       # whatever the adapter makes of that is its own business. Refusing
       # would put a second existence check behind the one `resolve_references`

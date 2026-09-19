@@ -51,7 +51,7 @@ module Hecks
         end
 
         def judge_wiring(domain, verb, values)
-          # The same join the language itself derives. Wiring is
+          # **The same join the language itself derives**. Wiring is
           # `identified_by do world; verb.value end` — `Wiring.Declare`
           # (a creating command) ignores this `id:` entirely and computes its own
           # from `world`/`verb`, so a locally minted "#{domain}.#{verb}" named a

@@ -30,7 +30,7 @@ module Hecks
       def persistence_capabilities = [:atomic_put]
 
       def initialize(aggregate:, settings: {}, root: nil)
-        # Lazy, on purpose — a domain that never wires Sqlite should never
+        # **Lazy, on purpose** — a domain that never wires Sqlite should never
         # need the gem installed. `require "hecks"` alone must not
         # force a database client library nobody asked for.
         require "sqlite3"
@@ -67,9 +67,9 @@ module Hecks
         create_outbox_table!
       end
 
-      # Re-entrant on purpose — `atomic_put` opens its own transaction
+      # **Re-entrant on purpose** — `atomic_put` opens its own transaction
       # and `Interpreting#run_dispatch_order` opens one around the whole
-      # save+emit pair; SQLite3 refuses a begin inside a begin, so the
+      # save+emit pair; SQLite3 refuses a BEGIN inside a BEGIN, so the
       # inner call joins the outer one instead. Same shape Postgres uses.
       def transaction(&)
         return yield if @db.transaction_active?
@@ -340,7 +340,7 @@ module Hecks
         "json_extract(#{quote_ident(name)}, '#{json_path}')"
       end
 
-      # SQLite has no bare offset — limit -1 is its own documented
+      # SQLite has no bare OFFSET — LIMIT -1 is its own documented
       # unbounded spelling, exactly for this case.
       def unbounded_limit = " LIMIT -1"
 

@@ -5,10 +5,10 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # A browser-hosted domain's own declared intent — not a second Memory
+    # **A browser-hosted domain's own declared intent** — not a second Memory
     # wearing a different name. Ruby has no way to reach a real browser's
     # `window.localStorage` at all (it is per-tab, per-origin, JS-only,
-    # unreachable over any network the way D1's own rest API is) — so
+    # unreachable over any network the way D1's own REST API is) — so
     # this Ruby-side adapter is honestly a stand-in: in-process, ephemeral,
     # mechanically identical to Memory. What earns it a name of its own
     # is what it declares, not what it happens to do in Ruby: `persisted_by
@@ -54,7 +54,7 @@ module Hecks
         InMemoryOrdering.ordered(@records.values, aggregate: @aggregate, order_by: order_by, direction: direction)
       end
 
-      # The decision the guide asks for, made explicitly: no compiled
+      # **The decision the guide asks for, made explicitly**: no compiled
       # dialect of its own, same as Heki/Memory — a personal-scale local
       # store answering by walking `all` is correct on day one, and
       # nothing about a browser tab's own data volume asks for pushdown.

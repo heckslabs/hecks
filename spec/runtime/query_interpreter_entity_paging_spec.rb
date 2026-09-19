@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# H7 — QueryInterpreter's ENTITY engine (`entity_rows`, the only engine
+# H7 — QueryInterpreter's entity engine (`entity_rows`, the only engine
 # entity/sub-list queries have) still had two of the three bugs the audit
 # named, after `#interpret`/`#reference_interpret` had already picked up
 # their own offset fix (see query_interpreter_offset_spec.rb):
@@ -14,10 +14,10 @@ require "spec_helper"
 #      element and (correctly, per NullPolicy) excluded every row —
 #      an entity query with a dotted where silently answered `[]`.
 #
-# A THIRD, sibling bug lived one level up: the plain aggregate-level
+# A third, sibling bug lived one level up: the plain aggregate-level
 # `ordered` (used by `#interpret`/`#reference_interpret`, the reference/
 # no-native-hook engine) read `record[field]` directly too — a dotted
-# `order_by` on an ORDINARY (non-entity) query sorted by all-nil, so two
+# `order_by` on an ordinary (non-entity) query sorted by all-nil, so two
 # records with different dotted-field values landed in whatever order the
 # identity tier alone decided (here: dispatch/creation order), not the
 # declared order.
@@ -55,7 +55,7 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
             identified_by :sequence
             attribute :price, Price
 
-            # A DOTTED where AND a dotted order_by, on the ONLY engine
+            # A dotted where and a dotted order_by, on the only engine
             # entity queries have — element_where_holds? used to answer
             # `[]` for this whatever the data, and offset was never read.
             query "ByPrice" do
@@ -81,8 +81,8 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
             emits "ItemAdded"
           end
 
-          # A DOTTED order_by on an ORDINARY, aggregate-level query —
-          # the reference engine's OWN `ordered` used to read
+          # A dotted order_by on an ordinary, aggregate-level query —
+          # the reference engine's own `ordered` used to read
           # `record[field]` directly and land on nil for every row.
           query "ByFeaturedPrice" do
             order_by :"featured_price.cents"

@@ -24,14 +24,14 @@ module Hecks
 
       attr_reader :registry
 
-      # The declared order — Vocabulary::AggregateDispatchOrder
+      # **The declared order** — Vocabulary::AggregateDispatchOrder
       # (language/bluebook/vocabulary.bluebook), read off the generated table
       # (lib/hecks/vocabulary.rb) rather than typed here. spec/vocabulary_
       # conformance_spec.rb holds every step to a real `step_<name>` handler,
       # both directions.
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("AggregateDispatchOrder")
 
-      # A last-resort safety valve, not the normal outcome path — see
+      # **A last-resort safety valve, not the normal outcome path** — see
       # `Runtime::StaleWrite`'s own comment. Two concurrent writers
       # against one aggregate resolve through exactly one retry in the
       # ordinary case (the loser's retried hydrate reads the winner's now-
@@ -80,7 +80,7 @@ module Hecks
           ctx.route = route
           ctx.dry_run = dry_run
           ctx.plan = DependencyPlanning::Analyzer.call(aggregate: aggregate, command: command)
-          # Resolved here, once, before hydration — `Registry#repository`
+          # **Resolved here, once, before hydration** — `Registry#repository`
           # memoizes, so this and `step_hydrate`'s own read of `ctx.repository`
           # (no second fetch there any more) always name the same instance;
           # the isolation decision below (lock vs. CAS+retry) needs the
@@ -98,7 +98,7 @@ module Hecks
 
       private
 
-      # A no-op, and untraced — Vocabulary::AggregateDispatchOrder's
+      # **A no-op, and untraced** — Vocabulary::AggregateDispatchOrder's
       # decode_arguments. Routing (`Runtime::Routing`) has already handed
       # `call` a decoded argument hash by the time any step runs, so there is
       # nothing left to decode here yet; like a conditional step that does
@@ -350,7 +350,7 @@ module Hecks
 
       def persist_instance(ctx)
         if ctx.strategy == DependencyPlanning::ATOMIC_PUT
-          # A second creation is not a fresh one — see
+          # **A second creation is not a fresh one** — see
           # hydrate_complete_state's own comment; the
           # same refusal, on the same terms, for the
           # complete-state path. `insert_only:` asks the
@@ -562,7 +562,7 @@ module Hecks
                                                    aggregate: aggregate.hecks_name,
                                                    identity:  identity_reading(aggregate)))
 
-        # A second creation is not a fresh one — `creates?` on an identity
+        # **A second creation is not a fresh one** — `creates?` on an identity
         # a record already exists under refuses (`AlreadyExists`) rather
         # than silently overwriting it, the same refusal `hydrate_prior_
         # or_initial`'s own body gives for its own complete-but-state-
@@ -604,7 +604,7 @@ module Hecks
                                                    identity:  identity_reading(aggregate)))
         found = repository.find(id)
 
-        # A second creation is not a fresh one — see hydrate_complete_
+        # **A second creation is not a fresh one** — see hydrate_complete_
         # state's own comment; the same refusal, on the same terms, for
         # a complete-but-state-dependent command (one with a `given`
         # reading its own prior state, which is what routes here instead
@@ -628,7 +628,7 @@ module Hecks
         found ? found.dup : Instance.new(aggregate: aggregate, id: id, args: args)
       end
 
-      # The join, the dig, and the reading — all shared with `EntityInterpreter`
+      # **The join, the dig, and the reading** — all shared with `EntityInterpreter`
       # now, in `Runtime::Identity`, rather than kept as two copies that could
       # only ever drift. See that module for the reasoning ; these three stay
       # here, at the old names, purely so nothing below has to change.

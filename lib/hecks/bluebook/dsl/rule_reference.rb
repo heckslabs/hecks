@@ -15,7 +15,7 @@ module Hecks
       # reuses one of these three shapes instead of a fourth hand-written
       # near-duplicate resolver.
       #
-      # Not one unified algorithm — a real design question this file
+      # **Not one unified algorithm** — a real design question this file
       # answers directly: the three existing resolvers are not
       # superficially different, they are structurally different (a
       # multi-pool fallback chain; one pool keyed by declaring owner,
@@ -107,7 +107,7 @@ module Hecks
                   .find { |rule| rule.description == description }
         end
 
-        # Which construct uses which primitive — no longer a Ruby-only
+        # **Which construct uses which primitive** — no longer a Ruby-only
         # Hash (that was this constant's own shape, one round ago): the
         # user's own correction — "my goal is that if they read the same
         # table they behave identically" — means a table only Ruby ever
@@ -117,14 +117,14 @@ module Hecks
         # same generated data `rust/parser/src/keywords.rs` is generated
         # from (`bin/project_parser_table`). `#lookup` reads it live.
         #
-        # The one unavoidable exception: the meta-domain's own bootstrap
+        # **The one unavoidable exception**: the meta-domain's own bootstrap
         # (`MetaValidator.load_grammar_into`) dispatches `given`/
         # `invariant` on itself 61 times while building the very grammar
         # table that would answer "how does given/Aggregate resolve" —
         # `MetaValidator.grammar_registry`/`SyntaxBoot.call` are not
         # ready yet, and cannot be made ready without already having
         # resolved a `given` somewhere upstream. `MetaValidator.
-        # bootstrapping?` is the SAME guard `MetaValidator.call` (the
+        # bootstrapping?` is the same guard `MetaValidator.call` (the
         # judge) already uses to skip self-judging during this exact
         # window — `#lookup` uses it too, falling back to
         # `BOOTSTRAP_FALLBACK` (below) only while it's true. Every real
@@ -132,7 +132,7 @@ module Hecks
         # after `grammar_registry` is fully built and memoized, so reads
         # the real table, every time, no exception.
         #
-        # No longer kept in sync by hand — the same `resolves_via`/
+        # **No longer kept in sync by hand** — the same `resolves_via`/
         # `disambiguator` columns, projected ahead of time into the
         # committed lib/hecks/bluebook/dsl/bootstrap_table.rb
         # (bin/project_bootstrap_table, pinned by spec/bootstrap_table_spec.rb).

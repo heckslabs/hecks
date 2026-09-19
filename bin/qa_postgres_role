@@ -1,42 +1,42 @@
 #!/usr/bin/env ruby
 
-# THE ROLE THE QA LEDGER CONNECTS AS — created, and handed the database,
+# **The role the QA ledger connects as** — created, and handed the database,
 # idempotently. The operator step behind `qa/bluebook/quality_control
 # .world`'s own `database "postgres://hecks_qa@localhost/..."` binding;
 # read that file's header first.
 #
-# WHY A ROLE AT ALL (BUG#24). PostgresEra's era write-fence is Postgres
+# Why a role at all (BUG#24). PostgresEra's era write-fence is Postgres
 # row-level security, and Postgres exempts a superuser — or any role
-# granted BYPASSRLS — from every policy unconditionally; FORCE ROW LEVEL
-# SECURITY only narrows the table OWNER's exemption. A `.world` naming a
+# granted BYPASSRLS — from every policy unconditionally; force row level
+# security only narrows the table owner's exemption. A `.world` naming a
 # bare database connects as the machine's default Postgres user, which on
 # a self-hosted dev box is almost always a superuser: found live on the
 # real ledger, where an old checkout wrote its own superseded era straight
 # through two mints (37 rows no newer head could read) and nothing
 # warned. `Lineage#check_fence_applies!` now refuses that boot outright.
-# The way through is what this script provisions: an ORDINARY role that
-# OWNS the database and everything in it — fenced by RLS like any other
-# role (FORCE reaches the owner), yet still able to provision and mint,
+# The way through is what this script provisions: an ordinary role that
+# owns the database and everything in it — fenced by RLS like any other
+# role (force reaches the owner), yet still able to provision and mint,
 # which an app-only, non-owner role cannot (`provisioner?`, owner-only
 # DDL). One identity, no prod-style owner/app split: every QA session may
 # have to mint, so every session is the owner.
 #
-# WHAT IT DOES, IN ORDER, EACH STEP SKIPPED WHEN ALREADY TRUE:
-#   1. CREATE ROLE <role> LOGIN — NOSUPERUSER NOBYPASSRLS NOCREATEDB
-#      NOCREATEROLE, the plainest role Postgres has (the same shape
+# **What it does, in order, each step skipped when already true**:
+#   1. CREATE ROLE <role> login — nosuperuser nobypassrls nocreatedb
+#      nocreaterole, the plainest role Postgres has (the same shape
 #      spec/adapters/driven/postgres_era/lineage_spec.rb's own
 #      `hecks_lineage_owner` takes). Race-safe: two specs running under
 #      `parallel_rspec` may both reach this line for the same role.
-#   2. ALTER DATABASE <database> OWNER TO <role>.
-#   3. Inside <database>: ALTER SCHEMA public OWNER TO <role>, then every
+#   2. ALTER database <database> owner to <role>.
+#   3. Inside <database>: ALTER SCHEMA public owner to <role>, then every
 #      table, partition, sequence, view and materialized view in `public`
 #      (a `DROP SCHEMA public CASCADE; CREATE SCHEMA public` reset, which
 #      the specs do before every example, leaves a superuser-owned schema
-#      the role could not CREATE in — hence the schema itself, not only
+#      the role could not create in — hence the schema itself, not only
 #      what is in it), and every function there (PostgresEra's own
-#      `hecks_tr_*` jsonb helpers, `install_transforms!`) — OWNER TO
+#      `hecks_tr_*` jsonb helpers, `install_transforms!`) — owner to
 #      <role>. Explicit `ALTER ... OWNER TO`, relation by relation, rather
-#      than one `REASSIGN OWNED BY`: REASSIGN OWNED acts on EVERY
+#      than one `REASSIGN OWNED BY`: reassign owned acts on every
 #      object the old role owns — every other database that superuser
 #      owns on the instance, not only this one — and the bootstrap
 #      superuser's initdb-time objects (`public` itself among them) are
@@ -44,21 +44,21 @@
 #      follow their tables on their own; the loop handles any that do
 #      not.
 #
-# ALREADY APPLIED TO THE LIVE LEDGER, BY HAND, 2026-09-11 — exactly these
-# statements (CREATE ROLE hecks_qa LOGIN; per-object ALTER ... OWNER TO
-# hecks_qa across `public`; ALTER DATABASE hecks_quality_control OWNER TO
+# Already applied to the live ledger, by hand, 2026-09-11 — exactly these
+# statements (CREATE ROLE hecks_qa login; per-object ALTER ... Owner to
+# hecks_qa across `public`; ALTER database hecks_quality_control owner to
 # hecks_qa) were run against `hecks_quality_control` before the `.world`
 # switched to the hecks_qa URL. Running this script against it again is
 # the idempotent no-op it reports as "already".
 #
-# REFUSES, rather than proceeds, if <role> already exists as a superuser
+# Refuses, rather than proceeds, if <role> already exists as a superuser
 # or with BYPASSRLS — handing the ledger to such a role is exactly the
 # state this exists to end. The connection this script itself runs on is
 # whatever the ambient environment gives it (a superuser locally; CI's
 # `PGUSER=postgres`) — it needs to be one that can create roles and
 # reassign the database, and says so if it is not.
 #
-# NEVER RUN AGAINST THE LIVE LEDGER FROM A SPEC. The specs run this
+# **Never run against the live ledger from a spec**. The specs run this
 # against their own disposable databases (`spec/qa_sweep_all_spec.rb`,
 # `spec/qa_sweep_persistence_parity_spec.rb`) — the round trip proven
 # there is what makes running it once, by hand, against
@@ -67,7 +67,7 @@
 #   bin/qa_postgres_role hecks_quality_control            # the live ledger
 #   bin/qa_postgres_role <database> --role <role>         # any other, any role
 #
-# <database> is REQUIRED — no default, so nothing here ever touches the
+# <database> is required — no default, so nothing here ever touches the
 # real ledger by accident of an empty argument.
 
 require "pg"
@@ -94,11 +94,11 @@ skipped = []
 admin = PG.connect(dbname: "postgres")
 attrs = admin.exec_params("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = $1", [role])
 if attrs.ntuples.zero?
-  # CREATE ROLE has no IF NOT EXISTS — the DO block is the race-safe
+  # CREATE ROLE has no IF NOT EXISTS — the do block is the race-safe
   # spelling, so two concurrent runs (parallel_rspec) both succeed.
   #
-  # BOTH CONDITIONS, NOT JUST duplicate_object. That one is what a create
-  # finds when the role is already COMMITTED. Two creates in flight at the
+  # Both conditions, not just duplicate_object. That one is what a create
+  # finds when the role is already committed. Two creates in flight at the
   # same instant both pass that check, and the loser dies on the catalog's
   # own index instead — unique_violation on pg_authid_rolname_index. Seen
   # live (PR #748's first run, two qa_sweep_all specs on one Postgres) and
@@ -150,7 +150,7 @@ end
 
 # relkind: r table, p partitioned table, S sequence, v view, m matview —
 # every kind PostgresEra provisions; partitions are their own rows here
-# (ALTER TABLE ... OWNER on the parent does not recurse to them).
+# (ALTER TABLE ... Owner on the parent does not recurse to them).
 KINDS = { "r" => "TABLE", "p" => "TABLE", "S" => "SEQUENCE", "v" => "VIEW", "m" => "MATERIALIZED VIEW" }.freeze
 relations = db.exec_params(<<~SQL, [role])
   SELECT c.relname, c.relkind, pg_get_userbyid(c.relowner) AS owner

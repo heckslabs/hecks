@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# RUN ONE SPEC FILE, FILTERED TO ONE EXAMPLE — through `RSpec::Core::
+# **Run one spec file, filtered to one example** — through `RSpec::Core::
 # Runner` directly rather than the `rspec` executable, so a `bin/
 # qa_log_bug --demonstration "…"` string naming a single fixture-backed
 # example (the usual shape a hecks_qa finding's failing test takes —

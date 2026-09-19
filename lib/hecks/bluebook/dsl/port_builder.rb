@@ -21,7 +21,7 @@ module Hecks
         def verb(value)   = @verb = value.to_s
         def signal(value) = @signal = value.to_sym
 
-        # The method contract — the fact a `.port` file's `verb`/`signal`
+        # **The method contract** — the fact a `.port` file's `verb`/`signal`
         # never carried: what an adapter must actually respond to for a
         # dispatch to reach it without a bare `NoMethodError`. Declared the
         # same repeatable way `AdapterBuilder#field`/`#secret` already are,

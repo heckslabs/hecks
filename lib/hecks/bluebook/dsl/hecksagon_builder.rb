@@ -65,7 +65,7 @@ module Hecks
           Hecks::EmbryonautBluebook.load!(name)
         end
 
-        # The primary port, bare at the root — belongs to the chapter as a
+        # **The primary port, bare at the root** — belongs to the chapter as a
         # whole, not one aggregate. `BindingProxy#port` is the aggregate-
         # scoped sibling (`Payments::Payment.port("Gateway") do ... end`);
         # this is what's left when a port isn't about any one record. The
@@ -122,7 +122,7 @@ module Hecks
                         framework_members: @framework_members, vendored_bluebooks: @vendored_bluebooks)
         end
 
-        # Domain-level default binds — `persisted_by "Heki"` bare, at the top
+        # **Domain-level default binds** — `persisted_by "Heki"` bare, at the top
         # of a hecksagon block, applies to every aggregate in this domain
         # that doesn't declare its own override. Mirrors `BindingProxy`'s own
         # `method_missing` one level down (`aggregate:` filled in there,

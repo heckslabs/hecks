@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# EVERY COMMITTED TRANSLATION EDGE, CHECKED WITHOUT A DATABASE.
+# **Every committed translation edge, checked without a database**.
 #
 # A domain's `bluebook/translations/*.bluebook` edges are the record of
 # how its storage shape moved from era to era. Nothing else gated reads
@@ -16,7 +16,7 @@ require "hecks/ports/persistence/plugins/era"
 # the translation judge and names this chapter; the files run 2, 3, 4, ...
 # with no hole; each edge starts where the previous one ended and is named
 # for the era it lands on; and the newest lands on the storage shape the
-# chapter declares TODAY, so a shape change committed without its edge
+# chapter declares today, so a shape change committed without its edge
 # fails here.
 RSpec.describe "the committed translation edges" do
   def self.domains_with_edges

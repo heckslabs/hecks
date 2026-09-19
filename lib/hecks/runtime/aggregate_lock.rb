@@ -1,13 +1,13 @@
 module Hecks
   module Runtime
-    # A process-wide, striped mutex registry — the concurrency-control
+    # **A process-wide, striped mutex registry** — the concurrency-control
     # mechanism for every adapter that does not declare
     # `:optimistic_concurrency` (Heki, Memory today; see
     # `CommandInterpreter#call`/`EntityInterpreter#call`, which choose
     # between this and Postgres's CAS+retry purely off
     # `repository.capabilities`).
     #
-    # Why a lock suffices here and CAS is not needed: both adapters hold
+    # **Why a lock suffices here and CAS is not needed**: both adapters hold
     # process-local data. `Adapters::Memory.tenant_capable?`'s own comment
     # states the confirmed fact this relies on — two `Runtime.boot` calls
     # get two entirely separate adapter instances; there is never a second
@@ -18,7 +18,7 @@ module Hecks
     # column, and no retry loop — the second thread simply doesn't start
     # its own hydrate until the first thread's save has landed.
     #
-    # Striped, not one global lock: keyed by `[domain, aggregate.hecks_name,
+    # **Striped, not one global lock**: keyed by `[domain, aggregate.hecks_name,
     # id]`, so two dispatches against two different records never block
     # each other. The registry Hash itself is guarded by its own top-level
     # Mutex only for the moment a new per-key Mutex is created — two

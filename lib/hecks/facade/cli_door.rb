@@ -2,7 +2,7 @@ require_relative "../runtime/errors"
 
 module Hecks
   module Facade
-    # The CLI door — where Facade meets a caller holding flat strings.
+    # **The CLI door** — where Facade meets a caller holding flat strings.
     #
     # `JsonDoor` beside this one translates for a caller holding parsed JSON:
     # String keys, already-nested objects, real Integers. A command line has
@@ -12,7 +12,7 @@ module Hecks
     # So this does the two things that turns into: rebuild the nesting, and
     # give every leaf the type the chapter declared for it.
     #
-    # The type comes from the projection, never from the value. A door that
+    # **The type comes from the projection, never from the value**. A door that
     # guessed — "99 looks like a number" — would send the Integer 99 for a
     # version string of "99", and be wrong in a way nothing downstream could
     # detect, because both are perfectly good arguments. `Projector::CliProjector`
@@ -53,7 +53,7 @@ module Hecks
         [name, value]
       end
 
-      # The short form, for the common case. Almost every value object in this
+      # **The short form, for the common case**. Almost every value object in this
       # corpus has exactly one field, so `reference=BUG#1` is unambiguous and
       # is what anybody types. Expanded only when precisely one option starts
       # with that prefix — two would be a guess, and a guess about which field
@@ -82,7 +82,7 @@ module Hecks
       # loud kind, the kind where a value is forgotten and the caller has no
       # way to notice.
       #
-      # A list of one is still a list. `tags.value=flaky` produces
+      # **A list of one is still a list**. `tags.value=flaky` produces
       # `[{ value: "flaky" }]`, not `{ value: "flaky" }`, because the chapter
       # declared a collection and a caller who sent one element did not
       # thereby declare a different shape. The old behaviour handed a bare

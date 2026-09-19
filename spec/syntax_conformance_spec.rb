@@ -2,7 +2,7 @@ require "spec_helper"
 
 # The declared syntax must equal the surface the builders actually answer.
 #
-# `language/bluebook/syntax.bluebook` says how a bluebook is SPELLED — every
+# `language/bluebook/syntax.bluebook` says how a bluebook is spelled — every
 # word, the body it opens, the arguments it takes. Nothing else in this project
 # says that. The builders are where the spelling really lives, and before this
 # spec the declaration and the builders had never been held to each other —
@@ -15,7 +15,7 @@ require "spec_helper"
 # Declare a word no builder answers and this fails ; grow a builder a word the
 # language does not declare and this fails too.
 #
-# BOTH DIRECTIONS, DELIBERATELY. The one-way version — "everything declared
+# **Both directions, deliberately**. The one-way version — "everything declared
 # exists" — is the one that lets the surface drift: a word added to a builder
 # and not to the language is invisible to anything projected from the language,
 # which is precisely the class of bug that made the parser unprojectable.
@@ -29,7 +29,7 @@ RSpec.describe "the declared syntax" do
   # The same chapter, reachable from inside an example.
   def meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
-  # EVERY CELL AS TEXT. A member's fields decode back through typed literal
+  # **Every cell as text**. A member's fields decode back through typed literal
   # decoding on the way out of reconstruction — the same path Attribute#list
   # takes — so `at: "1"` comes back as the Integer 1 and `required: "true"` as
   # true. The language wrote text and the reconstruction is right to decode it;
@@ -53,10 +53,10 @@ RSpec.describe "the declared syntax" do
   BODIES        = rows("Body").map { |row| row[:name] }
   ARGUMENT_KIND = rows("ArgumentKind").map { |row| row[:name] }
 
-  # A word's LIFE decides which gates hold it. Admitted and deprecated
-  # words are LIVE — a builder answers them, and every builder⇄row gate
-  # below runs over these. A proposed word has no builder YET and a
-  # retired one has no builder ANY MORE, so holding either to a builder
+  # A word's life decides which gates hold it. Admitted and deprecated
+  # words are live — a builder answers them, and every builder⇄row gate
+  # below runs over these. A proposed word has no builder yet and a
+  # retired one has no builder any more, so holding either to a builder
   # would make the lifecycle unusable: bin/evolve could never land a
   # proposal green. They get their own gates instead (the last two
   # examples of the word⇄builder section). An absent status reads as
@@ -69,14 +69,14 @@ RSpec.describe "the declared syntax" do
   LIVE_KEYS      = LIVE_KEYWORDS.map { |row| [row[:word], row[:context]] }.uniq
   LIVE_ARGUMENTS = ARGUMENTS.select { |row| live?(row) && LIVE_KEYS.include?([row[:keyword], row[:context]]) }
 
-  # WHERE EACH CONTEXT'S WORDS ARE ANSWERED. `File` is the only one not answered
+  # **Where each context's words are answered**. `File` is the only one not answered
   # by a builder — `Hecks.bluebook` is reached through a module — and `Type` is
   # the only one whose "builder" is a mixin rather than a class, because the type
   # position inherits whichever `list_of`/`one_of` the enclosing builder has.
   #
   # `OneOf` shares ValueObjectBuilder with `ValueObject`: `one_of` instance_evals
   # its block on the builder itself, so the two contexts are one Ruby object.
-  # That is why the completeness check below groups contexts BY BUILDER rather
+  # That is why the completeness check below groups contexts by BUILDER rather
   # than comparing each context to a class of its own.
   BUILDER = {
     "File"                 => Hecks,
@@ -104,7 +104,7 @@ RSpec.describe "the declared syntax" do
     "TranslationAggregate" => D::TranslationAggregateBuilder
   }.freeze
 
-  # PUBLIC AND NOT A WORD — each with its reason, because an unexplained
+  # **Public and not a word** — each with its reason, because an unexplained
   # allowlist is how a retired word goes on passing.
   #
   #   build / attributes / closed_sets / dispatches / add_aggregate_head
@@ -116,14 +116,14 @@ RSpec.describe "the declared syntax" do
   #     the loading and runtime facade on `Hecks`, not declarations at all.
   #
   #   port / adapter / data_translation
-  #     SIBLING ARTIFACTS, and the stated scope exclusion — each has its own file
+  #     sibling artifacts, and the stated scope exclusion — each has its own file
   #     extension, its own builder and its own load step. A parser projected from
   #     this table reads `.bluebook`.
   #
-  #   hecksagon / world (as File-level ENTRY POINTS, not as artifacts)
+  #   hecksagon / world (as File-level entry points, not as artifacts)
   #     no longer excluded — see the `hecksagon`/`world` rows syntax.bluebook now
   #     declares, and the Hecksagon/World builder mappings above. What stays
-  #     excluded is each body's OPEN verb vocabulary (method_missing/ConstShim),
+  #     excluded is each body's open verb vocabulary (method_missing/ConstShim),
   #     named per-context below rather than by blanket File-level exclusion.
   NOT_A_WORD = {
     "Bluebook"  => {
@@ -147,7 +147,7 @@ RSpec.describe "the declared syntax" do
       # reads, never a bluebook declaration, so it carries no syntax
       # row of its own.
       behaviors:        "the behaviors-suite entry point, not a bluebook declaration"
-      # `port`/`adapter`/`data_translation` are REMOVED from here
+      # `port`/`adapter`/`data_translation` are removed from here
       # (whole-project table-unification survey, item #13's remaining
       # builders) — all three are genuine, closed-set File words now,
       # admitted the same as `bluebook`/`hecksagon`/`world`, backed by
@@ -159,14 +159,14 @@ RSpec.describe "the declared syntax" do
       subscriptions:      "the builder's own collected subscription strings, read by whoever owns them",
       framework_members:  "the builder's own collected framework-member names, read by whoever owns them",
       vendored_bluebooks: "the builder's own collected vendored-embryonaut-bluebook names, read by whoever owns them",
-      # THE OPEN VERB CATCH-ALL, DOMAIN-LEVEL. `persisted_by "Heki"` bare
+      # **The open verb catch-all, domain-level**. `persisted_by "Heki"` bare
       # (no aggregate) reaches HecksagonBuilder#method_missing the same
       # way World's own does — the verb is whichever bind-shaped word a
       # domain declares, not a closed set this table could enumerate.
       method_missing:     "the open domain-level-default-bind catch-all — same boundary as World's own"
     },
     "World"     => {
-      # THE OPEN VERB-SETTINGS CATCH-ALL. `posted_by("Carrier") { office
+      # **The open verb-settings catch-all**. `posted_by("Carrier") { office
       # "EC1" }` reaches WorldBuilder#method_missing — the verb is
       # whichever port a domain declares, not a closed set this table
       # could enumerate. Same boundary as .hecksagon's Const.verb(...)
@@ -193,8 +193,8 @@ RSpec.describe "the declared syntax" do
       # itself: the `attribute` Keyword row's own `calls:` column names
       # this as the real method it forwards to, unchanged, once its
       # hand-written `def attribute` was removed. Every Keyword row for
-      # `attribute` still names the WORD "attribute", never
-      # "attribute_impl" — this is the target the word CALLS, not a
+      # `attribute` still names the word "attribute", never
+      # "attribute_impl" — this is the target the word calls, not a
       # second word the language would need its own row for.
       attribute_impl:     "AttributeCollector's own real implementation, called by GenericDispatch's calls:",
       # Same reasoning, slice 4: `role`/`unresolved` renamed to
@@ -212,7 +212,7 @@ RSpec.describe "the declared syntax" do
       dispatch_impl:      "HandlerBuilder's own real implementation, called by GenericDispatch's calls:",
       compensates_impl:   "DispatchBuilder's own real implementation, called by GenericDispatch's calls:",
       # Same reasoning, slice 4b: `given`/`invariant`/`reference_to` are
-      # SEPARATE per-builder implementations (not one shared mixin like
+      # separate per-builder implementations (not one shared mixin like
       # attribute_impl), each renamed the same way in its own file.
       given_impl:         "the owning builder's own real implementation, called by GenericDispatch's calls:",
       invariant_impl:     "the owning builder's own real implementation, called by GenericDispatch's calls:",
@@ -281,10 +281,10 @@ RSpec.describe "the declared syntax" do
     }
   }.freeze
 
-  # THE ONE PLACE A SPELLING AND A RUBY SIGNATURE DIVERGE. `transition` takes one
+  # **The one place a spelling and a Ruby signature diverge**. `transition` takes one
   # Hash and deletes `:from` out of it, so `from:` is written exactly like a
   # keyword argument and received as a reserved key of the pairs argument. The
-  # language declares the SPELLING, which is what a parser reads, so it declares
+  # language declares the spelling, which is what a parser reads, so it declares
   # `from` as named — and this is the exception that lets the signature check
   # agree.
   RESERVED_KEY = { %w[transition Lifecycle] => %w[from], %w[transition ProcessManager] => %w[from] }.freeze
@@ -310,13 +310,13 @@ RSpec.describe "the declared syntax" do
 
   # A word `GenericDispatch` (item #13's full metaprogrammed dispatch,
   # slice 1, whole-project table-unification survey) now executes has no
-  # real method left to introspect at all — its own argument shape IS
+  # real method left to introspect at all — its own argument shape is
   # the table row these specs would otherwise be cross-checking a real
   # method's parameters against, so there is nothing left to check:
   # `GenericDispatch.shape_for` reading `at:`/`kind:`/`required:`/
-  # `named:` directly off the SAME `ARGUMENTS` rows this spec file
+  # `named:` directly off the same `ARGUMENTS` rows this spec file
   # itself walks is the guarantee, by construction, not something a
-  # SEPARATE method-parameter comparison could add to. `Hecks` (the
+  # separate method-parameter comparison could add to. `Hecks` (the
   # `File` context's own builder) is never migrated in this slice —
   # `GenericDispatch`'s own header names why — so it's excluded outright
   # rather than asked whether it "answers" a word the normal way.
@@ -361,9 +361,9 @@ RSpec.describe "the declared syntax" do
     entered = KEYWORDS.map { |row| row[:inner] }.reject(&:empty?).uniq
     spoken  = KEYWORDS.map { |row| row[:context] }.uniq
 
-    # TWO CONTEXTS ARE NOT ENTERED BY A WORD, for two different reasons. `File`
+    # Two CONTEXTS are not entered by a word, for two different reasons. `File`
     # is the outside of every body — nothing opens it. `Type` is the second
-    # ARGUMENT of `attribute` rather than a body, so it is entered by a position
+    # argument of `attribute` rather than a body, so it is entered by a position
     # and never by a `do`. Every other context must be opened by something, or
     # no bluebook could ever type a word in it.
     expect((spoken - entered).sort).to eq(%w[File Type]),
@@ -394,12 +394,12 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # THE OTHER DIRECTION, GROUPED BY BUILDER because two contexts can share one
-  # (ValueObject and OneOf) and because AttributeCollector's words are MIXED IN
+  # The other direction, grouped by BUILDER because two contexts can share one
+  # (ValueObject and OneOf) and because AttributeCollector's words are mixed in
   # to five builders rather than answered by a builder of their own.
   #
   # A mixed-in word counts as declared for a builder only while the builder does
-  # not SHADOW it — which is not a technicality. ValueObjectBuilder defines
+  # not shadow it — which is not a technicality. ValueObjectBuilder defines
   # `one_of(&block)` over AttributeCollector's `one_of(*values)`, so inside a
   # value-object body the inline type form is unreachable and `attribute :size,
   # one_of("small", "large")` raises. That asymmetry is real, and the ownership
@@ -415,14 +415,14 @@ RSpec.describe "the declared syntax" do
 
       if builder.is_a?(Class) && builder.include?(D::AttributeCollector)
         # A Type-position word (`list_of`/`one_of`) counts as declared
-        # for this builder UNLESS the builder's OWN context already has
+        # for this builder unless the builder's own context already has
         # a row of the same name (`ValueObject`'s own `one_of`, the
         # block-wrapper form) — the identical "own context first, Type
         # second" order `WordGate#word_gate_dispatch`'s own fallback
         # checks, item #13's full metaprogrammed dispatch (slice 5).
         # Neither word is ever a real method to introspect anymore
         # (both renamed to `*_impl`, reached through `calls:`), so this
-        # reads the SAME table the runtime dispatch itself reads,
+        # reads the same table the runtime dispatch itself reads,
         # rather than Ruby's own method ownership.
         declared += LIVE_KEYWORDS.select { |row| row[:context] == "Type" }
                                  .map { |row| row[:word] }
@@ -439,19 +439,19 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # THE RENAME COLUMN'S OWN GATES. A live row carrying `was:` is a word
-  # the language RESPELLED — and the promise of the column is that the
+  # **The rename column's own gates**. A live row carrying `was:` is a word
+  # the language respelled — and the promise of the column is that the
   # old era keeps booting: the builder answers both spellings, the old
   # spelling is not smuggled back in as its own row, and nothing renames
   # a word to itself.
   it "answers every renamed word in both its spellings" do
     LIVE_KEYWORDS.reject { |row| row[:was].to_s.empty? }.each do |row|
       answered = self.class.words_answered_by(row[:context])
-      # The NEW spelling may answer through `GenericDispatch`'s own
+      # The new spelling may answer through `GenericDispatch`'s own
       # `calls:` now (item #13's full metaprogrammed dispatch) rather
       # than a literal method of its own name — `sets` (was: "then_set")
       # is the first rename to hit this, once `sets` itself moved to
-      # `sets_impl` in slice 4c. The OLD spelling (`then_set`, here)
+      # `sets_impl` in slice 4c. The old spelling (`then_set`, here)
       # always stays a real, unmigrated method — `WordGate` matches `was:`
       # by exact row lookup, never through `calls:`.
       expect(
@@ -477,7 +477,7 @@ RSpec.describe "the declared syntax" do
                       "old spellings declared twice — as was: and as a row: #{ghosts.inspect}"
   end
 
-  # THE LIFECYCLE'S OWN TWO DIRECTIONS. A proposed word is declared and
+  # **The lifecycle's own two directions**. A proposed word is declared and
   # not yet implemented — a builder already answering it means it earned
   # admission, and the row should say so. A retired word is the reverse:
   # a builder still answering it means it never actually left.
@@ -541,7 +541,7 @@ RSpec.describe "the declared syntax" do
 
       room = params.count { |kind, _| %i[req opt].include?(kind) }
       # An inline hash at a call site binds to a positional Hash parameter or to
-      # a **keyrest, and the SPELLING does not distinguish them — `where(a: 1)`
+      # a **keyrest, and the spelling does not distinguish them — `where(a: 1)`
       # and `member a: 1` are typed identically and land differently.
       room += 1 if positional.any? { |row| row[:kind] == "pairs" } &&
                    params.any? { |kind, _| kind == :keyrest }
@@ -553,7 +553,7 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # THE DANGEROUS DIRECTION. A builder DEMANDING an argument the language calls
+  # **The dangerous direction**. A builder demanding an argument the language calls
   # optional is a bluebook that parses everywhere and loads nowhere, so this is
   # checked one way on purpose: an optional parameter may be declared required,
   # but a required one may never be declared optional.
@@ -587,21 +587,21 @@ RSpec.describe "the declared syntax" do
     end
   end
 
-  # `selects` IS THE OPERATION `sets`' own named argument means — the same
+  # `selects` is the operation `sets`' own named argument means — the same
   # field `rust/parser/src/keywords.rs`'s `ArgumentRow.selects` already
   # carries (`"op=set"`, `"op=append"`, ...), read here for the first time
   # (whole-project table-unification survey, item #1 — confirmed via grep
-  # that nothing consumed it until now). `sets` is the ONLY keyword that
+  # that nothing consumed it until now). `sets` is the only keyword that
   # ever populates it, so this is complete coverage of every non-empty
   # `selects` row in the entire table, not a `sets`-only special case that
   # happens to cover everything today.
   #
-  # `named` (the kwarg's own SPELLING) is already held to `CommandBuilder#
+  # `named` (the kwarg's own spelling) is already held to `CommandBuilder#
   # sets`'s parameter list by "declares every keyword argument..." above —
   # this checks the one fact that check cannot: `to:` is the one kwarg
-  # whose OWN NAME differs from the op it selects (`selects: "op=set"`),
+  # whose own name differs from the op it selects (`selects: "op=set"`),
   # so `named == op` alone would silently pass even if the language and the
-  # builder disagreed about what `to:` actually DOES.
+  # builder disagreed about what `to:` actually does.
   it "selects the same op CommandBuilder::KWARG_TO_OP maps each named argument to" do
     sets_rows = ARGUMENTS.select { |row| row[:keyword] == "sets" && row[:context] == "Command" && !row[:selects].empty? }
     expect(sets_rows).not_to be_empty
@@ -620,12 +620,12 @@ RSpec.describe "the declared syntax" do
   # ---------------------------------------------------------- words ⇄ language
 
   # A context's category is where its `fills` must land. `Lifecycle` has none of
-  # its own — it is a DECLARED FOLD onto whichever of Aggregate or Entity opened
+  # its own — it is a declared fold onto whichever of Aggregate or Entity opened
   # it — so its words are checked against both. `Type` is a position, not a
   # record, so nothing it declares may claim to fill anything.
   CATEGORY_OF = {
     # `hecksagon`/`world`/`port` are File-context words too, and fill
-    # fields on THEIR OWN chapters' aggregates, not Bluebook's —
+    # fields on their own chapters' aggregates, not Bluebook's —
     # broadened the same way Lifecycle already checks against two
     # categories, not one.
     "File"                 => %w[Bluebook Hecksagon World Port Adapter Translation],
@@ -646,11 +646,11 @@ RSpec.describe "the declared syntax" do
     "World"                => %w[World],
     "DomainPort"           => %w[DomainPort],
     "PortOperation"        => %w[PortOperation],
-    # port.bluebook — a genuine SIBLING chapter, the same as World/
+    # port.bluebook — a genuine sibling chapter, the same as World/
     # Hecksagon, declaring a real `Port` aggregate PortJudge dispatches
     # every built .port into.
     "Port"                 => %w[Port],
-    # adapter.bluebook — a genuine SIBLING chapter, the same as Port/
+    # adapter.bluebook — a genuine sibling chapter, the same as Port/
     # World/Hecksagon, declaring a real `Adapter` aggregate AdapterJudge
     # dispatches every built .adapter into.
     "Adapter"              => %w[Adapter],
@@ -662,13 +662,13 @@ RSpec.describe "the declared syntax" do
     "TranslationAggregate" => %w[TranslationAggregate]
   }.freeze
 
-  # Hecksagon and World are SIBLING chapters, not aggregates inside
+  # Hecksagon and World are sibling chapters, not aggregates inside
   # Bluebook — so the fields a File/Hecksagon/World-context word may fill
   # come from three separate chapters' registries, merged. A duplicate
   # aggregate name across chapters is not a case this project has (each
   # chapter's own aggregate names are already distinct), so a plain merge
   # is exact, not an approximation.
-  # S17, ADR 0026 — includes each aggregate's own ENTITIES too, not only
+  # S17, ADR 0026 — includes each aggregate's own entities too, not only
   # the aggregates themselves — and recursively, since Dispatch nests two
   # levels deep (inside Handler, inside ProcessManager). Member (nested
   # under ValueObject) is a real construct a keyword can legitimately
@@ -711,7 +711,7 @@ RSpec.describe "the declared syntax" do
     expect(opened - declared).to be_empty
   end
 
-  # EVERY DISPATCHED CATEGORY HAS A WORD, or a domain cannot declare it.
+  # Every dispatched category has a word, or a domain cannot declare it.
   #
   # The judge's plan is exactly the categories a bluebook can put records in
   # (Vocabulary declares no commands and so is not in it — it is
@@ -719,14 +719,14 @@ RSpec.describe "the declared syntax" do
   # else). If one of them had no word opening it, the language would hold a
   # category no bluebook could reach.
   #
-  # S14, ADR 0026 — Syntax/Keyword/Argument are named here for the SAME
+  # S14, ADR 0026 — Syntax/Keyword/Argument are named here for the same
   # reason Vocabulary always was, just reached a different way: Syntax
   # now declares real commands (`Declare`/`Keyword`/`Argument`), so
   # `plan.names` finds it (and its own entities, Keyword/Argument)
   # unlike Vocabulary — but no real bluebook (Banking, Pizzas) ever
   # opens a "Syntax"/"Keyword"/"Argument" record through the DSL ; the
   # only caller that ever dispatches them is `SyntaxBoot`, a dedicated,
-  # internal mechanism that seeds the language's OWN grammar table from
+  # internal mechanism that seeds the language's own grammar table from
   # its own still-static `KeywordSeed`/`ArgumentSeed` rows, not
   # something any domain's own bluebook file could reach.
   META_ONLY_CATEGORIES = %w[Vocabulary Syntax Keyword Argument].freeze
@@ -742,13 +742,13 @@ RSpec.describe "the declared syntax" do
                                     "could not declare them"
   end
 
-  # A `pairs` argument decides which field EACH PAIR lands in from the pair's
-  # own key, so one cell cannot name that — UNLESS the pairs argument's own
-  # RESULT (the whole compound or list it builds) lands on one real field,
+  # A `pairs` argument decides which field each pair lands in from the pair's
+  # own key, so one cell cannot name that — unless the pairs argument's own
+  # result (the whole compound or list it builds) lands on one real field,
   # which two of the four `pairs_shape`s do: `verbatim` (`dispatch`'s `with:`
   # → `with_spec`, captured as-is) and `elements` (`where` → `wheres`, one
-  # new element per pair). `fields` (a pair's key/value become two NAMED
-  # SUB-FIELDS of a compound something else already fills) and `sibling` (the
+  # new element per pair). `fields` (a pair's key/value become two named
+  # sub-fields of a compound something else already fills) and `sibling` (the
   # key names a field of another, already-declared construct) still cannot
   # name a single field here, the original reasoning unchanged. A `Type`
   # argument fills no field at all — a type is not a field. Everything else

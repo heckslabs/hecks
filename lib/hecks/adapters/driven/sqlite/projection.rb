@@ -38,7 +38,7 @@ module Hecks
       # `Runtime::ReadModelInterpreter#project` (the in-process path) on
       # two counts, both fixed here to agree with it:
       #
-      # Missing root: the in-process path's own `fetch` refuses with
+      # **Missing root**: the in-process path's own `fetch` refuses with
       # `NotFound` when the reference argument names no record —
       # `query_read_model` used to answer a silent `{root: nil, ...}`
       # instead, the one path a caller could dispatch a read model
@@ -46,7 +46,7 @@ module Hecks
       # looks like an empty report rather than the refusal every other
       # path gives.
       #
-      # Chained-include join scope: a non-root head was always matched
+      # **Chained-include join scope**: a non-root head was always matched
       # against the root's own id, regardless of what it actually
       # references — correct for a head that references the root
       # directly, silently empty for one that references another
@@ -72,7 +72,7 @@ module Hecks
         # eligible in the same read model now.
         eligible = model.filtered_head_names
 
-        # Root first, always — see this method's own header. Mirrors
+        # **Root first, always** — see this method's own header. Mirrors
         # `ReadModelInterpreter#project`'s identical partition, for the
         # identical reason: a later head's own join has to be able to
         # match against a root (or another head) already resolved.

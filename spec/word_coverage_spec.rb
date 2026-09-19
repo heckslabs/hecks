@@ -2,14 +2,14 @@ require "spec_helper"
 require "hecks/doc/reference"
 
 # S13, ADR 0025 — "A word earns its place by being used. A word stays if
-# it has a real corpus use AND a running doctest. An external consumer
+# it has a real corpus use and a running doctest. An external consumer
 # outside this repo is a valid exemption from the corpus bar, written
 # down and naming the consumer, never assumed." (principle 4)
 #
 # `bin/doc_coverage`/`spec/reference_golden_spec.rb` already close the
-# DOCTEST half — every live word must carry prose AND a fenced, running
-# example. Neither checks the OTHER half: a doctest can run against a
-# chapter INVENTED for the page alone (`docs/implemented/reference/*.md` do this
+# doctest half — every live word must carry prose and a fenced, running
+# example. Neither checks the other half: a doctest can run against a
+# chapter invented for the page alone (`docs/implemented/reference/*.md` do this
 # routinely — a synthetic `QueryReference`/`DomainPortReference`/
 # `WorldReference` bluebook, declared in the page's own fenced block,
 # solely so the harness has something to execute), which satisfies
@@ -19,15 +19,15 @@ require "hecks/doc/reference"
 # through — `consistency` had a running example demonstrating it being
 # *declared*, which is precisely the thing not in question."
 #
-# So this asks a DIFFERENT question: does any REAL corpus member — an
+# So this asks a different question: does any real corpus member — an
 # example domain, a grammar chapter, a framework member — actually
-# WRITE this word, in its own `.bluebook`/`.hecksagon`/`.world` file? A
+# write this word, in its own `.bluebook`/`.hecksagon`/`.world` file? A
 # word that only a doc page's own invented fixture exercises answers no,
 # and must be named here with a reason, the same shape
 # `plurality_coverage_spec.rb`'s ALLOWED_SINGLETON already is for a
 # different claim.
 RSpec.describe "every live DSL word, used somewhere real" do
-  # THE SAME FILE FAMILY spec/corpus_spec.rb's CORPUS_MEMBERS walks —
+  # The same file family spec/corpus_spec.rb's CORPUS_MEMBERS walks —
   # example domains, grammar chapters, framework members — widened to
   # every extension a real domain ships across (`.hecksagon`/`.world`
   # carry hecksagon/world words that no `.bluebook` file ever could).
@@ -41,18 +41,18 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.hecksagon"),
-    # STRESS DOMAINS — real domains the QA rotation sweeps every tick, not a
+    # **Stress domains** — real domains the QA rotation sweeps every tick, not a
     # page's invented fixture, so a word one of them declares is a real use.
-    # spec/fixtures stays out on purpose: those ARE fixtures invented for one
+    # spec/fixtures stays out on purpose: those are fixtures invented for one
     # spec, the exact thing this file's own header refuses to count.
     File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.hecksagon"),
     File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.world"),
-    # `.port` — REAL, non-synthetic production declarations (13 real
+    # `.port` — real, non-synthetic production declarations (13 real
     # ports the framework itself binds against), unlike the S15 Paging
     # precedent's own seed-row false-positive risk (a naive whole-token
-    # scan matching DATA, not a real use of the word) — these genuinely
-    # ARE `Hecks.port "..." do verb "..." ; signal :... end` calls.
+    # scan matching data, not a real use of the word) — these genuinely
+    # are `Hecks.port "..." do verb "..." ; signal :... end` calls.
     # Whole-project table-unification survey, item #13's remaining
     # builders.
     File.join(InMemoryDomain::ROOT, "lib/hecks/ports", "*.port"),
@@ -65,7 +65,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # nested sub-language file (`examples/pizzas/bluebook/translations/
   # 2-77625c.bluebook`) is a real corpus source one directory deeper
   # than `examples/pizzas/bluebook/*.bluebook` itself — but that same
-  # recursion also reaches `examples/*/data/eras/**`, the RUNTIME era
+  # recursion also reaches `examples/*/data/eras/**`, the runtime era
   # store a file adapter writes locally (.gitignore's own `**/data/
   # eras/` entry, anchored to `data/` for the identical reason: era
   # snapshots are real generated content, not committed corpus source,
@@ -82,8 +82,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                   .sort.freeze
   end
 
-  # A REAL DECLARATION, not a mention — the word as a whole token
-  # anywhere on a REAL (non-comment) line. Not anchored to the line's
+  # A real declaration, not a mention — the word as a whole token
+  # anywhere on a real (non-comment) line. Not anchored to the line's
   # start: `list_of(LedgerEntry)` is a type-position call nested inside
   # an `attribute` line, `Hecks.bluebook "X" do`/`Pizzas::Order.port
   # "PaymentGateway"` carry a receiver before the word this grammar's
@@ -96,11 +96,11 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # this corpus — confirmed by reading each finding this spec reports
   # before writing its exemption.
   # `exclude_extension:` — a naive whole-token scan cannot tell one
-  # CONTEXT'S spelling of a word from another's (`verb` inside a `.port`
+  # context's spelling of a word from another's (`verb` inside a `.port`
   # file's own `Port` context vs `verb` inside a `.bluebook`'s own
   # nested `domain_port` block's `DomainPort` context — same word,
   # different grammar, same S15 Paging precedent's own "naive scanner,
-  # not context-aware" finding) — but a FILE EXTENSION genuinely can:
+  # not context-aware" finding) — but a file extension genuinely can:
   # a `.port` file structurally cannot ever contain a `DomainPort`-
   # context word, so excluding it from a `DomainPort` exemption's own
   # staleness check is a real, structural narrowing, not a guess.
@@ -118,20 +118,20 @@ RSpec.describe "every live DSL word, used somewhere real" do
     end
   end
 
-  # THE OTHER FALSE-POSITIVE RISK the header above already names — "the
+  # The other false-positive risk the header above already names — "the
   # word inside a string literal" — turned into a real check, not just a
   # read-every-finding promise, once Translation/TranslationAggregate's
   # own coverage (item #13's remaining builders) hit it for real:
-  # `lib/hecks/grammar/translation.bluebook`'s own UNRELATED `Rule
+  # `lib/hecks/grammar/translation.bluebook`'s own unrelated `Rule
   # .Kind` closed set (`one_of: ["rename", "move", "convert", ...]`) and
   # ordinary English prose (`given("a retired rule ...")`) both contain
-  # this language's own rule-word SPELLINGS as plain string DATA, not as
+  # this language's own rule-word spellings as plain string data, not as
   # a live keyword call. A real call in this codebase is always a
   # bareword — `rename :old, to: :new`, `retired "OldAggregate"` — never
-  # itself quoted; only the call's own ARGUMENTS are. A double-quote
+  # itself quoted; only the call's own arguments are. A double-quote
   # parity count up to the match's own position tells the two apart: an
   # odd count of `"` before it means the match sits inside an still-open
-  # quote, so it is DATA, not a call.
+  # quote, so it is data, not a call.
   def inside_quotes?(line, index)
     line[0...index].count('"').odd?
   end
@@ -148,7 +148,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "(see the comment on the first entry in this group), so this exemption " \
     "also stands in for that scanner gap.".freeze
 
-  # UNREACHED ON PURPOSE, each naming why — the same shape
+  # Unreached on purpose, each naming why — the same shape
   # plurality_coverage_spec.rb's ALLOWED_SINGLETON is. Every entry here
   # is a real, verified finding (checked against the current corpus
   # when written), not an assumption; delete an entry once the corpus
@@ -215,7 +215,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "the new name. Written up in docs/implemented/reference/bluebook.md's " \
                                               "own section, naming " \
                                               "the consumer, per principle 4's own wording.",
-    # NO LONGER REFUSED. `AggregateBuilder#has_many`/`#has_one` genuinely
+    # **No longer refused**. `AggregateBuilder#has_many`/`#has_one` genuinely
     # build now (S17/ADR 0026's relationship-cardinality slice un-
     # deprecated all three words — `belongs_to` is real corpus use today,
     # `examples/banking/bluebook/safe_deposit_boxes.bluebook`'s own
@@ -223,7 +223,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # no entry here at all). `has_many`/`has_one` mint the identical
     # `Reference`-typed attribute `reference_to` does (`relationship_
     # attribute`, shared by all four words) — genuinely live, just not
-    # yet the spelling any REAL aggregate in this corpus happens to
+    # yet the spelling any real aggregate in this corpus happens to
     # choose over plain `reference_to`/`belongs_to` for a required or
     # list-shaped relationship. `docs/implemented/reference/aggregate.md`'s own
     # fixture runs both for real (the doctest bar), but a doc page's own
@@ -244,7 +244,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "real, which is the " \
                                               "doctest bar, not this one.",
     "has_one (Entity)"                     => "same as has_many (Entity), one word over — EntityBuilder#has_one.",
-    # `then_set (Command)` — the OTHER kind of structural impossibility this
+    # `then_set (Command)` — the other kind of structural impossibility this
     # file's own header distinguishes from a mere corpus gap: refused
     # unconditionally at build outside MetaValidator.shadow_parsing?
     # (CommandBuilder#then_set_impl); sets is the word now, and no live
@@ -264,21 +264,21 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "consumer, per principle " \
                                               "4's own wording — same shape formerly_known_as (Bluebook) above already is.",
     # Translation/TranslationAggregate — item #13's remaining builders.
-    # `corpus_uses?` is a NAIVE whole-token scan (its own header already
+    # `corpus_uses?` is a naive whole-token scan (its own header already
     # names this risk) with no context awareness at all, and every one of
-    # these words happens to collide with an UNRELATED real corpus use
+    # these words happens to collide with an unrelated real corpus use
     # of the same spelling: `retired`/`rename`/`convert`/`drop`/`retype`/
-    # `backfill`/`unresolved` all appear as plain STRING VALUES inside
+    # `backfill`/`unresolved` all appear as plain string values inside
     # lib/hecks/grammar/translation.bluebook's own unrelated `Rule.Kind`
     # closed set (a pre-existing, different self-hosted "Translation"
     # domain — governs proposing/executing/admitting individual rules
     # for bin/evolve's scaffold tooling, never loaded into the same
     # registry as this one) — plus `retired` also collides with the
-    # word "retired" appearing as a plain lifecycle STATUS STRING in
+    # word "retired" appearing as a plain lifecycle status string in
     # banking.bluebook/expression.bluebook. Read and confirmed by hand,
     # one file at a time, not assumed: `examples/pizzas/bluebook/
     # translations/2-77625c.bluebook` and `examples/directory/bluebook/
-    # translations/2-632545.bluebook` are the two REAL translations
+    # translations/2-632545.bluebook` are the two real translations
     # this corpus has — a genuine `Hecks.data_translation "Pizzas", ...
     # do aggregate "Order", was: "Pizza" do move ... end end`, and a
     # genuine `Hecks.data_translation "Directory", ... do aggregate
@@ -288,7 +288,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # `compute (TranslationAggregate)`, and `rekey (TranslationAggregate)`
     # need no exemption here, all five genuinely covered. The remaining
     # rule kinds this language admits have no real edge exercising them
-    # anywhere in this repository yet — a real gap in the CORPUS, not
+    # anywhere in this repository yet — a real gap in the corpus, not
     # in the words.
     "retired (Translation)"                => TRANSLATION_RULE_GAP,
     "rename (TranslationAggregate)"        => TRANSLATION_RULE_GAP,
@@ -325,16 +325,16 @@ RSpec.describe "every live DSL word, used somewhere real" do
     WHY
   end
 
-  # THE EXEMPTIONS ARE HELD TO THE CORPUS TOO — an entry the corpus has
+  # **The exemptions are held to the corpus too** — an entry the corpus has
   # since grown to cover is a stale excuse, and a stale excuse is how a
   # gate quietly stops gating (plurality_coverage_spec.rb's own sibling
   # check, same reasoning).
   it "carries no exemption the corpus has outgrown" do
-    # `DomainPort`'s AND `PortOperation`'s own words can never appear for
+    # `DomainPort`'s and `PortOperation`'s own words can never appear for
     # real in a `.port` file (a structurally different context/file
     # type — see corpus_uses?'s own header) — excluded here so adding
     # real `.port` coverage for `Port`'s own words (verb/signal/answers)
-    # doesn't collide with a SIBLING context's own, still-genuinely-
+    # doesn't collide with a sibling context's own, still-genuinely-
     # unused claim. `answers (PortOperation)` is the word `Port#answers`
     # (the method-contract declaration, item #1's own fix) collided
     # with the moment it landed in a real `.port` file — same shape
@@ -351,7 +351,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                      "delete the EXEMPT entry, the claim is covered now"
   end
 
-  # THE MEASUREMENT ITSELF HAS TO BE ABLE TO FAIL — a real, known corpus
+  # **The measurement itself has to be able to fail** — a real, known corpus
   # use (banking's own `invariant`) has to read as covered, or the check
   # above is vacuously green because corpus_uses? never returns true.
   it "measures a corpus use it is known to have" do

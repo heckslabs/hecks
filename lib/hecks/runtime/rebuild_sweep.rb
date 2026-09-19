@@ -9,7 +9,7 @@ module Hecks
     # owning aggregate, resolve each of its own `projected_fields`
     # through the reference it names, and `save` the local copy.
     #
-    # Explicit and callable, not automatic — no on-boot detection of a
+    # **Explicit and callable, not automatic** — no on-boot detection of a
     # freshly-declared `projects` with no held-era precedent, no
     # generated `Policy#for_each` reaction keeping it live in real
     # time as the target changes. Both are real extensions this same
@@ -19,7 +19,7 @@ module Hecks
     # needs — proven to work end to end before either automatic
     # trigger is built on top of it.
     #
-    # Needs no new adapter capability. `find`/`all`/`save` are the same
+    # **Needs no new adapter capability**. `find`/`all`/`save` are the same
     # three primitives every real adapter already answers identically
     # (`Ports::Persistence::AppendOnly#save` — append, then project,
     # the same for Memory/Postgres/SQLite/D1/Heki) — confirmed by

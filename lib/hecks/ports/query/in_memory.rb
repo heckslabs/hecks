@@ -9,7 +9,7 @@ module Hecks
       # In-memory implementation of a declared query specification:
       # applies wheres/order_by/offset/limit directly to an Array of
       # records instead of compiling SQL. Deliberately kept in exact
-      # limit/offset-order agreement with SqlQueryBuilder (see #execute's
+      # LIMIT/OFFSET-order agreement with SqlQueryBuilder (see #execute's
       # own comment) so a query answers the same page regardless of
       # which adapter backs it.
       module InMemory
@@ -27,8 +27,8 @@ module Hecks
           field   = declared.order_by&.field
           matched = Ordering.apply(matched, declared.order_by, declared.null_semantics,
                                    identity: ->(record) { record.id.to_s }) { |record| comparable(FieldPath.dig(record, field)) }
-          # Offset first, then limit — the order SQL means by `limit n
-          # offset m`, which is what `SqlQueryBuilder` emits and therefore
+          # **Offset first, then limit** — the order SQL means by `LIMIT n
+          # OFFSET m`, which is what `SqlQueryBuilder` emits and therefore
           # what every SQL-backed aggregate already answers. Written the
           # other way round here, and the two engines disagreed on the
           # same declaration: `limit 2, offset 1` over three rows is rows

@@ -1,11 +1,11 @@
 require "prism"
 require "hecks/codemod/legacy_dispatch_args"
 
-# EVERY CALL SITE STILL PASSING COMMAND FACTS AS LOOSE KEYWORD ARGUMENTS,
-# COUNTED PER FILE — the deprecation's own worklist (roadmap I3), and the
+# Every call site still passing command facts as loose keyword arguments,
+# counted per file — the deprecation's own worklist (roadmap I3), and the
 # table two guards read:
 #
-#   - spec_helper.rb makes the deprecation RAISE at any site not counted
+#   - spec_helper.rb makes the deprecation raise at any site not counted
 #     here, so a new spec, a new example or a new guide cannot reintroduce
 #     the shape — including through a door that forwards keywords, since
 #     the site reported is the caller's own line;
@@ -20,7 +20,7 @@ require "hecks/codemod/legacy_dispatch_args"
 # are the ones no mechanical rewrite is sound for, for two reasons the
 # codemod reports by name:
 #
-#   - THE IDENTITY RIDES THE EVENT PAYLOAD. A loose fact reaches the
+#   - **The identity rides the event payload**. A loose fact reaches the
 #     emitted event whether the command declares it or not, and a policy
 #     with no `with:` projection forwards that payload verbatim. Moving
 #     the key into `to:` empties the field the reaction reads, and
@@ -29,19 +29,19 @@ require "hecks/codemod/legacy_dispatch_args"
 #     it takes none"). Until `to:` reaches the payload, these calls have
 #     no non-deprecated spelling — which is why the removal PR is gated on
 #     it, not just on the release.
-#   - THE IDENTITY IS NOT A STRING. `to:` takes a String aggregate
+#   - The identity is not a string. `to:` takes a String aggregate
 #     identity; an Integer entity sequence has nowhere to go yet.
 #
 # Everything under lib/ is migrated already: the framework's own
 # forwarding doors (Router, the forms app, the CLI and JSON doors,
 # Storehouse, reaction re-entry) hand their argument bag to
 # `Dispatcher#dispatch_flat`, the wire form, so a loose call arriving
-# through one of them is reported at the CALLER's line, not theirs.
+# through one of them is reported at the caller's line, not theirs.
 module LegacyDispatchSites
   ROOT = File.expand_path("../..", __dir__)
 
   # Same two doors `Dispatcher` deprecates, and the same keywords that are
-  # NOT facts.
+  # not facts.
   DOORS   = %w[dispatch dispatch_port].freeze
   ROUTING = %w[to with saga_correlation].freeze
 
@@ -184,7 +184,7 @@ module LegacyDispatchSites
 
   module_function
 
-  # THE SUITE'S OWN SETTING, IN ONE PLACE — spec_helper.rb arms it at boot,
+  # **The suite's own setting, in one place** — spec_helper.rb arms it at boot,
   # and the spec that exercises the deprecation on purpose re-arms it here
   # rather than restating the predicate and drifting from it.
   def install_suite_guard!

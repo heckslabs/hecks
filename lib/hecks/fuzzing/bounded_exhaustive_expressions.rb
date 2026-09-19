@@ -36,7 +36,7 @@ module Hecks
     # 3" claim for exactly the sublanguage that already bit this project
     # twice.
     #
-    # What "PROVEN" means here, precisely: every expression this generator
+    # **What "PROVEN" means here, precisely**: every expression this generator
     # produces is well-typed by construction (every sub-expression's type
     # matches what its parent construct actually accepts, per this file's
     # own TYPE_RULES). Interpreting a well-typed expression must never
@@ -61,7 +61,7 @@ module Hecks
       # would be modeling a distinction the grammar itself doesn't make.
       TYPES = %i[numeric string boolean array nil_type].freeze
 
-      # The palette — deliberately small (this file's own header: "a small
+      # **The palette** — deliberately small (this file's own header: "a small
       # representative literal palette," matching the plan's own `{0, 1,
       # -1}` example). Widening it doesn't test a different shape of
       # expression, only more values through the same shapes — real
@@ -115,7 +115,7 @@ module Hecks
       # closer to what `Admissibility` actually builds, in case anything
       # here is reused for a future deeper check.
       #
-      # The VO-vs-scalar unwrap case, deliberately exercised — half of
+      # **The VO-vs-scalar unwrap case, deliberately exercised** — half of
       # `num_a`/`str_a`/`bool_a`/one array attribute's elements are bare
       # scalars, the other half (`num_b`/`str_b`/`bool_b`/the other
       # array's elements) are wrapped `{value: X}` — the single-field
@@ -487,7 +487,7 @@ module Hecks
           end
       end
 
-      # Sampled, not a full cross product — a full `list.product(list)`
+      # **Sampled, not a full cross product** — a full `list.product(list)`
       # is what actually explodes this generator (numeric productions
       # alone hit 8000+ by depth 2; squaring that for `&&`/`==` pairs is
       # where "tens of thousands" becomes tens of millions). The
@@ -520,7 +520,7 @@ module Hecks
       # squaring the same sampled list wouldn't be correct.
       def cross(left, right) = sample(left).product(sample(right))
 
-      # The full set — every boolean-typed expression up to `MAX_DEPTH`,
+      # **The full set** — every boolean-typed expression up to `MAX_DEPTH`,
       # deduplicated (many shorter expressions are also produced, re-
       # wrapped, at every deeper level — `.uniq` inside `productions`
       # already collapses most of that; this is the final pass over the

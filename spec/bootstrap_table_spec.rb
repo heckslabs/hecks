@@ -1,11 +1,11 @@
 require "spec_helper"
 
-# THE ANTI-DRIFT GATE for lib/hecks/bluebook/dsl/bootstrap_table.rb — the
+# The anti-drift gate for lib/hecks/bluebook/dsl/bootstrap_table.rb — the
 # shape spec/vocabulary_table_spec.rb uses for lib/hecks/vocabulary.rb:
 # regenerate in memory from the language's own Keyword rows and refuse a
 # diff.
 #
-# WHY IT IS CHECKED IN AT ALL: `WordGate#method_missing` and
+# **Why it is checked in at all**: `WordGate#method_missing` and
 # `RuleReference#lookup` read it while `MetaValidator.bootstrapping?` —
 # before the grammar table it is projected from exists. Built at boot, it
 # would need itself to have been built already.
@@ -40,7 +40,7 @@ RSpec.describe "the generated bootstrap table" do
     end
   end
 
-  # THE DESTINATION CHECK — a fallback row is only worth carrying if the
+  # **The destination check** — a fallback row is only worth carrying if the
   # method it names is one some builder actually answers. A `calls:` typo
   # in a KeywordSeed row would otherwise surface only as a NoMethodError
   # the first time a bootstrap chapter used that word.

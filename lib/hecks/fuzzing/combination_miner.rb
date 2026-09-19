@@ -4,7 +4,7 @@ require_relative "form_census"
 
 module Hecks
   module Fuzzing
-    # An agent reads the adversarial corpus and writes the next meeting.
+    # **An agent reads the adversarial corpus and writes the next meeting**.
     #
     # `DomainGenerator` forces two `FormCensus::FORMS` onto one aggregate
     # from a seed — cheap, mechanical, and blind to why a combination
@@ -22,7 +22,7 @@ module Hecks
     # differential, self-consistency, Rust build and shrinking path a
     # generated domain takes.
     #
-    # Opt-in, never the rotation. An agent call costs money and minutes
+    # **Opt-in, never the rotation**. An agent call costs money and minutes
     # and answers differently every time; `bin/qa_tick` never runs it and
     # no `QualityControlDials` entry turns it on. A person runs
     # `bin/qa_mine_combinations` when they want new shapes.

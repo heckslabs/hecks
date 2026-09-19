@@ -3,9 +3,9 @@ require_relative "../forms/field_shape"
 
 module Hecks
   module Projector
-    # A bluebook, projected as prose an SME can read back and confirm.
+    # **A bluebook, projected as prose an SME can read back and confirm**.
     #
-    # What this is for. `DocsProjector` already answers "what can I call and
+    # **What this is for**. `DocsProjector` already answers "what can I call and
     # what does it want" for the person implementing against a domain —
     # tables of arguments, shapes, refusal reasons. That is the wrong
     # register for the person who can actually say whether the domain is
@@ -24,7 +24,7 @@ module Hecks
     # (`Projector.call(:narrate, bluebook: ...)`), same aggregate-scoping
     # via `options[:aggregate]`.
     #
-    # What it does not do: replace `DocsProjector`. A shape table still says
+    # **What it does not do**: replace `DocsProjector`. A shape table still says
     # "id of a Customer" more precisely than any sentence would, and an
     # implementer still wants that. This is the other document the same IR
     # is owed — one written for the reader who is being asked "is this
@@ -128,7 +128,7 @@ module Hecks
         "#{header}\n\n#{body}"
       end
 
-      # One paragraph, built from independent sentences — each sentence
+      # **One paragraph, built from independent sentences** — each sentence
       # below states one unrelated fact about `command` (its goal, who
       # issues it, whether it creates the holder, what it takes, what it
       # references, what gates it, what it guarantees, what it emits), in
@@ -149,7 +149,7 @@ module Hecks
         ].compact.join(" ")
       end
 
-      # The goal, verbatim — same rule `DocsProjector` holds to: quoted
+      # **The goal, verbatim** — same rule `DocsProjector` holds to: quoted
       # exactly as declared, not recased to fit mid-sentence, because the
       # promise this whole projector makes is that a sentence here is a
       # sentence the chapter actually wrote.
@@ -208,7 +208,7 @@ module Hecks
         "It records `#{command.emits.join('`, `')}` as a fact."
       end
 
-      # Every required condition, stated as something that must be true —
+      # **Every required condition, stated as something that must be true** —
       # the same three sources `DocsProjector#refusals_of` reads (the
       # lifecycle edge, a reference's existence, and the command's own
       # `given`s), but kept positive rather than phrased as a refusal

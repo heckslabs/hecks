@@ -95,7 +95,7 @@ module Hecks
           end
         end
 
-        # Three language fields, one IR object. `state_field`, `state_start` and
+        # **Three language fields, one IR object**. `state_field`, `state_start` and
         # `transitions` are separate declarations; the IR keeps one Lifecycle. The
         # contract names them derived, and this is what derives them.
         def lifecycle_of(row)

@@ -1,9 +1,9 @@
 require "spec_helper"
 
 # The `else held == want` spec/query_comparators_spec.rb's own header
-# describes as ALREADY the cause of one real, shipped silent-`eq` bug
+# describes as already the cause of one real, shipped silent-`eq` bug
 # (gt/gte/lt/lte/ne/in/contains, before this table existed) is no longer a
-# quiet fallback for a NEW, unrecognized comparator either — it refuses
+# quiet fallback for a new, unrecognized comparator either — it refuses
 # instead of guessing. A direct, no-boot unit test: the closed set itself
 # (Vocabulary::QueryComparator) is exhaustively covered by
 # query_comparators_spec.rb; this is the backstop for the tenth name.

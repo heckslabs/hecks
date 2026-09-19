@@ -37,7 +37,7 @@ module Hecks
         end
 
         def encode(attr, value)
-          # Never set is not empty. `then_set ... append:` starts a list at `[]`
+          # **Never set is not empty**. `then_set ... append:` starts a list at `[]`
           # the moment the first element lands, but a list attribute nothing has
           # ever appended to — the shape every other aggregate in the corpus
           # happened not to carry, until one declared a list-typed head

@@ -2,7 +2,7 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # The one chunked, lock-free, resumable backfill loop — shared by
+        # **The one chunked, lock-free, resumable backfill loop** — shared by
         # `backfill_head_snapshot!` (era 1's existing one-shot blocking
         # backfill, retrofit) and every field-cache table's own initial
         # backfill (new). Governing principle 1 (docs/implemented/postgres-era-adapter-
@@ -13,7 +13,7 @@ module Hecks
         # a naive "populate every cache row in one statement" field-cache
         # backfill.
         #
-        # The shape: read one bounded chunk (real rows, real ordinals) with
+        # **The shape**: read one bounded chunk (real rows, real ordinals) with
         # a plain SELECT — no lock held across it, so an ordinary reader or
         # writer is never blocked by a backfill in progress — then upsert
         # that chunk under the same transactionally-scoped advisory lock +
@@ -76,7 +76,7 @@ module Hecks
           #     has an `id` column (text, ordered ascending) plus whatever
           #     other columns `upsert` below needs. Must read `id >
           #     cursor` (or unconditional when cursor is nil), `ORDER BY
-          #     id`, `limit CHUNK_SIZE` — the caller owns the actual
+          #     id`, `LIMIT CHUNK_SIZE` — the caller owns the actual
           #     column list/source tables; this method only owns the loop,
           #     the lock, and the cursor.
           #
@@ -97,7 +97,7 @@ module Hecks
 
           private
 
-          # One chunk, one transaction, one short-held lock. Re-reads
+          # **One chunk, one transaction, one short-held lock**. Re-reads
           # progress after acquiring the lock (not just before) — a second
           # concurrent booter may have already finished this exact chunk
           # (or the whole backfill) while this process was waiting for the

@@ -35,7 +35,7 @@ module Hecks
     module Replay
       module_function
 
-      # The ad hoc filter's own comparator roster — read directly from
+      # **The ad hoc filter's own comparator roster** — read directly from
       # QuerySpecification::Common::COMPARATORS (the same nine names
       # Vocabulary::QueryComparator declares), never re-typed. A
       # declared bluebook query never sees an `op:` outside this set —
@@ -126,7 +126,7 @@ module Hecks
             args = (step["args"] || {}).transform_keys(&:to_sym)
 
             if (question = step["query"])
-              # The ad hoc, single-comparator filter — a "query" step whose
+              # **The ad hoc, single-comparator filter** — a "query" step whose
               # own value is a Hash, not a name: `{aggregate:, field:, op:,
               # value:}`, the same wire shape kernel/cli.rs's new object-
               # form "query" step reads on the Rust side (that file's own
@@ -148,7 +148,7 @@ module Hecks
                 next
               end
 
-              # The query oracle — two independent engines, each run and
+              # **The query oracle** — two independent engines, each run and
               # caught on its own, never a single shared `begin`/`rescue`
               # wrapping both calls. A shared begin/rescue meant `runtime.
               # query` raising (native refuses) short-circuited before
@@ -239,7 +239,7 @@ module Hecks
             end
 
             begin
-              # The fan-out oracle's own low-water mark — taken before
+              # **The fan-out oracle's own low-water mark** — taken before
               # dispatch, so any reaction this one step's own announced
               # events produce (`reaction_log` grows in place, the same
               # Array `runtime.reactions` already exposes) can be sliced
@@ -250,7 +250,7 @@ module Hecks
               # named ask.
               reaction_mark = runtime.reactions.size
 
-              # The outbox oracle's own low-water marks — taken before
+              # **The outbox oracle's own low-water marks** — taken before
               # dispatch, same idiom as `reaction_mark` right above:
               # `saga_log_mark` slices `runtime.sagas` (a single flat
               # array, safe to index into directly) the identical way
@@ -276,7 +276,7 @@ module Hecks
               saga_log_mark      = runtime.sagas.size
               outbox_before_ids  = runtime.outbox.rows.map(&:delivery_id)
 
-              # The snapshot a `for_each` query would have seen — taken
+              # **The snapshot a `for_each` query would have seen** — taken
               # before this step's own dispatch, not after. The real
               # `deliver_for_each` runs its query synchronously, inside
               # this same dispatch, before this call even returns — so an
@@ -295,7 +295,7 @@ module Hecks
                   runtime.registry.repository(fdomain, aggregate).all.to_h { |record| [record.id, record.state.dup] }
               end
 
-              # The guard oracle's own pre-dispatch read — same idiom,
+              # **The guard oracle's own pre-dispatch read** — same idiom,
               # same placement, same reason as fan_out_snapshot right
               # above: `Admissibility#enforce_givens` (which itself calls
               # `#enforce_lifecycle_guard` when `declaring:` is passed)
@@ -310,7 +310,7 @@ module Hecks
               # itself observes.
               guard_check = build_guard_check(runtime, step["verb"], args)
 
-              # The mutation oracle's own pre-dispatch read — same
+              # **The mutation oracle's own pre-dispatch read** — same
               # idiom again: an entity-dispatched command's own
               # `append`/`remove`/`multiply`/`clamp` mutations (S17's
               # fixture, spec/fixtures/entity_list_mutations, now a real
@@ -338,7 +338,7 @@ module Hecks
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
 
-              # The outbox oracle's own capture — every outbox row this
+              # **The outbox oracle's own capture** — every outbox row this
               # step's own dispatch newly wrote (across every bound
               # repository, including any a reaction cascade touched —
               # `outbox_before_ids` was taken before `dispatch`, which
@@ -466,7 +466,7 @@ module Hecks
         Hecks.as_caller(role: step["role"], actor_id: step["actor_id"], &)
       end
 
-      # The guard oracle's own resolution — "which record, if any, is
+      # **The guard oracle's own resolution** — "which record, if any, is
       # this step about, and would enforce_givens/enforce_lifecycle_guard
       # have refused it against that record's pre-dispatch state" —
       # reproduced read-only from already-public pieces
@@ -594,7 +594,7 @@ module Hecks
         nil
       end
 
-      # The mutation oracle's own pre-dispatch read — scoped, on
+      # **The mutation oracle's own pre-dispatch read** — scoped, on
       # purpose, to entity-dispatched commands only (a dotted
       # command_name): the one place `append`/`remove`/`multiply`/
       # `clamp` are known to act on an entity's own attributes
@@ -681,7 +681,7 @@ module Hecks
         nil
       end
 
-      # The fan-out oracle — one finding per (event, for_each policy) this
+      # **The fan-out oracle** — one finding per (event, for_each policy) this
       # step's own announced events could have triggered, independent of
       # `PolicyInterpreter#deliver_for_each`: the same `where` evaluator
       # every given/ensures already runs through, but the query answered
@@ -731,7 +731,7 @@ module Hecks
         { policy: policy.name, on: event.name, expected_row_ids: expected, actual_row_ids: actual }
       end
 
-      # The independent recomputation — `policy.for_each`'s declared query,
+      # **The independent recomputation** — `policy.for_each`'s declared query,
       # answered against the pre-dispatch snapshot (see the snapshot's
       # own comment at its capture site: the real fan-out's query runs
       # synchronously, before its own dispatched commands can mutate

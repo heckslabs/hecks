@@ -6,7 +6,7 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # The read-side half of lambda routing — `persisted_by("Lambda")`'s
+    # **The read-side half of lambda routing** — `persisted_by("Lambda")`'s
     # own adapter, resolved through the same `Ports::Persistence`
     # machinery `persisted_by("Postgres")`/`persisted_by("Memory")`
     # already use (`Runtime::Registry#repository`, `RepositoryFactory
@@ -16,7 +16,7 @@ module Hecks
     # compose through one shared `Client` per domain rather than each
     # inventing its own AWS wiring.
     #
-    # Read-only, deliberately — `append`/`project` raise rather than
+    # **Read-only, deliberately** — `append`/`project` raise rather than
     # silently no-op. A write reaching this class would mean
     # `Runtime::CommandInterpreter` ran locally against a Lambda-routed
     # domain, which is exactly the bypass `Runtime::RemoteDispatcher`

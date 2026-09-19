@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
-# docs/generated/diagrams/ is GENERATED from each domain's own declared
+# docs/generated/diagrams/ is generated from each domain's own declared
 # lifecycles, relationships, and dispatch chains by bin/project_diagrams
 # (see Projections::Diagrams's own header for why Mermaid, and the shape
 # of each of the three diagram kinds) — this spec regenerates each
@@ -21,7 +21,7 @@ RSpec.describe "the generated diagrams" do
     registry
   end
 
-  # A `to:`-DECLARING PORT OPERATION, IN-MEMORY — no domain in the real
+  # A `to:`-declaring port operation, in-memory — no domain in the real
   # corpus uses `to:` yet (PR #351's own real motivating case,
   # lifeadelics' vendored PaymentGateway, lives outside this repo; the
   # corpus's one real port, pizzas' own PaymentGateway.Receive, doesn't
@@ -46,7 +46,7 @@ RSpec.describe "the generated diagrams" do
           command "Create" do
             attribute :reference, PaymentReference
             sets :reference
-            # A LITERAL SOURCE — the diagram spells it quoted, distinct
+            # **A literal source** — the diagram spells it quoted, distinct
             # from an argument source (the diagram spec below reads it).
             sets :channel, to: "online"
             emits "PaymentCreated"
@@ -65,7 +65,7 @@ RSpec.describe "the generated diagrams" do
     registry
   end
 
-  # A REAL FILE BOOT, NOT `boot_in_memory` — that helper's own inline
+  # A real file boot, not `boot_in_memory` — that helper's own inline
   # hecksagon fixture (spec_helper.rb) only declares `persisted_by`,
   # never the real `pizzas.hecksagon`'s own `port "PaymentGateway"`
   # block, so it silently has no ports at all. Harmless for every check
@@ -79,7 +79,7 @@ RSpec.describe "the generated diagrams" do
   let(:banking_registry) { boot_banking }
   let(:banking_chapter)  { banking_registry.bluebook("Banking") }
 
-  # A SEPARATE, REAL FILE BOOT, JUST FOR THE HECKSAGON — `boot_banking`
+  # **A separate, real file boot, just for the hecksagon** — `boot_banking`
   # above only ever `load_bluebook_files`s (the same reduced fixture
   # `pizzas_chapter`'s own header comment already warns about), so it
   # never loads `banking.hecksagon` at all and `banking_registry.
@@ -94,7 +94,7 @@ RSpec.describe "the generated diagrams" do
 
   # ── drift, across both real domains ────────────────────────────────
 
-  # `hecksagon:` IS ONLY EVER NEEDED FOR frameworks.mmd — `bin/project_
+  # `hecksagon:` is only ever needed for frameworks.mmd — `bin/project_
   # diagrams` always has one in hand (`registry.hecksagon(chapter_name)`),
   # so drift detection has to hand it in too or a real frameworks.mmd on
   # disk would never match what an options-less call regenerates.
@@ -242,7 +242,8 @@ RSpec.describe "the generated diagrams" do
   it "merges the same aggregate into one node across several read_models — Account feeds five in banking" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
     account_edges = diagram.lines.count { |line| line.start_with?("    Account[(Account)]") }
-    # CustomerPortfolio, ComplianceDashboard, DisputedPaymentCount, DisputedPaymentMedian, AccountsByKind
+    # CustomerPortfolio, ComplianceDashboard, DisputedPaymentCount, DisputedPaymentMedian,
+    # AccountsByKind
     expect(account_edges).to eq(5)
   end
 
@@ -257,9 +258,9 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include('rm_CustomerPortfolio[["CustomerPortfolio"]]')
   end
 
-  # THE BUG THIS TYPE ACTUALLY HAD: an unquoted "many" label
+  # **The bug this type actually had**: an unquoted "many" label
   # (`accounts[]`) broke Mermaid's own `|label|` parser outright — the
-  # `[` reads as the START OF A NEW NODE SHAPE, not text. Caught by
+  # `[` reads as the start of a new node shape, not text. Caught by
   # actually running the real generated output through mermaid.parse(),
   # not by eye. Pinned here so a future edit can't drop the quoting
   # without this failing.
@@ -289,8 +290,8 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include('Order[(Order)] -.->|asks| qry_Order_Available{"Order.Available"}')
   end
 
-  # A REAL, INTERESTING CASE FOUND WHILE VERIFYING, NOT INVENTED: banking's
-  # own Account declares both a command AND a query named "Open" — two
+  # **A real, interesting case found while verifying, not invented**: banking's
+  # own Account declares both a command and a query named "Open" — two
   # genuinely different things (a verb versus a question) that happen to
   # share a name. The diamond/stadium shape split is what keeps that from
   # reading as one node twice.
@@ -338,8 +339,8 @@ RSpec.describe "the generated diagrams" do
                                "attr_Order_toppings[toppings]")
   end
 
-  # THE REAL, INTERESTING CASE: an increment/decrement's own argument
-  # name does NOT always match its target — banking's own Account.Credit
+  # **The real, interesting case**: an increment/decrement's own argument
+  # name does not always match its target — banking's own Account.Credit
   # increments `balance` from an `amount` argument, and LedgerEntry.Amend
   # increments `amount` from an `adjustment` argument. Naming the real
   # argument, not just the verb, is what makes that visible at all.
@@ -348,7 +349,7 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include('cmd_Account_Credit(["Account.Credit"]) -->|"increments: amount"| attr_Account_balance[balance]')
   end
 
-  # MERGES ACROSS COMMANDS THE SAME WAY read_models.mmd MERGES ACROSS
+  # Merges across commands the same way read_models.mmd merges across
   # read_models — real in banking: six different Account commands all
   # write `balance`, and the node merges into one rather than drawing six.
   it "merges the same attribute into one node across every command that writes it, in banking" do
@@ -357,7 +358,7 @@ RSpec.describe "the generated diagrams" do
     expect(balance_edges).to eq(6) # Credit, Debit, ApplyFee, CorrectFee, AccrueInterest, CorrectInterest
   end
 
-  # THE BUG THIS TYPE ACTUALLY HAD: a literal value that is itself a
+  # **The bug this type actually had**: a literal value that is itself a
   # rendered value-object hash (banking's own Customer.Reinstate sets
   # `standing` to `{:value=>"good"}`) carries a double quote of its own,
   # which broke this label's outer `|"..."|` quoting outright. Caught by
@@ -370,14 +371,14 @@ RSpec.describe "the generated diagrams" do
                                "attr_Customer_standing[standing]")
   end
 
-  # A REAL, GENUINE ZERO. `Order.CreatePizza` used to be this test's own
+  # **A real, genuine zero**. `Order.CreatePizza` used to be this test's own
   # example — until Wave 8's own corpus audit found and fixed the exact
   # bug this shape looks like: CreatePizza's `:name`/`:pizza` attributes
   # were declared and simply never `sets`, so every created pizza's own
   # fields came back nil regardless of what a caller sent (see that
   # command's own comment, pizzas.bluebook). A genuinely mutation-free
   # command is real and legal (`Roster.Notice`, "nothing to record," is
-  # one live corpus example) — but proving the DIAGRAM GENERATOR draws no
+  # one live corpus example) — but proving the diagram generator draws no
   # edge for one doesn't need a whole extra chapter loaded just to reach
   # it; a one-command scratch fixture, local to this test, is the same
   # proof with nothing borrowed from a domain this file otherwise never
@@ -412,8 +413,8 @@ RSpec.describe "the generated diagrams" do
 
   # ── sagas -> stateDiagram-v2 ───────────────────────────────────────────
 
-  # Settlement IS THE RICH REAL CASE: a self-loop (TransferRequested fires
-  # while still "requested"), a transition that dispatches TWO commands at
+  # Settlement is the rich real case: a self-loop (TransferRequested fires
+  # while still "requested"), a transition that dispatches two commands at
   # once (AccountDebited dispatches both Transfer.Debited and
   # Account.Credit), and a real compensating leg (the literal "refused"
   # trigger, not an event any aggregate announces).
@@ -464,7 +465,7 @@ RSpec.describe "the generated diagrams" do
 
   # ── frameworks -> flowchart ────────────────────────────────────────
 
-  # THE REAL, RICH CASE: banking attaches two frameworks AND reaches
+  # **The real, rich case**: banking attaches two frameworks and reaches
   # across into two more domains — Compliance (twice, from two separate
   # policies) and Notifications, a domain that isn't a framework member
   # at all, proving this draws every real cross-domain dependency, not
@@ -485,7 +486,7 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("Banking[(Banking)] -.->|attaches| Governance[(Governance)]")
     expect(diagram).to include("Banking[(Banking)] -.->|attaches| Identity[(Identity)]")
     expect(diagram).to include("Banking[(Banking)] -->|reaches across| Compliance[(Compliance)]")
-    expect( # ReviewOnFreeze AND ReviewOnBoxSurrender both target it
+    expect( # ReviewOnFreeze and ReviewOnBoxSurrender both target it
       diagram.lines.count do |line|
         line.include?("|reaches across| Compliance")
       end
@@ -499,18 +500,18 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).not_to include("reaches across")
   end
 
-  # NO hecksagon HANDED IN — an older caller, or a spec fixture that
-  # doesn't need one — MEANS NO frameworks.mmd, the same "nothing to
+  # No hecksagon handed in — an older caller, or a spec fixture that
+  # doesn't need one — means no frameworks.mmd, the same "nothing to
   # state" skip every other diagram in this file already takes when its
   # own data is empty, not an error.
   it "draws no frameworks.mmd at all when no hecksagon is given" do
     expect(Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["frameworks.mmd"]).to be_nil
   end
 
-  # A STRUCTURAL CHECK, NOT A MERMAID PARSE — this repo's own suite takes
+  # **A structural check, not a mermaid parse** — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
   # currently produce (all 41, across both real domains plus the one
-  # in-memory to: fixture) WAS run through the real mermaid.parse()
+  # in-memory to: fixture) was run through the real mermaid.parse()
   # engine once, by hand, to confirm this exact shape is valid Mermaid
   # — this just guards the one structural fact that made that true for
   # each kind: the diagram type declaration is the first non-comment

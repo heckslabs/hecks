@@ -104,7 +104,7 @@ module Hecks
       # two places a bluebook in this registry could have come from, per
       # `uses_framework` and `uses_embryonaut_bluebook`.
       #
-      # The bug this guards against, found live: `Framework.members` was
+      # **The bug this guards against, found live**: `Framework.members` was
       # the only exclusion checked here, so a domain attaching a
       # vendored bluebook instead (`uses_embryonaut_bluebook`, which has
       # no equivalent registry — see embryonaut_bluebook.rb's own
@@ -159,7 +159,7 @@ module Hecks
         end
       end
 
-      # The name `uses_embryonaut_bluebook` was actually called with —
+      # **The name `uses_embryonaut_bluebook` was actually called with** —
       # recovered from whichever hecksagon in this registry recorded it
       # (`HecksagonBuilder#uses_embryonaut_bluebook`'s own
       # `@vendored_bluebooks`), matched the same way
@@ -174,7 +174,7 @@ module Hecks
         nil
       end
 
-      # The same path `EmbryonautBluebook.load!` itself resolves from —
+      # **The same path `EmbryonautBluebook.load!` itself resolves from** —
       # `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`,
       # rebuilt here from `directory` (the domain's own bluebook
       # directory, always `registry.root`'s immediate child — see

@@ -1,38 +1,38 @@
 #!/usr/bin/env ruby
 
-# Moves an aggregate's CURRENT state from a Heki-backed data directory
+# Moves an aggregate's current state from a Heki-backed data directory
 # into whatever `persisted_by` binding a domain's own `.hecksagon`/
-# `.world` files declare TODAY — built for QualityControl's own move to
+# `.world` files declare today — built for QualityControl's own move to
 # `PostgresEra` (qa/bluebook/quality_control.hecksagon), but domain-
 # agnostic the same way `bin/heki_compact` is: nothing here names
 # "QualityControl", only what the two directories on the command line
 # actually hold.
 #
-# ONE RECORD, ONE `save` — not a journal replay. Every aggregate here is
+# One record, one `save` — not a journal replay. Every aggregate here is
 # read via `Heki#all` (the fully-reduced current state each id holds,
 # exactly what a live `Target.All`/`Bug.All`/... query already returns
 # today) and written with exactly one `save` per id into the destination
-# repository. This is a DELIBERATE, disclosed choice, not an oversight:
-# it preserves every FIELD, every entity list, every value-object list,
+# repository. This is a deliberate, disclosed choice, not an oversight:
+# it preserves every field, every entity list, every value-object list,
 # every lifecycle status byte-for-byte (the whole reason this script
 # exists), but it does not replay the Heki journal's own append-by-
 # append operation history into the destination's own journal — the
 # destination ends up with one journal entry per migrated id, the same
 # shape `bin/heki_compact --force` already reduces a Heki-backed
-# aggregate's OWN journal down to for any aggregate nothing projects
+# aggregate's own journal down to for any aggregate nothing projects
 # from (QualityControl's aggregates are not `projected_by` anything
 # today — verified against the same `Ports::Projection.binds_for` check
-# `bin/heki_compact` itself refuses on). A ledger's CURRENT state is what
+# `bin/heki_compact` itself refuses on). A ledger's current state is what
 # every declared query reads and what this tool proves byte-for-byte
 # equivalent (see `spec/qa_postgres_migration_spec.rb`); the per-append
 # operation trail is not read by anything this domain runs.
 #
-# DRY RUN BY DEFAULT, matching `bin/heki_compact`'s own convention. Never
+# Dry run by default, matching `bin/heki_compact`'s own convention. Never
 # writes to the source Heki files (`all` only — no `compact!`, no
 # `delete`, nothing under `--force` ever touches the Heki side). Refuses
 # — always, `--force` or not — to overwrite an id the destination
-# already holds under a DIFFERENT state; only an id the destination has
-# never seen, or already holds under the IDENTICAL (canonicalized)
+# already holds under a different state; only an id the destination has
+# never seen, or already holds under the identical (canonicalized)
 # state, is ever written, which is what makes a second run of this same
 # command idempotent.
 #
@@ -40,14 +40,14 @@
 #   bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...] --force    # apply
 #
 # <domain_dir> is booted for real (`Hecks.boot`) — every aggregate's
-# DESTINATION repository is exactly what that boot's own `.hecksagon`/
+# destination repository is exactly what that boot's own `.hecksagon`/
 # `.world` files declare, never a name typed here. For QualityControl
 # that is `qa/bluebook` once `quality_control.hecksagon` is bound to
 # `PostgresEra` and `quality_control.world` names the database.
 #
 # <heki_data_dir> is read directly with a bare `Heki` adapter, bypassing
 # the registry's own binding for these aggregates entirely (which, once
-# <domain_dir> is rewired, is no longer Heki) — so it can be ANY Heki
+# <domain_dir> is rewired, is no longer Heki) — so it can be any Heki
 # data directory: the domain's own historical `data/`, or (for testing)
 # a throwaway fixture. Only aggregates with an actual `<storage_name>
 # .heki` file present in this directory are considered — the same
@@ -92,9 +92,9 @@ wanted = ARGV.dup
 runtime  = Hecks.boot(domain_dir)
 registry = runtime.registry
 
-# PRESENCE-DRIVEN, LIKE `bin/heki_compact`'s OWN `journal_path` CHECK —
+# Presence-driven, like `bin/heki_compact`'s own `journal_path` check —
 # an aggregate is a candidate iff its own `.heki` file actually exists in
-# the given directory, never because of what it is bound to NOW (which,
+# the given directory, never because of what it is bound to now (which,
 # post-rewire, is the destination, not Heki).
 candidates = registry.bluebooks.each_with_object([]) do |(domain_name, bluebook), all|
   bluebook.aggregates.each do |aggregate|
@@ -113,8 +113,8 @@ if candidates.empty?
   exit 0
 end
 
-# DEEP, KEY-TYPE-AND-ORDER-INDEPENDENT COMPARISON — written when Heki's
-# own state hashes were only symbolized at the TOP LEVEL while a
+# **Deep, key-type-and-order-independent comparison** — written when Heki's
+# own state hashes were only symbolized at the top level while a
 # `PostgresEra`-backed read came back deeply symbolized. Since PR A3 both
 # sides decode through `Ports::Persistence::StateCodec` (and PR A4 guards
 # the source adapter above), so that divergence is gone; the comparison is
@@ -122,9 +122,9 @@ end
 # for conflict detection, and loosening it is not this script's change to
 # make. Two states that mean the same thing must
 # compare equal regardless of which side's key type or hash-insertion
-# order they happen to carry; only ARRAY ORDER is preserved as
-# meaningful (an entity list's `sequence` IS its order, and two Sweeps
-# whose checks arrived in a different order are NOT the same sweep).
+# order they happen to carry; only array order is preserved as
+# meaningful (an entity list's `sequence` is its order, and two Sweeps
+# whose checks arrived in a different order are not the same sweep).
 def canonical(value)
   case value
   when Hash

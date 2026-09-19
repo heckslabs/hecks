@@ -4,7 +4,7 @@ require_relative "../../ports/authentication"
 
 module Hecks
   module Adapters
-    # Google's own OIDC handshake — the `authentication` port's one real
+    # **Google's own OIDC handshake** — the `authentication` port's one real
     # implementation today, moved here from being hand-rolled per-app
     # (an embryonaut_console `google_auth.rb` used to do exactly this;
     # any hecks-based app gets Google sign-in for free now, the
@@ -68,7 +68,7 @@ module Hecks
       # itself. `email_verified` rides along because a caller granting
       # access off this email needs to know Google actually checked it.
       def verify(code:, state:, expected_state:)
-        # Both gems, before anything else — not staggered further down
+        # **Both gems, before anything else** — not staggered further down
         # this method: the rescue clause below names GoogleIDToken
         # ::ValidationError, and Ruby resolves that constant reference
         # at the moment an exception is being matched, not at parse

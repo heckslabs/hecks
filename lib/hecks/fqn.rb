@@ -16,7 +16,7 @@ module Hecks
       new(realm: realm, domain: domain, version: version, aggregate: aggregate, verb: query, kind: :query)
     end
 
-    # One order-dependent parse pipeline: split -> shape-validate -> dispatch
+    # **One order-dependent parse pipeline**: split -> shape-validate -> dispatch
     # on segment count -> split domain/version -> classify kind -> cross-
     # field validate -> construct. Each step consumes locals (segments, verb,
     # kind) the step before it derived; splitting would mean threading all of

@@ -35,7 +35,7 @@ module Hecks
         end
 
         def encode(attr, value)
-          # Never set is not empty — same reasoning as Sqlite::Codec's own
+          # **Never set is not empty** — same reasoning as Sqlite::Codec's own
           # comment: a list attribute nothing has ever appended to has to
           # stay NULL to answer the same as Memory does, not become `[]`
           # invented by this adapter's own storage.

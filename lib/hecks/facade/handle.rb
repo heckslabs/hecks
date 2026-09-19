@@ -112,7 +112,7 @@ module Hecks
         end
       end
 
-      # One head addresses the same way as several. `@ir.identified_by` is only
+      # **One head addresses the same way as several**. `@ir.identified_by` is only
       # the single-head shorthand — nil the moment an identity is composite
       # (`SafeDepositBox`'s `branch_code`/`box_number`) — so building the
       # identity payload from `identity_heads` instead reads every head, one
@@ -122,7 +122,7 @@ module Hecks
         self
       end
 
-      # The other half of a cross-reference. `transfer.source` already reads
+      # **The other half of a cross-reference**. `transfer.source` already reads
       # the raw value — a plain reader, same as any other attribute, still
       # needed by a `given`. This is the hydrated hop docs/rails-integration.md
       # designed and marked "nothing built": `transfer.source_account`

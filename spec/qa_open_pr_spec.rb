@@ -4,10 +4,10 @@ require_relative "support/qa_ledger_fixture"
 require "json"
 require "tmpdir"
 
-# `bin/qa_open_pr`, PROVEN AGAINST THE REAL THING — a real subprocess, a
+# `bin/qa_open_pr`, proven against the real thing — a real subprocess, a
 # real disposable PostgresEra ledger (`spec/support/qa_ledger_fixture.rb`),
-# a real throwaway git repository on a `qa/…` branch, and a FAKE `gh` on
-# PATH: a small script that records every argv it was called with and
+# a real throwaway git repository on a `qa/…` branch, and a fake `gh` on
+# path: a small script that records every argv it was called with and
 # answers `pr view`/`pr create`/`pr merge` the way the real one does, from
 # a state file. GitHub itself is the one thing this spec must never
 # touch; everything else the script does is exercised for real.
@@ -79,7 +79,7 @@ RSpec.describe "bin/qa_open_pr", :io do
     File.write(File.join(@repo, "fix.rb"), "fixed\n")
     git("add", ".")
     git("commit", "-qm", "the fix")
-    # THE LOG/STATE FILES ARE IGNORED, so the tree reads clean.
+    # The log/state files are ignored, so the tree reads clean.
     File.write(File.join(@repo, ".git/info/exclude"), ".fake_gh.*\n")
   end
 
@@ -167,7 +167,7 @@ RSpec.describe "bin/qa_open_pr", :io do
     expect(opened_at).to be >= before
   end
 
-  # RUN TWICE: the PR is already open on this branch, the number is
+  # **Run twice**: the PR is already open on this branch, the number is
   # already on file — nothing is created or recorded a second time.
   it "is idempotent on a PR already open and a number already recorded" do
     on_branch("qa/bug-1")
@@ -200,11 +200,11 @@ RSpec.describe "bin/qa_open_pr", :io do
     expect(improvements_on_file).to eq([[777, "landed", head, "ANGLE-1"]])
   end
 
-  # THE CAP — `pr_cap_per_day` is 0 (uncapped) in the real `qa/settings.
+  # **The cap** — `pr_cap_per_day` is 0 (uncapped) in the real `qa/settings.
   # yml`. So this one example boots the ordinary fixture ledger (its
   # bluebook still resolves `QaSettings::DEFAULT_PATH` like every real
   # caller — see that class's own header on why it never varies by
-  # `__dir__`) but points `HECKS_QA_SETTINGS_PATH` at a DERIVED settings
+  # `__dir__`) but points `HECKS_QA_SETTINGS_PATH` at a derived settings
   # file with the dial set to 1 — derived at run time from the real
   # file, substituting one line, so it cannot quietly drift from it
   # either — and proves the count is read from `OpenedSince`.

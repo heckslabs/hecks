@@ -6,7 +6,7 @@ module Hecks
         # (`hecks_eras`, `hecks_era_texts`, `hecks_approvals`, the
         # partitioned journal), sets up its RLS fence, bridges a renamed
         # domain's history (`rename_domain!`), and attaches each era's
-        # journal partition (`ensure_partition!`) — the build-then-attach
+        # journal partition (`ensure_partition!`) — the build-then-ATTACH
         # dance that keeps a mint from stopping every writer.
         module Provisioning
           # Provisioning is the owner's job, and a deployment's app role is
@@ -15,12 +15,12 @@ module Hecks
           # already built, so its boot verifies rather than builds.
           #
           # Without this guard the per-era fence below is unreachable: the
-          # ALTER TABLE and revoke here are owner-only, so the very role
+          # ALTER TABLE and REVOKE here are owner-only, so the very role
           # grant_era! exists to constrain could never finish booting
           # ("must be owner of table hecks_eras"). A fence nothing can
           # reach is not a fence.
           # One bootstrap sequence of DDL, order-dependent throughout —
-          # every guarded alter (RLS, revoke) is guarded and placed
+          # every guarded ALTER (RLS, REVOKE) is guarded and placed
           # exactly where it is for measured, documented reasons (see the
           # inline comments on each: catalog-lock avoidance, RLS timing,
           # force semantics). Splitting this into smaller methods would
@@ -95,7 +95,7 @@ module Hecks
             # era, at mint time.
             #
             # Guarded, same reasoning as the RLS ALTER TABLE calls just
-            # below: revoke still writes pg_class.relacl (and takes the
+            # below: REVOKE still writes pg_class.relacl (and takes the
             # matching lock) even when the resulting privileges are
             # unchanged, so an unconditional reissue on every ordinary
             # reboot raced two concurrent boots into
@@ -108,9 +108,9 @@ module Hecks
             # public privilege is already "no UPDATE" by Postgres's own
             # default (nothing has ever been explicitly granted to
             # public), so `has_table_privilege` answers false both before
-            # the revoke has ever run and after it has — indistinguishable
+            # the REVOKE has ever run AND after it has — indistinguishable
             # by that check alone, which meant the very first boot's own
-            # revoke never actually ran, `relacl` stayed NULL forever, and
+            # REVOKE never actually ran, `relacl` stayed NULL forever, and
             # "journal rows accept no update/DELETE from public" was true
             # only by accident of Postgres's default, not by the explicit
             # privilege revocation this method exists to record.
@@ -155,7 +155,7 @@ module Hecks
             # boot by the owning role, not only the first — so an
             # unconditional reissue here would mean every ordinary
             # reboot of the deployment's own identity re-freezes every
-            # concurrent writer, on any era, for as long as that alter
+            # concurrent writer, on any era, for as long as that ALTER
             # table has to wait its turn. Read the current state first;
             # touch the catalog only on the boot that actually needs to.
             # pg_table_is_visible, not a bare relname match — a shared
@@ -173,7 +173,7 @@ module Hecks
             install_transforms!
           end
 
-          # A domain's own identity changed — bridge its history under the
+          # **A domain's own identity changed** — bridge its history under the
           # new name, before `provisioner?`/the CREATE TABLE IF NOT EXISTS
           # block below ever run. That ordering is load-bearing, not
           # tidiness: `provisioner?` and every statement in ensure_base!
@@ -349,12 +349,12 @@ module Hecks
             rows.ntuples.zero? || rows[0]["owned"] == "t"
           end
 
-          # Build, then attach — never create ... Partition of. The two
+          # Build, then ATTACH — never CREATE ... PARTITION OF. The two
           # produce the same partition; only the lock differs, and that
           # difference is the whole availability story of a mint:
           #
-          #   CREATE TABLE ... Partition of  → AccessExclusiveLock (parent)
-          #   create, then alter ... Attach  → ShareUpdateExclusiveLock
+          #   CREATE TABLE ... PARTITION OF  → AccessExclusiveLock (parent)
+          #   CREATE, then ALTER ... ATTACH  → ShareUpdateExclusiveLock
           #
           # AccessExclusive conflicts with every insert in the hierarchy —
           # routed through the parent or addressed to an existing leaf —
@@ -383,7 +383,7 @@ module Hecks
           end
 
           # Attached, not merely present: a crash between the create and
-          # the attach leaves a table that is not yet part of the journal,
+          # the ATTACH leaves a table that is not yet part of the journal,
           # and the next boot must finish the job rather than skip it.
           def partition_attached?(era)
             @db.exec_params(

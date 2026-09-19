@@ -38,12 +38,12 @@ module Hecks
           # comment. One hash for the whole aggregate, threaded unchanged
           # into every piece nested under it, however deep.
           @entity_named_givens = {}
-          # One level wider still — the chapter's own pool, threaded in
+          # **One level wider still** — the chapter's own pool, threaded in
           # from `BluebookBuilder#aggregate`, shared with every other
           # aggregate the same chapter builds. See `#given`'s own
           # comment for what this closes.
           @chapter_named_givens = chapter_named_givens
-          # A chapter may be split across files — threaded in the same
+          # **A chapter may be split across files** — threaded in the same
           # way as `@chapter_named_givens`, one Array shared chapter-wide.
           # See `#pending_chapter_given`'s own comment for what queues
           # here and `BluebookBuilder#resolve_pending_chapter_givens!`
@@ -58,7 +58,7 @@ module Hecks
           # comment for what this closes.
           @chapter_entity_named_givens   = chapter_entity_named_givens
           @chapter_entity_pending_givens = chapter_entity_pending_givens
-          # Deferred construction — `entity`/`command`/`query` push a
+          # **Deferred construction** — `entity`/`command`/`query` push a
           # pending descriptor here instead of building immediately; see
           # `#drain_pending!`'s own comment for why.
           @pending_entities = []
@@ -215,7 +215,7 @@ module Hecks
         # Not built here — see `#drain_pending!`'s own comment for why
         # this only queues a descriptor.
         #
-        # A precondition shared across sibling pieces, declared once — one
+        # **A precondition shared across sibling pieces, declared once** — one
         # level wider than round 4's own `EntityBuilder#given` (shared
         # across one piece's own commands): `@entity_named_givens` is the
         # same hash threaded into every piece this aggregate builds, so a
@@ -411,7 +411,7 @@ module Hecks
           @named_givens[description] = named
         end
 
-        # A chapter may be split across files — the same reason a query
+        # **A chapter may be split across files** — the same reason a query
         # hop's own cross-file target, a correlation key's own emitting
         # command, and an event's own declared shape are all resolved
         # once the whole chapter is assembled rather than refused the
@@ -511,7 +511,7 @@ module Hecks
 
         private
 
-        # Deferred construction — `entity`/`command`/`query` used to build
+        # **Deferred construction** — `entity`/`command`/`query` used to build
         # immediately, inline, the moment their own DSL line ran during
         # `instance_eval` — meaning a command's own resolution (`sets
         # :field` importing the owner's own attribute, `given("desc")`

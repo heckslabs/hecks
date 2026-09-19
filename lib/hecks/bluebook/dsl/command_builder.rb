@@ -264,7 +264,7 @@ module Hecks
 
         # Renamed from `sets` — item #13's full metaprogrammed dispatch
         # (slice 4c). The `KWARG_TO_OP` op-selection mapping is already
-        # table-verified (`Argument#selects`), but the rest (UNSET-
+        # table-verified (`Argument#selects`), but the REST (UNSET-
         # sentinel discipline, redundant-spelling refusal, omittable-
         # `to:` fallback, one-mutation-only refusal, the position-
         # preserving `resolve_*!` reinsertion) is keyed off runtime
@@ -292,7 +292,7 @@ module Hecks
                   .reject { |_, source| source.equal?(UNSET) }
           named = given.to_h { |kwarg, source| [KWARG_TO_OP.fetch(kwarg), source] }
 
-          # The omittable case. No operation was named at all — not even a
+          # **The omittable case**. No operation was named at all — not even a
           # bare `to:` — so this is `sets :field` alone, which means
           # exactly what the redundant, refused spelling above would have.
           named = { set: target } if named.empty?
@@ -345,7 +345,7 @@ module Hecks
           @emits << Naming.event_ref(event_name)
         end
 
-        # The record's own value as a mutation source — `sets :positions,
+        # **The record's own value as a mutation source** — `sets :positions,
         # append: { ply: state(:ply), knights: state(:knights) }` copies
         # what the record holds now into the new element; `sets :last,
         # to: state(:current)` copies one field onto another. A bare
@@ -434,7 +434,7 @@ module Hecks
           @mutations << Mutation.new(target: target.to_s, op: :delegate, source: with)
         end
 
-        # A command declaring what past fact it amends — the append-only
+        # **A command declaring what past fact it amends** — the append-only
         # answer to "what if this record's history turns out to have been
         # wrong": never rewrite the original event (the log stays exactly
         # what it was), always append a new fact on top. `event` names the
@@ -485,7 +485,7 @@ module Hecks
                                      source: { as: as&.to_s, reason: reason.to_s, reverses: reverses })
         end
 
-        # The effects that write a field of the record — `delegate` and
+        # **The effects that write a field of the record** — `delegate` and
         # `corrects` name a command and an event, never a field.
         FIELD_EFFECTS = %i[set append remove increment decrement multiply clamp].freeze
 
@@ -548,7 +548,7 @@ module Hecks
           end
         end
 
-        # Resolution rules — see `docs/resolution-rules/README.md` for the
+        # **Resolution rules** — see `docs/resolution-rules/README.md` for the
         # precise, language-agnostic algorithm each of `resolve_bare_set!`/
         # `resolve_append_fields!` implements (`implicit-command-attributes.md`
         # / `implicit-append-fields.md`) — the contract a Rust mirror is

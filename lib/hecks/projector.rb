@@ -28,7 +28,7 @@ module Hecks
   #
   #   an export takes a declaration and its bindings and answers
   #   something that is the domain, running elsewhere — rust/project.rb's
-  #   generated crate, the WASM artifact, the sam template
+  #   generated crate, the WASM artifact, the SAM template
   #   bin/project_deploy renders. It needs the `.world`/`.hecksagon` a
   #   projection never looks at, because a running system has to know how
   #   it is wired. That is the whole reason bin/project_deploy cannot use
@@ -42,7 +42,7 @@ module Hecks
   #   dispatches. Converting it into this registry would be a category
   #   error, however much its name suggests otherwise.
   #
-  # One word, three other meanings — worth naming too, because grepping
+  # **One word, three other meanings** — worth naming too, because grepping
   # "projection" turns all of these up and none is the above:
   #
   #   Ports::Projection    read-model catch-up, events folded into state
@@ -80,9 +80,9 @@ module Hecks
     # A projection names the capabilities it needs; this refuses a
     # construct that lacks one, before the projector runs.
     #
-    # One check covers both shapes. An ordinary construct includes its
+    # **One check covers both shapes**. An ordinary construct includes its
     # capabilities and a class-shaped one — Command, Entity, ValueObject
-    # — Extends them, and `is_a?` consults the singleton chain, so it
+    # — extends them, and `is_a?` consults the singleton chain, so it
     # answers for an extended module as readily as an included one. This
     # started as two checks on the assumption it would not; a spec
     # asserting the assumption failed, which is the only reason the
@@ -132,7 +132,7 @@ module Hecks
       target
     end
 
-    # Writing is the caller's choice, not the projector's. A projector
+    # **Writing is the caller's choice, not the projector's**. A projector
     # returns an artifact and never touches disk, which is what lets
     # spec/projector_spec.rb compare `:ir`'s output against a golden
     # fixture without a tmpdir. `out:` is the only thing that writes.

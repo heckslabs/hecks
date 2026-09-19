@@ -7,7 +7,7 @@ require "open3"
 # conformance check at all: parity was proven only against CI's fixed
 # test corpus, completely decoupled from what a real `sam deploy` was
 # about to ship. `bin/project_deploy`'s own generated `deploy:` target
-# now runs `bin/rust_conformance` against the SPECIFIC compiled artifact
+# now runs `bin/rust_conformance` against the specific compiled artifact
 # ($(WASM)) `build-<LogicalId>` (the same target) just built — not a
 # corpus-wide `cargo build`'s own separate binary — before `sam deploy`
 # ever runs. See the generator's own "make verify-parity-<LogicalId>"
@@ -15,9 +15,9 @@ require "open3"
 #
 # Two halves, matching the plan's own verification requirement ("confirm
 # the new deploy-time gate actually blocks a deliberately-broken
-# artifact... before trusting it in production") — a STRUCTURAL check
+# artifact... before trusting it in production") — a structural check
 # that the generated Makefile actually wires the new target into
-# `deploy:`, and a FUNCTIONAL one, proving the underlying mechanism
+# `deploy:`, and a functional one, proving the underlying mechanism
 # (`bin/rust_conformance`'s own exit code) genuinely fails on a real
 # mismatch and passes on a real match, not just that the right words
 # appear in generated text.
@@ -112,18 +112,18 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
 
     # `bin/project_wasm` regenerates `rust/src/generated/` (that domain's
     # own tree, plus any shared framework chapter it depends on) and
-    # rewrites `rust/Cargo.toml`'s own `default` feature as a SIDE
-    # EFFECT of building the .wasm this spec actually needs — the same
+    # rewrites `rust/Cargo.toml`'s own `default` feature as a side
+    # effect of building the .wasm this spec actually needs — the same
     # behavior `bin/project_rust`'s own regen has throughout this whole
-    # plan's own commit history. Restoring exactly the files THIS run
-    # newly dirtied (`after` minus `before`, never the WHOLE post-run
+    # plan's own commit history. Restoring exactly the files this run
+    # newly dirtied (`after` minus `before`, never the whole post-run
     # diff — a session with its own already-uncommitted work in progress
-    # would otherwise have THAT work silently reverted the moment this
+    # would otherwise have that work silently reverted the moment this
     # spec's own `after(:context)` fires, exactly the mistake this
     # comment exists to name so it never gets repeated) is what keeps
-    # this spec from leaving the working tree — and every OTHER spec
+    # this spec from leaving the working tree — and every other spec
     # that reads `rust/src/generated/`'s current committed content —
-    # dirty after a single run, WITHOUT ever touching a file this run
+    # dirty after a single run, without ever touching a file this run
     # didn't itself modify.
     def self.tracked_diff
       `git -C #{repo_root} diff --name-only`.split("\n")
@@ -151,13 +151,13 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
     end
 
     # `spec/corpus/rust_conformance/roster.json`, not the fuzzer's own
-    # broader `spec/corpus/roster.json` — the FORMER is one of the
+    # broader `spec/corpus/roster.json` — the former is one of the
     # fixtures `spec/rust_conformance_spec.rb` already proves matches
-    # byte-for-byte; the LATTER is known, live, and cited (ADR 0037,
+    # byte-for-byte; the latter is known, live, and cited (ADR 0037,
     # Finding 3) to hit the missing-argument wording gap that spec's own
     # documented, not-yet-fixed catalogue leaves open — using it here
     # would make this spec re-litigate an already-catalogued gap instead
-    # of proving what THIS phase's own mechanism does.
+    # of proving what this phase's own mechanism does.
     ROSTER_FIXTURE = "spec/corpus/rust_conformance/roster.json".freeze
 
     it "passes (exit 0) when the artifact and the domain genuinely agree" do
@@ -165,11 +165,11 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
       expect(status).to be_success
     end
 
-    # THE PLAN'S OWN EXPLICIT VERIFICATION REQUIREMENT: "confirm the new
+    # **The plan's own explicit verification requirement**: "confirm the new
     # deploy-time gate actually blocks a deliberately-broken artifact."
     # The most reliable way to inject one without hand-authoring a
-    # broken .wasm: feed the harness a WILDLY MISMATCHED pairing — a
-    # real domain's own corpus script against a DIFFERENT domain's real,
+    # broken .wasm: feed the harness a wildly mismatched pairing — a
+    # real domain's own corpus script against a different domain's real,
     # correctly-built artifact. Every one of Ruby's own event/refusal
     # names comes from roster's own vocabulary; pizzas' compiled dispatch
     # table has never heard of any of them, so the comparison is

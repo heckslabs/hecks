@@ -44,7 +44,7 @@ RSpec.describe "one_of" do
   # This used to reach the door through EmailAddress, whose rule was the
   # hand-rolled invariant `address.include?("@")`. That rule is a declared
   # `pattern:` now, so the example moved to CustomerNumber, a value object
-  # that still HAD an invariant with nothing else guarding it — otherwise
+  # that still had an invariant with nothing else guarding it — otherwise
   # the test would have kept its name and quietly stopped testing
   # invariants at all.
   #
@@ -80,7 +80,7 @@ RSpec.describe "one_of" do
   end
 
   # L6 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — `Admission#admit_member`
-  # checked only the closed set's DISCRIMINANT column (the first declared
+  # checked only the closed set's discriminant column (the first declared
   # attribute), so a multi-column `member` row — `StatementFrequency`
   # (examples/banking/bluebook/statements.bluebook), a real member of this
   # very corpus, not a synthetic fixture — was admitted the instant its

@@ -7,7 +7,7 @@ require "hecks/fuzzing"
 # after capture around each step's dispatch). See `lib/hecks/fuzzing/
 # properties/outbox.rb`'s own header for the two checks this makes and
 # why a `saga:` row gets only the weaker one — that asymmetry is not
-# hypothetical: the first version of this property claimed the STRONGER
+# hypothetical: the first version of this property claimed the stronger
 # check for sagas too, and it was live-caught false-positiving on
 # `examples/banking`'s own `Onboarding` saga before this file existed
 # (see "passes a real replay" below, which pins the exact scenario).
@@ -44,17 +44,17 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions" do
     { verb: "Fake::Thing.Do", rows: rows.is_a?(Array) ? rows : [rows], reactions: reactions, sagas: sagas }
   end
 
-  # THE REAL SCENARIO THIS PROPERTY'S OWN FIRST VERSION GOT WRONG.
+  # **The real scenario this property's own first version got wrong**.
   # `Onboarding`'s `ends_on Account::AccountOpened` (new_customer_
   # onboarding.bluebook) means `Outbox::Fanout.sagas`' own `listens?`
-  # enqueues a `saga:Banking::Onboarding` row on EVERY `AccountOpened`,
+  # enqueues a `saga:Banking::Onboarding` row on every `AccountOpened`,
   # including one this replay's own steps produce by opening an account
-  # DIRECTLY — bypassing the onboarding case whose correlation would
+  # directly — bypassing the onboarding case whose correlation would
   # actually have a live instance. `SagaInterpreter#end_saga` finds
-  # nothing under that correlation to delete and logs NOTHING at all
+  # nothing under that correlation to delete and logs nothing at all
   # (saga_interpreter.rb's own `return false unless ...delete(...)`) —
   # a `delivered` row with zero matching `saga_log` entries, produced by
-  # perfectly ordinary operation, not a bug. This is a REAL replay
+  # perfectly ordinary operation, not a bug. This is a real replay
   # against `examples/banking` (no doctoring), and the property must
   # still answer `true`.
   it "passes a real replay whose saga row drains with no matching saga_log entry, and whose policy row drains " \

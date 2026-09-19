@@ -17,7 +17,7 @@ module Hecks
       # scoped to its own seam (IR-in/artifact-out; per-boot phased gates).
       # A shared base is deferred until a third registry actually wants one.
       #
-      # Name-keyed, process-wide, not per-boot — unlike `BootGates` (one
+      # **Name-keyed, process-wide, not per-boot** — unlike `BootGates` (one
       # instance per `Loader.boot` call, because gate registration is
       # capability-conditional per registry), a persistence plugin is either
       # `require`d into this process or it isn't; there is no "this boot's

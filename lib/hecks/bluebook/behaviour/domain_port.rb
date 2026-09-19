@@ -3,7 +3,7 @@ require_relative "traits"
 module Hecks
   module Bluebook
     module Behaviour
-      # What one port operation does.
+      # **What one port operation does**.
       module PortOperation
         include Indexed
 
@@ -40,7 +40,7 @@ module Hecks
         def addressing_key_for(aggregate_name) = identity_attribute(aggregate_name)&.name
       end
 
-      # What a port does — one finder over its declared operations.
+      # **What a port does** — one finder over its declared operations.
       module DomainPort
         def operation(named) = @operations.find { |op| op.hecks_name == named.to_s }
       end

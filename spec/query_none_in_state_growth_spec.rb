@@ -4,8 +4,8 @@ require "tempfile"
 # Real dispatch coverage for `none_in_state` -- finding #13, a
 # cross-aggregate anti-join comparator: `where field: { none_in_state:
 # "Aggregate:state" }` holds when the record `field`'s value points at
-# is NOT currently in that state (including when it points at no record
-# at all). Exercised on an ENTITY query -- the equivalent AGGREGATE-level
+# is not currently in that state (including when it points at no record
+# at all). Exercised on an entity query -- the equivalent aggregate-level
 # query has a separate, later-landing gap in `Ports::Query::InMemory`
 # this coverage does not exercise.
 #

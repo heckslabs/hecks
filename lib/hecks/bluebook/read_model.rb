@@ -47,7 +47,7 @@ module Hecks
         # `group_by_fields` is the convenience reader everything but
         # `to_h`/the Judge's own generic walk actually wants.
         @group_by         = group_by
-        # Absent is not false. `@count` stays nil rather than becoming
+        # **Absent is not false**. `@count` stays nil rather than becoming
         # `false` when undeclared — the same "if you declare it, declare
         # something" reading `Lifecycle`'s own optional fields rely on
         # (MetaValidator::Judge#setters skips a setter whose every

@@ -1,4 +1,4 @@
-# IN CI, A SKIP IS A FAILURE UNLESS IT SAYS WHERE THE CHECK WENT.
+# **In CI, a skip is a failure unless it says where the check went**.
 #
 # A skipped example is a check that silently left the suite. Locally that
 # is the everyday deal (no Postgres, no cargo, no feature built). In CI
@@ -9,11 +9,11 @@
 # So, under `ENV["CI"]`, after the suite runs every example that ended
 # pending is held against two tables:
 #
-#   ALLOWED — pattern => destination. The skip is fine HERE because the
+#   ALLOWED — pattern => destination. The skip is fine here because the
 #     named CI job runs that check for real. spec/ci_skip_backstop_spec.rb
 #     proves each destination job exists and runs the call site's spec
 #     file, and each pattern still matches a live `skip` call site.
-#   UNROUTED_BUGS — skips that happen in CI with NO destination: bugs,
+#   UNROUTED_BUGS — skips that happen in CI with no destination: bugs,
 #     named as bugs, so they stop failing the build while someone fixes
 #     them but can't be mistaken for "legitimate". The same spec proves
 #     each is still live, so a fixed one has to be deleted.
@@ -29,7 +29,7 @@ module CiSkipBackstop
 
   # Empty on purpose today: every skip the CI jobs were observed to take
   # (see UNROUTED_BUGS) has no other lane that runs it. An entry here
-  # names the job that DOES run the skipped check, e.g. a Cargo-feature
+  # names the job that does run the skipped check, e.g. a Cargo-feature
   # skip in one job whose feature another job builds.
   ALLOWED = [].freeze
 
@@ -58,7 +58,7 @@ module CiSkipBackstop
     examples.filter_map do |example|
       result = example.execution_result
       next unless result.status == :pending
-      # A `pending` example RAN and failed the way its shrink-only table
+      # A `pending` example ran and failed the way its shrink-only table
       # says it should (e.g. RUST_FUZZ_PENDING, CODEGEN_PENDING_MEMBERS);
       # it turns into a failure the moment it passes. That is a live check,
       # not a skip — only an example that never ran carries no exception.

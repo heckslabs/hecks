@@ -45,7 +45,7 @@ module Hecks
 
         def kind_of(field) = derived[field]
 
-        # The fields the walk supplies — every `derived: { field => :walk }` claim.
+        # **The fields the walk supplies** — every `derived: { field => :walk }` claim.
         # The language declares them (`attribute :position, Position`) so the
         # judge can order siblings, but no constructor takes one. This is the one
         # place that fact is stated ; `Specializer` and `Model::Deviations` read it

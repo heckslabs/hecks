@@ -1,21 +1,21 @@
 require "spec_helper"
 
-# "SINGLE-ELEMENT VALUE OBJECTS STRICTLY ANSWER `.value`" — the three
+# "Single-element value objects strictly answer `.value`" — the three
 # halves of one language rule, asserted together because they only mean
 # anything together:
 #
 #   1. the bare DSL shorthand — `value_object "Price", Integer` declares
-#      exactly one attribute, NAMED `value`, of that type (sugar for the
+#      exactly one attribute, named `value`, of that type (sugar for the
 #      block form's single `attribute :value, Type` line;
 #      `AggregateBuilder#value_object`'s own comment);
-#   2. the runtime alias — ANY value object with exactly one declared
+#   2. the runtime alias — any value object with exactly one declared
 #      attribute answers `.value`, whatever that attribute is actually
 #      named (`Runtime::Value#method_missing` / `#resolve_field`), and a
 #      multi-attribute one keeps its refusal (there is no single value
 #      `.value` could honestly mean);
 #   3. call-site collapsing — a bare scalar offered where a
 #      single-attribute value object is declared wraps into that value
-#      object's own REAL field automatically
+#      object's own real field automatically
 #      (`Runtime::Value::Coercion#fields_for`'s count-one auto-wrap),
 #      while the explicit `{real_field: x}` spelling keeps working
 #      unchanged.

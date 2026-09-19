@@ -79,7 +79,7 @@ module Hecks
           @runtime.query("Bluebook::#{category}.DeclaredIn", key.to_sym => { value: parent_id.to_s })
         end
 
-        # One declaration, built from the contract.
+        # **One declaration, built from the contract**.
         #
         # There were eleven methods here, one per category, each spelling out the same
         # keys `Assembly::Contracts` already names — which is the shape the judge used
@@ -214,7 +214,7 @@ module Hecks
         # at a time.
         def members_row(row) = members_of(row)
 
-        # The key is stringified, never the value — the same split
+        # **The key is stringified, never the value** — the same split
         # `Bluebook::ValueObject#to_h`'s own `members:` emission makes
         # (lib/hecks/bluebook/value_object.rb, L7 docs/audits/
         # 2026-08-11-bug-triage.md). `Pair.value` is declared `String`
@@ -237,7 +237,7 @@ module Hecks
 
         def query(row) = declaration("Query", row).merge(options_of(row))
 
-        # Every direct entity of one owner — S17, ADR 0026. `declared
+        # **Every direct entity of one owner** — S17, ADR 0026. `declared
         # ("Entity", root_id)` returns every entity sharing the same
         # root aggregate, nested or not (Dispatch and Handler both carry
         # `aggregate: process_manager_id`) — `owner` is the field that

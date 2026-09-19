@@ -53,7 +53,7 @@ module Hecks
           "#{expression} #{direction}#{nulls}, id #{direction}"
         end
 
-        # The comparators a NULL cannot satisfy — the other half of
+        # **The comparators a NULL cannot satisfy** — the other half of
         # `sql_predicate` below. That one answers "the value compared to is
         # null" (`eq: nil` -> IS NULL, `ne: nil` -> IS NOT NULL, a real
         # convention both adapters already shared). This one answers the

@@ -3,14 +3,14 @@ require_relative "traits"
 module Hecks
   module Bluebook
     module Behaviour
-      # What a chapter does. The declared half is the roll-call of what a
+      # **What a chapter does**. The declared half is the roll-call of what a
       # bluebook holds; these are the finders over it, plus `verbs` — the
       # chapter's own list of every dispatchable name, which is derived
       # from the aggregates rather than declared anywhere.
       module Chapter
         include Owns
 
-        # The hook the generated constructor calls. Three things a
+        # **The hook the generated constructor calls**. Three things a
         # declaration does not state: that a chapter is the root of the
         # owner chain (nothing declares it, it is what having no owner
         # means), the ports table — which a `.hecksagon` fills later, so
@@ -28,7 +28,7 @@ module Hecks
         def read_model(named) = @read_models.find { |model| model.name == named.to_s || model.query_name == named.to_s }
         def port(named)       = @ports_by_name[named.to_s]
 
-        # What this chapter declared it provides — `{ key => local verb }`
+        # **What this chapter declared it provides** — `{ key => local verb }`
         # for one capability, or nil when it declares none. Read by
         # everything that used to recognise the Governance chapter by its
         # name (`Registry#authorization_provider_for`).

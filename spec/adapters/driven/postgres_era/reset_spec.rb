@@ -3,9 +3,9 @@ require "hecks/ports/persistence/plugins/era"
 require "tempfile"
 require_relative "../../../support/postgres_probe"
 
-# `PostgresEra#reset!` against a real lineage-provisioned (FORCE ROW
-# LEVEL SECURITY) journal — the journal carries an INSERT policy and a
-# SELECT policy (advance_era!, mint_transaction.rb) and NO DELETE
+# `PostgresEra#reset!` against a real lineage-provisioned (force row
+# level security) journal — the journal carries an INSERT policy and a
+# SELECT policy (advance_era!, mint_transaction.rb) and no DELETE
 # policy at all, for anyone. A plain `DELETE ... WHERE aggregate = $1`
 # from an ordinary connection therefore used to silently match zero
 # rows: no privilege error, no exception, `reset!` just returned `self`
@@ -14,7 +14,7 @@ require_relative "../../../support/postgres_probe"
 # Same non-superuser-owner harness as lineage_spec.rb's own header
 # explains: a local dev Postgres user is commonly a superuser (mine
 # is), and a superuser bypasses RLS unconditionally regardless of
-# FORCE, so "the owner is fenced too" is untestable without a real,
+# force, so "the owner is fenced too" is untestable without a real,
 # ordinary, non-superuser owner role.
 RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io do
   RESET_DB = "hecks_reset_spec".freeze
@@ -48,9 +48,9 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
     admin.exec("DROP DATABASE IF EXISTS #{RESET_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{RESET_DB}")
     admin.exec("DROP ROLE IF EXISTS #{RESET_OWNER}")
-    # Plain CREATE ROLE ... LOGIN — no SUPERUSER, no BYPASSRLS, same as
+    # Plain CREATE ROLE ... Login — no superuser, no BYPASSRLS, same as
     # lineage_spec.rb's LINEAGE_OWNER. Either attribute would make
-    # FORCE ROW LEVEL SECURITY a no-op for this role, same as it
+    # force ROW LEVEL SECURITY a no-op for this role, same as it
     # already is for the ambient dev connection.
     admin.exec("CREATE ROLE #{RESET_OWNER} LOGIN")
     admin.close
@@ -129,7 +129,7 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
     # it is whatever the local Postgres install's default user is, which
     # PostgresProbe.available? already required to be reachable, and
     # lineage_spec.rb's own header notes is commonly a superuser. A
-    # superuser bypasses RLS regardless of FORCE, so this is the "actually
+    # superuser bypasses RLS regardless of force, so this is the "actually
     # works" side of the fix, not merely its refusal side.
     aggregate = registry.bluebooks.values.first.aggregate("Acct")
     ambient_adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RESET_DB, domain: "Ledger" })

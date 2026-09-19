@@ -4,7 +4,7 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # The read-side of the era workaround. Once a domain mints a
+        # **The read-side of the era workaround**. Once a domain mints a
         # second era, `head_view` is a `DISTINCT ON`/`UNION ALL`
         # reduction — and a `where` clause on anything but `id` (its own
         # partition key) cannot be pushed through that reduction, so every
@@ -16,7 +16,7 @@ module Hecks
         # prove a predicate on a non-partition column commutes with
         # `DISTINCT ON` without risking a stale row winning).
         #
-        # The workaround: one narrow table per declared `where`-field
+        # **The workaround**: one narrow table per declared `where`-field
         # (never `order_by`-only fields — sorting the reduced output was
         # never blocked by the reduction; only filtering was), holding
         # exactly (id, ordinal, value) — the current extracted value for
@@ -24,8 +24,8 @@ module Hecks
         # the head snapshot it already upserts (same ordinal-guard idiom:
         # `WHERE ordinal < EXCLUDED.ordinal`). A query whose sole `where`
         # is on a cached field never runs the reduction at all: `SELECT id
-        # from <field>_cache where value <op> $1`, then `SELECT id, state
-        # from head_view where id = ANY($ids)` — safe through the
+        # FROM <field>_cache WHERE value <op> $1`, then `SELECT id, state
+        # FROM head_view WHERE id = ANY($ids)` — safe through the
         # reduction because `id` is its own partition key, unlike the
         # original field.
         #
@@ -69,7 +69,7 @@ module Hecks
           # `PostgresEra#query_expression(field)` already compiles for
           # this field, applied against a `state` column this module's own
           # SQL always makes available in scope (see `field_cache_source_sql`)
-          # — One source of truth for "what does this field mean", not a
+          # — one source of truth for "what does this field mean", not a
           # second hand-rolled copy that could silently drift from what a
           # live query actually filters on.
           def ensure_field_cache!(storage_name, era, field, value_expression)
@@ -109,7 +109,7 @@ module Hecks
             )
           end
 
-          # The live-write side — called from `append`, inside the same
+          # **The live-write side** — called from `append`, inside the same
           # transaction as the journal insert and the head-snapshot
           # upsert, for every field this aggregate has a cache table for.
           # `state_json` is the entry's own new state (already the thing

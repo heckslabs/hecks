@@ -13,7 +13,7 @@
 # markdown table of argument shapes to get there. See
 # `Hecks::Projector::NarrateProjector` for what it does and does not do.
 #
-# EVERY FAILURE IS A SENTENCE, NOT A BACKTRACE, and not silence — same
+# Every failure is a sentence, not a backtrace, and not silence — same
 # reasoning as `bin/docs`: a misspelled aggregate refuses by name instead of
 # quietly answering with nothing.
 

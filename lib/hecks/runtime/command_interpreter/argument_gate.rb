@@ -92,7 +92,7 @@ module Hecks
                                       declared: declared_reading(command))
         end
 
-        # A command that declares nothing still has to say so. `Account
+        # **A command that declares nothing still has to say so**. `Account
         # .Freeze` is `reference_to Account` and no attributes at all, so
         # `{declared}` rendered empty and the sentence trailed off mid-
         # clause : "Freeze does not declare standing — it takes ". Read

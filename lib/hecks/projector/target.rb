@@ -1,6 +1,6 @@
 module Hecks
   module Projector
-    # What makes a module a projection target. `Projector.register` has
+    # **What makes a module a projection target**. `Projector.register` has
     # always accepted anything answering `call(bluebook:, options:)` —
     # this only removes the second step, so a target declares its own key
     # beside its own implementation instead of being registered from

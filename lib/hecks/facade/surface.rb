@@ -3,7 +3,7 @@ require_relative "surface/aggregate_door"
 
 module Hecks
   module Facade
-    # The door, without the classes.
+    # **The door, without the classes**.
     #
     # `Pizzas::Pizza.create_pizza(...)` is the public surface (handover rule 3),
     # and this is what serves it now : anonymous per-boot modules whose

@@ -20,7 +20,7 @@ module Hecks
       include Behaviour::Chapter
       include Hecks::IR
 
-      # The schema's own version — not a domain's `version:` (Banking's
+      # **The schema's own version** — not a domain's `version:` (Banking's
       # "v1", a business fact the author chose), but the shape `to_h`
       # itself emits. A consumer reading exported IR with no Ruby DSL to
       # cross-check against (a build-time generator, a stored snapshot)
@@ -59,7 +59,7 @@ module Hecks
         canonical_form:    -> { Expression::CanonicalForm.table }
       )
 
-      # One row of a declared capability — `verb` is chapter-local
+      # **One row of a declared capability** — `verb` is chapter-local
       # ("RoleAssignment.Assign"); `Behaviour::Chapter#provided_verb`
       # qualifies it with the chapter's own name.
       Provision = Struct.new(:capability, :key, :verb, keyword_init: true) do

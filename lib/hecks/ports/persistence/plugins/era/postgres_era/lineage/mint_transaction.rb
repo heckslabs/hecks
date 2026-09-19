@@ -46,11 +46,11 @@ module Hecks
             # After compile_head!, not before — this era's own snapshot
             # table (a possibly-renamed name, per aggregate) is what
             # grant_role! grants on, and compile_head! is what creates it.
-            # Granting first would grant on a relation that does not
+            # Granting first would GRANT on a relation that does not
             # exist yet for any aggregate renamed in this very edge.
             aggregates.each { |aggregate| compile_head!(aggregate, ordinal, label, edges) }
             grant_role!(role, aggregates: aggregates, era: ordinal) if role
-            # Last, right before commit — not merely unconditional. Once
+            # LAST, right before COMMIT — not merely unconditional. Once
             # acquired, a lock is held until the transaction ends, not
             # just for the statement that took it — so advance_era!'s
             # DROP POLICY/CREATE POLICY (AccessExclusiveLock, same family
@@ -63,7 +63,7 @@ module Hecks
             # moving this above compile_head! (an earlier ordering, caught
             # only once a genuine concurrent-write test was built rather
             # than assumed) reintroduced exactly the mint-stops-the-world
-            # cost ensure_partition!'s build-then-attach exists to avoid.
+            # cost ensure_partition!'s build-then-ATTACH exists to avoid.
             #
             # Unconditional regardless of position — this is the line that
             # drops writing to the old schema. It does not wait for a role
@@ -150,7 +150,7 @@ module Hecks
           # A row policy, not a partition grant. Postgres checks INSERT
           # privilege on the partitioned parent for a routed insert and
           # never consults the partition's own grants, so a per-partition
-          # grant/revoke is inert in both directions: grant only on the
+          # GRANT/REVOKE is inert in both directions: grant only on the
           # partition and nobody can write at all; grant on the parent and
           # they may write into every era, ancestors included. Measured,
           # not reasoned about — see the spec, which writes through the
@@ -161,7 +161,7 @@ module Hecks
           # write any era (the merge re-enters a winner's state into the
           # current era, and compile_head! reads every ancestor).
           #
-          # Call only with the new current ordinal — from hold_first! (era
+          # **Call only with the new current ordinal** — from hold_first! (era
           # 1) or mint_era! (era N). Calling this with a superseded
           # ordinal — from a boot that merely recognizes an old checkout —
           # would roll the fence backward and silently reopen the old

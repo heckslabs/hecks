@@ -1,6 +1,6 @@
 module Hecks
   module Fuzzing
-    # The one declared set of FIELDS that leave a comparison — partition,
+    # **The one declared set of FIELDS that leave a comparison** — partition,
     # not filter. Every comparison in lib/hecks/fuzzing that drops a field
     # before comparing two histories names a group here instead of writing
     # its own literal `except(...)` list, so the reason for dropping a field

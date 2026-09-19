@@ -56,7 +56,7 @@ module Hecks
       def persistence_capabilities = [:atomic_put, :optimistic_concurrency]
 
       def self.connect_for(name, settings)
-        # Lazy, on purpose — same reasoning as PostgresEra's own
+        # **Lazy, on purpose** — same reasoning as PostgresEra's own
         # connect_for: a domain that never wires Postgres should never
         # need the gem installed.
         require "pg"
@@ -75,7 +75,7 @@ module Hecks
             PG.connect(dbname: declared)
           end
 
-        # Shared-instance isolation — same as PostgresEra's own: a
+        # **Shared-instance isolation** — same as PostgresEra's own: a
         # domain that declares `schema` is sharing its Postgres instance
         # with other domains, so every unqualified reference this
         # adapter constructs resolves through search_path. A domain with
@@ -83,7 +83,7 @@ module Hecks
         schema = settings.key?(:schema) ? settings[:schema] : settings["schema"]
         connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
 
-        # Quiet on purpose — same reasoning as PostgresEra's own: a
+        # **Quiet on purpose** — same reasoning as PostgresEra's own: a
         # schema/table that already exists is the ordinary case on every
         # boot after the first, not news.
         connection.exec("SET client_min_messages = warning")
@@ -344,7 +344,7 @@ module Hecks
         "position(#{placeholder} in #{expression}) > 0"
       end
 
-      # The list column itself is the JSONB array — no reaching into a
+      # **The list column itself is the JSONB array** — no reaching into a
       # shared blob a jsonb path has to walk into first (PostgresEra's
       # own version does, since every attribute there shares one `state`
       # column). Here, `column` names a real column of its own, already
@@ -412,11 +412,11 @@ module Hecks
         jsonb_extraction?(expression) && numeric_field?(field) ? "(#{expression})::numeric" : expression
       end
 
-      # Postgres defaults to nulls last on ASC — same override
+      # Postgres defaults to NULLS LAST on ASC — same override
       # PostgresEra's own order_clause carries, so a declared query
       # answers identically no matter which adapter serves it (the
       # port's in-memory semantics, which Sqlite's own default happens
-      # to match, put null rows first ascending and last descending).
+      # to match, put null rows FIRST ascending and LAST descending).
       def order_clause(order_by, policy)
         direction = order_by.direction.to_s.downcase == "desc" ? "DESC" : "ASC"
         nulls = case policy&.mode.to_s

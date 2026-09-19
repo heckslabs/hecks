@@ -2,13 +2,13 @@ require "hecks/ports/persistence/plugins/era"
 
 module Hecks
   module Fuzzing
-    # The fork-loss class, as a check — not a fuzz. Every other mode in
+    # **The fork-loss class, as a check** — not a fuzz. Every other mode in
     # this file generates a sequence and compares two answers to the same
     # question; this one asks a single, unconditional question of a
     # target's own real, already-configured `PostgresEra` ledger:
     # does any ancestor era still hold writes nobody has merged forward?
     #
-    # The bug this targets, named exactly. Minting a new era (an attribute
+    # **The bug this targets, named exactly**. Minting a new era (an attribute
     # or aggregate addition — `StorageShape.project`, lib/hecks/ports/
     # persistence/plugins/era/storage_shape.rb) advances the readable head
     # to a new partition; an old checkout, or a process that boots slower
@@ -26,7 +26,7 @@ module Hecks
     # line already answers by hand, run as an ordinary sweep Check instead
     # of only when a human remembers to ask.
     #
-    # The target's real database, read-only, never a disposable one — every
+    # **The target's real database, read-only, never a disposable one** — every
     # other Postgres-touching mode here (`persistence_parity`,
     # `adapter_parity_sqlite`) owns a throwaway schema for the exact
     # reason it must never look at what a real deployment actually holds;
@@ -91,18 +91,18 @@ module Hecks
           db.close
         end
       rescue StandardError => e
-        # Could not audit is not the same as nothing to audit — a refused
+        # **Could not audit is not the same as nothing to audit** — a refused
         # connection, a `Lineage` defect, malformed `.world` settings. Every
         # one of these used to answer the benign shape and be held.
         failed("#{e.class}: #{e.message}")
       end
 
-      # Nothing to audit — this target holds no PostgresEra lineage, so no
+      # **Nothing to audit** — this target holds no PostgresEra lineage, so no
       # ancestor era can carry post-cut writes. Not a finding, and not
       # evidence of anything either: the caller logs no Check at all.
       def not_applicable(reason) = { checked: false, kind: :not_applicable, reason: reason }
 
-      # The audit itself could not run — reported as a finding, never held.
+      # **The audit itself could not run** — reported as a finding, never held.
       def failed(reason) = { checked: false, kind: :error, reason: reason }
 
       # The same load `bin/merge_tail` itself performs (that script's own

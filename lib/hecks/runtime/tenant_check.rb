@@ -10,7 +10,7 @@ module Hecks
     # Dispatcher, its own adapter instances) rather than one shared
     # process switching connections mid-dispatch.
     #
-    # That last part is the finding this module encodes. The project
+    # **That last part is the finding this module encodes**. The project
     # register (Bluebook::ProjectRegister) already resolves an address's
     # realm to a dispatcher at registration time — Router#resolve looks
     # the FQN up in one flat table keyed by realm::domain::aggregate.verb,
@@ -32,7 +32,7 @@ module Hecks
     # objects, so two Memory adapter instances never share state by
     # construction. PostgresEra answers true because its own `schema:`
     # setting (already built, already the Storehouse mechanism) puts
-    # each boot's tables in their own Postgres schema via `set
+    # each boot's tables in their own Postgres schema via `SET
     # search_path` — proven for real, not assumed, by
     # tenant_isolation_spec.rb. Plain Postgres (no schema story) and D1
     # (no schema-equivalent at all — see world.bluebook's own comment on

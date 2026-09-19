@@ -64,7 +64,7 @@ module Hecks
           return [JSON.pretty_generate(rows.map { |row| JsonDoor.materialize(row) }), 0]
         end
 
-        # The answer is scoped to what was asked. `bin/run`'s step-list form
+        # **The answer is scoped to what was asked**. `bin/run`'s step-list form
         # reports the whole store because a corpus run is judged on all of it;
         # somebody who issued one verb wants that verb's outcome, and against a
         # Postgres-backed domain the full dump is every record there has been.
@@ -81,11 +81,11 @@ module Hecks
         # same next step: read what the verb actually takes.
         ["#{e.message}\n\n  #{program} #{'ask ' if asking}#{name} --help", 1]
       rescue *Runtime::DOMAIN_REFUSALS => e
-        # The refusal is the product — the chapter's own sentence, verbatim.
+        # **The refusal is the product** — the chapter's own sentence, verbatim.
         [e.message, 1]
       end
 
-      # The clock, filled in at the door.
+      # **The clock, filled in at the door**.
       #
       # A staleness rule needs the time, and the sublanguage cannot ask for it
       # — a `given` that read the clock would judge the same record differently
@@ -112,7 +112,7 @@ module Hecks
       # An explicit value always wins, so a spec or a caller reproducing a
       # moment says so and is believed. This only supplies what was omitted.
       #
-      # By name, which is the one uncomfortable part. `now` is a plausible
+      # **By name, which is the one uncomfortable part**. `now` is a plausible
       # domain word and nothing declares that it means the clock. It is
       # tolerable because this is a convenience layer rather than semantics —
       # the verb's own help says the argument exists, dispatch is unchanged,
@@ -127,7 +127,7 @@ module Hecks
         args.merge(now: { value: Ports::Clock.now(runtime.registry) })
       end
 
-      # A port operation has no state, and its payload is the entire point.
+      # **A port operation has no state, and its payload is the entire point**.
       #
       # A command answers with the record it changed, so naming the events is
       # enough — the interesting part is in `state`. A port operation changes
@@ -157,7 +157,7 @@ module Hecks
           end }
       end
 
-      # A near miss is worth more than a list. Somebody who typed
+      # **A near miss is worth more than a list**. Somebody who typed
       # `bug.discovr` wants one line, not eighty-seven of them.
       #
       # Ranked by shared prefix, not by substring. Substring was the first
@@ -165,7 +165,7 @@ module Hecks
       # letter, `order.create_piza`, which is a substring of nothing. Prefix
       # length survives an error anywhere after it, which is where errors are.
       def unknown(cli, name, asking, program)
-        # Both spellings are candidates. A caller who typed the qualified
+        # **Both spellings are candidates**. A caller who typed the qualified
         # form with a typo — `order.create_piza` — shares no prefix with the
         # short name `create_pizza`, so pooling only one of them suggests
         # nothing for half the mistakes anybody makes.

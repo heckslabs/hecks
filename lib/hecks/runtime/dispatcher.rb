@@ -57,7 +57,7 @@ module Hecks
         @read_models = ReadModelInterpreter.new(registry)
         @policies = PolicyInterpreter.new(registry, door: self)
         @sagas    = SagaInterpreter.new(registry, door: self)
-        # The relay is the registry's, not this dispatcher's — the
+        # **The relay is the registry's, not this dispatcher's** — the
         # interpreters enqueue through `@registry.outbox` from inside
         # the save transaction, and this dispatcher drains through the
         # same object, so there is exactly one relay per registry no
@@ -99,7 +99,7 @@ module Hecks
         Deprecation.call(:legacy_dispatch_args, LEGACY_ARGS_WARNING) unless legacy_args.empty?
       end
 
-      # The flat-facts wire form — one Hash, not keywords, and not
+      # **The flat-facts wire form** — one Hash, not keywords, and not
       # deprecated: the shape `spec/corpus/*.json` steps, the Rust kernel's
       # `cli.rs` contract, a reaction without a `with:` projection, and the
       # self-hosted meta-domain all carry. Routes exactly as
@@ -173,12 +173,12 @@ module Hecks
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome)
       end
 
-      # The one body both doors run — `dispatch` (keywords) and
+      # **The one body both doors run** — `dispatch` (keywords) and
       # `dispatch_flat` (one Hash) differ only in how the call's parts are
       # spelled, never in what happens next.
       private :dispatch_invocation
 
-      # Everything owed because `announced` committed — policies first,
+      # **Everything owed because `announced` committed** — policies first,
       # then sagas, the order this method always ran them in. The
       # command/entity interpreters hand back the outbox rows they
       # enqueued inside the save transaction (`Interpreting#
@@ -213,7 +213,7 @@ module Hecks
       # legal" writes the identical rescue clause a real dispatch already
       # needs; this returns `true` only when nothing was refused.
       #
-      # Never a port verb — `PortOperationInterpreter`'s own side effects
+      # **Never a port verb** — `PortOperationInterpreter`'s own side effects
       # (an external gateway call, say) have no meaningful in-memory-only
       # form, so this refuses one outright rather than silently running
       # it for real, which "dry" would otherwise quietly lie about.
@@ -245,7 +245,7 @@ module Hecks
         true
       end
 
-      # The door an adapter outside the bluebook calls through — never the
+      # **The door an adapter outside the bluebook calls through** — never the
       # domain itself. `port_name`/`operation_name` are separate arguments
       # rather than one packed verb string on purpose: there is no established
       # wire spelling for "domain, aggregate, port, operation" yet, and

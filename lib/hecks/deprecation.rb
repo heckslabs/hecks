@@ -4,7 +4,7 @@
 # about an old call shape is not a word of the language — callers name
 # `Hecks::Deprecation.call` in full.
 module Hecks
-  # One warning per call site, naming the caller's line — never a line
+  # **One warning per call site, naming the caller's line** — never a line
   # inside this gem. A deprecated shape usually reaches the runtime through
   # a forwarding door (`Hecks::Router`, a namespace shortcut, a
   # `RemoteDispatcher`), so the site reported is the first frame outside

@@ -237,7 +237,7 @@ module Hecks
           end
         end
 
-        # Known, harmless gap: `corrects ..., as: :name`'s bound name
+        # **Known, harmless gap**: `corrects ..., as: :name`'s bound name
         # (admissibility.rb's `enforce_correction_target`/`enforce_givens`/
         # `enforce_ensures`) isn't special-cased here the way `:old`/
         # `:parent` are — a given/ensures referencing it falls through to

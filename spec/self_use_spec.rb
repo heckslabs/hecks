@@ -1,15 +1,15 @@
 require "spec_helper"
 
-# S16, ADR 0026 — "THE LANGUAGE USES EVERYTHING IT DECLARES, AND WHAT IT
-# DOES NOT USE IS A SUB-LANGUAGE."
+# S16, ADR 0026 — "the language uses everything it declares, and what it
+# does not use is a sub-language."
 #
 # Modelled directly on `spec/fuzzing/meta_domain_coverage_spec.rb`'s own
 # shape (that file's own header: "requires every declared feature to be
 # claimed, guaranteed by construction, structurally exempt, or a named
 # gap carrying a one-line reason") — aimed here at a different question:
 # not "does a property exist for this attribute," but "does the
-# LANGUAGE'S OWN description of itself actually declare an instance of
-# this CONSTRUCT KIND," counted the same way ADR 0026's own table was
+# language's own description of itself actually declare an instance of
+# this construct kind," counted the same way ADR 0026's own table was
 # measured — "counting real declarations rather than grammar rows."
 #
 # `entity`/`lifecycle`/`transition` are the two gaps this ADR itself
@@ -17,8 +17,8 @@ require "spec_helper"
 # — this spec is what makes "closed" a checked fact rather than a claim
 # in a commit message. The rest — `policy`/`process_manager`/`ensures`/
 # `provenance`/`group_by`/`authorize`/`generic` — are the ADR's own
-# remaining list, ADOPTED where a real, non-decorative use exists (S16
-# added one: `ensures` on `Bluebook.Attach`) and NAMED where it does
+# remaining list, adopted where a real, non-decorative use exists (S16
+# added one: `ensures` on `Bluebook.Attach`) and named where it does
 # not — the ADR itself warns against the alternative ("Forcing every
 # construct into the language... is decoration... modelling to satisfy
 # a tool"). `generic` is the ADR's own Consequences section, named
@@ -27,18 +27,18 @@ require "spec_helper"
 # this session verified it against the live grammar and found the same
 # zero the ADR predicted.
 #
-# SCOPED TO THE CORE, NOT EVERY ATTACHED SUB-LANGUAGE — the ADR leaves
+# **Scoped to the core, not every attached sub-language** — the ADR leaves
 # this open ("Whether the self-use gate applies to each sub-language
 # against its own corpus, or only to the core") and this spec answers
 # it: only the core (`LANGUAGE_CHAPTERS` — Bluebook/World/Hecksagon).
-# `Paging` contributes grammar ROWS as DATA (`member word: "limit", ...`)
-# — it does not itself declare NEW policy/process_manager/entity/etc.
+# `Paging` contributes grammar rows as data (`member word: "limit", ...`)
+# — it does not itself declare new policy/process_manager/entity/etc.
 # constructs that would need a self-use claim of their own, and
 # extending the gate to every future attached chapter is real, separate
 # design work the ADR names as unsettled, not something this slice
 # should decide by accident.
 #
-# CONSTANTS PREFIXED `SELF_USE_` ON PURPOSE — `describe do ... end`'s
+# **Constants prefixed `SELF_USE_` on purpose** — `describe do ... end`'s
 # block does not open a new lexical scope for constant assignment the
 # way `class`/`module` does, so a bare `LANGUAGE =`/`KNOWN_GAPS =` here
 # lands on the top-level Object namespace and silently collides with
@@ -74,9 +74,9 @@ RSpec.describe "the language uses everything the core grammar declares" do
     end
   end
 
-  # ONE COUNTER PER CONSTRUCT — real declarations, the same count ADR
+  # **One counter per construct** — real declarations, the same count ADR
   # 0026's own table measured by hand. `entity`/`lifecycle` count
-  # RECURSIVELY (Member nested under ValueObject, Handler under
+  # recursively (Member nested under ValueObject, Handler under
   # ProcessManager, Dispatch under Handler — S17 — and Keyword/Argument
   # under Syntax — S14 — are real declarations two and three levels
   # down, not just at the aggregate's own top level).
@@ -104,7 +104,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
     "generic"                => -> { SELF_USE_LANGUAGE.classification == "generic" ? 1 : 0 }
   }.freeze
 
-  # NAMED, REASONED — never a silent exclusion. Each entry is the ADR's
+  # **Named, reasoned** — never a silent exclusion. Each entry is the ADR's
   # own prediction ("will fail the day it is written") made permanent
   # and explicit where adoption would be decorative rather than real —
   # the ADR's own "Rejected alternatives" section names exactly this

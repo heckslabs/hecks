@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     class Assembly
-      # The first specializer — a projection of `contracts.rb`'s `fields:` table,
+      # **The first specializer** — a projection of `contracts.rb`'s `fields:` table,
       # derived from the language's own description of a category instead of
       # hand-written beside it.
       #
@@ -10,7 +10,7 @@ module Hecks
       # names as duplication — "spelled as the IR spells them," field for field,
       # for every category simple enough to say so.
       #
-      # One case, proven, not the whole table. A field this can speak for is
+      # **One case, proven, not the whole table**. A field this can speak for is
       # scalar and not a reference — every other field (a list, a reference, a
       # fold like Lifecycle) is exactly what `contracts.rb`'s `reads:`/`derived:`
       # exist to say, and stays hand-written until a later projection learns to
@@ -25,7 +25,7 @@ module Hecks
         # `ProcessManager`, so `.aggregate` alone no longer finds it —
         # it hangs off some aggregate's own `.entities` instead
         # (searched recursively, the same reason `Value::Coercion#find_
-        # entity` does: a NESTED entity, like `Dispatch` inside
+        # entity` does: a nested entity, like `Dispatch` inside
         # `Handler`, is not a direct child of any aggregate either).
         def construct_for(chapter, name)
           chapter.aggregate(name) || chapter.aggregates.filter_map { |a| find_entity(a, name) }.first

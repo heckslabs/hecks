@@ -1,13 +1,13 @@
 require "spec_helper"
 
-# `state(:field)` AS A MUTATION SOURCE — the record's own value copied
+# `state(:field)` as a mutation source — the record's own value copied
 # into an appended element or onto another field. A bare Symbol always
 # names a command argument, so before this a command could not snapshot
 # its own record at all: chess's threefold repetition needs the board's
 # piece lists copied off the record every ply, and nothing a caller
 # hands in can be trusted to be that.
 RSpec.describe "a mutation sourced from the record's own state" do
-  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # **One inline bluebook, declared whole** — a domain-definition DSL block
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
@@ -36,7 +36,7 @@ RSpec.describe "a mutation sourced from the record's own state" do
           value_object("Ply")     { attribute :value, Integer }
           value_object("Square")  { attribute :file, Integer }
 
-          # ONE SNAPSHOT: the ply it was taken at and the pieces as they
+          # **One snapshot**: the ply it was taken at and the pieces as they
           # stood — a list of the aggregate's own entity records, held
           # by a value object.
           value_object "Position" do
@@ -78,7 +78,7 @@ RSpec.describe "a mutation sourced from the record's own state" do
             delegates_to "Piece.Move", with: { id: :id, to: :to }
           end
 
-          # THE POINT: declares no argument, reads two fields off the record.
+          # **The point**: declares no argument, reads two fields off the record.
           command "Record" do
             reference_to Board
             sets :positions, append: { ply: state(:ply), pieces: state(:pieces) }

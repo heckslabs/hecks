@@ -29,7 +29,7 @@ require_relative "literal"
 require_relative "query_specification"
 
 require_relative "bluebook/expression"
-# The model itself — the chapter class's own body first, then everything
+# **The model itself** — the chapter class's own body first, then everything
 # a chapter declares. Order matters only for reading: each is a bag of
 # declarations with no load-time cross-references.
 require_relative "bluebook/chapter"

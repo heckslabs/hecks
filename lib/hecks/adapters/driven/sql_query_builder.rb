@@ -40,8 +40,8 @@ module Hecks
         sql << " WHERE #{clauses.join(' AND ')}" unless clauses.empty?
         sql << order_by_sql(declared)
         sql << " LIMIT #{placeholder(binds, query_value(declared.limit.value, args).to_i)}" if declared.limit
-        # An offset with no declared limit — SQLite refuses a bare offset
-        # outright (limit -1 is its unbounded idiom) while Postgres accepts
+        # An offset with no declared limit — SQLite refuses a bare OFFSET
+        # outright (LIMIT -1 is its unbounded idiom) while Postgres accepts
         # one, so the dialect supplies its own unbounded spelling. Found by
         # the adapter-agreement gate on its first run, not by either
         # adapter's own spec: each was self-consistent, they just disagreed.
@@ -55,7 +55,7 @@ module Hecks
       # Every declared `where` clause, compiled in declaration order — a
       # null-policy predicate short-circuits the ordinary comparator path
       # per clause, same as it did inline. `binds` is populated in place
-      # (the same array `query` goes on to push limit/offset placeholders
+      # (the same array `query` goes on to push LIMIT/OFFSET placeholders
       # into afterward), so pulling this loop out changes nothing about
       # bind-parameter order.
       def where_clauses(declared, args, binds)
@@ -91,7 +91,7 @@ module Hecks
           members = in_members(value)
           return empty_in_clause if members.empty?
 
-          # Both sides as text. `in` is a textual reading everywhere else
+          # **Both sides as text**. `in` is a textual reading everywhere else
           # — Ports::Query::InMemory#holds? compares `held.to_s` against
           # stringified members, and `in_members` above stringifies its
           # own — so a numeric field was the one shape where the engines
@@ -112,7 +112,7 @@ module Hecks
         end
       end
 
-      # A real array already says where its members end. Splitting one on
+      # **A real array already says where its members end**. Splitting one on
       # commas re-reads a boundary it already drew — and an id is a
       # domain value (Naming::IDENTITY_JOIN joins a composite identity's
       # own parts, and the parts it joins are whatever an identity path
@@ -250,7 +250,7 @@ module Hecks
       # The dialect that casts nothing overrides nothing.
       def comparable_expression(expression, _value) = expression
 
-      # The dialect that accepts a bare offset overrides nothing.
+      # The dialect that accepts a bare OFFSET overrides nothing.
       def unbounded_limit = ""
     end
   end

@@ -17,8 +17,8 @@ require "tempfile"
 # way an explicit `append: { value: :bare_symbol }` already would — the
 # `:value` name mirrors `MutationApplier#appended`'s own single-field
 # value-object scalar-unwrap convention. This spec boots with
-# meta-validation ON (no ENV override) so both the runtime dispatch path
-# AND the meta-validator's own Judge path (`Readings#mutation_rows`) are
+# meta-validation on (no ENV override) so both the runtime dispatch path
+# and the meta-validator's own Judge path (`Readings#mutation_rows`) are
 # exercised for real, not just one of the two.
 RSpec.describe "mutation op append, bare-symbol shorthand" do
   def boot(source, hecksagon_name, &binds)

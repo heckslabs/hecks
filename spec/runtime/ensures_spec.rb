@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # The postcondition — Design by Contract's third leg, `given` being the
-# first and `invariant` the second. Checked against the SETTLED record,
+# first and `invariant` the second. Checked against the settled record,
 # after mutations and the lifecycle move, before anything persists —
 # `old` names the state as the givens saw it.
 RSpec.describe "a command's ensures" do
@@ -134,11 +134,11 @@ RSpec.describe "a command's ensures" do
     expect(Hecks::Runtime::DOMAIN_REFUSALS).to include(Hecks::Runtime::EnsuresNotMet)
   end
 
-  # ENSURES is the first refusal that ever sits AFTER a mutation — every
+  # Ensures is the first refusal that ever sits after a mutation — every
   # earlier refusal (given, the payload gate, admissible_transition) runs
-  # BEFORE apply_mutations, so nothing before this feature could ever
+  # before apply_mutations, so nothing before this feature could ever
   # observe a Memory-adapter record half-mutated by a dispatch that then
-  # failed. Memory's `find` hands back the SAME object it will eventually
+  # failed. Memory's `find` hands back the same object it will eventually
   # save, aliased — so without Instance#dup (and, one level deeper, the
   # array/hash copy in EntityInterpreter#element_of), a refused ensures
   # would still leave the in-memory record mutated. These two specs are
@@ -211,8 +211,8 @@ RSpec.describe "a command's ensures" do
           end
 
           entity "Coin" do
-            # A SEPARATE identity field, deliberately not `label` — the
-            # argument that ADDRESSES an element and a state field of the
+            # A separate identity field, deliberately not `label` — the
+            # argument that addresses an element and a state field of the
             # same name collide in expression scope (args win over state,
             # the same rule `given` already lives under), and colliding
             # them here would make `label.value` in the ensures read the

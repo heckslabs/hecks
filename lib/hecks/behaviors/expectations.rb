@@ -66,7 +66,7 @@ module Hecks
         error_result(test, "#{e.class}: #{e.message}")
       end
 
-      # One boot per suite, not per test. The isolation a test needs is a
+      # **One boot per suite, not per test**. The isolation a test needs is a
       # runtime with nothing in it — and a boot of the same files gives
       # exactly that back for the price of `Registry#reset_runtime_state!`
       # instead of ~2s of loading, verifying and era-checking the same
@@ -354,7 +354,7 @@ module Hecks
         disambiguate_qualified_name(candidates, command, kind, bluebooks)
       end
 
-      # The search — every (bluebook, aggregate) pair that declares a
+      # **The search** — every (bluebook, aggregate) pair that declares a
       # command/query named `command`, narrowed to `on_aggregate` by name
       # when given.
       def qualify_candidates(command, on_aggregate, bluebooks, kind)
@@ -368,7 +368,7 @@ module Hecks
         pairs.select { |_, agg| agg.public_send(members).any? { |m| m.hecks_name == command.to_s } }
       end
 
-      # The report — zero candidates and more-than-one candidates both
+      # **The report** — zero candidates and more-than-one candidates both
       # refuse (with a different message); exactly one resolves to its
       # dotted FQN.
       def disambiguate_qualified_name(candidates, command, kind, bluebooks)

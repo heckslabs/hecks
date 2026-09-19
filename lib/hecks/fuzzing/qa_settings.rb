@@ -10,7 +10,7 @@ module Hecks
     # class instead of writing it inline. This class is only the loading
     # and the validation — no dial policy lives here.
     #
-    # Fails loud, not quiet — the whole practice's own opening line
+    # **Fails loud, not quiet** — the whole practice's own opening line
     # ("the enemy is the quiet divergence") applies to its own settings
     # file too: a missing key, an extra key nothing recognises, or a
     # value of the wrong shape all raise immediately, at load time
@@ -18,7 +18,7 @@ module Hecks
     # what's wrong — never a `nil` dial silently reaching a script that
     # assumes a number.
     #
-    # Plain data in, frozen data out. `.load` parses the YAML with
+    # **Plain data in, frozen data out**. `.load` parses the YAML with
     # `Psych.safe_load_file` (no custom tags, no arbitrary Ruby objects)
     # and hands back an instance whose accessors are the exact values a
     # human wrote in the file — a `Hash`/`Array` for the nested dials,
@@ -65,7 +65,7 @@ module Hecks
 
       attr_reader(*EXPECTED_TYPES.keys)
 
-      # The real file, always — resolved off this file's own `__dir__`
+      # **The real file, always** — resolved off this file's own `__dir__`
       # (lib/hecks/fuzzing/), never off the caller's. `QualityControlDials`
       # is defined inside `qa/bluebook/quality_control.bluebook`, and that
       # exact directory gets copied to a tmpdir for every isolated/replayed

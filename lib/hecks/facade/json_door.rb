@@ -7,11 +7,11 @@ require_relative "../runtime/value"
 
 module Hecks
   module Facade
-    # The JSON door — where Facade meets body-in/body-out callers.
+    # **The JSON door** — where Facade meets body-in/body-out callers.
     #
     # `Handle`/`Surface` are Ruby sugar over the dispatcher for a Ruby caller
     # holding real objects — a symbol verb name, a `**kwargs` payload, a
-    # `Handle` back in hand. A rest-ish JSON API is a caller holding strings
+    # `Handle` back in hand. A REST-ish JSON API is a caller holding strings
     # instead: a URL segment naming a collection, a URL segment naming a
     # record or a verb, a parsed request body whose every key arrived as a
     # String because that is all JSON ever gives. Every app that wants to put
@@ -22,7 +22,7 @@ module Hecks
     # pulled out, generic, reading the same IR the rest of the facade already
     # reads rather than re-deriving "how do I find an aggregate by name".
     #
-    # No HTTP lives here. Same discipline `Router` and `Surface` already
+    # **No HTTP lives here**. Same discipline `Router` and `Surface` already
     # hold: this module never sees a request object, never picks a status
     # code, never calls `halt`. Every method here takes plain Ruby values in
     # — a raw JSON String is the one exception, see `.parse` below, every

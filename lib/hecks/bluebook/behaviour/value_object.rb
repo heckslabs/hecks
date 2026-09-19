@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # What a value object does. Extended, not included — a value object
+      # **What a value object does**. Extended, not included — a value object
       # is a class (`Class.new(self)`, one per declared shape), so its
       # behaviour is singleton behaviour, and the holding half's `absorb`
       # is what a generated constructor would be.

@@ -2,7 +2,7 @@ require "hecks"
 
 RSpec.describe Hecks::Runtime::Value do
   describe ".latest_by" do
-    # A REAL list_of FIELD, not a synthetic array — `toppings` grows by
+    # A real list_of field, not a synthetic array — `toppings` grows by
     # plain append (`AddTopping`), the exact shape `.latest_by` exists
     # for: nothing here erases the earlier "Basil, amount 3" when
     # "Basil, amount 5" gets added later, so reading the field's own
@@ -45,7 +45,7 @@ RSpec.describe Hecks::Runtime::Value do
       expect(rows.map(&:to_h)).to eq(original.map(&:to_h))
     end
 
-    # THE ACTUAL SHAPE THIS EXISTS FOR — an append-only sentinel field
+    # **The actual shape this exists for** — an append-only sentinel field
     # (BurningManPrep's own `List#placements`, `position == -1` meaning
     # "removed"), proving the split holds: `.latest_by` only groups,
     # the caller supplies every bit of meaning on top.

@@ -10,7 +10,7 @@ module Hecks
       # the one check that runs before any domain-state work, alongside the
       # argument gate rather than after it.
       #
-      # Two checks, not a replacement — ADR 0025 §9's own caution against
+      # **Two checks, not a replacement** — ADR 0025 §9's own caution against
       # "silently downgrading `role` to documentation" cuts both ways: a
       # caller who never named who they are (every caller before this) is
       # checked exactly the way it always has been, string equality
@@ -53,7 +53,7 @@ module Hecks
 
         private
 
-        # Declared, not named — `Registry#authorization_provider_for`.
+        # **Declared, not named** — `Registry#authorization_provider_for`.
         #
         # The provider's own commands are looked up too, not waved through
         # the string fallback: `Governance::RoleAssignment.Assign` declares

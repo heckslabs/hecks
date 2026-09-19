@@ -1,7 +1,7 @@
 require_relative "fuzzing/target_capabilities"
 
 module Hecks
-  # The corpus, discovered — every place in this repo that holds a real
+  # **The corpus, discovered** — every place in this repo that holds a real
   # domain, named once.
   #
   # This used to be spelled out separately by every consumer that walks
@@ -20,7 +20,7 @@ module Hecks
 
     Member = Struct.new(:stem, :kind, :path)
 
-    # One domain per directory — its bluebooks sit in `<dir>/bluebook/`
+    # **One domain per directory** — its bluebooks sit in `<dir>/bluebook/`
     # or directly in `<dir>` (see `bluebook_files`). Stemmed by directory.
     DIRECTORY_KINDS = {
       example:   "examples/*",
@@ -28,7 +28,7 @@ module Hecks
       semantics: "spec/corpus/semantics/domains/*"
     }.freeze
 
-    # One chapter per file. Stemmed by the path below the glob's fixed
+    # **One chapter per file**. Stemmed by the path below the glob's fixed
     # prefix, so a nested fixture keeps its subdirectory (`eras/base`)
     # and never collides with a same-named file elsewhere in the kind.
     FILE_KINDS = {
@@ -42,7 +42,7 @@ module Hecks
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
-    # Where a bluebook the sweep does not boot goes instead. Not a filter:
+    # **Where a bluebook the sweep does not boot goes instead**. Not a filter:
     # nothing leaves `sweepable_domains` without naming the check that owns
     # it, and spec/corpus_accounting_spec.rb proves each destination exists
     # and actually exercises what is routed to it.
@@ -111,7 +111,7 @@ module Hecks
       DIRECTORY_KINDS.key?(member.kind) ? bluebook_dir(member.path) : member.path
     end
 
-    # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`
+    # **Where a domain path keeps its bluebooks** — `<domain>/bluebook/*.bluebook`
     # (every example and stress domain), or the directory itself
     # (`qa/bluebook`). `nil` when neither holds a bluebook.
     def bluebook_files(domain_path)
@@ -135,7 +135,7 @@ module Hecks
 
     # What bin/model_check and spec/model_check_spec.rb walk — every kind,
     # less the language (examined as one judged chapter, not file by file)
-    # and deploy chapters (the sam projector's own inputs), and less any
+    # and deploy chapters (the SAM projector's own inputs), and less any
     # member a route already sends to a destination of its own: the
     # broken-on-purpose model_check fixtures must produce their findings
     # there, so a clean-corpus gate here would be the wrong check for them.
@@ -145,16 +145,16 @@ module Hecks
       members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
     end
 
-    # The ledger sweeps itself — its own chapter is a domain like any
+    # **The ledger sweeps itself** — its own chapter is a domain like any
     # other, and the one rotation member that is neither an example nor a
     # stress domain.
     ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
 
-    # What the QA rotation is made of — every example and stress domain
+    # **What the QA rotation is made of** — every example and stress domain
     # this repository owns, plus the ledger, as `reference => repo-relative
     # path`: exactly the shape `Target.path` is stored in.
     #
-    # Derived, because the hand-kept version silently went stale.
+    # **Derived, because the hand-kept version silently went stale**.
     # `bin/qa_seed_targets` carried a literal list naming three of the
     # thirteen stress domains; the other ten were authored, argued for in
     # their own NOTES.md, several promoted by `bin/qa_generated_domains
@@ -226,7 +226,7 @@ module Hecks
                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot")
     }.freeze
 
-    # Shrink-only. A generated module `bin/rust_coverage` still reports a
+    # **Shrink-only**. A generated module `bin/rust_coverage` still reports a
     # gap for. `bin/corpus --rust-coverage` requires each of these to
     # still fail, so an entry that starts passing breaks the build until
     # it is deleted here.

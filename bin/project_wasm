@@ -1,26 +1,26 @@
 #!/usr/bin/env ruby
 
-# The WASM projector — wraps THE SAME Rust binary bin/project_rust already
+# The WASM projector — wraps the same Rust binary bin/project_rust already
 # generates, rather than a second, WASM-specific implementation (decision
 # docs/decisions/0012-wasm-via-wasi-stdio.md, echoing 0007's own "WASM is a
 # compile target of the same generated artifact, not a separate
 # implementation"). rust/src/main.rs's stdin/stdout JSON CLI contract
 # (kernel/cli.rs) uses nothing but std — no filesystem, no network, no OS
-# calls — so it compiles for wasm32-wasip1 completely unchanged; WASI
+# calls — so it compiles for wasm32-wasip1 completely unchanged; wasi
 # implements stdin/stdout the same way a native process does. This script
 # is the only thing that's new: regenerate, then cross-compile.
 #
 #   bin/project_wasm <domain>
 #
 # Produces rust/dist/<domain>.wasm — run it with `wasmtime run
-# rust/dist/<domain>.wasm < script.json` (or any other WASI-preview1 host).
+# rust/dist/<domain>.wasm < script.json` (or any other wasi-preview1 host).
 
 domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
 
 root = File.expand_path("..", __dir__)
 target_mod_name = File.basename(domain)
 
-# SAME PAIRED OPT-IN bin/project_rust already honors — `HECKS_PARSER=rust
+# Same paired opt-in bin/project_rust already honors — `HECKS_PARSER=rust
 # HECKS_CODEGEN=rust` means "compile entirely in Rust," and until now this
 # script never checked for it: it always shelled out to `bin/project_rust`
 # with no env override, so the .wasm a `make deploy`-generated Makefile
@@ -39,7 +39,7 @@ if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
   system("cargo", "build", chdir: hecks_build_dir, out: $stdout, err: $stderr, exception: true)
 
   puts "== hecks-build #{domain} --wasm =="
-  # No chdir here — `domain` resolves relative to the CURRENT directory,
+  # No chdir here — `domain` resolves relative to the current directory,
   # same as the Ruby path below (`bin/project_rust` isn't chdir'd either);
   # `hecks-build`'s own `root::find` walks up from wherever it runs.
   system(hecks_build_bin, domain, "--wasm", out: $stdout, err: $stderr, exception: true)
@@ -62,8 +62,8 @@ system(File.join(root, "bin", "project_rust"), domain, exception: true)
 puts "== cargo build --release --target wasm32-wasip1 =="
 Dir.chdir(File.join(root, "rust")) do
   # `rustup run` rather than a bare `cargo` — a `cargo`/`rustc` earlier on
-  # PATH than rustup's own shims (Homebrew installs one; found live on this
-  # machine) is a DIFFERENT toolchain that never saw `rustup target add`,
+  # path than rustup's own shims (Homebrew installs one; found live on this
+  # machine) is a different toolchain that never saw `rustup target add`,
   # and fails with "can't find crate for `std`" despite the target check
   # above passing (that check asks rustup, correctly; a bare `cargo build`
   # doesn't necessarily run through rustup at all).

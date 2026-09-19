@@ -57,7 +57,7 @@ module Hecks
     # namespace cannot index a kind-ambiguous name. The same follows for
     # `hecks_fqn` : `Bluebook::Command.Argument` names both, which is why the judge's
     # ids only work per-category, each in its own repository. Identity is
-    # (Kind, FQN), not fqn.
+    # (kind, FQN), not fqn.
     #
     # It is a declaration holder anyway, because that is where the edges live.
     # `acts_on` answers with the owning construct itself — the Aggregate,

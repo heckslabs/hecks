@@ -14,7 +14,7 @@ module Hecks
           chapter.define_singleton_method(:vision)     { bluebook.vision }
           chapter.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
 
-          # The chapter, explaining itself. `Projector::DocsProjector` reads
+          # **The chapter, explaining itself**. `Projector::DocsProjector` reads
           # nothing but this bluebook's own IR, so the document cannot drift
           # from the domain — the same guarantee `bin/reference` gives the DSL
           # reference by generating it from the Syntax chapter.
@@ -29,14 +29,14 @@ module Hecks
             Projector.call(:docs, bluebook: bluebook, options: options)
           end
 
-          # The chapter, read back in english — `Projector::NarrateProjector`
+          # **The chapter, read back in english** — `Projector::NarrateProjector`
           # beside `:docs`, for the reader who needs to confirm the domain is
           # right rather than call it: `QualityControl.narrate` in a console.
           chapter.define_singleton_method(:narrate) do |**options|
             Projector.call(:narrate, bluebook: bluebook, options: options)
           end
 
-          # The domain's own IR, projected. `Projector` has taken
+          # **The domain's own IR, projected**. `Projector` has taken
           # `call(name, bluebook:, options:)` since §30, but nothing could
           # reach it from a booted domain — this module already closes
           # over the one `Bluebook` every projector wants and simply
@@ -69,7 +69,7 @@ module Hecks
             chapter.const_set(aggregate.hecks_name, aggregate_module(dispatcher, bluebook.name, aggregate))
           end
 
-          # Inside a hecksagon, a name is a declaration, not a lookup. A
+          # **Inside a hecksagon, a name is a declaration, not a lookup**. A
           # `.hecksagon` may name an aggregate this door does not carry — a stale
           # door from an earlier boot resolving another registry's chapter, the
           # exact hazard the constant tree used to hide by reinstalling on every

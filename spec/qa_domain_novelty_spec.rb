@@ -71,7 +71,7 @@ RSpec.describe "bin/qa_domain_novelty" do
     expect(err).to include("usage: bin/qa_domain_novelty")
   end
 
-  # THE WORKED EXAMPLE — the domain the reference-hop forms joined the
+  # **The worked example** — the domain the reference-hop forms joined the
   # census for. Pinned here so the census and the domain cannot drift
   # apart: every form `qa/stress_domains/referral_chain` exists to
   # exercise has to keep reading true on the aggregate that carries it.

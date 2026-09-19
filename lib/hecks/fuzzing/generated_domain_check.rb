@@ -7,7 +7,7 @@ require_relative "differential"
 
 module Hecks
   module Fuzzing
-    # One generated domain, checked — the child-process half of
+    # **One generated domain, checked** — the child-process half of
     # `bin/qa_generated_domains` (one domain per process: every generated
     # domain is named `QaGenerated`, see DomainGenerator's header).
     #

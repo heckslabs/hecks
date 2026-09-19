@@ -178,7 +178,7 @@ module Hecks
         end
       end
 
-      # The ID itself. This minted `{"value" => id}` back when a reference was
+      # **The ID itself**. This minted `{"value" => id}` back when a reference was
       # stored wrapped ; the payload gate refuses that shape now, so a fuzzer
       # still emitting it would have every generated reference refused and
       # the silent guard would report the fuzzer broken rather than

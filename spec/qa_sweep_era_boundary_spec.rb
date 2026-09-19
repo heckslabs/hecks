@@ -6,21 +6,21 @@ require "open3"
 require "fileutils"
 require "pathname"
 
-# `bin/qa_sweep`'s `era_boundary` mode, PROVEN AGAINST THE REAL THING —
+# `bin/qa_sweep`'s `era_boundary` mode, proven against the real thing —
 # same discipline `spec/qa_sweep_adapter_parity_sqlite_spec.rb` (read
-# that file's own header first) already established: a REAL `bin/qa_sweep`
-# subprocess against a REAL, disposable Postgres-backed fixture LEDGER,
-# sweeping a REAL, disposable, PostgresEra-bound fixture TARGET — never
+# that file's own header first) already established: a real `bin/qa_sweep`
+# subprocess against a real, disposable Postgres-backed fixture ledger,
+# sweeping a real, disposable, PostgresEra-bound fixture target — never
 # the real `hecks_quality_control` ledger, never a real corpus domain.
 #
-# SEEDLESS, UNLIKE EVERY SIBLING MODE SPEC — `era_boundary` never
+# **Seedless, unlike every sibling mode spec** — `era_boundary` never
 # generates a sequence (`Hecks::Fuzzing::EraBoundary`'s own header, and
 # `bin/qa_sweep`'s own `SEEDLESS_MODES`), so this spec proves the mode
 # resolves, runs exactly once per sweep regardless of `--seeds`, and
 # reports clean on a target that has never diverged — the finding-side
 # arithmetic itself (a real post-cut write actually surfacing) is already
 # proven, at the module level, in `spec/fuzzing/era_boundary_spec.rb`;
-# this file only needs to prove the WIRING reaches it.
+# this file only needs to prove the wiring reaches it.
 RSpec.describe "bin/qa_sweep era_boundary", :io do
   QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE = "hecks_qa_sweep_era_boundary_spec".freeze
   QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE = "hecks_qa_sweep_era_boundary_target_spec".freeze
@@ -58,11 +58,11 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
     end
   RUBY
 
-  # A REAL PostgresEra-BOUND TARGET, WITH A REAL `translations/` FILE —
+  # A real PostgresEra-bound target, with a real `translations/` file —
   # `MODE_REQUIREMENTS[:era_boundary]` (target_capabilities.rb) gates
-  # eligibility on BOTH capabilities, so this fixture needs one of each:
+  # eligibility on both capabilities, so this fixture needs one of each:
   # the binding, and a `translations/*.bluebook` file present on disk
-  # (its own CONTENT never matters to `Hecks::Fuzzing::EraBoundary` — that
+  # (its own content never matters to `Hecks::Fuzzing::EraBoundary` — that
   # module only ever reads `hecks_eras`/the journal directly, never the
   # translation edge itself — confirmed live while writing this spec: a
   # harmless self-rename edge with fabricated era-hash labels that never
@@ -100,8 +100,8 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
     end
   RUBY
 
-  # `allow_superuser true` — THE SAME OPT-IN `examples/directory.world`
-  # ITSELF USES, not the fenced `QaLedgerRole` dance the LEDGER fixture
+  # `allow_superuser true` — the same opt-in `examples/directory.world`
+  # itself uses, not the fenced `QaLedgerRole` dance the ledger fixture
   # needs: this target's own real database is disposable and owned
   # outright by whatever role runs this spec, and `era_boundary` never
   # exercises the write-fence at all (it only ever reads).
@@ -140,7 +140,7 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
       end
     RUBY
 
-    # PREFIXED `qa-sweep-eb-target-`, NOT THE MODE'S OWN NAME — the exact
+    # **Prefixed `qa-sweep-eb-target-`, not the mode's own name** — the exact
     # same reason `qa_sweep_adapter_parity_sqlite_spec.rb`'s own comment
     # gives: `Target.path`'s basename becomes the fuzzed `feature` string
     # bin/qa_sweep prints on every line, and a prefix spelling out
@@ -211,7 +211,7 @@ RSpec.describe "bin/qa_sweep era_boundary", :io do
 
     expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
     expect(stdout).to include("resolved modes: era_boundary (capabilities=postgres_era,sqlite,translations)")
-    # SEEDLESS — no "seed N: held" line at all, unlike every other mode.
+    # Seedless — no "seed N: held" line at all, unlike every other mode.
     expect(stdout).not_to match(/seed \d+:/)
     expect(stdout).to include("era boundary: no ancestor era holds an unmerged write")
     expect(stdout).to include("clean — era-boundary concluded and released.")

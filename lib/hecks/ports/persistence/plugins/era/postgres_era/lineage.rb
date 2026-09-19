@@ -23,7 +23,7 @@ module Hecks
       # journal — never a table anything rewrites.
       #
       # For era 1 the head is a plain view (latest save per id). From
-      # era 2 on, the ancestor tail is a materialized view whose
+      # era 2 on, the ancestor tail is a MATERIALIZED view whose
       # definition is the compiled, chained edge sequence — one CTE per
       # original edge, in mint order, never a flattened merged rule set
       # — with the watermark baked into the definition, so post-cut
@@ -54,8 +54,8 @@ module Hecks
       # sequence, and a sequence's `nextval()` is never rolled back with its
       # transaction — accepted and documented rather than papered over.
       #
-      # One part of that is closed. Two concurrent plain writes could call
-      # `nextval()` in one order and commit in the other — nothing about a
+      # **One part of that is closed**. Two concurrent plain writes could call
+      # `nextval()` in one order and COMMIT in the other — nothing about a
       # single autocommit INSERT statement stops a slower one from finishing
       # after a faster one that started later — so "ordinal order" and
       # "commit order" were formally two different total orders even with no
@@ -66,7 +66,7 @@ module Hecks
       # against each other only, never against a mint, and ordinal order
       # equals commit order for them now.
       #
-      # The other part is not, on purpose. A stale-era write during the
+      # **The other part is not, on purpose**. A stale-era write during the
       # narrow window before a mint's fence-move commits is the same race by
       # a different name — and closing it would mean a plain write
       # serializing against a mint, which is exactly the guarantee

@@ -10,7 +10,7 @@ module Hecks
       # (#query_for_verb, #query_eligible_rows, #resolve_hop_clause) other
       # property modules in this directory also call.
       module Querying
-        # The query oracle — differential testing within the one runtime,
+        # **The query oracle** — differential testing within the one runtime,
         # the shape the retired cross-runtime harness should always have
         # been. Every generated ask was answered twice at the same instant
         # (Replay records both): once through whatever the aggregate is
@@ -128,7 +128,7 @@ module Hecks
           aggregate&.query(query_path)
         end
 
-        # A query's own rows — unlike #eligible_rows (a ReadModel's
+        # **A query's own rows** — unlike #eligible_rows (a ReadModel's
         # reduced/grouped many-side head, possibly FK-joined against a
         # root), a Query always asks about its own owning aggregate
         # directly ; no join, no reference_target. `id:` merged in the

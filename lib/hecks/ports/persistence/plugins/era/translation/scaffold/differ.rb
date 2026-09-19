@@ -166,7 +166,7 @@ module Hecks
           paths
         end
 
-        # The one thing `attribute_rules` could not see before — the shape
+        # **The one thing `attribute_rules` could not see before** — the shape
         # projection already carries `"identity"` (`StorageShape
         # .project_aggregate`), it was simply never read here. An
         # unresolved placeholder, not a guess: `coverage_check.rb`'s own

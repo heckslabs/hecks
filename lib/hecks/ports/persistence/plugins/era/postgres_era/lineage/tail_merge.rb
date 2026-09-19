@@ -34,7 +34,7 @@ module Hecks
           # re-enters as the newest row and wins structurally — originals
           # stay immutable).
           # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-          # One Postgres transaction (begin…commit) with a manual rollback
+          # One Postgres transaction (BEGIN…COMMIT) with a manual ROLLBACK
           # at every early refusal, and a snapshot-before-mutation
           # invariant (`new_states` captured before the head rebuild lets
           # the tail interleave). Splitting the steps into separate

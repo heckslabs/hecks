@@ -13,7 +13,7 @@ module Hecks
     # instance really is a fresh store, with nothing shared across tests or
     # tenants.
     class Memory
-      # Tenant-capable trivially — see Runtime::TenantCheck's own header
+      # **Tenant-capable trivially** — see Runtime::TenantCheck's own header
       # for the full reasoning. `@records` is a plain instance variable;
       # two `Runtime.boot` calls build two entirely separate Registry
       # objects and, through them, two entirely separate Memory

@@ -5,7 +5,7 @@ require_relative "../rendering"
 
 module Hecks
   module Runtime
-    # One dispatch, as data — the verb, the receiver it is addressed to
+    # **One dispatch, as data** — the verb, the receiver it is addressed to
     # (`target`, a `Routing::Envelope` or nil), and every fact the caller did
     # or did not offer. Built once per dispatch by `Invocation.from_call`, the
     # only place the runtime interprets the shape of a call (`to:` vs `with:`
@@ -90,7 +90,7 @@ module Hecks
       end
 
       class << self
-        # The one reading of a call's shape. `receiver:` picks which of the
+        # **The one reading of a call's shape**. `receiver:` picks which of the
         # three dispatch shapes this is, because each has always checked its
         # parts in its own order and a malformed call's refusal depends on
         # that order:
@@ -160,7 +160,7 @@ module Hecks
 
         private
 
-        # The port operation shape — formerly `Dispatcher#port_invocation`.
+        # **The port operation shape** — formerly `Dispatcher#port_invocation`.
         #
         # A Reference-typed attribute naming the owning aggregate is routing,
         # not a fact: lifted out of the loose kwargs into `to:` when no `to:`

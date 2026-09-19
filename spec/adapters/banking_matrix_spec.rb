@@ -19,7 +19,7 @@ RSpec.describe "Banking across persistence adapters" do
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  # ONE FIXTURE BOOT, DECLARED WHOLE — every aggregate's persisted_by/
+  # **One fixture boot, declared whole** — every aggregate's persisted_by/
   # projected_by pairing has to be read alongside the same `projected`
   # flag deciding whether that pairing applies at all; splitting this
   # into smaller methods would mean threading `adapter`/`projected`/
@@ -168,7 +168,7 @@ daily_limit: { cents: 1_000 })
       Hecks::Ports::Projection.worker(runtime.registry, "Banking", aggregate)
     end
     workers.each(&:catch_up!)
-    # WHICH REPOSITORY, not which methods. `read_repository` hands back the
+    # Which repository, not which methods. `read_repository` hands back the
     # authoritative store whenever the projection is judged stale, and Heki
     # answers `query_read_model` too — so `respond_to` passed either way and
     # a projection silently declining to serve would have read as success.

@@ -7,7 +7,7 @@ module Hecks
     # an identity provider has to know about this domain before it can
     # issue a token that means anything here.
     #
-    # The artifact half of something already half-built.
+    # **The artifact half of something already half-built**.
     # `spec/oidc_projection_spec.rb` covers the integration half — verified
     # claims in, `IdentityResolution.resolve` → `Authorization.holds_role?`
     # → a dispatch scoped by `Hecks.as_caller(role:)`. That half enforces
@@ -24,7 +24,7 @@ module Hecks
     # `Ports::Authorization.holds_role?` compares against a real
     # `Governance::RoleAssignment`.
     #
-    # Roles come from the commands, not from governance. A command's own
+    # **Roles come from the commands, not from governance**. A command's own
     # `role "Compliance officer"` is in the bluebook IR
     # (`Command#role`), whereas `uses_framework "Governance"` is
     # declared in the `.hecksagon` — which `call(bluebook:, options:)`

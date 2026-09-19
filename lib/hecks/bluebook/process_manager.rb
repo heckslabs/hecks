@@ -59,7 +59,7 @@ module Hecks
     # dynamic `completed_compensations` — a per-instance runtime fact
     # this declaration-only object could never hold.
     #
-    # Naming collision, once flagged, now resolved — `command`'s own
+    # **Naming collision, once flagged, now resolved** — `command`'s own
     # `corrects event, reverses: true` (docs/implemented/decisions/0036-
     # corrects-is-an-appended-fact-not-a-rewrite.md) already claimed
     # `reverses` for a different meaning: auto-deriving a command's own

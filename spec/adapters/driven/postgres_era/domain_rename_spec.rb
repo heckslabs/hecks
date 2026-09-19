@@ -51,7 +51,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     end
   BLUEBOOK
 
-  # Renamed AND structurally different — a new field with no counterpart
+  # Renamed and structurally different — a new field with no counterpart
   # in the old shape.
   NEW_SOURCE_CHANGED = <<~BLUEBOOK.freeze
     Hecks.bluebook "NewName" do
@@ -85,7 +85,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     admin.exec("DROP DATABASE IF EXISTS #{RENAME_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{RENAME_DB}")
     admin.close
-    # every check! below connects as a NON-superuser owner — the ambient
+    # every check! below connects as a non-superuser owner — the ambient
     # dev/CI user is a superuser, which PostgresEra refuses to boot as
     # (BUG#24; see support/fenced_owner.rb)
     FencedOwner.own!(RENAME_DB)
@@ -229,12 +229,12 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
   it "renames the domain column across hecks_eras, hecks_era_texts, hecks_approvals, and hecks_attestations" do
     check!(OLD_SOURCE)
-    # as the OWNER, the way bin/reattest_era runs it — reattest! lazily
+    # as the owner, the way bin/reattest_era runs it — reattest! lazily
     # CREATEs hecks_attestations, and a table this role does not own is
-    # one the rename below could not UPDATE
+    # one the rename below could not update
     db = PG.connect(FencedOwner.url(RENAME_DB))
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "OldName")
-    lineage.reattest!(1) # forces hecks_attestations into existence under the OLD name
+    lineage.reattest!(1) # forces hecks_attestations into existence under the old name
     db.close
 
     check!(NEW_SOURCE)
@@ -289,14 +289,14 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
     new_label = label_of(NEW_SOURCE_CHANGED)
 
-    # AN EDGE EXISTING ISN'T A RUBBER STAMP — the second layer this
+    # **An edge existing isn't a rubber stamp** — the second layer this
     # example's own title promises. `:note` is new and required, with no
     # default: of its own; an edge that names the aggregate but never
     # backfills the field it actually added still hits mint!'s real
     # coverage check (era_guard/shape_diff.rb#unsafe_additions, ADR 0025),
-    # not a silent pass just because SOME edge happens to exist.
+    # not a silent pass just because some edge happens to exist.
     #
-    # A THIRD stage — backfilling :note for real and proving the mint
+    # A third stage — backfilling :note for real and proving the mint
     # then succeeds — was tried and deliberately left out: `Note` is a
     # value object here (the only shape any real attribute in this file
     # takes, matching the corpus's own no-primitive-envy convention — no

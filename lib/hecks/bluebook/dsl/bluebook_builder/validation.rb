@@ -27,7 +27,7 @@ module Hecks
         # an instance method, matching what `def self.foo` already made
         # every one of these before the split.
         module Validation
-          # Every whole-chapter check, in one place — the battery `#build`
+          # **Every whole-chapter check, in one place** — the battery `#build`
           # used to run inline, now a pure function of an assembled
           # `Bluebook::Chapter` so `MetaValidator.judge_deferred!` can run
           # it too, once, on a chapter whose files have all loaded (see
@@ -67,7 +67,7 @@ module Hecks
             validate_provisions!(bluebook)
           end
 
-          # What a declared capability must name. A `provides` row is only
+          # **What a declared capability must name**. A `provides` row is only
           # worth trusting in place of a name check if it is checked: an
           # unknown capability, a missing or extra key, or a verb that is
           # not this chapter's own command/query of the right kind would
@@ -102,7 +102,7 @@ module Hecks
             kind == :command ? aggregate.commands.map(&:hecks_name) : aggregate.queries.map(&:name)
           end
 
-          # An entity command may not name itself as its root.
+          # **An entity command may not name itself as its root**.
           #
           # That is the whole of what is left here, and it needs saying plainly
           # because the sentence this used to raise — "references must target
@@ -173,7 +173,7 @@ module Hecks
             end
           end
 
-          # The "EXPENSIVE HALF" the ADR names: "with: { account: :account }
+          # The "expensive half" the ADR names: "with: { account: :account }
           # projecting into a reaction that has no declared contract ...
           # breaks at dispatch rather than at load." Checked here, now that
           # `validate_event_shapes!` (above) guarantees at most one real
@@ -181,7 +181,7 @@ module Hecks
           # (`Naming.command_ref`) means the target side is a real
           # resolvable command, not a string that might be a typo.
           #
-          # Same-chapter only, on purpose — a `with:` whose source event or
+          # **Same-chapter only, on purpose** — a `with:` whose source event or
           # target command lives outside this chapter (an `across` policy
           # reacting to another domain's event entirely) is silently left
           # unchecked rather than refused: there is nothing here yet to
@@ -248,7 +248,7 @@ module Hecks
             source_shape  = event_name && event_shape_for(event_name, aggregates)
             memory_shape  = process_manager && event_shape_for(process_manager.starts_on, aggregates)
             correlation   = process_manager&.correlates_by && process_manager.correlation_head
-            # A policy's source also carries the emitter's own identity —
+            # **A policy's source also carries the emitter's own identity** —
             # `PolicyInterpreter#emitter_identity`, the runtime half of this.
             # An entity command's event never declares its aggregate's
             # identity (it arrives through `reference_to`, not an
@@ -336,7 +336,7 @@ module Hecks
             end
           end
 
-          # Not memoised — this used to be `@event_emitters ||=` on the
+          # **Not memoised** — this used to be `@event_emitters ||=` on the
           # builder instance, which is safe for a one-file chapter but
           # wrong for one split across several: the first file's build()
           # call would compute and cache it from whatever `@aggregates`
@@ -351,7 +351,7 @@ module Hecks
             end
           end
 
-          # Structural, not nominal. Two commands on two different
+          # **Structural, not nominal**. Two commands on two different
           # aggregates that both `emits "SameEvent"` are free to type a
           # field through two different, locally-scoped wrapper value
           # objects (e.g. one aggregate's own `value: SomeText` vs
@@ -421,7 +421,7 @@ module Hecks
             return [] unless aggregate
 
             heads = aggregate.identity_heads.map(&:to_sym)
-            # An entity's event also carries the piece's own identity — the
+            # **An entity's event also carries the piece's own identity** — the
             # args a piece was addressed by are the args its event announces
             # (`Emission#emit`: `payload: args`), so `id`-shaped heads are
             # genuinely there at runtime even though no `attribute` line on
@@ -512,14 +512,14 @@ module Hecks
             nil
           end
 
-          # The other half of a hop — AggregateBuilder#seal_query_field
+          # **The other half of a hop** — AggregateBuilder#seal_query_field
           # recognised the head of a dotted where-field that names one of
           # its own references and deferred it here, unable to check
           # further: it cannot yet resolve what the reference points at.
           # This runs once every aggregate exists in one chapter, so it
           # can.
           #
-          # Only where clauses ever reach here — a hop on ORDER BY is
+          # Only WHERE clauses ever reach here — a hop on ORDER BY is
           # refused outright, immediately, back in seal_query_field
           # itself (that answer never needed the target's shape).
           #

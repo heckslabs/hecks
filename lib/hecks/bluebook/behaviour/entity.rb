@@ -3,7 +3,7 @@ require_relative "traits"
 module Hecks
   module Bluebook
     module Behaviour
-      # What an entity does. Extended, not included — an entity is a
+      # **What an entity does**. Extended, not included — an entity is a
       # class, so this is singleton behaviour.
       #
       # `settle` is the same seam an Aggregate has, reached from `absorb`

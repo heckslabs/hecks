@@ -2,10 +2,10 @@ require "spec_helper"
 require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
 
-# ANGLE-10 — SAGA COLD-REHYDRATION, THE ONE AXIS `spec/fuzzing/self_
-# consistency_spec.rb` NEVER TOUCHES: that file's own three checks all
-# cold-read an AGGREGATE's own journal through Heki; nothing anywhere
-# ever proved `Registry#rehydrate_sagas!` — the REAL "process just
+# Angle-10 — saga cold-rehydration, the one axis `spec/fuzzing/self_
+# consistency_spec.rb` never touches: that file's own three checks all
+# cold-read an aggregate's own journal through Heki; nothing anywhere
+# ever proved `Registry#rehydrate_sagas!` — the real "process just
 # restarted" path for a `process_manager` — faithful for a sequence this
 # practice actually generated, or that redelivering an already-seen
 # event to a rehydrated instance is a no-op. `qa/stress_domains/waybill`
@@ -13,26 +13,26 @@ require "hecks/fuzzing/self_consistency"
 # its `Packing` process manager), so this spec stays there rather than
 # reaching for a fixture.
 #
-# THE ONE CRAFTED STEP, AND WHY IT STOPS WHERE IT DOES — `Packing`'s own
+# **The one crafted step, and why it stops where it does** — `Packing`'s own
 # four legs (Open -> AddSlot -> Fill -> Ship, `waybill.bluebook`'s own
-# header) all cascade SYNCHRONOUSLY inside one `Consignment.Request`
+# header) all cascade synchronously inside one `Consignment.Request`
 # dispatch (`SagaInterpreter#deliver_saga_dispatch`'s own `@door.reenter`
-# call re-enters the SAME dispatch chain), so there is no external way to
+# call re-enters the same dispatch chain), so there is no external way to
 # pause the cascade mid-flight without either a genuine domain refusal or
 # hitting the reaction-depth ceiling — and every genuine refusal this
 # domain's own data can produce (Fill failing, say) already has a
 # declared `:refused, from: "filling"` compensating leg, so it never gets
-# stuck; it lands on "cancelled" instead, DISPATCHED THROUGH THE SYNTHETIC
-# `REFUSED` TRIGGER, which names no real domain event at all — nothing an
+# stuck; it lands on "cancelled" instead, dispatched through the synthetic
+# `REFUSED` trigger, which names no real domain event at all — nothing an
 # idempotency check could redeliver.
 #
-# `Dispatcher::MAX_REACTION_DEPTH` STUBBED TO 3 (`stub_const`, `spec/
+# `Dispatcher::MAX_REACTION_DEPTH` stubbed to 3 (`stub_const`, `spec/
 # runtime/dispatcher_spec.rb`'s own well-established boundary) is what
-# gets a REAL, naturally-arising stuck instance instead: legs 1-3 each
+# gets a real, naturally-arising stuck instance instead: legs 1-3 each
 # `reenter` once (Open at depth 1, AddSlot at depth 2, Fill at depth 3),
 # all under the ceiling; leg 4's own `reenter` (Ship) checks depth 3 >= 3
-# and refuses to run AT ALL. `advance_saga`'s own checkpoint-BEFORE-
-# dispatch design (`saga_interpreter.rb`'s own comment) has ALREADY moved
+# and refuses to run at all. `advance_saga`'s own checkpoint-before-
+# dispatch design (`saga_interpreter.rb`'s own comment) has already moved
 # the instance to "filled" by the time that ceiling check fires, and
 # `unwind` finds no `:refused` handler declared `from: "filled"` (only
 # `"filling"` has one) — so the instance is left checkpointed, live, in
@@ -40,15 +40,15 @@ require "hecks/fuzzing/self_consistency"
 # never actually fires). A real, forward (`from != to`) transition — not
 # a self-loop — with a real domain event (`SlotFilled`) behind it.
 RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)" do
-  # DISTINCTIVE, FILE-UNIQUE NAMES — `spec/load_hygiene_spec.rb`'s own
+  # **Distinctive, file-unique names** — `spec/load_hygiene_spec.rb`'s own
   # "lets no two spec files disagree about a top-level constant" refuses
-  # ANY bare `NAME = ...` inside an `RSpec.describe` block that collides
+  # any bare `NAME = ...` inside an `RSpec.describe` block that collides
   # with another spec file's own (a `describe` block is not a real
   # namespace, so a plain assignment lands on `Object` either way) —
   # `PIZZAS`/`WAYBILL`/`STEPS` are all already taken elsewhere
   # (`spec/fuzzing/adversary_spec.rb`, `spec/waybill_spec.rb`, `spec/
   # fuzzing/self_consistency_spec.rb`), found live: a shared, last-file-
-  # loaded-wins `STEPS` silently fed this file's own examples the WRONG
+  # loaded-wins `STEPS` silently fed this file's own examples the wrong
   # domain's step list under `bundle exec rspec spec/fuzzing`.
   SAGA_REHYDRATION_WAYBILL_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/waybill").freeze
   SAGA_REHYDRATION_PIZZAS_ROOT  = File.join(InMemoryDomain::ROOT, "examples/pizzas").freeze
@@ -64,18 +64,18 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
     Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: true)
   end
 
-  # WRAP-AND-RESTORE, THE SAME IDIOM `self_consistency_spec.rb` ALREADY
-  # ESTABLISHED for breaking one real production code path and proving a
+  # Wrap-and-restore, the same idiom `self_consistency_spec.rb` already
+  # established for breaking one real production code path and proving a
   # follow-up run is clean again — an `UnboundMethod` captured before the
   # break, reinstalled in `ensure`. `return enum_for(:each_saga, domain)
-  # unless blk` mirrors `SagaStore#each_saga`'s OWN no-block contract
+  # unless blk` mirrors `SagaStore#each_saga`'s own no-block contract
   # exactly (`cold_read_saga_rows`/`check_one_saga_redelivery` both call
   # `each_saga` bare, chaining `.each_with_object`/`.find` onto the
-  # returned Enumerator) — WITHOUT it, the corrupted override would only
+  # returned Enumerator) — without it, the corrupted override would only
   # ever fire for a caller that hands `each_saga` a block directly.
   # `transform` — a `->(blk, pm, corr, state, memory, comp) { blk.call(pm, corr, ...) }`
   # lambda, taken as an explicit argument rather than the method's own
-  # block, because the CALLER already needs its own block (the replay
+  # block, because the caller already needs its own block (the replay
   # to run under the corruption) — Ruby has only one implicit block per
   # call.
   def corrupt_each_saga(transform)
@@ -94,8 +94,8 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
     history  = replay_waybill
     findings = history.fetch(:self_consistency)
 
-    # THE PRECONDITION — if this domain's own bluebook or the reaction-
-    # depth mechanics it leans on ever change, this fails LOUDLY here
+    # **The precondition** — if this domain's own bluebook or the reaction-
+    # depth mechanics it leans on ever change, this fails loudly here
     # rather than the two assertions below silently passing for the
     # wrong reason ("nothing to check" instead of "checked, and clean").
     expect(history[:saga_instances]["Packing"]).to match("R1" => hash_including(state: "filled"))
@@ -125,11 +125,11 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
 
   describe "check 5 — saga redelivery idempotency" do
     it "fires when a corrupted rehydration reverts the checkpoint to an earlier, still-matching state" do
-      # THE SEEDED BUG — a rehydration that answers "filling" (the state
-      # BEFORE leg 4 ever ran) instead of the REAL last-checkpointed
+      # **The seeded bug** — a rehydration that answers "filling" (the state
+      # before leg 4 ever ran) instead of the real last-checkpointed
       # "filled". `handler_for("SlotFilled", "filling")` genuinely
       # matches leg 4 again, so redelivering the saga's own last real
-      # event through the REAL interpreter re-advances it for real —
+      # event through the real interpreter re-advances it for real —
       # dispatching `Consignment::Ship` a second time, which this time
       # succeeds (nothing blocked it), and the instance reaches `ends_on`
       # and is deleted — about as visible a "advanced again" as a
@@ -153,14 +153,14 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
     end
 
     # BUG#39 — `check_one_saga_redelivery`'s own probe dispatch
-    # (`interpreter.advance`, above) drives a REAL `SagaInterpreter#
+    # (`interpreter.advance`, above) drives a real `SagaInterpreter#
     # advance_saga`, which appends its own row to `@registry.saga_log`
-    # UNCONDITIONALLY — success, "no conversation", or (this fixture's
+    # unconditionally — success, "no conversation", or (this fixture's
     # own case) a leg mismatch alike, regardless of whether the
     # redelivery check itself finds anything worth reporting. That array
-    # IS `history[:sagas]` — `Replay.call` hands it out by reference, not
-    # a copy — so an unrestored probe append shows up as a THIRD-party
-    # row in the PRIMARY event-dispatch trace, indistinguishable from a
+    # is `history[:sagas]` — `Replay.call` hands it out by reference, not
+    # a copy — so an unrestored probe append shows up as a third-party
+    # row in the primary event-dispatch trace, indistinguishable from a
     # real dispatch that never happened. `diff_ruby_vs_rust` (`bin/
     # qa_sweep`) diffs exactly this field against Rust's own single-pass,
     # probe-free `sagas` output, so the leak surfaced there as a spurious
@@ -176,7 +176,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
       with_self_consistency =
         Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: true)
 
-      # THE PROBE GENUINELY RAN — proof this isn't a vacuous "nothing to
+      # **The probe genuinely ran** — proof this isn't a vacuous "nothing to
       # redeliver" pass: the stuck "filled" instance has no handler for a
       # redelivered SlotFilled, so `advance_saga` takes its leg-mismatch
       # branch and appends a row, every time, whether or not this

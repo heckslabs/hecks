@@ -20,7 +20,7 @@ module Hecks
           @collector = collector
         end
 
-        # The aggregate-scoped port — `Payments::Payment.port("Gateway") do
+        # **The aggregate-scoped port** — `Payments::Payment.port("Gateway") do
         # ... end`, the same receiver a plain bind like `.persisted_by(...)`
         # already reaches, because a port belongs to exactly one aggregate
         # the same way a bind does. A real method, not method_missing : its

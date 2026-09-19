@@ -4,7 +4,7 @@ require_relative "../support/legacy_dispatch_sites"
 # Roadmap I3 — command facts passed to `dispatch` as loose keyword
 # arguments are deprecated in favor of `to:` / `with:`, and removed in
 # Dispatcher::LEGACY_ARGS_REMOVAL. spec_helper.rb arms the deprecation to
-# RAISE at any site not already counted in spec/support/legacy_dispatch_
+# raise at any site not already counted in spec/support/legacy_dispatch_
 # sites.rb; this file is the one place the shape is exercised on purpose,
 # so it arms and disarms that setting explicitly around each example
 # rather than living under whatever the suite happens to have set.
@@ -109,7 +109,7 @@ RSpec.describe "Loose keyword facts in dispatch (deprecated)" do
 
   # What spec_helper.rb actually arms: raise at a site nothing counted,
   # stay a warning at one the worklist knows about, so the suite refuses
-  # NEW loose calls without pretending the old ones are gone.
+  # new loose calls without pretending the old ones are gone.
   it "raises for the suite only where no counted site exists" do
     counted = LegacyDispatchSites::CAPS.keys.first
     expect(LegacyDispatchSites.known?("#{counted}:12")).to be(true)

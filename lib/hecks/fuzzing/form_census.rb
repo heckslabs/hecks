@@ -3,7 +3,7 @@ require_relative "../corpus"
 
 module Hecks
   module Fuzzing
-    # What an aggregate can exhibit, and which pairs it puts together.
+    # **What an aggregate can exhibit, and which pairs it puts together**.
     #
     # Extracted from `spec/combination_coverage_spec.rb`'s own pairwise
     # table so it has exactly two consumers that can never drift: that
@@ -13,7 +13,7 @@ module Hecks
     # a new domain has to name the pair no existing target meets before
     # it earns a place in the rotation).
     #
-    # The unit is one aggregate. Two forms in the same chapter but
+    # **The unit is one aggregate**. Two forms in the same chapter but
     # different heads never meet at dispatch; two forms on one head do
     # — that spec's own header has the four defects that argument came
     # from. Each entry below is a form the language declares and a
@@ -22,7 +22,7 @@ module Hecks
     # both gates at once, and it will name its own uncovered pairs on the
     # first run of each.
     #
-    # One flat table, on purpose — each entry is an independent boolean
+    # **One flat table, on purpose** — each entry is an independent boolean
     # check against the same string-keyed aggregate IR hash (the shape
     # `spec/golden/ir/*.json` carries and `Projector::Exporter.call`
     # round-trips to through JSON), laid out so every declared form can
@@ -83,7 +83,7 @@ module Hecks
       def entities(aggregate)   = aggregate["entities"] || []
       def commands(aggregate)   = aggregate["commands"] || []
 
-      # One aggregate's commands, its pieces' included — a form carried by
+      # **One aggregate's commands, its pieces' included** — a form carried by
       # an entity command is carried by the aggregate that owns it, the
       # same way `composite_piece`/`piece_lifecycle` already read pieces.
       def every_command(aggregate) = commands(aggregate) + entities(aggregate).flat_map { |piece| commands(piece) }
@@ -161,7 +161,7 @@ module Hecks
         end
       end
 
-      # Where a domain path keeps its bluebooks — see
+      # **Where a domain path keeps its bluebooks** — see
       # `Hecks::Corpus.bluebook_files`, the one definition every corpus
       # walk shares. `nil` when neither shape holds a bluebook.
       def bluebook_files(domain_path)

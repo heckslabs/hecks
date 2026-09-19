@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # What a read model does. Its declared half is the gathered heads
+      # **What a read model does**. Its declared half is the gathered heads
       # and the query shape; these are readings taken off them.
       module ReadModel
         def group_by_fields = @group_by.map { |row| row[:field].to_sym }

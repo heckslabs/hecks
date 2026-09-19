@@ -1,6 +1,6 @@
 module Hecks
   module Fuzzing
-    # A failing step list, made small enough to read.
+    # **A failing step list, made small enough to read**.
     #
     # `bin/fuzz` always shrank its findings; `bin/qa_sweep` — the loop that
     # actually finds the bugs — never did, so the ledger filled with
@@ -11,14 +11,14 @@ module Hecks
     # Rust subprocess (or a real Postgres round trip), where `bin/fuzz`'s
     # only ever cost an in-process replay.
     #
-    # The caller owns "SAME FINDING". `call` is handed a block that
+    # The caller owns "same finding". `call` is handed a block that
     # answers true when a candidate step list still reproduces what the
     # original did — `bin/fuzz` compares its own verdict signature,
     # `bin/qa_sweep` compares `Shrinker.signature` of one mode's
     # divergences. This module never replays anything itself, so it has
     # no idea which engine, adapter or comparison it is minimizing for.
     #
-    # Two passes, in order:
+    # **Two passes, in order**:
     #
     #   1. Steps, chunks first. Removing one step at a time (what
     #      `bin/fuzz` did) costs O(n²) candidate checks on a sequence
@@ -32,7 +32,7 @@ module Hecks
     #      one key at a time from the step's current args, keep it dropped
     #      only while the finding still reproduces.
     #
-    # A budget, because a sweep has other targets waiting. `budget:` caps
+    # **A budget, because a sweep has other targets waiting**. `budget:` caps
     # how many candidate checks one call may spend (nil = unbounded, the
     # `bin/fuzz` behaviour). When it runs out the best candidate found so
     # far is returned — every accepted candidate reproduced, so a partial

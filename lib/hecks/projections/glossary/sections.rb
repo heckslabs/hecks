@@ -1,7 +1,7 @@
 module Hecks
   module Projections
     module Glossary
-      # The three sections nothing homes to one aggregate. In their own
+      # **The three sections nothing homes to one aggregate**. In their own
       # file because `Markdown` reads them and loads before the
       # projector's own body does.
       ROLES       = "Roles".freeze

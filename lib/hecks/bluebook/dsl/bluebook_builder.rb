@@ -38,7 +38,7 @@ module Hecks
           # what queues here and `#resolve_pending_chapter_givens!`,
           # below, for where it drains.
           @chapter_pending_givens = []
-          # One level wider still — the chapter-wide, entity-scoped pool
+          # **One level wider still** — the chapter-wide, entity-scoped pool
           # (the piece analogue of `@chapter_named_givens`, above). See
           # `EntityBuilder#given_impl`'s own comment for what this
           # closes; `docs/implemented/resolution-rules/
@@ -73,7 +73,7 @@ module Hecks
         # old name instead of minting a brand-new lineage from nothing.
         def formerly_known_as(value) = @formerly_known_as = value.to_s
 
-        # A sub-language names where it lands. ADR 0026's own seam: the core
+        # **A sub-language names where it lands**. ADR 0026's own seam: the core
         # grammar does not name its extension points, so this chapter names
         # itself onto them instead — the core contexts (e.g. "Query",
         # "ReadModel") whose own admitted words this chapter's `Syntax`
@@ -172,7 +172,7 @@ module Hecks
                                            attaches_to: @attaches_to || [],
                                            provides: @provides || [])
 
-          # Same reason, same gate — a bare chapter-given may still be
+          # **Same reason, same gate** — a bare chapter-given may still be
           # pending (see `AggregateBuilder#pending_chapter_given`) if a
           # file that would resolve it hasn't loaded yet; resolving now
           # would see the same incomplete `@chapter_named_givens`
@@ -205,7 +205,7 @@ module Hecks
           MetaValidator.call(bluebook)
         end
 
-        # The other half of a chapter-wide `given` reference —
+        # **The other half of a chapter-wide `given` reference** —
         # `AggregateBuilder#pending_chapter_given` recognised an
         # unresolved bare reference and deferred it here, unable to
         # check further: a later file in this same chapter might still

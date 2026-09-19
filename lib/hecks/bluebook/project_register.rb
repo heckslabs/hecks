@@ -86,7 +86,7 @@ module Hecks
         end
       end
 
-      # The actual "more than one tenant" moment — Runtime::TenantCheck's
+      # **The actual "more than one tenant" moment** — Runtime::TenantCheck's
       # own header names this table as the one place real multitenancy
       # happens: the same on-disk directory (one domain, one
       # `persisted_by` binding) registering a second time, under a

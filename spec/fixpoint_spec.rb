@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 
-# The language passes its own rules — and RUNS from its own records.
+# The language passes its own rules — and runs from its own records.
 #
 # `lib/hecks/language/bluebook/` declares what a bluebook is, and
 # nine rules are now enforced there and nowhere else. It is itself a bluebook —
@@ -10,7 +10,7 @@ require "tmpdir"
 #
 # The bootstrap loads it raw (judging it while loading it would recurse), but
 # the exemption ends there : `grammar_registry` immediately judges the merged
-# chapter through itself and keeps the ASSEMBLED graph, so the language every
+# chapter through itself and keeps the assembled graph, so the language every
 # other bluebook is judged by is the one the language itself produced. The
 # first example below is the independent proof the judge accepts the chapter (every
 # other path is a verdicts-cache hit after boot) ; the last two prove the
@@ -73,23 +73,23 @@ RSpec.describe "the language's own definition" do
     end
   end
 
-  # THE FIXPOINT IS LOAD-BEARING. The registry's language chapters are the
+  # **The fixpoint is load-bearing**. The registry's language chapters are the
   # graphs the language assembled from its own records — not the raw builder
   # output — and nothing was lost on the way through.
   #
   # The door-coherence example resets the singleton and binds fresh,
   # deliberately : any spec that binds another runtime repoints the global
-  # constants at ITS surface, so "registry and door agree" is only a fact
+  # constants at its surface, so "registry and door agree" is only a fact
   # about the moment just after a bind — which is exactly the moment this
   # asserts, whatever order the suite ran in.
   #
-  # RESTORED AFTER, not just reset before — `@grammar_registry` is process-
+  # Restored after, not just reset before — `@grammar_registry` is process-
   # global and memoized (MetaValidator.grammar_registry's own `||=`), so
-  # nil-ing it here forces a genuine rebuild for THIS example's own purposes,
-  # but leaving that rebuild in place afterward means every OTHER spec
+  # nil-ing it here forces a genuine rebuild for this example's own purposes,
+  # but leaving that rebuild in place afterward means every other spec
   # sharing this process for the rest of its life — including
   # ir_golden_spec.rb's byte-for-byte comparison against a frozen fixture —
-  # reads a registry built at THIS moment in suite history, not the
+  # reads a registry built at this moment in suite history, not the
   # pristine first-boot one the golden fixtures were captured against.
   # Found live: an intermittent ir_golden_spec.rb failure under
   # parallel_rspec, order-dependent on whether this example's process
@@ -117,11 +117,11 @@ RSpec.describe "the language's own definition" do
     Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_ready_for, original_ready_for)
   end
 
-  # `:members` is compared with its own values stringified on BOTH sides,
+  # `:members` is compared with its own values stringified on both sides,
   # and only there — a deliberate, narrow exception, not a loophole. L7
   # (docs/audits/2026-08-11-bug-triage.md) fixed `ValueObject#to_h` to stop
   # flattening every member value to text, so `raw` now shows a member
-  # field's REAL declared type (`Vocabulary::MutationOp`'s own `sign: "1"`
+  # field's real declared type (`Vocabulary::MutationOp`'s own `sign: "1"`
   # is genuinely a String — the language's own grammar says so,
   # `vocabulary.bluebook`). `Assembly::Marks#member` still runs every
   # value through `unmark_scalar` on the assembled side, on purpose:

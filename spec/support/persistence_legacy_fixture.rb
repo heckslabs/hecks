@@ -2,23 +2,23 @@ require "hecks"
 require "json"
 require "fileutils"
 
-# THE LEGACY PERSISTENCE BASELINE (Phase 2, Track A, PR A1) — shared by
-# `bin/regenerate_persistence_legacy_fixtures` (which WRITES the committed
+# The legacy persistence baseline (Phase 2, Track A, PR A1) — shared by
+# `bin/regenerate_persistence_legacy_fixtures` (which writes the committed
 # fixtures under spec/fixtures/persistence_legacy/ by really running each
-# adapter) and `spec/ports/persistence_legacy_decode_spec.rb` (which READS
+# adapter) and `spec/ports/persistence_legacy_decode_spec.rb` (which reads
 # them back through today's adapters and pins exactly what each one
 # decodes, key-type inconsistencies included).
 #
 # One seed set, one place: the script and the spec must agree on which
 # aggregates/ids the fixtures hold, so neither re-types them.
 #
-# THE SHAPES, all from `examples/banking` (a real, fuzzed domain — no new
+# The shapes, all from `examples/banking` (a real, fuzzed domain — no new
 # bluebook):
 # - Account: `balance`/`fees_cents`/`interest_cents` (Money — a nested
-#   MULTI-field value object), `ledger` (list_of LedgerEntry — ENTITIES,
+#   multi-field value object), `ledger` (list_of LedgerEntry — entities,
 #   each holding its own nested Money/Narrative/LedgerSequence), `customer`
 #   (a reference), `status` (lifecycle), `customer_status` (projects).
-# - CardPayment: `tags` (list_of Tag — a list of VALUE OBJECTS), `account`
+# - CardPayment: `tags` (list_of Tag — a list of value objects), `account`
 #   (reference), `disputed_by` (an optional reference, left nil), `status`
 #   (lifecycle), `account_status` (projects).
 module PersistenceLegacyFixture
@@ -110,7 +110,7 @@ module PersistenceLegacyFixture
     Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "banking.sqlite3" }, root: dir)
   end
 
-  # D1 IS SQLite behind an HTTP transport — the same stand-in
+  # D1 is SQLite behind an HTTP transport — the same stand-in
   # `spec/adapters/driven/d1_spec.rb` uses: a real in-memory SQLite
   # database answering `Connection`'s own four methods.
   def fake_d1_connection
@@ -144,7 +144,7 @@ module PersistenceLegacyFixture
     adapter
   end
 
-  # The CODEC alone, no connection: `decode(row)` only reads `@aggregate`.
+  # The codec alone, no connection: `decode(row)` only reads `@aggregate`.
   # Lets a default (non-io) run pin what Postgres/PostgresEra make of the
   # exact rows `pg` handed back when the fixture was written.
   def codec(klass, aggregate)

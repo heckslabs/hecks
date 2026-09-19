@@ -35,7 +35,7 @@ narrative: { text: "Opening" })
   def narrative = { text: "Corrected" }
 
   describe "Integer-or-nothing arithmetic" do
-    # `till.bluebook`'s Money is a SINGLE-field value object (`cents` alone),
+    # `till.bluebook`'s Money is a single-field value object (`cents` alone),
     # so a bare scalar amount is exactly the unambiguous case
     # `Value::Coercion#fields_for` deliberately widened to auto-wrap
     # (migration plan task 5, this split's own item 17) — the same
@@ -64,12 +64,12 @@ narrative: { text: "Opening" })
                          'Money.cents expects Integer, got "a lot"')
     end
 
-    # AN ABSENT ARGUMENT IS NIL, NOT ITS OWN NAME.
+    # **An absent argument is NIL, not its own name**.
     #
     # `resolve_source` used to fall through to the Symbol when the argument was
-    # missing, so an absent `amount` arrived at coercion AS `:amount` and was
+    # missing, so an absent `amount` arrived at coercion as `:amount` and was
     # refused with "amount is a Money — pass its fields as an object, not
-    # :amount" — which describes passing the wrong SHAPE, a mistake the caller
+    # :amount" — which describes passing the wrong shape, a mistake the caller
     # had not made. That sentence became load-bearing downstream before anyone
     # noticed it was wrong. It is gone : the message now names what is
     # actually wrong, worded through Rendering.describe, which spells nil "nil".
@@ -79,7 +79,7 @@ narrative: { text: "Opening" })
 
       # `note` is optional, so the payload gate lets this through and the
       # mutation actually resolves an argument that is not there — the only
-      # remaining path to the leak. It used to resolve to the SYMBOL `:note`
+      # remaining path to the leak. It used to resolve to the symbol `:note`
       # and refuse with "note is a Note — pass its fields as an object, not
       # :note", describing a mistake the caller had not made.
       state = runtime.dispatch("TillRoom::Till.TakeIn",
@@ -99,12 +99,12 @@ narrative: { text: "Opening" })
                          "Credit was not given amount — it takes amount, narrative")
     end
 
-    # The counterpart on the OTHER side of the arithmetic : a total that has
+    # The counterpart on the other side of the arithmetic : a total that has
     # never been set reads as zero (`current ||= 0`), and only the total does.
     # Conflating the two — mapping every absent value to 0 —
-    # once let an absent amount increment by zero and silently SUCCEED
+    # once let an absent amount increment by zero and silently succeed
     # where a refusal was owed. The distinction is the whole point : an unset
-    # TOTAL is zero ; an absent AMOUNT is a caller's mistake.
+    # total is zero ; an absent amount is a caller's mistake.
     it "still starts an unset total at zero" do
       runtime = funded_account(boot_banking)
       state   = runtime.dispatch("Banking::Account.ApplyFee",
@@ -177,11 +177,11 @@ narrative: { text: "Opening" })
 
       # Freeze used to carry its own explicit `given("account is open")`
       # for this; S10 (ADR 0025) replaced it with a real lifecycle guard
-      # (`command "FreezeAccount", from: "open"`), checked in the SAME
+      # (`command "FreezeAccount", from: "open"`), checked in the same
       # dispatch step `enforce_givens` already runs (`Admissibility#
       # enforce_lifecycle_guard`, folded in right after a command's own
       # givens) — an already-frozen account is refused there, by name,
-      # naming the ACTUAL reason (the state it's in and the one state it
+      # naming the actual reason (the state it's in and the one state it
       # runs from) rather than a free-text sentence that could drift out
       # of sync with the state machine and did.
       expect do
@@ -266,14 +266,14 @@ narrative: { text: "Opening" })
     end
   end
 
-  # A `given`/`ensures` reading a RELATED record's own field —
+  # A `given`/`ensures` reading a related record's own field —
   # `customer.status`, not just the dispatching record's own attributes.
   # The pure expression evaluator never gained repository access for
-  # this: CommandRules::References#dereference resolves it BEFORE
+  # this: CommandRules::References#dereference resolves it before
   # evaluation, once, into a plain Hash `Resolver#lookup` digs into
   # exactly as it always has. Covers both shapes that reach it —
-  # an aggregate's OWN declared reference (Account's `reference_to
-  # Customer`, read off the record's stored state) and a COMMAND's own
+  # an aggregate's own declared reference (Account's `reference_to
+  # Customer`, read off the record's stored state) and a command's own
   # reference-typed argument (CardPayment.Authorize's `reference_to
   # Account`, read off the dispatch payload) — plus the two-hop chain
   # that composes them.
@@ -328,8 +328,8 @@ narrative: { text: "Opening" })
       expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }) }.not_to raise_error
     end
 
-    # Found by the fuzzer, not by hand: an ALIASED command-level reference
-    # (`reference_to Customer, as: :customer`) hydrates under the SAME name
+    # Found by the fuzzer, not by hand: an aliased command-level reference
+    # (`reference_to Customer, as: :customer`) hydrates under the same name
     # its raw id argument already holds — unlike an unaliased one
     # (`account_id` the argument, `account` the hydrated key, no
     # collision). The dereferenced Hash must win that collision, or
@@ -352,10 +352,10 @@ narrative: { text: "Opening" })
       end.to raise_error(Hecks::Runtime::GivenNotMet, "Open refused — customer is active")
     end
 
-    # The other half of the same bug: an id that does NOT resolve to a real
+    # The other half of the same bug: an id that does not resolve to a real
     # record must be a clean refusal (whatever the aggregate's own gates
     # say — here NotFound, from a plain `reference_to Customer, as:
-    # :customer` failing existence at resolve_references, BEFORE givens
+    # :customer` failing existence at resolve_references, before givens
     # ever run) — never the dereferencer's problem to raise a TypeError
     # over. This is what the fuzzer actually found: a garbage id string
     # reaching `customer.status` and blowing up on `String#[]`.
@@ -368,8 +368,8 @@ narrative: { text: "Opening" })
       end.to raise_error(Hecks::Runtime::NotFound)
     end
 
-    # An ENTITY command's given/ensures reaching its own PARENT aggregate
-    # (`parent.status`) and, through it, the parent's OWN reference
+    # An entity command's given/ensures reaching its own parent aggregate
+    # (`parent.status`) and, through it, the parent's own reference
     # (`parent.customer.status`) — a third shape none of the above cover:
     # `parent` names a structural relationship (EntityInterpreter's own
     # `ctx.instance`), not a declared reference attribute, so it needs its
@@ -421,17 +421,17 @@ narrative: { text: "Opening" })
     end
   end
 
-  # A REPRESENTATIVE SAMPLE of the customer/account-status guard family
+  # A representative sample of the customer/account-status guard family
   # ported onto banking.bluebook (feat/banking-status-guards) — not
   # exhaustive (~113 individual `given`s across ~56 commands), but one
-  # real example per category: a bare CUSTOMER-status guard, a bare
-  # ACCOUNT-status guard, an aliased cross-aggregate reference
+  # real example per category: a bare customer-status guard, a bare
+  # account-status guard, an aliased cross-aggregate reference
   # (source/destination) status guard, and an "other" own-record
   # status/state guard that has nothing to do with customer/account at
   # all. Section 223's "dereferencing a related record's field" tests,
   # above, already prove several more of these guards fire as a side
-  # effect of proving the DEREFERENCING mechanism itself — this section
-  # is about the GUARDS, not the mechanism.
+  # effect of proving the dereferencing mechanism itself — this section
+  # is about the guards, not the mechanism.
   describe "the ported customer/account status guards" do
     it "refuses on a bare CUSTOMER status guard — ATMCard.Issue for a suspended customer" do
       runtime = funded_account(boot_banking)
@@ -495,7 +495,7 @@ narrative: { text: "Opening" })
 
       expect(surface[Hecks::Runtime::CommandInterpreter]).to eq([:call])
       expect(surface[Hecks::Runtime::EntityInterpreter]).to  eq([:call])
-      # `reference_call` is the query oracle's second DOOR into the same
+      # `reference_call` is the query oracle's second door into the same
       # home — the interpreter's own evaluation, skipping the adapter's
       # native hook, so the fuzzer can diff the two answers. Same
       # declared-query resolution, same argument gate, same interpret —

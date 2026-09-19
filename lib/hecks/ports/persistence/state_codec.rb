@@ -27,7 +27,7 @@ module Hecks
       # - `copy` — `decode(encode(state))`: what a durable adapter would hand
       #   back, for Memory, with no JSON text in between.
       #
-      # What decode never does:
+      # **What decode never does**:
       #
       # It never invents a key. A declared field absent from the stored
       # state stays absent — not a present nil — because the runtime reads

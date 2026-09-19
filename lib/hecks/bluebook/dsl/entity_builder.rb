@@ -39,7 +39,7 @@ module Hecks
           # reference reads from it via `CommandBuilder#
           # reference_named_given`.
           @owner_named_givens = owner_named_givens
-          # One level wider still — the chapter-wide, entity-scoped pool
+          # **One level wider still** — the chapter-wide, entity-scoped pool
           # (the piece analogue of `AggregateBuilder#@chapter_named_givens`,
           # one level down). `@aggregate_name` names this piece's own
           # root, so the write-through below can key itself
@@ -51,7 +51,7 @@ module Hecks
           @aggregate_name = aggregate_name || Naming.demodulise(name)
           @chapter_entity_named_givens   = chapter_entity_named_givens
           @chapter_entity_pending_givens = chapter_entity_pending_givens
-          # Deferred construction — see `AggregateBuilder#drain_pending!`'s
+          # **Deferred construction** — see `AggregateBuilder#drain_pending!`'s
           # own comment; the identical mechanism, one level down, so a
           # nested piece's own commands (Dispatch inside Handler) see
           # every sibling entity/command/query this piece goes on to
@@ -218,7 +218,7 @@ module Hecks
           # by coincidence, same as an aggregate-level given already
           # tolerates today).
           @owner_named_givens[description] ||= named
-          # Write-through, per owner — the chapter-wide analogue of the
+          # **Write-through, per owner** — the chapter-wide analogue of the
           # line above, keyed by [description, this piece's own dotted
           # "Aggregate.Entity" name] rather than description alone, the
           # identical reasoning `AggregateBuilder#given_impl`'s own
@@ -291,7 +291,7 @@ module Hecks
         # so far, at either scope). Unresolved is deferred, not raised
         # here — see `#pending_chapter_entity_given`, below.
         #
-        # Writes through to `@owner_named_givens` too — not just
+        # **Writes through to `@owner_named_givens` too** — not just
         # `@named_givens` — or this piece resolving a description via the
         # wider, chapter pool would leave the narrower, same-aggregate
         # pool (`EntityBuilder#given_impl`'s own block-form write-through)
@@ -329,7 +329,7 @@ module Hecks
           @owner_named_givens[description] ||= named
         end
 
-        # A chapter may be split across files — the identical reason
+        # **A chapter may be split across files** — the identical reason
         # `AggregateBuilder#pending_chapter_given` defers rather than
         # raising the moment a bare reference outruns what's loaded so
         # far. Hands back a placeholder `Given`, embedded by Ruby object
@@ -344,7 +344,7 @@ module Hecks
           placeholder
         end
 
-        # A piece's own `one_of` lands on its aggregate. A type-position
+        # **A piece's own `one_of` lands on its aggregate**. A type-position
         # `one_of("never_moved", "moved")` on an entity attribute
         # synthesizes a closed-set value object — and until this, that
         # object was built and then dropped: `Entity.declare` carries no

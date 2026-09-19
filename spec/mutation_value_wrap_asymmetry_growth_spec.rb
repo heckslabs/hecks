@@ -4,15 +4,15 @@ require "tempfile"
 # Real dispatch coverage for the Value-wrap asymmetry bug fix across
 # increment/decrement/multiply: #apply used to wrap `amount` into a Value
 # whenever the target attribute existed, never checking whether `current`
-# (the field's own existing value) was ALSO wrapped. On a PHANTOM-CREATED
+# (the field's own existing value) was also wrapped. On a phantom-created
 # field -- a VO-typed attribute with no declared default, genuinely nil
 # until first touched -- `current` came back as a raw, unwrapped 0, so the
 # two sides of the same arithmetic call disagreed on Value-ness and the
 # primitive path refused a correctly-typed number as a type mismatch the
 # caller never made.
 #
-# Uses a LITERAL amount (`increment: 1`, not `increment: :amount`)
-# deliberately: a Symbol source naming a COMMAND ARGUMENT arrives already
+# Uses a literal amount (`increment: 1`, not `increment: :amount`)
+# deliberately: a Symbol source naming a command argument arrives already
 # Value-wrapped by normalize_args/coerce_declared_arguments (a separate,
 # earlier coercion pass, unaffected by this fix either way), so it can
 # never reproduce the asymmetry this fix addresses. A literal source is
@@ -44,7 +44,7 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
     file&.close!
   end
 
-  # `count` is declared with NO default: -- a phantom field, genuinely
+  # `count` is declared with no default: -- a phantom field, genuinely
   # nil until the first mutation ever touches it.
   MUTATION_VALUE_WRAP_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "MutationValueWrapGrowth" do
@@ -121,7 +121,7 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
     breaker = repository_for(runtime).find("b3")
     # current starts at the raw, unwrapped 0 (never touched) -- 0 * 5 stays 0,
-    # so this confirms the phantom path completes WITHOUT raising, not that
+    # so this confirms the phantom path completes without raising, not that
     # zero times anything is a meaningful business result.
     expect(breaker[:count][:value]).to eq(0)
   end

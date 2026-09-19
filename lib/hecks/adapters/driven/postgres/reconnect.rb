@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    # Self-healing connection — shared verbatim by `Postgres` and the era
+    # **Self-healing connection** — shared verbatim by `Postgres` and the era
     # plugin's `PostgresEra`, the same way `PostgresOutbox` (outbox.rb) is:
     # nothing here is lineage-specific, and `PostgresOutbox`'s own
     # `@db.exec*` calls route through this module's `pg_exec`/
@@ -40,7 +40,7 @@ module Hecks
 
       private
 
-      # Best-effort — a reconnect attempt that itself fails (the server
+      # **Best-effort** — a reconnect attempt that itself fails (the server
       # is actually down, not just this one backend) leaves `@db`
       # unchanged; the `PG::ConnectionBad` already being re-raised by
       # `pg_exec`/`pg_exec_params` above still reaches the caller either

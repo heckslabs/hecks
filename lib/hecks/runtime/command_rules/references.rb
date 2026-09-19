@@ -161,7 +161,7 @@ module Hecks
           end
         end
 
-        # The field an aggregate's own query names as tenant-scoping — the
+        # **The field an aggregate's own query names as tenant-scoping** — the
         # exact same lookup `Fuzzing::Properties::Guards#tenant_field_for`
         # already established for the property that found this gap, reused
         # here rather than reinvented: an aggregate's own declared tenant

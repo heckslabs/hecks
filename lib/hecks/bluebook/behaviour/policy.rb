@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # What a policy does. Its declared half is four plain fields; these
+      # **What a policy does**. Its declared half is four plain fields; these
       # are the readings taken off them.
       module Policy
         # The bluebook's name for this construct, asked the same way of a class
@@ -13,13 +13,13 @@ module Hecks
 
         def event_name = Naming.unqualified(@on_event)
 
-        # Whether this policy fans out — `for_each` names a query, and a
+        # **Whether this policy fans out** — `for_each` names a query, and a
         # non-empty one turns a single reaction into one dispatch per row
         # the query answers. Read by the interpreter that runs the fan-out
         # and by the property that checks it dispatched once per row.
         def fans_out? = !@for_each.to_s.empty?
 
-        # Whether this policy is guarded — a non-empty `where` decides
+        # **Whether this policy is guarded** — a non-empty `where` decides
         # whether the policy fires at all, read against the triggering
         # event's own payload.
         def guarded? = !@where.to_s.empty?

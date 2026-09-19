@@ -23,7 +23,7 @@ module Hecks
         # confirmed by grep across every lib/hecks/language file, not
         # assumed.
         #
-        # Genuine routing metadata, not an attribute — matching
+        # **Genuine routing metadata, not an attribute** — matching
         # rust/parser/src/parse/domain_port.rs's own header comment ("The
         # receiving aggregate is routing metadata supplied by to:, not an
         # operation attribute"), which anticipated this shape before either
@@ -96,7 +96,7 @@ module Hecks
             direction: @direction, answers: @answers, refuses: @refuses, to: @to
           )
 
-          # An inbound operation still has to say something. Only inbound: an
+          # **An inbound operation still has to say something**. Only inbound: an
           # `asks` says it with `answers`/`refuses` instead, and
           # `refuse_wrong_words!` above has already insisted on both.
           if !outbound && @emits.empty?
@@ -120,7 +120,7 @@ module Hecks
           attribute_impl(as || default_reference_name(target), Reference.new(target))
         end
 
-        # Each direction refuses the other's words. `emits` on an `asks` looks
+        # **Each direction refuses the other's words**. `emits` on an `asks` looks
         # right and is not: it would name one ending and leave the other
         # nowhere. `answers` on a `tells` is worse — there is no channel back
         # to an inbound caller at all, so it would read as a promise the

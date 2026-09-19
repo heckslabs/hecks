@@ -7,7 +7,7 @@ module Hecks
     # the policy, and this module is where the two meet — a pure function
     # of both, nothing else read.
     #
-    # Why this is not in `bin/qa_sweep` any more. It was — `WIDENING_TIERS`
+    # **Why this is not in `bin/qa_sweep` any more**. It was — `WIDENING_TIERS`
     # and `widen_for_streak` lived at the top of that script, which meant
     # policy data lived in a script (unlike every other dial, which lives
     # in the bluebook a human edits and reviews) and duplicated itself as
@@ -15,7 +15,7 @@ module Hecks
     # and `bin/qa_sweep` calls it the way it already calls
     # `RotationPriority.pick`.
     #
-    # Pure, deliberately — the same discipline `RotationPriority` keeps:
+    # **Pure, deliberately** — the same discipline `RotationPriority` keeps:
     # same streak in, same `[seeds, steps]` out, every time, which is what
     # lets a human predict what a given sweep is about to do before it
     # runs one. `tiers:` defaults to the dial but is a plain argument, so

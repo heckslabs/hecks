@@ -19,7 +19,7 @@ module Hecks
           @db.exec(
             "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
           )
-          # Self-healing, same idiom as `ensure_indexes!` below —
+          # **Self-healing, same idiom as `ensure_indexes!` below** —
           # `CREATE TABLE IF NOT EXISTS` above does not retroactively add a
           # column to an already-existing table (a committed database from
           # before optimistic-concurrency CAS existed), so this runs
@@ -28,7 +28,7 @@ module Hecks
           # `persisted_fields` (Codec), so it never appears in `decode`'s
           # domain-state hash or `Instance#to_h`.
           @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS hecks_version bigint NOT NULL DEFAULT 1")
-          # Same self-healing shape, for domain attributes themselves —
+          # **Same self-healing shape, for domain attributes themselves** —
           # `hecks_version` above only heals the adapter's own bookkeeping
           # column; a bluebook attribute added (or, via `translations/`,
           # renamed) after this table already exists is not bookkeeping,
@@ -150,8 +150,8 @@ module Hecks
         end
 
         # A `list_of` attribute is never indexed here — this adapter's
-        # own `contains` on a list field compiles to `exists (SELECT 1
-        # from jsonb_array_elements(...) ...)` (see `list_contains_clause`
+        # own `contains` on a list field compiles to `EXISTS (SELECT 1
+        # FROM jsonb_array_elements(...) ...)` (see `list_contains_clause`
         # below), a SQL shape neither a plain btree on the raw jsonb
         # column nor even a GIN jsonb index (`@>`, `?`) accelerates —
         # Postgres's own GIN jsonb operators match a different SQL shape
@@ -186,7 +186,7 @@ module Hecks
           attribute = @aggregate.attribute(name)
           return if attribute&.list?
 
-          # The same expression the query itself compiles to — calling
+          # **The same expression the query itself compiles to** — calling
           # `query_expression`/`plain_column`, the real dialect methods,
           # rather than a second, hand-rolled derivation of the same
           # path that could silently drift from it. An index whose
