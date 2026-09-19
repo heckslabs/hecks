@@ -137,14 +137,12 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
 
     it "gives banking the differential seat plus properties, self-consistency and the skip report" do
       expect(described_class.resolve(enabled, infer(CAP_BANKING)))
-        .to eq(%i[differential self_consistency properties_in_differential structural_skip_report
-                  adapter_parity_sqlite wasm_front])
+        .to eq(%i[differential self_consistency properties_in_differential structural_skip_report])
     end
 
     it "gives directory the ruby_only seat plus self-consistency and persistence parity" do
       expect(described_class.resolve(enabled, infer(CAP_DIRECTORY)))
-        .to eq(%i[ruby_only self_consistency adapter_parity_sqlite persistence_parity adapter_parity_postgres
-                  era_boundary concurrency])
+        .to eq(%i[ruby_only self_consistency persistence_parity])
     end
   end
 
