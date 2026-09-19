@@ -26,7 +26,6 @@
 
 require "json"
 require "optparse"
-require "set"
 load File.join(__dir__, "standardize_comments")
 
 # Checks a set of Rust files against docs/COMMENT_STYLE_GUIDE_RUST.md and,
@@ -38,23 +37,23 @@ module RustCommentStyle
   MAX_HEADING_WORDS = CommentStyle::MAX_HEADING_WORDS
 
   CATEGORIES = {
-    "missing_doc"       => "public item has no /// doc comment",
+    "missing_doc"        => "public item has no /// doc comment",
     "missing_module_doc" => "file has no //! module doc at its top",
-    "all_caps"          => "all-caps emphasis",
-    "long_bold"         => "bold heading over #{MAX_HEADING_WORDS} words reads as shouting",
-    "bare_constant"     => "capitalised word names a const/static in this file: backtick or lowercase it",
-    "unknown_capitals"  => "capitalised token is not an English word: backtick it or list it as an acronym",
-    "design_history"    => "narrates design history instead of citing an ADR",
-    "long_line"         => "comment line exceeds #{MAX_LINE} characters"
+    "all_caps"           => "all-caps emphasis",
+    "long_bold"          => "bold heading over #{MAX_HEADING_WORDS} words reads as shouting",
+    "bare_constant"      => "capitalised word names a const/static in this file: backtick or lowercase it",
+    "unknown_capitals"   => "capitalised token is not an English word: backtick it or list it as an acronym",
+    "design_history"     => "narrates design history instead of citing an ADR",
+    "long_line"          => "comment line exceeds #{MAX_LINE} characters"
   }.freeze
 
   FIXABLE = %w[all_caps long_bold long_line].freeze
 
   MARKER = %r{\A/{2,3}!?\s*}
   DOC_LINE = %r{\A\s*(?:///(?!/)|//!)}
-  MOD_DOC_LINE = /\A\s*\/\/!/
+  MOD_DOC_LINE = %r{\A\s*//!}
   ATTR_LINE = /\A\s*#\[/
-  BOLD_HEADING = /\A(\/{2,3}!?\s*(?:[-*]\s+)?)\*\*([^*]+)\*\*/
+  BOLD_HEADING = %r{\A(/{2,3}!?\s*(?:[-*]\s+)?)\*\*([^*]+)\*\*}
   HEADING_END = CommentStyle::HEADING_END
   GAP = CommentStyle::GAP
   FILLER = CommentStyle::FILLER
@@ -116,18 +115,22 @@ module RustCommentStyle
     #
     # @return [Array<Comment>]
     def run
-      i = 0
+      pos = 0
       line = 1
       col = 0
-      while i < @len
-        c = @src[i]
-        case c
-        when "\n" then line += 1; col = 0; i += 1
-        when "/" then i, col = consume_slash(i, col, line)
-        when '"' then i, col, line = consume_string(i, col, line)
-        when "'" then i, col = consume_quote(i, col)
-        when "r" then i, col, line = consume_maybe_raw_string(i, col, line)
-        else i += 1; col += 1
+      while pos < @len
+        case @src[pos]
+        when "\n"
+          line += 1
+          col = 0
+          pos += 1
+        when "/" then pos, col = consume_slash(pos, col, line)
+        when '"' then pos, col, line = consume_string(pos, col, line)
+        when "'" then pos, col = consume_quote(pos, col)
+        when "r" then pos, col, line = consume_maybe_raw_string(pos, col, line)
+        else
+          pos += 1
+          col += 1
         end
       end
       @comments
@@ -135,39 +138,37 @@ module RustCommentStyle
 
     private
 
-    def consume_slash(i, col, line)
-      return advance_plain(i, col) unless @src[i, 2] == "//"
+    def consume_slash(pos, col, line)
+      return advance_plain(pos, col) unless @src[pos, 2] == "//"
 
-      finish = @src.index("\n", i) || @len
-      text = @src[i...finish]
-      last_newline = @src.rindex("\n", i.zero? ? 0 : i - 1)
-      prefix = last_newline && last_newline < i ? @src[(last_newline + 1)...i] : @src[0...i]
+      finish = @src.index("\n", pos) || @len
+      text = @src[pos...finish]
+      last_newline = @src.rindex("\n", pos.zero? ? 0 : pos - 1)
+      prefix = last_newline && last_newline < pos ? @src[(last_newline + 1)...pos] : @src[0...pos]
       full_line = prefix.strip.empty?
       @comments << Comment.new(line, col, text, full_line)
       [finish, col + text.length]
     end
 
-    def consume_string(i, col, line)
-      j = i + 1
-      while j < @len && @src[j] != '"'
-        j += (@src[j] == "\\" ? 2 : 1)
-      end
-      advance_span(i, j + 1, col, line)
+    def consume_string(pos, col, line)
+      idx = pos + 1
+      idx += (@src[idx] == "\\" ? 2 : 1) while idx < @len && @src[idx] != '"'
+      advance_span(pos, idx + 1, col, line)
     end
 
-    def consume_quote(i, col)
-      match = @src[i..].match(/\A'(?:\\.|[^'\\\n]){1}'/)
-      match ? [i + match[0].length, col + match[0].length] : [i + 1, col + 1]
+    def consume_quote(pos, col)
+      match = @src[pos..].match(/\A'(?:\\.|[^'\\\n]){1}'/)
+      match ? [pos + match[0].length, col + match[0].length] : [pos + 1, col + 1]
     end
 
-    def consume_maybe_raw_string(i, col, line)
-      j = i + 1
+    def consume_maybe_raw_string(pos, col, line)
+      idx = pos + 1
       hashes = 0
-      hashes += 1 while @src[j + hashes] == "#"
-      return [i + 1, col + 1, line] unless @src[j + hashes] == '"'
+      hashes += 1 while @src[idx + hashes] == "#"
+      return [pos + 1, col + 1, line] unless @src[idx + hashes] == '"'
 
-      close = @src.index("\"#{'#' * hashes}", j + hashes + 1) || @len
-      advance_span(i, close + 1 + hashes, col, line)
+      close = @src.index("\"#{'#' * hashes}", idx + hashes + 1) || @len
+      advance_span(pos, close + 1 + hashes, col, line)
     end
 
     def advance_span(from, to, col, line)
@@ -182,8 +183,8 @@ module RustCommentStyle
       [to, col, line]
     end
 
-    def advance_plain(i, col)
-      [i + 1, col + 1]
+    def advance_plain(pos, col)
+      [pos + 1, col + 1]
     end
   end
 
@@ -228,8 +229,7 @@ module RustCommentStyle
       return @source if generated?
 
       wanted = (only || FIXABLE) & FIXABLE
-      output = @lines.map.with_index(1) { |line, number| fix_line(line, number, wanted) }.join
-      output
+      @lines.map.with_index(1) { |line, number| fix_line(line, number, wanted) }.join
     end
 
     # A generated file's comments belong to its generator: `bin/project_rust`
@@ -246,7 +246,7 @@ module RustCommentStyle
       inside = false
       @comments.each_with_object({}) do |comment, open|
         above = @by_line[comment.line - 1]
-        continues = comment.full_line && above&.full_line && !above.text.match?(/\A\/{2,3}!?\s*\z/)
+        continues = comment.full_line && above&.full_line && !above.text.match?(%r{\A/{2,3}!?\s*\z})
         inside = false unless continues
         open[comment.line] = inside
         inside ^= comment.text.count("`").odd?
@@ -309,7 +309,9 @@ module RustCommentStyle
     end
 
     def caps_violations(comment)
-      caps_words(comment).map { |_, word, replacement| Violation.new(path, comment.line, "all_caps", "#{word} -> #{replacement}") }
+      caps_words(comment).map do |_, word, replacement|
+        Violation.new(path, comment.line, "all_caps", "#{word} -> #{replacement}")
+      end
     end
 
     def constant_violations(comment)
@@ -465,7 +467,7 @@ module RustCommentStyle
       return false if masked[0, offset].sub(MARKER, "").match?(/[[:alnum:]#{FILLER}]/)
 
       above = comment.full_line ? @by_line[comment.line - 1] : nil
-      !above&.full_line || above.text.match?(/\A\/{2,3}!?\s*\z/)
+      !above&.full_line || above.text.match?(%r{\A/{2,3}!?\s*\z})
     end
 
     # Splits one over-long prose comment line in two. Lines with no safe
@@ -494,29 +496,52 @@ module RustCommentStyle
     end
 
     def missing_doc_violations
-      in_test_cfg = false
-      depth_at_test_cfg = nil
-      depth = 0
+      tracker = TestCfgTracker.new
       violations = []
-      @lines.each_with_index do |raw, index|
-        line = raw
-        depth += line.count("{") - line.count("}")
-        if line.match?(/\A\s*#\[cfg\(test\)\]/)
-          in_test_cfg = true
-          depth_at_test_cfg = depth
-        elsif in_test_cfg && depth <= depth_at_test_cfg.to_i && !line.match?(/\A\s*#\[cfg\(test\)\]/)
-          in_test_cfg = false if depth < depth_at_test_cfg.to_i
-        end
-        next if in_test_cfg
+      @lines.each_with_index do |line, index|
+        tracker.observe(line)
+        next if tracker.inside?
 
         match = PUB_ITEM.match(line)
         next unless match
         next if match[1] == "fn" && SELF_EVIDENT_FNS.include?(match[2])
 
         line_number = index + 1
-        violations << Violation.new(path, line_number, "missing_doc", "#{match[1]} #{match[2]}") unless doc_above?(line_number)
+        next if doc_above?(line_number)
+
+        violations << Violation.new(path, line_number, "missing_doc", "#{match[1]} #{match[2]}")
       end
       violations
+    end
+
+    # Tracks whether the line just observed sits inside a `#[cfg(test)]`
+    # module, by brace depth: the module starts at the attribute and ends
+    # once brace depth returns to what it was there.
+    class TestCfgTracker
+      TEST_CFG = /\A\s*#\[cfg\(test\)\]/
+
+      # Starts outside every module, at brace depth zero.
+      def initialize
+        @depth = 0
+        @test_depth = nil
+      end
+
+      # Updates the tracked brace depth with one more source line.
+      #
+      # @param line [String] the next source line, in file order
+      # @return [void]
+      def observe(line)
+        @depth += line.count("{") - line.count("}")
+        @test_depth = @depth if line.match?(TEST_CFG)
+        @test_depth = nil if @test_depth && @depth < @test_depth
+      end
+
+      # Answers whether the line just observed sits inside a test module.
+      #
+      # @return [Boolean]
+      def inside?
+        !@test_depth.nil?
+      end
     end
 
     def doc_above?(line_number)
@@ -527,7 +552,7 @@ module RustCommentStyle
 
     def missing_module_doc_violation
       return [] if test_tree?
-      return [] unless File.basename(path) == "mod.rs" || File.basename(path) == "lib.rs" || File.basename(path) == "main.rs"
+      return [] unless ["mod.rs", "lib.rs", "main.rs"].include?(File.basename(path))
       return [] if @lines.first(3).any? { |l| l.match?(MOD_DOC_LINE) }
 
       [Violation.new(path, 1, "missing_module_doc", File.basename(path))]
