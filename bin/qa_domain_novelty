@@ -148,6 +148,14 @@ if new_pairs.empty?
        "existing target. Either the domain is not new, or the form it exists for is not yet named in " \
        "Hecks::Fuzzing::FormCensus::FORMS (lib/hecks/fuzzing/form_census.rb) — name it there first, citing " \
        "the gap it is one step from, and run this again."
+  puts
+  puts "READ THAT AS A QUESTION ABOUT THE CENSUS, NOT A VERDICT ON THE DOMAIN. This gate measures ONE " \
+       "AGGREGATE's own declared forms, so a domain whose point is a chapter-level construct — a policy, an " \
+       "`across` target, a process manager, a read model's own group_by/median, an outbox, a dry run — is " \
+       "invisible to it by construction, not by omission. `corrects` and `role_gated` were exactly that: " \
+       "declared all over the corpus, unnamed here, so this line told three stress domains built around " \
+       "retroactive correction that they were redundant (their own NOTES.md each say so). If that is your " \
+       "domain's case, say which construct it exists for in its NOTES.md and keep it."
   exit EXIT_NOTHING
 end
 

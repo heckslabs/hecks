@@ -39,7 +39,8 @@ module Hecks
     module DomainGenerator
       DOMAIN_NAME = "QaGenerated".freeze
       DIRECTORY   = "qa_generated".freeze
-      FORMS       = FormCensus::FORMS.keys.freeze
+      # `FORMS` — what this generator can BUILD, defined at the bottom of
+      # this module, beside the `Builder::FORM_STEPS` table it reads.
 
       # NO RUST-RESERVED SNAKE NAMES. `Crate` was here first and every
       # domain holding it failed to compile under `--rust`: its snake form
@@ -675,6 +676,19 @@ module Hecks
 
         def snake(name) = DomainGenerator.snake(name)
       end
+
+      # WHAT THIS GENERATOR CAN BUILD, NOT EVERYTHING THE CENSUS NAMES.
+      # This read `FormCensus::FORMS.keys`, which quietly assumed the two
+      # tables would always agree — and they stopped agreeing the moment
+      # the census learned a form (`corrects`, `role_gated`) that
+      # `Builder::FORM_STEPS` has no recipe for: `generate` raised
+      # `KeyError` for any seed that happened to draw one. The census
+      # measures what a domain HAS; this names what a generator can
+      # WRITE, and a form in the first without the second simply is not
+      # generated — the rotation still meets it, and
+      # `spec/combination_coverage_spec.rb`'s own `HELD_OUTSIDE_THE_GOLDENS`
+      # names where. Kept honest by `spec/fuzzing/domain_generator_spec.rb`.
+      FORMS = Builder::FORM_STEPS.keys.freeze
     end
   end
 end
