@@ -15,6 +15,7 @@ use crate::kernel::Repository;
 pub struct Store {
     pub accountfreezereview: crate::kernel::InMemoryRepository<crate::generated::compliance::accountfreezereview::AccountFreezeReview>,
     pub boxsurrenderreview: crate::kernel::InMemoryRepository<crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview>,
+    pub privacyreview: crate::kernel::InMemoryRepository<crate::generated::compliance::privacyreview::PrivacyReview>,
 }
 
 impl Store {
@@ -22,6 +23,7 @@ impl Store {
         Self {
             accountfreezereview: crate::kernel::InMemoryRepository::new(),
             boxsurrenderreview: crate::kernel::InMemoryRepository::new(),
+            privacyreview: crate::kernel::InMemoryRepository::new(),
         }
     }
 
@@ -37,6 +39,9 @@ for (id, record) in self.accountfreezereview.entries() {
 }
 for (id, record) in self.boxsurrenderreview.entries() {
     instances.push((format!("{}{}", "Compliance::BoxSurrenderReview#", id), record.to_json()));
+}
+for (id, record) in self.privacyreview.entries() {
+    instances.push((format!("{}{}", "Compliance::PrivacyReview#", id), record.to_json()));
 }
         instances
     }
@@ -57,6 +62,10 @@ if let Some(id) = key.strip_prefix("Compliance::AccountFreezeReview#") {
 }
 if let Some(id) = key.strip_prefix("Compliance::BoxSurrenderReview#") {
     store.boxsurrenderreview.save(id, crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Compliance::PrivacyReview#") {
+    store.privacyreview.save(id, crate::generated::compliance::privacyreview::PrivacyReview::from_json(value)?);
     continue;
 }
             }
@@ -80,6 +89,9 @@ if aggregate == "Compliance::AccountFreezeReview" {
 }
 if aggregate == "Compliance::BoxSurrenderReview" {
     return Some(self.boxsurrenderreview.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Compliance::PrivacyReview" {
+    return Some(self.privacyreview.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
         None
     }
@@ -164,6 +176,41 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::compliance::boxsurrenderreview::dispatch_escalate(&mut store.boxsurrenderreview, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Compliance::PrivacyReview.Open" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::compliance::privacyreview::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::compliance::privacyreview::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::compliance::privacyreview::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::compliance::privacyreview::OpenArgs::from_json(v)?; args.domain.check_invariants()?; args.attribute_path.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::compliance::privacyreview::OpenArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::compliance::privacyreview::OpenArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::compliance::privacyreview::OpenArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::compliance::privacyreview::OpenArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::compliance::privacyreview::OpenArgs::from_json(v)?; args.domain.check_invariants()?; args.attribute_path.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::compliance::privacyreview::OpenArgs| Ok(()) })? };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::compliance::privacyreview::dispatch_open(&mut store.privacyreview, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Compliance::PrivacyReview.Clear" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::compliance::privacyreview::ClearArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::compliance::privacyreview::ClearArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::compliance::privacyreview::ClearArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::compliance::privacyreview::ClearArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::compliance::privacyreview::ClearArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::compliance::privacyreview::ClearArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::compliance::privacyreview::ClearArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::compliance::privacyreview::ClearArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::compliance::privacyreview::ClearArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::compliance::privacyreview::ClearArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::compliance::privacyreview::PrivacyReview::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Clear", aggregate: "PrivacyReview", identity: "domain.value, attribute_path.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::PrivacyReview", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::compliance::privacyreview::dispatch_clear(&mut store.privacyreview, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Compliance::PrivacyReview.Escalate" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = if invocation.explicit_with() { let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::compliance::privacyreview::EscalateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::compliance::privacyreview::EscalateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::compliance::privacyreview::EscalateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::compliance::privacyreview::EscalateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::compliance::privacyreview::EscalateArgs| Ok(()) })?; if let Some(route) = route { route.require_depth(0)?; } args } else { if let Some(route) = route { route.require_depth(0)?; } crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::compliance::privacyreview::EscalateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::compliance::privacyreview::EscalateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::compliance::privacyreview::EscalateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::compliance::privacyreview::EscalateArgs::from_json(v)?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::compliance::privacyreview::EscalateArgs| Ok(()) })? };
+              let id = match route { Some(route) => route.aggregate().to_string(), None => crate::generated::compliance::privacyreview::PrivacyReview::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: "Escalate", aggregate: "PrivacyReview", identity: "domain.value, attribute_path.value" }.render_args()))?, };
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::PrivacyReview", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::compliance::privacyreview::dispatch_escalate(&mut store.privacyreview, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
+          }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
 }
@@ -190,6 +237,7 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Compliance::AccountFreezeReview", &[]),
     ("Compliance::BoxSurrenderReview", &[]),
+    ("Compliance::PrivacyReview", &[]),
 ];
 
 impl crate::kernel::ReferenceLookup for Store {
@@ -199,6 +247,9 @@ if target == "Compliance::AccountFreezeReview" {
 }
 if target == "Compliance::BoxSurrenderReview" {
     return self.boxsurrenderreview.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Compliance::PrivacyReview" {
+    return self.privacyreview.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
 }
         None
     }
@@ -222,6 +273,7 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Compliance::AccountFreezeReview" => Some("account_freeze_review"),
         "Compliance::BoxSurrenderReview" => Some("box_surrender_review"),
+        "Compliance::PrivacyReview" => Some("privacy_review"),
         _ => None,
     }
 }
@@ -234,6 +286,9 @@ pub fn command_creates(verb: &str) -> bool {
         "Compliance::BoxSurrenderReview.Open" => true,
         "Compliance::BoxSurrenderReview.Clear" => false,
         "Compliance::BoxSurrenderReview.Escalate" => false,
+        "Compliance::PrivacyReview.Open" => true,
+        "Compliance::PrivacyReview.Clear" => false,
+        "Compliance::PrivacyReview.Escalate" => false,
         _ => false,
     }
 }
@@ -260,6 +315,9 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Compliance::BoxSurrenderReview.Open" => &["branch_code", "box_number"],
         "Compliance::BoxSurrenderReview.Clear" => &[],
         "Compliance::BoxSurrenderReview.Escalate" => &[],
+        "Compliance::PrivacyReview.Open" => &["domain", "attribute_path"],
+        "Compliance::PrivacyReview.Clear" => &[],
+        "Compliance::PrivacyReview.Escalate" => &[],
         _ => &[],
     }
 }

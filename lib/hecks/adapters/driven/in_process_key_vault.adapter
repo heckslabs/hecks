@@ -1,0 +1,3 @@
+Hecks.adapter "InProcessKeyVault" do
+  port "key_vault"
+end

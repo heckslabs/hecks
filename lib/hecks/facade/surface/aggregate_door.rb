@@ -1,6 +1,7 @@
 require_relative "../../bluebook/dsl/hecksagon_builder"
 require_relative "../../bluebook/dsl/domain_port_builder"
 require_relative "../../bluebook/dsl/const_shim"
+require_relative "../../bluebook/dsl/binding_proxy"
 require_relative "../../bluebook/hexagon"
 require_relative "../handle"
 require_relative "../../naming"
@@ -164,6 +165,13 @@ module Hecks
           end
 
           door.define_singleton_method(:method_missing) do |verb, *args, **kwargs, &block|
+            # A BARE CALL starts a Privacy marking chain — see
+            # `Bluebook::DSL::BindingProxy#method_missing`'s own header;
+            # this is the same mechanism, reached when the constant is
+            # already a real, installed door (a second boot in-process)
+            # rather than a `.hecksagon`-parse-time `BindingProxy`.
+            return Bluebook::DSL::AttributePath.new(fqn, [verb.to_s]) if args.empty? && kwargs.empty? && !block
+
             collector = Bluebook::DSL::HecksagonBuilder.collector
             return super(verb, *args, **kwargs, &block) unless collector
 

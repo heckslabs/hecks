@@ -30,6 +30,21 @@
       "scope": "compliance:box_surrender_review.open",
       "verb": "Compliance::BoxSurrenderReview.Open",
       "role": "System"
+    },
+    {
+      "scope": "compliance:privacy_review.clear",
+      "verb": "Compliance::PrivacyReview.Clear",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "compliance:privacy_review.escalate",
+      "verb": "Compliance::PrivacyReview.Escalate",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "compliance:privacy_review.open",
+      "verb": "Compliance::PrivacyReview.Open",
+      "role": "System"
     }
   ],
   "roles": [

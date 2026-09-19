@@ -241,7 +241,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # `spec/corpus_spec.rb`'s own `bluebook_in` does.)
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
                      %w[pizzas identity governance console_settings expression translation banking compliance
-                        compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo] -
+                        compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo
+                        privacy] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -311,7 +312,13 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     # confirmed by feeding this path to `hecks-parse`, only inferred
     # from the fact that `examples/compliance`'s own entry (below,
     # which additionally feeds `compliance.hecksagon`) already passes.
-    %w[identity governance console_settings compliance].to_h do |stem|
+    #
+    # "privacy" (`Privacy::Marking`/`Privacy::SubjectKey`) joins the trio
+    # too, bare-stemmed like identity/governance/console_settings — no
+    # `examples/privacy` directory exists to collide with. Confirmed
+    # byte-exact against Ruby's own `ir.json` before being promoted out
+    # of `PENDING_MEMBERS`, the same discipline as every promotion above.
+    %w[identity governance console_settings compliance privacy].to_h do |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecks/framework/bluebook/#{stem}.bluebook"
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"

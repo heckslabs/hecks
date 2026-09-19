@@ -1,0 +1,6 @@
+Hecks.port "key_vault" do
+  verb    "vaulted_by"
+  signal  :reply
+  answers :issue
+  answers :destroy
+end

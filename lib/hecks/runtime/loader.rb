@@ -66,6 +66,7 @@ module Hecks
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
+        seed_privacy_markings!(dispatcher, registry)
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
 
@@ -85,6 +86,33 @@ module Hecks
         return unless dispatcher.respond_to?(:outbox)
 
         dispatcher.outbox.redrive!
+      end
+
+      # Turns every `.hecksagon`-declared `AggregateDoor#mark_sensitive` fact into a real
+      # `Privacy::Marking.Mark` — after the dispatcher exists (dispatch needs a bound
+      # repository), idempotent across reboots (a marking already present is never
+      # re-dispatched, the same "provably never started" restraint `redrive_outbox!`
+      # holds itself to above). A no-op when nothing declared one, or when the domain
+      # never attached Privacy at all.
+      #
+      # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the just-booted
+      #   dispatcher `Privacy::Marking.Mark` dispatches through
+      # @param registry [Runtime::Registry] the just-booted registry `pending_privacy_markings`
+      #   was recorded on
+      # @return [void]
+      def self.seed_privacy_markings!(dispatcher, registry)
+        return if registry.pending_privacy_markings.empty?
+        return unless registry.bluebook("Privacy")
+
+        already_marked_by_domain = registry.pending_privacy_markings.map { |marking| marking[:domain] }.uniq.to_h do |domain|
+          [domain, dispatcher.query("Privacy::Marking.ForDomain", domain: domain).map { |row| row[:attribute_path][:value] }]
+        end
+
+        registry.pending_privacy_markings.each do |marking|
+          next if already_marked_by_domain[marking[:domain]].include?(marking[:attribute_path])
+
+          dispatcher.dispatch_flat("Privacy::Marking.Mark", marking)
+        end
       end
 
       # The explicit-file form — `paths` names the exact bluebook/hecksagon/
