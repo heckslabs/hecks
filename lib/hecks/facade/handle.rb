@@ -167,7 +167,11 @@ module Hecks
           next if authorized_for?(row[:role_required][:value].to_s)
 
           segments = path.split(".", 2)
-          raw = segments.size == 1 ? "[redacted]" : (raw.is_a?(Runtime::Value) ? raw.with(segments[1], "[redacted]") : raw)
+          if segments.size == 1
+            raw = "[redacted]"
+          elsif raw.is_a?(Runtime::Value)
+            raw = raw.with(segments[1], "[redacted]")
+          end
         end
 
         raw
@@ -180,7 +184,10 @@ module Hecks
       #
       # @return [Array<Hash>] `Privacy::Marking.ForDomain`'s own rows for this `fqn`
       def marked_paths
-        @marked_paths ||= @dispatcher.registry.bluebook("Privacy") ? @dispatcher.query("Privacy::Marking.ForDomain", domain: fqn) : []
+        return @marked_paths if defined?(@marked_paths)
+        return @marked_paths = [] unless @dispatcher.registry.bluebook("Privacy")
+
+        @marked_paths = @dispatcher.query("Privacy::Marking.ForDomain", domain: fqn)
       end
 
       # Whether the ambient caller holds a live Governance grant of `role`, over this
