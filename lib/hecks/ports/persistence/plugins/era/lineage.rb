@@ -155,8 +155,13 @@ module Hecks
           @drops.each { |name| apply_drop(state, name) }
           # Last, and only where nothing already answered — a backfill
           # fills the gap a rename/move/convert left untouched, never
-          # overwrites a value that already made it across.
-          @backfills.each { |backfill| state[backfill.name] = backfill.default unless state.key?(backfill.name) }
+          # overwrites a value that already made it across. Dotted-path
+          # aware, same as `apply_drop` above (`apply_backfill`'s own
+          # header) — a bare name was the only shape this ever needed
+          # until a value object gained new required members with zero
+          # source data of their own (found live: lifeadelics' Attendee
+          # redesign, commit 4326dcd).
+          @backfills.each { |backfill| apply_backfill(state, backfill) }
           Entry.new(operation: entry.operation, id: entry.id, state: state, mirrors: entry.mirrors)
         end
 
@@ -309,6 +314,31 @@ module Hecks
             end
           else
             state.delete(top)
+          end
+        end
+
+        # Applies one backfill, dotted-path aware — `apply_drop`'s own
+        # mirror on the addition side. A bare name sets a plain top-level
+        # key, unchanged from before; a dotted name (`"attendee.
+        # first_name"`) reaches into an existing value-object member the
+        # same way `apply_drop`/`hecks_tr_insert` (rule_compiler.rb's own
+        # SQL-compiled twin, kept in step with this) already do — creating
+        # the container Hash if an old record somehow lacks it entirely,
+        # never overwriting a value already there at either level.
+        #
+        # @param state [Hash] the entry's own state Hash, mutated in place
+        # @param backfill [Bluebook::TranslationBackfill] the backfill rule to apply
+        # @return [void]
+        def apply_backfill(state, backfill)
+          name = backfill.name.to_s
+          top, member = name.split(".", 2)
+          top = top.to_sym
+
+          if member
+            nested = (state[top] ||= {})
+            nested[member] = backfill.default unless nested.key?(member)
+          else
+            state[top] = backfill.default unless state.key?(top)
           end
         end
 

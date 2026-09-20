@@ -26,6 +26,20 @@ Hecks.with_registry(registry) do
   loading.load_each(directory, %w[*.port *.adapter])
   loading.load_bluebooks(directory)
   loading.load_each(directory, %w[*.hecksagon *.world])
+
+  # Environment overlay — this tool's own registry build never called
+  # `load_domain`'s `environment:` handling (folder.rb) either, the
+  # same gap `bin/project_rust` had (see that fix's own comment): a
+  # domain that splits `persisted_by` per environment declares none in
+  # its base `.hecksagon` at all, so `BindingPolicy.resolve` raised "no
+  # persisted_by bind" for `bluebook.aggregates.first` here too —
+  # confirmed live scaffolding lifeadelics' own era-1-to-current
+  # translation. Same opt-in, same reasoning: a silent no-op for every
+  # other domain, which never sets this.
+  if (target_environment = ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
+    loading.load_each(directory, [File.join("environments", "#{target_environment}.hecksagon")])
+    loading.load_each(directory, [File.join("environments", "#{target_environment}.world")])
+  end
 end
 
 bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
@@ -43,7 +57,23 @@ current_shape = Hecks::Runtime::StorageShape.project(bluebook)
 manager = Hecks::Adapters::PostgresEra::LineageManager
 
 if capable
+  # Settings resolve under the world-declared adapter name — `World#
+  # for_binding` keys settings by whatever name the `.world` file
+  # itself qualified them with, e.g.
+  # `persisted_by("PostgresEra") do database ... end`), never the
+  # of its own in a domain that only ever declared `"Postgres"`, so
+  # looking those up under the bypassed name would find nothing at all.
   settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
+  # `HECKS_SCHEMA` — a Shared-mode domain's `.world` file deliberately
+  # declares no `schema` of its own (lifeadelics.world's own comment:
+  # "the AWS Lambda's own HECKS_SCHEMA... is what actually scopes
+  # production; this local default is for anyone booting
+  # `environment: production` outside Lambda, which nothing does today").
+  # Something does now — this tool, run by hand over a bastion tunnel
+  # for exactly this reason — so it needs the same schema Lambda's own
+  # template.yaml bakes in, supplied the same way (an env var), not a
+  # hardcoded guess or a change to that project's own `.world` file.
+  settings = settings.merge(schema: ENV["HECKS_SCHEMA"]) if ENV["HECKS_SCHEMA"]
   db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
   lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
   lineage.ensure_base!

@@ -364,20 +364,48 @@ pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
     }
 }
 
-/// `Resolver#fetch`'s own dotted-path walk, narrowed to what a value-
-/// object invariant actually needs: every real corpus example (`cents`,
-/// `value`, `file`, `rank`, ...) is a bare, single-segment lookup
-/// against the value object's own top-level fields — no real invariant
-/// dots into a nested object. A dotted path still walks segment by
-/// segment via plain JSON `.get`, the direct equivalent of `composite::
-/// step`, rather than refusing outright — it just has no real corpus
-/// caller to prove it against yet.
+/// `Resolver#fetch` (the first segment) plus `Resolver#walk_path` (every
+/// segment after it) — two different rules, not one uniform walk,
+/// ported by reading both directly rather than assumed from an earlier,
+/// narrower description of this function. `fetch` refuses outright when
+/// the first, bare attribute name is missing entirely — preserved
+/// below, and what every "cannot resolve X — no such field" violation
+/// this file raises still means. `walk_path` is far more permissive:
+/// `segments.reduce(value) { |current, segment| break nil unless
+/// current.respond_to?(:[]) ... }` — once the value in hand stops being
+/// something Ruby can index into (a scalar: a String, an Integer, a
+/// bool), the rest of the path silently resolves to `nil`, and a
+/// missing key on a Hash that does respond to `#[]` also resolves to
+/// `nil` (Ruby's own `Hash#[]` default), never an error.
+///
+/// Found live, a real gap: a bluebook invariant idiom this DSL's own
+/// real evaluator treats as completely ordinary —
+/// `!some_boolean_attribute.nil?` — parses to a plain two-segment
+/// `Lookup` (`["some_boolean_attribute", "nil?"]`; confirmed directly
+/// off a real `ir.json`, not assumed), because `.nil?`'s real meaning
+/// here is exactly this fallthrough: `some_boolean_attribute`'s own
+/// value (`true`/`false`) never responds to `#[]`, so `.nil?` always
+/// walks straight to Ruby's own `nil`, and `!nil` is `true` — the
+/// invariant's actual job is "does `fetch` succeed at all" (does the
+/// attribute exist), never a literal `NilClass#nil?` call. Only the
+/// first segment refuses when missing, below; every later segment that
+/// stops indexing resolves to `Nil` instead, so `previous_sessions:
+/// false` (a real, present, perfectly valid value a backfill rule can
+/// write to satisfy exactly this invariant) reads as present rather
+/// than refusing with "cannot resolve \"nil?\"" the way a boolean with
+/// no such JSON key otherwise would.
 fn lookup(path: &[String], instance: &Json) -> Result<Value, String> {
-    let mut current = instance;
-    for segment in path {
-        current = current
-            .get(segment)
-            .ok_or_else(|| format!("cannot resolve {segment:?} — no such field (path {path:?})"))?;
+    let Some((head, rest)) = path.split_first() else {
+        return Err(format!("lookup given an empty path (path {path:?})"));
+    };
+    let mut current = instance
+        .get(head)
+        .ok_or_else(|| format!("cannot resolve {head:?} — no such field (path {path:?})"))?;
+    for segment in rest {
+        match current.get(segment) {
+            Some(next) => current = next,
+            None => return Ok(Value::Nil),
+        }
     }
     Value::from_json(current)
 }
