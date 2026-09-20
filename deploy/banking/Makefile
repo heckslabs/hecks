@@ -8,8 +8,11 @@
 # cross-linker — install once with `pip3 install cargo-lambda` or
 # `brew install cargo-lambda`.
 
-HOST_DIR := /Users/christopheryoung/Projects/hecks/rust/host
-WASM     := /Users/christopheryoung/Projects/hecks/rust/dist/banking.wasm
+HOST_DIR := /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target/rust/host
+# `domain_name`, matching bin/project_wasm's own target_mod_name
+# (a Rust-build-pipeline naming convention, not AWS resource
+# identity — see HECKS_WASM_PATH's own comment above).
+WASM     := /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target/rust/dist/banking.wasm
 
 build-BankingFunction:
 	@command -v cargo-lambda >/dev/null 2>&1 || { \
@@ -24,7 +27,7 @@ build-BankingFunction:
 # field). `bin/project_wasm` recompiles fast enough that "always
 # rebuild" is the safe default, matching rust/host's own bootstrap
 # build just below, which was never guarded this way to begin with.
-	cd /Users/christopheryoung/Projects/hecks && bin/project_wasm examples/banking
+	cd /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target && bin/project_wasm examples/banking
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # bin/project_wasm's own Makefile-equivalent line holds itself to: a
@@ -33,9 +36,36 @@ build-BankingFunction:
 # toolchain that never saw `rustup target add`, and fails with
 # "can't find crate for `core`" for the cross target even though
 # `rustup target list --installed` reports it present.
+# macOS -> Linux arm64 cross-compiling by default routes through
+# zig (cargo-lambda's own bundled cargo-zigbuild) — every zig
+# release checked so far (0.15.2, 0.16.0) rejects
+# `-Wl,--fix-cortex-a53-843419`, a flag rustc's own
+# aarch64-unknown-linux-gnu target emits unconditionally: "error:
+# unsupported linker arg: --fix-cortex-a53-843419", found live on
+# THIS domain's own very first real deploy attempt (upstream:
+# https://github.com/ziglang/zig/issues, no fix released yet as of
+# this comment). Not fixable by a flag here — it's zig's own `zig
+# cc` argument-translation layer refusing before rustc's link step
+# ever runs. If this build fails with that error, cargo-lambda has
+# a real, documented non-zig, non-Docker fallback: `-c cargo` (or
+# `CARGO_LAMBDA_COMPILER=cargo`) plus a real GNU cross-toolchain —
+# `brew tap messense/macos-cross-toolchains && brew install
+# aarch64-unknown-linux-gnu` (this flag has worked in real
+# binutils/LLD since 2018; only zig's own translation of it is the
+# gap), then set `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=
+# aarch64-linux-gnu-gcc` with that toolchain's own bin/ on PATH.
+# Confirmed working end to end (a real `sam deploy` against a real
+# Lambda) the same day this comment was written.
 	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
+# UNCONDITIONAL, not gated on rust_web -- same reason HECKS_IR_PATH
+# itself is unconditional above: main.rs's own boot sequence reads
+# the IR for every domain regardless of web mode, so the sidecar
+# file this env var points to has to actually be in the package
+# too, or the env var alone just changes the crash from "not set"
+# to "not found".
 	cp $(WASM) $(ARTIFACTS_DIR)/banking.wasm
+	cp /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target/rust/dist/banking.ir.json $(ARTIFACTS_DIR)/banking.ir.json
 
 # `sam build <resource>` WIPES .aws-sam/build/ entirely before
 # building just the one resource named -- confirmed live: building
@@ -60,9 +90,53 @@ restore-BankingFunction-build:
 	@mkdir -p .aws-sam/build/BankingFunction
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/BankingFunction/bootstrap
 	cp $(WASM) .aws-sam/build/BankingFunction/banking.wasm
+	cp /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target/rust/dist/banking.ir.json .aws-sam/build/BankingFunction/banking.ir.json
 	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "BankingFunction:" } or raise "restore-BankingFunction-build: BankingFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-BankingFunction-build: no CodeUri line found under BankingFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: BankingFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
-# `make mint-era` — takes hecks-banking's RDS instance from freshly
+# `make verify-parity-BankingFunction` — closes the exact gap the
+# equivalence-gap plan's own Phase 8 named: parity was checked ONLY
+# against CI's fixed test corpus, completely decoupled from what a
+# real `sam deploy` actually ships — `bin/rust_conformance` (the
+# differential harness, docs/decisions/0010-ruby-is-the-reference-
+# implementation.md) had never once been run against a specific
+# compiled deploy artifact. Runs it here, for real, against
+# $(WASM) -- the EXACT file `build-BankingFunction` (above) just built
+# and `deploy:` (below) is about to ship -- not a corpus-wide `cargo
+# build`'s own separate binary. `bin/rust_conformance` exits non-zero
+# on any mismatch, which this target lets propagate uncaught: a real
+# divergence between THIS artifact and Ruby's own reading of the
+# identical source blocks `make deploy` before `sam deploy` ever
+# runs, the same way a failing build already would.
+#
+# `spec/corpus/banking.json` is this domain's OWN pinned
+# fuzzer-replay script (the same shape `bin/fuzz`/`bin/run` already
+# use) -- if a domain doesn't have one yet, this warns LOUDLY and
+# continues rather than either silently skipping (this project's own
+# standing rule against a silent gap reading as full coverage) or
+# blocking every deploy of a domain nobody has written one for yet.
+#
+# SECOND HALF, BELOW — `bin/rust_conformance_fuzz`, ADR 0037's own fuzz
+# bridge pointed at this exact $(WASM). A pinned script only proves
+# "matches Ruby on the cases we thought to write down" (ADR 0039's own
+# honest framing); the fuzz bridge is what actually FOUND Findings 1-6.
+# Deliberately WARN-ONLY (`-@`, not `@`) for now: ADR 0037 already
+# catalogues real, confirmed, not-yet-fixed divergences (Findings 3 and
+# 5) that fire on ordinary generated sequences for more than one real
+# domain today, so making this a hard blocker before those are closed
+# would turn every affected domain's `make deploy` red for a reason
+# this target can't yet point at a fix for. Flip `-@` to `@` once ADR
+# 0037's open findings are closed and this stops firing in practice.
+.PHONY: verify-parity-BankingFunction
+verify-parity-BankingFunction:
+	@if [ -f /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target/spec/corpus/banking.json ]; then \
+		cd /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target && bin/rust_conformance examples/banking spec/corpus/banking.json $(WASM); \
+	else \
+		echo "verify-parity-BankingFunction: no spec/corpus/banking.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (bin/fuzz/bin/run's own script shape) before this domain's next deploy."; \
+	fi
+	@echo "verify-parity-BankingFunction: fuzzing $(WASM) against generated sequences (ADR 0037's bridge, WARN-ONLY -- see this target's own comment)..."
+	-@cd /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target && bin/rust_conformance_fuzz examples/banking $(WASM)
+
+# `make mint-era` — takes hecksagain-banking's RDS instance from freshly
 # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
 # resolve" (template.yaml's own env vars already assume era 1 —
 # this is what makes that true). Run ONCE per fresh database, before
@@ -72,10 +146,10 @@ restore-BankingFunction-build:
 # as its own sibling stack, uses it for one Ruby boot over an SSM
 # tunnel, then deletes it — nothing from this target is left running
 # afterward.
-ROOT      := /Users/christopheryoung/Projects/hecks
+ROOT      := /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target
 DOMAIN    := examples/banking
-STACK     := hecks-banking
-BASTION_STACK := hecks-banking-bastion
+STACK     := hecksagain-banking
+BASTION_STACK := hecksagain-banking-bastion
 
 mint-era:
 # NOT AUTOMATED YET for a Shared-mode domain — it has no RDS/VPC
@@ -90,7 +164,94 @@ mint-era:
 # `schema: "banking"` in LineageManager.check!'s own
 # settings -- the exact same call this target runs automatically
 # for a domain with its own dedicated instance.
-	@echo "mint-era isn't automated yet for a Shared-mode domain (database \"Shared\") -- see this target's own comment in the generated Makefile for the manual path through Embryonaut's own tunnel."; \
+#
+# IF THIS DOMAIN VENDORS/ATTACHES ANOTHER BLUEBOOK (uses_embryonaut_
+# bluebook, uses_framework), `check!` alone leaves THAT chapter's own
+# aggregates with no snapshot table at all -- it only provisions the
+# ONE bluebook it's called with (era_resolver.rb's own `bluebook.
+# aggregates.each`), never the whole registry. Found live minting
+# lifeadelics' own era: `Payments::Payment.Initiate` refused with
+# "relation \"payment_head_snapshot_1\" does not exist" the first
+# time this domain's own checkout route ran for real. The automated
+# (non-Shared) recipe below now does this correctly for every OTHER
+# loaded bluebook, using ONE `Lineage` keyed by THIS domain's own
+# name (never each chapter's own -- a vendored chapter's aggregates
+# share THIS domain's single `hecks_journal_banking` and
+# snapshot tables, they do not get a separate journal of their own).
+# Reproduce the same shape manually here: after `LineageManager.
+# check!` returns, `db = PostgresEra.connect_for(bluebook.name,
+# settings)`, `lineage = Lineage.new(db, bluebook.name)`, then for
+# every OTHER loaded bluebook's own aggregates, `lineage.
+# ensure_first_head!(aggregate.storage_name)`.
+#
+# EXIT 0, NOT 1 -- `deploy:`'s own last line (below) always chains
+# `$(MAKE) mint-era` unconditionally, even for a Shared-mode domain,
+# so a nonzero exit here used to mean a fully successful `sam
+# deploy` still left `make deploy` exiting nonzero -- confirmed
+# live: CI and any scripted caller read every Shared-mode deploy as
+# failed, which trains operators to ignore a red `make deploy` on
+# exactly the domains where a real failure most needs to stand out.
+# This step never fails at its own job (it has no automated job to
+# fail at -- it only reports that a manual step remains), so it
+# reports success and leaves the manual-step reminder in the echo
+# text above, not in the exit code. A human running `make mint-era`
+# directly still SEES the same message; they just don't get a
+# misleading "command failed" on top of it either.
+	@echo "mint-era isn't automated yet for a Shared-mode domain (database \"Shared\") -- see this target's own comment in the generated Makefile for the manual path through Embryonaut's own tunnel. This is NOT a failure -- exiting 0 so a genuinely successful \"make deploy\" still reports success; era-minting for this domain remains a separate manual step."; \
+	exit 0
+
+# `make scaffold-translation` — run this when a deploy's own
+# pre-flight boot check (or `make mint-era` directly) refuses with
+# "the shape changed (era N) and no translation edge covers it".
+# Diffs the held era against the current bluebook over the same
+# bastion tunnel mint-era uses and WRITES a translations/*.bluebook
+# edge file into this domain's own repo — confident rules inline,
+# genuine ambiguities as `unresolved` lines a human has to resolve by
+# hand (a rename, a drop, a compute — never guessed). Review the
+# written file, then `make translation-audit`.
+scaffold-translation:
+	@echo "scaffold-translation isn't automated yet for a Shared-mode domain (database \"Shared\") -- see mint-era's own comment in the generated Makefile for the manual path through Embryonaut's own tunnel."; \
+	exit 1
+
+# `make translation-audit` — verifies a written (or still-pending)
+# translation edge over the same tunnel: every translated state
+# against the new era's own types/invariants/lifecycle, the compiled
+# SQL against the port's own reference transform, and a before/after
+# sample of real records printed for human review. Re-run
+# `make deploy` (or `make mint-era`) once this passes — that's what
+# actually applies the edge; this only checks it.
+translation-audit:
+	@echo "translation-audit isn't automated yet for a Shared-mode domain (database \"Shared\") -- see mint-era's own comment in the generated Makefile for the manual path through Embryonaut's own tunnel."; \
+	exit 1
+
+# `make migrate-console-settings` — runs this domain's own
+# bin/migrate_console_settings (if it has one) over the same bastion
+# tunnel every other Postgres-touching target here uses, against the
+# real deployed database instead of local dev. A one-time data
+# migration, not a repeatable ops procedure like mint-era/scaffold-
+# translation — generated the same way regardless, per this
+# project's own standing rule against hand-run ops steps.
+migrate-console-settings:
+	@echo "migrate-console-settings isn't automated yet for a Shared-mode domain (database \"Shared\") -- see mint-era's own comment in the generated Makefile for the manual path through Embryonaut's own tunnel."; \
+	exit 1
+
+# `make rename-schema OLD=<old> NEW=<new>` — a native `ALTER SCHEMA
+# ... RENAME TO ...` over the same bastion tunnel mint-era uses,
+# for when this domain's own declared identity changes
+# (`formerly_known_as`) and its storage schema should follow. Purely
+# a Postgres namespace rename: every table/row/sequence inside it is
+# untouched, so this is safe to run against a live, in-use database
+# — the only requirement is that nothing else names the schema by
+# its OLD name at the moment this runs (this domain's own deployed
+# Lambda's HECKS_SCHEMA env var, most directly — run `make deploy`
+# right before or right after this, not with a long gap either way).
+rename-schema:
+# NOT AUTOMATED for a Shared-mode domain, same reason mint-era
+# isn't: there is no bastion.yaml here to stand up next to (this
+# domain has no RDS/VPC of its own). This domain's own schema
+# lives inside Embryonaut's database — run this same
+# target from Embryonaut's own deploy directory instead.
+	@echo "rename-schema isn't automated for a Shared-mode domain (database \"Shared\") -- run it from Embryonaut's own deploy directory instead, which owns the RDS instance this domain's schema actually lives on."; \
 	exit 1
 
 
@@ -113,11 +274,14 @@ mint-era:
 .PHONY: deploy mint-era
 deploy:
 	sam build
-	@OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \
-	OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \
-	OWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text); \
-	OWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text); \
-	OWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text); \
-	OWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text); \
+	$(MAKE) verify-parity-BankingFunction
+
+	@echo "Looking up hecksagain-embryonaut's shared VpcId/PrivateSubnetAId/PrivateSubnetBId/FunctionSecurityGroupId/DatabaseEndpoint/DatabaseSecretArn outputs to pass as $(STACK)'s Owning* parameters..."
+	@OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \
+	OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \
+	OWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text); \
+	OWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text); \
+	OWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text); \
+	OWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text); \
 	sam deploy --parameter-overrides OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN
 	$(MAKE) mint-era

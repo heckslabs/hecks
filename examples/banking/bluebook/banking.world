@@ -27,5 +27,15 @@ Hecks.world "Banking" do
     # production, so there's no existing data to migrate).
     database "Shared"
     owner "Embryonaut"
+    owner_stack "hecksagain-embryonaut"
+    # This domain's real, live stack was created before stack_prefix
+    # existed, under the "hecksagain-" prefix (matching the owner
+    # stack's own convention), not bin/project_deploy's "hecks-"
+    # default — pinned here for the same reason lifeadelics.world and
+    # embryonautfoundersapp.world already pin their own stack naming
+    # (confirmed live: without this, a fresh regeneration targets a
+    # brand-new "hecks-banking" stack instead of updating the real
+    # "hecksagain-banking" one).
+    stack_prefix "hecksagain"
   end
 end
