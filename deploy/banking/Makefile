@@ -58,7 +58,14 @@ build-BankingFunction:
 # Lambda) the same day this comment was written.
 	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
+# UNCONDITIONAL, not gated on rust_web -- same reason HECKS_IR_PATH
+# itself is unconditional above: main.rs's own boot sequence reads
+# the IR for every domain regardless of web mode, so the sidecar
+# file this env var points to has to actually be in the package
+# too, or the env var alone just changes the crash from "not set"
+# to "not found".
 	cp $(WASM) $(ARTIFACTS_DIR)/banking.wasm
+	cp /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target/rust/dist/banking.ir.json $(ARTIFACTS_DIR)/banking.ir.json
 
 # `sam build <resource>` WIPES .aws-sam/build/ entirely before
 # building just the one resource named -- confirmed live: building
@@ -83,6 +90,7 @@ restore-BankingFunction-build:
 	@mkdir -p .aws-sam/build/BankingFunction
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/BankingFunction/bootstrap
 	cp $(WASM) .aws-sam/build/BankingFunction/banking.wasm
+	cp /Users/christopheryoung/Projects/hecks/.claude/worktrees/fargate-deploy-target/rust/dist/banking.ir.json .aws-sam/build/BankingFunction/banking.ir.json
 	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "BankingFunction:" } or raise "restore-BankingFunction-build: BankingFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-BankingFunction-build: no CodeUri line found under BankingFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: BankingFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
 # `make verify-parity-BankingFunction` — closes the exact gap the

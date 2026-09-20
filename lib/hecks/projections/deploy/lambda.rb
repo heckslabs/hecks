@@ -1902,7 +1902,14 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             # Lambda) the same day this comment was written.
             \tcd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
             \tcp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
-            \tcp $(WASM) $(ARTIFACTS_DIR)/#{domain_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} $(ARTIFACTS_DIR)/#{domain_name}.ir.json) : ""}
+            # UNCONDITIONAL, not gated on rust_web -- same reason HECKS_IR_PATH
+            # itself is unconditional above: main.rs's own boot sequence reads
+            # the IR for every domain regardless of web mode, so the sidecar
+            # file this env var points to has to actually be in the package
+            # too, or the env var alone just changes the crash from "not set"
+            # to "not found".
+            \tcp $(WASM) $(ARTIFACTS_DIR)/#{domain_name}.wasm
+            \tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} $(ARTIFACTS_DIR)/#{domain_name}.ir.json
 
             # `sam build <resource>` WIPES .aws-sam/build/ entirely before
             # building just the one resource named -- confirmed live: building
@@ -1926,7 +1933,8 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
             restore-#{logical_id}-build:
             \t@mkdir -p .aws-sam/build/#{logical_id}
             \tcp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/#{logical_id}/bootstrap
-            \tcp $(WASM) .aws-sam/build/#{logical_id}/#{domain_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} .aws-sam/build/#{logical_id}/#{domain_name}.ir.json) : ""}
+            \tcp $(WASM) .aws-sam/build/#{logical_id}/#{domain_name}.wasm
+            \tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} .aws-sam/build/#{logical_id}/#{domain_name}.ir.json
             \truby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "#{logical_id}:" } or raise "restore-#{logical_id}-build: #{logical_id} resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-#{logical_id}-build: no CodeUri line found under #{logical_id}"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: #{logical_id}"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
             # `make verify-parity-#{logical_id}` — closes the exact gap the
