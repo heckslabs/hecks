@@ -1,0 +1,21 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Accounts::Account",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Accounts::Account.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Accounts::Account.Listing",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "no_wheres",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  }
+]

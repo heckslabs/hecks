@@ -1,0 +1,215 @@
+{
+  "ir_version": 1,
+  "name": "Accounts",
+  "version": null,
+  "vision": "A small, reusable admin-identity capability: one login record per human, so a consuming project's own admin UI never has to hand-roll password storage. Deliberately kept minimal (email + password hash, one Register command) — the same generic-subdomain restraint the notes package documents for itself: this presupposes nothing about roles, permissions, or what an account is FOR beyond being able to authenticate. A consuming project that syncs this into another system (e.g. a headless CMS's own users collection, for single-sign-on) does that syncing itself, in its own driving adapter — this package has no concept of any other system existing.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Account",
+      "description": "One admin's login identity — email plus an already-hashed password. Hashing/verifying happens in a consuming project's own driving adapter (this package has no opinion on bcrypt vs. anything else); the domain only ever stores and returns the hash.",
+      "identified_by": [
+        "email.value"
+      ],
+      "attributes": [
+        {
+          "name": "email",
+          "type": "AccountEmail",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "password_hash",
+          "type": "PasswordHash",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "AccountEmail",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an account has an email",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "PasswordHash",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a password hash is never blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Register",
+          "role": null,
+          "goal": "Create a new admin account with an already-hashed password",
+          "references": null,
+          "attributes": [
+            {
+              "name": "email",
+              "type": "AccountEmail",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "password_hash",
+              "type": "PasswordHash",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "email",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "email"
+              }
+            },
+            {
+              "target": "password_hash",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "password_hash"
+              }
+            }
+          ],
+          "emits": [
+            "AccountRegistered"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [
+        {
+          "name": "Listing",
+          "description": "Every account, alphabetically by email.",
+          "attributes": [],
+          "wheres": [],
+          "order_by": {
+            "field": "email.value",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

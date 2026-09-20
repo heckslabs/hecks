@@ -1,0 +1,648 @@
+{
+  "ir_version": 1,
+  "name": "Privacy",
+  "version": null,
+  "vision": "Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Marking",
+      "description": "One attribute of one domain's own aggregate, flagged sensitive — and the role required to read it unredacted.",
+      "identified_by": [
+        "domain.value",
+        "attribute_path.value"
+      ],
+      "attributes": [
+        {
+          "name": "domain",
+          "type": "MarkingDomain",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "attribute_path",
+          "type": "AttributePath",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "category",
+          "type": "Category",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "readable_by",
+          "type": "RoleName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "MarkingDomain",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a marking names the domain it applies to",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "AttributePath",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a marking names an attribute path",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Category",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a marking is categorized",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "RoleName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "reading a marked field unredacted requires a named role",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Mark",
+          "role": "Deployment",
+          "goal": "Flag one attribute of a domain's own aggregate as sensitive, gating who may read it unredacted",
+          "references": null,
+          "attributes": [
+            {
+              "name": "domain",
+              "type": "MarkingDomain",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "attribute_path",
+              "type": "AttributePath",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "category",
+              "type": "Category",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "readable_by",
+              "type": "RoleName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "Marked"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Unmark",
+          "role": "Deployment",
+          "goal": "Remove a sensitivity flag from an attribute",
+          "references": "Marking",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "Unmarked"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [
+        {
+          "name": "ForDomain",
+          "description": "Every marking declared for one domain, read by whatever gates or redacts that domain's own records.",
+          "attributes": [
+            {
+              "name": "domain",
+              "type": "MarkingDomain",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "domain",
+              "op": "eq",
+              "value": ":domain"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "SubjectKey",
+      "description": "One data subject's own encryption key, from the moment it exists to the moment it is destroyed.",
+      "identified_by": [
+        "domain.value",
+        "subject_id.value"
+      ],
+      "attributes": [
+        {
+          "name": "domain",
+          "type": "KeyDomain",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "subject_id",
+          "type": "SubjectId",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "key_reference",
+          "type": "KeyReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "KeyDomain",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a key names the domain its subject belongs to",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "SubjectId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a key names the subject it was issued for",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "KeyReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a key carries the vault's own opaque reference to it",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Issue",
+          "role": "System",
+          "goal": "Record that a subject's data is now encrypted under a fresh, dedicated key",
+          "references": null,
+          "attributes": [
+            {
+              "name": "domain",
+              "type": "KeyDomain",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "subject_id",
+              "type": "SubjectId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "key_reference",
+              "type": "KeyReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "domain",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "domain"
+              }
+            },
+            {
+              "target": "subject_id",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "subject_id"
+              }
+            },
+            {
+              "target": "key_reference",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "key_reference"
+              }
+            }
+          ],
+          "emits": [
+            "SubjectKeyIssued"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Shred",
+          "role": "Privacy officer",
+          "goal": "Mark this subject's key destroyed, so its ciphertext is recorded as permanently unrecoverable",
+          "references": "SubjectKey",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "SubjectKeyShredded"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "status",
+        "default": "active",
+        "transitions": [
+          {
+            "command": "Shred",
+            "to_state": "shredded",
+            "from_state": "active"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "ForSubject",
+          "description": "One subject's key record, checked before any attempt to decrypt their sensitive fields.",
+          "attributes": [
+            {
+              "name": "domain",
+              "type": "KeyDomain",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "subject_id",
+              "type": "SubjectId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "domain",
+              "op": "eq",
+              "value": ":domain"
+            },
+            {
+              "field": "subject_id",
+              "op": "eq",
+              "value": ":subject_id"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

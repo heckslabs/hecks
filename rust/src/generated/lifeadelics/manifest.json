@@ -1,0 +1,44 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Lifeadelics::Event",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::Event.Schedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::Event.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Lifeadelics::Registration",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Lifeadelics::Registration.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Lifeadelics::Event",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"event\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Lifeadelics::Registration",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"registration\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
+  }
+]
