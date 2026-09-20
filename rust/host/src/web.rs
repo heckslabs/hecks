@@ -1454,8 +1454,22 @@ async fn registrations_route(
         return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
     }
 
-    let success_url = format!("{site_url}/{event_slug}.html?registered=1");
-    let cancel_url = format!("{site_url}/{event_slug}.html?registered=0");
+    // A GUEST-SUPPLIED PATH, NEVER TRUSTED RAW -- `return_to` rides
+    // straight into the redirect a browser follows after checkout. A
+    // value like "https://evil.example" or "//evil.example" (protocol-
+    // relative -- no scheme, but still an absolute redirect in a
+    // browser) would turn this into an open redirect if interpolated
+    // as-is. Restricting it to "starts with exactly one leading slash"
+    // keeps it a same-site path no matter what a caller sends; anything
+    // else -- including no return_to at all, for a caller that never
+    // sends one -- falls back to the event's own page, this route's
+    // original behavior before return_to existed.
+    let return_to = match body.get("return_to").and_then(|v| v.as_str()) {
+        Some(path) if path.starts_with('/') && !path.starts_with("//") => path.to_string(),
+        _ => format!("/{event_slug}.html"),
+    };
+    let success_url = format!("{site_url}{return_to}?registered=1");
+    let cancel_url = format!("{site_url}{return_to}?registered=0");
 
     // **Mock, not an error** — an empty `api_key` means checkout is
     // genuinely bound to the mock adapter (this route's own header,
@@ -2641,6 +2655,70 @@ mod tests {
         // own header on why that drift matters: Payment::Succeed's own
         // "the processor matches" given).
         assert_eq!(payment["processor"]["value"], "mock_stripe");
+    }
+
+    // A caller's own `return_to` (the page the guest was actually
+    // registering from) drives the redirect, not the event's own
+    // slug -- the exact bug found live: a real Yogadelics registration
+    // succeeded but then redirected to /yogadelics-friday-september-5.html
+    // (the domain Event's own internal slug, never a real page route)
+    // instead of back to /yogadelics.html, 404ing every real guest right
+    // after a successful, already-charged registration.
+    #[tokio::test]
+    async fn registrations_route_redirects_to_the_caller_s_own_return_to_not_the_event_slug() {
+        let client = scratch_db("hecks_host_web_test_registrations_return_to").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
+
+        schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
+
+        let body = json!({
+            "event_slug": "happy-event",
+            "name": "Ada Lovelace",
+            "email": "ada@example.com",
+            "return_to": "/yogadelics.html",
+        })
+        .to_string();
+        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+        let reference = body["registration_id"].as_str().unwrap().to_string();
+        assert_eq!(
+            body["checkout_url"],
+            format!("http://localhost:4321/yogadelics.html?registered=1&mock_checkout=1&mock_registration_id={reference}")
+        );
+    }
+
+    // safe_return_to's own guest-supplied-path reasoning (this route's own
+    // comment on it) -- an absolute or protocol-relative return_to must
+    // never become an open redirect; falls back to the event's own page
+    // exactly as if no return_to had been sent at all.
+    #[tokio::test]
+    async fn registrations_route_refuses_an_absolute_or_protocol_relative_return_to() {
+        let client = scratch_db("hecks_host_web_test_registrations_return_to_unsafe").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
+
+        schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
+
+        for unsafe_return_to in ["https://evil.example", "//evil.example"] {
+            let body = json!({
+                "event_slug": "happy-event",
+                "name": "Ada Lovelace",
+                "email": "ada@example.com",
+                "return_to": unsafe_return_to,
+            })
+            .to_string();
+            let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+            assert_eq!(response["statusCode"], 200, "{response:?}");
+            let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+            assert!(
+                body["checkout_url"].as_str().unwrap().starts_with("http://localhost:4321/happy-event.html?"),
+                "an unsafe return_to ({unsafe_return_to:?}) must fall back to the event's own page: {body:?}"
+            );
+        }
     }
 
     #[tokio::test]
