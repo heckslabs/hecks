@@ -14,7 +14,7 @@ Hecks.bluebook "Privacy" do
     attribute :domain,         MarkingDomain
     attribute :attribute_path, AttributePath
     attribute :category,       Category
-    attribute :role_required,  RoleName
+    attribute :readable_by,    RoleName
 
     identified_by :domain, :attribute_path
 
@@ -54,7 +54,7 @@ Hecks.bluebook "Privacy" do
       attribute :domain,         MarkingDomain
       attribute :attribute_path, AttributePath
       attribute :category,       Category
-      attribute :role_required,  RoleName
+      attribute :readable_by,    RoleName
 
       emits Marked
     end
