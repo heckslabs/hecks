@@ -48,7 +48,7 @@ use crate::lambda_client::{AwsLambdaInvoker, LambdaInvoker};
 use crate::web;
 use axum::body::Bytes;
 use axum::extract::State;
-use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use axum::Router;
@@ -175,7 +175,7 @@ async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-async fn dispatch_route(State(state): State<ServerState>, body: Bytes) -> Response {
+async fn dispatch_route(State(state): State<ServerState>, method: Method, uri: Uri, headers: HeaderMap, body: Bytes) -> Response {
     let parsed: Value = if body.is_empty() {
         serde_json::json!({})
     } else {
@@ -185,12 +185,66 @@ async fn dispatch_route(State(state): State<ServerState>, body: Bytes) -> Respon
         }
     };
 
-    match dispatch_body(parsed, &state.client, &state.wasm_path, &state.lineage_config, state.invoker.as_ref()).await {
+    // A real HTTP client — a browser through the ALB, or the site's own
+    // server-to-server checkout call — gets none of a Lambda Function
+    // URL's automatic wrapping into `{"requestContext": {"http": ...},
+    // "rawPath", ...}`: that translation is API Gateway's own job,
+    // upstream of `lambda_runtime::run`, and nothing stands in for it
+    // here. Anything that ISN'T already one of `dispatch_body`'s own
+    // three recognized shapes (checked by `is_internal_dispatch_shape`
+    // below) synthesizes that same envelope from the real request this
+    // handler actually received, so `web::render`/`checkout_route` see
+    // the identical shape they already do behind a real Function URL.
+    // A body that already matches one of the three shapes — the
+    // sidecar-to-sidecar internal RPC protocol this module's own header
+    // documents — passes through completely unchanged; this can only
+    // ever turn a previously-guaranteed `"event missing \"verb\""`
+    // error into a real route, never break an existing one.
+    let envelope = if is_internal_dispatch_shape(&parsed) {
+        parsed
+    } else {
+        synthesize_function_url_envelope(&method, &uri, &headers, &body)
+    };
+
+    match dispatch_body(envelope, &state.client, &state.wasm_path, &state.lineage_config, state.invoker.as_ref()).await {
         Ok(value) => value_to_response(value),
         Err(e) => {
             (StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": format!("{e}") }))).into_response()
         }
     }
+}
+
+/// Whether `value` already matches one of `dispatch_body`'s own three
+/// recognized shapes (its own doc comment has the full list) — a
+/// Function-URL/API-Gateway-v2 event, `{"read": true}`, or a verb
+/// command. Anything else (including a bare `{}`, which today only
+/// ever produces `"event missing \"verb\""`) is real REST traffic that
+/// needs `synthesize_function_url_envelope` instead.
+fn is_internal_dispatch_shape(value: &Value) -> bool {
+    value.get("requestContext").is_some() || value.get("read").is_some() || value.get("verb").is_some()
+}
+
+/// Rebuilds the exact envelope shape a real Lambda Function URL
+/// invocation already produces automatically (the one `web::render`'s
+/// own header documents reading), from the raw axum request parts —
+/// see `dispatch_route`'s own comment on why this only runs for a body
+/// that isn't already the internal dispatch protocol.
+fn synthesize_function_url_envelope(method: &Method, uri: &Uri, headers: &HeaderMap, body: &Bytes) -> Value {
+    let mut header_map = serde_json::Map::new();
+    for (name, value) in headers.iter() {
+        if let Ok(value) = value.to_str() {
+            header_map.insert(name.as_str().to_ascii_lowercase(), Value::String(value.to_string()));
+        }
+    }
+
+    serde_json::json!({
+        "requestContext": { "http": { "method": method.as_str() } },
+        "rawPath": uri.path(),
+        "rawQueryString": uri.query().unwrap_or(""),
+        "headers": header_map,
+        "body": String::from_utf8_lossy(body).into_owned(),
+        "isBase64Encoded": false,
+    })
 }
 
 /// Translates `dispatch_body`'s own JSON result into a real HTTP
@@ -244,4 +298,73 @@ fn value_to_response(value: Value) -> Response {
     };
 
     (status, headers, body_bytes).into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_function_url_shaped_body_is_recognized_as_internal_dispatch() {
+        assert!(is_internal_dispatch_shape(&serde_json::json!({"requestContext": {"http": {"method": "GET"}}})));
+    }
+
+    #[test]
+    fn a_bare_read_body_is_recognized_as_internal_dispatch() {
+        assert!(is_internal_dispatch_shape(&serde_json::json!({"read": true})));
+    }
+
+    #[test]
+    fn a_verb_command_body_is_recognized_as_internal_dispatch() {
+        assert!(is_internal_dispatch_shape(&serde_json::json!({"verb": "Register", "args": {}})));
+    }
+
+    #[test]
+    fn a_plain_rest_payload_is_not_internal_dispatch() {
+        assert!(!is_internal_dispatch_shape(&serde_json::json!({"email": "a@example.com"})));
+    }
+
+    #[test]
+    fn an_empty_body_is_not_internal_dispatch() {
+        assert!(!is_internal_dispatch_shape(&serde_json::json!({})));
+    }
+
+    // The exact case that was silently broken before this fix: a real
+    // REST client's plain POST, with no Function-URL wrapping at all —
+    // this must synthesize the same shape `web::render`/`checkout_route`
+    // already read behind a real Function URL, not error out on a
+    // missing "verb".
+    #[test]
+    fn synthesizes_a_function_url_envelope_from_a_real_rest_request() {
+        let method = Method::POST;
+        let uri: Uri = "/registrations?utm_source=test".parse().unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert(HeaderName::from_static("stripe-signature"), HeaderValue::from_static("t=1,v1=abc"));
+        headers.insert(HeaderName::from_static("content-type"), HeaderValue::from_static("application/json"));
+        let body = Bytes::from_static(br#"{"event_id":"ci-verification-test"}"#);
+
+        let envelope = synthesize_function_url_envelope(&method, &uri, &headers, &body);
+
+        assert_eq!(envelope["requestContext"]["http"]["method"], "POST");
+        assert_eq!(envelope["rawPath"], "/registrations");
+        assert_eq!(envelope["rawQueryString"], "utm_source=test");
+        assert_eq!(envelope["headers"]["stripe-signature"], "t=1,v1=abc");
+        assert_eq!(envelope["headers"]["content-type"], "application/json");
+        assert_eq!(envelope["body"], r#"{"event_id":"ci-verification-test"}"#);
+        assert_eq!(envelope["isBase64Encoded"], false);
+        assert!(is_internal_dispatch_shape(&envelope), "the synthesized envelope must itself be recognized on a second pass");
+    }
+
+    #[test]
+    fn synthesizes_an_empty_query_string_when_the_request_has_none() {
+        let method = Method::GET;
+        let uri: Uri = "/login".parse().unwrap();
+        let headers = HeaderMap::new();
+        let body = Bytes::new();
+
+        let envelope = synthesize_function_url_envelope(&method, &uri, &headers, &body);
+
+        assert_eq!(envelope["rawQueryString"], "");
+        assert_eq!(envelope["body"], "");
+    }
 }
