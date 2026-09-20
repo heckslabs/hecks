@@ -35,13 +35,36 @@ module Hecks
       #
       # ## What this assumes, and does not build
       #
-      # `rust/host` running as a long-lived HTTP server on this domain's
-      # own `port`, rather than as a Lambda custom-runtime process
-      # (`bootstrap`, `Lambda`'s own binary), is a real, separate
-      # capability this target assumes exists — not one this generator
-      # builds. The generated `ContainerDefinitions` and target group both
-      # assume the container answers plain HTTP on `port`; wiring that
-      # serve loop into `rust/host/src/main.rs` is future, undone work.
+      # `rust/host` runs as a long-lived HTTP server on this domain's own
+      # `port` here, not as a Lambda custom-runtime process (`bootstrap`,
+      # `Lambda`'s own binary): `HECKS_SERVE_MODE: "1"` (below, in
+      # `ContainerDefinitions[0].Environment`) is `rust/host/src/main.rs`'s
+      # own top-of-`main` switch into `server.rs`'s axum-based server,
+      # which answers this stack's own `GET /` health check with a bare,
+      # dispatch-free `200` and routes every other request through the
+      # same per-invocation dispatch logic the Lambda target's `bootstrap`
+      # binary already runs — see `server.rs`'s own header for the
+      # concurrency reasoning (the boot-time Postgres client is already
+      # `Arc<Mutex<...>>`-shared, and already anticipated exactly this,
+      # per `dispatch.rs`'s own comment on `handle`'s locking).
+      #
+      # **Still assumed, not built here**: the generated `Dockerfile`'s
+      # own `COPY` and the generated Makefile's own `build:` target ship
+      # nothing but the compiled `#{domain_name}-host` binary — no
+      # `.wasm`/`.ir.json` sidecar, and no `HECKS_WASM_PATH`/
+      # `HECKS_IR_PATH` `Environment` entry pointing at one. `main.rs`
+      # requires both unconditionally at boot (`ir::ir().ok_or(...)?`,
+      # no fallback), so a container built exactly as this module
+      # generates it today fails at that line before ever reaching
+      # `HECKS_SERVE_MODE`'s own branch — the identical, already-known
+      # `HECKS_IR_PATH` gap `checkout.rs`'s own header documents for
+      # `Lambda`'s `web "None"` case (confirmed live: `deploy/banking/
+      # template.yaml` carries `HECKS_WASM_PATH` but no `HECKS_IR_PATH`
+      # either), not a new one this module introduces. Packaging the
+      # compiled dispatch artifact alongside the binary is a real,
+      # separate task (a Dockerfile/Makefile change, not a `rust/host`
+      # one) — flagged plainly here rather than silently discovered and
+      # dropped, not fixed in this pass.
       module Fargate
         extend Projector::Target
 
@@ -360,17 +383,25 @@ module Hecks
                           Value: "1"
                         - Name: PORT
                           Value: "#{port}"
+                        # `rust/host/src/server.rs`'s own top-of-`main`
+                        # switch — without it, this container runs as the
+                        # Lambda custom-runtime process `Lambda`'s own
+                        # generated binary always has, which blocks
+                        # forever polling a Runtime API that doesn't exist
+                        # here, never answering the health check or
+                        # anything else on `port`.
+                        - Name: HECKS_SERVE_MODE
+                          Value: "1"
                         # `web "Rust"` vs `web "None"` is otherwise inert
                         # here today — both modes generate the identical
                         # task/service/target-group shape, since a Fargate
                         # task always answers HTTP on `port` for dispatch
                         # requests either way. Passed through so
-                        # `rust/host`'s own future long-lived server loop
-                        # (this module's own header names the gap) can read
-                        # it and decide whether to also serve the public
-                        # web UI in-process, the same `web`-shaped choice
-                        # `Lambda`'s own `rust_web` already makes for the
-                        # Lambda path.
+                        # `rust/host`'s own server loop (server.rs) can
+                        # read it and decide whether to also serve the
+                        # public web UI in-process, the same `web`-shaped
+                        # choice `Lambda`'s own `rust_web` already makes
+                        # for the Lambda path.
                         - Name: HECKS_WEB
                           Value: #{target.state[:web].value}
                         # TMPL:db_env

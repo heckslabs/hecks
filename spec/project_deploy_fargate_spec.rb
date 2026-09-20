@@ -107,6 +107,17 @@ RSpec.describe "bin/project_deploy — deployed_to(\"AwsFargate\")", :io do
     expect(container["PortMappings"]).to eq([{ "ContainerPort" => 8080 }])
   end
 
+  it "sets HECKS_SERVE_MODE and PORT so rust/host boots into its axum server, not the Lambda runtime loop" do
+    files = generate(valid_fargate_world)
+    doc = YAML.safe_load(files["template.yaml"], permitted_classes: [], aliases: true)
+    task_definition = doc["Resources"].values.find { |resource| resource["Type"] == "AWS::ECS::TaskDefinition" }
+    container = task_definition["Properties"]["ContainerDefinitions"].first
+    env = container["Environment"].to_h { |entry| [entry["Name"], entry["Value"]] }
+
+    expect(env["HECKS_SERVE_MODE"]).to eq("1")
+    expect(env["PORT"]).to eq("8080")
+  end
+
   it "generates a Dockerfile exposing the domain's own port and running its own binary" do
     files = generate(valid_fargate_world)
 

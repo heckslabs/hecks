@@ -31,6 +31,7 @@ mod presentation_write;
 mod reference_transform;
 mod reference_validate;
 mod secrets;
+mod server;
 mod storage_shape;
 mod ui_schema;
 mod wasm_runner;
@@ -43,6 +44,18 @@ use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    // HECKS_SERVE_MODE=1 — read here, at the very top, before any of the
+    // boot work below runs: `serve_mode`'s own value never changes what
+    // that boot work does (server.rs's own header — every step from here
+    // down through the era-minting sequence is shared, unchanged, by
+    // both modes), only which of the two loops at the bottom of this
+    // function ever receives the finished boot state. Set by
+    // `fargate.rb`'s own generated container `Environment` — unset (or
+    // anything but "1") keeps this binary running as the Lambda
+    // custom-runtime process it always has, which is what every
+    // existing deployed Lambda still expects.
+    let serve_mode = std::env::var("HECKS_SERVE_MODE").as_deref() == Ok("1");
+
     // DB_SECRET_ARN — bin/project_deploy's own default now (template.yaml's
     // Environment.Variables comment has the full story): the password
     // itself is fetched from Secrets Manager here, at cold start, over
@@ -410,6 +423,27 @@ async fn main() -> Result<(), Error> {
     // sandbox, structurally).
     let invoker = Arc::new(lambda_client::AwsLambdaInvoker::from_env().await);
 
+    // `role` -- optional, mirroring `args`: `Adapters::Lambda::Client#
+    // dispatch` (Ruby) only puts this key on the wire when a caller is
+    // actually bound (`payload["role"] = role if role`), so an absent
+    // key means exactly what it always has -- no caller asserted a
+    // role, and `dispatch::handle`'s own `check_role` stays on its
+    // unchecked path, unchanged. This is the fix for a real wiring gap,
+    // not new behavior: `check_role` (kernel/repository.rs) and
+    // `cli.rs`'s own `step.get("role")` were both already correct and
+    // already exercised (the cross-Lambda-policy-dispatch work reused
+    // this same mechanism successfully) -- but nothing on this side of
+    // the wire ever read an incoming event's `"role"` field at all, so
+    // every real Lambda invocation reached `check_role` with
+    // `caller_role: None` regardless of what Ruby's client actually
+    // sent, and role-based authorization was silently unreachable in
+    // production. `server::dispatch_body` (shared with the Fargate
+    // server path below) is where this is actually read now.
+    if serve_mode {
+        let state = server::ServerState { client, wasm_path, lineage_config, invoker };
+        return server::serve(state).await;
+    }
+
     lambda_runtime::run(service_fn(move |event: LambdaEvent<serde_json::Value>| {
         let client = Arc::clone(&client);
         let wasm_path = Arc::clone(&wasm_path);
@@ -417,104 +451,7 @@ async fn main() -> Result<(), Error> {
         let invoker = Arc::clone(&invoker);
         async move {
             let (body, _context) = event.into_parts();
-
-            // A Function-URL HTTP event (requestContext.http/rawPath
-            // present) -- the public web UI, served in-process, no
-            // second Lambda. `None` for anything else (the internal
-            // {"read"}/{"verb"} shapes below), so this changes nothing
-            // for a domain with no HECKS_IR_PATH configured.
-            if let Some(response) = web::render(&body, &client, &wasm_path, &lineage_config, invoker.as_ref()).await {
-                return Ok::<serde_json::Value, Error>(response);
-            }
-
-            if body.get("read").and_then(|v| v.as_bool()) == Some(true) {
-                // `{e:#}` — anyhow's alternate Display walks `source()`,
-                // which is the only way a `tokio_postgres` database
-                // error says anything at all: its own Display is the
-                // bare string "db error", and the real message
-                // ("relation ... does not exist") hangs off the chain.
-                // Without this a real outage reached CloudWatch as
-                // `{"errorMessage": "db error"}` and nothing else.
-                let result = dispatch::read(&client, &wasm_path).await.map_err(|e| format!("{e:#}"))?;
-                return Ok::<serde_json::Value, Error>(result);
-            }
-
-            let verb = body
-                .get("verb")
-                .and_then(|v| v.as_str())
-                .ok_or("event missing \"verb\"")?
-                .to_string();
-            // `"role"` -- optional, mirroring `args` immediately above:
-            // `Adapters::Lambda::Client#dispatch` (Ruby) only puts this
-            // key on the wire when a caller is actually bound
-            // (`payload["role"] = role if role`), so an absent key here
-            // means exactly what it always has -- no caller asserted a
-            // role, and `dispatch::handle`'s own `check_role` stays on
-            // its unchecked path, unchanged. This is the fix for a real
-            // wiring gap, not new behavior: `check_role`
-            // (kernel/repository.rs) and `cli.rs`'s own
-            // `step.get("role")` were both already correct and already
-            // exercised (the cross-Lambda-policy-dispatch work reused
-            // this same mechanism successfully) -- but nothing on this
-            // side of the wire ever read an incoming event's `"role"`
-            // field at all, so every real Lambda invocation reached
-            // `check_role` with `caller_role: None` regardless of what
-            // Ruby's client actually sent, and role-based authorization
-            // was silently unreachable in production.
-            let role = body
-                .get("role")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-
-            let outcome = if let Some(to) = body.get("to").cloned() {
-                if body.get("args").is_some() {
-                    return Err::<serde_json::Value, Error>("cannot combine to/with with legacy args".into());
-                }
-                let facts = body.get("with").cloned().unwrap_or_else(|| serde_json::json!({}));
-                dispatch::handle_routed(
-                    &client,
-                    &wasm_path,
-                    &verb,
-                    to,
-                    facts,
-                    role.as_deref(),
-                    &lineage_config,
-                    invoker.as_ref(),
-                )
-                .await
-                .map_err(|e| format!("{e:#}"))?
-            } else if let Some(facts) = body.get("with").cloned() {
-                if body.get("args").is_some() {
-                    return Err::<serde_json::Value, Error>(
-                        "cannot combine \"with\" with legacy args".into(),
-                    );
-                }
-                dispatch::handle_facts(
-                    &client,
-                    &wasm_path,
-                    &verb,
-                    facts,
-                    role.as_deref(),
-                    &lineage_config,
-                    invoker.as_ref(),
-                )
-                .await
-                .map_err(|e| format!("{e:#}"))?
-            } else {
-                let args = body.get("args").cloned().unwrap_or_else(|| serde_json::json!({}));
-                dispatch::handle(
-                    &client,
-                    &wasm_path,
-                    &verb,
-                    args,
-                    role.as_deref(),
-                    &lineage_config,
-                    invoker.as_ref(),
-                )
-                .await
-                .map_err(|e| format!("{e:#}"))?
-            };
-            Ok::<serde_json::Value, Error>(outcome.result)
+            server::dispatch_body(body, &client, &wasm_path, &lineage_config, invoker.as_ref()).await
         }
     }))
     .await
