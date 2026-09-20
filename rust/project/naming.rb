@@ -5,8 +5,24 @@ module RustProjection
   module Projector
     module_function
 
-    SCALAR     = { "String" => "String", "Integer" => "i64", "Float" => "f64" }.freeze
-    SCALAR_KIND = { "String" => :string, "Integer" => :int, "Float" => :float }.freeze
+    # `TrueClass`/`FalseClass`, not a single "Boolean" — Ruby has no
+    # unified boolean class, so a bluebook attribute meaning "true or
+    # false" is declared with one or the other verbatim (this DSL never
+    # requires a value to actually match its own declared class —
+    # `false` is a legal value for an attribute typed `TrueClass`, the
+    # same way it already is for Ruby's own `case/when TrueClass`).
+    # Missing here until lifeadelics' own `Attendee.news_signup`/
+    # `previous_sessions`/`first_time` (`attribute :x, TrueClass`) —
+    # confirmed live, `pub news_signup: TrueClass` emitted verbatim into
+    # generated Rust and refusing to compile — because no domain in this
+    # repo's own corpus had ever declared a bare boolean attribute
+    # before; `query_scalar_or_vo_kind` (queries.rb) and `Synthesizer`
+    # already special-case both names for their own purposes, this table
+    # just never gained the matching entry.
+    SCALAR = { "String" => "String", "Integer" => "i64", "Float" => "f64",
+                   "TrueClass" => "bool", "FalseClass" => "bool" }.freeze
+    SCALAR_KIND = { "String" => :string, "Integer" => :int, "Float" => :float,
+                     "TrueClass" => :bool, "FalseClass" => :bool }.freeze
 
     # `Reference<X>` is not a scalar per the IR's own vocabulary, but it
     # behaves like one for codegen purposes: aggregates-and-value-objects.md's
@@ -145,6 +161,7 @@ module RustProjection
     RUST_UNESCAPABLE_KEYWORDS = %w[crate self super Self].freeze
 
     def rust_field(name) = name.to_s
+
     def rust_ident_field(name)
       field = rust_field(name)
       if RUST_UNESCAPABLE_KEYWORDS.include?(field)
@@ -193,6 +210,7 @@ module RustProjection
       when "String"  then "Value::Str(#{rust_expr}.clone())"
       when "Integer" then "Value::Int(#{rust_expr})"
       when "Float"   then "Value::Float(#{rust_expr})"
+      when "TrueClass", "FalseClass" then "Value::Bool(#{rust_expr})"
       end
     end
 
@@ -243,25 +261,24 @@ module RustProjection
         "#{name}::#{closed_set_variant(row)} => #{rust_string_literal(raw.to_s)}.to_string(),"
       end.join(" ")
 
-      "impl crate::kernel::Fielded for #{name} {\n" \
-        "    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {\n" \
-        "        use crate::kernel::{Field, Value};\n" \
-        "        match name {\n" \
-        "            \"value\" => Some(Field::Value(Value::Str(match self { #{arms} }))),\n" \
-        "            _ => None,\n" \
-        "        }\n" \
-        "    }\n" \
-        "    fn as_scalar(&self) -> Option<crate::kernel::Value> {\n" \
-        "        match self.field(\"value\") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }\n" \
-        "    }\n" \
+      "impl crate::kernel::Fielded for #{name} {\n    " \
+        "fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {\n        " \
+        "use crate::kernel::{Field, Value};\n        " \
+        "match name {\n            " \
+        "\"value\" => Some(Field::Value(Value::Str(match self { #{arms} }))),\n            " \
+        "_ => None,\n        " \
+        "}\n    " \
+        "}\n    " \
+        "fn as_scalar(&self) -> Option<crate::kernel::Value> {\n        " \
+        "match self.field(\"value\") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }\n    " \
+        "}\n" \
         "}"
     end
 
     def literal_rhs(literal)
       case literal
-      when String        then "#{rust_string_literal(literal)}.to_string()"
-      when Integer, Float then literal.to_s
-      when true, false     then literal.to_s
+      when String then "#{rust_string_literal(literal)}.to_string()"
+      when Integer, Float, true, false then literal.to_s
       else raise "unsupported literal mutation source #{literal.inspect} — not one of String/Integer/Float/Boolean"
       end
     end

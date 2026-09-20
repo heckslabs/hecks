@@ -1,0 +1,844 @@
+{
+  "ir_version": 1,
+  "name": "Lifeadelics",
+  "version": null,
+  "vision": "Every Experience session on the calendar, and every registration's road from intent to a confirmed, paid seat.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Event",
+      "description": "One scheduled session of an Experience — Yogadelics, Hikeadelics, and so on — with a price and a seat count.",
+      "identified_by": [
+        "slug.value"
+      ],
+      "attributes": [
+        {
+          "name": "slug",
+          "type": "Slug",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "name",
+          "type": "EventName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "price",
+          "type": "Money",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "capacity",
+          "type": "Capacity",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Slug",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an event has a slug",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Money",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a price is never negative",
+              "canonical": "cents >= 0",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "EventName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an event has a name",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Capacity",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a session needs at least one seat",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Schedule",
+          "role": "Organizer",
+          "goal": "Put a new session of an Experience on the calendar",
+          "references": null,
+          "attributes": [
+            {
+              "name": "slug",
+              "type": "Slug",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "name",
+              "type": "EventName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "price",
+              "type": "Money",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "capacity",
+              "type": "Capacity",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "EventScheduled"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Close",
+          "role": "Organizer",
+          "goal": "Stop taking new registrations for this session",
+          "references": "Event",
+          "attributes": [],
+          "givens": [
+            {
+              "description": "an open session can be closed",
+              "canonical": "status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "EventClosed"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Close",
+            "to_state": "closed",
+            "from_state": "open"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Registration",
+      "description": "One person's road from intent to attend an Event — who's coming, not whether they've paid (that's Payments::Payment, same reference).",
+      "identified_by": [
+        "registration_id.value"
+      ],
+      "attributes": [
+        {
+          "name": "event_slug",
+          "type": "Reference<Event>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "registration_id",
+          "type": "RegistrationId",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "attendee",
+          "type": "Attendee",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "RegistrationId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a registration is identified",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Attendee",
+          "attributes": [
+            {
+              "name": "first_name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "last_name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "email",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "phone",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "news_signup",
+              "type": "TrueClass",
+              "list": false,
+              "default": false,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "previous_sessions",
+              "type": "TrueClass",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "first_time",
+              "type": "TrueClass",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "how_heard",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "medications",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "health_concerns",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aim",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "notes",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an attendee has a first name",
+              "canonical": "!first_name.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "first_name"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "an attendee has a last name",
+              "canonical": "!last_name.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "last_name"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "an attendee has an email",
+              "canonical": "!email.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "email"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "an attendee has a phone number",
+              "canonical": "!phone.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "phone"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "an attendee has answered whether they've done sessions before",
+              "canonical": "!previous_sessions.nil?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "lookup",
+                  "path": [
+                    "previous_sessions",
+                    "nil?"
+                  ]
+                }
+              }
+            },
+            {
+              "description": "an attendee has answered whether this is their first time",
+              "canonical": "!first_time.nil?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "lookup",
+                  "path": [
+                    "first_time",
+                    "nil?"
+                  ]
+                }
+              }
+            },
+            {
+              "description": "an attendee says how they heard about the event",
+              "canonical": "!how_heard.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "how_heard"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "an attendee says what they hope to get out of attending",
+              "canonical": "!aim.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "aim"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Request",
+          "role": "Guest",
+          "goal": "Register intent to attend an Event — the Payment sharing this same reference is what actually tracks payment",
+          "references": null,
+          "attributes": [
+            {
+              "name": "event_slug",
+              "type": "Reference<Event>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "registration_id",
+              "type": "RegistrationId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "attendee",
+              "type": "Attendee",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "RegistrationRequested"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+      {
+        "name": "Event",
+        "storage_name": "event"
+      },
+      {
+        "name": "Registration",
+        "storage_name": "registration"
+      }
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Event",
+        "storage_name": "event",
+        "adapter": "PostgresEra"
+      },
+      {
+        "name": "Registration",
+        "storage_name": "registration",
+        "adapter": "PostgresEra"
+      }
+    ]
+  },
+  "authorization": {
+    "provider": "Governance",
+    "grant": "Governance::RoleAssignment.Assign",
+    "assignments": "Governance::RoleAssignment.AssignmentsForActor",
+    "assignment_aggregate": "Governance::RoleAssignment"
+  },
+  "translations": [
+    {
+      "domain": "Lifeadelics",
+      "from": "2883e2",
+      "to": "fd91d7",
+      "retired": [],
+      "aggregates": [
+        {
+          "name": "Registration",
+          "was": null,
+          "renames": {},
+          "moves": [],
+          "converts": [],
+          "drops": [
+            "attendee.name"
+          ],
+          "retypes": [],
+          "computes": [],
+          "rekeys": [],
+          "backfills": [
+            {
+              "name": "attendee.first_name",
+              "default": "(no data — predates the intake-form redesign)"
+            },
+            {
+              "name": "attendee.last_name",
+              "default": "(no data — predates the intake-form redesign)"
+            },
+            {
+              "name": "attendee.phone",
+              "default": "(no data — predates the intake-form redesign)"
+            },
+            {
+              "name": "attendee.how_heard",
+              "default": "(no data — predates the intake-form redesign)"
+            },
+            {
+              "name": "attendee.aim",
+              "default": "(no data — predates the intake-form redesign)"
+            },
+            {
+              "name": "attendee.previous_sessions",
+              "default": false
+            },
+            {
+              "name": "attendee.first_time",
+              "default": false
+            }
+          ],
+          "compiled_state_expression": "(SELECT CASE WHEN (hecks_tr_extract(__s, ARRAY['attendee', 'first_time']::text[])).present THEN __s ELSE hecks_tr_insert(__s, ARRAY['attendee', 'first_time']::text[], 'false'::jsonb, 'backfill attendee.first_time') END FROM (SELECT ((SELECT CASE WHEN (hecks_tr_extract(__s, ARRAY['attendee', 'previous_sessions']::text[])).present THEN __s ELSE hecks_tr_insert(__s, ARRAY['attendee', 'previous_sessions']::text[], 'false'::jsonb, 'backfill attendee.previous_sessions') END FROM (SELECT ((SELECT CASE WHEN (hecks_tr_extract(__s, ARRAY['attendee', 'aim']::text[])).present THEN __s ELSE hecks_tr_insert(__s, ARRAY['attendee', 'aim']::text[], '\"(no data — predates the intake-form redesign)\"'::jsonb, 'backfill attendee.aim') END FROM (SELECT ((SELECT CASE WHEN (hecks_tr_extract(__s, ARRAY['attendee', 'how_heard']::text[])).present THEN __s ELSE hecks_tr_insert(__s, ARRAY['attendee', 'how_heard']::text[], '\"(no data — predates the intake-form redesign)\"'::jsonb, 'backfill attendee.how_heard') END FROM (SELECT ((SELECT CASE WHEN (hecks_tr_extract(__s, ARRAY['attendee', 'phone']::text[])).present THEN __s ELSE hecks_tr_insert(__s, ARRAY['attendee', 'phone']::text[], '\"(no data — predates the intake-form redesign)\"'::jsonb, 'backfill attendee.phone') END FROM (SELECT ((SELECT CASE WHEN (hecks_tr_extract(__s, ARRAY['attendee', 'last_name']::text[])).present THEN __s ELSE hecks_tr_insert(__s, ARRAY['attendee', 'last_name']::text[], '\"(no data — predates the intake-form redesign)\"'::jsonb, 'backfill attendee.last_name') END FROM (SELECT ((SELECT CASE WHEN (hecks_tr_extract(__s, ARRAY['attendee', 'first_name']::text[])).present THEN __s ELSE hecks_tr_insert(__s, ARRAY['attendee', 'first_name']::text[], '\"(no data — predates the intake-form redesign)\"'::jsonb, 'backfill attendee.first_name') END FROM (SELECT (hecks_tr_drop(state, ARRAY['attendee', 'name']::text[])) AS __s) __outer)) AS __s) __outer)) AS __s) __outer)) AS __s) __outer)) AS __s) __outer)) AS __s) __outer)) AS __s) __outer)",
+          "compiled_id_expression": null
+        }
+      ]
+    }
+  ],
+  "source_text": "Hecks.bluebook \"Lifeadelics\" do\n  vision \"Every Experience session on the calendar, and every registration's road from intent to a confirmed, paid seat.\"\n  core\n\n  aggregate \"Event\" do\n    description \"One scheduled session of an Experience — Yogadelics, Hikeadelics, and so on — with a price and a seat count.\"\n\n    identified_by :slug\n\n    value_object \"Slug\" do\n      attribute :value, String\n      invariant(\"an event has a slug\") { !value.to_s.empty? }\n    end\n\n    value_object \"Money\" do\n      attribute :cents, Integer\n      invariant(\"a price is never negative\") { cents >= 0 }\n    end\n\n    value_object \"EventName\" do\n      attribute :value, String\n      invariant(\"an event has a name\") { !value.to_s.empty? }\n    end\n\n    value_object \"Capacity\" do\n      attribute :value, Integer\n      invariant(\"a session needs at least one seat\") { value.positive? }\n    end\n\n    attribute :slug,     Slug\n    attribute :name,     EventName\n    attribute :price,    Money\n    attribute :capacity, Capacity\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"closed\", from: \"open\"\n    end\n\n    command \"Schedule\" do\n      role \"Organizer\"\n      goal \"Put a new session of an Experience on the calendar\"\n\n      attribute :slug,     Slug\n      attribute :name,     EventName\n      attribute :price,    Money\n      attribute :capacity, Capacity\n\n      emits \"EventScheduled\"\n    end\n\n    command \"Close\" do\n      role \"Organizer\"\n      goal \"Stop taking new registrations for this session\"\n\n      reference_to Event\n\n      given(\"an open session can be closed\") { status == \"open\" }\n\n      emits \"EventClosed\"\n    end\n  end\n\n  # WHAT WAS REGISTERED FOR, not the calendar entry itself, and not\n  # whether it's PAID FOR either, not anymore — Event owns the price and\n  # capacity; Registration owns WHO is coming; Payments::Payment\n  # (embryonaut_bluebooks, vendored — lifeadelics.hecksagon's own\n  # uses_embryonaut_bluebook \"payments\") owns whether money actually\n  # arrived. A registration and its payment share ONE reference —\n  # `registration_id` IS the Payment's own `reference`, minted once by\n  # whoever creates both (adapters/http_server.rb's POST /registrations)\n  # — so \"is this registration paid for\" is answered by asking Payment\n  # (`Payment.find(registration.id).status`), never stored here.\n  #\n  # USED TO TRACK ITS OWN pending/confirmed/declined, with ConfirmReceipt/\n  # RejectPayment reached through a PaymentGateway port's own Receive/\n  # Decline (RegistrationPaymentReceived/Declined) — removed wholesale,\n  # not deprecated: Payment already carries a full settle/refund/dispute\n  # lifecycle (Succeed/Fail/Refund/CompleteRefund/DeclineRefund/\n  # OpenDispute/WinDispute/Chargeback) this aggregate would otherwise be\n  # duplicating one state at a time, permanently behind (no refund\n  # tracking here ever existed; Payment's did from day one).\n  aggregate \"Registration\" do\n    description \"One person's road from intent to attend an Event — who's coming, not whether they've paid (that's Payments::Payment, same reference).\"\n\n    identified_by :registration_id\n\n    value_object \"RegistrationId\" do\n      attribute :value, String\n      invariant(\"a registration is identified\") { !value.to_s.empty? }\n    end\n\n    # GREW TO MATCH THE REAL INTAKE FORM (badass-coaching.net's own\n    # registration-yoga form, the questions asked when registering for\n    # a real event) — `medications`/`health_concerns` are the two\n    # fields a deployment-time `Privacy::Mark` (this bluebook never\n    # states it itself — see lifeadelics.hecksagon's own `uses_framework\n    # \"Privacy\"`) flags PHI; every other field is ordinary intake, not\n    # sensitive.\n    value_object \"Attendee\" do\n      attribute :first_name,        String\n      attribute :last_name,         String\n      attribute :email,             String\n      attribute :phone,             String\n      attribute :news_signup,       TrueClass, default: false\n      attribute :previous_sessions, TrueClass\n      attribute :first_time,        TrueClass\n      attribute :how_heard,         String\n      attribute :medications,       String, optional: true\n      attribute :health_concerns,   String, optional: true\n      attribute :aim,               String\n      attribute :notes,             String, optional: true\n\n      invariant(\"an attendee has a first name\") { !first_name.to_s.empty? }\n      invariant(\"an attendee has a last name\") { !last_name.to_s.empty? }\n      invariant(\"an attendee has an email\") { !email.to_s.empty? }\n      invariant(\"an attendee has a phone number\") { !phone.to_s.empty? }\n      invariant(\"an attendee has answered whether they've done sessions before\") { !previous_sessions.nil? }\n      invariant(\"an attendee has answered whether this is their first time\") { !first_time.nil? }\n      invariant(\"an attendee says how they heard about the event\") { !how_heard.to_s.empty? }\n      invariant(\"an attendee says what they hope to get out of attending\") { !aim.to_s.empty? }\n    end\n\n    reference_to Event, as: :event_slug\n\n    attribute :registration_id, RegistrationId\n    attribute :attendee,        Attendee\n\n    command \"Request\" do\n      role \"Guest\"\n      goal \"Register intent to attend an Event — the Payment sharing this same reference is what actually tracks payment\"\n\n      reference_to Event, as: :event_slug\n      attribute :registration_id, RegistrationId\n      attribute :attendee,        Attendee\n\n      emits \"RegistrationRequested\"\n    end\n  end\nend\n"
+}

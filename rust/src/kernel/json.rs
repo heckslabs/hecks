@@ -268,6 +268,19 @@ impl Json {
         }
     }
 
+    /// `rust/project/json_codec.rb`'s `SCALAR_JSON_ACCESSOR` entry for a
+    /// `TrueClass`/`FalseClass`-typed attribute — same shape as
+    /// `as_str`/`as_i64`/`as_f64` above, added alongside them (this
+    /// crate had a `Bool` variant for the CLI's own `{"ok": ...}`
+    /// replies from the start, but nothing had ever generated code that
+    /// needed to read one back out of a domain field before).
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Json::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
     pub fn as_array(&self) -> Option<&[Json]> {
         match self {
             Json::Array(items) => Some(items),

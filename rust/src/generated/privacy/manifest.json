@@ -1,0 +1,46 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Privacy::Marking",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Privacy::Marking.Mark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Privacy::Marking.Unmark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Privacy::SubjectKey",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Privacy::SubjectKey.Issue",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Privacy::SubjectKey.Shred",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Privacy::Marking.ForDomain",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Privacy::SubjectKey.ForSubject",
+    "generated": true
+  }
+]

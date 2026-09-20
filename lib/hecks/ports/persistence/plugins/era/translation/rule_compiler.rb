@@ -54,6 +54,21 @@ module Hecks
         declared.computes.each do |compute|
           expression = compile_compute(expression, compute)
         end
+        # Backfills last, same order `Lineage#translate` already applies
+        # in-process (that method's own comment: "only where nothing
+        # already answered") — now compiled here too, closing the gap
+        # this rule kind otherwise leaves: `rust/host`'s boot-time mint
+        # audit reads this exact compiled expression, never
+        # `Lineage#translate`, so it cannot see a backfilled value unless
+        # backfills compile to SQL like every other rule kind here. A
+        # real, live gap for any new required value-object member with no
+        # source data at all — `compute` cannot fill it either, since its
+        # own guard requires a real, already-present field to consume
+        # (found live: lifeadelics' Attendee redesign, commit 4326dcd,
+        # needed exactly this and had nothing that worked).
+        declared.backfills.each do |backfill|
+          expression = compile_backfill(expression, backfill)
+        end
         expression
       end
 
@@ -122,6 +137,32 @@ module Hecks
           "ELSE __s END " \
           "FROM (SELECT (#{expression}) AS __s) __outer, " \
           "LATERAL (SELECT (__s ->> #{text_literal(from)}) AS #{quote(from)}) __fields)"
+      end
+
+      # A newly added, required attribute with no source at all — the
+      # addition-side sibling of `compile_compute`'s own header, but with
+      # no field to consume: `hecks_tr_extract`'s own `.present` flag
+      # (already installed for `hecks_tr_drop`/`hecks_tr_move`/
+      # `hecks_tr_convert` — no new database function needed) answers
+      # "is this path — bare or a dotted value-object member alike —
+      # already there," and `hecks_tr_insert` (already merge-safe: it
+      # creates a missing intermediate container without disturbing any
+      # sibling member already in it) fills it only when it is not, the
+      # exact "never overwrites a value already there" rule `Lineage#
+      # translate`'s own in-process backfill already holds itself to.
+      #
+      # @param expression [String] the SQL expression built so far by `compile_rules`, read as
+      #   `__s` inside this backfill's own check
+      # @param backfill [Bluebook::TranslationBackfill] the declared backfill rule
+      # @return [String] `expression` wrapped so the backfill's default lands at its declared
+      #   path when nothing is there yet, unchanged otherwise
+      def compile_backfill(expression, backfill)
+        name = backfill.name.to_s
+        default_json = JSON.generate(backfill.default)
+        "(SELECT CASE WHEN (hecks_tr_extract(__s, #{path_literal(name)})).present THEN __s " \
+          "ELSE hecks_tr_insert(__s, #{path_literal(name)}, #{text_literal(default_json)}::jsonb, " \
+          "#{text_literal("backfill #{name}")}) END " \
+          "FROM (SELECT (#{expression}) AS __s) __outer)"
       end
 
       # `PG::Connection.quote_ident` needs the `pg` gem loaded, not

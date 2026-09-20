@@ -21,7 +21,8 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
   end
 
   it "sends every generated module to exactly one bucket" do
-    buckets = features + corpus.rust_framework_chapters + corpus.rust_vendored_chapters + corpus::RUST_ELSEWHERE.keys
+    buckets = features + corpus.rust_framework_chapters + corpus.rust_vendored_chapters +
+              corpus.rust_external_vendored_chapters + corpus::RUST_ELSEWHERE.keys
     expect(buckets.tally.select { |_, count| count > 1 }.keys).to be_empty
     expect(corpus.generated_modules.sort).to eq(buckets.sort)
   end
@@ -41,8 +42,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
   end
 
   it "attaches every framework chapter through some Rust domain's hecksagon" do
-    hecksagons = corpus.rust_domains.flat_map { |domain| Dir.glob(File.join(domain.dir, "**", "*.hecksagon")) }
-                       .map { |path| File.read(path) }.join("\n")
+    hecksagons = corpus.rust_attachment_hecksagon_text
     corpus.rust_framework_chapters.each do |stem|
       chapter = corpus.chapter_name_of(File.join(root, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
       expect(hecksagons).to match(/^\s*uses_framework\s+"#{chapter}"/), stem
@@ -55,14 +55,27 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
   # bluebook header instead of a fixed `lib/hecks/framework/bluebook/`
   # path.
   it "attaches every vendored chapter through some Rust domain's hecksagon" do
-    hecksagons = corpus.rust_domains.flat_map { |domain| Dir.glob(File.join(domain.dir, "**", "*.hecksagon")) }
-                       .map { |path| File.read(path) }.join("\n")
+    hecksagons = corpus.rust_attachment_hecksagon_text
     vendored_by_stem = corpus.members(:vendored).to_h { |member| [member.stem, member] }
     corpus.rust_vendored_chapters.each do |stem|
       member = vendored_by_stem.fetch(stem)
       chapter = corpus.chapter_name_of(corpus.bluebook_files(member.path))
       expect(hecksagons).to match(/^\s*uses_embryonaut_bluebook\s+"#{stem}"/), stem
       expect(chapter).to eq(Hecks::Naming.pascal(stem)), "#{member.path}: chapter #{chapter.inspect} != #{Hecks::Naming.pascal(stem).inspect}"
+    end
+  end
+
+  # Same proof, an external RUST_ELSEWHERE domain's own vendored chapter
+  # — `members(:vendored)` never reaches these (that glob only walks
+  # `examples/*/vendor/embryonaut_bluebooks/*`), so each one's own
+  # directory is resolved from RUST_EXTERNAL_VENDORED_CHAPTERS instead.
+  it "attaches every external vendored chapter through its own domain's hecksagon" do
+    hecksagons = corpus.rust_attachment_hecksagon_text
+    corpus.rust_external_vendored_chapters.each do |stem|
+      dir = corpus.rust_external_vendored_domain_dir(stem)
+      chapter = corpus.chapter_name_of(corpus.bluebook_files(dir))
+      expect(hecksagons).to match(/^\s*uses_embryonaut_bluebook\s+"#{stem}"/), stem
+      expect(chapter).to eq(Hecks::Naming.pascal(stem)), "#{dir}: chapter #{chapter.inspect} != #{Hecks::Naming.pascal(stem).inspect}"
     end
   end
 
