@@ -91,12 +91,29 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
     }
 
     // Last, and only where nothing already answered — see this file's
-    // own header on why this order is load-bearing.
+    // own header on why this order is load-bearing. Dotted-path aware,
+    // same as every other rule above (and `Lineage#apply_backfill`'s own
+    // identical fix): a bare top-level `contains_key`/`insert` pair is
+    // only correct for a brand-new top-level attribute. A value object
+    // gaining new required members with no source at all (lifeadelics'
+    // Attendee redesign, commit 4326dcd) needs `top.member` to actually
+    // reach inside an existing container, the same way `extract`/
+    // `insert` already do for drop/move/convert — found live: this
+    // reference port silently treated `"attendee.first_name"` as a
+    // literal, never-matching top-level key, so Layer 2 saw the compiled
+    // SQL's (correct) nested insert as a divergence from this (wrong)
+    // reference output on every backfilled path.
     if let Some(backfills) = edge_aggregate_raw.get("backfills").and_then(Value::as_array) {
         for bf in backfills {
             let Some(name) = bf.get("name").and_then(Value::as_str) else { continue };
-            if !state.contains_key(name) {
-                state.insert(name.to_string(), bf.get("default").cloned().unwrap_or(Value::Null));
+            let (top, member) = split_path(name);
+            let already_present = match member {
+                None => state.contains_key(top),
+                Some(member) => state.get(top).and_then(Value::as_object).is_some_and(|obj| obj.contains_key(member)),
+            };
+            if !already_present {
+                let default = bf.get("default").cloned().unwrap_or(Value::Null);
+                insert(&mut state, top, member, default, &format!("backfill {name}"))?;
             }
         }
     }
