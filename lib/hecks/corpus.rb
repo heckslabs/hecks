@@ -265,23 +265,27 @@ module Hecks
     Elsewhere = Struct.new(:check, :destination, :names, :why)
 
     RUST_ELSEWHERE = {
-      "meta"       => Elsewhere.new(:named_in, "spec/codegen_parity_spec.rb", "bluebook_language",
-                                    "the self-hosted grammar (lib/hecks/language), not a domain directory — every " \
-                                    "bin/project_rust run rewrites it (so the drift check diffs it), codegen parity " \
-                                    "checks it as bluebook_language, and there is no directory to fuzz"),
-      "embryonaut" => Elsewhere.new(:external, "~/Projects/embryonautfoundersapp", "embryonaut",
-                                    "an external product's domain — its bluebook, regeneration and parity are owed " \
-                                    "by its own repo; here bin/rust_coverage checks only the committed snapshot"),
+      "meta"        => Elsewhere.new(:named_in, "spec/codegen_parity_spec.rb", "bluebook_language",
+                                     "the self-hosted grammar (lib/hecks/language), not a domain directory — every " \
+                                     "bin/project_rust run rewrites it (so the drift check diffs it), codegen parity " \
+                                     "checks it as bluebook_language, and there is no directory to fuzz"),
+      "embryonaut"  => Elsewhere.new(:external, "~/Projects/embryonautfoundersapp", "embryonaut",
+                                     "an external product's domain — its bluebook, regeneration and parity are owed " \
+                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot"),
       # Lifeadelics — same external-product shape as "embryonaut" above,
       # first generated 2026-09-19 fixing a live era-shape-drift outage.
-      # Its own hecksagon is named "Domain" (not "Lifeadelics" — the
-      # chapter name lifeadelics's own bluebook happens to declare), so
-      # the generated module and Cargo feature are "domain", read off
-      # `metadata.rs`'s own stamp the same way `generated_source` reads
-      # any other module's.
+      # Its directory used to be named "domain" (a generic, collision-
+      # prone Cargo feature/module name — the chapter name is, and
+      # always was, "Lifeadelics"), so the generated module and Cargo
+      # feature were "domain" too, read off `metadata.rs`'s own stamp
+      # the same way `generated_source` reads any other module's. Fixed
+      # 2026-09-20 by renaming the directory itself
+      # (~/Projects/lifeadelics/domain -> ~/Projects/lifeadelics/
+      # lifeadelics) — the generated module and Cargo feature are
+      # "lifeadelics" now, matching every other domain's own convention.
       #
-      # Lifeadelics's domain also attaches `accounts`/`newsletter`/
-      # `payments` (its own vendored embryonaut_bluebooks packages, see
+      # Lifeadelics also attaches `accounts`/`newsletter`/`payments`
+      # (its own vendored embryonaut_bluebooks packages, see
       # RUST_EXTERNAL_VENDORED_CHAPTERS below) and `Privacy` (an in-repo
       # framework chapter, lib/hecks/framework/bluebook/privacy.bluebook,
       # generated into Rust for the first time by any domain here).
@@ -293,9 +297,9 @@ module Hecks
       # so `Privacy`'s own bucket membership (already correct — it is a
       # real in-repo framework member with no merged.rs) can still be
       # proven attached.
-      "domain"     => Elsewhere.new(:external, "~/Projects/lifeadelics", "domain",
-                                    "an external product's domain — its bluebook, regeneration and parity are owed " \
-                                    "by its own repo; here bin/rust_coverage checks only the committed snapshot")
+      "lifeadelics" => Elsewhere.new(:external, "~/Projects/lifeadelics", "lifeadelics",
+                                     "an external product's domain — its bluebook, regeneration and parity are owed " \
+                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot")
     }.freeze
 
     # Vendored embryonaut_bluebooks packages attached only by an external
@@ -308,9 +312,9 @@ module Hecks
     # same as an in-repo vendored chapter (see
     # `rust_external_vendored_domain_dir`, below).
     RUST_EXTERNAL_VENDORED_CHAPTERS = {
-      "accounts"   => "domain",
-      "newsletter" => "domain",
-      "payments"   => "domain"
+      "accounts"   => "lifeadelics",
+      "newsletter" => "lifeadelics",
+      "payments"   => "lifeadelics"
     }.freeze
 
     # Every external vendored chapter's own stem.
@@ -327,7 +331,7 @@ module Hecks
     # directly: `RUST_ELSEWHERE`'s own `destination` names the external
     # product's checkout root, not necessarily the exact directory its
     # own bluebook lives under (confirmed live against lifeadelics's own
-    # checkout: `~/Projects/lifeadelics/domain/vendor/
+    # checkout: `~/Projects/lifeadelics/lifeadelics/vendor/
     # embryonaut_bluebooks/accounts/bluebook`, one level below
     # `~/Projects/lifeadelics` itself).
     #
