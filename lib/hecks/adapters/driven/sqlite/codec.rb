@@ -9,31 +9,44 @@ module Hecks
         private
 
         def persisted_fields
-          fields = @aggregate.attributes.reject { |attribute| attribute.name == :id }.map do |attribute|
+          fields = attribute_fields
+          append_lifecycle_field!(fields)
+          append_projected_fields!(fields)
+          fields
+        end
+
+        def attribute_fields
+          @aggregate.attributes.reject { |attribute| attribute.name == :id }.map do |attribute|
             { name: attribute.name, attribute: attribute, sql_type: sql_type(attribute) }
           end
+        end
+
+        def append_lifecycle_field!(fields)
           lifecycle = @aggregate.lifecycle
-          fields << { name: lifecycle.field, attribute: nil, sql_type: "TEXT" } if lifecycle && fields.none? do |field|
-            field[:name] == lifecycle.field
-          end
-          # `projects` fields (S12, ADR 0025) are a local column too —
-          # `CommandInterpreter#seed_projected_fields`/`RebuildSweep`
-          # both write one straight into `Instance#state` the same as
-          # any other field, so a column has to exist to hold it or
-          # `save`'s own `columns =`/`values =` build (this file, not
-          # here) silently drops it on every write. No `attribute` of
-          # their own to carry (`ProjectedField` is a bare name/
-          # reference/remote_field triple, not a typed attribute) —
-          # treated as a raw scalar, same as the lifecycle field just
-          # above: every real corpus use projects a status/lifecycle
-          # string, and `encode_field`/`decode` both already pass a
-          # `attribute: nil` field through untouched, not JSON-encoded.
+          return unless lifecycle
+          return if fields.any? { |field| field[:name] == lifecycle.field }
+
+          fields << { name: lifecycle.field, attribute: nil, sql_type: "TEXT" }
+        end
+
+        # `projects` fields (S12, ADR 0025) are a local column too —
+        # `CommandInterpreter#seed_projected_fields`/`RebuildSweep`
+        # both write one straight into `Instance#state` the same as
+        # any other field, so a column has to exist to hold it or
+        # `save`'s own `columns =`/`values =` build (this file, not
+        # here) silently drops it on every write. No `attribute` of
+        # their own to carry (`ProjectedField` is a bare name/
+        # reference/remote_field triple, not a typed attribute) —
+        # treated as a raw scalar, same as the lifecycle field just
+        # above: every real corpus use projects a status/lifecycle
+        # string, and `encode_field`/`decode` both already pass a
+        # `attribute: nil` field through untouched, not JSON-encoded.
+        def append_projected_fields!(fields)
           @aggregate.projected_fields.each do |field|
             next if fields.any? { |f| f[:name] == field.name }
 
             fields << { name: field.name, attribute: nil, sql_type: "TEXT" }
           end
-          fields
         end
 
         def encode(attr, value)
@@ -65,28 +78,32 @@ module Hecks
         # key spelling every other adapter's read now produces, instead of
         # this codec's own `symbolize_names:` walk.
         def decode(row)
-          state = persisted_fields.each_with_object({}) do |field, raw_state|
-            attr = field[:attribute]
-            unless attr
-              value = row[field[:name].to_s]
-              next if value.nil? && projected_only?(field)
-
-              raw_state[field[:name]] = value
-              next
-            end
-            raw = row[attr.name.to_s]
-            raw_state[attr.name] =
-              if attr.list? || value_object?(attr)
-                raw ? JSON.parse(raw) : nil
-              else
-                # A reference lands here now, with the ordinary scalars. It holds
-                # the id of a head, which is text — `JSON.parse("acct-1")` raises,
-                # so reading it as JSON was only ever survivable while the column
-                # held an object.
-                raw
-              end
-          end
+          state = persisted_fields.each_with_object({}) { |field, raw_state| decode_field_into(raw_state, field, row) }
           Ports::Persistence::StateCodec.decode(@aggregate, state)
+        end
+
+        def decode_field_into(raw_state, field, row)
+          attr = field[:attribute]
+          return decode_untyped_field_into(raw_state, field, row) unless attr
+
+          raw_state[attr.name] = decode_typed_value(attr, row[attr.name.to_s])
+        end
+
+        def decode_untyped_field_into(raw_state, field, row)
+          value = row[field[:name].to_s]
+          return if value.nil? && projected_only?(field)
+
+          raw_state[field[:name]] = value
+        end
+
+        # A reference lands here now, with the ordinary scalars. It holds
+        # the id of a head, which is text — `JSON.parse("acct-1")` raises,
+        # so reading it as JSON was only ever survivable while the column
+        # held an object.
+        def decode_typed_value(attr, raw)
+          return raw unless attr.list? || value_object?(attr)
+
+          raw ? JSON.parse(raw) : nil
         end
 
         # A NULL `projects` column is a field never seeded, not a stored
