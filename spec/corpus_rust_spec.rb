@@ -41,7 +41,29 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     expect(corpus.rust_regen_order.last.feature).to eq(corpus.cargo_default)
   end
 
+  # Some framework chapters (Privacy, first attached tonight — see
+  # RUST_ELSEWHERE's own "lifeadelics" comment) are only ever attached
+  # through an `:external` RUST_ELSEWHERE domain's own hecksagon, on a
+  # real checkout `rust_attachment_hecksagon_text` reads directly off
+  # this machine's filesystem — never present on a real CI runner
+  # (confirmed: this exact example is `rspec_shard`'s own "skipping" on
+  # every run tonight, including main's own last merge_group run,
+  # 3ac17cdb — never once actually executed, not merely never caught
+  # failing). Skipping, not asserting, whenever an `:external`
+  # destination this repo declares isn't actually checked out here is
+  # the honest answer to "can this machine prove that": full strength
+  # on a real developer machine with every external product cloned
+  # alongside this one (this one, right now), a clear pending marker
+  # instead of a false pass or a false fail everywhere else.
+  def self.every_external_destination_checked_out?
+    Hecks::Corpus::RUST_ELSEWHERE.values.select { |route| route.check == :external }
+                                 .all? { |route| Dir.exist?(File.expand_path(route.destination)) }
+  end
+
   it "attaches every framework chapter through some Rust domain's hecksagon" do
+    unless self.class.every_external_destination_checked_out?
+      skip "an :external RUST_ELSEWHERE destination isn't checked out on this machine"
+    end
     hecksagons = corpus.rust_attachment_hecksagon_text
     corpus.rust_framework_chapters.each do |stem|
       chapter = corpus.chapter_name_of(File.join(root, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
@@ -69,7 +91,14 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
   # — `members(:vendored)` never reaches these (that glob only walks
   # `examples/*/vendor/embryonaut_bluebooks/*`), so each one's own
   # directory is resolved from RUST_EXTERNAL_VENDORED_CHAPTERS instead.
+  # By definition every stem here is external-only (see
+  # RUST_EXTERNAL_VENDORED_CHAPTERS) — skip guard, same reasoning as the
+  # framework-chapter test above, applies unconditionally to this whole
+  # example rather than per-stem.
   it "attaches every external vendored chapter through its own domain's hecksagon" do
+    unless self.class.every_external_destination_checked_out?
+      skip "an :external RUST_ELSEWHERE destination isn't checked out on this machine"
+    end
     hecksagons = corpus.rust_attachment_hecksagon_text
     corpus.rust_external_vendored_chapters.each do |stem|
       dir = corpus.rust_external_vendored_domain_dir(stem)

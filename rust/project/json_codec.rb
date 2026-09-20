@@ -262,7 +262,18 @@ module RustProjection
       # non-numeric string silently became the default instead of a
       # refusal. `match` on presence FIRST, so only the "absent" arm ever
       # reaches for the default.
-      if default
+      #
+      # `default.nil?`, not a bare `if default` — a `TrueClass`/
+      # `FalseClass` attribute's own declared default can legitimately be
+      # `false` (`Attendee#news_signup`, `default: false`), and Ruby's
+      # own truthiness treats that identically to "no default at all." A
+      # bare `if default` silently dropped every `default: false`
+      # attribute back to the required-field branch below, refusing a
+      # real command that simply omitted the key — the exact shape an
+      # unchecked HTML checkbox submits — with a `TypeMismatch` instead
+      # of filling in `false`, confirmed live against a real dispatch
+      # (`Registration.Request` with no `news_signup` key at all).
+      unless default.nil?
         return %(match v.get(#{key.inspect}) { Some(x) => x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name,
                                                                                                                    key, scalar_type, 'x')})?, None => #{literal_rhs(default)} })
       end

@@ -83,7 +83,7 @@ fn project(item: Field<'_>, path: &[&str]) -> Result<Value, Refusal> {
     let mut current = item;
     let rendered = path.join(".");
     for seg in path {
-        current = composite::step(current, seg, "find", &rendered)?;
+        current = composite::step(current, seg, "find")?;
     }
     composite::finish(current, &format!("find {{ }}.{rendered}"))
 }
