@@ -5,6 +5,22 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [1.5.1] - 2026-09-19
+
+**Fixed: `Compliance` framework member missing from the packaged gem.**
+`lib/hecks/framework/bluebook/compliance.bluebook` was a symlink out to
+`examples/compliance/bluebook/compliance.bluebook` — a symlink pointing
+outside `lib/` never survives `gem build` (RubyGems drops it, warning
+"not supported on all platforms"), so 1.5.0 as published had no
+`Compliance` at all (`Framework.members` listed only `ConsoleSettings,
+Governance, Identity, Privacy`); any real consumer's own
+`uses_framework "Compliance"` refused to boot. Fixed by swapping which
+side is the symlink: the real content now lives in `lib/` (the tree the
+gemspec actually packages), and `examples/compliance/` symlinks back to
+it, not the other way around. Verified against a real, locally-built
+gem: `compliance.bluebook` is a real 221-line file inside the unpacked
+package now, not absent.
+
 ## [1.5.0] - 2026-09-19
 
 **A new `Privacy` framework member: attribute-level sensitivity marking,
