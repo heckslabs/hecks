@@ -1,16 +1,16 @@
 //! Locating the repo root — the one piece of bookkeeping
 //! `rust/project_rust_pipeline.rb` gets for free (`ROOT = File.expand_path
-//! ("..", __dir__)`, resolved off the SCRIPT'S OWN file path, independent
+//! ("..", __dir__)`, resolved off the script's own file path, independent
 //! of whatever directory it was invoked from) that a compiled binary has
 //! to do differently: `std::env::current_exe()` would tie this crate to
 //! its own build output layout (`rust/build/target/{debug,release}/
 //! hecks-build`), fragile the moment that layout changes for any reason
-//! unrelated to this crate's own logic. Walking up from the CURRENT
-//! DIRECTORY looking for `hecks.gemspec` (a file that names the repo
+//! unrelated to this crate's own logic. Walking up from the current
+//! directory looking for `hecks.gemspec` (a file that names the repo
 //! root unambiguously and never moves) is the same technique `bundle
 //! exec`/`rspec`/`cargo` themselves already rely on for "find my project
 //! root from wherever the user happens to be standing" — robust to being
-//! invoked from the repo root OR from any subdirectory beneath it.
+//! invoked from the repo root or from any subdirectory beneath it.
 
 use std::path::{Path, PathBuf};
 

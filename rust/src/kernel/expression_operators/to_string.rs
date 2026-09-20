@@ -2,7 +2,7 @@
 // (projection.json: `.to_s`, its one member) — `Resolver::ToS`
 // (resolver.rb), read directly.
 //
-// EVERY `Value` VARIANT IS NAMED BELOW, NONE LEFT TO A WILDCARD — see
+// Every `Value` variant is named below, none left to a wildcard — see
 // `sized.rs`'s own header for why. Unlike `.empty?`/`.size`, most
 // `Value` shapes convert to a string in Ruby (`nil.to_s == ""`,
 // `3.to_s == "3"`, ...) — `Str`/`Int`/`Float`/`Bool` (the "scalar"

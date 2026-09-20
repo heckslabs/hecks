@@ -1,5 +1,5 @@
 //! Mirrors a query's `where` comparator splitting — `where(balance: {gte:
-//! 100}, status: "open")` is TWO `WhereClause`s from one line
+//! 100}, status: "open")` is two `WhereClause`s from one line
 //! (`PairsShape::elements` — each pair independently becomes a new
 //! compound, appended to `wheres`), and a bare value (`status: "open"`)
 //! implies the `eq` comparator rather than spelling it. Also covers
@@ -40,13 +40,13 @@ pub fn where_clauses(pairs: &[(String, String)]) -> Vec<ir::WhereClause> {
 
 /// `where`/`order_by`/`limit`/`offset` are gaining an `on:` target kwarg
 /// on the Ruby side (ADR 0055, `docs/decisions/0055-read-model-on-target-
-/// for-where-order-by-limit-offset.md` — shipped Ruby-only; naming WHICH
+/// for-where-order-by-limit-offset.md` — shipped Ruby-only; naming which
 /// many-side `include` an option applies to, once a read model declares
 /// more than one) — deliberately not yet ported here (that ADR's own item
 /// 3: this parser has no concept of `on:` at all yet).
 ///
 /// Only `where` actually needs this check. `order_by`/`limit`/`offset`
-/// each have a FIXED, declared argument schema (`ArgumentRow`s per
+/// each have a fixed, declared argument schema (`ArgumentRow`s per
 /// `(word, context)`), so `validate_named` (`parse/mod.rs`) already
 /// refuses an undeclared `on:` upstream, before either construct's own
 /// `parse_body` match arm ever runs — confirmed live ("'order_by' takes
@@ -55,7 +55,7 @@ pub fn where_clauses(pairs: &[(String, String)]) -> Vec<ir::WhereClause> {
 /// exempt from that per-name schema check — it has to accept an
 /// arbitrary field name as a named argument, that's the whole point of
 /// `where(any_field: value)` — so nothing upstream stops `on: Character`
-/// from silently MISPARSING as a second where-clause comparing a field
+/// from silently misparsing as a second where-clause comparing a field
 /// literally named "on". Exactly the "failed open" shape `diag.rs`'s own
 /// header names as the one thing this crate never allows — refusing
 /// cleanly here instead, until the real port lands.

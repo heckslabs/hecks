@@ -75,8 +75,8 @@ fn read_model_options_skip_reason(extra: &[&str]) -> SkipReason {
 
 /// ADR 0055's own guard — mirrors `rust/project/read_models.rb`'s
 /// `multi_target_options?` exactly. True only for the shape this
-/// generator cannot yet trust itself to pick the right head for: MORE
-/// THAN ONE many-side head with ANY where/order_by/limit/offset declared
+/// generator cannot yet trust itself to pick the right head for: more
+/// than one many-side head with any where/order_by/limit/offset declared
 /// at all (targeted via `on:` or not — this generator has no per-head
 /// codegen either way yet).
 fn multi_target_options(read_model: &Json) -> bool {
@@ -178,7 +178,7 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
 /// many-side head, and mutual exclusion with `group_by`/with each other,
 /// by the time this ever runs — this doesn't re-derive either. `count`
 /// needs no further check (a bare row count has nothing to validate);
-/// `median`'s own FIELD is the one genuinely new thing to confirm.
+/// `median`'s own field is the one genuinely new thing to confirm.
 fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
     let median_field = read_model.get("median_field")?;
     let field = Json::to_s(median_field);
@@ -203,8 +203,8 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
 }
 
 /// `group_by`'s own eligibility — mirrors `rust/project/read_models.rb`'s
-/// own `group_by_skip_reason` exactly: the ONE real shape the corpus
-/// declares, a single ROOTLESS head, group_by alone.
+/// own `group_by_skip_reason` exactly: the one real shape the corpus
+/// declares, a single rootless head, group_by alone.
 fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
     let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
     if heads.len() != 1 {
@@ -504,12 +504,12 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
 /// Port of `rust/project/read_models.rb`'s own `emit_group_by_transform`
 /// — see that function's own header for the full reasoning (three jobs:
 /// `row_json`-equivalent id insertion, keep this aggregate's own real
-/// declared attributes PLUS any `projects` field it declares
+/// declared attributes plus any `projects` field it declares
 /// (`crate::types::projected_field_pseudo_attributes` — the same
 /// attributes-plus-projections composition `domain_generator.rs`'s own
 /// `record_attributes` and `commands.rs`'s own `record_fields` already
 /// use for this exact aggregate's record shape) plus id + lifecycle —
-/// excluding any OTHER Phase 10 capability's own synthetic fields, like
+/// excluding any other Phase 10 capability's own synthetic fields, like
 /// `corrects`'s `emitted_*` flags — and recursively unwrap
 /// single-attribute value objects).
 fn emit_group_by_transform(fn_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {

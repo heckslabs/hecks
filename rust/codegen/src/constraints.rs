@@ -22,11 +22,11 @@ pub fn scalar_field_expr(value_expr: &str, attr_type: &str, value_objects_by_nam
 
 /// Mirrors `rust/project/constraints.rb`'s own `optional_scalar_expr`/
 /// `wrap_if_optional` exactly — see that file's header comment for the
-/// full reasoning (an OPTIONAL attribute is `Option<T>` in the struct,
-/// not `T`; the two callers below used to hand `scalar_field_expr` the
-/// bare field regardless, which compiles fine until `optional:` is
-/// paired with `admits:`/`pattern:`). Returns the scalar expression to
-/// check, and — only when the attribute is optional — the source
+/// full reasoning (an optional attribute is `Option<T>` in the struct,
+/// not `T`, so the two callers below need this rather than handing
+/// `scalar_field_expr` the bare field directly — that compiles fine
+/// until `optional:` is paired with `admits:`/`pattern:`). Returns the
+/// scalar expression to check, and — only when the attribute is optional — the source
 /// `Option` expression the caller must `if let Some(...)` around.
 const OPTIONAL_BINDING: &str = "__optional_value";
 

@@ -3,7 +3,7 @@
 // `else value` (the value object lookup misses, so the raw
 // String/Integer/Float/Boolean value passes through unchanged). At the
 // expression-evaluation layer that "raw value" is one of this kernel's
-// `Value::{Str,Int,Float,Bool}` — deliberately NOT `Value::List` (the
+// `Value::{Str,Int,Float,Bool}` — deliberately not `Value::List` (the
 // `:list` shape, list.rs's own file) or `Value::Nil` (the `:optional`
 // shape, optional.rs) — so every function here explicitly excludes those
 // two rather than accepting `Value` wholesale and hoping callers only

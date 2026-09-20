@@ -1,8 +1,8 @@
 //! The `Query` construct (`lib/hecks/bluebook/ir/query.rb`, built on
 //! `QuerySpecification::Common::Options`). `where`'s pairs comparator
-//! splitting (`build/query_derive.rs`), `order_by`. STAGE 4 adds `limit`
+//! splitting (`build/query_derive.rs`), `order_by`. Stage 4 adds `limit`
 //! and the five open-map options (`offset`/`cursor`/`authorize`/`nulls`/
-//! `inspect_query`, all via the shared `build::query_options` — the SAME
+//! `inspect_query`, all via the shared `build::query_options` — the same
 //! module `parse::read_model` uses, since both Ruby builders `include
 //! QuerySpecification::Common::DSL`) — confirmed real: `Account
 //! .Overdrawn`'s own `limit`, `SafeDepositBox.Rented`'s own `authorize`.
@@ -69,7 +69,7 @@ pub fn parse_body(
             }
             // `LimitSpec#to_h`'s own `value: render_value(value)` —
             // `positional_constant` here is just "the raw text at
-            // position 1," not an assertion the token IS a constant; the
+            // position 1," not an assertion the token is a constant; the
             // argument gate already confirmed it reads as a number.
             "limit" => {
                 let raw = super::positional_constant(file, line, "limit", &gated.args, 1)?;

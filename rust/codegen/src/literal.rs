@@ -4,8 +4,8 @@
 //! /`reactions.rb`/`queries.rb` call `Hecks::Bluebook::Assembly::
 //! Marks.read`/`Hecks::Literal.read` on a Literal-rendered wire string
 //! (an append mutation's `fields` values, a process manager's `with_spec`
-//! values, a where-clause/limit's own value). NOT needed for
-//! `classified_source`'s own `literal.value` — that field is embedded RAW
+//! values, a where-clause/limit's own value). Not needed for
+//! `classified_source`'s own `literal.value` — that field is embedded raw
 //! (never `Literal.render`'d), so it arrives in ir.json already JSON-native
 //! and is read via `Literal::from_json` instead, never `Literal::read`.
 //!
@@ -20,7 +20,7 @@ pub enum Literal {
     Bool(bool),
     Int(i64),
     Float(f64),
-    /// A Symbol — the ONE thing a raw `Json` value can never represent
+    /// A Symbol — the one thing a raw `Json` value can never represent
     /// (JSON has no Symbol type); only ever produced by `read`, matching
     /// `raw[1..].to_sym` for a leading-colon wire string.
     Symbol(String),
@@ -31,7 +31,7 @@ pub enum Literal {
 
 impl Literal {
     /// `source[:value]` (classified_source's own literal branch) — embedded
-    /// RAW, never `Literal.render`'d, so this converts the already-typed
+    /// raw, never `Literal.render`'d, so this converts the already-typed
     /// `Json` value structurally, with no text re-parsing and no Symbol
     /// case (a raw JSON value is never a Symbol).
     pub fn from_json(value: &Json) -> Literal {
@@ -140,7 +140,7 @@ fn read_hash(raw: &str) -> Literal {
     let pairs = split_items(inner)
         .into_iter()
         .map(|item| {
-            // `item.partition(":")` — split at the FIRST ":" only, not
+            // `item.partition(":")` — split at the first ":" only, not
             // quote/nesting-aware (a field name never contains one, so a
             // plain byte search is exactly what Ruby's own `partition`
             // does here).
@@ -190,7 +190,7 @@ fn ruby_float_to_s(literal: &Literal) -> String {
     }
 }
 
-/// Split on the commas that are actually SEPARATORS — never one inside a
+/// Split on the commas that are actually separators — never one inside a
 /// quoted string or a nested brace/bracket. Mirrors `Literal.split_items`
 /// exactly, including its own escape/quote/depth bookkeeping.
 fn split_items(body: &str) -> Vec<String> {

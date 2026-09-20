@@ -1,5 +1,5 @@
 //! The Rust side of `Hecks::Literal` (lib/hecks/literal.rb) — the
-//! ONE pinned spelling for a captured Ruby literal on the wire, landed in
+//! one pinned spelling for a captured Ruby literal on the wire, landed in
 //! Stage 0b specifically so this module would have a single, explicit,
 //! Ruby-version-independent format to match rather than `Hash#inspect`'s
 //! own moving target (3.3 writes `{:value=>"credit"}`, 3.4 writes
@@ -80,7 +80,7 @@ pub fn quote(text: &str) -> String {
     out
 }
 
-/// Ruby's `Symbol#to_s`/`String#to_s` for a captured `Value` — DISTINCT
+/// Ruby's `Symbol#to_s`/`String#to_s` for a captured `Value` — distinct
 /// from `render`: no colon on a Symbol, no quotes on a String. Used only
 /// where the Ruby source itself calls `.to_s` rather than
 /// `Literal.render` — `IR::ValueObject#to_h`'s own `members` field
@@ -108,10 +108,10 @@ pub fn to_s(value: &Value) -> String {
     }
 }
 
-/// A quoted Ruby Symbol's OWN inner text, unescaped — `:"a.b"` -> `a.b`.
+/// A quoted Ruby Symbol's own inner text, unescaped — `:"a.b"` -> `a.b`.
 /// Distinct from `read`'s own (wire-format) Symbol handling: `read` never
 /// sees a quoted symbol on the wire (`Literal.render` never spells one),
-/// this is for SOURCE syntax a bluebook author actually writes
+/// this is for source syntax a bluebook author actually writes
 /// (`where(:"pizza.price_cents.cents" => ...)`, real corpus syntax).
 /// `rest` is the text strictly after the leading `:`, already confirmed
 /// to start and end with `"`.
@@ -143,10 +143,10 @@ pub fn read(text: &str) -> Value {
     if let Some(name) = raw.strip_prefix(':') {
         return Value::Symbol(name.to_string());
     }
-    // ADJACENT STRING LITERAL CONCATENATION — Ruby's own lexer rule that
+    // **Adjacent string literal concatenation** — Ruby's own lexer rule that
     // two string literals (double- or single-quoted, either combination)
     // with nothing but whitespace between them concatenate into one
-    // string, exactly as C's adjacent string literals do. Checked BEFORE
+    // string, exactly as C's adjacent string literals do. Checked before
     // the single-literal `is_quoted`/`is_single_quoted` branches below
     // because a naive "starts and ends with a quote" check would also
     // match `"a" "b"` and slice out `a" "b` as if it were one literal's
@@ -164,20 +164,20 @@ pub fn read(text: &str) -> Value {
     if is_quoted(raw) {
         return Value::Str(unquote(raw));
     }
-    // A SINGLE-QUOTED Ruby string LITERAL — SOURCE syntax `Literal.read`
+    // A single-quoted Ruby string literal — source syntax `Literal.read`
     // itself never has to handle (its own `quoted?` only ever sees
-    // DOUBLE-quoted text, since `Literal.render` never emits anything
+    // double-quoted text, since `Literal.render` never emits anything
     // else on the wire), but this function is also what `positional_
-    // text`/`named_text` reach for to read a call argument's raw SOURCE
-    // text the FIRST time, before anything is ever rendered — and Ruby's
+    // text`/`named_text` reach for to read a call argument's raw source
+    // text the first time, before anything is ever rendered — and Ruby's
     // own lexer admits single quotes there too. Confirmed real:
     // banking.bluebook's own `EmailAddress` pattern (`pattern:
     // '^[^@ ]+@[^@ ]+\.[^@ ]+$'`) — a single-quoted literal was the
     // right spelling for exactly the reason its own comment gives (no
     // double-quote escape processing to fight with a regex full of
-    // backslashes). Ruby single-quote escaping is NARROWER than double
+    // backslashes). Ruby single-quote escaping is narrower than double
     // (`\\` -> `\`, `\'` -> `'`, every other backslash sequence stays
-    // LITERAL — `\.` stays `\.`, not a processed escape), so this is a
+    // literal — `\.` stays `\.`, not a processed escape), so this is a
     // separate unescaping pass, not a reuse of `unquote`'s.
     if is_single_quoted(raw) {
         return Value::Str(unquote_single(raw));
@@ -216,7 +216,7 @@ fn is_single_quoted(raw: &str) -> bool {
 }
 
 /// Ruby single-quoted string unescaping — `\\` -> `\`, `\'` -> `'`,
-/// every OTHER backslash sequence left exactly as written (unlike
+/// every other backslash sequence left exactly as written (unlike
 /// `unquote`'s double-quote rules, which unescape any `\x` pair).
 fn unquote_single(raw: &str) -> String {
     unescape_single_quoted_inner(&raw[1..raw.len() - 1])
@@ -264,10 +264,10 @@ fn unescape_double_quoted_inner(inner: &str) -> String {
     out
 }
 
-/// Scans ONE OR MORE adjacent quoted-string literals starting at index 0
+/// Scans one or more adjacent quoted-string literals starting at index 0
 /// of `raw` (each either double- or single-quoted, matched independently
 /// — Ruby allows mixing, `"a" 'b'` concatenates same as `"a" "b"`),
-/// separated only by whitespace, and returns their UNESCAPED, CONCATENATED
+/// separated only by whitespace, and returns their unescaped, concatenated
 /// contents plus the character-count consumed. `None` if `raw` doesn't
 /// start with a quote or the first literal is never closed. Returns
 /// `Some` after exactly one literal too (the ordinary single-string
@@ -360,22 +360,22 @@ fn read_array(raw: &str) -> Value {
     )
 }
 
-/// Split on the commas that are actually SEPARATORS — never one inside a
+/// Split on the commas that are actually separators — never one inside a
 /// quoted string or a nested brace/bracket/paren. The same algorithm
-/// `Hecks::Literal.split_items` uses for Hash/Array LITERAL bodies
+/// `Hecks::Literal.split_items` uses for Hash/Array literal bodies
 /// (character-scanned rather than a naive `split(",")` that would tear a
-/// quoted `"a, b"` in half), WIDENED here to also track `(`/`)` depth —
+/// quoted `"a, b"` in half), widened here to also track `(`/`)` depth —
 /// `Literal.split_items` itself never needs to, since Ruby parses its own
 /// real call arguments natively and only ever hands that method an
 /// already-known Hash/Array literal's inner text. This crate reuses the
-/// same function for a SECOND job Ruby never needs a hand-rolled splitter
-/// for at all: splitting a whole CALL's raw argument-list text
+/// same function for a second job Ruby never needs a hand-rolled splitter
+/// for at all: splitting a whole call's raw argument-list text
 /// (`argument_gate`'s own `segments`), which can itself contain a nested
 /// call (`attribute :tone, one_of("good", "warn", "danger", "muted",
 /// "accent"), optional: true` — confirmed real,
 /// console_settings.bluebook's own `StateStyle.tone`). Without paren
 /// tracking, `one_of(...)`'s own internal commas would be mistaken for
-/// top-level separators of the OUTER `attribute` call and tear it into
+/// top-level separators of the outer `attribute` call and tear it into
 /// seven segments instead of three.
 pub fn split_items(body: &str) -> Vec<String> {
     let mut items = Vec::new();
@@ -494,7 +494,7 @@ mod tests {
     #[test]
     fn does_not_treat_a_quoted_string_followed_by_other_text_as_concatenation() {
         // `"a" foo` is not two adjacent literals — `foo` isn't a quote at
-        // all, so `scan_adjacent_strings` must report a SHORTER consumed
+        // all, so `scan_adjacent_strings` must report a shorter consumed
         // length than the whole input, and `read` falls through to
         // `Value::Bare` for the full raw text exactly as it always has.
         assert_eq!(read("\"a\" foo"), Value::Bare("\"a\" foo".to_string()));

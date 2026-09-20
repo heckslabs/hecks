@@ -20,7 +20,7 @@ pub enum FieldKind {
     Unknown,
 }
 
-/// The declared attribute (or synthetic lifecycle field) `field`'s HEAD
+/// The declared attribute (or synthetic lifecycle field) `field`'s head
 /// segment names on `aggregate`, walked through nested value objects for
 /// any segments after it.
 pub fn query_field_kind(aggregate: &Json, field: &str, value_objects_by_name: &HashMap<String, &Json>) -> FieldKind {
@@ -160,7 +160,7 @@ fn kind_name(kind: FieldKind) -> &'static str {
     }
 }
 
-/// Port of `queries.rb#query_hop_plan` — a SINGLE `/` hop through a
+/// Port of `queries.rb#query_hop_plan` — a single `/` hop through a
 /// Reference-typed attribute to an aggregate this domain declares, or
 /// `None`.
 pub struct HopPlan<'a> {
@@ -230,15 +230,15 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
         return Some(skip("index_hints", "declares use_index, out of scope for the same reason the extras above are"));
     }
 
-    // An empty `wheres` list is ONLY a real "nothing to compile" — a
+    // An empty `wheres` list is only a real "nothing to compile" — a
     // declared `authorize policy, tenant: :field` synthesizes its own
     // where clause at codegen time (`query_conditions_with_authorization`
     // below), so a query with no ordinary where clause but a real tenant
     // gate still has a real reason to generate: the tenant-scoping check
-    // IS the query's whole logic. Checking for a declared tenant here,
+    // is the query's whole logic. Checking for a declared tenant here,
     // before the empty-wheres refusal, is what lets that query through;
     // `declared_authorization_skip_reason` below still runs afterward
-    // either way, to validate the tenant FIELD itself is generable.
+    // either way, to validate the tenant field itself is generable.
     let declared_tenant = query.get("authorization").and_then(|a| a.get("tenant")).is_some();
     let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
     if wheres.is_empty() && !declared_tenant {
@@ -491,7 +491,7 @@ pub fn emit_reference_hop_condition(hop: &HopCondition) -> String {
 /// `Runtime::TenantScope.apply`'s own synthetic clause, ported at codegen
 /// time — see `rust/project/queries.rb`'s own `query_conditions_with_
 /// authorization` for the full reasoning (including why this is
-/// deliberately NOT folded into `query_conditions` itself).
+/// deliberately not folded into `query_conditions` itself).
 pub fn query_conditions_with_authorization(query: &Json) -> Vec<Condition> {
     let mut conditions = query_conditions(query);
     if let Some(tenant) = query.get("authorization").and_then(|a| a.get("tenant")).map(Json::to_s) {
@@ -504,7 +504,7 @@ pub fn query_conditions_with_authorization(query: &Json) -> Vec<Condition> {
 /// declared (see `declared_authorization_skip_reason`'s own comment).
 /// `policy` — item 2.6 of the equivalence-gap plan, ported from `rust/
 /// project/queries.rb`'s own identical `emit_query_authorization`:
-/// carried on the wire but NOT enforced (that method's own header has
+/// carried on the wire but not enforced (that method's own header has
 /// the full reasoning — Ruby's own `TenantScope.apply` doesn't check it
 /// either, a documented, deliberate gap pending real identity
 /// infrastructure, not something this generator invents enforcement for
@@ -521,15 +521,15 @@ pub fn emit_query_authorization(query_name: &str, authorization: Option<&Json>) 
     ))
 }
 
-// `Vocabulary::QueryComparator` itself declares NINE names (`none_in_state`
+// `Vocabulary::QueryComparator` itself declares nine names (`none_in_state`
 // was added later — vocabulary.bluebook's own comment calls it "a vendored
-// addition"). `rust/src/kernel/query_comparators.rs` DOES have a
+// addition"). `rust/src/kernel/query_comparators.rs` does have a
 // `QueryComparator::NoneInState` variant now, but this list still leaves
 // it out on purpose, matching `queries.rb`'s `QUERY_COMPARATOR_VARIANTS`:
 // no generated call site can hand it a cross-domain search list yet, so
 // generating it would answer every row `true` instead of a real anti-join
 // (`query_where_skip_reason`'s `where_none_in_state` refusal has the full
-// reason). `query_where_skip_reason` (above) checks this BEFORE a
+// reason). `query_where_skip_reason` (above) checks this before a
 // query reaches `query_comparator_variant` below, so the `panic!` there
 // stays the "should be unreachable" backstop it always was, not the
 // primary gate.
@@ -554,15 +554,14 @@ fn query_comparator_variant(op: &str) -> &'static str {
 /// `condition[:literal].inspect` — Ruby's own generic `Object#inspect`,
 /// called on whatever `Literal.read` returned. Used for the `Literal`
 /// (string/bool/nil/symbol/hash/array) branch only — `emit_query_
-/// condition_value` (below) intercepts `Int`/`Float` BEFORE this
+/// condition_value` (below) intercepts `Int`/`Float` before this
 /// function ever runs, emitting `QueryConditionValue::NumericLiteral`
-/// instead. That split closes what used to be a real landmine here: a
-/// bare, unquoted Integer/Float `.inspect` embedded where
-/// `QueryConditionValue::Literal` expects a `&str` would have been a
-/// compile error the moment `query_where_skip_reason` ever let a numeric-
-/// kind field's literal through -- fixed by giving numeric literals their
-/// own properly-typed variant instead, mirroring `rust/project/
-/// queries.rb`'s own identical fix.
+/// instead. That split avoids a real landmine: a bare, unquoted
+/// Integer/Float `.inspect` embedded where `QueryConditionValue::Literal`
+/// expects a `&str` would be a compile error the moment
+/// `query_where_skip_reason` ever let a numeric-kind field's literal
+/// through, so numeric literals get their own properly-typed variant
+/// instead, mirroring `rust/project/queries.rb`'s own identical fix.
 fn literal_inspect(lit: &Literal) -> String {
     match lit {
         Literal::Str(s) => naming::ruby_inspect_string(s),
@@ -593,7 +592,7 @@ pub fn emit_query_condition_value(condition: &Condition) -> String {
         None => {
             let lit = condition.literal.as_ref().unwrap();
             // `query_where_skip_reason` only lets a bare Integer/Float
-            // literal reach here once the TARGET FIELD is already proven
+            // literal reach here once the target field is already proven
             // numeric-kind -- the literal's own variant is sufficient to
             // pick the emitted `QueryConditionValue`, no need to
             // re-derive kind a second time (mirrors
@@ -625,7 +624,7 @@ pub struct QueryDef {
     /// The chapter's `provides "authorization", assignments:` names this
     /// query — see `emit_authorization_assignments`.
     pub assignments: bool,
-    /// `Some` for a declared ENTITY query — emitted into `ENTITY_QUERIES`.
+    /// `Some` for a declared entity query — emitted into `ENTITY_QUERIES`.
     pub entity: Option<EntityScope>,
 }
 

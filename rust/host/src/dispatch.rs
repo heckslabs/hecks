@@ -1,4 +1,4 @@
-// TIES THE JOURNAL AND THE SANDBOX TOGETHER — this is the one place
+// Ties the journal and the sandbox together — this is the one place
 // that knows both halves exist; wasm_runner and journal each stay
 // ignorant of the other. `handle` is the whole rehydrate-replay
 // contract in one function: read history, replay history + the new
@@ -79,10 +79,10 @@ pub async fn handle_facts(
 // `config` names which Ruby-shaped lineage journal/era this call writes
 // its mutations into (journal.rs's own header) — required, not
 // optional: `main.rs` already refused to boot if the configured
-// domain/era isn't provisioned OR isn't current (`journal::current_era`),
+// domain/era isn't provisioned or isn't current (`journal::current_era`),
 // so by the time `handle` runs that schema is guaranteed to exist and
 // this checkout is guaranteed not to be stale.
-// `role` -- OPTIONAL, matching `Adapters::Lambda::Client#dispatch`'s own
+// `role` -- optional, matching `Adapters::Lambda::Client#dispatch`'s own
 // `role: nil` default (lib/hecks/adapters/driven/lambda/client.rb):
 // Ruby's client only ever puts a `"role"` key on the wire when a caller
 // is actually bound (`payload["role"] = role if role`), so `None` here
@@ -91,7 +91,7 @@ pub async fn handle_facts(
 // `main.rs`'s own fix for a real wiring gap, not a new capability: the
 // kernel side (`check_role`, wired into every generated command's
 // dispatch path) and the WASM-boundary side (`cli.rs`'s own
-// `step.get("role")`) were BOTH already correct and already exercised
+// `step.get("role")`) were both already correct and already exercised
 // by the corpus/fuzzer -- but nothing on this side of the wire ever
 // read the incoming Lambda event's `"role"` field at all, so
 // `caller_role` was structurally `None` on every real invocation
@@ -110,10 +110,10 @@ pub async fn handle(
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
 
-    // SERIALIZES THE WHOLE READ-THEN-APPEND SEQUENCE, not just the
+    // Serializes the whole read-then-append sequence, not just the
     // final INSERT — mirrors postgres.rb's own `pg_advisory_xact_lock`
-    // around its ordinal-assigning append (postgres.rb:118-124: "HELD
-    // FOR THE WHOLE TRANSACTION, not just around the INSERT"). Without
+    // around its ordinal-assigning append (postgres.rb:118-124: "held
+    // for the whole transaction, not just around the INSERT"). Without
     // this, two concurrent Lambda invocations (separate execution
     // environments, separate connections — exactly what advisory locks
     // are for) could both rehydrate against the same prior steps, both
@@ -121,14 +121,14 @@ pub async fn handle(
     // both append: the replay-determinism argument in journal.rs's own
     // header only holds if invocations serialize.
     //
-    // DOMAIN-SCOPED KEY, same as postgres.rb's own `hecks_ordinal:` —
+    // Domain-scoped key, same as postgres.rb's own `hecks_ordinal:` —
     // this was a single fixed key until the storehouse (multiple
     // domains sharing one Postgres instance, isolated by schema): a
     // fixed key would incorrectly serialize every domain's invocations
-    // against every OTHER domain's, not just against itself. Each
+    // against every other domain's, not just against itself. Each
     // domain's own `search_path` already keeps `hecks_lambda_journal`
     // itself schema-isolated (main.rs sets it at boot); this makes the
-    // LOCK isolated the same way, so domains sharing the instance don't
+    // lock isolated the same way, so domains sharing the instance don't
     // queue behind each other.
     txn.execute(
         "SELECT pg_advisory_xact_lock(hashtext('hecks_lambda_journal.' || $1::text))",
@@ -136,21 +136,21 @@ pub async fn handle(
     )
     .await?;
 
-    // SEED, NOT FULL REPLAY — read the last known-good snapshot (the
+    // **Seed, not full replay** — read the last known-good snapshot (the
     // kernel's own prior "instances" output) and only the journal rows
-    // AFTER it, instead of the whole command history every single time.
+    // after it, instead of the whole command history every single time.
     // `None` covers two real cases identically: a brand-new domain (no
     // snapshot, no history — Store::new()/empty seed, exactly today's
-    // behavior) and a domain with journal history from BEFORE this
+    // behavior) and a domain with journal history from before this
     // snapshot cache existed (no snapshot row yet, but real prior
     // steps) — that one self-heals by falling back to a full replay
-    // ONCE, same as always, which then leaves behind a snapshot for
+    // once, same as always, which then leaves behind a snapshot for
     // every invocation after it. See journal.rs's own header.
     let snapshot = journal::load_snapshot(&txn).await?;
-    // SAGA BACKFILL, ONE TIME — `sagas_backfilled` is a latch, not a
+    // **Saga backfill, one time** — `sagas_backfilled` is a latch, not a
     // live fact about whether `hecks_lambda_sagas` happens to be empty
     // right now (see `Snapshot`'s own doc comment for why checking
-    // emptiness directly would be wrong: it's the ORDINARY state, not a
+    // emptiness directly would be wrong: it's the ordinary state, not a
     // signal). A domain with no snapshot yet already gets a full replay
     // via the `None` arm below regardless — this only matters for a
     // domain that already had real history before saga durability
@@ -162,10 +162,10 @@ pub async fn handle(
         Some(s) if !needs_saga_backfill => journal::load_steps_after(&txn, s.ordinal).await?,
         _ => journal::load_steps(&txn).await?,
     };
-    // ROLE GOES ON THIS STEP ONLY -- this is the OUTERMOST dispatch, the
+    // Role goes on this step only -- this is the outermost dispatch, the
     // one `kernel/cli.rs`'s own comment on `role:` describes as the only
     // place a step's `role:` key is ever read (every other entry in
-    // `steps` is REPLAYED history that already carried, and already
+    // `steps` is replayed history that already carried, and already
     // consumed, whatever role it was dispatched with the first time
     // around -- re-stamping it here would be redundant at best). Built
     // as a mutable step rather than inlined into the `json!` literal
@@ -176,23 +176,23 @@ pub async fn handle(
     if let Some(role) = role {
         step["role"] = serde_json::Value::String(role.to_string());
     }
-    // OCCURRED_AT GOES ON THIS STEP ONLY — same reasoning as `role`,
+    // OCCURRED_AT goes on this step only — same reasoning as `role`,
     // just above: this is the outermost, live dispatch, the one real
     // moment `crate::auth::httpdate_now()` (this crate's own wall
     // clock) means anything for; every other entry in `steps` is
-    // replayed history whose own events were already stamped with
-    // whatever time it originally was, and re-stamping today's time
-    // onto a replay would be actively wrong, not merely redundant.
+    // replayed history whose own events are already stamped with
+    // whatever time they actually occurred at, and re-stamping today's
+    // time onto a replay would be actively wrong, not merely redundant.
     // `kernel::Event::occurred_at`'s own field doc (rust/src/kernel/
     // mod.rs) has the kernel-side half of this: it has no clock of its
     // own and only ever applies whatever string arrives here.
     step["occurred_at"] = serde_json::Value::String(crate::auth::httpdate_now());
     steps.push(step);
-    // MUST MATCH `steps`' OWN CHOICE ABOVE — a full replay (whether
+    // **Must match `steps`' own choice above** — a full replay (whether
     // because there's no snapshot yet, or because this is the one-time
-    // saga backfill) has to start from an EMPTY seed, the same as
+    // saga backfill) has to start from an empty seed, the same as
     // `steps` falling back to the full journal instead of just the
-    // tail. Using the OLD snapshot's seed here while replaying every
+    // tail. Using the old snapshot's seed here while replaying every
     // step from scratch would feed the kernel a world that already has
     // every record `steps` is about to try creating again — every
     // replayed step would refuse as a false "AlreadyExists," not just
@@ -203,7 +203,7 @@ pub async fn handle(
         snapshot.as_ref().map(|s| s.seed.clone()).unwrap_or_else(|| serde_json::json!({}))
     };
 
-    // LIVE SAGA STATE, read inside the same advisory-locked transaction
+    // Live saga state, read inside the same advisory-locked transaction
     // as everything else above — the lock's whole point is covering
     // this exact read-then-write sequence, saga state included, not
     // just the aggregate journal/snapshot.
@@ -231,7 +231,7 @@ pub async fn handle(
         tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
     let mut result: serde_json::Value = serde_json::from_str(&output)?;
 
-    // See journal.rs's own header: every PRIOR step in this replay
+    // See journal.rs's own header: every prior step in this replay
     // already succeeded once, deterministically, so the only step that
     // can legitimately show up in `refusals` is the new one just
     // appended last.
@@ -245,8 +245,8 @@ pub async fn handle(
     if accepted {
         let ordinal = journal::append(&txn, verb, &args).await?;
 
-        // Refreshes the snapshot to the NEW world this command just
-        // produced — the kernel's own "instances" output already IS
+        // Refreshes the snapshot to the new world this command just
+        // produced — the kernel's own "instances" output already is
         // the exact seed shape (Store::instances/Store::from_seed are
         // mechanical inverses), so nothing here re-derives or filters
         // it. Every accepted command leaves the snapshot current, which
@@ -255,15 +255,15 @@ pub async fn handle(
         let new_seed = result.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
         journal::save_snapshot(&txn, ordinal, &new_seed).await?;
 
-        // LIVE SAGA STATE, persisted the same way the aggregate
+        // Live saga state, persisted the same way the aggregate
         // snapshot just was — same transaction, so a saga checkpoint
         // can never commit independently of the command that produced
         // it (see journal.rs's own comment on `save_saga` for why that
-        // matters). `"saga_snapshot"` is the kernel's LIVE dump of its
+        // matters). `"saga_snapshot"` is the kernel's live dump of its
         // in-memory `sagas` map, deliberately distinct from the
-        // existing `"sagas"` key (the transition LOG, not a snapshot —
+        // existing `"sagas"` key (the transition log, not a snapshot —
         // same relationship `"instances"` already has to the event
-        // log). Reconciled against `saga_rows` (the PRE-run state, read
+        // log). Reconciled against `saga_rows` (the pre-run state, read
         // above) rather than blindly rewritten: anything present in the
         // post-run snapshot is upserted; anything that was present
         // before but is absent now genuinely ended (`end_saga`'s own
@@ -298,7 +298,7 @@ pub async fn handle(
         }
 
         // The kernel's new per-step "mutations" field (adf38fd) — one
-        // entry per step in `steps` above, so the LAST entry is exactly
+        // entry per step in `steps` above, so the last entry is exactly
         // this call's own new step (everything before it is history
         // already recorded on a prior, successful invocation). Written
         // into Ruby's own per-aggregate journal/head-snapshot schema,
@@ -306,7 +306,7 @@ pub async fn handle(
         // journal.rs's own header for why this doesn't replace the
         // hecks_lambda_journal append just above, only supplements it.
         //
-        // ADR 0034 — skipped ENTIRELY when `config.era` is `None`: a
+        // ADR 0034 — skipped entirely when `config.era` is `None`: a
         // domain with nothing lineage-capable bound (and no Google auth
         // configured) never provisions `hecks_eras` or any per-aggregate
         // head-snapshot table at boot (main.rs's own boot gate), so
@@ -332,8 +332,8 @@ pub async fn handle(
                 .get("aggregate")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("mutation record missing \"aggregate\": {mutation}"))?;
-            // ONLY WHAT THE IR CALLS LINEAGE-CAPABLE. `era.is_some()`
-            // above says the lineage SUBSYSTEM exists; it does not say
+            // **Only what the IR calls lineage-capable**. `era.is_some()`
+            // above says the lineage subsystem exists; it does not say
             // this particular aggregate has an era-shaped mirror to
             // write into. `mint` provisions head snapshots for exactly
             // the capable set, so mirroring anything outside it upserts
@@ -364,11 +364,11 @@ pub async fn handle(
         }
     }
 
-    // THIS step's own cross-domain policy matches only — same "`.last()`
+    // This step's own cross-domain policy matches only — same "`.last()`
     // is exactly the step just dispatched" rule `step_mutations` above
-    // already follows, and for the identical reason: every PRIOR step in
+    // already follows, and for the identical reason: every prior step in
     // this replay already ran (and, if it fired a cross-domain reaction,
-    // already DELIVERED it) on an earlier invocation — re-delivering it
+    // already delivered it) on an earlier invocation — re-delivering it
     // here on every subsequent replay would re-invoke a sibling Lambda
     // forever. Captured before `commit()`, delivered after — see below.
     let pending_cross_domain = result
@@ -384,56 +384,57 @@ pub async fn handle(
     // for the next invocation to proceed.
     txn.commit().await?;
 
-    // DELIVERED AFTER COMMIT, DELIBERATELY — this LOCAL command already
+    // **Delivered after commit, deliberately** — this local command already
     // succeeded and is already durable; a cross-Lambda notification is a
     // best-effort reaction to that fact, not a precondition of it
     // (mirrors `Runtime::PolicyInterpreter#deliver`'s own "not fatal to
     // the command that emitted the event," extended one step further:
-    // also not fatal to that command's own local WRITE). `deliver_with_
+    // also not fatal to that command's own local write). `deliver_with_
     // retry` (lambda_client.rs's own header) rides out a transient fault
     // on its own, a few short attempts, before this ever has to decide
-    // anything — a hard fault that SURVIVES every retry still propagates
-    // out of this whole call via `?`, a real, visible failure of THIS
+    // anything — a hard fault that survives every retry still propagates
+    // out of this whole call via `?`, a real, visible failure of this
     // Lambda invocation's overall response, just never one that unwinds
     // an already-committed transaction. The one new thing that happens
-    // FIRST, though: `journal::record_dead_letter` writes the exhausted
+    // first, though: `journal::record_dead_letter` writes the exhausted
     // attempt down durably — `guard` (the same connection `txn` above
     // borrowed from) is free again the moment `txn.commit()` consumed
     // it, so this reuses it directly rather than opening a second
     // connection for one INSERT.
-    // ALSO builds a `reaction_log`-shaped record per SUCCESSFUL delivery
+    // Also builds a `reaction_log`-shaped record per successful delivery
     // (`{policy, on, trigger, delivered, reason}`, matching
     // orchestrate.rs's own same-domain shape exactly) and merges it into
     // `result["reactions"]` — the kernel itself can't do this (its own
     // header: a cross-domain match's delivery outcome doesn't exist until
-    // THIS host layer finishes the call), so this is the one place that
-    // ever will. `cross_domain_deliveries` (below) stays a SEPARATE,
+    // this host layer finishes the call), so this is the one place that
+    // ever will. `cross_domain_deliveries` (below) stays a separate,
     // differently-shaped array on purpose — existing callers/specs
     // already read it (`Outcome.result["cross_domain_deliveries"]`) and
     // this doesn't touch that contract, it only adds a second, unified
     // view alongside the same-domain entries `"reactions"` already
-    // carries. NOT done once ANY delivery in this loop has failed — a
+    // carries. Not done once any delivery in this loop has failed — a
     // hard delivery fault makes this whole call return `Err`, discarding
     // `result` entirely (see this function's own "delivered after
     // commit" comment), so there is no response for a `"reactions"`
     // entry to ever reach; `journal::record_dead_letter` is that path's
     // own durable record.
     //
-    // EVERY REACTION GETS ITS OWN ATTEMPT, EVEN AFTER AN EARLIER ONE
-    // FAILS — `SafeDepositBox.Surrender` (safe_deposit_boxes.bluebook's
-    // own header: "TWO POLICIES OFF ONE COMMAND'S TWO ANNOUNCEMENTS")
+    // Every reaction gets its own attempt, even after an earlier one
+    // fails — `SafeDepositBox.Surrender` (safe_deposit_boxes.bluebook's
+    // own header: "two policies off one command's two announcements")
     // is a real, live example of one step firing more than one
-    // cross-domain reaction. Returning on the FIRST failed delivery
-    // used to silently abandon every reaction after it in this same
-    // loop — not just undelivered, but never even attempted, and
-    // missing from `hecks_cross_domain_dead_letters` too: a real, zero-
-    // crash-required data-loss bug, found and fixed the same session as
-    // ADR 0036's cross-process lock (a different flavor of the same
-    // underlying question — does every reaction this dispatch owes
-    // actually get a durable outcome). `first_failure` remembers only
-    // the FIRST error to return — matching the pre-existing contract
-    // exactly (this call still visibly fails once for the caller) while
-    // no longer using that return to cut the loop short.
+    // cross-domain reaction. The loop keeps dispatching every remaining
+    // reaction after a failed delivery instead of returning early:
+    // returning early would silently abandon every reaction after it in
+    // this same loop — not just undelivered, but never even attempted,
+    // and missing from `hecks_cross_domain_dead_letters` too, a real,
+    // zero-crash-required data-loss bug (see ADR 0036's cross-process
+    // lock, a different flavor of the same underlying question — does
+    // every reaction this dispatch owes actually get a durable
+    // outcome). `first_failure` remembers only the first error to
+    // return, matching the pre-existing contract exactly (this call
+    // still visibly fails once for the caller) without cutting the loop
+    // short.
     let mut cross_domain_deliveries = Vec::new();
     let mut first_failure: Option<anyhow::Error> = None;
     for reaction in &pending_cross_domain {
@@ -477,7 +478,7 @@ pub async fn handle(
     Ok(Outcome { result, accepted })
 }
 
-// READ-ONLY: the SAME seed-not-replay path `handle` uses (journal.rs's
+// **Read-only**: the same seed-not-replay path `handle` uses (journal.rs's
 // own header), minus the new step and minus any write. No advisory
 // lock needed — nothing here writes, so a plain snapshot read is
 // enough (Postgres's own read-committed guarantee is already stronger
@@ -496,12 +497,12 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
         drop(guard);
 
         if steps_since.is_empty() {
-            // THE FAST PATH — no wasm invocation at all. The snapshot's
-            // own `seed` IS this domain's current "instances" output
+            // **The fast path** — no wasm invocation at all. The snapshot's
+            // own `seed` is this domain's current "instances" output
             // already (`save_snapshot` writes it verbatim from a real
             // dispatch's own result), so there's nothing left to
             // compute. Empty events/refusals is correct here too — a
-            // read reports CURRENT STATE, never an event/refusal
+            // read reports current state, never an event/refusal
             // history (this function's own pre-existing contract).
             return Ok(serde_json::json!({ "instances": s.seed, "events": [], "refusals": [] }));
         }
@@ -519,7 +520,7 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
     }
 
     // No snapshot at all — a brand-new domain (empty history, correctly
-    // reports nothing) or one with journal history from BEFORE this
+    // reports nothing) or one with journal history from before this
     // snapshot cache existed (a real, one-time full replay to catch up
     // — see journal.rs's own header on why this is self-healing, not
     // an error case).
@@ -532,11 +533,11 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
     Ok(serde_json::from_str(&output)?)
 }
 
-/// A DECLARED QUERY, ANSWERED — the kernel's own `{"query"}` step
+/// **A declared query, answered** — the kernel's own `{"query"}` step
 /// shape (rust/src/kernel/cli.rs), run against current state.
 ///
 /// Seeds from `read` above rather than replaying history itself, which
-/// is what keeps this honest about cost AND about correctness: `read`
+/// is what keeps this honest about cost and about correctness: `read`
 /// already owns the snapshot fast path and the self-healing tail
 /// replay, so a query sees exactly the state a read would report, and
 /// pays one wasm invocation at most (none of the replay `handle` does,
@@ -567,7 +568,7 @@ pub(crate) mod tests {
     use super::*;
     use tokio_postgres::NoTls;
 
-    // A REAL, THROWAWAY POSTGRES DATABASE per test — never the real
+    // A real, throwaway Postgres database per test — never the real
     // dev database, same reasoning hecks's own
     // spec/adapters/driven/postgres_spec.rb and Embryonaut's
     // spec/adapters/embryonaut_access_control_spec.rb hold themselves
@@ -601,13 +602,13 @@ pub(crate) mod tests {
         Mutex::new(client)
     }
 
-    // NOT Ruby's real provisioning (Lineage::Provisioning) -- no
+    // Not Ruby's real provisioning (Lineage::Provisioning) -- no
     // partitioning, no RLS, no full hecks_eras column set. Just enough
     // structure for `journal::current_era` and `append_lineage_mutation`'s
     // own INSERT/upsert statements to succeed, so these tests exercise
-    // THIS crate's write logic without reproducing Ruby's full DDL --
+    // this crate's write logic without reproducing Ruby's full DDL --
     // current_era's own query only ever reads domain/ordinal, so a
-    // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
+    // minimal hecks_eras row satisfies the same boot-gate check main.rs
     // runs for real.
     pub(crate) async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
         // `int`, matching Ruby's real DDL (era_store.rb's `ordinal int
@@ -658,7 +659,7 @@ pub(crate) mod tests {
         }
     }
 
-    /// THE LIVE OUTAGE, PINNED. `era.is_some()` and "this aggregate has
+    /// **The live outage, pinned**. `era.is_some()` and "this aggregate has
     /// an era-shaped mirror" are different questions, and treating them
     /// as one killed every write embryonautfoundersapp ever attempted:
     /// ADR 0034 turns the lineage subsystem on for any domain with
@@ -671,7 +672,7 @@ pub(crate) mod tests {
         let client = scratch_db("rust_host_mirrors_nothing").await;
         {
             let guard = client.lock().await;
-            // The era exists and its journal is partitioned — but NO
+            // The era exists and its journal is partitioned — but no
             // head snapshot for Customer, exactly as `mint` leaves a
             // domain with an empty capable set.
             guard.batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)").await.unwrap();
@@ -720,7 +721,7 @@ pub(crate) mod tests {
         assert!(mirror.is_none(), "and no mirror was invented for an aggregate the IR never called capable");
     }
 
-    /// The other half: an aggregate the IR DOES call capable is still
+    /// The other half: an aggregate the IR does call capable is still
     /// mirrored, unchanged.
     #[tokio::test]
     async fn an_aggregate_the_ir_declares_capable_is_still_mirrored() {
@@ -785,7 +786,7 @@ pub(crate) mod tests {
 
         // `Customer.Suspended` is `where status == "suspended"` — a
         // freshly registered customer is active, so the query has to
-        // answer with a real, EMPTY row set, not everything.
+        // answer with a real, empty row set, not everything.
         let before = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.unwrap();
         assert_eq!(before["queries"][0]["query"], "Banking::Customer.Suspended");
         assert_eq!(before["queries"][0]["rows"].as_array().expect("rows").len(), 0);
@@ -834,7 +835,7 @@ pub(crate) mod tests {
         let steps = journal::load_steps(&*guard).await.unwrap();
         assert_eq!(steps.len(), 1);
 
-        // THE LINEAGE WRITE ITSELF — a row landed in Ruby's own journal
+        // **The lineage write itself** — a row landed in Ruby's own journal
         // shape (era-tagged, storage-name-keyed), not just the flat
         // command log above.
         let journal_rows = guard
@@ -865,7 +866,7 @@ pub(crate) mod tests {
     // the way through `kernel::orchestrate`/`cli.rs::event_to_json` into
     // the returned "events" array. Proven end to end, through the real
     // wasm module, not just the in-kernel unit tests — those only prove
-    // the STAMPING step itself; this proves the string this crate
+    // the stamping step itself; this proves the string this crate
     // actually sends is the one that comes back out.
     #[tokio::test]
     async fn occurred_at_is_stamped_onto_every_returned_event_with_this_crate_s_own_real_clock() {
@@ -920,8 +921,8 @@ pub(crate) mod tests {
             first.result
         );
 
-        // The SHARP proof rehydration actually happened, not just that
-        // two calls each independently succeeded: registering the SAME
+        // The sharp proof rehydration actually happened, not just that
+        // two calls each independently succeeded: registering the same
         // reference twice against a domain that enforces uniqueness
         // only refuses the second time if the first call's effect was
         // genuinely rebuilt from Postgres before this one ran. A store
@@ -954,10 +955,10 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn the_snapshot_stays_current_so_nothing_replays_full_history() {
-        // THE DIRECT PROOF of what `rehydrates_prior_history...` above
+        // The direct proof of what `rehydrates_prior_history...` above
         // only proves indirectly (via the duplicate-refusal side
         // effect): after every accepted command, `load_steps_after` the
-        // snapshot's own ordinal should find NOTHING — the snapshot
+        // snapshot's own ordinal should find nothing — the snapshot
         // genuinely stays current, so `handle` never needs a full
         // replay after the very first command ever accepted.
         let client = scratch_db("rust_host_dispatch_test_5").await;
@@ -978,7 +979,7 @@ pub(crate) mod tests {
             let tail = journal::load_steps_after(&*guard, snapshot.ordinal).await.unwrap();
             assert!(tail.is_empty(), "the snapshot should already reflect every accepted command, leaving nothing to replay");
 
-            // AND THE SEED ITSELF IS RIGHT, not just empty-by-coincidence
+            // And the seed itself is right, not just empty-by-coincidence
             // — it should carry every customer registered so far, not
             // just the one just dispatched.
             let seeded = snapshot.seed.as_object().unwrap();
@@ -995,8 +996,8 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn serializes_concurrent_invocations_against_the_same_journal() {
-        // THE RACE THE ADVISORY LOCK CLOSES: without it, two concurrent
-        // registrations of the SAME reference could both rehydrate
+        // **The race the advisory lock closes**: without it, two concurrent
+        // registrations of the same reference could both rehydrate
         // against zero prior steps, both see no conflict, and both get
         // appended — silently violating the uniqueness the domain
         // itself enforces. With the lock serializing the whole
@@ -1053,7 +1054,7 @@ pub(crate) mod tests {
             "read should reflect the prior dispatch: {instances:?}"
         );
 
-        // THE SHARP PROOF a read never appends: the journal is exactly
+        // The sharp proof a read never appends: the journal is exactly
         // as long after the read as it was before it.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "a read must never persist a journal row");
@@ -1061,7 +1062,7 @@ pub(crate) mod tests {
 
     // Records every call it receives and answers with a canned "nothing
     // refused" body — dispatch.rs's own end-to-end proof that a
-    // cross-domain policy firing for REAL (against the real compiled
+    // cross-domain policy firing for real (against the real compiled
     // banking.wasm, through the real rehydrate-replay path, inside a real
     // Postgres transaction) reaches `lambda_client::deliver` with the
     // right function name and payload, and that its outcome lands in
@@ -1130,11 +1131,11 @@ pub(crate) mod tests {
         assert_eq!(deliveries[0]["target_domain"], "Compliance");
         assert_eq!(deliveries[0]["delivered"], true);
 
-        // The SAME delivery, ALSO merged into "reactions" in
+        // The same delivery, also merged into "reactions" in
         // reaction_log's own shape ({policy, on, trigger, delivered,
-        // reason}) -- the fix this test extends: previously a
-        // cross-domain match produced NO "reactions" entry at all, only
-        // the differently-shaped "cross_domain_deliveries" one above.
+        // reason}), alongside the differently-shaped
+        // "cross_domain_deliveries" entry above — a cross-domain match
+        // produces a "reactions" entry too, so reaction_log never omits it.
         let reactions = outcome.result["reactions"].as_array().unwrap();
         let merged = reactions.iter().find(|r| r["policy"] == "ReviewOnFreeze").expect("ReviewOnFreeze should appear in \"reactions\" too");
         assert_eq!(merged["on"], "AccountFrozen");
@@ -1147,22 +1148,23 @@ pub(crate) mod tests {
             let (function_name, payload) = &calls[0];
             assert_eq!(function_name, "hecks-compliance");
             let sent: serde_json::Value = serde_json::from_str(payload).unwrap();
-            // FULLY QUALIFIED, not the bare "Compliance.OpenReview" this
-            // used to assert — found live, deploying a real second domain
-            // (Compliance) to actually prove cross-domain delivery for the
-            // first time: `dispatch_by_name`'s own generated match arms are
-            // ALWAYS "Domain::Aggregate.Command" (reactions.rb's own
-            // `emit_cross_domain_policy_table` header has the full story on
-            // the bug this was), and Compliance's own aggregate is named
-            // `AccountFreezeReview`, not `Compliance`.
+            // Fully qualified, not the bare "Compliance.OpenReview":
+            // `dispatch_by_name`'s own generated match arms are
+            // always "Domain::Aggregate.Command" (reactions.rb's own
+            // `emit_cross_domain_policy_table` header has the full story),
+            // and Compliance's own aggregate is named
+            // `AccountFreezeReview`, not `Compliance`. Compliance is a
+            // real, deployed second domain, which is what lets this test
+            // prove cross-domain delivery for real rather than by
+            // simulation.
             assert_eq!(sent["verb"], "Compliance::AccountFreezeReview.Open");
             assert_eq!(sent["args"]["number"]["value"], "acct-freeze-me");
         }
 
-        // AND NEVER RE-DELIVERED ON A LATER REPLAY — a fourth command
-        // against this SAME domain rehydrates history including the
+        // And never re-delivered on a later replay — a fourth command
+        // against this same domain rehydrates history including the
         // Freeze step above, but `pending_cross_domain` only ever reads
-        // the LAST step's own reactions (dispatch.rs's own comment) —
+        // the last step's own reactions (dispatch.rs's own comment) —
         // proving the "re-invoke a sibling Lambda forever" bug this
         // guards against doesn't happen.
         handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0008"), None, &config, &invoker)
@@ -1171,18 +1173,16 @@ pub(crate) mod tests {
         assert_eq!(invoker.calls.lock().unwrap().len(), 1, "replaying prior history must not re-deliver its cross-domain reaction");
     }
 
-    // THE BUG, PROVEN — `check_role`/`cli.rs`'s `step.get("role")` were
+    // **The bug, proven** — `check_role`/`cli.rs`'s `step.get("role")` were
     // both already correct and already exercised (this whole file's
     // other tests dispatch role-gated commands like `Register` above
     // with `role: None` and rely on the "doubly opt-in" unchecked path —
-    // see `kernel/repository.rs`'s own header). What was NEVER exercised,
-    // anywhere, was a caller that actually BINDS a role and gets checked
-    // against it — because before this fix, nothing between an incoming
-    // Lambda event and this function's own `steps.push` ever carried a
-    // role at all: `main.rs` never read `"role"` off the event body, and
-    // `handle` had no parameter to receive it even if it had. Both halves
-    // had to move together, so this is the first test in this crate that
-    // reaches `check_role` with `caller_role: Some(_)` at all.
+    // see `kernel/repository.rs`'s own header). No other test exercises
+    // a caller that actually binds a role and gets checked against it:
+    // `main.rs` reads `"role"` off the incoming Lambda event body and
+    // passes it through this function's own `role: Option<&str>`
+    // parameter, so this is the first test in this crate that reaches
+    // `check_role` with `caller_role: Some(_)` at all.
     //
     // `Banking::Customer.Register` is `check_role(Some("Branch clerk"),
     // "Register", caller_role)` in the generated registry
@@ -1194,7 +1194,7 @@ pub(crate) mod tests {
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
         let config = test_config("Banking", 1);
 
-        // THE CORRECT ROLE — succeeds, same as every other registration
+        // **The correct role** — succeeds, same as every other registration
         // in this file, just now with a caller actually bound and
         // actually matching.
         let matching = handle(
@@ -1214,7 +1214,7 @@ pub(crate) mod tests {
             matching.result
         );
 
-        // THE WRONG ROLE — this is the actual proof. Against the
+        // **The wrong role** — this is the actual proof. Against the
         // pre-fix code (no `role` parameter on `handle`, no `role` key
         // ever reaching `steps`), there was no way to even express this
         // call, and the closest equivalent — dispatching with no role at
@@ -1247,7 +1247,7 @@ pub(crate) mod tests {
              (`check_role`'s own message shape): {refusals:?}"
         );
 
-        // AND THE REFUSED COMMAND WAS NEVER PERSISTED — same discipline
+        // And the refused command was never persisted — same discipline
         // every other refusal in this file is held to.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "only the correctly-authorized registration should be persisted");
@@ -1255,11 +1255,11 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn a_mid_transaction_failure_rolls_back_any_saga_state_already_written() {
-        // Deliberately NOT provisioning "Transfer" — its own lineage
+        // Deliberately not provisioning "Transfer" — its own lineage
         // mutation will fail after the saga's own begin_saga has
         // already written into hecks_lambda_sagas earlier in this same
         // transaction (dispatch.rs's own ordering: journal append,
-        // snapshot, THEN saga reconcile, THEN the mutations loop) —
+        // snapshot, then saga reconcile, then the mutations loop) —
         // proving that write rolls back with the rest of the
         // transaction rather than committing independently.
         let client = scratch_db("rust_host_dispatch_test_9").await;
@@ -1288,7 +1288,7 @@ pub(crate) mod tests {
         )
         .await.unwrap().accepted.then_some(()).expect("credit should succeed");
 
-        // Transfer.Request itself creates a Transfer record — its OWN
+        // Transfer.Request itself creates a Transfer record — its own
         // mutation is the first one this step produces, and "Transfer"
         // was never provisioned above, so it fails immediately, before
         // the saga cascade even has a chance to run further.
@@ -1340,7 +1340,7 @@ pub(crate) mod tests {
         )
         .await.unwrap().accepted.then_some(()).expect("credit should succeed");
 
-        // Freeze the destination BEFORE requesting the transfer — the
+        // Freeze the destination before requesting the transfer — the
         // credit leg refuses, Settlement's own `on :refused` compensates
         // (money back into the source), and the instance stays tracked
         // in "reversed" (`ends_on "TransferSettled"` never fires for
@@ -1361,7 +1361,7 @@ pub(crate) mod tests {
             assert_eq!(before.len(), 1, "the reversed Settlement instance should already be tracked before the simulated reset: {before:?}");
         }
 
-        // SIMULATE a snapshot row written by pre-saga-durability code —
+        // Simulate a snapshot row written by pre-saga-durability code —
         // the latch false, and (as if this table had never existed for
         // this domain before) hecks_lambda_sagas empty even though a
         // real saga is genuinely mid-flight.
@@ -1371,7 +1371,7 @@ pub(crate) mod tests {
             guard.execute("DELETE FROM hecks_lambda_sagas", &[]).await.unwrap();
         }
 
-        // One more ordinary command — should trigger a FULL replay (not
+        // One more ordinary command — should trigger a full replay (not
         // the incremental "just this step" path) and, as a side effect
         // of that replay re-running Transfer.Request's own saga
         // cascade, correctly repopulate hecks_lambda_sagas.
@@ -1459,10 +1459,10 @@ pub(crate) mod tests {
             "should have retried exactly MAX_DELIVERY_ATTEMPTS times before giving up"
         );
 
-        // THE LOCAL COMMAND STILL COMMITTED, AND THE REACTION FIRED —
-        // cross-domain delivery runs strictly AFTER commit (this file's
+        // The local command still committed, and the reaction fired —
+        // cross-domain delivery runs strictly after commit (this file's
         // own header on `handle`), so a delivery failure, retried out or
-        // not, never unwinds it; the dead letter below existing AT ALL
+        // not, never unwinds it; the dead letter below existing at all
         // is itself the proof ReviewOnFreeze's own match already ran
         // against a genuinely-committed AccountFrozen event.
         let guard = client.lock().await;
@@ -1481,14 +1481,14 @@ pub(crate) mod tests {
         assert_eq!(attempts, lambda_client::MAX_DELIVERY_ATTEMPTS as i32);
     }
 
-    // A SECOND cross-domain reaction, from the SAME step, must not go
-    // dark just because the FIRST one's delivery exhausted its retries
+    // A second cross-domain reaction, from the same step, must not go
+    // dark just because the first one's delivery exhausted its retries
     // — `SafeDepositBox.Surrender` (safe_deposit_boxes.bluebook's own
-    // header: "TWO POLICIES OFF ONE COMMAND'S TWO ANNOUNCEMENTS") emits
-    // BOTH `BoxSurrendered` (-> `ReviewOnBoxSurrender`, across
+    // header: "two policies off one command's two announcements") emits
+    // both `BoxSurrendered` (-> `ReviewOnBoxSurrender`, across
     // Compliance) and `KeyReturnDue` (-> `FlagKeyReturn`, across
     // Notifications) from one command. Before this test's own fix, the
-    // delivery loop in `handle` above `return`ed the instant the FIRST
+    // delivery loop in `handle` above `return`ed the instant the first
     // reaction's delivery failed — the second reaction was never even
     // attempted, and got no dead-letter row either: a real, silent,
     // zero-crash-required drop, not a crash-window edge case.

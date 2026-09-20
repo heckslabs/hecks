@@ -7,7 +7,7 @@
 //! pairs-row capture (`PairsShape::verbatim` — each member's fields are
 //! an open map, never resolved against a fixed schema).
 //!
-//! STAGE 3: `synthesize` below, called from `parse::mod::
+//! Stage 3: `synthesize` below, called from `parse::mod::
 //! resolve_type_expression` — confirmed real by console_settings.
 //! bluebook's `StateStyle.tone`/`Collection.identity_strategy`
 //! (`attribute :tone, one_of("good", "warn", "danger", "muted",
@@ -20,18 +20,18 @@ use crate::ir;
 /// one `value: String` attribute, one member per listed value
 /// (`{value: value.to_s}`, `IR::ValueObject#to_h`'s own `.to_s` rendering
 /// — see `ruby_value::to_s`'s own header on why that's distinct from
-/// `Literal.render`). The CALLER decides whether the synthesized value
+/// `Literal.render`). The caller decides whether the synthesized value
 /// object actually gets kept: only `AggregateBuilder#build`'s own
 /// `@value_objects + closed_sets` folds it into the owning aggregate —
 /// `CommandBuilder`/`QueryBuilder`/`ValueObjectBuilder`/
-/// `DomainPortBuilder` all include the SAME `AttributeCollector` module
+/// `DomainPortBuilder` all include the same `AttributeCollector` module
 /// and so also synthesize one for their own inline `one_of(...)`
 /// attributes, but none of their own `#build` methods ever read
 /// `closed_sets` — confirmed by reading each builder directly, not
 /// assumed — so a command/query/value-object/port-operation attribute's
 /// own synthesized value object is discarded by its caller in
 /// `parse/*.rs`, keeping only the derived `type_name` string (the
-/// AGGREGATE that already declares the same field name independently
+/// aggregate that already declares the same field name independently
 /// mints the real value object other constructs' attributes merely
 /// reference by name).
 pub fn synthesize(field_name: &str, values: &[String]) -> ir::ValueObject {

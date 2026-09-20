@@ -1,6 +1,6 @@
 //! Assembles the "prelude" section of a per-aggregate generated `.rs`
 //! file — everything `rust/project/domain_generator.rb#call` writes for
-//! ONE aggregate BEFORE its commands loop starts: the file header, every
+//! one aggregate before its commands loop starts: the file header, every
 //! value object (+ its JSON/closed-set codec), every entity (+ its JSON
 //! codec and, when routable, `extract_id`/`extract_wants`/
 //! `self_identity`), the aggregate record itself (+ its JSON codec, the
@@ -9,16 +9,16 @@
 //! This is the real, verifiable byte-exact target for Stage 7's scoped
 //! slice: commands/mutations/queries/read_models/reactions/ports/
 //! registry (rust/project/{commands,mutations,queries,read_models,
-//! reactions,ports,registry,bridging}.rb) are NOT ported this stage (see
-//! the stage report), so a WHOLE aggregate `.rs` file can't be
+//! reactions,ports,registry,bridging}.rb) are not ported this stage (see
+//! the stage report), so a whole aggregate `.rs` file can't be
 //! reconstructed yet — but this prelude is a real, substantial,
-//! contiguous PREFIX of that file, assembled by literally replicating
+//! contiguous prefix of that file, assembled by literally replicating
 //! `domain_generator.rb`'s own `f.puts` call sequence up to (not
 //! including) `aggregate[:commands].each`, so it byte-matches the
 //! corresponding prefix of the real generated file directly.
 //!
 //! `f.puts` semantics matter for the exact byte output: Ruby's `puts`
-//! appends a trailing "\n" ONLY IF the string doesn't already end in one
+//! appends a trailing "\n" only if the string doesn't already end in one
 //! — `puts_str`/`puts_blank` below mirror that exactly, since several
 //! `emit_*` functions already carry their own trailing "\n" (see their
 //! own header comments) and several don't.

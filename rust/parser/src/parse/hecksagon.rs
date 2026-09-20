@@ -2,13 +2,13 @@
 //! `HecksagonBuilder`) — a `.hecksagon` file's own content: `binds`,
 //! `subscriptions`, `framework_members` (`uses_framework`). Two things
 //! contribute to `ir.json` per the plan's finding #5: `port ... do ... end`
-//! blocks (`add_port`) and `uses_framework` (which OTHER chapters get
+//! blocks (`add_port`) and `uses_framework` (which other chapters get
 //! generated) — everything else (`persisted_by`, `projected_by`,
 //! `subscribe`) is accepted and ignored, not built.
 //!
 //! The `.hecksagon` adapter-bind shape itself (`Aggregate.persisted_by(...)`,
 //! `Const.verb(...)`) is one of the plan's two narrow, permanent
-//! open-vocabulary escapes — shape-matched and its contents DROPPED, never
+//! open-vocabulary escapes — shape-matched and its contents dropped, never
 //! interpreted. Not yet implemented even as a drop at Stage 1 (see
 //! parse/mod.rs's `dispatch_stub` comment on `World` for the matching
 //! gap) — named here as tracked Stage 2+ work rather than guessed at.
@@ -23,7 +23,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Hecksagon.{word}"))
 }
 
-/// Applies a `.hecksagon` file's body onto an ALREADY-BUILT `ir::Bluebook`
+/// Applies a `.hecksagon` file's body onto an already-built `ir::Bluebook`
 /// — mirrors `bin/project_rust`'s own real load order (the `.bluebook`
 /// loads first and registers every aggregate; `.hecksagon` loads second
 /// and mutates the registered aggregates' own `ports`, via
@@ -36,20 +36,20 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// other adapter-bind verb) is the plan's own named open-vocabulary
 /// escape: shape-matched, never interpreted, its content dropped.
 ///
-/// `uses_framework_names` — STAGE 8 addition: every `uses_framework
+/// `uses_framework_names` — stage 8 addition: every `uses_framework
 /// "X"` argument encountered, pushed in file order, so `hecks-parse
-/// resolve` (parse::chapter::resolve_hecksagon_dependencies, the ONLY other
+/// resolve` (parse::chapter::resolve_hecksagon_dependencies, the only other
 /// caller that cares) can report them back to `bin/project_rust`'s
 /// opt-in Rust orchestration path without a second pass over the file.
-/// `parse_chapter`'s own call sites (both the matching AND the
+/// `parse_chapter`'s own call sites (both the matching and the
 /// discarded-sibling-block cases) pass a throwaway `&mut Vec::new()` —
 /// `ir.json` itself still carries no `uses_framework` key at all (this
 /// module's own header, finding #5), so `chapter`'s own callers have no
 /// use for the collected names.
 ///
-/// `require_matching_aggregate` — STAGE 8 addition: `parse_chapter`
+/// `require_matching_aggregate` — stage 8 addition: `parse_chapter`
 /// passes `true` (the original, only behavior before this stage) —
-/// `bluebook` there is either the REAL accumulator (already carrying
+/// `bluebook` there is either the real accumulator (already carrying
 /// every aggregate the sibling `.bluebook` file just registered) or a
 /// same-shape discarded one for a sibling chapter's own block, so an
 /// aggregate-scoped `port` line naming an aggregate that doesn't exist
@@ -57,21 +57,21 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// `false`: it never sees a `.bluebook` file at all (by design — see
 /// `main.rs::run_resolve`'s own header on why `hecks-parse resolve`
 /// takes only the `.hecksagon` path), so its `ir::Bluebook::default()`
-/// accumulator NEVER carries real aggregates — a real `port` line
+/// accumulator never carries real aggregates — a real `port` line
 /// (pizzas.hecksagon's own `Pizzas::Order.port "PaymentGateway"`) would
 /// otherwise fail this exact lookup on every single resolve call, for a
 /// construct resolve doesn't even report. The body still gates fully
 /// either way (fail-closed holds); only the "attach onto a real
 /// aggregate" step is skipped when `false`.
 ///
-/// `vendored_bluebook_names` — same STAGE 8 shape as
+/// `vendored_bluebook_names` — same stage 8 shape as
 /// `uses_framework_names`, one line below: every `uses_embryonaut_
 /// bluebook "X"` argument encountered, pushed in file order. Same
 /// caller (`hecks-parse resolve`), same reason: a vendored package is
-/// attached the SAME `Kernel.load`-into-registry way a framework member
+/// attached the same `Kernel.load`-into-registry way a framework member
 /// is (`lib/hecks/embryonaut_bluebook.rb`'s own header — "same shape as
 /// Framework"), so the opt-in Rust-native pipeline needs to discover it
-/// the same way, from the SAME `.hecksagon` scan, or it silently drops
+/// the same way, from the same `.hecksagon` scan, or it silently drops
 /// the vendored chapter entirely while the default Ruby path still
 /// generates it — a real divergence, not a hypothetical one.
 pub fn apply(
@@ -113,12 +113,12 @@ pub fn apply(
             continue;
         }
 
-        // A DOMAIN-LEVEL DEFAULT BIND, BARE AT THE ROOT — `persisted_by
+        // A domain-level default bind, bare at the root — `persisted_by
         // "Heki"` with no aggregate receiver (`HecksagonBuilder#
         // method_missing`, Ruby side). Same open-vocabulary treatment
         // `apply_aggregate_qualified` already gives the aggregate-scoped
         // form just below: any word that isn't one of Hecksagon's three
-        // CLOSED words (port/subscribe/uses_framework) is shape-matched
+        // closed words (port/subscribe/uses_framework) is shape-matched
         // and dropped, never run through `next_line`'s closed-vocabulary
         // `word_gate` — that gate exists for the fixed keywords, not the
         // open adapter-bind vocabulary layered on top of it.
@@ -138,10 +138,10 @@ pub fn apply(
         match super::next_line(file, lines, pos, "Hecksagon")? {
             None => return Ok(()),
             Some(gated) => match gated.row.word {
-                // A PORT DECLARED BARE AT THE ROOT — belongs to the CHAPTER
+                // A port declared bare at the root — belongs to the chapter
                 // as a whole (`HecksagonBuilder#port`), not one aggregate.
                 // `IR::Bluebook#to_h` carries no `ports:` key at all (only
-                // an AGGREGATE's own ports do, via `IR::Aggregate#to_h` —
+                // an aggregate's own ports do, via `IR::Aggregate#to_h` —
                 // confirmed by reading `bluebook.rb` directly: `@ports`
                 // exists on the Ruby object but `to_h` never spells it).
                 // Parsed and validated for real, then discarded — not
@@ -153,13 +153,13 @@ pub fn apply(
                     let _ = domain_port::parse_body(file, lines, pos, &name, None)?;
                 }
                 // `translates "Name" do on Foreign::Event; trigger Local.Command; end` —
-                // a cross-domain reaction WIRED HERE (Hecksagon context) instead of the
-                // sibling `.bluebook`'s own `policy` block, but building the EXACT SAME
+                // a cross-domain reaction wired here (Hecksagon context) instead of the
+                // sibling `.bluebook`'s own `policy` block, but building the exact same
                 // `ir::Policy` shape (`HecksagonBuilder#translates` -> `PolicyBuilder.build`
                 // -> `Chapter#add_policy`, Ruby side) — reuses `policy::parse_body`
                 // wholesale, zero new IR fields. Pushed straight onto the already-built
                 // `bluebook.policies` (mirrors `Chapter#add_policy`'s own `@policies <<`,
-                // which runs on the SAME already-registered, already-built chapter this
+                // which runs on the same already-registered, already-built chapter this
                 // Hecksagon file mutates — see this module's own header), so a
                 // `translates` block lands after every aggregate- and chapter-level
                 // policy the sibling `.bluebook` file already contributed, in file
@@ -177,15 +177,15 @@ pub fn apply(
                     bluebook.policies.push(built);
                 }
                 // `uses_framework "Governance"`/`subscribe "..."` —
-                // ACCEPTED AND IGNORED, per the plan's own finding #5:
+                // accepted and ignored, per the plan's own finding #5:
                 // `.hecksagon` contributes exactly two things to `ir.json`
-                // (`port ... do ... end` and `uses_framework` ITSELF, but
-                // only in the sense of "which OTHER chapters get
+                // (`port ... do ... end` and `uses_framework` itself, but
+                // only in the sense of "which other chapters get
                 // generated" — `IR::Bluebook#to_h` carries no
                 // `framework_members`/`uses_framework` key at all,
                 // confirmed by reading `bluebook.rb` directly). Gated for
                 // real (word/body/argument all already ran above), then
-                // dropped — the SAME "shape-matched, contents dropped"
+                // dropped — the same "shape-matched, contents dropped"
                 // treatment `apply_aggregate_qualified` already gives
                 // `persisted_by`/`projected_by`. Confirmed real:
                 // banking.hecksagon's own `uses_framework "Governance"`/
@@ -199,7 +199,7 @@ pub fn apply(
                         1,
                     )?);
                 }
-                // `uses_embryonaut_bluebook "widgets"` — SAME treatment
+                // `uses_embryonaut_bluebook "widgets"` — same treatment
                 // as `uses_framework` just above: gated for real, its
                 // one required text argument collected into its own
                 // accumulator, `ir::Bluebook#to_h` still never mentions
@@ -231,7 +231,7 @@ pub fn apply(
 }
 
 /// `<Domain>::<Aggregate>.<verb>` — `verb == "port"` is `BindingProxy`'s
-/// own REAL method (aggregate-scoped `IR::DomainPort`, attached onto the
+/// own real method (aggregate-scoped `IR::DomainPort`, attached onto the
 /// aggregate this receiver names); anything else is `BindingProxy#
 /// method_missing`'s generic adapter-bind (`persisted_by`, `projected_by`,
 /// any other verb) — shape-matched and dropped, per this module's own
@@ -305,7 +305,7 @@ fn apply_aggregate_qualified(
 /// call — kept for the same reason `HecksagonBuilder#method_missing`
 /// itself still calls `block&.call`: the open vocabulary's shape covers
 /// this too). Content is never interpreted, only depth-tracked via the
-/// SAME shape gate every other line goes through, so a malformed line
+/// same shape gate every other line goes through, so a malformed line
 /// inside a dropped block still refuses rather than being silently
 /// swallowed.
 fn skip_dropped_body(file: &str, lines: &[SourceLine], pos: &mut usize) -> ParseResult<()> {

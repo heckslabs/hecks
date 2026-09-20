@@ -3,24 +3,24 @@
 //! `hecks-parse chapter --chapter <Name> <files...>`.
 //!
 //! Parses each `.bluebook` file's header + body into one `ir::Bluebook`,
-//! then applies any `.hecksagon` file(s) given onto the ALREADY-BUILT
+//! then applies any `.hecksagon` file(s) given onto the already-built
 //! result (`parse::hecksagon::apply`) — mirroring `bin/project_rust`'s
 //! own real load order: the domain's `.bluebook` loads and registers
-//! every aggregate FIRST, its `.hecksagon` loads SECOND and mutates
+//! every aggregate first, its `.hecksagon` loads second and mutates
 //! those already-registered aggregates (attaching ports).
 //!
-//! STAGE 6: A CHAPTER SPLIT ACROSS SEVERAL `.bluebook` FILES
+//! Stage 6: a chapter split across several `.bluebook` files
 //! (`MetaValidator::GRAMMAR_FILES`, discovered concept files sharing one chapter name —
 //! the self-hosted language parsing its own grammar) is now real,
 //! mirroring `BluebookBuilder.build`'s own accumulating-builder shape
 //! (`meta_validator.rb`'s own comment: "`BluebookBuilder.build` keeps
 //! one builder open per chapter name across calls ... so loading all
 //! the folder in order accumulates one domain"). Concretely: every
-//! `Bluebook`-context file's body is parsed into the SAME `ir::Bluebook`
+//! `Bluebook`-context file's body is parsed into the same `ir::Bluebook`
 //! accumulator, in file order — `aggregate`/`policy`/`report`/
-//! `process_manager` all APPEND across files exactly as they do within
+//! `process_manager` all append across files exactly as they do within
 //! one file, while `vision`/`core`/`supporting`/`generic`/
-//! `formerly_known_as` (single-value fields) are SET, not reset, by a
+//! `formerly_known_as` (single-value fields) are set, not reset, by a
 //! later file that doesn't mention them — matching
 //! `BluebookBuilder#vision`/`#core`/etc.'s own plain `@ivar = value`
 //! assignment, never touched by a file that has no such line. The
@@ -29,19 +29,19 @@
 //! file declares it and refuses conflicting versions. This makes sorted folder
 //! discovery independent of a specially ordered metadata file.
 //!
-//! STAGE 4 finding: a SINGLE `.hecksagon` FILE may declare MORE THAN ONE
+//! Stage 4 finding: a single `.hecksagon` file may declare more than one
 //! `Hecks.hecksagon "Name" do ... end` block — banking.hecksagon's own
 //! shape, confirmed real: after the `"Banking"` block (the one this
-//! chapter's own binds live in), the SAME file also carries sibling
+//! chapter's own binds live in), the same file also carries sibling
 //! `Hecks.hecksagon "Governance" do ... end`/`"Identity"` blocks (their
 //! own comment explains why: a persistence bind belongs beside the
 //! aggregate whose registry it's found under, not beside whichever
 //! domain's own `.hecksagon` happens to `uses_framework` it — so
-//! Governance/Identity's OWN binds sit in this same physical file rather
+//! Governance/Identity's own binds sit in this same physical file rather
 //! than a nonexistent `framework/bluebook/governance.hecksagon`). Every
-//! block in the file is still gated for real (fail-closed holds for ALL
+//! block in the file is still gated for real (fail-closed holds for all
 //! of them, not just the one this chapter cares about) — only the block
-//! whose OWN declared name matches `chapter_name` is applied onto the
+//! whose own declared name matches `chapter_name` is applied onto the
 //! real `bluebook`; every other one is applied onto a throwaway,
 //! discarded `ir::Bluebook`, so a real syntax error inside a sibling
 //! block still refuses rather than being silently skipped.
@@ -57,7 +57,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 
 /// Parses one chapter across one or more source files — exactly one
 /// `.bluebook` file plus zero or more `.hecksagon` files, applied in the
-/// order given. Stops at the FIRST diagnostic, whichever file it comes
+/// order given. Stops at the first diagnostic, whichever file it comes
 /// from ("first error aborts" applied across files, not just within
 /// one).
 pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
@@ -73,32 +73,32 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     let mut aggregate_policies: Vec<ir::Policy> = Vec::new();
     let mut chapter_policies: Vec<ir::Policy> = Vec::new();
     let mut chapter_named_givens: Vec<(String, ir::Given)> = Vec::new();
-    // EVERY BARE CHAPTER-GIVEN A FILE PARSED SO FAR LEFT PENDING — see
+    // Every bare chapter-given a file parsed so far left pending — see
     // `aggregate::PendingChapterGiven`'s own comment for what queues here
     // and this function's own resolution pass (below) for where it
     // drains, once every file has loaded.
     let mut pending_chapter_givens: Vec<(usize, aggregate::PendingChapterGiven)> = Vec::new();
-    // ONE LEVEL DEEPER STILL — a COMMAND's own bare reference to the
+    // **One level deeper still** — a command's own bare reference to the
     // same not-yet-resolved chapter-given (`command::PendingCommandGiven`
-    // 's own comment). Resolved in a SECOND pass below, after every
+    // 's own comment). Resolved in a second pass below, after every
     // `PendingChapterGiven` above has already patched the aggregate's
-    // own `preconditions` — this one COPIES that result rather than
+    // own `preconditions` — this one copies that result rather than
     // re-resolving from scratch.
     let mut pending_command_givens: Vec<(usize, usize, command::PendingCommandGiven)> = Vec::new();
-    // ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool (the
+    // **One level wider still** — the chapter-wide, entity-scoped pool (the
     // piece analogue of `chapter_named_givens`, above). See
     // `entity::parse_body`'s own header for what this closes.
     let mut chapter_entity_named_givens: Vec<(String, ir::Given)> = Vec::new();
-    // EVERY BARE CHAPTER-ENTITY-GIVEN A FILE PARSED SO FAR LEFT PENDING —
+    // Every bare chapter-entity-given a file parsed so far left pending —
     // see `entity::PendingChapterEntityGiven`'s own comment; stamped with
     // its own `aggregate_index` the same way `pending_chapter_givens`
     // above is.
     let mut pending_chapter_entity_givens: Vec<(usize, entity::PendingChapterEntityGiven)> =
         Vec::new();
-    // ONE LEVEL DEEPER STILL — a COMMAND (owned by some entity) bare-
+    // **One level deeper still** — a command (owned by some entity) bare-
     // referencing the same not-yet-resolved chapter-entity-given (`entity
     // ::PendingEntityCommandGiven`'s own comment). Resolved in a pass
-    // AFTER every `PendingChapterEntityGiven` above has already patched
+    // after every `PendingChapterEntityGiven` above has already patched
     // its owning entity's own `preconditions`.
     let mut pending_entity_command_givens: Vec<(usize, entity::PendingEntityCommandGiven)> =
         Vec::new();
@@ -180,7 +180,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         )
     })?;
 
-    // Combined ONCE, after every Bluebook-context file has contributed —
+    // Combined once, after every Bluebook-context file has contributed —
     // matching `BluebookBuilder#build`'s own `@aggregates.flat_map(&:policies)
     // + @policies`, run only at the very end regardless of how many files
     // fed the accumulator.
@@ -193,20 +193,20 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     // inference rule has one implementation and one declaration-order rule.
     crate::build::query_inference::apply(&files[0].0, &mut bluebook)?;
 
-    // THE OTHER HALF OF A CHAPTER-WIDE `given` REFERENCE —
+    // The other half of a chapter-wide `given` reference —
     // `aggregate::try_reference_named_chapter_given` recognised an
     // unresolved bare reference and deferred it here, unable to check
-    // further: a later file in this SAME chapter might still declare the
+    // further: a later file in this same chapter might still declare the
     // real thing. Resolved now, once and for all, against the
-    // NOW-COMPLETE `chapter_named_givens` — the IDENTICAL lookup that
+    // now-complete `chapter_named_givens` — the identical lookup that
     // function already does, just late enough to see every aggregate's
     // own declarations, not only the ones parsed before the referencing
     // one. Mirrors `BluebookBuilder#resolve_pending_chapter_givens!`
-    // exactly, one call-site: PATCHES `bluebook.aggregates[aggregate_
+    // exactly, one call-site: patches `bluebook.aggregates[aggregate_
     // index].preconditions[precondition_index]` directly rather than
     // mutating a shared object in place (Ruby's own trick, not available
     // here — nothing else in Rust's IR holds a second reference to the
-    // placeholder that would need to see the update; the SECOND pass
+    // placeholder that would need to see the update; the second pass
     // below handles the one thing that does, a command's own copy).
     for (aggregate_index, pending) in pending_chapter_givens {
         let candidates: Vec<&(String, ir::Given)> = chapter_named_givens
@@ -264,9 +264,9 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         bluebook.aggregates[aggregate_index].preconditions[pending.precondition_index] = resolved;
     }
 
-    // A THIRD LAYER — a COMMAND's own bare reference to the same
+    // **A third layer** — a command's own bare reference to the same
     // description (`command::PendingCommandGiven`'s own comment). Runs
-    // AFTER the loop above, on purpose — it COPIES the aggregate's own
+    // after the loop above, on purpose — it copies the aggregate's own
     // now-final `preconditions[precondition_index]`, so the aggregate
     // -level placeholder has to be resolved for real first.
     for (aggregate_index, command_index, pending) in pending_command_givens {
@@ -276,11 +276,11 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             resolved;
     }
 
-    // A FOURTH LAYER — the ENTITY-SCOPED analogue of the chapter-given
+    // **A fourth layer** — the entity-scoped analogue of the chapter-given
     // resolution pass above, one level down (`entity::
     // try_reference_named_chapter_entity_given`'s own header). Resolved
-    // against the NOW-COMPLETE `chapter_entity_named_givens` — the
-    // IDENTICAL lookup that function already does, just late enough to
+    // against the now-complete `chapter_entity_named_givens` — the
+    // identical lookup that function already does, just late enough to
     // see every piece's own declaration, not only the ones parsed before
     // the referencing one. `entity::entity_at_path_mut` locates the
     // (possibly nested — S17, ADR 0026) entity the placeholder actually
@@ -346,9 +346,9 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         target_entity.preconditions[pending.precondition_index] = resolved;
     }
 
-    // A FIFTH LAYER — a COMMAND (owned by some entity) bare-referencing
+    // **A fifth layer** — a command (owned by some entity) bare-referencing
     // the same chapter-entity-given (`entity::PendingEntityCommandGiven`
-    // 's own comment). Runs AFTER the loop above, on purpose — it COPIES
+    // 's own comment). Runs after the loop above, on purpose — it copies
     // the owning entity's own now-final `preconditions[precondition_
     // index]`, so that placeholder has to be resolved for real first.
     for (aggregate_index, pending) in pending_entity_command_givens {
@@ -365,12 +365,12 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         let lines = lex::lines(&joined);
         let mut pos = 0usize;
 
-        // Loop over EVERY top-level `Hecks.hecksagon "Name" do ... end`
+        // Loop over every top-level `Hecks.hecksagon "Name" do ... end`
         // block in the file — see this module's own header on why one
         // file may hold several. `pos < lines.len()` at the top of each
         // iteration is exactly "did the block we just finished consume
         // the whole file" — `lex::lines` already stripped every comment
-        // and blank line, so the NEXT real line (if any) is always
+        // and blank line, so the next real line (if any) is always
         // another header.
         while pos < lines.len() {
             let (row, call, header_line) = super::file::parse_header(path, &lines, &mut pos)?;
@@ -394,7 +394,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     true,
                 )?;
             } else {
-                // A SIBLING hecksagon for a DIFFERENT chapter, physically
+                // A sibling hecksagon for a different chapter, physically
                 // sharing this file (see this module's own header) —
                 // still gated for real, its content simply never reaches
                 // the real `bluebook`.
@@ -415,20 +415,20 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     Ok(bluebook)
 }
 
-/// STAGE 8 — `hecks-parse resolve --chapter <Name> <file.hecksagon>`'s
-/// own driver: which OTHER chapters `<Name>`'s own block inside this
-/// `.hecksagon` file pulls in, via EITHER `uses_framework` (a framework
-/// member shipped inside this gem) OR `uses_embryonaut_bluebook` (a
-/// vendored package shipped inside the CONSUMER's own checkout,
-/// `lib/hecks/embryonaut_bluebook.rb`) — both attach onto the SAME
-/// registry the SAME `Kernel.load` way at real Ruby boot time
+/// Stage 8 — `hecks-parse resolve --chapter <Name> <file.hecksagon>`'s
+/// own driver: which other chapters `<Name>`'s own block inside this
+/// `.hecksagon` file pulls in, via either `uses_framework` (a framework
+/// member shipped inside this gem) or `uses_embryonaut_bluebook` (a
+/// vendored package shipped inside the consumer's own checkout,
+/// `lib/hecks/embryonaut_bluebook.rb`) — both attach onto the same
+/// registry the same `Kernel.load` way at real Ruby boot time
 /// (that file's own header: "same shape as Framework"), so this Rust-
-/// native resolver reports both from the SAME single scan. Reuses the
-/// EXACT same "loop over every top-level `Hecks.hecksagon "..." do ...
+/// native resolver reports both from the same single scan. Reuses the
+/// exact same "loop over every top-level `Hecks.hecksagon "..." do ...
 /// end` block, apply only the one whose own declared name matches,
 /// still gate every sibling block for real" shape `parse_chapter`'s own
 /// `.hecksagon` loop already established (this module's own header, the
-/// STAGE 4 finding on why one file may hold several blocks) — a second,
+/// stage 4 finding on why one file may hold several blocks) — a second,
 /// narrower entry point onto the same real parsing, not a second fact
 /// base. Every block is still fail-closed gated regardless of whether
 /// it matches; `ir::Bluebook::default()` is a throwaway accumulator
@@ -497,33 +497,33 @@ pub fn resolve_hecksagon_dependencies(
     Ok((framework_names, vendored_names))
 }
 
-/// Parses a `Hecks.bluebook "Name" do ... end` body INTO an
+/// Parses a `Hecks.bluebook "Name" do ... end` body into an
 /// already-existing accumulator — `vision`/`core`/`supporting`/
 /// `generic`/`formerly_known_as`/`aggregate`/`policy`/`report`/
-/// `read_model`. STAGE 4 added `process_manager` (banking.bluebook's own
+/// `read_model`. Stage 4 added `process_manager` (banking.bluebook's own
 /// three sagas). `formerly_known_as` is parsed (single positional text,
 /// same shape as `vision`) but not exercised by any real corpus member
 /// yet — every fixture still emits it as `null`.
 ///
-/// STAGE 6: takes `bluebook`/`aggregate_policies`/`chapter_policies` BY
-/// MUTABLE REFERENCE rather than minting and returning fresh ones, so
-/// `parse_chapter` can call this once per Bluebook-context FILE while
-/// every file appends onto the SAME running totals — the shape
+/// Stage 6: takes `bluebook`/`aggregate_policies`/`chapter_policies` by
+/// mutable reference rather than minting and returning fresh ones, so
+/// `parse_chapter` can call this once per Bluebook-context file while
+/// every file appends onto the same running totals — the shape
 /// `BluebookBuilder`'s own single, registry-memoized builder instance
 /// has across the discovered `MetaValidator::GRAMMAR_FILES` calls (see this
 /// module's own header). A single-file chapter (pizzas.bluebook, ...)
 /// still gets exactly one call, so this is a strict generalization, not
 /// a behavior change for every existing REAL_PARITY_MEMBERS entry.
 ///
-/// POLICY BUBBLING ORDER: `BluebookBuilder#build`'s own `policies =
-/// @aggregates.flat_map(&:policies) + @policies` — every AGGREGATE's own
-/// nested policies, in aggregate declaration order, THEN every
-/// CHAPTER-level policy, in ITS OWN declaration order — regardless of how
-/// the two kinds interleave in the source text, OR ACROSS HOW MANY
-/// FILES. Confirmed real (single-file case): banking.bluebook's
-/// `Account` aggregate declares `policy "ReviewOnFreeze"` INSIDE itself,
+/// **Policy bubbling order**: `BluebookBuilder#build`'s own `policies =
+/// @aggregates.flat_map(&:policies) + @policies` — every aggregate's own
+/// nested policies, in aggregate declaration order, then every
+/// chapter-level policy, in its own declaration order — regardless of how
+/// the two kinds interleave in the source text, or across how many
+/// files. Confirmed real (single-file case): banking.bluebook's
+/// `Account` aggregate declares `policy "ReviewOnFreeze"` inside itself,
 /// followed much later in the file by four chapter-level policies — the
-/// real `ir.json` puts `ReviewOnFreeze` FIRST regardless. `parse_chapter`
+/// real `ir.json` puts `ReviewOnFreeze` first regardless. `parse_chapter`
 /// combines the two accumulators exactly once, after every file has
 /// contributed — see its own final `bluebook.policies = ...` lines.
 fn parse_body_into(
@@ -534,22 +534,22 @@ fn parse_body_into(
     aggregate_policies: &mut Vec<ir::Policy>,
     chapter_policies: &mut Vec<ir::Policy>,
     chapter_named_givens: &mut Vec<(String, ir::Given)>,
-    // EVERY BARE CHAPTER-GIVEN A FILE PARSED SO FAR LEFT PENDING — see
+    // Every bare chapter-given a file parsed so far left pending — see
     // `aggregate::PendingChapterGiven`'s own comment; `parse_chapter`
     // resolves every one of these once every file has loaded.
     pending_chapter_givens: &mut Vec<(usize, aggregate::PendingChapterGiven)>,
-    // ONE LEVEL DEEPER — a COMMAND's own bare reference to the same
+    // **One level deeper** — a command's own bare reference to the same
     // not-yet-resolved chapter-given (`command::PendingCommandGiven`'s
     // own comment).
     pending_command_givens: &mut Vec<(usize, usize, command::PendingCommandGiven)>,
-    // ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool (the
+    // **One level wider still** — the chapter-wide, entity-scoped pool (the
     // piece analogue of `chapter_named_givens`, above). See
     // `entity::parse_body`'s own header.
     chapter_entity_named_givens: &mut Vec<(String, ir::Given)>,
     pending_chapter_entity_givens: &mut Vec<(usize, entity::PendingChapterEntityGiven)>,
     pending_entity_command_givens: &mut Vec<(usize, entity::PendingEntityCommandGiven)>,
 ) -> ParseResult<()> {
-    // THE ROOT of the chapter-wide given pool
+    // The root of the chapter-wide given pool
     // (`docs/implemented/resolution-rules/chapter-given.md`) belongs to the
     // accumulated chapter, not one physical file. Ruby keeps one
     // `BluebookBuilder` open per chapter name, so later business-concept files
@@ -602,8 +602,8 @@ fn parse_body_into(
             "core" => bluebook.classification = Some("core".to_string()),
             "supporting" => bluebook.classification = Some("supporting".to_string()),
             "generic" => bluebook.classification = Some("generic".to_string()),
-            // ADR 0026, S15 — VARIADIC, same shape `group_by`'s own
-            // parsing is: as many positional TEXT arguments as the
+            // ADR 0026, S15 — variadic, same shape `group_by`'s own
+            // parsing is: as many positional text arguments as the
             // source gave (`positional_text`, not `positional_symbol` —
             // these are quoted strings, "Query"/"ReadModel", not
             // symbols), accumulating rather than overwriting since

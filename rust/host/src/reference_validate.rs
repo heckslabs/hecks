@@ -1,4 +1,4 @@
-// LAYER 1 of the mint-time audit — structural parity with Ruby's own
+// Layer 1 of the mint-time audit — structural parity with Ruby's own
 // `Runtime::Instance.new`/`Value.hydrate` (rescued for
 // `InvariantViolation`/`TypeMismatch` by `Translation::Audit::
 // LayerOne`) plus that same module's own lifecycle-field check: every
@@ -11,28 +11,27 @@
 // discipline (`ir.rs` already reads everything generically via
 // `serde_json::Value`, no per-domain generated type) — reads straight
 // off `ir.json`'s `aggregates[].{attributes,value_objects,entities,
-// lifecycle}`, the SAME metadata `rust/codegen` already compiles types
+// lifecycle}`, the same metadata `rust/codegen` already compiles types
 // from, just consumed as data here instead of compiled to Rust source.
 //
-// CUSTOM VALUE-OBJECT INVARIANT PREDICATES (`invariants: [{canonical:
-// "cents >= 0", ast: {...}}]`) ARE NOW CHECKED TOO, for the operators
+// Custom value-object invariant predicates (`invariants: [{canonical:
+// "cents >= 0", ast: {...}}]`) are checked too, for the operators
 // `expr_json::interpret` actually implements — see that file's own
 // header for exactly which ones, and why the rest cleanly refuse rather
-// than being silently skipped or ported speculatively. This closes what
-// used to be a deliberate, named gap here: evaluating `canonical` text
-// live needed an executable form of it this crate could run without
-// either (a) a second, independently-written expression interpreter
+// than being silently skipped or ported speculatively. Evaluating
+// `canonical` text live needs an executable form of it this crate can
+// run without either (a) a second, independently-written expression interpreter
 // duplicating `rust::kernel::expr` a third time (this codebase's own
 // recurring lesson, most recently ADR 0022's whole reason for existing),
 // or (b) a direct Cargo dependency on the `rust` kernel crate to reuse
 // that interpreter directly — confirmed unsafe to do:
 // `rust/src/generated/mod.rs`'s own `pub mod banking; pub mod
-// compliance; ...` list is NOT feature-gated (only the `active`
+// compliance; ...` list is not feature-gated (only the `active`
 // re-export is), so depending on that crate at all would statically
 // bake every domain's generated dispatch code into every Lambda's own
 // binary regardless of which `.wasm` it actually loads at runtime — the
 // exact per-domain isolation this crate's own Cargo.toml header holds
-// itself to. `expr_json.rs`'s own `ast:` JSON — the SAME parsed AST
+// itself to. `expr_json.rs`'s own `ast:` JSON — the same parsed AST
 // `rust/project/expr_emitter.rb` already builds to emit Rust source
 // literals, serialized by `lib/hecks/bluebook/expression/ast_json.rb`
 // instead — is that build-time export; this file's own `check_value` is
@@ -111,15 +110,15 @@ fn check_attributes(
 /// entries — `vo["invariants"]`, each `{description, canonical, ast}`
 /// (`lib/hecks/bluebook/value_object.rb`'s own `invariants:` IR
 /// emission; `ast` is `expr_json::parse`'s own input, `Expression::
-/// AstJson.emit_predicate`'s output). FAILS CLOSED — a malformed `ast`
+/// AstJson.emit_predicate`'s output). Fails closed — a malformed `ast`
 /// or an operator `expr_json::interpret` doesn't support yet is pushed
 /// as a real violation, refusing the mint, the same as a genuine
 /// invariant failure would — not silently skipped. That is the
 /// deliberate difference from `check_value`'s own "unrecognized type
-/// name" tolerance just below: an unrecognized TYPE genuinely could be
+/// name" tolerance just below: an unrecognized type genuinely could be
 /// anything (no information either way, so guessing would risk a false
 /// positive worse than checking nothing), but an invariant this file
-/// KNOWS exists and simply cannot yet evaluate is real, actionable
+/// knows exists and simply cannot yet evaluate is real, actionable
 /// information — reporting it loudly is what lets an author either
 /// simplify the predicate or wait for `expr_json.rs`'s own coverage to
 /// grow, rather than silently minting past it.
@@ -132,8 +131,8 @@ fn check_invariants(aggregate_name: &str, id: &str, attr_name: &str, type_name: 
         // capability existed (or by a generator this validator doesn't
         // fully trust yet). Nothing to check against, and no claim this
         // audit ever made before that it's checking it — not a
-        // violation, unlike a PRESENT-but-malformed or PRESENT-but-
-        // unsupported `ast`, both of which ARE.
+        // violation, unlike a present-but-malformed or present-but-
+        // unsupported `ast`, both of which are.
         let Some(ast) = invariant.get("ast") else { continue };
 
         let expr = match expr_json::parse(ast) {
@@ -172,13 +171,13 @@ fn check_value(
         let nested = vo.get("attributes").and_then(Value::as_array).cloned().unwrap_or_default();
         let before = violations.len();
         check_attributes(aggregate_name, id, value, &nested, value_objects, entities, violations);
-        // STRUCTURE FIRST, INVARIANT SECOND — and only when the struct
+        // **Structure first, invariant second** — and only when the struct
         // check found nothing wrong. A value already flagged for a
         // wrong type/pattern/admits has nothing coherent for its own
         // `invariant` predicate to say about it either (`cents >= 0`
         // means nothing once `cents` itself isn't the Integer it's
         // declared as) — checking anyway would either double-report the
-        // SAME underlying problem under two different violation
+        // same underlying problem under two different violation
         // messages, or (worse) `expr_json::interpret` refusing to
         // compare a non-numeric value would surface as its own separate
         // "could not be checked" violation, obscuring the real,

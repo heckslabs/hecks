@@ -22,14 +22,14 @@ pub fn demodulise(type_name: &str) -> String {
 }
 
 /// `Hecks::Naming.command_ref` — the command-reference text a bare
-/// command constant (`trigger Account::Debit`) OR the legacy quoted
+/// command constant (`trigger Account::Debit`) or the legacy quoted
 /// string (`trigger "Account.Debit"`, still accepted under
 /// `MetaValidator.shadow_parsing?`) resolves to. A String/Symbol value
 /// passes through unchanged (`value.to_s`); a bare constant chain is
-/// split at its LAST `::` and rejoined with `.` — `"Account::Debit"` ->
+/// split at its last `::` and rejoined with `.` — `"Account::Debit"` ->
 /// `"Account.Debit"`, `"Banking::Account::Debit"` ->
-/// `"Banking::Account.Debit"` (only ONE `rpartition`, so an inner `::`
-/// stays exactly as written). `raw` is the argument's raw SOURCE text —
+/// `"Banking::Account.Debit"` (only one `rpartition`, so an inner `::`
+/// stays exactly as written). `raw` is the argument's raw source text —
 /// quoted or bare — read the same way `positional_text` reads any other
 /// positional argument.
 pub fn command_ref(raw: &str) -> String {
@@ -43,16 +43,16 @@ pub fn command_ref(raw: &str) -> String {
     }
 }
 
-/// `Hecks::Naming.event_name_ref` — a process manager's OWN event
+/// `Hecks::Naming.event_name_ref` — a process manager's own event
 /// references (`transition Account::AccountDebited => "state"`,
 /// `starts_on Transfer::TransferRequested`, `ends_on Transfer::
-/// TransferSettled`), DELIBERATELY NOT `command_ref` — that method's
+/// TransferSettled`), deliberately not `command_ref` — that method's
 /// own Ruby-side header (`lib/hecks/naming.rb`) has the full account:
-/// `SagaInterpreter` matches these against a BARE `event.name`, never
+/// `SagaInterpreter` matches these against a bare `event.name`, never
 /// a `.`-qualified one (unlike a policy's own cross-aggregate `on`,
 /// matched by splitting the qualifier apart from the name instead of
 /// comparing the whole string). A String passes through unchanged,
-/// same as `command_ref`; a bare constant chain keeps only its FINAL
+/// same as `command_ref`; a bare constant chain keeps only its final
 /// segment (`demodulise`, above) rather than being rejoined with `.`.
 pub fn event_name_ref(raw: &str) -> String {
     match crate::ruby_value::read(raw.trim()) {
@@ -115,7 +115,7 @@ pub fn pascal(text: &str) -> String {
         .collect()
 }
 
-/// `Hecks::Naming.plural` — the name a COLLECTION of something
+/// `Hecks::Naming.plural` — the name a collection of something
 /// takes, e.g. a read model's own many-side `include` head
 /// (`ReadModelBuilder#add_aggregate_head`, `build/read_model.rs`) when no
 /// `as:` is given: `"state_style" -> "state_styles"`, `"collection" ->
@@ -140,7 +140,7 @@ pub fn plural(text: &str) -> String {
 
 /// `Hecks::Naming.singularize` — the inverse of `plural`, used by
 /// `has_many`'s own target-name derivation (`has_many Invoices` points at
-/// `Invoice`). Two suffix rules only, tried in order — the SAME two
+/// `Invoice`). Two suffix rules only, tried in order — the same two
 /// `plural` itself inverts, not a general-purpose singularizer.
 pub fn singularize(text: &str) -> String {
     if text.len() > 3 && text.ends_with("ies") {

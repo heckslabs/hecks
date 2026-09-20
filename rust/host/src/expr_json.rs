@@ -1,11 +1,11 @@
-// A HOST-LOCAL, JSON-BACKED PORT of `rust::kernel::expr::Expr` — see
+// A host-local, JSON-backed port of `rust::kernel::expr::Expr` — see
 // `reference_validate.rs`'s own header for why this exists at all
 // (a value object's own `invariant` predicate, checked at mint-time
 // audit, with no kernel crate this binary is allowed to link against).
 // `lib/hecks/bluebook/expression/ast_json.rb`'s own header is the Ruby
-// side of the SAME port — read that file first; this is its mirror.
+// side of the same port — read that file first; this is its mirror.
 //
-// PARSED FROM `&serde_json::Value` BY HAND, NOT `#[derive(Deserialize)]`
+// Parsed from `&serde_json::Value` by hand, not `#[derive(Deserialize)]`
 // — matching this crate's own established, exceptionless idiom
 // (`reference_validate.rs`/`ir.rs`/every other file here reads `ir.json`
 // dynamically via `serde_json::Value`, never a derived struct; grepping
@@ -14,27 +14,27 @@
 // dependency for a shape every sibling file already knows how to read
 // the plain way.
 //
-// STRUCTURALLY COMPLETE, NARROWLY INTERPRETED — a real, deliberate split,
+// **Structurally complete, narrowly interpreted** — a real, deliberate split,
 // not an oversight:
 //
-// - `parse`, below, accepts EVERY node the real grammar admits (all 28
+// - `parse`, below, accepts every node the real grammar admits (all 28
 //   `rust::kernel::expr::Expr` variants), because `AstJson` on the Ruby
-//   side emits ALL of them for ANY value-object invariant an author
-//   writes — refusing to even PARSE an unfamiliar shape would turn
+//   side emits all of them for any value-object invariant an author
+//   writes — refusing to even parse an unfamiliar shape would turn
 //   "this operator isn't checked yet" into "this domain's own ir.json is
 //   malformed," a strictly worse failure.
 //
-// - `interpret`, below, is COMPLETE for exactly the operators a full
+// - `interpret`, below, is complete for exactly the operators a full
 //   corpus survey found any real value-object invariant actually using
 //   today (`Or`/`And`/`Not`, `Compare`, `SignTest`, `Empty`/`Size`,
 //   `ToS`, plus the literal/`Lookup` leaves every expression needs) —
 //   the identical algebra `rust::kernel::expression_operators::{logical,
 //   comparison, sign_test, sized, to_string}` already implement, ported
 //   by reading those files directly rather than re-derived from
-//   scratch, since this crate cannot import them. Every OTHER variant
+//   scratch, since this crate cannot import them. Every other variant
 //   (`Include`, `Add`, `Modulo`, `BlockPredicate`, `Find`, `Array`,
 //   `MatchesRegex`, `Presence`, `Assignment`, `Split`, `StartsWith`,
-//   `EndsWith`, `First`, `Last`) is a REAL, deliberate boundary, not a
+//   `EndsWith`, `First`, `Last`) is a real, deliberate boundary, not a
 //   silent gap: `interpret` refuses them by name, cleanly, the same
 //   "unresolved, never guessed" discipline `reference_validate.rs`'s
 //   own unrecognized-type-name handling already holds to — an author
@@ -105,7 +105,7 @@ pub enum Expr {
 
 /// `json["ast"]`, straight off an `invariant`'s own IR node — every real
 /// arm named below, an unrecognized `"op"` (or a malformed shape under a
-/// recognized one) refused BY NAME rather than silently defaulted, the
+/// recognized one) refused by name rather than silently defaulted, the
 /// same discipline `reference_validate.rs`'s own header holds every
 /// other check here to.
 pub fn parse(json: &Json) -> Result<Expr, String> {
@@ -197,12 +197,12 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
 }
 
 /// The runtime value an `Expr` evaluates to — mirrors `rust::kernel::
-/// expr::Value` (`Int`/`Float`/`Str`/`Bool`/`Nil`), collapsed to ONE
+/// expr::Value` (`Int`/`Float`/`Str`/`Bool`/`Nil`), collapsed to one
 /// list shape (`Array`) rather than that file's own `List(usize)`/
-/// `Array(Vec<Value>)` split: that split exists there ONLY because a
+/// `Array(Vec<Value>)` split: that split exists there only because a
 /// compiled kernel field's own length and its own elements are two
 /// separately-reachable things (`Fielded::field` vs `::items`) — here,
-/// every "field" IS already a fully-materialised `serde_json::Value`,
+/// every "field" is already a fully-materialised `serde_json::Value`,
 /// so a list's own elements are always already in hand; there is no
 /// length-only reading to keep separate.
 #[derive(Debug, Clone, PartialEq)]
@@ -220,7 +220,7 @@ impl Value {
     /// read directly. `pub(crate)`, not private — `reference_validate.rs`'s
     /// own `check_invariants` needs the identical reading of an
     /// invariant's own final result (a value object's `invariant("...")
-    /// { predicate }` is checked for TRUTHINESS, not strict `== true`,
+    /// { predicate }` is checked for truthiness, not strict `== true`,
     /// the same way a command's own `given`/`ensures` already is).
     pub(crate) fn truthy(&self) -> bool {
         !matches!(self, Value::Nil | Value::Bool(false))
@@ -277,7 +277,7 @@ fn less_than(l: &Value, r: &Value) -> Result<bool, String> {
     }
 }
 
-/// `comparison::apply`, read directly: OR the two primitives together,
+/// `comparison::apply`, read directly: or the two primitives together,
 /// negate if the operator says to. `sign_test` below reuses this against
 /// a literal `Value::Int(0)`, the identical reuse the kernel's own
 /// `sign_test.rs` makes of `comparison::apply`.
@@ -303,10 +303,10 @@ fn to_s(v: &Value) -> Result<String, String> {
     }
 }
 
-/// THE ONE INTERPRETER — see this file's own header for exactly which
+/// **The one interpreter** — see this file's own header for exactly which
 /// operators below are real and which cleanly refuse. `instance` is the
 /// value object's own already-materialised JSON fields — a value-object
-/// invariant is always checked with NO command arguments in scope
+/// invariant is always checked with no command arguments in scope
 /// (`rust::kernel::expr::NoFields`'s own header: "a value object
 /// checking its own invariants... only the value object's own fields as
 /// `state`"), so there is no args-then-instance precedence to thread
@@ -366,7 +366,7 @@ pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
 
 /// `Resolver#fetch`'s own dotted-path walk, narrowed to what a value-
 /// object invariant actually needs: every real corpus example (`cents`,
-/// `value`, `file`, `rank`, ...) is a BARE, single-segment lookup
+/// `value`, `file`, `rank`, ...) is a bare, single-segment lookup
 /// against the value object's own top-level fields — no real invariant
 /// dots into a nested object. A dotted path still walks segment by
 /// segment via plain JSON `.get`, the direct equivalent of `composite::
@@ -440,7 +440,7 @@ mod tests {
     fn sign_test_positive_matches_a_real_amount_invariant() {
         // `value.positive?` — `{less_than: true, equal: true, negated:
         // true}`, confirmed against the real Ruby emitter directly
-        // (`value.positive?` compiles to NOT(value < 0 OR value == 0)).
+        // (`value.positive?` compiles to NOT(value < 0 or value == 0)).
         let ast = serde_json::json!({"op":"sign_test","cmp":{"less_than":true,"equal":true,"negated":true},"receiver":{"op":"lookup","path":["value"]}});
         let expr = parse(&ast).expect("valid Expr JSON");
 

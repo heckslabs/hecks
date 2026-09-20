@@ -5,11 +5,11 @@
 //! (`main.rs` resolves a bare identifier by searching outlines for a
 //! symbol of that name).
 //!
-//! DELIBERATELY NOT SOURCED FROM `hecks-parse`'s OWN IR, unlike
+//! Deliberately not sourced from `hecks-parse`'s own IR, unlike
 //! `diagnostics.rs`: `rust/parser/src/ir.rs` carries no source line for
 //! any construct (confirmed — there is no `line` field anywhere in it),
 //! so there is nothing to navigate to even when a parse fully succeeds.
-//! And a parse often DOESN'T fully succeed yet — Stage 1 stubs return
+//! And a parse often doesn't fully succeed yet — Stage 1 stubs return
 //! `not_yet_implemented` for whole construct kinds
 //! (`rust/parser/src/main.rs::COVERED_PAIRS`'s own header), which would
 //! leave `documentSymbol` empty for most of the real corpus if it only
@@ -23,7 +23,7 @@
 //! lists, not guessed, and kept to exactly the constructs worth jumping
 //! to — this is an outline, not a parser.
 //!
-//! THE GRAMMAR'S OWN REGULARITY IS WHAT MAKES THIS SAFE: `rust/parser`'s
+//! The grammar's own regularity is what makes this safe: `rust/parser`'s
 //! own lexer refuses any line that isn't one of a small fixed set of
 //! shapes (`lex.rs::classify` — no bare Ruby expressions, no `if`, no
 //! local assignment ever admitted), so a real, well-formed `.bluebook`
@@ -34,7 +34,7 @@
 //! counter is a much shakier idea in general Ruby; it's a reasonably
 //! safe one here.
 //!
-//! A BUFFER MID-EDIT CAN HAVE UNBALANCED `do`/`end` — the one real
+//! A buffer mid-edit can have unbalanced `do`/`end` — the one real
 //! failure mode: a stack that never pops (later symbols nest under a
 //! long-since-should-have-closed one) or pops early. Self-corrects the
 //! next time depth balances out; never panics either way.

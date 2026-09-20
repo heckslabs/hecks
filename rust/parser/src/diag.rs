@@ -4,7 +4,7 @@
 //! error, never silently skipped — that's the single most important design
 //! invariant in the whole Rust-parser plan (see the plan's framing of why
 //! `~/Projects/hecks/rust`'s own abandoned parser was dangerous: it "failed
-//! open", returning VALID for a real bluebook file while silently dropping
+//! open", returning valid for a real bluebook file while silently dropping
 //! identity). A `Diagnostic` is how every gate (shape/word/argument/body)
 //! reports that hard failure — always naming the file, the line, what was
 //! found, and what would have been legal instead.

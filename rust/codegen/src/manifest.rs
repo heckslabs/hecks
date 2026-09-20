@@ -109,7 +109,7 @@ impl Manifest {
     }
 
     /// `JSON.pretty_generate(manifest)` (json 2.7): two-space indent,
-    /// `"key": value`, no trailing newline — and an EMPTY array renders
+    /// `"key": value`, no trailing newline — and an empty array renders
     /// as `"[\n\n]"`, not `"[]"`.
     pub fn to_json_text(&self) -> String {
         if self.entries.is_empty() {
@@ -143,7 +143,7 @@ fn entry_json(entry: &Entry) -> String {
 }
 
 /// Ruby `JSON.generate`'s string escaping (json 2.7, `script_safe: false`):
-/// `"`/`\` and control characters only — `/`, DEL, and non-ASCII (the
+/// `"`/`\` and control characters only — `/`, del, and non-ASCII (the
 /// em dashes every reason string carries) pass through raw.
 fn json_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);

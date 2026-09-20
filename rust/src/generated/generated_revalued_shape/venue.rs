@@ -165,7 +165,6 @@ impl Venue {
 }
 
 fn venue_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],

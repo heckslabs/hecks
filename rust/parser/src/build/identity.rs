@@ -1,8 +1,8 @@
 //! Mirrors `AttributeCollector#resolve_identity_field!`/
 //! `#resolve_identity_type!` (`lib/hecks/bluebook/dsl/attribute_collector.rb`)
-//! — the two DERIVING forms of `identified_by`:
+//! — the two deriving forms of `identified_by`:
 //!
-//!   `identified_by :field, :field_two` — the LIVE form (ADR 0025,
+//!   `identified_by :field, :field_two` — the live form (ADR 0025,
 //!                                        "Identity"), one or more.
 //!                                        Each field's own already-
 //!                                        declared attribute decides the
@@ -29,15 +29,15 @@ use crate::ir;
 
 /// `AttributeCollector#resolve_identity_field!` — the bare-field form,
 /// `identified_by :field` (one or more, composite identity is their
-/// JOIN). `field`'s own already-declared attribute decides the shape:
+/// join). `field`'s own already-declared attribute decides the shape:
 /// a reference is already a scalar (resolves bare, unchanged) ; a
 /// single-field value object auto-unwraps to `field.<that field>` ; a
 /// bare primitive resolves unchanged too. A list, or a value object
 /// with more than one field, refuses.
 ///
-/// `:id` OR AN `_id`-SUFFIXED NAME WITH NO MATCHING ATTRIBUTE is not a
-/// typo to refuse — it is the language's own WALK-PARENT/FALLBACK-
-/// IDENTITY convention (the meta-domain's own `Command`/`Entity`/
+/// `:id` or an `_id`-suffixed name with no matching attribute is not a
+/// typo to refuse — it is the language's own walk-parent/fallback-
+/// identity convention (the meta-domain's own `Command`/`Entity`/
 /// `Aggregate` etc. identify by `owner_id`/`bluebook_id`/`aggregate_id`,
 /// supplied by the judge's replay rather than declared locally; bare
 /// `:id` is `Instance#materialize_identity!`'s own fallback name made
@@ -66,13 +66,13 @@ pub fn resolve_identity_field(
 
 /// `AttributeCollector#resolve_identity_type!` — `identified_by
 /// ValueObject, as: field`. Confirmed real: pizzas.bluebook's own
-/// `identified_by PizzaName, as: :name` (line 8), resolved at the END of
+/// `identified_by PizzaName, as: :name` (line 8), resolved at the end of
 /// the aggregate's body (mirroring Ruby's own build-time deferral —
-/// `PizzaName` is declared LATER in the file, after `identified_by`
+/// `PizzaName` is declared later in the file, after `identified_by`
 /// itself), not at the point `identified_by` was written.
 ///
-/// Mints the identity attribute at `insert_at` (the attribute count AT
-/// THE MOMENT `identified_by` was called — 0 for pizzas.bluebook, since
+/// Mints the identity attribute at `insert_at` (the attribute count at
+/// the moment `identified_by` was called — 0 for pizzas.bluebook, since
 /// it is the very first line of the aggregate body) and returns the
 /// recursively derived identity paths beneath the minted field.
 #[allow(clippy::too_many_arguments)]

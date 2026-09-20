@@ -1,4 +1,4 @@
-// HAND-WRITTEN, ONCE, GENERIC — a direct port of `CommandInterpreter#call`
+// **Hand-written, once, generic** — a direct port of `CommandInterpreter#call`
 // walking `DISPATCH_ORDER` (docs/implemented/guides/running-a-runtime.md's "Dispatch, in
 // the order it actually runs"), not one generated function per command
 // shape. What still has to be generated per command is deliberately
@@ -10,10 +10,10 @@
 // checks on the raw args (still called before `dispatch` even starts,
 // mirroring `normalize_args` running before `hydrate`).
 //
-// NOT GENERIC HERE, BUT NOT MISSING EITHER: role checking (`check_role`,
+// Not generic here, but not missing either: role checking (`check_role`,
 // repository.rs, ADR 0019) and reference resolution (`check_reference`,
 // repository.rs) are generated per command — the router is the one place
-// with access to every OTHER aggregate's repo, not just this command's
+// with access to every other aggregate's repo, not just this command's
 // own — but they are no longer emitted as bare lines in whatever order
 // the router happened to write them: the router hands them to
 // `decode_aggregate_arguments`/`decode_entity_arguments` below as two
@@ -21,7 +21,7 @@
 // `refuse_role_mismatch`/`resolve_references` hold in the declared order.
 
 //
-// THE ORDER ITSELF IS NOT WRITTEN IN THIS FILE. `dispatch`,
+// The order itself is not written in this file. `dispatch`,
 // `apply_entity_command` and `dispatch_entity` each loop over the language's
 // own declared step order — `AggregateStep::ORDER`/`EntityStep::ORDER`
 // (kernel/vocab/, projected from vocabulary.bluebook's
@@ -30,8 +30,8 @@
 // language gains fails to compile here (E0004) until it is given an arm.
 // The argument-gate steps (decode_arguments through resolve_references) are
 // no-op arms in `dispatch`/`dispatch_entity`: they run in
-// `decode_aggregate_arguments`/`decode_entity_arguments`, below — the SAME
-// kind of loop over the SAME `ORDER`, calling one generated hook per step
+// `decode_aggregate_arguments`/`decode_entity_arguments`, below — the same
+// kind of loop over the same `ORDER`, calling one generated hook per step
 // (`ArgumentGates`). They are a separate loop only because identity
 // resolution needs the decoded facts and `resolve_references`/
 // `refuse_role_mismatch` need the whole `Store` (every other aggregate's
@@ -56,12 +56,12 @@ pub struct GivenSpec {
     // `corrects` — `CommandRules::Admissibility#enforce_correction_target`,
     // read directly: "structural, before the declared givens... `has this
     // exact record already emitted this exact event` is not a predicate
-    // over the record's OWN fields [in the usual sense]... it is raised
+    // over the record's own fields [in the usual sense]... it is raised
     // structurally here, the same way NotFound/AlreadyExists are." Ported
-    // as an ORDINARY given whose `expr` reads a synthetic per-record
+    // as an ordinary given whose `expr` reads a synthetic per-record
     // boolean field (set whenever a command emitting the named event
     // succeeds — `rust/project/mutations.rb`'s own corrects-flag mutation
-    // line), but with its OWN dynamic refusal wording instead of the
+    // line), but with its own dynamic refusal wording instead of the
     // generic "{command} refused — {description}" every other given uses
     // — Ruby's own message interpolates the record's live id
     // (`RefusalWording` has no template for this shape; `description` is
@@ -87,16 +87,16 @@ pub struct EnsuresSpec {
 /// `enforce_invariants` — `CommandRules::Admissibility#enforce_invariants`
 /// + `#check_entity_invariants`, read directly (docs/semantics/
 /// bluebook-semantics.md C6.2). Runs after `ensures`, before save, on the
-/// CANDIDATE record: the aggregate's own rules with no argument scope
+/// candidate record: the aggregate's own rules with no argument scope
 /// (`NoFields` — Ruby's `attrs = {}`), then every element of every
 /// entity list whose entity declares invariants, with `parent` bound to
 /// the owner (`WithParent`), recursing into nested pieces exactly as Ruby
-/// does — an entity with NO invariants of its own is not descended into,
+/// does — an entity with no invariants of its own is not descended into,
 /// matching `check_entity_invariants`' own `next if invariants.empty?`.
 /// Generated once per aggregate (`<aggregate>_invariants()`, `rust/
 /// project/commands.rb#emit_invariants_fn`) and passed to every dispatch
 /// of that aggregate's commands, entity commands included — Ruby checks
-/// the PARENT on an entity command too (`EntityInterpreter
+/// the parent on an entity command too (`EntityInterpreter
 /// #step_enforce_invariants`).
 pub struct InvariantSpec {
     pub description: &'static str,
@@ -157,10 +157,10 @@ fn enforce_entity_invariants(owner: &dyn Fielded, entity: &EntityInvariants) -> 
 /// writes the target state as one more line — same observable order,
 /// one fewer moving part in the kernel. Revisit this folding once
 /// `ensures` is generated, in case an `ensures` ever needs to read the
-/// lifecycle field's PRE-advance value specifically.
+/// lifecycle field's pre-advance value specifically.
 ///
 /// Reuses the record's own `Fielded` impl to read the current state —
-/// unlike a WRITE, reading the lifecycle field generically needs no new
+/// unlike a write, reading the lifecycle field generically needs no new
 /// per-type glue, because it's already exposed the same way every other
 /// field is.
 pub struct TransitionCheck {
@@ -175,7 +175,7 @@ pub struct TransitionCheck {
 ///
 /// The `'a` lifetime ties `build` to however long the generated dispatch
 /// function's own `args` local lives — `build` only ever reads `args`
-/// (never moves out of it), and `args` is ALSO borrowed separately as
+/// (never moves out of it), and `args` is also borrowed separately as
 /// `&dyn Fielded` for given evaluation in the same call, so `build` must
 /// borrow rather than own it. Without an explicit `'a` here, `Box<dyn
 /// FnOnce() -> T>` defaults to `'static`, which a closure borrowing a
@@ -185,35 +185,35 @@ pub enum Hydrate<'a, T> {
     /// nothing already answers to it. `build` is `assign_creation_attributes`
     /// — implicit, name-matched — not a `sets`.
     ///
-    /// `state_independent` — BUG#28: Ruby has NO single fixed position for
+    /// `state_independent` — BUG#28: Ruby has no single fixed position for
     /// a creating command's `AlreadyExists` check relative to `enforce_
     /// givens`/`enforce_ensures`/`enforce_invariants`; it depends on
     /// `DependencyPlanning::Analyzer` classification. `hydrate_prior_or_
     /// initial` (state-dependent — a `from:`/state-reading `given`) and
-    /// `hydrate_legacy_creation` both check eagerly, BEFORE any given —
+    /// `hydrate_legacy_creation` both check eagerly, before any given —
     /// that's `state_independent: false`, unchanged from this field's own
     /// prior unconditional behavior. `hydrate_complete_state`, when the
-    /// command is BOTH `complete_state?` AND `state_independent?` (every
+    /// command is both `complete_state?` and `state_independent?` (every
     /// `given`/`ensures`/mutation reads a fresh command argument or a
     /// literal, never the aggregate's own not-yet-existing state) on an
-    /// `atomic_put`-capable adapter, explicitly SKIPS its eager check and
-    /// defers ALL THE WAY to `step_save` → `persist_instance` →
-    /// `repository.atomic_put(insert_only: true)` — AFTER `enforce_
+    /// `atomic_put`-capable adapter, explicitly skips its eager check and
+    /// defers all the way to `step_save` → `persist_instance` →
+    /// `repository.atomic_put(insert_only: true)` — after `enforce_
     /// givens`, `admissible_transition`, `apply_mutations`, `enforce_
-    /// ensures` AND `enforce_invariants` have all already run. THAT is
+    /// ensures` and `enforce_invariants` have all already run. That is
     /// `state_independent: true` — see `dispatch`'s own body, below, for
     /// where the deferred check actually happens (immediately before
     /// `repo.save`, mirroring `persist_instance`'s own position exactly).
     ///
     /// Generated by `rust/project/dependency_planning.rb` (Ruby-hosted
     /// codegen) and `rust/codegen/src/dependency_planning.rs` (Rust-native
-    /// codegen) — two INDEPENDENT ports of `Runtime::DependencyPlanning
+    /// codegen) — two independent ports of `Runtime::DependencyPlanning
     /// ::Analyzer`'s `complete_state? && state_independent?` predicate,
     /// each derived straight from ir.json's already-exported fields
     /// (attributes/mutations/givens/ensures ASTs/lifecycle), never a new
     /// wire-format field — see those two files' own headers for why: a
     /// precomputed sidecar fact would need `rust/parser`'s `hecks-parse`
-    /// (a THIRD, separate IR producer) to also learn to compute it, which
+    /// (a third, separate IR producer) to also learn to compute it, which
     /// this fix does not attempt. `spec/codegen_parity_spec.rb`'s existing
     /// whole-file byte-identity check is what proves the two agree.
     Create { id: String, build: Box<dyn FnOnce() -> T + 'a>, state_independent: bool },
@@ -228,13 +228,13 @@ pub fn dispatch<'a, T, R>(
     command_name: &'static str,
     aggregate_qualified_name: &'static str,
     // `aggregate_name`/`identity_reading` — codegen-time-static text a
-    // refusal message quotes, kept SEPARATE from `aggregate_qualified_name`
+    // refusal message quotes, kept separate from `aggregate_qualified_name`
     // above on purpose: that field is `{domain}::{aggregate}` (what an
     // `Event`/`MutationRecord` names itself), but `CommandInterpreter#
     // hydrate`'s own refusal wording (`command_interpreter.rb`, read
     // directly) quotes the aggregate's bare `hecks_name` — "Account", never
     // "Banking::Account" — and its declared `identified_by` reading
-    // (`Identity.reading`, `identity.rb`), the SAME `target[:identified_by]
+    // (`Identity.reading`, `identity.rb`), the same `target[:identified_by]
     // .map { |p| p.split(".").first }.join(", ")`-shaped computation
     // `reference_checks` (domain_generator.rb) already does for
     // `reference_target_missing`'s own `heads`. Verified against the real
@@ -248,10 +248,10 @@ pub fn dispatch<'a, T, R>(
     givens: &[GivenSpec],
     transition: Option<TransitionCheck>,
     // Takes no `args` parameter of its own — the generated closure passed
-    // in captures the CONCRETE, typed args struct directly from its
+    // in captures the concrete, typed args struct directly from its
     // enclosing scope (by reference — not `move`, for the same reason
     // `Hydrate::Create.build` isn't `move`: `args` is borrowed elsewhere
-    // in the same call). `args: &dyn Fielded` above is for GIVEN
+    // in the same call). `args: &dyn Fielded` above is for given
     // evaluation only, which only ever needs to read fields generically;
     // writing a typed field (`record.toppings.push(Topping { .. })`)
     // needs the real type, which a type-erased `&dyn Fielded` cannot
@@ -262,10 +262,10 @@ pub fn dispatch<'a, T, R>(
     emits: &[&'static str],
     payload: Json,
     mutations: &mut Vec<MutationRecord>,
-    // THE SYNCHRONOUS HALF OF `projects` (S12, ADR 0025) —
+    // The synchronous half of `projects` (S12, ADR 0025) —
     // `CommandInterpreter#step_save`'s own `seed_projected_fields(ctx)`
-    // call, read directly: computed by the ROUTER (`reference_lookup.rs`'s
-    // `seeded_projections`, off the SAME `WithReferences` already built
+    // call, read directly: computed by the router (`reference_lookup.rs`'s
+    // `seeded_projections`, off the same `WithReferences` already built
     // for given/ensures evaluation) and applied here, right before
     // `repo.save`, the identical position Ruby's own step occupies
     // relative to `enforce_ensures`/persistence. Empty for every
@@ -273,34 +273,34 @@ pub fn dispatch<'a, T, R>(
     // conditional branch, so this parameter costs nothing when unused.
     seed_projections: Vec<(&'static str, Option<String>)>,
     // BUG#139 — `CommandRules::References#enforce_tenant_boundary`
-    // (ANGLE-8's write-side tenant boundary, PR #595), DEFERRED to this
+    // (angle-8's write-side tenant boundary), deferred to this
     // exact point rather than checked eagerly at the router. Ruby's own
     // `CommandInterpreter#step_save`, read directly: `resolve_state_
-    // references` (which calls `enforce_tenant_boundary`) runs FIRST,
-    // unconditionally, THEN — only for a real (non-dry-run) dispatch —
+    // references` (which calls `enforce_tenant_boundary`) runs first,
+    // unconditionally, then — only for a real (non-dry-run) dispatch —
     // `seed_projected_fields`/`persist_instance`. So this is checked
-    // HERE, right after `enforce_invariants`, strictly BEFORE
-    // `seed_projections` below and BEFORE the deferred existence check
+    // here, right after `enforce_invariants`, strictly before
+    // `seed_projections` below and before the deferred existence check
     // (BUG#28's own) that follows it — mirroring `step_save`'s real
     // order exactly: hydrate/givens/mutations/ensures/invariants have
-    // ALL already had their say by this point, the same as Ruby's own
+    // all already had their say by this point, the same as Ruby's own
     // `enforce_tenant_boundary` running well after `step_hydrate`'s own
     // route-vs-derived-identity check (BUG#37/PR#606), never before it.
     //
-    // The ROUTER (`registry.rb`/`registry.rs`'s generated code) computes
-    // this value EAGERLY — it needs `store` (every OTHER aggregate's own
+    // The router (`registry.rb`/`registry.rs`'s generated code) computes
+    // this value eagerly — it needs `store` (every other aggregate's own
     // repo, to look up the referenced record's tenant field), which only
     // exists at that level, the same reason `resolve_references`/`check_
     // role` themselves are computed there rather than in this generic,
     // one-aggregate-repo-only function (this file's own top-of-file
-    // comment). But computing the CHECK early and RAISING it early are
+    // comment). But computing the check early and raising it early are
     // two different things — this parameter is the already-computed
     // `Result` (`Ok(())` for every command with no tenant boundary to
-    // check — the overwhelming majority — or the FIRST violation found,
+    // check — the overwhelming majority — or the first violation found,
     // matching Ruby's own `.each { ... raise ... }` short-circuit), and
     // this function is the one place both codegen pipelines' generated
     // `dispatch_*` functions converge through, so this is where its
-    // APPLICATION defers to, exactly like BUG#28's own existence-check
+    // application defers to, exactly like BUG#28's own existence-check
     // flag below.
     tenant_boundary_check: Result<(), Refusal>,
 ) -> Result<(T, Vec<Event>), Refusal>
@@ -358,11 +358,11 @@ where
                 admissible_transition(record, transition.as_ref(), command_name)?;
             }
             // Folded into `Hydrate::Create.build` (generated): the record
-            // `enforce_givens` already evaluated against IS the built one.
+            // `enforce_givens` already evaluated against is the built one.
             AggregateStep::AssignCreationAttributes => {}
             AggregateStep::ApplyMutations => {
                 let (_, record) = hydrated.as_mut().expect(HYDRATED);
-                // THE STATE AS THE GIVENS SAW IT — `old` inside an `ensures`,
+                // The state as the givens saw it — `old` inside an `ensures`,
                 // taken right before the mutation that makes it differ from
                 // what follows. Only cloned when a real `ensures` needs it,
                 // the same guard Ruby's own `step_apply_mutations` uses
@@ -389,12 +389,12 @@ where
             }
             AggregateStep::Save => {
                 let (id, record) = hydrated.as_mut().expect(HYDRATED);
-                // BUG#139'S OWN FIX — see this function's own header comment
+                // BUG#139'S own fix — see this function's own header comment
                 // on the `tenant_boundary_check` parameter for the full
                 // reasoning. First thing in `Save`: the exact position
                 // `step_save`'s own `resolve_state_references` call occupies
                 // relative to `seed_projected_fields`/`persist_instance` in
-                // Ruby — after every OTHER dispatch step has already had its
+                // Ruby — after every other dispatch step has already had its
                 // say, strictly before the write half of save begins.
                 tenant_boundary_check.take().expect(ONCE)?;
 
@@ -402,10 +402,10 @@ where
                     record.set_projected_field(field, value);
                 }
 
-                // BUG#28's DEFERRED HALF — `persist_instance`'s own
+                // BUG#28's deferred half — `persist_instance`'s own
                 // ATOMIC_PUT branch, read directly: "a second creation is not
                 // a fresh one," checked here, now, rather than eagerly at
-                // hydration — AFTER givens/transition/mutations/ensures/
+                // hydration — after givens/transition/mutations/ensures/
                 // invariants, the identical position `repository.atomic_put
                 // (insert_only: true)` occupies relative to Ruby's own
                 // `step_save`. Only ever set by a state-independent
@@ -453,12 +453,12 @@ where
     match hydrate {
         Hydrate::Create { id, build, state_independent } => {
             // `NotFound`/`creating_no_identity` — `Identity.of`
-            // (identity.rb), read directly: "A BLANK PART NAMES NOTHING,
-            // the same as an ABSENT one — AN ID IS A SCALAR, and '' is
+            // (identity.rb), read directly: "a blank part names nothing,
+            // the same as an absent one — an ID is a scalar, and '' is
             // not a fact about anything." `CommandInterpreter#hydrate_
             // complete_state`/`#hydrate_prior_or_initial` both raise this
             // exact site the moment `Identity.of` answers `nil` for a
-            // creating command, BEFORE `repository.find` ever runs — so
+            // creating command, before `repository.find` ever runs — so
             // a blank identity is refused, never looked up. Every
             // generated `id` expression here is `RefusalSite::
             // NotFoundCreatingNoIdentity` already had a template for (it
@@ -538,17 +538,17 @@ fn enforce_givens(
             // exactly what `aggregate_qualified_name` already is
             // (`dispatch`'s own header comment on that field).
             if let Some(event_name) = given.corrects_event {
-                // ITS OWN CLASS (C8.2/C9.2, spec/corpus/semantics/
+                // Its own class (C8.2/C9.2, spec/corpus/semantics/
                 // correction_needs_prior_emission.json): Ruby raises
                 // `NothingToCorrect`, not `GivenNotMet` — the corpus
-                // compares kinds, and this used to answer the wrong one.
+                // compares kinds, so returning the right one here matters.
                 return Err(Refusal::NothingToCorrect(format!(
                     "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{id} has never emitted it"
                 )));
             }
             // `CommandRules::Admissibility#enforce_givens`, read directly:
             // `"#{command.hecks_name} refused — #{given.description}"` —
-            // the prefix this field-only message used to be missing.
+            // this field-only message needs that same prefix to match.
             return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
         }
     }
@@ -565,7 +565,7 @@ fn admissible_transition(instance: &dyn Fielded, transition: Option<&TransitionC
                 // `LifecycleRefused`/`transition_blocked` —
                 // `admissible_transition` (command_rules/admissibility.rb),
                 // read directly. `allowed` there is `candidates.flat_map
-                // { |t| Array(t.from) }.uniq` restricted to THIS
+                // { |t| Array(t.from) }.uniq` restricted to this
                 // command's own transitions — exactly what `from_states`
                 // already is here (`lifecycle_transition_for`,
                 // mutations.rb: `rows.map { |r| r[:from_state] }.uniq`
@@ -589,9 +589,9 @@ fn admissible_transition(instance: &dyn Fielded, transition: Option<&TransitionC
         // the lifecycle field is always a plain string on every generated
         // record. Surfaced as TypeMismatch, the same way an expression
         // evaluation bug is (see expr.rs's own `eval_error`), because
-        // reaching this means the GENERATOR is wrong, not that the
+        // reaching this means the generator is wrong, not that the
         // command was refused for a real business reason. Deliberately
-        // NOT one of `RefusalSite`'s templates — Ruby has no equivalent
+        // not one of `RefusalSite`'s templates — Ruby has no equivalent
         // message to match because Ruby's own dynamically-typed record
         // can never reach this branch at all.
         _ => Err(Refusal::TypeMismatch(format!(
@@ -659,16 +659,16 @@ fn emitted(emits: &[&'static str], aggregate_qualified_name: &str, id: &str, pay
         .collect()
 }
 
-/// A direct port of `EntityInterpreter#call` walking its own, SHORTER
+/// A direct port of `EntityInterpreter#call` walking its own, shorter
 /// `DISPATCH_ORDER` (docs/implemented/guides/entities.md): `normalize_args`/
 /// `refuse_role_mismatch`/`resolve_references` are the same not-yet-generic
 /// gaps `dispatch` above already carries; there is no `hydrate` branch (an
-/// entity command never creates — it always addresses a parent AND one of
+/// entity command never creates — it always addresses a parent and one of
 /// the parent's own list elements, both of which must already exist) and
 /// no `assign_creation_attributes` for the same reason.
 ///
 /// `get_list`/`get_list_mut` are the generated per-command closures reading
-/// the ONE list attribute on `T` whose declared element type names this
+/// the one list attribute on `T` whose declared element type names this
 /// entity (`element_of`'s own `aggregate.attributes.find { |a| a.list? &&
 /// a.type == entity_name }`, mirrored at codegen time instead of a runtime
 /// search, since the generator already knows which attribute that is).
@@ -676,42 +676,43 @@ fn emitted(emits: &[&'static str], aggregate_qualified_name: &str, id: &str, pay
 /// the caller-supplied element id — the Rust-typed counterpart of Ruby's
 /// `wants.all? { |head, _, want| el[head] == want }` (`element_of`),
 /// collapsed to one string comparison because both sides already agree on
-/// the SAME dotted-path-join-by-":" convention `extract_id`/`identity()`
+/// the same dotted-path-join-by-":" convention `extract_id`/`identity()`
 /// (json_codec.rb) use everywhere else.
-/// THE ELEMENT HALF OF AN ENTITY COMMAND, on a parent record already in
+/// The element half of an entity command, on a parent record already in
 /// hand and nothing saved — `EntityInterpreter`'s locate → givens →
 /// transition → mutate → ensures, exactly the steps
-/// `CommandInterpreter#step_delegate_to_entity` runs INSIDE a
+/// `CommandInterpreter#step_delegate_to_entity` runs inside a
 /// delegating aggregate command (docs/implemented/guides/entities.md,
 /// `delegates_to`) and `dispatch_entity`, below, runs before its own
 /// save. One body, two callers, so a refusal reads identically whether
 /// the entity command was dispatched directly or through its door.
 ///
 /// `parent_in_args`: `Admissibility#enforce_givens`/`#enforce_ensures`
-/// merge `parent:` — the OWNING record — into the args every entity
-/// given and ensures evaluates against, reading the parent off the LIVE
+/// merge `parent:` — the owning record — into the args every entity
+/// given and ensures evaluates against, reading the parent off the live
 /// record: before the mutation for the givens, after it for the
 /// ensures, which is what Ruby's own in-place element mutation gives it —
 /// a chess king's "not left in check" ensures reads the board with the
 /// piece already moved.
 ///
-/// BUG#137 — this used to be `false` for a direct entity dispatch (only
-/// a delegating door passed `true`), on the theory that the routing
-/// layer's own `parent_deref` snapshot (`command_deref`'s `"parent"`
-/// entry, fetched BEFORE the command ran) was enough either way. It is
-/// enough for a `given` — which wants the pre-mutation parent, exactly
-/// what `parent_deref` already is — but never for an `ensures`: nothing
-/// ever refreshes that snapshot after `apply_mutations` runs, so an
-/// entity-level `ensures` reading `parent.*` on a directly-dispatched
-/// command NEVER saw its own element's own mutation (`Roster::Roster.
-/// Member.Retire`'s `ensures("someone still serves") { parent.crew.
-/// any? { |m| m.status == "active" } }` — examples/roster/bluebook/
-/// roster.bluebook — retired the sole active member unconditionally:
-/// the stale `parent.crew` snapshot still showed THAT SAME member as
-/// `"active"`, so the `any?` trivially always held). Always `true` now,
-/// for both callers — `apply_entity_command`'s own local
+/// BUG#137 — always `true` for both a direct entity dispatch and a
+/// delegating door, because the routing layer's own `parent_deref`
+/// snapshot (`command_deref`'s `"parent"` entry, fetched before the
+/// command ran) is not enough on its own for a direct dispatch. That
+/// snapshot is enough for a `given` — which wants the pre-mutation
+/// parent, exactly what `parent_deref` already is — but never for an
+/// `ensures`: nothing ever refreshes that snapshot after
+/// `apply_mutations` runs, so an entity-level `ensures` reading
+/// `parent.*` on a directly-dispatched command would never see its own
+/// element's own mutation (`Roster::Roster.Member.Retire`'s
+/// `ensures("someone still serves") { parent.crew.any? { |m| m.status ==
+/// "active" } }` — examples/roster/bluebook/roster.bluebook — would
+/// retire the sole active member unconditionally: the stale
+/// `parent.crew` snapshot would still show that same member as
+/// `"active"`, so the `any?` would trivially always hold). For both
+/// callers alike — `apply_entity_command`'s own local
 /// `parent_before`/`parent_after` (below) already replace the routing
-/// layer's `parent_deref` for every SAME-aggregate `parent.*` read
+/// layer's `parent_deref` for every same-aggregate `parent.*` read
 /// (`given`/`ensures` alike) without changing what either sees; nothing
 /// in the real corpus reads a cross-aggregate `parent.<reference>.*`
 /// chain from inside an entity command (`parent_deref`'s one real edge
@@ -729,7 +730,7 @@ pub fn apply_entity_command<'a, T, E>(
     // below, the exact same text `dispatch`'s aggregate-level twin
     // already renders (`"{command_name} refused — corrects {event_name},
     // but {aggregate_qualified_name} #{id} has never emitted it"`).
-    // Every OTHER refusal this function renders already uses the bare
+    // Every other refusal this function renders already uses the bare
     // `aggregate_name` — unaffected, on purpose (see that param's own
     // call sites: Ruby's own `hecks_name`-based wording never qualifies).
     aggregate_qualified_name: &'static str,
@@ -776,7 +777,7 @@ where
     Ok(())
 }
 
-/// THE ELEMENT HALF'S STATE, carried across `EntityStep::ORDER` — what
+/// The element half's state, carried across `EntityStep::ORDER` — what
 /// `apply_entity_command` and `dispatch_entity` both drive, one step at a
 /// time, so a refusal reads identically through either caller.
 struct ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply> {
@@ -823,7 +824,7 @@ where
             | EntityStep::NormalizeArgs
             | EntityStep::RefuseRoleMismatch
             | EntityStep::ResolveReferences => Ok(()),
-            // THE PARENT HALF — `dispatch_entity`'s own arms, or, behind a
+            // **The parent half** — `dispatch_entity`'s own arms, or, behind a
             // delegating door, the delegating aggregate command's own
             // `dispatch` (which hydrates, checks invariants on, saves, and
             // emits for the parent record this element lives in).
@@ -835,7 +836,7 @@ where
             }
             EntityStep::ApplyMutations => self.apply_mutations(record),
             // Written by the generated `apply_mutations` closure itself —
-            // THE ENTITY's own lifecycle (`lifecycle_transition_for(command,
+            // the entity's own lifecycle (`lifecycle_transition_for(command,
             // entity)`, rust/project/commands.rb).
             EntityStep::AdvanceLifecycle => Ok(()),
             EntityStep::EnforceEnsures => self.enforce_ensures(record),
@@ -865,21 +866,21 @@ where
         let parent_before = self.parent_before.as_ref().expect(LOCATED);
         let element = self.element.as_ref().expect(LOCATED);
 
-        // BUG#31 — entity-level `corrects` ADMISSIBILITY, checked against the
-        // PARENT record/ROOT aggregate — never the entity's own element —
+        // BUG#31 — entity-level `corrects` admissibility, checked against the
+        // parent record/root aggregate — never the entity's own element —
         // mirroring `EntityInterpreter#step_enforce_givens`'s own BUG#30 fix
         // (`lib/hecks/runtime/entity_interpreter.rb`) exactly: an entity has
         // no event stream of its own, so `enforce_correction_target` has to
-        // be asked in the SAME terms `CommandRules::Emission#emit` always
-        // stamps an entity command's emitted event with — the ROOT
-        // aggregate's own qualified name and the PARENT record's own id,
-        // never the entity's. Run AFTER the element lookup (a missing
+        // be asked in the same terms `CommandRules::Emission#emit` always
+        // stamps an entity command's emitted event with — the root
+        // aggregate's own qualified name and the parent record's own id,
+        // never the entity's. Run after the element lookup (a missing
         // element still answers `NotFound` first — the same order Ruby's own
         // `step_locate_element` -> `step_enforce_givens` already runs in) but
-        // BEFORE the entity's own declared `given`s just below (same
+        // before the entity's own declared `given`s just below (same
         // structural-before-declared ordering `step_enforce_givens` uses).
         // One consequence, same as the aggregate-level check: this only
-        // proves "the PARENT record has emitted the named event at some
+        // proves "the parent record has emitted the named event at some
         // point," never narrowed to this one entity element — a Ledger with
         // three Entries all satisfy the same check.
         for given in self.givens {
@@ -896,7 +897,7 @@ where
         let with_parent = WithParent { args: self.args, parent: parent_before };
         let given_args: &dyn Fielded = if self.parent_in_args { &with_parent } else { self.args };
         for given in self.givens {
-            // Handled above, against the PARENT record — evaluating it
+            // Handled above, against the parent record — evaluating it
             // again here, against `element`, would look up a flag field
             // that exists on the parent record's own struct, not on the
             // entity element's, the moment a real `corrects`-flagged
@@ -956,7 +957,7 @@ pub fn dispatch_entity<'a, T, E, R>(
     payload: Json,
     mutations: &mut Vec<MutationRecord>,
     // Same as `dispatch`'s own `seed_projections` — an entity command
-    // still ends in a PARENT AGGREGATE save (`repo.save(parent_id, ..)`,
+    // still ends in a parent aggregate save (`repo.save(parent_id, ..)`,
     // below), the identical `step_save` Ruby's own `step_delegate_to_
     // entity` falls through to, so a parent with `projects` fields needs
     // the same synchronous seed here too.
@@ -1022,7 +1023,7 @@ where
                     )
                 })?);
             }
-            // THE ELEMENT HALF — the same per-step body `apply_entity_command`
+            // **The element half** — the same per-step body `apply_entity_command`
             // runs, so a direct dispatch and a delegating door agree.
             EntityStep::LocateElement
             | EntityStep::EnforceGivens
@@ -1056,7 +1057,7 @@ const LOCATED: &str = "the declared order locates the element before any step th
 const ONCE: &str = "each declared step appears exactly once in its ORDER";
 const NORMALIZED: &str = "the declared order normalizes arguments before resolving references (const-asserted in this file)";
 
-/// THE ARGUMENT GATES, AS GENERATED HOOKS (roadmap D2) — one hook per
+/// The argument gates, as generated hooks (roadmap D2) — one hook per
 /// argument-gate step of the vocabulary's dispatch orders: Ruby's
 /// `ArgumentGate#refuse_unknown_arguments`/`#refuse_absent_arguments`,
 /// `Interpreting#normalize_args`, `CommandRules#refuse_role_mismatch`/
@@ -1064,7 +1065,7 @@ const NORMALIZED: &str = "the declared order normalizes arguments before resolvi
 /// `rust/codegen/src/registry.rs`) builds one per command out of that
 /// command's generated `<Args>` functions (`json_codec.rb#emit_argument_gates`)
 /// and its role/reference checks, and hands it to `decode_aggregate_arguments`
-/// or `decode_entity_arguments`, which call the hooks in DECLARED order.
+/// or `decode_entity_arguments`, which call the hooks in declared order.
 /// Nothing generated names that order, so reordering these steps in
 /// vocabulary.bluebook reorders which refusal wins with no generator change.
 ///
@@ -1193,7 +1194,7 @@ const fn entity_position(step: EntityStep) -> usize {
     panic!("step missing from EntityStep::ORDER")
 }
 
-// THE ORDERINGS THIS FILE'S ARMS READ STATE ACROSS — checked when the crate
+// The orderings this file's arms read state across — checked when the crate
 // compiles, not when a command runs. The vocabulary is free to reorder any
 // other pair (that is a semantic change, and the conformance corpus judges
 // it); these are the pairs where an arm consumes what an earlier arm produced,
@@ -1284,7 +1285,7 @@ pub const fn aggregate_step_site(step: AggregateStep) -> StepSite {
         // `kernel::check_role`.
         A::RefuseRoleMismatch => StepSite::ArgumentGate,
         // `kernel::check_reference`; the router computes the tenant boundary
-        // after it, but the kernel's `Save` arm APPLIES it.
+        // after it, but the kernel's `Save` arm applies it.
         A::ResolveReferences => StepSite::ArgumentGate,
         A::Hydrate => StepSite::Kernel,
         A::EnforceGivens => StepSite::Kernel,
@@ -1328,7 +1329,7 @@ pub const fn entity_step_site(step: EntityStep) -> StepSite {
     }
 }
 
-// HOW A MISSING ARM FAILS TO BUILD. `AggregateStep`/`EntityStep` are
+// How a missing arm fails to build. `AggregateStep`/`EntityStep` are
 // generated from vocabulary.bluebook; adding a step there and re-running
 // bin/project_rust_vocabulary adds a variant, and every `match step` in this
 // file — `dispatch`, `ElementHalf::run`, `dispatch_entity`,

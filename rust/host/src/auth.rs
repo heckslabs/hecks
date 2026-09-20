@@ -1,4 +1,4 @@
-// GOOGLE SIGN-IN + SESSIONS, IN-PROCESS — the Rust-native counterpart
+// Google sign-in + sessions, in-process — the Rust-native counterpart
 // to `Ports::Authentication`/`Ports::IdentityResolution`/Embryonaut's
 // own `EmbryonautAccessControl` adapter (Ruby, hecks +
 // embryonaut repos). Ported behavior-for-behavior against those, not
@@ -7,7 +7,7 @@
 // Identity::ExternalIdentifier `"#{issuer}:{subject}"` key shape, same
 // "GrantAccess happens separately from Admit" provisioning rule.
 //
-// ONE REAL DIFFERENCE FROM THE RUBY VERSION: no server-side session
+// One real difference from the Ruby version: no server-side session
 // store. `session_cookie`/`parse_session_cookie` are a plain
 // HMAC-SHA256-signed, base64url-encoded JSON payload — stateless by
 // construction, verified by recomputing the signature, never trusted
@@ -15,20 +15,21 @@
 // template.yaml already mints via SecretsManager for the Ruby app)
 // signs both this and the OAuth `state` token below.
 //
-// GENERIC OVER WHICH AGGREGATE IS "MEMBERSHIP," NOT JUST EMBRYONAUT'S —
+// Generic over which aggregate is "MEMBERSHIP," not just Embryonaut's —
 // `member_row_by_email`/`member_rows`/`append_member_state`/
-// `session_for_member_by_identity` used to hardcode "member"/"Member"
-// directly; now they resolve through `membership_aggregate`, which reads
-// `HECKS_MEMBERSHIP_AGGREGATE` against `ir::lineage_capable_aggregates`
-// (that function's own header has the "why an env var, not a bluebook-
-// level IR marker" reasoning). Still Embryonaut-shaped in spirit — the
-// OAuth flow, the "GrantAccess happens separately from Admit" rule, the
-// whole `Session`/provisioning protocol below — just no longer hardcoded
-// to Embryonaut's own aggregate NAME. `rust/host` still links no kernel
+// `session_for_member_by_identity` resolve the aggregate name through
+// `membership_aggregate`, which reads `HECKS_MEMBERSHIP_AGGREGATE`
+// against `ir::lineage_capable_aggregates` (that function's own header
+// has the "why an env var, not a bluebook-level IR marker" reasoning),
+// rather than hardcoding "member"/"Member" directly. Still
+// Embryonaut-shaped in spirit — the OAuth flow, the "GrantAccess happens
+// separately from Admit" rule, the whole `Session`/provisioning protocol
+// below — just not hardcoded to Embryonaut's own aggregate name.
+// `rust/host` still links no kernel
 // crate and has no Cargo feature of its own — `HECKS_DOMAIN`, read once
 // at main.rs boot, remains the only runtime domain selector this binary
 // has; `HECKS_MEMBERSHIP_AGGREGATE` is a second, independent env var
-// naming which of THAT domain's own lineage-capable aggregates this
+// naming which of that domain's own lineage-capable aggregates this
 // module treats as membership.
 
 use crate::dispatch;
@@ -75,7 +76,7 @@ pub fn authorization_url(redirect_uri: &str, secret: &str) -> Result<String, Str
 
 // `expected` is unused beyond "a state was minted at all" — unlike the
 // Ruby version (which compares against a server-stashed session value),
-// this state IS its own proof: `verify_state` alone (recomputing the
+// this state is its own proof: `verify_state` alone (recomputing the
 // HMAC) is what a mismatched/forged/expired state actually fails on.
 pub fn verify_state(state: &str, secret: &str) -> Result<(), String> {
     let payload = verify_sig(secret, state).ok_or_else(|| "state mismatch".to_string())?;
@@ -209,29 +210,29 @@ pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Optio
         .map(|s| s.to_string())
 }
 
-// `Embryonaut::Member` is NOT in `dispatch::read`'s own `instances` --
+// `Embryonaut::Member` is not in `dispatch::read`'s own `instances` --
 // it's permanently `persisted_by("PostgresEra")` (its rekey/translation
 // history needs real SQL, embryonaut.hecksagon's own comment), so it
 // was never migrated into rust/host's flat `hecks_lambda_journal` at
 // all (bin/bootstrap_lambda_data's own header: "Member is dispatched
-// LOCALLY ... against whatever DATABASE_URL names"). Queried straight
-// off `<domain>_member_head` instead -- the SAME era-scoped read view
+// locally ... against whatever DATABASE_URL names"). Queried straight
+// off `<domain>_member_head` instead -- the same era-scoped read view
 // Ruby's own `Adapters::PostgresEra#all`/`#find` already read from
 // (`SELECT id, state FROM #{lineage.head_view(table)}`,
 // `head_view(storage_name) = "#{qualified_name(storage_name)}_head"`,
 // `table = aggregate.storage_name` = "member"; `qualified_name` folds
-// in the OWNING domain's own snake_cased name -- docs/decisions/0059)
+// in the owning domain's own snake_cased name -- docs/decisions/0059)
 // -- confirmed live against the real deployed database. A
-// real, live "google_unlinked" for an ALREADY-linked chris@embryonaut.ai
+// real, live "google_unlinked" for an already-linked chris@embryonaut.ai
 // caught this: `resolve_identity` correctly found his real identity_id,
 // but scanning `instances` for his Member record could never find it.
 //
-// THIN WRAPPERS, now — `journal::read_lineage_head_by_id`/`_all` are
-// the SAME two queries, generalized over `storage_name` instead of
+// Thin wrappers, now — `journal::read_lineage_head_by_id`/`_all` are
+// the same two queries, generalized over `storage_name` instead of
 // hard-typed to `"member_head"`, so Member is no longer the only
 // aggregate this crate can read this way (see journal.rs's own header
 // on the generic pair, and ir.rs's `lineage_capable_aggregates` for how
-// a caller learns which OTHER aggregates qualify). Kept as named,
+// a caller learns which other aggregates qualify). Kept as named,
 // Member-specific functions here rather than inlined at each call site
 // below — every call site still reads "the Member row," not "a lineage
 // row for whichever storage name," which is the real shape of what
@@ -239,7 +240,7 @@ pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Optio
 async fn member_row_by_email(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<Value>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
     // docs/decisions/0059 — `head_view` is domain-qualified now, so the
-    // generic read needs the SAME domain name `PostgresEra#initialize`
+    // generic read needs the same domain name `PostgresEra#initialize`
     // (Ruby) and this deployment's own mint used, the owning bluebook's
     // declared name, exactly as `ir.rs`/`web.rs` already extract it.
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -254,8 +255,8 @@ async fn member_rows(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Resul
     journal::read_lineage_head_all(&*guard, domain, &storage_name).await
 }
 
-// WHICH LINEAGE-CAPABLE AGGREGATE THIS DEPLOYMENT TREATS AS "THE
-// MEMBERSHIP ONE" — `HECKS_MEMBERSHIP_AGGREGATE` names it (bare,
+// Which lineage-capable aggregate this deployment treats as "the
+// membership one" — `HECKS_MEMBERSHIP_AGGREGATE` names it (bare,
 // non-domain-qualified, e.g. "Member"), resolved against `ir::
 // lineage_capable_aggregates(domain_ir)` rather than trusted blind, so a
 // typo'd env var fails loudly here instead of silently reading/writing
@@ -282,7 +283,7 @@ fn membership_aggregate(domain_ir: &Value) -> anyhow::Result<(String, String)> {
 // Pure and separately unit-tested from the env read above -- same split
 // `session_secret()`/`validate_session_secret()` already use, and for
 // the same reason: `cargo test` runs this crate's tests concurrently in
-// one process, so asserting an env var is UNSET (the real "no value at
+// one process, so asserting an env var is unset (the real "no value at
 // all" case `membership_aggregate` itself refuses) can't be done safely
 // against the real process environment without racing every other test
 // that might set it. Everything this function actually decides --
@@ -305,21 +306,21 @@ fn resolve_membership_aggregate(wanted: &str, domain_ir: &Value) -> anyhow::Resu
 
 // `Adapters::PostgresEra#append`, ported verbatim (postgres_era.rb:176-201) --
 // confirmed against the real deployed schema, not just source reading.
-// The SAME transactional, ordinal-tracked write EVERY OTHER field-set
+// The same transactional, ordinal-tracked write every other field-set
 // on member_head already goes through (`Member.Admit`,
 // `Member.GrantAccess` when dispatched by Ruby -- see
 // bin/grant_first_admin) -- not a raw `UPDATE member_head` bypass. One
 // real difference from Ruby's own `Entry`/`save?` machinery: this
-// function is the WHOLE state-with-one-field-changed, computed by its
+// function is the whole state-with-one-field-changed, computed by its
 // two callers below, not a generic append-any-entry path -- there's
 // only ever "save" (never "delete") for Member here, so `entry.
 // operation`/`entry.mirrors`'s own branches (always "save"/always nil,
 // confirmed by tracing CommandInterpreter -> Postgres#save) collapse
 // to literals rather than being reintroduced as unused generality.
-// GENERALIZED onto journal::append_lineage_mutation (ADR 0029 step 2) —
+// Generalized onto journal::append_lineage_mutation (ADR 0029 step 2) —
 // was a hand-rolled duplicate of that function's own journal-insert +
 // snapshot-upsert transaction, with "member"/`member_head_snapshot_{era}`
-// spelled out by hand instead of derived. The lock below is NOT the
+// spelled out by hand instead of derived. The lock below is not the
 // generalization's job to supply: `journal::append_lineage_mutation`
 // deliberately takes no lock of its own (see its own header) — locking
 // is a caller concern, and dispatch.rs's caller already holds its own
@@ -327,7 +328,7 @@ fn resolve_membership_aggregate(wanted: &str, domain_ir: &Value) -> anyhow::Resu
 // `hecks_lambda_journal.` advisory lock in dispatch.rs). This caller's
 // concern is the one Ruby's own `append` takes right before its
 // identical journal insert (postgres_era.rb:253-256) — `hecks_ordinal:`,
-// which serializes against a concurrent domain RENAME holding that same
+// which serializes against a concurrent domain rename holding that same
 // lock name while repartitioning (postgres_era.rb:181), not against
 // ordinal uniqueness (a real Postgres sequence default already owns
 // that). Kept here, unchanged, rather than folded into the generic
@@ -381,7 +382,7 @@ pub async fn session_for_member_by_identity(client: &Mutex<Client>, domain_ir: &
     }))
 }
 
-// NEVER creates a Member (Admit is a real cap-table event) -- only
+// Never creates a Member (Admit is a real cap-table event) -- only
 // mints Identity/Governance facts for a Member who already has `role`
 // set (via GrantAccess) but no `identity_id` yet, matching
 // embryonaut_access_control.rb's `provision` exactly.
@@ -408,7 +409,7 @@ pub async fn provision(
     let identity_id = uuid::Uuid::new_v4().to_string();
 
     // `None` on all three dispatches below -- this whole function is
-    // SYSTEM-INITIATED provisioning (minting Identity/Governance facts
+    // system-initiated provisioning (minting Identity/Governance facts
     // for a Member the operator already granted access to via
     // GrantAccess, not a command a logged-in caller is submitting), so
     // there is no caller role to assert here -- matches what every call
@@ -448,14 +449,14 @@ pub async fn provision(
         anyhow::bail!("{} refused: {}", provider.grant, assign_role.result);
     }
 
-    // NOT dispatch::handle -- Embryonaut::Member isn't in rust/host's
+    // Not dispatch::handle -- Embryonaut::Member isn't in rust/host's
     // flat journal at all (member_row_by_email's own comment on why),
     // so a WASM-replay dispatch here would rehydrate zero prior Member
     // steps and refuse with a confusing "no such record" instead of
     // the real story. `append_member_state` is `Adapters::Postgres
     // #append`'s own transactional, ordinal-tracked protocol instead --
-    // the same journal INSERT + head_snapshot upsert every OTHER write
-    // to this table already goes through, not a raw UPDATE bypassing
+    // the same journal INSERT + head_snapshot upsert every other write
+    // to this table already goes through, not a raw update bypassing
     // it. LinkIdentity's own bluebook command is a single `sets
     // :identity_id, to: :identity_id` with no other invariant beyond
     // "not already linked" -- already checked above -- so the new
@@ -737,7 +738,7 @@ mod tests {
         assert!(resolve_membership_aggregate("Member", &json!({"name": "Embryonaut"})).is_err());
     }
 
-    // A REAL, THROWAWAY POSTGRES DATABASE per test, matching the real
+    // A real, throwaway Postgres database per test, matching the real
     // shape `head_view` names (`qualified_name(domain, "#{storage_name}
     // _head")`, postgres/lineage.rb — docs/decisions/0059 folded the
     // owning domain, "Embryonaut", into this name) -- member_row_by_
@@ -763,9 +764,9 @@ mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        // The REAL shape, originally confirmed live against the deployed
+        // The real shape, originally confirmed live against the deployed
         // database via a bastion tunnel (pre-0059, when this was still
-        // bare `member_head`): `embryonaut_member_head` is a VIEW over
+        // bare `member_head`): `embryonaut_member_head` is a view over
         // the era-1 snapshot table (postgres/lineage/head_compiler.rb's
         // `ensure_first_head!`,
         // `CREATE OR REPLACE VIEW "embryonaut_member_head" AS SELECT id, state FROM
@@ -850,9 +851,9 @@ mod tests {
         let config = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1), mirrored: None };
         {
             let guard = db.lock().await;
-            // ordinal 0 -- BELOW anything the fresh journal's own
+            // ordinal 0 -- below anything the fresh journal's own
             // bigserial sequence will ever produce (starts at 1), the
-            // same way a REAL seed row's ordinal is always lower than
+            // same way a real seed row's ordinal is always lower than
             // any later real write's. Seeding this at 1 created a
             // genuine collision with the journal's first real insert
             // (also ordinal 1) and made the guard correctly refuse to
@@ -876,7 +877,7 @@ mod tests {
         let after = member_row_by_email(&db, &domain_ir, "angie@embryonaut.ai").await.unwrap().expect("still there");
         assert_eq!(after["role"]["value"], "Admin");
 
-        // A real journal row was appended -- not a raw UPDATE bypassing it.
+        // A real journal row was appended -- not a raw update bypassing it.
         let guard = db.lock().await;
         let journal_rows = guard
             .query("SELECT era, aggregate, aggregate_id, operation, state FROM hecks_journal_embryonaut", &[])
@@ -904,11 +905,11 @@ mod tests {
         assert!(ordinal > 0, "should have advanced past the seed row's ordinal 0");
         drop(guard);
 
-        // The SAME ordinal-guarded upsert Ruby's own append() uses
+        // The same ordinal-guarded upsert Ruby's own append() uses
         // (`WHERE ordinal < EXCLUDED.ordinal`) refuses to move the
-        // snapshot backward -- append a second, EARLIER-looking write
+        // snapshot backward -- append a second, earlier-looking write
         // isn't possible through this function (ordinal always comes
-        // from the SAME sequence the journal INSERT just used), but
+        // from the same sequence the journal INSERT just used), but
         // the guard itself is directly testable: a manual attempt to
         // downgrade the snapshot with a smaller ordinal is a no-op.
         let guard = db.lock().await;

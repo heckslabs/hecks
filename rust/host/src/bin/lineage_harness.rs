@@ -1,11 +1,11 @@
-// THE DIFFERENTIAL-PARITY HARNESS'S RUST SIDE (ADR 0029 step 4) — a
+// The differential-parity harness's Rust side (ADR 0029 step 4) — a
 // small, dedicated binary, deliberately separate from `bootstrap`
-// (src/main.rs), that exercises ONLY the generic lineage read/write
+// (src/main.rs), that exercises only the generic lineage read/write
 // path (`journal.rs`'s `read_lineage_head_all`/`_by_id`/
 // `append_lineage_mutation`) against real Postgres, with no WASM
 // kernel, no Lambda runtime, no RDS/TLS ceremony — none of which the
 // lineage path depends on (domain_generator.rb's own manifest comment:
-// "dispatched OUTSIDE the WASM kernel/InMemoryRepository path
+// "dispatched outside the WASM kernel/InMemoryRepository path
 // entirely"). Reusing `bootstrap`'s `main.rs` for this would mean
 // standing up a `.wasm` module and Lambda-shaped scaffolding to test
 // something that structurally touches neither.
@@ -28,9 +28,9 @@
 //   {"op": "write", "aggregate": "Pizzas::Order", "id": "order-9",
 //    "state": {...}}                        (operation always "save")
 //
-// STDOUT: `{"results": [...]}`, one entry per operation, SAME ORDER,
+// STDOUT: `{"results": [...]}`, one entry per operation, same order,
 // exit 0 unless the connection itself fails to establish — a
-// per-operation Postgres error (e.g. an RLS refusal) is reported IN
+// per-operation Postgres error (e.g. an RLS refusal) is reported in
 // that operation's own entry, never a process crash, matching the
 // kernel binary's own "clean JSON, exit 0, never a panic" discipline
 // (`rust_conformance_spec.rb`'s own comments hold it to this).
@@ -102,7 +102,7 @@ async fn run_one(client: &tokio_postgres::Client, config: &journal::LineageConfi
     }
 }
 
-// `config.domain` (docs/decisions/0059) — the ONE domain this whole
+// `config.domain` (docs/decisions/0059) — the one domain this whole
 // invocation speaks for (the CLI's own `<domain>` positional arg), the
 // same domain-qualification `journal::head_view` now folds into every
 // generic lineage read.

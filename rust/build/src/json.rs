@@ -1,34 +1,34 @@
-//! A minimal, dependency-free, MUTABLE JSON value — the one genuine new
+//! A minimal, dependency-free, mutable JSON value — the one genuine new
 //! piece of infrastructure this crate needs beyond pure orchestration.
 //! `rust/codegen/src/json.rs` (this crate's closest sibling) is
-//! deliberately READ-ONLY (that file's own header: "this crate emits
+//! deliberately read-only (that file's own header: "this crate emits
 //! Rust source text, not JSON") and `rust/parser/src/emit.rs` is a
-//! WRITE-ONLY tree walker over `rust/parser/src/ir.rs`'s own typed
+//! write-only tree walker over `rust/parser/src/ir.rs`'s own typed
 //! structs, not a generic value. Neither fits: this crate needs to
-//! PARSE `hecks-parse`'s already-pretty `ir.json` text, MUTATE exactly
+//! parse `hecks-parse`'s already-pretty `ir.json` text, mutate exactly
 //! one boolean field in exactly the spots `mark_append_optional_fields!`
-//! (`rust/project/mutations.rb`) would, and RE-EMIT the result matching
+//! (`rust/project/mutations.rb`) would, and re-emit the result matching
 //! `JSON.pretty_generate` byte-for-byte — so a generic, editable tree
-//! with its own reader AND writer earns its keep here in a way it
+//! with its own reader and writer earns its keep here in a way it
 //! didn't in either sibling crate.
 //!
-//! THE NUMBER TYPE IS RAW TEXT, not `i64`/`f64` — deliberately, unlike
+//! The number type is raw text, not `i64`/`f64` — deliberately, unlike
 //! `rust/codegen/src/json.rs`'s `Int`/`Float` split (which exists there
 //! because `naming.rb#literal_rhs` branches on Ruby's original numeric
-//! TYPE). This crate never reads a number's value, only round-trips it
+//! type). This crate never reads a number's value, only round-trips it
 //! (the one numeric field in real `ir.json`, `ir_version`, is never
 //! touched by the optional-marking pass) — storing the exact literal
 //! substring the parser scanned and re-emitting it unchanged sidesteps
 //! any float-formatting mismatch entirely, rather than risking one for
 //! no benefit.
 //!
-//! THE WRITER is `rust/parser/src/emit.rs::write_value`/`write_array`/
+//! The writer is `rust/parser/src/emit.rs::write_value`/`write_array`/
 //! `write_object`/`write_string`, copied algorithm-for-algorithm (not
 //! shared via a library — the plan's own architecture decision keeps
 //! `rust/parser`/`rust/codegen` untouched, sibling, subprocess-only
 //! dependencies; the alternative, restructuring either into a library
 //! crate this one could depend on, was explicitly rejected). Includes
-//! the SAME pinned empty-array hazard `emit.rs`'s own header documents
+//! the same pinned empty-array hazard `emit.rs`'s own header documents
 //! (`JSON.pretty_generate({a: []})` renders `"{\n  \"a\": [\n\n  ]\n}"`
 //! under the bundled json 2.7.2 gem this repo resolves — an extra,
 //! unindented blank line, not simply `"[]"`) — unmodified fields in a
@@ -148,11 +148,11 @@ impl Json {
     /// `ir[:lineage] = {...}` — the generic sibling `set_bool` doesn't
     /// cover: overwrites an existing pair in place (never reached
     /// against real corpus `ir.json` — `lineage` is never already
-    /// present, `hecks-parse` never emits it), otherwise APPENDS,
+    /// present, `hecks-parse` never emits it), otherwise appends,
     /// matching Ruby Hash's own "a new key lands last" insertion-order
     /// guarantee — the same guarantee `set_bool`'s own fallback already
     /// relies on, and the reason `lineage` lands as `ir.json`'s own
-    /// LAST top-level key, after `canonical_form`, exactly where the
+    /// last top-level key, after `canonical_form`, exactly where the
     /// default Ruby path's own `target_ir[:lineage] = ...` puts it.
     pub fn set(&mut self, key: &str, value: Json) {
         if let Json::Object(pairs) = self {
@@ -435,7 +435,7 @@ fn write_string(out: &mut String, text: &str) {
 
 fn write_array(out: &mut String, items: &[Json], depth: usize) {
     if items.is_empty() {
-        // THE PINNED HAZARD — see this module's own header.
+        // **The pinned hazard** — see this module's own header.
         out.push_str("[\n\n");
         indent(out, depth);
         out.push(']');

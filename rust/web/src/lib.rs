@@ -1,4 +1,4 @@
-// THE BROWSER PROJECTION — docs/implemented/decisions/0015-wasm-bindgen-browser-projection.md.
+// **The browser projection** — docs/implemented/decisions/0015-wasm-bindgen-browser-projection.md.
 // A separate crate on purpose, not a second `cargo build --target` of
 // `rust`'s own binary (contrast bin/project_wasm, which cross-compiles
 // `rust/src/main.rs` unchanged for wasm32-wasip1): a wasm-bindgen build
@@ -10,7 +10,7 @@
 //
 // One export, mirroring `rust/src/kernel/cli.rs::run` exactly: JSON in
 // (`{"steps": [...]}`), JSON out (`{"instances", "events", "refusals"}`)
-// — the SAME contract bin/rust_conformance and bin/project_wasm's WASI
+// — the same contract bin/rust_conformance and bin/project_wasm's WASI
 // module already speak, just called as a JS function instead of piped
 // over stdin/stdout. No browser-specific API shape beyond that (no
 // per-era module selection, no host-adapter import boundary) — those

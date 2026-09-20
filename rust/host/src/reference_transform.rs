@@ -1,40 +1,40 @@
-// LAYER 2's REFERENCE IMPLEMENTATION — a direct, function-for-function
+// Layer 2's reference implementation — a direct, function-for-function
 // port of `Ports::Persistence::Lineage#translate` (lib/hecks/ports/
 // persistence/lineage.rb), the pure, portable interpreter over the five
-// PORTABLE rule kinds an edge can declare: rename, move, convert, drop,
+// portable rule kinds an edge can declare: rename, move, convert, drop,
 // backfill. `compute`/`rekey` have no reference here (their SQL is
 // their only implementation, same as Ruby's own header says of itself);
 // `retype` moves nothing (no stored value carries a type name) and is
 // never consulted by this transform either, matching Ruby exactly.
 //
-// This is what `crate::mint`'s Layer-2 audit gate diffs the COMPILED
+// This is what `crate::mint`'s Layer-2 audit gate diffs the compiled
 // SQL's own output against, at mint time — the cross-execution
 // equivalence proof `Translation::Audit::LayerTwo`'s own header names:
 // the compiled SQL produced `after`; this transform produces `expected`
-// over the SAME `before`; they must agree byte-for-byte on every path a
+// over the same `before`; they must agree byte-for-byte on every path a
 // compute doesn't own.
 //
-// Reads the RAW edge-aggregate JSON straight out of `ir.json`'s
+// Reads the raw edge-aggregate JSON straight out of `ir.json`'s
 // `translations` key (`Exporter.translation_aggregate`'s own exported
-// shape) — deliberately NOT `mint::EdgeAggregate`, which only carries
-// the pre-COMPILED SQL string this module exists to check independently
+// shape) — deliberately not `mint::EdgeAggregate`, which only carries
+// the pre-compiled SQL string this module exists to check independently
 // of.
 //
 // Three subtleties ported exactly, found by reading `lineage.rb` line by
 // line rather than assumed from its own header:
 //   1. Rule order is load-bearing: renames -> moves -> converts -> drops
-//      -> backfills LAST, and a backfill only fills a gap nothing
+//      -> backfills last, and a backfill only fills a gap nothing
 //      already answered (never overwrites a value that made it across).
 //   2. `extract` (pulling a dotted member out of a nested value object)
-//      deletes the now-empty PARENT key too, once its own last member is
-//      gone — a lingering `{}` where the top key used to sit is not what
+//      deletes the now-empty parent key too, once its own last member is
+//      gone — a lingering `{}` where the top key sat is not what
 //      Ruby's own output looks like.
 //   3. `insert` (landing a value at a dotted destination) hard-refuses,
 //      the identical wording the SQL half (`hecks_tr_insert`) raises,
 //      when the destination's top segment already holds a non-object
 //      value — moving into it would silently discard that value. A
 //      `convert` whose raw value has no entry in its `values:` table
-//      refuses the same hard way. BOTH must abort the whole mint (an
+//      refuses the same hard way. Both must abort the whole mint (an
 //      `Err`, not a soft violation string), exactly like Ruby's own
 //      `apply_convert`/`insert` raising `Runtime::WiringError` rather
 //      than returning something `layer_two!` could collect and continue
@@ -90,7 +90,7 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
         }
     }
 
-    // LAST, and only where nothing already answered — see this file's
+    // Last, and only where nothing already answered — see this file's
     // own header on why this order is load-bearing.
     if let Some(backfills) = edge_aggregate_raw.get("backfills").and_then(Value::as_array) {
         for bf in backfills {

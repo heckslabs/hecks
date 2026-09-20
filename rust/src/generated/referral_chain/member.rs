@@ -169,7 +169,6 @@ impl Member {
 }
 
 fn member_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],

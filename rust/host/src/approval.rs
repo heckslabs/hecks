@@ -1,4 +1,4 @@
-// THE APPROVAL-GATE CHECK — ADR-0030-in-progress step 5. `compute`/
+// **The approval-gate check** — ADR-0030-in-progress step 5. `compute`/
 // `rekey` are the two migration rule kinds with no in-process reference
 // implementation anywhere (`Ports::Persistence::Lineage#translate`'s
 // own header: "compute is deliberately not applied here"); their only
@@ -10,8 +10,8 @@
 //
 // `edge_digest` is the one genuinely delicate piece: it must reproduce
 // `ApprovalDigest.edge_digest`'s own SHA256 byte-for-byte, over the
-// SAME digest-relevant shape `Exporter.translation_hash`/
-// `translation_aggregate` produce — DELIBERATELY NOT the shape
+// same digest-relevant shape `Exporter.translation_hash`/
+// `translation_aggregate` produce — deliberately not the shape
 // `ir.json`'s own `translations` key carries (that one also has
 // `compiled_state_expression`/`compiled_id_expression` merged in,
 // which must never feed the digest — see `Exporter.
@@ -20,8 +20,8 @@
 // approval the moment the compiler's own output format changed for
 // any reason). Hand-built key order throughout, same reasoning
 // `storage_shape.rs`'s own canonical serialization already holds
-// itself to — plus, HERE specifically, `renames` is a genuine JSON
-// OBJECT whose key order is meaningful domain data (the DSL's own
+// itself to — plus, here specifically, `renames` is a genuine JSON
+// object whose key order is meaningful domain data (the DSL's own
 // declaration order), which is why `rust/host/Cargo.toml` now enables
 // `serde_json`'s `preserve_order` feature (see that Cargo.toml comment).
 
@@ -30,9 +30,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tokio_postgres::GenericClient;
 
-/// The SAME digest `Translation::Audit.edge_digest`/`ApprovalDigest.
+/// The same digest `Translation::Audit.edge_digest`/`ApprovalDigest.
 /// edge_digest` compute. `edge` is one entry of `ir.json`'s
-/// `translations` array (the COMPILED shape) — this function reads
+/// `translations` array (the compiled shape) — this function reads
 /// only the digest-relevant fields out of it and ignores the two
 /// compiled-SQL fields entirely, exactly as `Exporter.translation_
 /// hash`/`translation_aggregate` (not `compiled_translation_
@@ -101,7 +101,7 @@ fn canonical_aggregate(aggregate: &Value) -> String {
     let name = json_string(aggregate.get("name").and_then(Value::as_str).unwrap_or(""));
     let was = aggregate.get("was").and_then(Value::as_str).map(json_string).unwrap_or_else(|| "null".to_string());
 
-    // A genuine JSON OBJECT, order-preserving (see this file's own
+    // A genuine JSON object, order-preserving (see this file's own
     // header on `preserve_order`) — `{old_name: new_name, ...}`,
     // matching `translation_aggregate`'s own `renames.transform_keys(&
     // :to_s).transform_values(&:to_s)` exactly.
@@ -125,7 +125,7 @@ fn canonical_aggregate(aggregate: &Value) -> String {
         let to = json_string(c.get("to").and_then(Value::as_str).unwrap_or(""));
         // `values: [[key, value], ...]` -- convert.values.map { |k, v| [k, v] },
         // already an array of 2-element arrays on the wire, order-preserved
-        // the same way (an ARRAY, never reordered regardless of the
+        // the same way (an array, never reordered regardless of the
         // serde_json feature flag).
         let values = join_array(c.get("values").and_then(Value::as_array).into_iter().flatten().map(|pair| {
             let pair_items = pair.as_array().map(|p| p.iter().map(raw_json).collect::<Vec<_>>().join(",")).unwrap_or_default();
@@ -181,8 +181,8 @@ fn json_string(s: &str) -> String {
 // `default:` (a backfill's literal value) is untyped JSON -- any scalar
 // or nested structure a bluebook author wrote, not always a string.
 // serde_json's own compact serialization of a parsed `Value` is safe to
-// use here (unlike the hand-built OBJECT/ARRAY wrapping elsewhere in
-// this file): this is a LEAF value with no further key-order question
+// use here (unlike the hand-built object/array wrapping elsewhere in
+// this file): this is a leaf value with no further key-order question
 // underneath it that this crate's own `preserve_order` feature doesn't
 // already answer once and for all, structurally, for every Value.
 fn raw_json(value: &Value) -> String {
@@ -193,14 +193,14 @@ fn raw_json(value: &Value) -> String {
 mod tests {
     use super::*;
 
-    // THE REAL CROSS-CHECK — not a self-consistent Rust-only fixture
-    // like the three tests below it, but Ruby's OWN literal output for
+    // **The real cross-check** — not a self-consistent Rust-only fixture
+    // like the three tests below it, but Ruby's own literal output for
     // a real compute+rekey edge (Hecks::Translation::Audit.
     // edge_digest, run for real against a bluebook matching mint_and_
     // seed_lineage_compute.rb's own shape), pasted in verbatim. If
     // Rust's edge_digest ever disagrees with Ruby's for identical
     // input, this is the test that catches it — everything else in
-    // this file only proves Rust agrees with ITSELF.
+    // this file only proves Rust agrees with itself.
     #[test]
     fn edge_digest_matches_ruby_s_own_output_for_a_real_compute_and_rekey_edge() {
         let edge = serde_json::json!({
@@ -257,22 +257,22 @@ mod tests {
             "domain": "D", "from": "aaa", "to": "bbb", "retired": [],
             "aggregates": [{"name": "W", "was": null, "renames": {"zeta": "1", "alpha": "2"}, "moves": [], "converts": [], "drops": [], "retypes": [], "computes": [], "rekeys": [], "backfills": []}]
         });
-        // A hand-swapped copy with the SAME pairs, declared in the
-        // OPPOSITE order -- if preserve_order weren't wired correctly,
+        // A hand-swapped copy with the same pairs, declared in the
+        // opposite order -- if preserve_order weren't wired correctly,
         // both would parse into the same (alphabetized) map and this
         // assertion would pass for the wrong reason (order not actually
         // load-bearing). Constructing via serde_json::from_str (not
         // json!{}, whose own macro-expansion order this test wants to
-        // stay independent of) proves the ACTUAL parse path preserves it.
+        // stay independent of) proves the actual parse path preserves it.
         let reordered_text = r#"{"domain":"D","from":"aaa","to":"bbb","retired":[],"aggregates":[{"name":"W","was":null,"renames":{"alpha":"2","zeta":"1"},"moves":[],"converts":[],"drops":[],"retypes":[],"computes":[],"rekeys":[],"backfills":[]}]}"#;
         let reordered: Value = serde_json::from_str(reordered_text).unwrap();
 
         assert_ne!(edge_digest(&ordered), edge_digest(&reordered), "declaration order is meaningful data, not a cosmetic detail a digest may ignore");
     }
 
-    // THE GATE ITSELF, against real Postgres, real hecks_approvals rows
-    // — no approval refuses; a matching one at the CURRENT journal tip
-    // succeeds; a journal write AFTER the approval was reviewed makes
+    // The gate itself, against real Postgres, real hecks_approvals rows
+    // — no approval refuses; a matching one at the current journal tip
+    // succeeds; a journal write after the approval was reviewed makes
     // it stale again, refusing exactly as minter.rb's own second
     // check does.
     #[tokio::test]
@@ -312,7 +312,7 @@ mod tests {
         // and zero policies, Postgres denies every insert outright,
         // even the table owner's. This test writes directly to the
         // journal (not through a real mint) purely to advance last_
-        // ordinal, so it needs the SAME policy a real era-1 hold would
+        // ordinal, so it needs the same policy a real era-1 hold would
         // already have created.
         crate::mint::advance_era(&client, domain, 1).await.expect("advance_era");
 

@@ -1,12 +1,11 @@
-// THE IR SIDECAR, LOADED ONCE — `HECKS_IR_PATH` points at the SAME
+// **The IR sidecar, loaded once** — `HECKS_IR_PATH` points at the same
 // `ir.json` `bin/project_rust` already writes beside `metadata.rs` for a
 // domain's own generated module (rust/project/domain_generator.rb's own
 // header on why this exists as a plain file at all: this crate has no
 // path dependency on the kernel crate that embeds the same JSON as a
-// Rust constant, `metadata.rs`'s own `IR_JSON`). Pulled out of web.rs
-// (which used to hold its own private copy of this exact `OnceLock`)
-// because dispatch-adjacent callers need it too now, for the identical
-// reason web.rs already did.
+// Rust constant, `metadata.rs`'s own `IR_JSON`). Shared between web.rs
+// and dispatch-adjacent callers, both of which need this exact
+// `OnceLock` for the identical reason.
 
 use serde_json::Value;
 use std::sync::OnceLock;
@@ -23,7 +22,7 @@ pub fn ir() -> Option<&'static Value> {
 
 /// The `(qualified_aggregate, storage_name)` pairs `Exporter.lineage`
 /// (lib/hecks/projector/exporter.rb) exported for this domain — a
-/// BINDING fact, not part of an aggregate's own canonical shape (see
+/// binding fact, not part of an aggregate's own canonical shape (see
 /// that method's own header for why), which is exactly why it rides in
 /// `ir.json` as its own top-level `lineage` key rather than nested
 /// under `aggregates`. `domain_ir["name"]` qualifies each bare aggregate
@@ -36,14 +35,13 @@ pub fn ir() -> Option<&'static Value> {
 /// nothing bound to a lineage-capable adapter, look identical here: no
 /// aggregate qualifies, same as today.
 ///
-/// NO LONGER DEAD CODE — `auth::membership_aggregate` (auth.rs) is the
-/// real call site this comment used to say didn't exist yet: it resolves
+/// **A real call site** — `auth::membership_aggregate` (auth.rs) resolves
 /// `HECKS_MEMBERSHIP_AGGREGATE` against this list to pick which
 /// lineage-capable aggregate auth.rs's own Member-handling functions
 /// (`member_row_by_email`/`member_rows`/`append_member_state`/
-/// `session_for_member_by_identity`) actually read/write, instead of the
-/// literal `"member"`/`"Member"` they used to hardcode. This list itself
-/// is still generic over EVERY lineage-capable aggregate a domain
+/// `session_for_member_by_identity`) actually read/write, rather than a
+/// literal `"member"`/`"Member"`. This list itself
+/// is still generic over every lineage-capable aggregate a domain
 /// declares — `membership_aggregate` is the first, but not the only
 /// possible, caller that narrows it down to one.
 pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
@@ -66,10 +64,10 @@ pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
 }
 
 /// Every aggregate's declared persistence adapter name — `Exporter.
-/// persistence` (exporter.rb), a BINDING fact like `lineage` above, not
+/// persistence` (exporter.rb), a binding fact like `lineage` above, not
 /// part of an aggregate's own canonical shape, riding in `ir.json` as
 /// its own top-level `persistence` key. Unlike `lineage_capable_
-/// aggregates`, this covers EVERY aggregate a domain declares, not just
+/// aggregates`, this covers every aggregate a domain declares, not just
 /// the lineage-capable ones — `rust/host` has exactly one backend
 /// (Postgres/PostgresEra, `journal.rs`/`dispatch.rs`), and an aggregate
 /// bound to anything else (Heki, Memory, Sqlite, D1, LocalStorage) is
@@ -108,7 +106,7 @@ pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra"]
 /// regardless (Heki is never lineage-capable, so the era/lineage gate
 /// above skips silently too) and `dispatch::handle` proceeds straight
 /// into its own flat Postgres rehydrate-replay path against
-/// `hecks_lambda_journal`/`hecks_lambda_snapshot` — tables seeded EMPTY
+/// `hecks_lambda_journal`/`hecks_lambda_snapshot` — tables seeded empty
 /// for a domain whose real state lives entirely in `.heki` files this
 /// runtime never opens. The result is silent state bifurcation: two
 /// independent, diverging histories for the same nominal domain, with
@@ -117,7 +115,7 @@ pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra"]
 /// accept a create Ruby would refuse as a duplicate. Refusing at boot
 /// instead trades that for a loud, immediate, correct failure.
 /// The chapter this domain's role checks resolve against — `Exporter.
-/// authorization` (exporter.rb), a BINDING fact like `lineage`/
+/// authorization` (exporter.rb), a binding fact like `lineage`/
 /// `persistence` above, read off `ir.json`'s own top-level
 /// `authorization` key. `None` when the domain attaches nothing that
 /// declares `provides "authorization"` (the key is omitted entirely).

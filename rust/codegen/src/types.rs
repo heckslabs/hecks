@@ -15,16 +15,16 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
     let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
     let invariants = vo.get("invariants").map(Json::each).unwrap_or(&[]);
 
-    // Mirrors `types.rb`'s own `<<~RUST.rstrip` heredoc EXACTLY, including
+    // Mirrors `types.rb`'s own `<<~RUST.rstrip` heredoc exactly, including
     // its dedent margin — the raw Ruby source's own `{`/closing `}` sit at
-    // the heredoc's OWN minimum indentation, so the squiggly-heredoc
-    // dedent leaves this block FLUSH LEFT (the `{`/`}` at column 0, not
+    // the heredoc's own minimum indentation, so the squiggly-heredoc
+    // dedent leaves this block flush left (the `{`/`}` at column 0, not
     // re-indented to match its embedding context) — found live, byte-
     // diffing against Ruby's real output: a "nicely re-indented" version
     // (this function's own first draft) was a real, confirmed mismatch.
-    // ORDER IS RUBY'S OWN — see types.rb's `emit_check_invariants`: nested
+    // Order is Ruby's own — see types.rb's `emit_check_invariants`: nested
     // value objects first, then this one's own `admits`/`pattern`, its
-    // invariants LAST (C3.7).
+    // invariants last (C3.7).
     let mut body: Vec<String> = Vec::new();
     let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
 

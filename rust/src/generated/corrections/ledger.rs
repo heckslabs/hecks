@@ -586,7 +586,6 @@ impl Ledger {
 }
 
 fn ledger_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],

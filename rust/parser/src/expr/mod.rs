@@ -1,5 +1,5 @@
 //! Port of `lib/hecks/bluebook/expression/{evaluator,resolver}.rb`'s
-//! own `parse` step ONLY — not `interpret`/`call` (semantics stay in Ruby
+//! own `parse` step only — not `interpret`/`call` (semantics stay in Ruby
 //! at dispatch time, and identically in `rust/src/kernel/expr.rs` for the
 //! compiled Rust side; this module exists purely so `expr_emitter.rs` can
 //! walk the same AST shape `rust/project/expr_emitter.rb` walks, without
@@ -64,7 +64,7 @@ pub fn top_level_index(expr: &str, operator: &str, accept: impl Fn(usize) -> boo
             // `{`/`}` count toward depth exactly as `(`/`)` do — Ruby's
             // own `top_level_index` grew that the day the resolver grew
             // block-taking `.any?`/`.none?`/`.all?`/`.find { |x| … }`,
-            // so an operator INSIDE a block's predicate is never a
+            // so an operator inside a block's predicate is never a
             // top-level split of the whole expression.
             depth += 1;
         } else if ch == b')' || ch == b'}' {

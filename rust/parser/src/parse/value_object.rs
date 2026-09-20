@@ -3,11 +3,11 @@
 //! `ValueObjectBuilder` answers both in Ruby (`one_of` `instance_eval`s
 //! its block on the builder itself, so the two contexts are one Ruby
 //! object; see `spec/syntax_conformance_spec.rb`'s own `BUILDER` table).
-//! `invariant` admits BOTH `source` spellings (`{ ... }` and
+//! `invariant` admits both `source` spellings (`{ ... }` and
 //! `do ... end` — `parse::mod::source_body_text`'s own header explains
-//! why) for a FRESH declaration, and — mirroring `command.rs`'s own
-//! `given` one level over (S10, ADR 0025) — a BARE, block-less form that
-//! REFERENCES an already-declared invariant of the same description on a
+//! why) for a fresh declaration, and — mirroring `command.rs`'s own
+//! `given` one level over (S10, ADR 0025) — a bare, block-less form that
+//! references an already-declared invariant of the same description on a
 //! sibling value object of the same aggregate instead
 //! (`try_reference_named_invariant`'s own header). `member` rows
 //! (`build/closed_sets.rs`) are an open map of pairs, captured verbatim
@@ -23,19 +23,19 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("ValueObject.{word}"))
 }
 
-/// NO BLOCK IS A REFERENCE, NOT A FRESH DECLARATION (S10/S-next, ADR 0025,
+/// No block is a reference, not a fresh declaration (S10/S-next, ADR 0025,
 /// one level over `command.rs`'s own `try_reference_named_given` — read
 /// that function's header first, this mirrors it exactly one construct
-/// down). `syntax.bluebook` declares exactly ONE keyword row for
+/// down). `syntax.bluebook` declares exactly one keyword row for
 /// `invariant`/ValueObject (`body: "source"`, `parse::mod::body_gate`'s
 /// own comment names it directly among the words with "at most a sibling
-/// `none` row, never" one — false as of THIS function; that comment is
+/// `none` row, never" one — false as of this function; that comment is
 /// now stale for this one word, kept anyway since fixing it belongs in
 /// `syntax.bluebook`, out of scope here), so a bare `invariant("...")`
 /// would otherwise be refused by the ordinary `next_line`/`body_gate`
 /// path before ever reaching the `"invariant"` match arm below. Resolved
-/// by `description` against `owner_value_objects` — the OWNING
-/// aggregate's own sibling value objects, built SO FAR (source order;
+/// by `description` against `owner_value_objects` — the owning
+/// aggregate's own sibling value objects, built so far (source order;
 /// `aggregate::parse_body`'s own `"value_object"` arm hands in
 /// `@value_objects + closed_sets` up to this point, the same combination
 /// `AggregateBuilder#value_object`'s own `owner_value_objects:` uses) —
@@ -46,7 +46,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// `Money`'s own block-form declaration of the same description,
 /// declared earlier in the same aggregate.
 ///
-/// Peeks the next physical line WITHOUT consuming it unless it actually
+/// Peeks the next physical line without consuming it unless it actually
 /// matches (word `invariant`, `Opener::None`) — anything else (a
 /// `invariant { ... }`/`invariant do ... end` fresh declaration, or any
 /// other word entirely) falls through untouched to the ordinary
@@ -100,7 +100,7 @@ fn try_reference_named_invariant(
 }
 
 /// Parses a `value_object "Name" do ... end` body. `owner_value_objects`
-/// — see `try_reference_named_invariant`'s own header — is the OWNING
+/// — see `try_reference_named_invariant`'s own header — is the owning
 /// aggregate's own sibling value objects declared so far.
 pub fn parse_body(
     file: &str,
@@ -133,14 +133,14 @@ pub fn parse_body(
         };
 
         match gated.row.word {
-            // A synthesized inline `one_of(...)` closed set (the TYPE-
-            // POSITION form, `attribute :x, one_of("a", "b")`) is
+            // A synthesized inline `one_of(...)` closed set (the type-
+            // position form, `attribute :x, one_of("a", "b")`) is
             // discarded here on purpose — see `build/closed_sets.rs`'s
             // own header; `ValueObjectBuilder#build` never reads
             // `closed_sets` either (nor could it hold one: `IR::
             // ValueObject.declare` has no nested-value-objects field at
-            // all). The FIELD'S OWN `one_of:` keyword (below) is the real
-            // spelling for a closed set declared INSIDE a value_object.
+            // all). The field's own `one_of:` keyword (below) is the real
+            // spelling for a closed set declared inside a value_object.
             "attribute" => {
                 let (attribute, one_of) = build_value_object_attribute(file, &gated.args)?;
                 if let Some(values) = one_of {
@@ -165,7 +165,7 @@ pub fn parse_body(
                     canonical: canonical::apply(&raw),
                 });
             }
-            // BARE NOW (S3, ADR 0025 — "closed sets lose the wrapper
+            // Bare now (S3, ADR 0025 — "closed sets lose the wrapper
             // block") — a `member` row sits directly in the value_object
             // body, no `one_of do ... end` around it. A non-empty
             // `members` already means closed; see `build`'s own comment
@@ -186,7 +186,7 @@ pub fn parse_body(
 
 /// `AttributeCollector#attribute`'s own `one_of:` keyword, read off the
 /// argument gate directly rather than through the shared `build_attribute`
-/// (which knows nothing about it — every OTHER context refuses it) — an
+/// (which knows nothing about it — every other context refuses it) — an
 /// array literal of raw values, same shape `resolve_type_expression`'s own
 /// positional `one_of(...)` already reads.
 fn build_value_object_attribute(
@@ -208,8 +208,8 @@ fn build_value_object_attribute(
     Ok((attribute, one_of))
 }
 
-/// THE NEW SPELLING — `attribute :name, String, one_of: [...]`. Refuses a
-/// SECOND attribute naming one_of: on the same value object (a single-
+/// **The new spelling** — `attribute :name, String, one_of: [...]`. Refuses a
+/// second attribute naming one_of: on the same value object (a single-
 /// field set names exactly one field, by construction) and — the other
 /// half of the same rule — refuses it once the value object turns out to
 /// hold more than this one attribute, mirroring `ValueObjectBuilder#
@@ -238,7 +238,7 @@ fn install_inline_closed_set(
     }
 
     vo.closed_set = true;
-    // UNMARKED, exactly like a bare `member` row (`push_member`, below):
+    // Unmarked, exactly like a bare `member` row (`push_member`, below):
     // Ruby's `install_inline_closed_set` writes the same member rows, and
     // the round trip through `Marks#member` unmarks every one of them, so
     // `one_of: ["as", "false", "true"]` exports `false`/`true` as JSON
@@ -279,18 +279,18 @@ fn push_member(
 }
 
 /// Port of `Marks#unmark_scalar` (lib/hecks/bluebook/assembly/marks.rb) —
-/// NOT the same thing as reading the Ruby literal type off the source
+/// not the same thing as reading the Ruby literal type off the source
 /// text. `ValueObject#to_h` (Ruby's own runtime) stores every member
 /// field as text regardless of how it was written (`member required:
 /// "true"` and a hypothetical bare `required: true` land the same way),
-/// then infers Bool/Integer/Float back OUT of that text BY SHAPE alone —
+/// then infers Bool/Integer/Float back out of that text by shape alone —
 /// a quoted `"true"`/`"1"` unmarks to a real `true`/`1` exactly like an
 /// unquoted one would, because by the time this runs the quoting is
 /// already gone. Getting this wrong (preserving the as-parsed-from-
 /// source Ruby type instead) is silently plausible: it happens to give
 /// the right answer whenever a corpus member writes an Integer bare
 /// (`retention_months: 84`) and only diverges once one writes a
-/// boolean/numeric-shaped value AS A QUOTED STRING (`required: "true"`,
+/// boolean/numeric-shaped value as a quoted string (`required: "true"`,
 /// `at: "1"` — the self-hosted grammar's own ArgumentSeed/KeywordSeed
 /// members, syntax.bluebook, do exactly this) — found via
 /// parser_parity_spec's bluebook_language fixture, not a synthetic case.

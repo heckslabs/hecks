@@ -1,34 +1,34 @@
-// THE CONSOLE'S OWN PRESENTATION CONFIG, WRITTEN — the Rust-native
+// **The console's own presentation config, written** — the Rust-native
 // counterpart to embryonaut_console's `web/presentation_config.rb`
 // `.save!`, serving `PUT /api/presentation`.
 //
 // It is the same two halves that file has, in the same order, for the
 // same reason:
 //
-//   1. `validate` — PURE Ruby-side checking, ported rule for rule and
-//      message for message, run against the LIVE domain IR before a
+//   1. `validate` — pure Ruby-side checking, ported rule for rule and
+//      message for message, run against the live domain IR before a
 //      single command is dispatched. This is what keeps `save!`'s own
 //      "refuses cleanly, writes nothing" contract: the common mistake
 //      (a tone that isn't one of five, a column naming a field the
 //      aggregate doesn't declare) never starts a partial multi-command
 //      write. It cannot move into ConsoleSettings' own commands —
-//      those have no way to see ANOTHER domain's schema, which is
+//      those have no way to see another domain's schema, which is
 //      exactly what every check here is against.
 //
 //   2. `save` — real dispatches of real `ConsoleSettings::*` commands
 //      through this host's own kernel, so the chapter's own invariants
-//      DO run: `tone` is a `one_of` the generated kernel enforces
+//      do run: `tone` is a `one_of` the generated kernel enforces
 //      ("Tone admits \"good\", \"warn\", ... — got \"nope\""), and a
 //      state that was never `Declare`d refuses with `NotFound` rather
 //      than being written behind the aggregate's back.
 //
-// WHAT CHANGED SINCE `api.rs` REFUSED THIS WITH 501. That refusal's
+// What changed since `api.rs` refused this with 501. That refusal's
 // premise was "this host has no ConsoleSettings kernel to dispatch
 // through: its `.wasm` is the consuming domain's, and ConsoleSettings
 // has never been compiled into it." The second half was already false
 // when it was written, and is checkable: `uses_framework
 // "ConsoleSettings"` in a consuming app's `.hecksagon` pulls that
-// chapter into the SAME registry `bin/project_rust` generates from, and
+// chapter into the same registry `bin/project_rust` generates from, and
 // `merged.rs` folds its three aggregates into the one `Store` the
 // single `.wasm` carries — the same mechanism that puts Governance and
 // Identity in there. Strings from the real deployed artifact confirm
@@ -36,8 +36,8 @@
 // `spec/fixtures/rust_host/checkout_fixture` now attaches the chapter
 // the same way so CI builds a kernel with it in every run.
 //
-// A DOMAIN WHOSE KERNEL GENUINELY HAS NO SUCH CHAPTER still gets the
-// old 501, unchanged, and it is ASKED rather than assumed: `presentation
+// A domain whose kernel genuinely has no such chapter still gets the
+// old 501, unchanged, and it is asked rather than assumed: `presentation
 // ::kernel_rows` runs this chapter's own `ConsoleSettings.Styles` read
 // model as a query, and a kernel that has never heard of it answers
 // with no query result at all. That is the same "resolve late, refuse
@@ -57,7 +57,7 @@ use tokio_postgres::Client;
 
 /// The five tones the console's own CSS supports. Kept here as well as
 /// in the chapter's own `one_of` for the reason `presentation_config
-/// .rb`'s own copy gives: this check runs FIRST, before any dispatch,
+/// .rb`'s own copy gives: this check runs first, before any dispatch,
 /// so the common mistake refuses without a partial write ever starting.
 const VALID_TONES: &[&str] = &["good", "warn", "danger", "muted", "accent"];
 const VALID_DISPLAYS: &[&str] = &["simple", "prose", "bullet", "mono", "rows"];
@@ -83,7 +83,7 @@ pub(crate) enum SaveRefusal {
 }
 
 /// `PresentationConfig.save!` then `.load` — app.rb's `put
-/// "/api/presentation"` returns the RELOADED config, never the
+/// "/api/presentation"` returns the reloaded config, never the
 /// submitted one, so a caller sees exactly what was stored.
 pub(crate) async fn save(
     domain_ir: &Value,
@@ -93,7 +93,7 @@ pub(crate) async fn save(
     lineage: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Result<Value, SaveRefusal> {
-    // ASKED BEFORE VALIDATED, deliberately. A host with no such chapter
+    // Asked before validated, deliberately. A host with no such chapter
     // cannot honour this request at all, and saying so is more useful
     // than first reporting whichever rule the submitted config happens
     // to break in a runtime that could never have stored it anyway.
@@ -134,14 +134,14 @@ fn list(value: Option<&Value>) -> &[Value] {
 
 // ---- writing --------------------------------------------------------
 //
-// NOT DIFFED against what is already stored — every present field is
+// Not diffed against what is already stored — every present field is
 // re-dispatched on every save, even to an unchanged value, exactly as
 // `PresentationConfig.save!` does (some event-log churn on a no-op
 // save, accepted there for simplicity and matched here so the two
 // engines produce the same history for the same request).
 //
-// KNOWN LIMITATION, INHERITED ON PURPOSE: a field that was SET and is
-// later OMITTED is NOT cleared — every `Set*` command requires a real
+// **Known limitation, inherited on purpose**: a field that was set and is
+// later omitted is not cleared — every `Set*` command requires a real
 // value and the chapter declares no `Clear*`. The Ruby engine has the
 // same gap and documents it; diverging here would make the two engines
 // disagree about what a second save means.
@@ -165,7 +165,7 @@ impl Writer<'_> {
 
     /// A command acting on an existing row — routed by that row's own
     /// identity, the same `handle_routed` envelope `POST /api/:coll/:id/:command`
-    /// uses. `id` is the aggregate's own identity STRING: "Agg:state"
+    /// uses. `id` is the aggregate's own identity string: "Agg:state"
     /// for StateStyle's composite `identified_by :agg, :state`, the
     /// aggregate name for Collection, the literal "overview" for the
     /// singleton — each one exactly what `PresentationConfig` passes as
@@ -253,7 +253,7 @@ impl Writer<'_> {
                 self.write_identity(agg, identity).await?;
             }
 
-            // ALWAYS DISPATCHED, even for an absent list — a `Replace*`
+            // Always dispatched, even for an absent list — a `Replace*`
             // with nothing in it is the real, meaningful "none
             // configured", the same way it is in Ruby, and is how a
             // column removed from the config actually goes away.
@@ -318,8 +318,8 @@ impl Writer<'_> {
         self.route("ConsoleSettings::Collection.SetIdentity", agg, Value::Object(facts)).await
     }
 
-    /// THE ONE ROW — `Declare`d once, on whichever save first reaches
-    /// here, then `ReplaceStats` whole on every save after, INCLUDING
+    /// **The one row** — `Declare`d once, on whichever save first reaches
+    /// here, then `ReplaceStats` whole on every save after, including
     /// an empty list: "no stats configured" is a real answer.
     async fn write_overview(&mut self, overview: &Value, existing: &KernelRows) -> Result<(), SaveRefusal> {
         if existing.overview.is_empty() {
@@ -337,7 +337,7 @@ impl Writer<'_> {
 // ---- the extra_json passthrough, write side -------------------------
 //
 // Every KNOWN_*_KEYS list below names what this chapter models
-// INDIVIDUALLY; whatever a real entry carries beyond that is
+// individually; whatever a real entry carries beyond that is
 // subtracted out here and round-tripped through an `extra_json` field,
 // which `presentation.rs`'s own `merge_extra` reads back. The two lists
 // are deliberately the same constants Ruby keeps, in the same order, so
@@ -376,7 +376,7 @@ fn extra_fields(entry: &Value, known: &[&str]) -> Map<String, Value> {
 }
 
 /// Ruby truthiness for a config field: a missing key and an explicit
-/// null are both "not given". `false` is NOT filtered here — the one
+/// null are both "not given". `false` is not filtered here — the one
 /// field that can legitimately be `false` (`attention`) is read by key
 /// presence, above, never through this.
 fn present(value: Option<&Value>) -> Option<&Value> {
@@ -387,13 +387,13 @@ fn columns_for_dispatch(columns: Option<&Value>) -> Vec<Value> {
     list(columns)
         .iter()
         .map(|column| {
-            // A column is EITHER a bare field name or a descriptor
+            // A column is either a bare field name or a descriptor
             // hash — the same two shapes `validate_collection!` reads,
             // and `presentation.yml` really did carry both.
             let Some(object) = column.as_object() else { return json!({ "field": column }) };
             let mut row = Map::new();
             row.insert("field".to_string(), object.get("field").cloned().unwrap_or(Value::Null));
-            // "true"/"false" as STRINGS — `Column#sortable` is a String
+            // "true"/"false" as strings — `Column#sortable` is a String
             // attribute, see console_settings.bluebook's own comment on
             // why no bluebook attribute here is a real boolean.
             if let Some(sortable) = object.get("sortable") {
@@ -433,7 +433,7 @@ fn detail_fields_for_dispatch(detail_fields: Option<&Value>) -> Vec<Value> {
         .collect()
 }
 
-/// FLATTENED to one row per (field, column) pair — see
+/// Flattened to one row per (field, column) pair — see
 /// console_settings.bluebook's own comment on why a rows-field's
 /// sub-column filter is a separate list on the root rather than nested
 /// inside `DetailField`. `presentation.rs` groups it back by field.
@@ -466,8 +466,8 @@ fn preconditions_for_dispatch(preconditions: Option<&Value>) -> Vec<Value> {
         .collect()
 }
 
-/// `field_formats` is a MAP in the config (`{field => format}`) and a
-/// LIST of `{field, format}` rows in the chapter — the same reshaping
+/// `field_formats` is a map in the config (`{field => format}`) and a
+/// list of `{field, format}` rows in the chapter — the same reshaping
 /// `presentation.rs`'s own `reshape_field_formats` undoes on the way
 /// out.
 fn field_formats_for_dispatch(field_formats: Option<&Value>) -> Vec<Value> {
@@ -544,8 +544,8 @@ pub(crate) fn validate(config: &Value, domain_ir: &Value) -> Refusal {
 }
 
 /// A collection's own `after_create` is validated in full above (its
-/// SHAPE-checking never depended on storage), but there is nowhere to
-/// PERSIST it yet — refusing here means a caller who tries loses
+/// shape-checking never depended on storage), but there is nowhere to
+/// persist it yet — refusing here means a caller who tries loses
 /// nothing silently. A real, deliberate scope boundary, not a bug.
 fn refuse_unsupported_yet(collections: &Value) -> Refusal {
     for (agg_name, entry) in entries(collections) {
@@ -576,7 +576,7 @@ fn validate_states(agg_name: &str, per_state: &Value, aggregates: &[&Value]) -> 
     Ok(())
 }
 
-/// BOTH DIRECTIONS, DELIBERATELY. Checking only that `states` never
+/// **Both directions, deliberately**. Checking only that `states` never
 /// names a state the domain doesn't have would still let a real state
 /// go quietly unstyled forever. This closes that half.
 fn missing_state_entries(states: &Value, aggregates: &[&Value]) -> Refusal {
@@ -698,7 +698,7 @@ fn attribute_names(aggregate: &Value) -> String {
     ui_schema::array(aggregate, "attributes").iter().map(ui_schema::attr_name).collect::<Vec<_>>().join(", ")
 }
 
-/// A precondition names a reference field on THIS aggregate and a state
+/// A precondition names a reference field on this aggregate and a state
 /// its target must already be in. Caught here first if the field it
 /// names isn't a real reference at all, since that would otherwise fail
 /// silently — the check would simply never fire.
@@ -732,7 +732,7 @@ fn validate_precondition(agg_name: &str, aggregate: &Value, rule: &Value, aggreg
     ))
 }
 
-/// `field_formats` is keyed by attribute NAME, not path — a nested
+/// `field_formats` is keyed by attribute name, not path — a nested
 /// compound field (a Member's `vesting.commencement_date`) is found
 /// this way too, since `ui_schema` threads the same map down through
 /// every level of recursion.
@@ -765,7 +765,7 @@ fn nested_attribute(aggregate: &Value, field_name: &str) -> bool {
     })
 }
 
-/// An identity rule names one of THIS aggregate's own attributes (never
+/// An identity rule names one of this aggregate's own attributes (never
 /// a reference — there is nothing to derive from another aggregate's
 /// identity) and how to fill it without asking.
 fn validate_identity(agg_name: &str, aggregate: &Value, rule: &Value) -> Refusal {
@@ -841,8 +841,8 @@ fn validate_detail_fields(agg_name: &str, aggregate: &Value, entries_value: Opti
     Ok(())
 }
 
-/// WHICH OF A `list_of(entity)` FIELD'S OWN ROWS TO SHOW, by the
-/// entity's own lifecycle — only meaningful for an ENTITY-backed rows
+/// Which of a `list_of(entity)` field's own rows to show, by the
+/// entity's own lifecycle — only meaningful for an entity-backed rows
 /// field (a value object has no lifecycle at all).
 fn validate_row_state_filter(
     agg_name: &str,
@@ -870,7 +870,7 @@ fn validate_row_state_filter(
     ))
 }
 
-/// WHICH OF A `list_of` FIELD'S OWN SUB-COLUMNS TO SHOW — checked
+/// Which of a `list_of` field's own sub-columns to show — checked
 /// against whichever rows-shape this field actually holds, a value
 /// object or a piece. A `columns:` on a field that is neither is a
 /// config mistake this catches by refusing rather than silently doing
@@ -901,7 +901,7 @@ fn validate_row_columns(agg_name: &str, aggregate: &Value, key: &str, attribute:
     Ok(())
 }
 
-/// `list_query` names one of this aggregate's OWN declared queries.
+/// `list_query` names one of this aggregate's own declared queries.
 /// No-arg only: a query needing its own arguments has nowhere in a
 /// generic table view to get one from.
 fn validate_list_query(agg_name: &str, aggregate: &Value, query_name: &Value) -> Refusal {
@@ -924,10 +924,10 @@ fn find_query<'a>(owner: &'a Value, name: &str) -> Option<&'a Value> {
     ui_schema::array(owner, "queries").iter().find(|q| q.get("name").and_then(|v| v.as_str()) == Some(name))
 }
 
-/// A CREATING COMMAND THAT ISN'T THE WHOLE STORY — `after_create` names
+/// A creating command that isn't the whole story — `after_create` names
 /// a follow-up verb and how to fill its arguments. Checked against the
-/// TARGET command's own declared attributes; the one thing this cannot
-/// check is whether a `$field` exists on the SOURCE aggregate, since
+/// target command's own declared attributes; the one thing this cannot
+/// check is whether a `$field` exists on the source aggregate, since
 /// every one of its own attributes is fair game — a real gap, and the
 /// same one Ruby names.
 fn validate_after_create(agg_name: &str, after_create: &Value, aggregates: &[&Value], domain_ir: &Value) -> Refusal {
@@ -1032,7 +1032,7 @@ fn validate_after_create_arg_spec(
     Ok(())
 }
 
-/// `collection` names a real, ACTUAL collection KEY — the one `key:`
+/// `collection` names a real, actual collection key — the one `key:`
 /// config can override — since a stat sits above any one aggregate the
 /// same way a table does.
 fn validate_overview(overview: &Value, aggregates: &[&Value], config: &Value) -> Refusal {
@@ -1071,7 +1071,7 @@ fn validate_stat(stat: &Value, by_key: &[(String, &Value)]) -> Refusal {
     validate_where(stat.get("where").unwrap_or(&Value::Null), aggregate, by_key, &label)
 }
 
-/// Recurses through the SAME shape index.html's own `matchesWhere`
+/// Recurses through the same shape index.html's own `matchesWhere`
 /// reads at evaluation time: `not:` wraps another whole where clause,
 /// `has_related`/`not_has_related` is a cross-collection existence
 /// check, and every other key is read as `state` (a normalized alias

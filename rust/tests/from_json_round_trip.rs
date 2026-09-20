@@ -1,5 +1,5 @@
 // Verifies the mechanical claim `emit_from_json_state`'s own header
-// (rust/project/json_codec.rb) makes: it's the TRUE inverse of
+// (rust/project/json_codec.rb) makes: it's the true inverse of
 // `emit_to_json_flat` for a real aggregate record — `to_json().
 // from_json()` should reproduce an equal struct, round-tripping through
 // the exact "key always present, Json::Null for an unset Option field"
@@ -13,7 +13,7 @@
 // Only compiles/runs when the banking domain is the currently-generated
 // one (`bin/project_rust examples/banking`) — Cargo.toml's own
 // per-domain feature gate, kept in sync by bin/project_rust. Uses a
-// REAL dispatched record (via `dispatch_by_name`), not a hand-built
+// real dispatched record (via `dispatch_by_name`), not a hand-built
 // struct literal — the actual shape a `Store` produces, not a
 // synthetic approximation of it.
 #![cfg(feature = "banking")]
@@ -45,10 +45,10 @@ fn a_dispatched_record_round_trips_through_to_json_and_from_json() {
     assert_eq!(original, parsed, "round-tripping a record through to_json/from_json should reproduce it exactly");
 }
 
-// THE SHARPER PROOF — an attribute genuinely left `None` (not just
+// **The sharper proof** — an attribute genuinely left `None` (not just
 // "happens to be Some for every field a Register call sets") must
 // round-trip too, since that's the entire reason emit_from_json_state
-// exists as a SEPARATE emitter: `standing`/`status` are set by
+// exists as a separate emitter: `standing`/`status` are set by
 // Register, but nothing about a freshly-created Customer sets every
 // possible optional field on every aggregate in this domain — Account's
 // own optional fields are a cleaner, more direct proof: `AtmCard`
@@ -76,9 +76,9 @@ fn an_unset_optional_field_round_trips_as_none_not_a_refusal() {
     assert_eq!(original, parsed, "an account with unset optional fields should still round-trip exactly");
 }
 
-// THE ENTITY CASE SPECIFICALLY — never exercised before this pass
+// **The entity case specifically** — never exercised before this pass
 // (entities had no from_json at all). SafeDepositBox.visits is a
-// `Vec<Visit>`, so the RECORD's own from_json only round-trips
+// `Vec<Visit>`, so the record's own from_json only round-trips
 // correctly if `Visit::from_json` (also newly generated) does too, one
 // visit logged with a note and one left `None` — the same "unset
 // optional round-trips as None" proof, one level of nesting deeper,
@@ -108,7 +108,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
     dispatch_by_name(&mut store, "Banking::SafeDepositBox.LogVisit", &visit_with_note, None, None, &mut mutations)
         .expect("logging a visit with a note should succeed");
 
-    // note LEFT UNSET — the entity-level version of the same proof
+    // note left unset — the entity-level version of the same proof
     // above, and the one this test exists for.
     let visit_without_note = Json::obj(vec![
         ("branch_code", Json::obj(vec![("value", Json::str("downtown"))])),
@@ -129,7 +129,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
     assert_eq!(original, parsed, "a record holding entities (with and without their own optional field) should round-trip exactly");
 }
 
-// THE ACTUAL POINT OF ALL THE ABOVE — `Store::from_seed` is what a host
+// The actual point of all the above — `Store::from_seed` is what a host
 // (rust/host) would call instead of `Store::new()` to stop replaying
 // full command history: seed a fresh Store from a prior `instances()`
 // dump, then dispatch is one call, not a full replay. If `instances()`
@@ -158,7 +158,7 @@ fn a_seeded_store_matches_the_store_it_was_seeded_from() {
         "a Store seeded from another Store's own instances() dump should produce the identical dump back"
     );
 
-    // AND IT'S USABLE, not just structurally equal — dispatching a NEW
+    // And it's usable, not just structurally equal — dispatching a new
     // command against the seeded store should see the seeded state
     // (the customer it never itself registered), the entire reason a
     // host would seed instead of replay in the first place.

@@ -1,34 +1,34 @@
 // Port of lib/hecks/runtime/storage_shape.rb's `project`/`mint_hash`/
 // `mint_label` — the canonical shape-hash Ruby computes once at mint
-// time. rust/host needs to compute the SAME hash independently at boot,
+// time. rust/host needs to compute the same hash independently at boot,
 // to detect drift against `hecks_eras` by comparing its own compiled
 // shape rather than trusting an externally-supplied era number
 // (journal.rs's own `LineageConfig` doc comment names exactly this as
 // today's gap).
 //
-// Operates on the SAME `ir.json` `Value` `crate::ir::ir()` already
+// Operates on the same `ir.json` `Value` `crate::ir::ir()` already
 // loads generically — no new build-time export needed. `bluebook.to_h`'s
 // own wire shape (aggregates/attributes/value_objects/entities/
-// identified_by/lifecycle) IS what `ir.json`'s top level already
+// identified_by/lifecycle) is what `ir.json`'s top level already
 // carries; `translations`/`lineage` (this crate's own two merged-in
 // keys) are simply never read here, the same way Ruby's own `project`
 // only ever reads `"aggregates"` off `bluebook.to_h` and ignores
 // everything else on the wire.
 //
-// BYTE-EXACT WITH RUBY'S OWN `JSON.generate` OUTPUT IS THE WHOLE POINT
+// Byte-exact with Ruby's own `JSON.generate` output is the whole point
 // — a mismatched canonical string means a mismatched SHA256 means Rust
 // and Ruby disagree about which era a given shape names. Every object/
-// array here is hand-assembled in the SAME field order Ruby's own
+// array here is hand-assembled in the same field order Ruby's own
 // `project`/`project_aggregate`/`project_attribute`/`type_signature`
 // build their Hashes in (Ruby Hashes are insertion-ordered, and
 // `JSON.generate` preserves that order) — never left to a JSON
 // library's own key-ordering default, which for `serde_json` without
 // the `preserve_order` feature would alphabetize silently wrong. Only
-// LEAF string escaping goes through `serde_json` (`json_string`), which
+// leaf string escaping goes through `serde_json` (`json_string`), which
 // is safe: JSON string escaping is one unambiguous spec, not a library
 // convention two correct implementations could disagree on.
 //
-// Verified against a REAL, already-minted edge, not a synthetic one:
+// Verified against a real, already-minted edge, not a synthetic one:
 // examples/pizzas' own Pizza -> Order translation names its `to:` label
 // as "77625c" — this module's own test asserts `mint_label` reproduces
 // that exact label from the live `ir.json` Ruby already generated for
@@ -39,8 +39,8 @@ use sha2::{Digest, Sha256};
 
 pub const LABEL_LENGTH: usize = 6;
 
-// storage_shape.rb's own FORM_VERSION — bump this in the SAME change
-// that alters `project`/`canonical`'s output below, on BOTH sides.
+// storage_shape.rb's own FORM_VERSION — bump this in the same change
+// that alters `project`/`canonical`'s output below, on both sides.
 pub const FORM_VERSION: i32 = 1;
 
 pub fn mint_hash(ir: &Value) -> String {
@@ -172,7 +172,7 @@ fn join_array<I: Iterator<Item = String>>(items: I) -> String {
 }
 
 // JSON string escaping is one unambiguous spec — safe to delegate to
-// serde_json for this leaf case, unlike object/array key ORDER, which
+// serde_json for this leaf case, unlike object/array key order, which
 // is a library convention this whole file deliberately never delegates.
 fn json_string(s: &str) -> String {
     serde_json::to_string(s).expect("a plain &str always serializes")
@@ -199,7 +199,7 @@ mod tests {
         // `from: "e3f3d7", to: "77625c"` for the Pizza -> Order rename —
         // Minter#mint! itself requires `edge.to == label` (this shape's
         // own computed label) before a mint may proceed, so "77625c" is
-        // the real, already-verified-by-Ruby answer for the CURRENT
+        // the real, already-verified-by-Ruby answer for the current
         // (post-rename) shape, not a value this test invents.
         let ir = pizzas_ir();
         assert_eq!(mint_label(&ir), "77625c");
@@ -209,7 +209,7 @@ mod tests {
     fn a_reordered_but_otherwise_identical_ir_hashes_the_same() {
         // Structural comparison only, never a hash comparison — the
         // whole point storage_shape.rb's own header names: two IR trees
-        // that declare the SAME shape in a DIFFERENT key/array order
+        // that declare the same shape in a different key/array order
         // must mint the same label, or a purely cosmetic JSON
         // reformatting would spuriously look like a schema change.
         let ir = pizzas_ir();

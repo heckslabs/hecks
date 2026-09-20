@@ -1,4 +1,4 @@
-// THE RUST MINT EXECUTOR — the biggest, most consequential piece of
+// **The Rust mint executor** — the biggest, most consequential piece of
 // ADR-0030-in-progress: Rust performs a real era mint itself, against
 // real Postgres, using SQL Ruby's own `Translation::RuleCompiler`
 // precompiled at build time (`ir.json`'s `translations` key — see
@@ -8,29 +8,29 @@
 // A faithful, function-for-function port of `lib/hecks/adapters/
 // driven/postgres_era/lineage/{provisioning,mint_transaction,
 // head_compiler,resumable_backfill}.rb`'s combined behavior — every SQL
-// string below is the SAME text those files issue, gathered verbatim,
-// not re-derived from a description. Two DELIBERATE, DOCUMENTED
+// string below is the same text those files issue, gathered verbatim,
+// not re-derived from a description. Two deliberate, documented
 // narrowings from what Ruby does, both because this crate has no
 // bluebook parser (that's `rust/parser`, never linked into `rust/
 // host` — ADR 0012's own boundary):
 //
-//   1. Ruby's `hold_first!` leaves era 1 UNNAMED (hash/label NULL)
+//   1. Ruby's `hold_first!` leaves era 1 unnamed (hash/label NULL)
 //      until something later needs to leave it — `ensure_named!` names
 //      it lazily by re-parsing its own frozen held_text
-//      (`shadow(era[:held_text])`). This crate names era 1 EAGERLY,
+//      (`shadow(era[:held_text])`). This crate names era 1 eagerly,
 //      at hold time — it already has its own shape hash in hand (that's
-//      WHY it's holding), so there's no lazy-naming benefit to chase,
+//      why it's holding), so there's no lazy-naming benefit to chase,
 //      and it sidesteps ever needing to re-parse held bluebook text.
-//   2. If this crate ever finds an EXISTING held era with a NULL hash
+//   2. If this crate ever finds an existing held era with a NULL hash
 //      (one Ruby minted and never named, because nothing has drifted
 //      away from it yet), it refuses to mint forward from it — that
 //      naming step genuinely needs the parser Ruby has and this crate
 //      doesn't. Named explicitly in the refusal, not a silent stall.
 //
-// Always uses the FULL (non-layered) chain build — `head_compiler.rb`'s
+// Always uses the full (non-layered) chain build — `head_compiler.rb`'s
 // own `layered_chain_sql` optimization (era N built from era N-1's
 // matview instead of the raw ancestor tail) is a performance shortcut
-// over an ALREADY-CORRECT slower path (`compile_head!`'s own `full:`
+// over an already-correct slower path (`compile_head!`'s own `full:`
 // parameter already supports forcing it), never a distinct code path
 // this crate's own correctness depends on. Deferred, not skipped —
 // worth adding once a real deployment's era count makes the raw-tail
@@ -59,16 +59,16 @@ fn partition(domain: &str, era: i32) -> String {
     format!("{}_era_{era}", journal_table(domain))
 }
 
-// DOMAIN-QUALIFIED (docs/decisions/0059), the SAME `crate::journal::
+// Domain-qualified (docs/decisions/0059), the same `crate::journal::
 // qualified_name`/`Lineage#qualified_name` algorithm both other places
 // this naming scheme is computed already use — delegated to, not
-// reimplemented a THIRD time, the same reasoning `storage_shape_snake`
-// below already gives for `snake`. Before this fix, two different
-// domains bound to PostgresEra against the same database, each
-// declaring an aggregate whose own name snake_cased to the same
-// storage_name, made this file's own mint path (`compile_head`/
+// reimplemented a third time, the same reasoning `storage_shape_snake`
+// below already gives for `snake`. Without the domain qualifier, two
+// different domains bound to PostgresEra against the same database,
+// each declaring an aggregate whose own name snake_cases to the same
+// storage_name, would make this file's own mint path (`compile_head`/
 // `ensure_first_head`/`grant_role`) derive the exact same physical
-// relations as the OTHER domain's — this crate's own copy of the exact
+// relations as the other domain's — this crate's own copy of the exact
 // collision docs/decisions/0059 documents for Ruby.
 fn head_snapshot(domain: &str, storage_name: &str, era: i32) -> String {
     crate::journal::qualified_name(domain, &format!("{storage_name}_head_snapshot_{era}"))
@@ -95,7 +95,7 @@ fn text_literal(text: &str) -> String {
 // ───────────────────────── edge model ─────────────────────────
 
 /// One aggregate's own bind, as `ensure_base!`'s caller (the boot gate)
-/// already knows it — `{name, storage_name}`, the SAME pair `ir.json`'s
+/// already knows it — `{name, storage_name}`, the same pair `ir.json`'s
 /// own `lineage.capable_aggregates` carries (`Exporter.lineage`).
 #[derive(Debug, Clone)]
 pub struct Aggregate {
@@ -131,7 +131,7 @@ impl Edge {
 }
 
 /// `ir.json`'s `translations` array, parsed and filtered to one
-/// domain — the SAME JSON `Exporter.translations` writes, read back
+/// domain — the same JSON `Exporter.translations` writes, read back
 /// generically (this crate links no kernel/codegen crate, per ADR
 /// 0012 — `serde_json::Value` navigation, not a generated type, matches
 /// how `crate::ir` already reads everything else in this sidecar).
@@ -223,8 +223,8 @@ pub enum BootDecision {
     LatestUnnamed { ordinal: i32 },
 }
 
-/// The pure decision itself — mirrors the four branches `main.rs`'s
-/// boot gate used to inline directly. `held` MUST already be in
+/// The pure decision itself — the four branches `main.rs`'s boot gate
+/// calls into, rather than inlining directly. `held` must already be in
 /// ordinal order (as `journal::held_eras` returns it).
 pub fn decide_boot_action(held: &[crate::journal::HeldEra], my_label: &str) -> BootDecision {
     if let Some(matching) = held.iter().find(|held_era| held_era.label.as_deref() == Some(my_label)) {
@@ -374,12 +374,12 @@ END $fn$"#,
     Ok(())
 }
 
-/// `ensure_base!` — provisions everything a domain needs ONCE, ever:
+/// `ensure_base!` — provisions everything a domain needs once, ever:
 /// the bookkeeping tables, the journal (partitioned, era 1 attached),
 /// RLS enablement, the six `hecks_tr_*` functions. Idempotent (every
 /// statement is `IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS`), gated by
 /// `provisioner?` the same way Ruby's own is — a non-owner role that
-/// merely READS through this crate's generic lineage functions has no
+/// merely reads through this crate's generic lineage functions has no
 /// business running DDL, and `pg_class`'s own ownership fact is the
 /// honest way to tell the two apart.
 pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::Result<()> {
@@ -434,12 +434,12 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
 
     ensure_partition(client, domain, 1).await?;
 
-    // Guarded the same way the RLS flags just below are: REVOKE writes
+    // Guarded the same way the RLS flags just below are: revoke writes
     // pg_class.relacl (and takes a lock) even when privileges are
     // already correct, and Ruby's own provisioning.rb found the hard
     // way that `has_table_privilege('public', ..., 'UPDATE')` can't
     // tell "never revoked" apart from "already revoked" (a brand-new
-    // table already answers false to PUBLIC-has-UPDATE by Postgres's
+    // table already answers false to public-has-update by Postgres's
     // own default) -- `relacl IS NULL` is the one-time signal that
     // actually works.
     let relacl_null = client
@@ -575,21 +575,21 @@ async fn table_exists<C: GenericClient>(client: &C, name: &str) -> anyhow::Resul
     Ok(row.is_some())
 }
 
-/// EVERY AGGREGATE'S HEAD SNAPSHOT FOR THE ERA THIS BOOT ADOPTED,
+/// Every aggregate's head snapshot for the era this boot adopted,
 /// created if it isn't there — Ruby's own unconditional self-heal,
 /// ported, and the fix for a real production outage.
 ///
-/// `PostgresEra#initialize` does exactly this on EVERY boot, for every
+/// `PostgresEra#initialize` does exactly this on every boot, for every
 /// repository it builds, "regardless of era — belt-and-suspenders
 /// self-healing ... against any boot-ordering surprise, at the cost of
 /// one CREATE TABLE IF NOT EXISTS nobody pays for twice". This crate
-/// only ever did it on the two paths that MINT an era (`hold_first`,
+/// only ever did it on the two paths that mint an era (`hold_first`,
 /// `mint_era`); the third outcome, `BootDecision::UseExisting` — adopt
 /// an era somebody else already minted — provisioned nothing.
 ///
 /// Found live. embryonautfoundersapp's storehouse holds eras 1 and 2
-/// for the domain, with era 2 minted by RUBY under the pre-ADR-0059
-/// unqualified names; every DOMAIN-qualified head snapshot in it stops
+/// for the domain, with era 2 minted by Ruby under the pre-ADR-0059
+/// unqualified names; every domain-qualified head snapshot in it stops
 /// at era 1. This host booted, matched era 2's label, adopted it, and
 /// the first write it ever attempted died on
 /// `relation "embryonaut_founders_app_state_style_head_snapshot_2"
@@ -599,12 +599,12 @@ async fn table_exists<C: GenericClient>(client: &C, name: &str) -> anyhow::Resul
 /// too). Every aggregate was in that position, not just the console's:
 /// no write of any kind could have succeeded against that deployment.
 ///
-/// NO BACKFILL HERE, deliberately. Backfilling is what MINTING an era
+/// No backfill here, deliberately. Backfilling is what minting an era
 /// from its ancestor does; adopting an era someone else minted means
 /// the history is already wherever that someone put it. This creates
 /// the table and nothing else, exactly as Ruby's own
 /// `ensure_head_snapshot!` does.
-/// ITS OWN TRANSACTION, explicitly. `create_head_snapshot` guards the
+/// Its own transaction, explicitly. `create_head_snapshot` guards the
 /// create-if-absent race with a `SAVEPOINT`, which Postgres only
 /// accepts inside a transaction block — the minting callers are always
 /// mid-transaction already, and this one, called straight off boot, is
@@ -640,13 +640,13 @@ async fn ensure_head_snapshot<C: GenericClient>(client: &C, domain: &str, storag
     backfill_head_snapshot(client, domain, storage_name, era).await
 }
 
-/// The CREATE half, shared by minting and adopting.
+/// The create half, shared by minting and adopting.
 ///
-/// THE COLUMNS ARE RUBY'S, not this crate's own shorter guess. They used
+/// The columns are Ruby's, not this crate's own shorter guess. They used
 /// to be `(id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT
 /// NULL)`, which a Ruby runtime cannot use: `head_compiler.rb` declares
-/// `operation text NOT NULL DEFAULT 'save'` and a NULLABLE `state`
-/// because a DELETE upserts a TOMBSTONE here (`operation = 'delete'`,
+/// `operation text NOT NULL DEFAULT 'save'` and a nullable `state`
+/// because a DELETE upserts a tombstone here (`operation = 'delete'`,
 /// `state` NULL) rather than removing the row, and every head view it
 /// compiles filters `WHERE operation = 'save'`. A table this crate
 /// created was therefore one Ruby could not compile a head over —
@@ -682,7 +682,7 @@ async fn create_head_snapshot<C: GenericClient>(client: &C, domain: &str, storag
     Ok(())
 }
 
-/// Which name/storage_name each aggregate carried at EACH era in the
+/// Which name/storage_name each aggregate carried at each era in the
 /// chain, walked backward from the current (era N) name through every
 /// edge's own `was:` — `head_compiler.rb`'s own `names_by_era`, pure
 /// Ruby there, pure here too (no DB access).
@@ -803,7 +803,7 @@ async fn ancestor_latest<C: GenericClient>(
 /// One aggregate's raw rule JSON within one raw edge (`ir.json`'s own
 /// `translations` shape, `Exporter.translation_aggregate`'s exported
 /// object) — `Edge#for_aggregate`'s raw-JSON twin, used where the
-/// COMPILED `mint::Edge`/`EdgeAggregate` (SQL text only) isn't enough:
+/// compiled `mint::Edge`/`EdgeAggregate` (SQL text only) isn't enough:
 /// `reference_transform::translate` needs the declarative rules
 /// (renames/moves/converts/drops/backfills) themselves.
 fn raw_declared<'a>(raw_edges: &'a [Value], domain: &str, edge: &Edge, aggregate_name: &str) -> Option<&'a Value> {
@@ -821,7 +821,7 @@ fn raw_declared<'a>(raw_edges: &'a [Value], domain: &str, edge: &Edge, aggregate
 /// Layer 2 of the mint-time audit, for one aggregate — `Translation::
 /// Audit::LayerTwo#layer_two!`, read directly: per-rule value
 /// preservation, no leftover source keys, and id-set (or, across a
-/// rekeying edge, record-COUNT) conservation across the edge. Appends
+/// rekeying edge, record-count) conservation across the edge. Appends
 /// every violation found to `violations` (collected, not raised
 /// immediately — matching Ruby's own `violations << ...` shape, so one
 /// mint reports everything wrong at once); a `reference_transform::
@@ -829,7 +829,7 @@ fn raw_declared<'a>(raw_edges: &'a [Value], domain: &str, edge: &Edge, aggregate
 /// e.g. an unmapped convert value) propagates immediately via `?`
 /// instead, exactly like Ruby's own unrescued raise does.
 ///
-/// `declared` is the raw rule JSON for this aggregate within the ONE
+/// `declared` is the raw rule JSON for this aggregate within the one
 /// edge actually being minted this boot (`chain.last()`) — never the
 /// whole chain; a multi-hop drift's earlier edges already minted (and
 /// were already audited) on some prior boot.
@@ -927,13 +927,13 @@ fn strip_keys(state: &Value, keys: &std::collections::HashSet<String>) -> Value 
 
 /// The whole mint-time audit, over every lineage-capable aggregate —
 /// `CoverageCheck#audit!`/`Translation::Audit.check`, read directly.
-/// Runs BEFORE anything is minted (over the live compiled chain, plain
+/// Runs before anything is minted (over the live compiled chain, plain
 /// `SELECT`s, never a persisted matview), so a refusal leaves no
-/// half-born era: the SAME ordering `Minter#mint!` holds itself to
+/// half-born era: the same ordering `Minter#mint!` holds itself to
 /// (`audit!` before `lineage.mint_era!`). Layer 1 (structural:
 /// `reference_validate`) and Layer 2 (`reference_transform`, per-rule
 /// preservation) both run here, over every aggregate — Layer 1's own
-/// documented gap (custom invariant PREDICATE text, not yet evaluated)
+/// documented gap (custom invariant predicate text, not yet evaluated)
 /// is named in `reference_validate`'s own header, not silently absent.
 ///
 /// `ir` is the whole `ir.json` `Value` — Layer 1 looks up each
@@ -978,7 +978,7 @@ pub async fn audit_before_mint<C: GenericClient>(
 }
 
 /// `compile_head!` — one aggregate's matview + head-snapshot + head
-/// view, for one era, over the FULL (never layered) chain.
+/// view, for one era, over the full (never layered) chain.
 async fn compile_head<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -1026,8 +1026,8 @@ async fn compile_head<C: GenericClient>(
 
 /// `hold_first!`, eagerly named (see this file's own header). Fresh
 /// domain, era 1, no edge — always safe, never needs the approval gate
-/// (a first hold has nothing to migrate FROM). Also does what
-/// `EraResolver#check!`'s hold-first PATH does as a separate step
+/// (a first hold has nothing to migrate from). Also does what
+/// `EraResolver#check!`'s hold-first path does as a separate step
 /// right after Ruby's own `hold_first!` — `ensure_first_head!` per
 /// aggregate — folded in here since this function's whole job is
 /// "make era 1 ready to write into", and a `journal::
@@ -1041,7 +1041,7 @@ pub async fn hold_first<C: GenericClient>(client: &C, domain: &str, held_text: &
     // yet to backfill, but still SAVEPOINT-shaped) needs one open.
     // Ruby's own `hold_first!` doesn't wrap itself this tightly (each
     // statement autocommits on its own), safe here as a strictly
-    // SAFER simplification, not a behavior it depends on staying loose.
+    // safer simplification, not a behavior it depends on staying loose.
     client.batch_execute("BEGIN").await?;
     let result = hold_first_body(client, domain, held_text, ir, aggregates, role).await;
     match &result {
@@ -1148,7 +1148,7 @@ async fn table_or_view_exists<C: GenericClient>(client: &C, name: &str) -> anyho
 /// advisory lock, idempotency check, watermark capture, the
 /// `hecks_eras` row, every aggregate's compiled head, grants, the RLS
 /// fence flip. Approval-gate checking (compute/rekey edges) is the
-/// CALLER's job (`crate::main`'s boot gate) — this function mints once
+/// caller's job (`crate::main`'s boot gate) — this function mints once
 /// asked to, the same separation `Minter#mint!` (checks, then calls
 /// `Lineage#mint_era!`) already draws in Ruby.
 #[allow(clippy::too_many_arguments)]
@@ -1210,7 +1210,7 @@ async fn mint_era_body<C: GenericClient>(
 
     // Every held era's own watermark, for `ancestor_tail_sql`'s cut —
     // includes the row just inserted above (its own watermark is what
-    // BOUNDS era `ordinal - 1`'s own tail read, same as every other
+    // bounds era `ordinal - 1`'s own tail read, same as every other
     // ancestor).
     let held = crate::journal::held_eras(client, domain).await?;
     let watermarks: std::collections::HashMap<i32, Option<i64>> = held.iter().map(|era| (era.ordinal, era.watermark)).collect();
@@ -1249,8 +1249,8 @@ mod tests {
         client
     }
 
-    /// THE REAL OUTAGE, REPRODUCED. embryonautfoundersapp's storehouse
-    /// holds an era 2 that RUBY minted, so every domain-qualified head
+    /// **The real outage, reproduced**. embryonautfoundersapp's storehouse
+    /// holds an era 2 that Ruby minted, so every domain-qualified head
     /// snapshot in it stops at era 1. This host matched era 2's label,
     /// adopted it, and its first write died on `relation
     /// "embryonaut_founders_app_state_style_head_snapshot_2" does not
@@ -1318,9 +1318,9 @@ mod tests {
         EdgeAggregate { name: name.to_string(), was: was.map(str::to_string), has_compute_or_rekey: false, compiled_state_expression: expression.to_string(), compiled_id_expression: None }
     }
 
-    // A REAL, multi-hop chain: era1 "Pizza" -> era2 rename to "Order"
+    // A real, multi-hop chain: era1 "Pizza" -> era2 rename to "Order"
     // (a rename, was: "Pizza") -> era3 an attribute-only edge on
-    // "Order" (no was:). `names_by_era` has to walk this BACKWARD
+    // "Order" (no was:). `names_by_era` has to walk this backward
     // correctly for chain_sql's per-ancestor storage-name filter to
     // read the right journal rows at each era — the one piece of
     // compile_head!'s own logic no single-edge test can exercise.
@@ -1332,7 +1332,7 @@ mod tests {
 
         let (current, storage) = names_by_era("Order", &edges);
 
-        // era 1 (index 0): the OLD name, "Pizza" -- read from edge_1_to_2's
+        // era 1 (index 0): the old name, "Pizza" -- read from edge_1_to_2's
         // own `was:`. era 2 (index 1) and era 3 (index 2): "Order",
         // unchanged since nothing renamed it again.
         assert_eq!(current, vec!["Pizza".to_string(), "Order".to_string(), "Order".to_string()]);
@@ -1356,15 +1356,16 @@ mod tests {
         journal::HeldEra { ordinal, hash: label.map(|_| "irrelevant".to_string()), label: label.map(str::to_string), held_text: String::new(), watermark: None }
     }
 
-    // The four branches `main.rs`'s boot gate used to inline directly —
-    // now pure, so each one is provable without a real Postgres.
+    // The four branches `main.rs`'s boot gate calls into, rather than
+    // inlining directly — pure, so each one is provable without a real
+    // Postgres.
     #[test]
     fn decide_boot_action_covers_all_four_branches() {
         // No held eras at all -- brand new domain, hold era 1.
         assert_eq!(decide_boot_action(&[], "abc123"), BootDecision::HoldFirst);
 
         // A held era already names this exact shape -- boot at it,
-        // even if it's not the LATEST one (an operator could roll back
+        // even if it's not the latest one (an operator could roll back
         // to an older binary whose shape a prior era already covers).
         let already_named = vec![held(1, Some("aaa111")), held(2, Some("bbb222"))];
         assert_eq!(decide_boot_action(&already_named, "aaa111"), BootDecision::UseExisting { ordinal: 1 });
@@ -1384,14 +1385,14 @@ mod tests {
         assert_eq!(decide_boot_action(&unnamed, "ccc333"), BootDecision::LatestUnnamed { ordinal: 2 });
     }
 
-    // THE END-TO-END PROOF ADR-0030-in-progress exists for: Rust mints
-    // BOTH eras itself, real Postgres, zero Ruby process anywhere in
+    // The end-to-end proof ADR-0030-in-progress exists for: Rust mints
+    // both eras itself, real Postgres, zero Ruby process anywhere in
     // this test — `hold_first` (era 1), real writes through the
     // already-proven generic `journal::append_lineage_mutation`, then
     // `mint_era` (era 2) via a hand-built rename edge, then a real read
     // back through `journal::read_lineage_head_all` proving the
     // translation actually ran. Every prior lineage test in this crate
-    // (journal.rs's own) proves Rust reads/writes eras RUBY minted —
+    // (journal.rs's own) proves Rust reads/writes eras Ruby minted —
     // this is the one that proves Rust needs no Ruby to mint at all.
     #[tokio::test]
     async fn rust_mints_both_eras_itself_writes_and_reads_back_the_translated_data() {
@@ -1466,9 +1467,9 @@ mod tests {
         .expect("write w2 under era 1");
 
         // ── era 2: Rust mints it too, via a hand-built rename edge — the
-        // SAME shape Exporter.translation_aggregate would export, just
+        // same shape Exporter.translation_aggregate would export, just
         // constructed directly here rather than read from a real ir.json,
-        // since this test's whole point is proving the MINT MECHANICS,
+        // since this test's whole point is proving the mint mechanics,
         // not the build-time export pipeline (that's storage_shape.rs's
         // own, separately-proven job). ──
         let from_label = storage_shape::mint_label(&v1_ir);
@@ -1489,7 +1490,7 @@ mod tests {
             .await
             .expect("mint_era");
 
-        // ── read back through the SAME generic function real deployment
+        // ── read back through the same generic function real deployment
         // traffic uses — proving the whole chain, not just that SQL ran ──
         let mut rows = journal::read_lineage_head_all(&client, domain, "widget").await.expect("read_lineage_head_all");
         rows.sort_by(|a, b| a.0.cmp(&b.0));
@@ -1502,11 +1503,11 @@ mod tests {
         );
     }
 
-    // Layer 2 PROVEN LIVE, both directions: a raw edge whose declared
+    // Layer 2 proven live, both directions: a raw edge whose declared
     // rules genuinely agree with what the compiled SQL does passes
     // silently; one that doesn't (the exact real bug this audit exists
     // to catch — a scaffolded/hand-edited edge whose declared `renames:`
-    // disagrees with its own `compiled_state_expression`) refuses BEFORE
+    // disagrees with its own `compiled_state_expression`) refuses before
     // anything mints, naming the exact divergence. Two domains, one
     // scratch database, to amortize setup — `audit_before_mint` itself
     // is the only thing under test, not `mint_era`'s own transaction.
@@ -1599,12 +1600,12 @@ mod tests {
             .await
             .expect("an honest edge's audit must pass silently");
 
-        // ── the lying edge: declared `renames:` claims a DIFFERENT
+        // ── the lying edge: declared `renames:` claims a different
         // destination than the compiled SQL actually produces — the
         // exact real-world bug this audit exists to catch (a
         // hand-edited or stale scaffold whose declaration and compiled
         // SQL have drifted apart). Must refuse, naming the divergence,
-        // BEFORE anything mints. ──
+        // before anything mints. ──
         let lying_domain = "AuditFail";
         seed_era_one(&client, lying_domain, &v1_ir, &aggregate).await;
         let lying_edge = honest_edge.clone();

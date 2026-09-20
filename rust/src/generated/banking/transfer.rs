@@ -366,7 +366,6 @@ impl Transfer {
 }
 
 fn transfer_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],
@@ -568,7 +567,7 @@ if !absent.is_empty() {
 
 impl crate::kernel::Fielded for DebitedArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -690,7 +689,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for SettleArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -812,7 +811,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for CreditedArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -934,7 +933,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for ReverseArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1056,7 +1055,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for RejectArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 

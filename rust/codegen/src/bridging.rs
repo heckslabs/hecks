@@ -9,12 +9,12 @@ use crate::naming;
 use std::collections::{HashMap, HashSet};
 
 /// `use crate::generated::<mod_name>::<owner>::<Type>;` for every value
-/// object THIS aggregate's own commands/entity-commands/port operations
-/// reference by NAME but never declare locally — see `domain_generator.rb`'s
+/// object this aggregate's own commands/entity-commands/port operations
+/// reference by name but never declare locally — see `domain_generator.rb`'s
 /// own header on `domain_value_object_owner`/`cross_aggregate_vo_imports`
 /// for the full argument (`SafeDepositBox.Rent`'s own `attribute :customer,
 /// CustomerNumber` — `Customer`'s own VO — is the corpus's one live
-/// example). A type name that's ALSO declared LOCALLY is never foreign, no
+/// example). A type name that's also declared locally is never foreign, no
 /// matter what `domain_value_object_owner` says — the local declaration
 /// always wins.
 pub fn cross_aggregate_vo_imports(aggregate: &Json, domain_value_object_owner: &HashMap<String, String>, mod_name: &str) -> Vec<String> {
@@ -44,7 +44,7 @@ pub fn cross_aggregate_vo_imports(aggregate: &Json, domain_value_object_owner: &
 
 /// `vo_field_bridgeable?` — `Value::Coercion#fields_for`, read directly: a
 /// value object rebuilds into any differently-named target value object
-/// that shares its field NAMES, matched by name, with the target's own
+/// that shares its field names, matched by name, with the target's own
 /// `default:` filling anything the source doesn't carry.
 pub fn vo_field_bridgeable(source_vo: Option<&Json>, target_vo: Option<&Json>) -> bool {
     let (Some(source_vo), Some(target_vo)) = (source_vo, target_vo) else { return false };
@@ -115,7 +115,7 @@ pub fn vo_field_rhs(source_expr: &str, source_vo: &Json, target_type: &str, valu
     format!("{} {{ {} }}", naming::rust_ident(target_type), fields.join(", "))
 }
 
-/// `bridgeable_value_types?` — shared by BOTH `:set`'s own RHS and
+/// `bridgeable_value_types?` — shared by both `:set`'s own RHS and
 /// `:append`'s per-field RHS.
 pub fn bridgeable_value_types(source_type: &str, target_type: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     if source_type == target_type {
@@ -176,17 +176,17 @@ pub fn value_rhs(source_expr: &str, source_type: &str, target_type: &str, value_
 }
 
 /// Port of `bridging.rb#list_bridge_requires_element_mapping?` — BUG#25.
-/// TRUE exactly when a list-to-list `:set` genuinely needs `list_value_
+/// True exactly when a list-to-list `:set` genuinely needs `list_value_
 /// rhs`'s own per-element rebuild rather than a single whole-container
 /// `.clone()`. Mirrors `value_rhs`'s own first two early returns — a
-/// `.clone()` on the WHOLE expression is correct whenever the two sides
+/// `.clone()` on the whole expression is correct whenever the two sides
 /// already share one Rust representation, regardless of list-ness or
 /// optionality (`CardPayment.tags`'s own redundant `sets :tags, to:
 /// :tags` needs a bare `args.tags.clone()`, whatever concrete Rust type
 /// `args.tags` already is — `Vec<Tag>`, or `Option<Vec<Tag>>` when the
-/// ARGUMENT is optional; unconditional element-wise iteration breaks
+/// argument is optional; unconditional element-wise iteration breaks
 /// against the latter, found live: E0277). Element-wise reconstruction
-/// is needed ONLY when the two sides genuinely have DIFFERENT per-
+/// is needed only when the two sides genuinely have different per-
 /// element Rust shapes — `Handle` (a value object) into `Reference
 /// <Member>` (a bare `String`) being the one shape this bug is
 /// actually about.
@@ -200,9 +200,9 @@ pub fn list_bridge_requires_element_mapping(source_type: &str, target_type: &str
     )
 }
 
-/// Port of `bridging.rb#list_value_rhs` — BUG#25. `value_rhs` ELEMENT-WISE,
-/// for a `:set` mutation whose source argument AND target attribute are
-/// both lists AND whose per-element types genuinely differ
+/// Port of `bridging.rb#list_value_rhs` — BUG#25. `value_rhs` element-wise,
+/// for a `:set` mutation whose source argument and target attribute are
+/// both lists and whose per-element types genuinely differ
 /// (`list_bridge_requires_element_mapping` above is the caller's own
 /// gate) — a `has_many`'s own `Reference<Target>` list field, set
 /// wholesale from a `list_of(SomeHandleType)` argument — `Circle.Admit`'s
@@ -225,7 +225,7 @@ pub fn literal_set_bridgeable(value: &Literal, target_type: Option<&str>, value_
             if !value_objects_by_name.contains_key(target_type) {
                 return true;
             }
-            // A SCALAR literal into a SINGLE-FIELD value object — see
+            // A scalar literal into a single-field value object — see
             // bridging.rb's own `literal_set_bridgeable?`: the literal is
             // the sole field's value and bridges as the hash it stands for.
             match crate::json_codec::sole_field_of(target_type, value_objects_by_name) {
@@ -238,7 +238,7 @@ pub fn literal_set_bridgeable(value: &Literal, target_type: Option<&str>, value_
 }
 
 /// Port of bridging.rb's `literal_rhs_for` — the rendered right-hand
-/// side of ANY literal into a target type.
+/// side of any literal into a target type.
 pub fn literal_rhs_for(value: &Literal, target_type: Option<&str>, value_objects_by_name: &HashMap<String, &Json>) -> String {
     if let Literal::Hash(_) = value {
         return literal_hash_rhs(value, target_type.unwrap_or(""), value_objects_by_name);
@@ -254,7 +254,7 @@ pub fn literal_rhs_for(value: &Literal, target_type: Option<&str>, value_objects
 }
 
 /// A literal Hash's own bridgeability into a target type — either an
-/// ordinary VO (every declared field present) or a CLOSED SET (the Hash
+/// ordinary VO (every declared field present) or a closed set (the Hash
 /// matches one member row's own fields exactly).
 pub fn literal_hash_bridgeable(hash: &Literal, target_type: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     let Some(vo) = value_objects_by_name.get(target_type) else { return false };
@@ -270,12 +270,12 @@ pub fn literal_hash_bridgeable(hash: &Literal, target_type: &str, value_objects_
 
 /// A closed-set `members` row (`[[field, value], ...]`) matched against a
 /// literal Hash — every field/value pair in the row must equal the Hash's
-/// own value at that key. Ruby compares against BOTH a Symbol and String
+/// own value at that key. Ruby compares against both a Symbol and String
 /// key form of the hash (`[hash[field.to_sym], hash[field.to_s]].include?
 /// (value)`) — moot here since `Literal::Hash`'s own keys are always plain
 /// Rust `String`s already (there is no separate Symbol-keyed lookup to
 /// fall back to), and compares the row's own value (always a JSON scalar
-/// string off `ir.json`, read via `Json::to_s`) against the Hash's OWN
+/// string off `ir.json`, read via `Json::to_s`) against the Hash's own
 /// value textually, since a member row's field value has no richer type
 /// than a String to compare against.
 fn member_matches_hash(member: &Json, hash: &Literal) -> bool {
@@ -363,7 +363,7 @@ pub fn arithmetic_target_field<'a>(mutation: &Json, aggregate: &'a Json, value_o
     Some((target_attr, field))
 }
 
-/// The amount half — resolved to a raw Rust integer-typed EXPRESSION.
+/// The amount half — resolved to a raw Rust integer-typed expression.
 pub fn arithmetic_amount_expr(source: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>, target_integer_field: &str) -> Option<String> {
     let kind = source.get("kind").map(Json::to_s).unwrap_or_default();
     if kind == "literal" {
@@ -413,7 +413,7 @@ pub fn clamp_bounds_ints(source: &Json) -> Option<(i64, i64)> {
     Some((*min, *max))
 }
 
-/// An aggregate attribute a CREATING command's own arguments never
+/// An aggregate attribute a creating command's own arguments never
 /// mention — `Runtime::Instance.defaults`/`.default_for`, read directly.
 pub fn creation_default_rhs(attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
     if let Some(default) = crate::attr::default(attr) {
@@ -429,8 +429,8 @@ pub fn creation_default_rhs(attr: &Json, value_objects_by_name: &HashMap<String,
         return None;
     }
     let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
-    // Ruby's `all?` on an EMPTY array is vacuously `true` — mirrored here
-    // by NOT early-returning on an empty attribute list, only on a
+    // Ruby's `all?` on an empty array is vacuously `true` — mirrored here
+    // by not early-returning on an empty attribute list, only on a
     // genuinely-present field with no default.
     if !attrs.iter().all(|f| crate::attr::default(f).is_some()) {
         return None;
@@ -448,14 +448,14 @@ pub fn corrects_of(command: &Json) -> Option<&Json> {
 /// `reverses: true` — the harder, derived-mutation shape.
 ///
 /// `rust/project/mutations.rb#derive_reverses_mutations!` now resolves
-/// this for the ONE invertible case (increment/decrement) by MUTATING an
+/// this for the one invertible case (increment/decrement) by mutating an
 /// aggregate's own `[:commands]` IR before codegen ever reads it — the
 /// same "mutate the tree, then generate normally" idiom `mark_append_
 /// optional_fields!` already uses there. This generator's own `Json`
 /// (see `json.rs`'s own header) has no mutation API, exactly the reason
 /// `mark_append_optional_fields!` was deliberately left unported
 /// (`mutations.rs`'s own header) — and, exactly like that gap, this is
-/// CONFIRMED currently harmless: no real corpus command declares
+/// confirmed currently harmless: no real corpus command declares
 /// `corrects EVENT, reverses: true` on an invertible mutation today (ADR
 /// 0041 — the real corpus motivation, `Banking::Account.CorrectFee`,
 /// uses the explicit-`sets` shape instead). The derivation itself stays
@@ -472,7 +472,7 @@ pub fn corrects_reverses(mutation: &Json) -> bool {
         .unwrap_or(false)
 }
 
-/// `emitted_fee_applied`, from `"FeeApplied"` — the SAME plain,
+/// `emitted_fee_applied`, from `"FeeApplied"` — the same plain,
 /// deterministic snake_case rendering `rust/project/bridging.rb`'s own
 /// `corrects_flag_field` uses; a synthetic field name, never bluebook-
 /// author-visible, so byte-identity with the Ruby generator's own output
@@ -492,15 +492,15 @@ pub fn corrects_flag_field(event_name: &str) -> String {
     out
 }
 
-/// Every event name ANY command on this aggregate names in a `corrects`
+/// Every event name any command on this aggregate names in a `corrects`
 /// mutation — mirrors `rust/project/commands.rb`'s own
 /// `correctable_event_names` exactly (aggregate-wide, not per-command).
 ///
-/// BUG#31 — RECURSES INTO ENTITIES TOO (`entity_correctable_event_names`,
+/// BUG#31 — recurses into entities too (`entity_correctable_event_names`,
 /// below), not just `aggregate["commands"]`. An entity-level `corrects`
 /// (`Ledger::Entry.Amend`, qa/stress_domains/corrections — the corpus's
 /// only example) names an event exactly the same way an aggregate-level
-/// one does, and the flag field it checks against lives on the PARENT
+/// one does, and the flag field it checks against lives on the parent
 /// record regardless of which level declared the `corrects` mutation —
 /// see `rust/project/commands.rb`'s own identical fix for the full
 /// reasoning (BUG#30's Ruby fix, `enforce_correction_target` always
@@ -548,7 +548,7 @@ fn corrects_targets_of(commands: &[Json]) -> Vec<String> {
     names
 }
 
-/// The synthetic, PREPENDED `GivenSpec` for a `corrects`-declaring
+/// The synthetic, prepended `GivenSpec` for a `corrects`-declaring
 /// command — mirrors `rust/project/bridging.rb`'s own
 /// `corrects_given_specs` exactly.
 pub fn corrects_given_specs(command: &Json) -> Vec<String> {

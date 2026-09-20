@@ -1,4 +1,4 @@
-// EXEMPLAR shapes for rust/project/read_models.rb's `emit_read_model_table`
+// Exemplar shapes for rust/project/read_models.rb's `emit_read_model_table`
 // — see mod.rs's own header. `ReadModelDef`/`ReadModelHead`/
 // `ReferenceField` are real kernel types (`rust/src/kernel/read_model.rs`).
 #![allow(dead_code, unused_variables)]
@@ -7,7 +7,7 @@
 // `queries.rs`'s own `QUERIES` table bakes a real struct literal here
 // rather than a placeholder function call: `ReadModelDef { ... }` is
 // exactly as const-evaluable as `QueryDef { ... }` already is, so the
-// placeholder row IS a real literal, substituted wholesale.
+// placeholder row is a real literal, substituted wholesale.
 // TMPL:read_model_table BEGIN
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 crate::kernel::read_model::ReadModelDef {

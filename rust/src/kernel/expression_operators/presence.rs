@@ -1,14 +1,14 @@
 // Implements the Ruby grammar's "presence" expression-operator category
 // (projection.json: `.present?`, `.blank?`, `.set?`, `.unset?` — two
-// symbol pairs, one interpreter FUNCTION each, sharing a `negated` flag
+// symbol pairs, one interpreter function each, sharing a `negated` flag
 // the exact `SignTest`-style precedent `sign_test.rs`'s own header
 // already documents for a symbol pair sugar over one primitive) —
 // `Resolver::Presence` (resolver.rb's `blank?`), read directly:
 // Rails-standard semantics, not just `!nil?` — `nil`/`false` are blank,
-// and a `Str`/`List`/`Array` is blank when EMPTY, not merely falsy.
+// and a `Str`/`List`/`Array` is blank when empty, not merely falsy.
 //
 // `.set?`/`.unset?` (`Resolver::Assignment`, `interpret_assignment`
-// below) ask a DELIBERATELY narrower question instead: `!receiver.
+// below) ask a deliberately narrower question instead: `!receiver.
 // is_nil()`, full stop — an assigned-but-empty `Str`/`Array` is `.set?`,
 // unlike `.present?`'s own reading of the identical value. Both symbol
 // pairs share this one file because both share `OperatorCategory::
@@ -16,7 +16,7 @@
 // several `Expr` variants, one function each" shape `arithmetic.rs`
 // already uses for `Add`/`Modulo`.
 //
-// `expr.rs`'s `category_of` maps BOTH `Presence` and `Assignment` to
+// `expr.rs`'s `category_of` maps both `Presence` and `Assignment` to
 // `OperatorCategory::Presence`; `dispatch_operator` sub-matches on the
 // `Expr` variant itself to pick `interpret` vs `interpret_assignment` —
 // see `logical.rs`'s header for why each function's own trailing arm is
@@ -36,7 +36,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 }
 
 /// `receiver.set?` / `receiver.unset?` — `Expr::Assignment`, the sibling
-/// question to `interpret` above: `!receiver.is_nil()`, full stop. NOT
+/// question to `interpret` above: `!receiver.is_nil()`, full stop. Not
 /// `blank()` — an assigned-but-empty `Str`/`Array` is `.set?`, unlike
 /// `Presence`'s own reading of the identical value (`blank()`'s own
 /// header has the full contrast). Kept in this file rather than a
@@ -57,7 +57,7 @@ pub fn interpret_assignment(expr: &Expr, ctx: &EvalContext) -> Result<Value, Ref
 /// `Resolver#blank?`, read directly: `nil`/`false` are blank outright;
 /// `Str`/`Array` (this kernel's ArrayLiteral/Split-produced list, the
 /// same reading Ruby's own `Array#empty?` gives a real Array) are blank
-/// when EMPTY; every other `Value` (`Int`/`Float`/`Bool(true)`/`List`,
+/// when empty; every other `Value` (`Int`/`Float`/`Bool(true)`/`List`,
 /// a field-list's own bare length) is never blank — a `Value` with no
 /// meaningful "empty" reading is present by definition, the identical
 /// `else false` Ruby's own `case` falls through to.

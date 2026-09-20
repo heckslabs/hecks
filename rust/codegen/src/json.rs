@@ -1,10 +1,10 @@
-//! A minimal, dependency-free JSON reader — deliberately NOT the typed
+//! A minimal, dependency-free JSON reader — deliberately not the typed
 //! `rust/parser/src/ir.rs` structs. Those structs are shaped for the
-//! PARSING direction (populated field-by-field while walking `.bluebook`
+//! parsing direction (populated field-by-field while walking `.bluebook`
 //! source, then serialized to match `to_h`'s JSON spelling) and use
 //! Rust-native field names that diverge from the JSON keys themselves
 //! (`type_name` vs the JSON key `"type"`, for one). `rust/project/*.rb`'s
-//! own algorithms are written against the ACTUAL JSON-round-tripped Hash
+//! own algorithms are written against the actual JSON-round-tripped Hash
 //! (`ir[:name]`, `attr[:type]`, `vo[:closed_set]`, ...) — Stage 0c's own
 //! reason for doing that round-trip in the first place was so the Ruby
 //! generator never depends on live Ruby object/Symbol behavior, only on
@@ -24,11 +24,11 @@ use std::fmt;
 pub enum Json {
     Null,
     Bool(bool),
-    // Int vs Float are kept SEPARATE, not one `Number(f64)` — Ruby's own
+    // Int vs Float are kept separate, not one `Number(f64)` — Ruby's own
     // `JSON.generate`/`JSON.parse` round-trip distinguishes them by the
-    // LITERAL SPELLING (a Float always prints with a decimal point, e.g.
+    // literal spelling (a Float always prints with a decimal point, e.g.
     // `0.0`; an Integer never does), and `naming.rb#literal_rhs` (an
-    // attribute's own `default:`) branches on the ORIGINAL Ruby type —
+    // attribute's own `default:`) branches on the original Ruby type —
     // `Integer, Float then literal.to_s` looks like one case but Ruby's
     // `to_s` renders `0.0` for the Float and `0` for the Integer. A single
     // `f64` here would collapse that distinction (both parse to the same
@@ -58,7 +58,7 @@ impl Json {
         Ok(value)
     }
 
-    /// `ir[:key]` — Ruby's own Hash lookup. `None` for a missing key OR a
+    /// `ir[:key]` — Ruby's own Hash lookup. `None` for a missing key or a
     /// present-but-`Json::Null` value: Ruby's `symbolize_names` JSON parse
     /// makes `nil` and "key absent" behave identically at every call site
     /// rust/project/*.rb actually has (`attr[:default]`, `attr[:pattern]`,
@@ -72,7 +72,7 @@ impl Json {
         }
     }
 
-    /// Raw lookup that DOES distinguish "absent" from "present as null" —
+    /// Raw lookup that does distinguish "absent" from "present as null" —
     /// needed by the one caller (`members` row lookup) that must tell a
     /// declared-but-blank field apart from one never declared at all.
     pub fn get_raw(&self, key: &str) -> Option<&Json> {
@@ -98,7 +98,7 @@ impl Json {
 
     pub fn as_bool(&self) -> bool {
         // Ruby truthiness on a JSON-round-tripped Hash value: everything
-        // except `false`/`nil` is truthy, INCLUDING `0`/`""` (unlike most
+        // except `false`/`nil` is truthy, including `0`/`""` (unlike most
         // other languages) — matches every `if attr[:optional]`/`if
         // vo[:closed_set]` call site, which never receives a `0`/`""` for
         // a boolean-shaped field in real ir.json anyway, but this is the
@@ -152,7 +152,7 @@ impl fmt::Display for Json {
     }
 }
 
-/// Ruby's `Float#to_s` — ALWAYS carries a decimal point (`0.0.to_s ==
+/// Ruby's `Float#to_s` — always carries a decimal point (`0.0.to_s ==
 /// "0.0"`), unlike Rust's own default `f64` `Display` (`format!("{}",
 /// 0.0f64) == "0"`). Only reached for a genuine `Json::Float` now that
 /// `Json::Int`/`Json::Float` are separate variants (see their own header)
@@ -381,7 +381,7 @@ impl<'a> Parser<'a> {
             }
         }
         let text = std::str::from_utf8(&self.bytes[start..self.pos]).map_err(|e| e.to_string())?;
-        // A `.` or exponent in the LITERAL SPELLING means Ruby's own
+        // A `.` or exponent in the literal spelling means Ruby's own
         // `JSON.generate` wrote a Float (`0.0`); its absence means an
         // Integer (`0`) — see `Json::Int`/`Json::Float`'s own header on
         // why this distinction is load-bearing, not cosmetic.

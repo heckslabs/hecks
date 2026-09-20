@@ -1,7 +1,7 @@
 //! The `DomainPort`/`PortOperation` constructs
 //! (`lib/hecks/bluebook/ir/domain_port.rb`) — shared here the same
 //! way `spec/syntax_conformance_spec.rb`'s own `BUILDER` table pairs
-//! `PortOperationBuilder` with `DomainPortBuilder`. The PRIMARY/DRIVING
+//! `PortOperationBuilder` with `DomainPortBuilder`. The primary/driving
 //! half of hexagonal architecture: an operation carries no `given`/
 //! `ensures`/`sets` (a port is the anti-corruption boundary, not a
 //! second place business rules live). The receiving aggregate is routing
@@ -19,7 +19,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 }
 
 /// Parses a `port "Name" do ... end` body — `operation "Name" do ... end`
-/// entries only; `verb` (the OTHER shape a port can take, `IR::Port`, the
+/// entries only; `verb` (the other shape a port can take, `IR::Port`, the
 /// driven/outbound half — see `DomainPortBuilder#verb`'s own comment) is
 /// not exercised by pizzas.bluebook's own port and falls through to
 /// `not_built_yet` if ever written here.
@@ -61,7 +61,7 @@ pub fn parse_body(
     }
 }
 
-/// `PortOperationBuilder` — an operation's own `reference_to` ALWAYS
+/// `PortOperationBuilder` — an operation's own `reference_to` always
 /// mints an attribute (never the self-reference a command's own
 /// `reference_to` may spell — see `PortOperationBuilder#reference_to`'s
 /// own comment: "there is no `creates?`/`acts_on` distinction to protect

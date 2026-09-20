@@ -2,7 +2,7 @@
 //! `rust/project_rust_pipeline.rb`'s own `header_chapter_name`, framework
 //! member lookup (`Hecks::Framework.members`), and the self-hosted
 //! grammar's own nine-file list (`Hecks::Bluebook::MetaValidator::
-//! GRAMMAR_FILES`). NONE of this executes a `.bluebook`/`.hecksagon`
+//! GRAMMAR_FILES`). None of this executes a `.bluebook`/`.hecksagon`
 //! file's own DSL body — every function here is plain text scanning or a
 //! directory listing, the same "not a `Kernel.load`" distinction that
 //! file's own header draws out at length.
@@ -29,7 +29,7 @@ pub fn bluebook_files(directory: &Path) -> Result<Vec<PathBuf>, String> {
 
 /// `header_chapter_name` (Ruby) — the declared chapter name off a
 /// `.bluebook` file's own `Hecks.bluebook "Name"` header line, found by
-/// PLAIN TEXT SCANNING (the same technique `spec/parser_parity_spec.rb::
+/// plain text scanning (the same technique `spec/parser_parity_spec.rb::
 /// chapter_name_of` and the Ruby pipeline this crate replaces both
 /// already use) — never by parsing or executing the file.
 pub fn header_chapter_name(path: &Path) -> Result<String, String> {
@@ -60,7 +60,7 @@ fn extract_quoted(rest: &str) -> Option<String> {
 }
 
 /// `Hecks::Framework.members` (`lib/hecks/framework.rb`) — a
-/// DIRECTORY LISTING, not a hand-kept list (that file's own header: "a
+/// directory listing, not a hand-kept list (that file's own header: "a
 /// member added here and forgotten in a list would be a member
 /// `uses_framework` could never find"). Named by file stem, pascal-cased
 /// (`Naming.pascal`, `lib/hecks/naming.rb`), matching the one-to-one
@@ -116,11 +116,11 @@ pub fn resolve_uses_framework(parser_bin: &Path, chapter_name: &str, hecksagon_p
 /// The `uses_embryonaut_bluebook` twin of `resolve_uses_framework` —
 /// same subprocess call, same output, a different key. `hecks-parse
 /// resolve` already emits both keys in one call (`rust/parser/src/parse/
-/// hecksagon.rs`); this crate previously only ever read the
-/// `uses_framework` one, so a vendored chapter silently never reached
-/// `pipeline.rs`'s own `chapters` — the exact gap `rust/project_rust_
-/// pipeline.rb`'s own `uses_embryonaut_bluebook_names` fetch closed on
-/// the Ruby opt-in pipeline (docs/decisions/0058).
+/// hecksagon.rs`); without this function reading the second one, a
+/// vendored chapter would silently never reach `pipeline.rs`'s own
+/// `chapters` — the exact gap `rust/project_rust_pipeline.rb`'s own
+/// `uses_embryonaut_bluebook_names` fetch closed on the Ruby opt-in
+/// pipeline (docs/decisions/0058).
 pub fn resolve_uses_embryonaut_bluebook(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path) -> Result<Vec<String>, String> {
     resolve_json(parser_bin, chapter_name, hecksagon_path, "uses_embryonaut_bluebook")
 }
@@ -136,7 +136,7 @@ fn resolve_json(parser_bin: &Path, chapter_name: &str, hecksagon_path: &Path, ke
 
 /// Every `.bluebook` directly under a vendored package's own
 /// `<domain>/vendor/embryonaut_bluebooks/<name>/bluebook/`, sorted — the
-/// SAME resolution `lib/hecks/embryonaut_bluebook.rb`'s own
+/// same resolution `lib/hecks/embryonaut_bluebook.rb`'s own
 /// `EmbryonautBluebook.load!` uses and `rust/project_rust_pipeline.rb`'s
 /// own opt-in Ruby pipeline mirrors; a vendored package has no
 /// `.hecksagon` of its own (same restriction `framework_members` draws),

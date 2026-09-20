@@ -3,7 +3,7 @@
 //! real construction (parse/*.rs + build/*.rs) will populate and emit.rs
 //! will serialize to byte-match `JSON.pretty_generate(Exporter.call(...))`.
 //!
-//! STATUS: this is no longer unverified. spec/parser_parity_spec.rb's
+//! Status: this is no longer unverified. spec/parser_parity_spec.rb's
 //! REAL_PARITY_MEMBERS shells out to `hecks-parse chapter` and byte-compares
 //! its stdout against Ruby's own `JSON.pretty_generate(Exporter.call(...))`
 //! for real, live corpus: pizzas/banking/compliance/roster/chess (examples/),
@@ -27,7 +27,7 @@ pub struct Attribute {
     pub name: String,
     pub type_name: String, // `Reference<Target>` spelling for a reference, else the bare type name
     pub list: bool,
-    // `IR::Attribute#to_h`'s `default:` is the RAW Ruby value the author
+    // `IR::Attribute#to_h`'s `default:` is the raw Ruby value the author
     // wrote (`default: 0`, `default: { cents: 0 }`), passed straight
     // through with no `Literal.render` — the same "just re-`.generate` the
     // real value" shape `Mutation`'s own non-append literal source uses
@@ -81,8 +81,8 @@ pub struct ProjectedField {
 }
 
 // `CommandBuilder#from`'s own normalization (`case from when Array then
-// from.map(&:to_s) when nil then nil else from.to_s end`) — ONE state or
-// SEVERAL, never wrapped in a `Rule`-shaped `{description:, canonical:}`
+// from.map(&:to_s) when nil then nil else from.to_s end`) — one state or
+// several, never wrapped in a `Rule`-shaped `{description:, canonical:}`
 // struct the way `given`/`ensures`/`invariant` are: `IR::Command#to_h`'s
 // own `from: -> { from }` embeds the plain Ruby value (a bare String or
 // an Array of Strings) straight into `JSON.generate`, exactly the same
@@ -96,14 +96,14 @@ pub enum CommandFrom {
 }
 
 // `IR::Mutation#classified_source` (lib/hecks/bluebook/ir/command.rb)
-// — an ARGUMENT-sourced mutation renders `{kind: "argument", name: ...}`;
-// a LITERAL-sourced one renders `{kind: "literal", value: source}` with
-// `source` passed straight through, NOT through `Literal.render` — a real,
+// — an argument-sourced mutation renders `{kind: "argument", name: ...}`;
+// a literal-sourced one renders `{kind: "literal", value: source}` with
+// `source` passed straight through, not through `Literal.render` — a real,
 // confirmed distinction found by reading `spec/golden/ir/Pizzas.json`
 // directly: `Purchase`'s `sets :status, to: "sold"` renders
 // `"value": "sold"` (a bare JSON string), never `"value": "\"sold\""` the
-// way a WHERE clause's own `Literal.render`-spelled value would. Only
-// `Mutation#appended_fields` (the APPEND op's own `fields:` map) goes
+// way a where clause's own `Literal.render`-spelled value would. Only
+// `Mutation#appended_fields` (the append op's own `fields:` map) goes
 // through `Literal.render` — kept as a String there for exactly that
 // reason.
 #[derive(Debug, Clone)]
@@ -124,13 +124,13 @@ pub enum Mutation {
     }, // field -> Literal::render spelling
     // `CommandBuilder#delegates_to_impl`'s own comment (lib/hecks/
     // bluebook/dsl/command_builder.rb) — a `delegates_to "Entity.Command",
-    // with: { ... }` clause rides the EXACT SAME multi-binding `fields:`
+    // with: { ... }` clause rides the exact same multi-binding `fields:`
     // wire shape an `:append` mutation already carries (confirmed at
     // `Bluebook::Mutation#to_h`, `assembly/marks.rb#mutation`, and
     // `meta_validator/shapes.rb#mutation`, all three checking
     // `op == :append || op == :delegate` for the identical branch), just
     // with `op: "delegate"` and a dotted "Entity.Command" `target` instead
-    // of a bare attribute name. Kept as its OWN variant (rather than
+    // of a bare attribute name. Kept as its own variant (rather than
     // reusing `Append` with an extra op field) so `emit.rs`'s match stays
     // exhaustive and forces the "delegate" op string to be spelled out at
     // the one call site that emits it.
@@ -139,7 +139,7 @@ pub enum Mutation {
         fields: Vec<(String, String)>,
     },
     // `CommandBuilder#corrects_impl`'s own comment — a `corrects "Event",
-    // as: ..., reason: ..., reverses: ...` clause rides the SAME
+    // as: ..., reason: ..., reverses: ...` clause rides the same
     // multi-binding `fields:` wire shape Append/Delegate do (`op:
     // "corrects"`, target the corrected event's name rather than an
     // attribute or "Entity.Command" pair), its own variant for the same
@@ -155,7 +155,7 @@ pub enum Mutation {
     // computes the same fixed fact directly — `parse::command::
     // mutation_sign`, mirroring `Vocabulary::MutationOp`'s own values
     // ("1" for increment, "-1" for decrement, "" otherwise) rather than
-    // re-deriving it from the op NAME string at the two Rust CODEGEN
+    // re-deriving it from the op name string at the two Rust codegen
     // call sites item #5 already fixed (rust/project/mutations.rb,
     // rust/codegen/src/mutations.rs) — this is a third, necessarily
     // independent computation, not a re-introduction of that same
@@ -179,18 +179,18 @@ pub struct Command {
     pub ensures: Vec<Ensures>,
     pub mutations: Vec<Mutation>,
     pub emits: Vec<String>,
-    // THE LIFECYCLE STATE THIS COMMAND IS ADMISSIBLE FROM (S10, ADR 0025
+    // The lifecycle state this command is admissible from (S10, ADR 0025
     // — "lifecycle state becomes a command guard") — see `CommandFrom`'s
     // own header for why this is a plain captured value, not a `Given`.
     pub from: Option<CommandFrom>,
-    // `CommandBuilder#provenance` — the RAW captured Hash (`provenance
+    // `CommandBuilder#provenance` — the raw captured Hash (`provenance
     // from: { ... }`), same "Origin, not runtime identity" shape
-    // `AggregateBuilder#provenance` carries one level up. NOT run through
+    // `AggregateBuilder#provenance` carries one level up. Not run through
     // `Literal.render` — `IR::Command#to_h`'s own `provenance: provenance`
     // embeds the raw Ruby Hash straight into `JSON.generate`, so this is
     // `Literal` (the same captured-value type `Attribute#default` already
     // uses), not a String. Not exercised by any real corpus command yet
-    // (only Account, an AGGREGATE, declares one in banking.bluebook) —
+    // (only Account, an aggregate, declares one in banking.bluebook) —
     // kept correct anyway, the same "right even if unreachable today"
     // basis `emit.rs`'s own entity/process-manager renderers already used
     // before Stage 4 exercised them for real.
@@ -222,7 +222,7 @@ pub struct Query {
     pub options: QueryOptions,
 }
 
-/// `AuthorizationSpec#to_h` — BOTH fields bare `.to_s` (never
+/// `AuthorizationSpec#to_h` — both fields bare `.to_s` (never
 /// Literal-rendered): `policy` a Symbol's bare name, `tenant` likewise
 /// when given.
 #[derive(Debug, Clone, Default)]
@@ -232,12 +232,12 @@ pub struct AuthorizationSpec {
 }
 
 /// Mirrors `QuerySpecification::Common::Options#extra_options_to_h`
-/// FIELD FOR FIELD, in Ruby's own declared order (`options_to_h`:
-/// offset, cursor, authorization, null_semantics, inspection) — a TYPED
+/// field for field, in Ruby's own declared order (`options_to_h`:
+/// offset, cursor, authorization, null_semantics, inspection) — a typed
 /// struct rather than the Stage-1 `BTreeMap<String, String>` this
-/// replaces, because a `BTreeMap` iterates its keys ALPHABETICALLY,
+/// replaces, because a `BTreeMap` iterates its keys alphabetically,
 /// which silently disagreed with Ruby's own declared field order the
-/// moment two options landed on the SAME query. Shared verbatim by
+/// moment two options landed on the same query. Shared verbatim by
 /// `Query` and `ReadModel` — both `< Options` on the Ruby side, and
 /// `extra_options_to_h` excludes `wheres`/`order_by`/`limit` by name in
 /// both, which is why those three stay separate fields on each IR
@@ -252,7 +252,7 @@ pub struct QueryOptions {
     pub authorization: Option<AuthorizationSpec>,
     // `NullSemantics#to_h`'s `mode.to_s` — `extra_options_to_h` drops this
     // key entirely when it's the default (`{mode: "native"}`), so this is
-    // `None` both when `nulls` was never declared AND when it was
+    // `None` both when `nulls` was never declared and when it was
     // declared as `:native` — the caller never needs to tell those two
     // apart, matching Ruby's own `.reject` there exactly.
     pub null_semantics: Option<String>,
@@ -291,15 +291,15 @@ pub struct Entity {
     // own `emits_ir` now names `entities: many(:entities)`, the same
     // field an Aggregate already carries, one level down.
     pub entities: Vec<Entity>,
-    // ADR 0028 — A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
-    // DECLARED ONCE — the SAME `{description:, canonical:}` shape
+    // ADR 0028 — a precondition shared across this piece's own commands,
+    // declared once — the same `{description:, canonical:}` shape
     // `Aggregate.preconditions` already carries, one level down
-    // (`entity.rb`'s own `emits_ir` row, identical). DECLARATION-ONLY
+    // (`entity.rb`'s own `emits_ir` row, identical). Declaration-only
     // here, the same as `Aggregate.preconditions` — see that field's own
     // comment.
     pub preconditions: Vec<Given>,
-    // Round 7 — A PIECE'S OWN SHAPE RULE, checked against EVERY instance
-    // of this piece the aggregate holds — the SAME `{description:,
+    // Round 7 — a piece's own shape rule, checked against every instance
+    // of this piece the aggregate holds — the same `{description:,
     // canonical:}` shape `Aggregate.invariants`/`ValueObject.invariants`
     // already carry, one level down.
     pub invariants: Vec<Invariant>,
@@ -314,26 +314,26 @@ pub struct Aggregate {
     pub attributes: Vec<Attribute>,
     pub value_objects: Vec<ValueObject>,
     pub commands: Vec<Command>,
-    // THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — `invariant`,
+    // The aggregate boundary (S10, ADR 0025 — "Rules") — `invariant`,
     // checked after every command, before save, the same `{description:,
     // canonical:}` shape a value object's own `invariants` already uses
     // (`ir::ValueObject.invariants`, same `ir::Invariant` type).
     pub invariants: Vec<Invariant>,
-    // A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
-    // 0025) — the aggregate's OWN named `given`s; a referencing command's
+    // A precondition shared across commands, declared once (S10, ADR
+    // 0025) — the aggregate's own named `given`s; a referencing command's
     // own (already-resolved, Ruby-side-only) `givens` entry comes from
-    // one of these. DECLARATION-ONLY here — Rust never resolves a
+    // one of these. Declaration-only here — Rust never resolves a
     // command's block-less `given("...")` back against this list (see
     // `parse::command`'s own header on why that cross-construct
     // resolution stays Ruby-DSL-builder-only, the same as S9's cycle
     // detection).
     pub preconditions: Vec<Given>,
-    // A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR 0025 —
+    // A field read through a reference, held locally (S12, ADR 0025 —
     // "Consistency across aggregate boundaries") — `projects :name,
-    // from: :"reference.remote_field"`. Deliberately NOT folded into
+    // from: :"reference.remote_field"`. Deliberately not folded into
     // `attributes`, the same reason `invariants`/`preconditions`
     // above are not — `EraGuard::ShapeDiff` (Ruby-only, not mirrored
-    // here) only ever walks `attributes` to decide whether a NEW
+    // here) only ever walks `attributes` to decide whether a new
     // field leaves an existing record with something genuinely
     // absent, and a projected field's own absence story is
     // different.
@@ -346,7 +346,7 @@ pub struct Aggregate {
     // shape, one level up (`AggregateBuilder#provenance`). Real for
     // banking.bluebook's own `Account` (`provenance from: { source:
     // "HecksCanonical", source_id: "aggregate:account", source_version:
-    // "1.0" }`) — the FIRST real corpus member to declare one.
+    // "1.0" }`) — the first real corpus member to declare one.
     pub provenance: Literal,
 }
 
@@ -384,7 +384,7 @@ pub struct ReadModel {
     pub reference_target: Option<String>,
     pub query_name: String,
     // `IR::ReadModel#to_h` spells `wheres`/`order_by`/`limit` explicitly,
-    // the SAME mechanism `IR::Query#to_h` uses (2026-08-11's read-model
+    // the same mechanism `IR::Query#to_h` uses (2026-08-11's read-model
     // where/order_by/limit task, `read_model.rb`'s own comment) — real for
     // `ComplianceDashboard` (banking.bluebook's own filtered, ordered,
     // capped read model), the first real corpus member to declare any.
@@ -400,7 +400,7 @@ pub struct ReadModel {
     // `count`/`median_field` — `group_by`'s own two siblings
     // (`ReadModelBuilder#seal_aggregation`), a bare row count and a
     // median-of-one-field reduction over the eligible collection. Both
-    // OMITTED from the wire (not `null`) when absent, the same
+    // omitted from the wire (not `null`) when absent, the same
     // `extra_options_to_h` reading `options` below already gets — see
     // `read_model_json`'s own emission, which pushes them only when
     // set, matching `IR::ReadModel#to_h`'s own conditional merge.
@@ -433,11 +433,11 @@ pub struct Policy {
     // `Behaviour::Policy#where_ast`).
     pub where_clause: Option<String>,
     pub for_each_query: Option<String>,
-    // `trigger`'s own `with:` — WHAT THE TRIGGER IS GIVEN, when the
+    // `trigger`'s own `with:` — what the trigger is given, when the
     // event's shape is not it. Same `pairs_shape: "verbatim"` open map,
     // same `(key, rendered-value)` pairs, and the same `Literal::render`
     // spelling per value as `DispatchSpec::with_spec` above: a Symbol
-    // keeps its colon, because a binding that READS an event field and
+    // keeps its colon, because a binding that reads an event field and
     // one that supplies a literal string are otherwise the same text.
     pub with_spec: Vec<(String, String)>,
 }
@@ -446,22 +446,22 @@ pub struct Policy {
 pub struct DispatchSpec {
     pub command_name: String,
     pub with_spec: Vec<(String, String)>, // Literal::render spelling per value
-    // `compensates` — a SECOND `DispatchSpec`, shape-identical to this
-    // one, naming the compensating command that undoes THIS dispatch
+    // `compensates` — a second `DispatchSpec`, shape-identical to this
+    // one, naming the compensating command that undoes this dispatch
     // specifically (`dispatch Account::Debit, with: {...} do compensates
     // Account::Credit, with: {...} end`). `None` for a dispatch with
     // nothing to undo. Mirrors
     // `Hecks::Bluebook::DispatchSpec#compensates`
     // (`lib/hecks/bluebook/process_manager.rb`) — Ruby's own struct field
     // order is `command_name, with_spec, compensates`, and `emits_ir`'s
-    // own comment ("KEY ORDER IS THE DECLARATION ORDER") makes that the
+    // own comment ("key order is the declaration order") makes that the
     // real wire order `emit::dispatch_spec_json` has to match, confirmed
     // by running `DispatchSpec#to_h` directly rather than trusting
-    // `spec/golden/ir/*.json` (THAT fixture is alphabetically
+    // `spec/golden/ir/*.json` (that fixture is alphabetically
     // key-sorted by `ir_golden_spec.rb`'s own `sorted` helper for
     // human-readable diffs — "key order is not semantics" for that one
     // check only; `spec/parser_parity_spec.rb` compares fresh,
-    // UNSORTED `JSON.pretty_generate(Exporter.call(...))` output, where
+    // unsorted `JSON.pretty_generate(Exporter.call(...))` output, where
     // real declaration order is exactly what has to match). Never
     // nested further than one level — a compensation is not itself
     // compensable (Ruby's own comment on `DispatchSpec#compensates`).

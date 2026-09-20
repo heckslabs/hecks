@@ -423,7 +423,6 @@ impl CardPayment {
 }
 
 fn cardpayment_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],
@@ -623,7 +622,7 @@ if !absent.is_empty() {
 
 impl crate::kernel::Fielded for CaptureArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -745,7 +744,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for VoidArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -867,7 +866,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for RefundArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -989,7 +988,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for ReverseArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1252,7 +1251,7 @@ if !absent.is_empty() {
 
 impl crate::kernel::Fielded for ChargebackArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 
@@ -1374,7 +1373,7 @@ if !unknown.is_empty() {
 
 impl crate::kernel::Fielded for RejectDisputeArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
+        
         
         match name {
 

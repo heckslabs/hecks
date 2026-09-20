@@ -1674,7 +1674,6 @@ impl ProcessManager {
 }
 
 fn processmanager_invariants() -> crate::kernel::InvariantSet {
-    use crate::kernel::Expr;
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],

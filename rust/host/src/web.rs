@@ -1,12 +1,12 @@
-// THE WEB UI, IN-PROCESS — no second Lambda, no network hop. Detects
+// **The web UI, in-process** — no second Lambda, no network hop. Detects
 // a Function-URL HTTP event (`requestContext.http`/`rawPath` present
 // — the API Gateway v2 payload format every Function URL invocation
 // uses, unconditionally) and, if present, resolves it against the
-// SAME IR `Hecks::Presentation::FieldShape` walks in Ruby
+// same IR `Hecks::Presentation::FieldShape` walks in Ruby
 // (`HECKS_IR_PATH`, a plain-JSON sidecar — see domain_generator.rb's
 // own comment on why this isn't the metadata.rs-embedded constant:
 // this crate has no path dependency on the kernel crate that embeds
-// it), dispatching through the SAME `dispatch::handle`/`dispatch::read`
+// it), dispatching through the same `dispatch::handle`/`dispatch::read`
 // this Lambda already uses for its internal `{"verb"}`/`{"read"}`
 // events. Ported from HecksOnWeb::Router/FieldShape/FormBuilder (the
 // Ruby framework, hecks_on_web) — same routing rules, same field-shape
@@ -52,7 +52,7 @@ pub async fn render(
         raw_body.to_string()
     };
 
-    // CHECKOUT GLUE, OPT-IN BY CONFIGURATION — `HECKS_CHECKOUT_DOMAIN`
+    // **Checkout glue, opt-in by configuration** — `HECKS_CHECKOUT_DOMAIN`
     // names the domain whose Event/Registration aggregates (plus the
     // Payments::Payment chapter beside them) the checkout routes
     // dispatch against; unset, or naming a different domain, these
@@ -62,7 +62,7 @@ pub async fn render(
     // real (equivalence-gap plan 3.3) and declined; checkout.rs's own
     // header has the reasoning. The verb shapes these routes hardcode
     // are pinned by spec/fixtures/rust_host/checkout_fixture, which this
-    // module's tests run against. Checked BEFORE the ir()/HECKS_IR_PATH
+    // module's tests run against. Checked before the ir()/HECKS_IR_PATH
     // gate below, deliberately: a Shared-mode deploy with no generic
     // FieldShape UI never sets HECKS_IR_PATH, and neither route needs a
     // domain_ir at all.
@@ -107,15 +107,16 @@ fn extract_cookies(body: &Value) -> HashMap<String, String> {
 }
 
 // H11 (docs/audits/2026-08-10-main-bug-audit.md) — this secret HMAC-signs
-// every session cookie AND OAuth `state` parameter (auth.rs's own
+// every session cookie and OAuth `state` parameter (auth.rs's own
 // `session_cookie`/`verify_state`), and `parse_session_cookie` treats
 // anything that verifies against it as a trusted session, bypassing the
-// `session.is_none()` -> `/login` redirect gate entirely. Unset OR
-// empty used to fail OPEN here (`unwrap_or_default()`), signing every
-// cookie with a publicly-known empty-string key instead of refusing to
-// serve — unlike every other required var this crate reads (main.rs's
-// own `DATABASE_URL`/`HECKS_DOMAIN`/`HECKS_IR_PATH`, each a hard `?`
-// that refuses to boot rather than silently defaulting). Not required
+// `session.is_none()` -> `/login` redirect gate entirely. Without the
+// `validate_session_secret` call below, an unset or empty
+// `SESSION_SECRET` would fail open here (`unwrap_or_default()`),
+// signing every cookie with a publicly-known empty-string key instead
+// of refusing to serve — unlike every other required var this crate
+// reads (main.rs's own `DATABASE_URL`/`HECKS_DOMAIN`/`HECKS_IR_PATH`,
+// each a hard `?` that refuses to boot rather than silently defaulting). Not required
 // at main.rs's own top-level boot, deliberately: unlike those vars,
 // SESSION_SECRET is genuinely absent for a domain with no web layer at
 // all (Banking/Pizzas's own template.yaml never sets it) — this only
@@ -146,8 +147,8 @@ fn redirect_uri() -> String {
     std::env::var("GOOGLE_REDIRECT_URI").unwrap_or_default()
 }
 
-// THE GATE, AND WHY IT HAS TWO ANSWERS — an unauthenticated request is
-// refused here, but HOW it's refused has to match what the caller can
+// The gate, and why it has two answers — an unauthenticated request is
+// refused here, but how it's refused has to match what the caller can
 // actually do with the refusal. A browser navigating to a page wants to
 // be sent somewhere it can sign in. A `fetch()`/`curl` asking for JSON
 // wants a status code it can branch on, and a 302 to an HTML login page
@@ -155,21 +156,20 @@ fn redirect_uri() -> String {
 // transparently, so the caller gets 200 and a login page exactly where
 // it expected data, and only notices when parsing fails.
 //
-// This host used to redirect BOTH, which is what made
+// Redirecting both the same way would silently break
 // embryonautfoundersapp's own CI assertion (`curl -o /dev/null -w
-// '%{http_code}' /api/clients` is `401`) pass against the Ruby console
-// engine and then silently stop holding the moment the same domain was
-// served by this host instead — the gap was found in production, not by
-// a test.
+// '%{http_code}' /api/clients` is `401`) the moment the same domain is
+// served by this host instead of the Ruby console engine — a gap found
+// in production, not by a test.
 //
 // The rule is the Ruby engine's rule (embryonaut_console's
 // `web/app.rb` `before` filter: UNGATED_PATHS pass, then `/api/` gets
 // `halt 401, json({error:, message:})`, everything else redirects),
 // plus the one request shape that engine has no equivalent for — this
-// host's own routes carry their format IN THE PATH, so JSON-shaped here
+// host's own routes carry their format in the path, so JSON-shaped here
 // is a wider set than just `/api/`. See `json_shaped`.
 //
-// PATH, NOT `Accept:` — deliberately, on two counts. The Ruby engine
+// Path, not `Accept:` — deliberately, on two counts. The Ruby engine
 // keys off `request.path_info.start_with?("/api/")` and ignores
 // `Accept` entirely; keying off the header here would buy agreement on
 // the reported case at the price of a second, subtler disagreement (a
@@ -197,8 +197,8 @@ fn auth_gate(path: &str, authenticated: bool) -> Option<Value> {
 // `/api/` first, so an `/api/...` path refuses the way Ruby refuses it
 // whatever suffix it carries. Everything after that is this host's own
 // `/<Domain>/<aggregate>[.fmt][/<verb-or-id>[.fmt]]` routing, read
-// through the SAME `split_format` the renderers read it through —
-// `.html` is the page, and anything else, INCLUDING no suffix at all,
+// through the same `split_format` the renderers read it through —
+// `.html` is the page, and anything else, including no suffix at all,
 // is already the JSON branch (`aggregate_index`, `record_show` and
 // `command_route` all test `format != "html"`). Reusing that one
 // function is the point: a gate that decided "JSON-shaped" its own way
@@ -242,11 +242,11 @@ async fn route(
         return refusal;
     }
 
-    // THE CONSOLE'S OWN `/api/*` CONTRACT (api.rs) — answered BEFORE
+    // The console's own `/api/*` contract (api.rs) — answered before
     // this host's `/<Domain>/<aggregate>` routing, and unconditionally:
     // every path under `/api/` belongs to that surface, including one
     // it doesn't recognize (which it answers as a JSON 404). Falling
-    // through instead is what used to produce `404 no domain "api"
+    // through instead would produce `404 no domain "api"
     // loaded` for an authenticated `/api/clients` — a plain-text
     // refusal, from this host's own router, for a request the Ruby
     // engine answers with data.
@@ -519,7 +519,7 @@ enum FieldKind {
     // (rust/project/naming.rb's own comment, read directly). `target`
     // is the aggregate it points at, carried for a future renderer
     // (a dropdown of existing records — Ruby's own `reference_options`,
-    // deliberately NOT ported here, see web.rs's own header) to use;
+    // deliberately not ported here, see web.rs's own header) to use;
     // today's render arm ignores it and renders a plain text input —
     // `#[allow(dead_code)]` because that non-consumption is a real,
     // deliberate scope boundary (see this file's own header), not an
@@ -559,8 +559,8 @@ const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseC
 
 // `Hecks::Presentation::FieldShape#resolve`'s own dispatch order,
 // mirrored exactly (field_shape.rb): list? -> reference? -> admits
-// truthy -> not-a-PRIMITIVE (value object) -> primitive. `domain_ir` is
-// the WHOLE chapter — needed by `admits:` resolution (a set can be
+// truthy -> not-a-primitive (value object) -> primitive. `domain_ir` is
+// the whole chapter — needed by `admits:` resolution (a set can be
 // declared on any aggregate, not just this attribute's own) and by the
 // cross-aggregate value-object fallback below.
 fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: &str) -> Field {
@@ -605,7 +605,7 @@ fn reference_target(ty: &str) -> Option<String> {
     ty.strip_prefix("Reference<")?.strip_suffix('>').map(String::from)
 }
 
-// A value object's own declared shape, checked on the OWNING aggregate
+// A value object's own declared shape, checked on the owning aggregate
 // first and only then walked across the whole domain — `own_value_
 // object`'s exact fallback order (field_shape.rb).
 fn value_object_shape<'a>(domain_ir: &'a Value, aggregate: &'a Value, ty: &str) -> Option<&'a Value> {
@@ -613,24 +613,24 @@ fn value_object_shape<'a>(domain_ir: &'a Value, aggregate: &'a Value, ty: &str) 
 }
 
 // `FieldShape#cross_aggregate_value_object`, mirrored exactly despite
-// its name being scoped like a sibling search — it's a WHOLE-DOMAIN
+// its name being scoped like a sibling search — it's a whole-domain
 // walk (field_shape.rb's own comment says so plainly): a command's
 // declared value-object-typed attribute may name a shape belonging to
-// ANOTHER aggregate entirely (Transfer's own `narrative: Narrative`
+// another aggregate entirely (Transfer's own `narrative: Narrative`
 // argument, resolved with Transfer as the owning aggregate, could in
 // principle point at a Narrative declared on Account instead — this is
-// the fallback that makes that legal). THE ROOT-CAUSE FIX: without
+// the fallback that makes that legal). The root-cause fix: without
 // this, a cross-aggregate value object falls all the way through to
 // `primitive_field`'s bare-text default, and neither `admits:`
 // resolution below nor Tier B's textarea hint ever gets a chance to
-// run against the real, UNWRAPPED inner attribute.
+// run against the real, unwrapped inner attribute.
 fn cross_aggregate_value_object<'a>(domain_ir: &'a Value, type_name: &str) -> Option<&'a Value> {
     domain_ir.get("aggregates")?.as_array()?.iter().find_map(|sibling| find_value_object(sibling, type_name))
 }
 
 // The discriminant field name plus its member values, factored out of
 // the native `one_of` branch below so the `admits:` branch (which
-// checks a DIFFERENT aggregate's closed set) can share the exact same
+// checks a different aggregate's closed set) can share the exact same
 // reading rather than a second, drifting copy of it.
 fn closed_set_members(vo: &Value) -> (String, Vec<String>) {
     let attrs = vo.get("attributes").and_then(|v| v.as_array());
@@ -659,7 +659,7 @@ fn closed_set_members(vo: &Value) -> (String, Vec<String>) {
 
 // Radio under 4 members, Select otherwise — `FieldShape#select_or_
 // radio`'s own threshold, mirrored exactly. `path`'s own last segment
-// is the label (the OUTER path, not yet dotted down to a discriminant)
+// is the label (the outer path, not yet dotted down to a discriminant)
 // — callers that need the discriminant hop mutate `.path` afterward,
 // same as Ruby's `options.path = "#{common[:path]}.#{discriminant}"`
 // leaving `label` untouched.
@@ -669,9 +669,9 @@ fn select_or_radio(path: &str, optional: bool, members: Vec<String>) -> Field {
     Field { path: path.to_string(), label, kind, optional }
 }
 
-// `FieldShape#admitted_field` — a closed set declared ELSEWHERE
+// `FieldShape#admitted_field` — a closed set declared elsewhere
 // (`"Account::LedgerDirection"`), resolved and rendered exactly the
-// way the native `one_of` branch renders its own SAME-attribute set,
+// way the native `one_of` branch renders its own same-attribute set,
 // via the shared `closed_set_members`/`select_or_radio` helpers above.
 fn admitted_field(domain_ir: &Value, aggregate: &Value, attribute: &Value, admits: &str, ty: &str, path: &str, optional: bool) -> Field {
     let mut parts = admits.splitn(2, "::");
@@ -681,19 +681,19 @@ fn admitted_field(domain_ir: &Value, aggregate: &Value, attribute: &Value, admit
     let set = set_name.and_then(|name| find_aggregate(domain_ir, set_aggregate_name).and_then(|agg| find_value_object(agg, name)));
     // Undeclared set — refuse-at-dispatch stays the backstop (Ruby's own
     // comment on this exact fallback); render it as whatever a plain
-    // scalar of this attribute would be, using the REAL attribute so
+    // scalar of this attribute would be, using the real attribute so
     // its own name/pattern still drive Tier B's hints correctly.
     let Some(set) = set else { return primitive_field(attribute, ty, path, optional) };
 
     let (_, members) = closed_set_members(set);
     let mut field = select_or_radio(path, optional, members);
 
-    // The attribute's OWN type still has to land on the shape coercion
+    // The attribute's own type still has to land on the shape coercion
     // expects — a value object like `MovementDirection { value }` still
-    // needs the ".value" hop even though the SET it's checked against
+    // needs the ".value" hop even though the set it's checked against
     // is declared somewhere else entirely (same unwrap `value_object_
     // field` does, kept separate because an admitted set changes the
-    // OPTIONS, not which field the hop lands on).
+    // options, not which field the hop lands on).
     let Some(own_shape) = value_object_shape(domain_ir, aggregate, ty) else { return field };
     let attrs = own_shape.get("attributes").and_then(|v| v.as_array());
     let Some(attrs) = attrs.filter(|a| a.len() == 1) else { return field };
@@ -721,11 +721,11 @@ fn value_object_field(domain_ir: &Value, aggregate: &Value, shape: &Value, path:
     }
 
     // Single-attribute value object (PizzaName{value}, Price{cents}) —
-    // a NAME for a scalar, not a genuine group. The OUTER label wins
+    // a name for a scalar, not a genuine group. The outer label wins
     // (humanize(path), not the recursively-resolved inner field's own
     // label) — "value"/"cents" is internal storage shape, never what a
     // human reads. Recursing back through `resolve_field` (not
-    // straight to `primitive_field`) is what lets the INNER attribute's
+    // straight to `primitive_field`) is what lets the inner attribute's
     // own pattern/admits drive its shape — Narrative{text}'s "text" is
     // this inner attribute's own bare name, which is what makes Tier
     // B's textarea hint match it.
@@ -780,8 +780,8 @@ fn primitive_field(attribute: &Value, ty: &str, path: &str, optional: bool) -> F
 // `FieldShape#text_field` — Tier B's four declared hints
 // (field_hints.rs, generated from Vocabulary::FieldHint), matched in
 // Ruby's own precedence. `attribute`'s own bare `name`/`pattern` drive
-// this, NOT any derivation off `path` — after a single-attribute
-// unwrap (`value_object_field` above), `attribute` is the INNER
+// this, not any derivation off `path` — after a single-attribute
+// unwrap (`value_object_field` above), `attribute` is the inner
 // attribute (Narrative's own "text", EmailAddress's own "address"),
 // exactly the case Tier B exists to catch.
 fn text_field(attribute: &Value, path: &str, optional: bool) -> Field {
@@ -794,7 +794,7 @@ fn text_field(attribute: &Value, path: &str, optional: bool) -> Field {
 
 // email, then url, then tel — first match wins, exactly Ruby's
 // if/elsif chain. `pattern.include?("@")` and `pattern.match?(/https?/
-// i)` are both INLINE checks in Ruby too (never promoted to their own
+// i)` are both inline checks in Ruby too (never promoted to their own
 // named Vocabulary::FieldHint member) — `/https?/i` case-insensitively
 // matching is exactly a case-insensitive "http" substring check, since
 // "https" already contains "http".
@@ -901,14 +901,14 @@ fn cast_scalar(field: &Field, text: &str) -> Value {
     }
 }
 
-// L23 (docs/audits/2026-08-11-bug-triage.md Tier 7) — a PATH-PREFIX
-// COLLISION: one field's path is a bare scalar (`"price"`) while
+// L23 (docs/audits/2026-08-11-bug-triage.md Tier 7) — a path-prefix
+// collision: one field's path is a bare scalar (`"price"`) while
 // another's is that same name dotted deeper (`"price.cents"`, implying
 // `price` should be an object). Inserting the object-shaped one after
-// the scalar used to panic outright (`.as_object_mut().unwrap()` on a
-// `Value::Number`/`Value::String`, a 500); inserting it the OTHER way
-// round — scalar after the nested object was already built — never
-// panicked at all, but silently CLOBBERED the nested object with the
+// the scalar would otherwise panic outright (`.as_object_mut().unwrap()`
+// on a `Value::Number`/`Value::String`, a 500); inserting it the other
+// way round — scalar after the nested object was already built — would
+// never panic, but would silently clobber the nested object with the
 // scalar, dropping every child it had already collected, no refusal,
 // no error, just quietly wrong `args`. Both directions are the same
 // bug (a collision this function has no business resolving on its
@@ -933,7 +933,7 @@ fn nest(pairs: Vec<(String, Value)>) -> Result<Value, String> {
         let obj = node
             .as_object_mut()
             .ok_or_else(|| collision_error(&path, &segments[..segments.len() - 1]))?;
-        // The OTHER direction: `leaf` already holds an object (built by
+        // The other direction: `leaf` already holds an object (built by
         // an earlier, longer path sharing this prefix) and the value
         // about to land there is a plain scalar/array — inserting it
         // would silently erase every child already nested underneath.
@@ -1171,16 +1171,16 @@ fn bad_request(domain_name: &str, aggregate: &Value, command: &Value, fields: &[
 }
 
 // L24 (docs/audits/2026-08-11-bug-triage.md Tier 7) — the id to redirect
-// to after an accepted command is THIS call's own new step's OWN
+// to after an accepted command is this call's own new step's own
 // mutation, never whichever mutation happens to sit last in that step.
 // `orchestrate` (rust/src/kernel/orchestrate.rs) always dispatches the
-// command itself FIRST — pushing exactly one `MutationRecord` for the
+// command itself first — pushing exactly one `MutationRecord` for the
 // aggregate/id the command actually targets (`dispatch`/`dispatch_
 // entity`, rust/src/kernel/dispatch.rs) — before it ever calls
 // `react_policies`/`advance_saga` on the resulting event(s), which is
-// what can push FURTHER mutations onto the SAME step for a cascaded
+// what can push further mutations onto the same step for a cascaded
 // reaction's own aggregate (a policy or saga firing as a side effect).
-// So within the last step's own mutations array, the FIRST entry is
+// So within the last step's own mutations array, the first entry is
 // always the form's own command target; anything after it belongs to a
 // reaction, never the id this redirect should land on. `.last()` used
 // to grab whichever mutation ran most recently instead — correct only
@@ -1196,7 +1196,7 @@ fn own_command_target_id(result: &Value) -> Option<&str> {
         .and_then(|v| v.as_str())
 }
 
-// A refused command's own MOST RECENT refusal — `.last()` because
+// A refused command's own most recent refusal — `.last()` because
 // `dispatch::handle` reruns the whole rehydrated history, and every
 // step before this call's own already succeeded once (dispatch.rs's own
 // header on why); shared by `submit` above and `registrations_route`
@@ -1211,7 +1211,7 @@ fn last_refusal(result: &Value) -> Value {
 }
 
 // ---- checkout: /registrations, /webhooks/stripe ------------------------
-// See `render`'s own "CHECKOUT GLUE" header and checkout.rs's own header
+// See `render`'s own "checkout glue" header and checkout.rs's own header
 // for why this is hardcoded rather than IR-driven. Ported from the first
 // consuming domain's adapters/http_server.rb (the Ruby app, lifeadelics
 // repo) — same two routes, same status codes, same dispatch order, Rust.
@@ -1225,22 +1225,22 @@ fn checkout_enabled(configured: Option<&str>, domain: &str) -> bool {
     configured.is_some_and(|c| !c.is_empty() && c == domain)
 }
 
-// THE FIXED, PUBLICLY-KNOWN, NON-SECRET mock webhook secret — see
+// The fixed, publicly-known, non-secret mock webhook secret — see
 // `stripe_webhook_secret` below for when it's allowed.
 const MOCK_STRIPE_WEBHOOK_SECRET: &str = "whsec_mock_checkout_fixed";
 
-// Env vars read ONCE here, at the routing layer, passed down as plain
+// Env vars read once here, at the routing layer, passed down as plain
 // parameters — the same shape `route`'s own `session_secret()` already
 // reads once and hands `auth_route` rather than each auth_route arm
 // reading it independently. Keeps `registrations_route`/`webhook_route`
 // themselves free of hidden global state, the same reason `checkout::
 // verify_signature` takes `now` as a parameter instead of reading the
 // clock internally — a test can pass an explicit secret/key instead of
-// mutating a PROCESS-WIDE env var, which `cargo test`'s default
+// mutating a process-wide env var, which `cargo test`'s default
 // parallelism would otherwise race between tests.
-// BLANK, NOT A BARE .unwrap() — lifeadelics.world's own comment on why
+// Blank, not a bare .unwrap() — lifeadelics.world's own comment on why
 // this same default is blank there too: real in a deploy that actually
-// sets it, deferred (never a boot-time panic) everywhere else, the SAME
+// sets it, deferred (never a boot-time panic) everywhere else, the same
 // reasoning `stripe_api_key`'s own blank default already holds to.
 fn stripe_api_key() -> String {
     std::env::var("STRIPE_API_KEY").unwrap_or_default()
@@ -1250,8 +1250,8 @@ fn stripe_api_key() -> String {
 // default, so a mock deploy (empty `stripe_api_key`) needs no webhook
 // secret configured to be exercisable end to end. A consumer whose own
 // manual-confirmation tooling signs against a different fixed string
-// sets STRIPE_WEBHOOK_SECRET to it. ONLY allowed as a fallback in
-// MOCK mode though (`processor == "mock_stripe"`) — same
+// sets STRIPE_WEBHOOK_SECRET to it. Only allowed as a fallback in
+// mock mode though (`processor == "mock_stripe"`) — same
 // panic-at-the-moment-it's-needed split `session_secret`/
 // `validate_session_secret` above already use: a real-Stripe deploy
 // (`STRIPE_API_KEY` set) that forgets `STRIPE_WEBHOOK_SECRET` would
@@ -1283,14 +1283,14 @@ fn site_url() -> String {
     std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string())
 }
 
-// http_server.rb's own PROCESSOR constant, derived from the SAME fact
+// http_server.rb's own processor constant, derived from the same fact
 // `stripe_api_key` already answers rather than a second, independently-
 // settable flag — a blank key means checkout is genuinely bound to the
 // mock adapter, so reporting anything other than "mock_stripe" would be
 // exactly the drift that constant's own comment warns against ("a lie
-// in production data"). Read ONCE here and threaded through both
+// in production data"). Read once here and threaded through both
 // routes as a parameter — `registrations_route`'s own Payment.Initiate
-// and `webhook_route`'s own reported_processor MUST agree, or
+// and `webhook_route`'s own reported_processor must agree, or
 // Payment::Succeed's own "the processor matches the one this payment
 // was initiated with" given refuses every mock confirmation (the exact
 // bug class this session already found live once, for the real-Stripe
@@ -1322,8 +1322,8 @@ async fn checkout_route(
     }
 }
 
-// THE SITE DRIVING IN — http_server.rb's own `POST /registrations`.
-// Payment first, then Registration, sharing ONE reference minted here
+// **The site driving in** — http_server.rb's own `POST /registrations`.
+// Payment first, then Registration, sharing one reference minted here
 // (lifeadelics.bluebook's own Registration comment has the full
 // reasoning: a Registration with no Payment behind it is meaningless,
 // a Payment with no Registration just needs cleaning up eventually).
@@ -1404,7 +1404,7 @@ async fn registrations_route(
     let success_url = format!("{site_url}/{event_slug}.html?registered=1");
     let cancel_url = format!("{site_url}/{event_slug}.html?registered=0");
 
-    // MOCK, NOT AN ERROR — an empty `api_key` means checkout is
+    // **Mock, not an error** — an empty `api_key` means checkout is
     // genuinely bound to the mock adapter (this route's own header,
     // checkout.rs's own header) exactly the way lifeadelics.hecksagon's
     // own `opened_by("MockStripeAdapter")` is the default in every Ruby
@@ -1421,7 +1421,7 @@ async fn registrations_route(
     }
 }
 
-// STRIPE DRIVING IN — http_server.rb's own `POST /webhooks/stripe`.
+// **Stripe driving in** — http_server.rb's own `POST /webhooks/stripe`.
 // `reference` round-trips through Checkout's own metadata (set above,
 // keyed "registration_id" — the same string is both the Registration's
 // own id and the Payment's own reference), read back here — never
@@ -1454,7 +1454,7 @@ async fn webhook_route(
 
     if let Some(reference) = reference {
         let reported_processor = json!({"value": processor});
-        // ROUTED, NOT MIXED ARGS — the kernel refuses a flat
+        // **Routed, not mixed args** — the kernel refuses a flat
         // `{"reference": ..., ...}` for an aggregate-scoped port
         // operation ("invalid routing envelope: aggregate-scoped
         // operation requires to"), and the benign-refusal rule below
@@ -1486,7 +1486,7 @@ async fn webhook_route(
         };
 
         if let Some((verb, facts)) = verb_and_facts {
-            // A REFUSAL HERE (e.g. a redelivered webhook for an already-
+            // A refusal here (e.g. a redelivered webhook for an already-
             // settled payment — Stripe's own delivery is at-least-once)
             // is a benign no-op, not an error: the payment already holds
             // the right status, there's nothing left to do, and
@@ -1696,17 +1696,17 @@ fn esc(value: &str) -> String {
 }
 
 // H10 (docs/audits/2026-08-10-main-bug-audit.md) — `id` is a record's own
-// identity, free-form and user-supplied unless `pattern:`-constrained, NOT
+// identity, free-form and user-supplied unless `pattern:`-constrained, not
 // a bluebook-declared name the way `agg`/`domain_name`/`cn` are. Every
 // call site that places `id` into rendered HTML routes through one of
 // these two functions so escaping (and, for the query-string position,
-// percent-encoding) can't be forgotten at a THIRD call site the way it
-// was at these two before this fix — Ruby's own `Escape.html`/`.attr`
-// already covers `id` everywhere (`record_table.rb:45`, `record_
-// renderer.rb:43,79`); this closes the parallel Rust gap, not a new
+// percent-encoding) can't be forgotten at a third call site — Ruby's
+// own `Escape.html`/`.attr` already covers `id` everywhere
+// (`record_table.rb:45`, `record_renderer.rb:43,79`); this closes the
+// parallel Rust gap, not a new
 // capability Ruby lacks too.
 //
-// `id` goes into a QUERY-STRING value here (`?id=...`), not just an HTML
+// `id` goes into a query-string value here (`?id=...`), not just an HTML
 // attribute — `esc()` alone is not enough (a raw `&` would end the
 // parameter early, corrupting `cn` as a second bogus param), so this
 // percent-encodes via `auth::urlencode` (already RFC3986-unreserved-safe,
@@ -1718,7 +1718,7 @@ fn action_link(domain_name: &str, agg: &str, cn: &str, id: &str, class: &str) ->
     format!(r#"<a href="/{domain_name}/{agg}/{}.html?id={}" class="{class}">{}</a>"#, esc(cn), auth::urlencode(id), esc(cn))
 }
 
-// The row's own link to itself — `id` sits in a PATH segment here, not a
+// The row's own link to itself — `id` sits in a path segment here, not a
 // query value, so `esc()` (not percent-encoding) is the right guard,
 // matching what the sibling not-found/field-row branches already do
 // correctly (`html_not_found`, the field-value `<dd>` rows).
@@ -1757,17 +1757,18 @@ mod tests {
     use super::*;
 
     // H10 (docs/audits/2026-08-10-main-bug-audit.md) — a record's own
-    // identity is user-supplied, free-form unless `pattern:`-constrained,
-    // and used to be interpolated raw at these two call sites. A creating
-    // command persisting this exact id used to render live, executable
-    // markup for every later viewer of the index row or record page.
+    // identity is user-supplied, free-form unless `pattern:`-constrained.
+    // Left unescaped at these two call sites, a creating command
+    // persisting this exact id would render live, executable markup for
+    // every later viewer of the index row or record page; the tests
+    // below pin that it doesn't.
     const MALICIOUS_ID: &str = r#"x"><script>alert(1)</script>"#;
 
     // H11 (docs/audits/2026-08-10-main-bug-audit.md) — an unset or empty
-    // SESSION_SECRET must never be treated as valid: `session_secret()`
-    // used to silently fall back to `""`, HMAC-signing every session
-    // cookie and OAuth `state` with a publicly-known empty key instead
-    // of refusing to serve.
+    // SESSION_SECRET must never be treated as valid: `session_secret()`'s
+    // own `unwrap_or_default()` would otherwise silently fall back to
+    // `""`, HMAC-signing every session cookie and OAuth `state` with a
+    // publicly-known empty key instead of refusing to serve.
     #[test]
     fn validate_session_secret_refuses_empty_or_unset() {
         assert!(validate_session_secret("").is_err());
@@ -1775,8 +1776,8 @@ mod tests {
     }
 
     // Same class of bug as H11 above, one function over: an unset or
-    // empty STRIPE_WEBHOOK_SECRET used to fall back unconditionally to
-    // the fixed, publicly-known mock string -- fine in mock mode
+    // empty STRIPE_WEBHOOK_SECRET would otherwise fall back
+    // unconditionally to the fixed, publicly-known mock string -- fine in mock mode
     // (checkout_processor() == "mock_stripe"), a silent real-money hole
     // in real-Stripe mode (checkout_processor() == "stripe").
     #[test]
@@ -1796,9 +1797,10 @@ mod tests {
     // `None` means the request carries on to ordinary dispatch, `Some`
     // is returned as the response verbatim.
     //
-    // The bug these pin: every unauthenticated request used to get the
-    // same 302 to /login, so a JSON caller followed the redirect and
-    // parsed a login page. embryonautfoundersapp's CI asserts a 401 on
+    // The bug these pin: without the gate's two-answer split, every
+    // unauthenticated request would get the same 302 to /login, so a
+    // JSON caller would follow the redirect and parse a login page.
+    // embryonautfoundersapp's CI asserts a 401 on
     // `/api/clients`; the Ruby console engine gives it one.
 
     fn status(response: &Value) -> u64 {
@@ -1817,7 +1819,7 @@ mod tests {
         assert!(refusal["headers"].get("location").is_none(), "a JSON caller must not be redirected: {refusal}");
     }
 
-    // Ruby keys off the `/api/` PREFIX alone and doesn't look at a
+    // Ruby keys off the `/api/` prefix alone and doesn't look at a
     // suffix; so does this, checked before the format-based rule below.
     #[test]
     fn an_api_path_is_json_shaped_whatever_suffix_it_carries() {
@@ -1828,7 +1830,7 @@ mod tests {
 
     // This host's own routes, which the Ruby engine has no counterpart
     // for: the format lives in the path, `.html` is the page and
-    // EVERYTHING ELSE — including a bare segment with no suffix — is
+    // everything else — including a bare segment with no suffix — is
     // the JSON branch (`aggregate_index`/`record_show`/`command_route`
     // all branch on `format != "html"`). So a no-suffix aggregate URL
     // is a JSON request, not an HTML one, and refusing it with a
@@ -1886,7 +1888,7 @@ mod tests {
 
         assert!(!link.contains("<script"), "{link}");
         assert!(!link.contains(MALICIOUS_ID), "the raw id must not survive into the rendered link: {link}");
-        // The query VALUE must be percent-encoded, not HTML-escaped —
+        // The query value must be percent-encoded, not HTML-escaped —
         // `esc()` alone leaves a raw `&` in a `values.each` id, say, which
         // would terminate the `id=` param early and smuggle a second
         // bogus query parameter in.
@@ -1984,19 +1986,19 @@ mod tests {
         }
     }
 
-    // THE KEY REGRESSION TEST — exercises Tier A's cross-aggregate
-    // lookup and Tier B's textarea hint together, the same combination
-    // that was silently broken before this change.
+    // **The key regression test** — exercises Tier A's cross-aggregate
+    // lookup and Tier B's textarea hint together, the one combination
+    // that silently breaks if either regresses alone.
     #[test]
     fn narrative_used_from_a_different_aggregate_renders_as_a_textarea_via_the_cross_aggregate_lookup() {
-        // Account's REAL Narrative{text} value object — declared on
+        // Account's real Narrative{text} value object — declared on
         // Account, never on CardPayment (CardPayment's own real
         // value_objects list, confirmed by reading the live generated
         // IR, is AuthorisationCode/PaymentAmount/MerchantName/Tag —
         // no Narrative). The attribute itself is real too: Transfer.
         // Request's own "narrative" argument JSON, byte-for-byte —
         // reused here scoped against CardPayment instead of Transfer
-        // specifically to prove the fallback walks the WHOLE domain,
+        // specifically to prove the fallback walks the whole domain,
         // not just the declaring aggregate's own siblings
         // (field_shape.rb's own comment on cross_aggregate_value_
         // object: "a WHOLE-DOMAIN walk despite its name").
@@ -2053,10 +2055,10 @@ mod tests {
 
     #[test]
     fn a_name_containing_email_matches_even_with_no_at_pattern_at_all() {
-        // No `pattern:` at all — synthetic, since every REAL email-
+        // No `pattern:` at all — synthetic, since every real email-
         // shaped attribute in the corpus (Customer.email) also carries
-        // one; proves the OR in Ruby's own `pattern.include?("@") ||
-        // name.match?(EMAIL_HINT)` really is an OR, not pattern-gated.
+        // one; proves the or in Ruby's own `pattern.include?("@") ||
+        // name.match?(EMAIL_HINT)` really is an or, not pattern-gated.
         let aggregate = json!({"name": "Whatever", "value_objects": []});
         let domain_ir = json!({"aggregates": [aggregate.clone()]});
         let attribute = json!({"name": "contact_email", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
@@ -2093,7 +2095,7 @@ mod tests {
     #[test]
     fn a_single_attribute_cents_only_value_object_is_not_money_shaped() {
         // pizzas' Price{cents} — one field, no currency — must unwrap
-        // to a plain scalar (money_shaped? needs EXACTLY {cents,
+        // to a plain scalar (money_shaped? needs exactly {cents,
         // currency}), never :money.
         let price_vo = json!({
             "name": "Price",
@@ -2115,7 +2117,7 @@ mod tests {
     fn field_hint_word_boundaries_reject_a_substring_that_is_not_a_whole_word() {
         // Proves \b in the `regex` crate behaves the way these
         // patterns need it to, rather than assuming it — "link" is a
-        // whole word in "link" but only a SUBSTRING of "blinking", and
+        // whole word in "link" but only a substring of "blinking", and
         // the boundary must reject the latter; same for "text" inside
         // "context". Case-insensitivity ((?i), the Rust spelling of
         // Ruby's trailing `/i`) checked too.
@@ -2137,18 +2139,18 @@ mod tests {
 
     #[test]
     fn nest_refuses_rather_than_panics_when_a_scalar_is_inserted_before_a_deeper_path_sharing_its_prefix() {
-        // `price` lands as a plain scalar FIRST, then `price.cents`
+        // `price` lands as a plain scalar first, then `price.cents`
         // tries to descend into it as though it were an object — the
-        // exact shape that used to panic `.as_object_mut().unwrap()`
-        // (a 500), rather than refuse cleanly.
+        // exact shape that would otherwise panic on
+        // `.as_object_mut().unwrap()` (a 500), rather than refuse cleanly.
         let err = nest(vec![("price".to_string(), json!(500)), ("price.cents".to_string(), json!(500))]).unwrap_err();
         assert!(err.contains("price"), "{err}");
     }
 
     #[test]
     fn nest_refuses_rather_than_silently_dropping_data_when_the_deeper_path_is_inserted_first() {
-        // The OTHER order never panicked at all — it silently
-        // CLOBBERED the nested object `price` already held with a bare
+        // The other order never panicked at all — it silently
+        // clobbered the nested object `price` already held with a bare
         // scalar, dropping `cents` with no error. Must now refuse
         // instead of corrupting the result.
         let err = nest(vec![("price.cents".to_string(), json!(500)), ("price".to_string(), json!(500))]).unwrap_err();
@@ -2189,12 +2191,13 @@ mod tests {
 
     #[test]
     fn own_command_target_id_picks_the_first_mutation_not_a_cascaded_reactions_last_one() {
-        // The command's own mutation (Order) is pushed FIRST by
+        // The command's own mutation (Order) is pushed first by
         // `orchestrate` (rust/src/kernel/orchestrate.rs), before any
-        // policy/saga reaction it triggers can push a SECOND mutation
+        // policy/saga reaction it triggers can push a second mutation
         // for a different aggregate entirely (a Loyalty account, say)
-        // onto the very same step. `.last()` used to grab the
-        // reaction's own id instead of the form's own target.
+        // onto the very same step. `.last()` would grab the reaction's
+        // own id instead of the form's own target, which is why this
+        // function reads the first mutation, not the last.
         let result = json!({
             "mutations": [[
                 {"aggregate": "Pizzas::Order", "id": "order-1", "operation": "save"},
@@ -2242,17 +2245,17 @@ mod tests {
     // network ----------------------------------------------------------
     // `registrations_route`'s own final hop (checkout::create_checkout_
     // session, a genuine third-party HTTPS call to api.stripe.com) is
-    // deliberately NOT trait-injected/mocked here — auth.rs's own
+    // deliberately not trait-injected/mocked here — auth.rs's own
     // Google OAuth calls (verify/verify_id_token) hold to the exact
     // same precedent: real third-party network code stays real-network,
-    // verified live rather than locally unit-tested. What IS tested
+    // verified live rather than locally unit-tested. What is tested
     // below is everything genuinely this route's own logic: event
     // lookup, the closed/missing-field/refusal branches, and the
     // dispatch chain all the way through Registration.Request — a
     // missing STRIPE_API_KEY is what stops each successful case one
     // step short of the real network call, which doubles as proof the
     // whole chain up to there ran for real (a wrong dispatch anywhere
-    // earlier would fail on ITS OWN assertion first).
+    // earlier would fail on its own assertion first).
     use crate::lambda_client;
     use tokio_postgres::NoTls;
 
@@ -2390,10 +2393,10 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_propagates_a_real_domain_refusal_from_payment_initiate() {
-        // A ZERO-PRICE event -- PositiveMoney's own "an amount is
+        // A zero-price event -- PositiveMoney's own "an amount is
         // positive" invariant refuses Payment.Initiate before
         // Registration.Request is ever reached, proving the refusal
-        // this route surfaces is the REAL domain rule, not a stand-in.
+        // this route surfaces is the real domain rule, not a stand-in.
         let client = scratch_db("hecks_host_web_test_registrations_zero_price").await;
         provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
         let config = checkout_config(1);
@@ -2409,7 +2412,7 @@ mod tests {
             "should surface PositiveMoney's own invariant text: {response:?}"
         );
 
-        // AND NEITHER THE PAYMENT NOR THE REGISTRATION WAS PERSISTED —
+        // And neither the payment nor the registration was persisted —
         // Registration.Request must never have been dispatched at all.
         let read = dispatch::read(&client, &wasm_path).await.unwrap();
         let instances = read["instances"].as_object().unwrap();
@@ -2425,7 +2428,7 @@ mod tests {
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
 
-        // EMPTY api_key -- checkout genuinely bound to the mock adapter
+        // Empty api_key -- checkout genuinely bound to the mock adapter
         // (this route's own header), not a misconfiguration: the whole
         // chain runs for real and returns a real, working mock checkout
         // URL, never a 500.
@@ -2453,13 +2456,13 @@ mod tests {
         let payment = payment.unwrap();
         assert_eq!(registration["event_slug"], "happy-event");
         assert_eq!(registration["attendee"]["name"], "Ada Lovelace");
-        // ONE SHARED REFERENCE — the Registration's own id equals the
+        // **One shared reference** — the Registration's own id equals the
         // Payment's own reference, minted once (this route's own header
         // on why), never independently.
         assert_eq!(registration["registration_id"]["value"], reference);
         assert_eq!(payment["reference"]["value"], reference);
         assert_eq!(payment["amount"]["cents"], 4200);
-        // MOCK, NOT "stripe" -- the exact processor this route's own
+        // Mock, not "stripe" -- the exact processor this route's own
         // `checkout_processor` derives from the same blank api_key,
         // never a second, independently-settable flag (this function's
         // own header on why that drift matters: Payment::Succeed's own
@@ -2469,10 +2472,10 @@ mod tests {
 
     #[tokio::test]
     async fn a_mock_registration_confirms_end_to_end_through_a_synthetic_signed_webhook() {
-        // THE FULL LOOP, mock adapter both ends — registrations_route's
+        // The full loop, mock adapter both ends — registrations_route's
         // own mock checkout_url, then a webhook shaped exactly like
         // domain/bin/confirm_payment_manually's own (Ruby, lifeadelics
-        // repo) sends, signed against the SAME fixed default `stripe_
+        // repo) sends, signed against the same fixed default `stripe_
         // webhook_secret` falls back to. Proves the "processor matches"
         // given (Payment::Succeed's own) actually admits a mock-
         // initiated payment's own mock-reported confirmation — the
@@ -2557,8 +2560,8 @@ mod tests {
         assert_eq!(payment["status"], "succeeded");
         assert_eq!(payment["transaction_id"]["value"], "pi_test_abc");
 
-        // A REDELIVERED webhook (Stripe's own delivery is at-least-once)
-        // for the SAME already-succeeded payment must still answer 200
+        // A redelivered webhook (Stripe's own delivery is at-least-once)
+        // for the same already-succeeded payment must still answer 200
         // — the real domain refusal underneath is a benign no-op here,
         // not surfaced as an error (this route's own header explains
         // why, and why that's a deliberate improvement over

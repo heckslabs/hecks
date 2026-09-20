@@ -1,4 +1,4 @@
-//! The OUTERMOST gate — `File` context, the three words that begin any
+//! The outermost gate — `File` context, the three words that begin any
 //! file this parser reads: `bluebook`, `hecksagon`, `world`. Real for
 //! Stage 1, same as every nested line: shape (lex.rs), word, body, and
 //! argument gates (parse/mod.rs) all run here exactly as they do one level
@@ -46,7 +46,7 @@ pub fn header_name(call: &Call) -> Option<String> {
     }
 }
 
-/// The header's own OPTIONAL `version:` named argument — `Hecks.bluebook
+/// The header's own optional `version:` named argument — `Hecks.bluebook
 /// "Banking", version: "v1" do`, `bluebook`'s own `named: "version"` row
 /// (`context: "File"`). Not exercised by pizzas.bluebook/the framework
 /// trio/the grammar chapters (none pins a version) — confirmed real by

@@ -65,9 +65,9 @@ impl<T: Clone> Repository<T> for InMemoryRepository<T> {
 /// because its one caller is `registry.rs`'s generated `dispatch_by_name`
 /// (`rust/project/reactions.rb`'s `emit_reference_check`) — the same place
 /// Ruby's own version reaches through `@registry.repository(domain,
-/// target)`, i.e. a repository OTHER than the dispatching command's own.
-/// Nothing about the check itself is domain-specific; only WHICH repo and
-/// WHICH command attribute to check is (generated, per command).
+/// target)`, i.e. a repository other than the dispatching command's own.
+/// Nothing about the check itself is domain-specific; only which repo and
+/// which command attribute to check is (generated, per command).
 ///
 /// `value` empty is treated as "no check", mirroring Ruby's own
 /// `next if key.to_s.empty?` (documented there as effectively unreachable
@@ -97,18 +97,18 @@ pub fn check_reference<T: Clone>(
 }
 
 /// Every generated domain's own `Store` gets this — `kernel/cli.rs`'s ad
-/// hoc, single-comparator "query" step (the OBJECT form) needs to turn a
-/// bare runtime STRING ("Banking::Account") into that one aggregate's
+/// hoc, single-comparator "query" step (the object form) needs to turn a
+/// bare runtime string ("Banking::Account") into that one aggregate's
 /// own (id, to_json()) listing, without knowing at compile time which
 /// domain is active (`generated::active` is a Cargo-feature re-export —
-/// see cli.rs's own header). The DEFAULT — `None`, for every name — is
+/// see cli.rs's own header). The default — `None`, for every name — is
 /// what a `Store` gets for free the moment it exists, before
-/// `rust/project/registry.rb`'s `emit_registry` has generated a REAL
+/// `rust/project/registry.rb`'s `emit_registry` has generated a real
 /// per-aggregate override for it (a domain generated before this trait
 /// existed, or one this repository holds no bluebook source for at all —
 /// see kernel/cli.rs's own note on Embryonaut, whose generated tree is
 /// hand-patched with the bare default impl rather than a real one, for
-/// exactly that reason). `cli.rs` turns `None` into the SAME clean
+/// exactly that reason). `cli.rs` turns `None` into the same clean
 /// "unknown aggregate" refusal either way — from the caller's side there
 /// is no difference between "this aggregate doesn't exist" and "this
 /// domain hasn't been regenerated with scan support yet," and there does
@@ -121,19 +121,19 @@ pub trait AggregateScan {
     }
 }
 
-/// THE MINIMAL QUERY ENGINE'S OWN FILTER STEP — given one aggregate's
+/// The minimal query engine's own filter step — given one aggregate's
 /// full (id, to_json()) listing (`AggregateScan::scan`, above) and a
 /// single dotted field path/comparator/wire value, return only the
 /// matching (id, json) pairs, sorted by id ascending.
 ///
-/// Id-ascending, ALWAYS, matches Ruby exactly even though nothing here
+/// Id-ascending, always, matches Ruby exactly even though nothing here
 /// declares an `order_by` at all: `Ports::Query::Ordering.apply`'s own
 /// header explains why — "the identity tier is what makes an ask total";
 /// a query with no declared order still sorts by `record.id.to_s` before
-/// returning, in BOTH `Ports::Query::InMemory.execute` and
+/// returning, in both `Ports::Query::InMemory.execute` and
 /// `QueryInterpreter#interpret`. `InMemoryRepository`'s own backing store
 /// is a `BTreeMap` (already id-ascending on the way in), so this sort is
-/// a no-op in practice for THIS kernel and a correctness guarantee in
+/// a no-op in practice for this kernel and a correctness guarantee in
 /// principle — nothing about `AggregateScan::scan`'s own contract
 /// promises id order forever, and a future adapter behind the same
 /// trait might not back onto a `BTreeMap` at all.
@@ -156,7 +156,7 @@ pub fn filter_entries(
 /// comparators.rs's own header has the full story on why that one
 /// comparator alone needs repository access `matches` cannot provide).
 /// `filter_entries` above is a thin, behavior-preserving wrapper passing
-/// an EMPTY list — every existing caller (every generated domain's own
+/// an empty list — every existing caller (every generated domain's own
 /// `registry.rs`, `named_query::run`, `cli.rs`'s ad hoc filter step) goes
 /// on calling the plain, unchanged `filter_entries` and gets `NoneInState`
 /// -as-vacuously-true, the honest default for a comparator no real
@@ -188,17 +188,17 @@ pub fn filter_entries_cross_domain(
     matched
 }
 
-/// One matched record, as a ROW — the field named `"id"` prepended to
+/// One matched record, as a row — the field named `"id"` prepended to
 /// whatever `to_json()` already produced, matching Ruby's own row shape
 /// exactly (`QueryInterpreter#call`'s `{ id: record.id }.merge(record.
 /// state)`, and — for a read model — `ReadModelInterpreter#row`'s own
 /// plain `record.to_h`, which for a live Ruby aggregate record already
 /// carries `id` alongside every other attribute, unlike this kernel's own
 /// generated `to_json()`): an answer names its own id inline, distinct
-/// from `instances()`'s own "Domain::Aggregate#id" -> state MAP shape,
+/// from `instances()`'s own "Domain::Aggregate#id" -> state map shape,
 /// which carries id only in the key, never inside the value. Shared here,
 /// not left private to `cli.rs`, because a read model's own output nests
-/// this same wrapping at EVERY level (the root row AND every reference-
+/// this same wrapping at every level (the root row and every reference-
 /// matched sibling row, `kernel/read_model.rs`'s own `run`) — not just
 /// the single top-level row an ad hoc filter or a named query ever
 /// produces.
@@ -220,13 +220,13 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
 ///   rows.any? { |row| row[:role_name][:value] == role.to_s && row[:ends_at].nil? }
 /// end
 /// ```
-/// An ACTIVE assignment, not merely a historical one — every row
+/// An active assignment, not merely a historical one — every row
 /// `AssignmentsForActor` returns for this actor (`ends_at` left for the
 /// caller to read, matching Ruby's own deferral), filtered down to a
 /// live (non-revoked) row naming exactly this role. No scope/starts_at
 /// check — Ruby's own deliberate restraint, not ported as an omission.
 ///
-/// `store`/`queries` are the SAME compiled `Store`/`QUERIES` table
+/// `store`/`queries` are the same compiled `Store`/`QUERIES` table
 /// `kernel::cli.rs`'s own "query" step already answers a real
 /// `Governance::RoleAssignment.AssignmentsForActor` ask through
 /// (`named_query::run`) — this reuses that real, compiled query path
@@ -240,7 +240,7 @@ pub fn holds_role(store: &impl AggregateScan, queries: &[super::QueryDef], actor
     holds_role_via(store, queries, Some(EXTERNAL_SNAPSHOT_ASSIGNMENTS), actor_id, role)
 }
 
-/// THE ONE NAME THAT SURVIVES, and why: the external embryonaut snapshot
+/// The one name that survives, and why: the external embryonaut snapshot
 /// (rust/src/generated/embryonaut — its regeneration is owed by its own
 /// repo, `Hecks::Corpus::RUST_ELSEWHERE`) was generated before `provides
 /// "authorization"` existed and still calls `check_role`/`holds_role`.
@@ -297,27 +297,27 @@ pub fn holds_role_via(
 /// caller comes from thread-local ambient state (`Caller.current`,
 /// `Hecks.as_caller`) that this kernel has no analogue for — a
 /// step's own `role:` key plays that part instead, read once at the CLI
-/// boundary (`cli.rs`) and threaded through `orchestrate`'s OUTERMOST
+/// boundary (`cli.rs`) and threaded through `orchestrate`'s outermost
 /// dispatch only, exactly mirroring `Dispatcher#reenter`'s own
-/// `Caller.without`: a policy/process-manager REACTION never carries a
+/// `Caller.without`: a policy/process-manager reaction never carries a
 /// caller in Ruby either, so a reaction's own re-entry into `orchestrate`
 /// always passes `None` here, never the triggering step's role.
 ///
-/// `caller_actor_id` is the SAME sibling opt-in `role:` always was —
-/// present ONLY when a step also names WHO it is, exactly `Caller`'s own
+/// `caller_actor_id` is the same sibling opt-in `role:` always was —
+/// present only when a step also names who it is, exactly `Caller`'s own
 /// (`role:`, `actor_id: nil`) shape (`lib/hecksagain/runtime/caller.rb`).
 /// `None` here (every step before this addition, and every step that
 /// still states only a bare `role:`) reproduces the string-equality
-/// check exactly as it always ran — this branch is UNCHANGED, forever,
+/// check exactly as it always ran — this branch is unchanged, forever,
 /// not merely today.
 ///
-/// `Some(actor_id)` reaches the real check ONLY when THIS compiled
+/// `Some(actor_id)` reaches the real check only when this compiled
 /// domain actually has Governance's own `RoleAssignment` aggregate
 /// merged in (`named_query::find` below succeeding) — Ruby's own
 /// `governance_attached?(domain)` gate, read off `registry.hecksagon
 /// (domain)&.framework_members&.include?("Governance")` at dispatch
 /// time; this kernel has no such live registry to ask, so it asks the
-/// SAME question the only way a compiled artifact can: whether the
+/// same question the only way a compiled artifact can: whether the
 /// query codegen actually wired in for this domain includes the one
 /// query real Governance attachment always produces
 /// (`rust/project/registry.rb`'s own `emit_query_table`,
@@ -326,14 +326,14 @@ pub fn holds_role_via(
 /// falls through to the plain string comparison, never an unconditional
 /// refusal.
 ///
-/// GOVERNANCE'S OWN COMMANDS ARE **NOT** SELF-EXEMPT — checked directly
+/// Governance's own commands are **not** self-exempt — checked directly
 /// against the running Ruby (`bundle exec ruby`, not merely read): a
 /// caller who names `actor_id:` while dispatching `Governance::
-/// RoleAssignment.Assign` itself is checked the SAME real way as any
+/// RoleAssignment.Assign` itself is checked the same real way as any
 /// other governed command's caller, `governance_attached?`'s own
 /// `domain.to_s == "Governance"` clause included. An attacker who
 /// self-declares `role: "Governance administrator", actor_id: "eve"`
-/// with no real grant is REFUSED, not waved through by a same-domain
+/// with no real grant is refused, not waved through by a same-domain
 /// exemption — the doc comment immediately above `governance_attached?`
 /// in `command_rules/authorization.rb` claims the opposite ("its own
 /// commands are always checked by the string fallback"), but that
@@ -342,7 +342,7 @@ pub fn holds_role_via(
 /// correct" can honestly mean — is what this function ports. See this
 /// change's own commit message / task report for the full empirical
 /// trace. Nothing here special-cases a command's own domain at all —
-/// `holds_role` is reached whenever `caller_actor_id` is bound AND this
+/// `holds_role` is reached whenever `caller_actor_id` is bound and this
 /// compiled Store happens to carry the AssignmentsForActor query,
 /// which is already true, unconditionally, for a domain's own merged-in
 /// Governance chapter.
@@ -358,7 +358,7 @@ pub fn check_role(
 }
 
 /// `check_role`, with "is authorization attached" answered by the
-/// assignments query a chapter DECLARED (`AUTHORIZATION_ASSIGNMENTS`,
+/// assignments query a chapter declared (`AUTHORIZATION_ASSIGNMENTS`,
 /// generated from `provides "authorization"`) rather than by looking for
 /// Governance's own query name — Ruby's `Registry#authorization_provider_for`,
 /// compiled. What every in-repo generated role check calls.
@@ -386,23 +386,23 @@ pub fn check_role_via(
     // (command_rules/authorization.rb), read directly. Already textually
     // correct before this migration; routed through `RefusalSite` for the
     // same drift-proofing reason `check_reference` above now is.
-    // `caller_role: caller` (the SELF-DECLARED string, not the actor's
+    // `caller_role: caller` (the self-declared string, not the actor's
     // real live role) — matching Ruby's own `caller_role: caller.role`
     // exactly, even on the real-check branch: `refuse_role_mismatch`'s
-    // refusal message always quotes what the caller TYPED, never what
+    // refusal message always quotes what the caller typed, never what
     // `holds_role?` actually found.
     Err(super::Refusal::Unauthorized(
         super::refusal_wording::UnauthorizedRoleMismatchArgs { command: command_name, role, caller_role: caller }.render_args(),
     ))
 }
 
-// Item #9, whole-project table-unification survey — an END-TO-END proof
+// Item #9, whole-project table-unification survey — an end-to-end proof
 // that `filter_entries_cross_domain` reproduces spec/query_none_in_
 // state_growth_spec.rb's own real scenario exactly: a `Board::Assignment`
 // row's `claim_id` field, filtered by `none_in_state: "Claim:held"`,
 // against three `Claim` records (`held`, `released`, and one never filed
-// at all). Not `#[cfg(test)]`-only fixture invention — the SAME three
-// cases and the SAME expected surviving ids (`"c2"`, `"nonexistent"`) the
+// at all). Not `#[cfg(test)]`-only fixture invention — the same three
+// cases and the same expected surviving ids (`"c2"`, `"nonexistent"`) the
 // Ruby spec itself asserts (`contain_exactly("c2", "nonexistent")`),
 // proving this Rust port agrees with the real, adversarially-written
 // Ruby behavior, not merely with its own `none_in_state_matches` unit
@@ -476,10 +476,10 @@ mod filter_entries_none_in_state_tests {
 /// `CommandRules::Authorization#refuse_role_mismatch`
 /// (`lib/hecksagain/runtime/command_rules/authorization.rb`), both read
 /// directly (this module's own doc comments above have the full
-/// citations) — checked EMPIRICALLY against the real, running Ruby
+/// citations) — checked empirically against the real, running Ruby
 /// (`bundle exec ruby`, not merely read) for the one case its own doc
 /// comment and its own code disagree about (an identified caller
-/// dispatching one of Governance's OWN commands): see `check_role`'s own
+/// dispatching one of Governance's own commands): see `check_role`'s own
 /// doc comment for that trace.
 #[cfg(test)]
 mod check_role_actor_id_tests {
@@ -487,7 +487,7 @@ mod check_role_actor_id_tests {
     use crate::kernel::query_comparators::QueryComparator;
     use crate::kernel::{Json, QueryCondition, QueryConditionValue, QueryDef};
 
-    /// The SAME compiled shape `bin/project_rust` actually emits once a
+    /// The same compiled shape `bin/project_rust` actually emits once a
     /// domain declares `uses_framework "Governance"`
     /// (`rust/src/generated/pizzas/merged.rs`'s own real `QUERIES` table,
     /// read directly) — one `RoleAssignment` aggregate, scanned under
@@ -536,8 +536,8 @@ mod check_role_actor_id_tests {
         ])
     }
 
-    // (a) An actor with NO matching `RoleAssignment` at all, dispatching
-    // with `actor_id` set, is REFUSED — even though it also states
+    // (a) An actor with no matching `RoleAssignment` at all, dispatching
+    // with `actor_id` set, is refused — even though it also states
     // exactly the right bare `role:` string. This is the whole point:
     // the string a caller types can no longer forge a role it doesn't
     // really hold, once it also names who it is.
@@ -551,7 +551,7 @@ mod check_role_actor_id_tests {
         assert!(result.is_err(), "an actor with no real grant must be refused even though it typed the right role");
     }
 
-    // (b) An actor WITH a live (non-revoked) matching `RoleAssignment` is
+    // (b) An actor with a live (non-revoked) matching `RoleAssignment` is
     // accepted.
     #[test]
     fn accepts_an_identified_caller_with_a_live_matching_grant() {
@@ -563,7 +563,7 @@ mod check_role_actor_id_tests {
         assert!(result.is_ok(), "a live matching grant must be accepted: {result:?}");
     }
 
-    // (c) A REVOKED assignment (`ends_at` set) is refused — even though
+    // (c) a revoked assignment (`ends_at` set) is refused — even though
     // it once matched.
     #[test]
     fn refuses_a_revoked_grant() {
@@ -576,11 +576,11 @@ mod check_role_actor_id_tests {
     }
 
     // (d) A caller supplying only `role:` (no `actor_id:`) behaves
-    // EXACTLY as before this addition — the plain string comparison,
+    // exactly as before this addition — the plain string comparison,
     // unaffected by whatever `RoleAssignment` data does or doesn't
     // exist. Proven both ways: a caller whose stated role doesn't match
     // still refuses even with a real grant sitting right there for a
-    // DIFFERENT actor, and a caller whose stated role DOES match still
+    // different actor, and a caller whose stated role does match still
     // succeeds with no grant at all in the store.
     #[test]
     fn a_bare_role_only_caller_is_unaffected_by_any_real_grant_data() {
@@ -615,7 +615,7 @@ mod check_role_actor_id_tests {
         assert!(mismatches.is_err(), "no AssignmentsForActor query compiled in -> string fallback, mismatched role -> refused");
     }
 
-    // THE DECLARED PROVIDER, NOT THE NAME — `check_role_via` reads the
+    // **The declared provider, not the name** — `check_role_via` reads the
     // assignments verb it is handed (`AUTHORIZATION_ASSIGNMENTS`, generated
     // from `provides "authorization"`). A query under a different name is
     // honoured when declared...

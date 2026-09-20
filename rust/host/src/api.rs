@@ -1,19 +1,19 @@
-// THE CONSOLE'S `/api/*` SURFACE, IN THIS HOST — the JSON contract
+// The console's `/api/*` surface, in this host — the JSON contract
 // embryonaut_console's `web/app.rb` serves (its `/api/me`,
 // `/api/presentation`, `/api/ui-schema`, `/api/schema`, `/api/:coll`
 // routes), answered by the Rust Lambda that actually serves that app
 // in production now (`web "Rust"`, web.rs).
 //
-// WHY THIS EXISTS AT ALL — the deployed host already refuses an
+// **Why this exists at all** — the deployed host already refuses an
 // unauthenticated `/api/...` request exactly the way the Ruby engine
-// does (web.rs's `auth_gate`, PR #728: 401 + `{"error":
-// "Unauthenticated","message":"sign in first"}`), but an AUTHENTICATED
+// does (web.rs's `auth_gate`: 401 + `{"error":
+// "Unauthenticated","message":"sign in first"}`), but an authenticated
 // one fell straight through to this host's own `/<Domain>/<aggregate>`
 // router and came back `404 no domain "api" loaded`. The refusal
 // contract matched and the success contract didn't. This module is the
 // success contract.
 //
-// SHAPES ARE THE RUBY ENGINE'S, KEY FOR KEY. Every response body here
+// Shapes are the Ruby engine's, key for key. Every response body here
 // is what `app.rb`'s own `json(...)` would have produced for the same
 // request — compact (never pretty-printed, unlike this host's own
 // `/<Domain>/<aggregate>` JSON, which has no Ruby counterpart to agree
@@ -21,7 +21,7 @@
 // the same status codes. A client cannot tell which runtime answered,
 // which is the whole point: index.html is served unchanged.
 //
-// ROUTING IS FLAT AND EXHAUSTIVE. `web::route` hands this module every
+// **Routing is flat and exhaustive**. `web::route` hands this module every
 // path under `/api/`, and this module answers all of them — an
 // unmatched one included, as a JSON 404 rather than by falling through
 // to a renderer that would answer HTML. Sinatra's own unmatched-route
@@ -68,7 +68,7 @@ pub async fn route(
     match (method, path) {
         ("GET", "/api/me") => ok(&me(session)),
 
-        // THE WHOLE UI, DERIVED — nav, columns, field shapes,
+        // **The whole UI, derived** — nav, columns, field shapes,
         // transitions, create forms, merged with whatever the config
         // adds. Read fresh every call, same as `/api/presentation`
         // below and for the same reason: a Settings-screen save has to
@@ -79,8 +79,8 @@ pub async fn route(
             Err(e) => internal_error(&e.to_string()),
         },
 
-        // EVERY REAL AGGREGATE, ITS REAL LIFECYCLE STATES, EVERY REAL
-        // QUERY — a pure structural fact with no presentation opinion
+        // Every real aggregate, its real lifecycle states, every real
+        // query — a pure structural fact with no presentation opinion
         // in it, which the Settings screen's own list_query picker and
         // the table's live query picker both read.
         ("GET", "/api/schema") => match presentation::load(client, wasm_path, config).await {
@@ -101,13 +101,13 @@ pub async fn route(
             presentation_save(domain_ir, raw_body, client, wasm_path, config, invoker).await
         }
 
-        // EVERYTHING ELSE UNDER `/api/` IS A COLLECTION ROUTE —
+        // Everything else under `/api/` is a collection route —
         // `/api/:coll` and `/api/:coll/:id`, the two the Ruby engine
-        // declares LAST, after its own fixed routes, for the same
+        // declares last, after its own fixed routes, for the same
         // reason they are matched last here: `:coll` would otherwise
         // swallow `me`, `schema` and the rest.
         //
-        // SEGMENTS ARE PERCENT-DECODED, unlike this host's own routes:
+        // Segments are percent-decoded, unlike this host's own routes:
         // a record id here is routinely an email address or a slug the
         // client sent through `encodeURIComponent`, and Sinatra hands
         // `params[:id]` to the Ruby engine already decoded.
@@ -143,7 +143,7 @@ pub async fn route(
 /// generic `.all()` every reference picker, cross-lookup and main table
 /// fetch relies on.
 ///
-/// `?query=<name>` names one of this aggregate's OWN declared queries
+/// `?query=<name>` names one of this aggregate's own declared queries
 /// and answers with that query's result instead — real domain logic
 /// (`Proposal.Open`'s own `where(status: "sent")`), not a second,
 /// console-side copy of the same filter. Its arguments come from
@@ -212,14 +212,14 @@ async fn record_show(
     }
 }
 
-/// A COLLECTION KEY IS PRESENTATION, NOT DOMAIN — `collections.<Name>.
+/// A collection key is presentation, not domain — `collections.<Name>.
 /// key` renames one (Engagement's own default "engagements" is really
 /// "pipeline"), so this resolves through the same `collection_key`
-/// `/api/ui-schema` hands the client. An unknown key raises the SAME
+/// `/api/ui-schema` hands the client. An unknown key raises the same
 /// `Runtime::NotFound` the Ruby engine raises, with its own message,
 /// rather than a bespoke refusal nothing branches on.
 ///
-/// NO LIFECYCLE REQUIREMENT — every aggregate has a real repository
+/// **No lifecycle requirement** — every aggregate has a real repository
 /// regardless, which is the bug the Ruby engine's own `collection_map`
 /// comment records at length: a `select(&:lifecycle)` here once made
 /// every request a lifecycle-less aggregate's nav item issued 404.
@@ -298,22 +298,22 @@ async fn named_query_rows(
     };
     match answered.get("rows").filter(|rows| !rows.is_null()) {
         Some(rows) => ok(rows),
-        // A REFUSED QUERY, not a missing one — the Ruby engine lets the
+        // A refused query, not a missing one — the Ruby engine lets the
         // domain refusal out as a 422 through its own DOMAIN_REFUSALS
-        // handler, naming the refusal CLASS. A refused query step also
+        // handler, naming the refusal class. A refused query step also
         // lands in the kernel's own top-level `refusals` array, which
         // carries that class as `kind` — so the whole envelope is the
         // Ruby one, read through the same `domain_refusal` a refused
-        // COMMAND goes through.
+        // command goes through.
         None => domain_refusal(&result),
     }
 }
 
-/// SAME-NAMED PARAMS, SHAPED THE WAY EACH ARGUMENT ACTUALLY WIRES — a
+/// Same-named params, shaped the way each argument actually wires — a
 /// reference or a plain primitive rides bare; a value-object argument
 /// wraps in its own single field (never assuming every value object
 /// spells that field "value"). Returns `None` — not a partial hash —
-/// the moment a REQUIRED argument has nothing in params, so the caller
+/// the moment a required argument has nothing in params, so the caller
 /// falls back to `.all()` instead of dispatching a query certain to
 /// refuse.
 fn query_args_from_params(aggregate: &Value, named: &Value, params: &HashMap<String, String>) -> Option<Value> {
@@ -354,7 +354,7 @@ fn value_object_field(aggregate: &Value, type_name: &str) -> Option<String> {
 
 // ---- POST /api/:coll, POST /api/:coll/:id/:command -------------------
 
-/// `POST /api/:coll` — the aggregate's ONE creating command, with the
+/// `POST /api/:coll` — the aggregate's one creating command, with the
 /// two things the console does around it that the domain itself
 /// cannot: minting an identity nobody should be asked to type
 /// (`apply_identity!`), and checking a precondition a creating
@@ -409,7 +409,7 @@ async fn collection_create(
     if !outcome.accepted {
         return domain_refusal(&outcome.result);
     }
-    // The id this call's OWN command targeted — the first mutation of
+    // The id this call's own command targeted — the first mutation of
     // the last step, never whichever mutation happens to sit last
     // there (a policy or saga firing as a side effect pushes further
     // mutations onto the same step). Same rule web.rs's own
@@ -422,7 +422,7 @@ async fn collection_create(
 /// — `Contract.Revise`, `RecurringPayment.AdvanceCycle`) command
 /// against an existing record.
 ///
-/// ORDER MATTERS, and it is the Ruby engine's order: find the record
+/// Order matters, and it is the Ruby engine's order: find the record
 /// first (404 if there is none), then check the command name against
 /// what this aggregate can actually dispatch (404 if it can't), then
 /// dispatch. A caller that gets both wrong is told about the record
@@ -475,7 +475,7 @@ async fn command_route(
 }
 
 /// `JSON_DOOR.validate_command!` — checked against what a `Handle` can
-/// actually dispatch, which is every command EXCEPT the creating one
+/// actually dispatch, which is every command except the creating one
 /// (that one lives on the aggregate itself, reached through
 /// `POST /api/:coll`). Accepting it here would pass this gate clean
 /// and then fail as something far less legible.
@@ -504,7 +504,7 @@ fn domain_name(domain_ir: &Value) -> &str {
 /// no-argument command posts nothing), and anything that isn't JSON
 /// refuses the way the Ruby engine refuses it.
 ///
-/// A body that parses but isn't an OBJECT refuses the same way. Ruby
+/// A body that parses but isn't an object refuses the same way. Ruby
 /// reaches `public_send(command, **args)` with it and dies of a
 /// TypeError — a 500 whose message is about Ruby, not about the
 /// request; this names the real problem at the status code that
@@ -519,7 +519,7 @@ fn parsed_body(raw: &str) -> Result<Value, Value> {
     }
 }
 
-/// The command's own target id: the FIRST mutation of the LAST step.
+/// The command's own target id: the first mutation of the last step.
 fn created_id(result: &Value) -> Option<String> {
     result
         .get("mutations")?
@@ -546,14 +546,14 @@ fn created_record(domain_ir: &Value, aggregate: &Value, result: &Value, id: &str
     }
 }
 
-/// A REFUSED COMMAND, IN THE RUBY ENGINE'S OWN ENVELOPE — `422` with
+/// A refused command, in the Ruby engine's own envelope — `422` with
 /// `{"error": <refusal class>, "message": <its message>}`. The kernel
 /// names the same classes Ruby does (`kind()`: GivenNotMet,
 /// InvariantViolation, AlreadyExists, NotFound, Unauthorized …, all of
 /// them `Runtime::` classes in `DOMAIN_REFUSALS`), so this envelope is
 /// the Ruby one key for key and name for name.
 ///
-/// The LAST refusal, not the first: `dispatch::handle` replays the
+/// The last refusal, not the first: `dispatch::handle` replays the
 /// whole rehydrated history, and every step before this call's own
 /// already succeeded once.
 fn domain_refusal(result: &Value) -> Value {
@@ -568,7 +568,7 @@ fn domain_refusal(result: &Value) -> Value {
 
 // ---- identity minting ------------------------------------------------
 
-/// A CODE, MINTED — not typed. `collections.<Name>.identity` names one
+/// **A code, minted** — not typed. `collections.<Name>.identity` names one
 /// of the creating command's own attributes and how to fill it without
 /// asking: `slug` lowercases and hyphenates another submitted field's
 /// value (a client's name becomes its reference); `sequence` counts the
@@ -602,11 +602,11 @@ fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, exi
             let pad = rule.get("pad").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
             Some(format!("{prefix}{:0>pad$}", existing + 1))
         }
-        // NEITHER MECHANICAL — the `port` strategy delegates to the
+        // **Neither mechanical** — the `port` strategy delegates to the
         // domain's own `identity_assignment` adapter, a Ruby object
         // this host has no runtime for at all (ADR 0007: rust/host has
         // no port/adapter interpreter and is not getting one). Skipping
-        // it silently would dispatch WITHOUT the identity field and
+        // it silently would dispatch without the identity field and
         // surface as a confusing domain refusal about a missing
         // argument; refusing names the real reason.
         Some("port") => {
@@ -673,8 +673,8 @@ fn slugify(text: &str) -> String {
 
 // ---- preconditions ---------------------------------------------------
 
-/// WHERE "always via a demoed Engagement / an accepted Proposal" STOPS
-/// BEING A COMMENT — except it is DATA (`collections.<Name>.
+/// Where "always via a demoed Engagement / an accepted Proposal" stops
+/// **being a comment** — except it is data (`collections.<Name>.
 /// preconditions`), not a hand-written table naming one domain's own
 /// aggregates. A creating command's own `given` can only read its own
 /// aggregate, which is exactly why this lives in the driving adapter
@@ -770,7 +770,7 @@ struct SortSpec {
 }
 
 /// `?sort=<column key>&direction=asc|desc` — a runtime value, so it is
-/// checked against this collection's OWN sortable config (not just
+/// checked against this collection's own sortable config (not just
 /// "does the field exist") before it can reach the records. Silently
 /// ignored, falling back to default order, when the column isn't
 /// sortable or its shape can't push to SQL: the client already knows
@@ -820,7 +820,7 @@ fn lifecycle_field(aggregate: &Value) -> Option<&str> {
     aggregate.get("lifecycle")?.get("field")?.as_str()
 }
 
-/// IN MEMORY, NOT IN SQL — this host reads whole aggregates out of the
+/// In memory, not in SQL — this host reads whole aggregates out of the
 /// kernel's own `instances` map, so there is no ORDER BY to push into.
 /// The ordering itself is Postgres's: ascending by default, NULLS LAST
 /// for ascending and NULLS FIRST for descending, and a stable fallback
@@ -861,7 +861,7 @@ fn compare_sort_keys(left: Option<&Value>, right: Option<&Value>, descending: bo
         (Some(_), None) => Ordering::Less,
         (Some(left), Some(right)) => compare_values(left, right),
     };
-    // A null's placement is NOT reversed with the direction — Postgres
+    // A null's placement is not reversed with the direction — Postgres
     // moves nulls to the front for DESC by keeping the same rule and
     // reversing everything, which is exactly what this does.
     if descending {
@@ -901,11 +901,11 @@ fn me(session: Option<&Session>) -> Value {
 }
 
 /// `PUT /api/presentation` — `app.rb`'s own `put "/api/presentation"`,
-/// contract for contract: the WHOLE config replaced at once, validated
+/// contract for contract: the whole config replaced at once, validated
 /// against this domain's real live shape before anything is written,
-/// and answered with the RELOADED config rather than the submitted one.
+/// and answered with the reloaded config rather than the submitted one.
 ///
-/// FOUR ANSWERS, EACH ONE THE RUBY ENGINE'S OWN:
+/// Four answers, each one the Ruby engine's own:
 ///   - 200 with `json(PresentationConfig.load)` on a save.
 ///   - 400 `MalformedBody` for a body that isn't a JSON object at all —
 ///     `parsed_body`'s answer everywhere else in this file, and the one
@@ -919,7 +919,7 @@ fn me(session: Option<&Session>) -> Value {
 ///     Declared — the same `domain_refusal` shape every dispatching
 ///     route here uses.
 ///
-/// And one answer that is NOT Ruby's, for a case Ruby cannot be in:
+/// And one answer that is not Ruby's, for a case Ruby cannot be in:
 /// 501, unchanged, when this host's kernel carries no ConsoleSettings
 /// chapter at all. That is asked of the kernel, never assumed.
 #[allow(clippy::too_many_arguments)]
@@ -945,22 +945,19 @@ async fn presentation_save(
     }
 }
 
-// WHAT A HOST WITH NO CONSOLESETTINGS CHAPTER STILL SAYS.
+// What a host with no `ConsoleSettings` chapter still says.
 //
-// This refusal used to be the whole route, on the premise that this
-// crate could never have that chapter: "its `.wasm` kernel is the
-// consuming domain's own, and ConsoleSettings has never been compiled
-// into it." The second half was wrong. `uses_framework
+// This refusal fires only for a domain whose kernel genuinely has no
+// `ConsoleSettings` chapter — not for this crate generally: `uses_framework
 // "ConsoleSettings"` pulls the chapter into the same registry
 // `bin/project_rust` generates from, and `merged.rs` folds its three
 // aggregates into the one `Store` the single `.wasm` carries — the
 // same way Governance and Identity are already in there, confirmed
 // against the real deployed artifact's own strings.
 //
-// So the route dispatches for real now, and this stays for the case it
-// was always truly about: a domain whose kernel genuinely has no such
-// chapter. It says which decision is outstanding — attach it — rather
-// than 404-ing as if the route had never existed.
+// The route dispatches for real whenever the chapter is present. This
+// refusal says which decision is outstanding — attach it — rather than
+// 404-ing as if the route had never existed.
 const PRESENTATION_WRITE_REFUSAL: &str =
     "this host's kernel carries no ConsoleSettings chapter, so it has no StateStyle/Collection/Overview \
      commands to dispatch, and writing the rows behind its back would skip the invariants those commands \
@@ -1114,7 +1111,7 @@ mod tests {
 
         let renamed = json!({"collections": {"Client": {"key": "accounts"}}});
         assert!(resolve_collection(&domain, &renamed, "accounts").is_ok());
-        // The DERIVED key stops working once config renames it — the
+        // The derived key stops working once config renames it — the
         // same single answer `/api/ui-schema` gives the client.
         assert!(resolve_collection(&domain, &renamed, "clients").is_err());
     }
@@ -1159,7 +1156,7 @@ mod tests {
         let by_owner = find_query(&aggregate, "ByOwner").expect("declared");
 
         assert_eq!(query_args_from_params(&aggregate, by_owner, &params(&[])), None);
-        // An EMPTY param is the same as an absent one, matching Ruby's
+        // An empty param is the same as an absent one, matching Ruby's
         // own `raw.nil? || raw.empty?`.
         assert_eq!(query_args_from_params(&aggregate, by_owner, &params(&[("owner", "")])), None);
     }
@@ -1197,7 +1194,7 @@ mod tests {
         assert_eq!(spec.field, "name");
         assert!(!spec.descending);
 
-        // A REFERENCE column is deliberately excluded — it would need a
+        // A reference column is deliberately excluded — it would need a
         // cross-aggregate join no order clause wires.
         assert!(resolve_sort(&domain, &json!({}), "clients", &aggregate, &params(&[("sort", "owner")])).is_none());
         // …as is a column config explicitly opts out of.
@@ -1239,7 +1236,7 @@ mod tests {
         sort_records(&mut records, &Some(SortSpec { field: "name".to_string(), descending: false }));
         assert_eq!(records[0].0, "a");
 
-        // Money sorts NUMERICALLY by cents — 300 before 1000, which a
+        // Money sorts numerically by cents — 300 before 1000, which a
         // string comparison would get backwards.
         sort_records(&mut records, &Some(SortSpec { field: "fee".to_string(), descending: false }));
         assert_eq!(records.iter().map(|(id, _)| id.as_str()).collect::<Vec<&str>>(), vec!["c", "a"]);
@@ -1294,7 +1291,7 @@ mod tests {
         });
 
         assert_eq!(command_name(dispatchable_command(&aggregate, "advance_cycle").expect("declared")), "AdvanceCycle");
-        // The CREATING command is reachable through POST /api/:coll,
+        // The creating command is reachable through POST /api/:coll,
         // never here — accepting it would pass this gate and then fail
         // as something far less legible.
         assert!(dispatchable_command(&aggregate, "schedule").is_none());
@@ -1310,7 +1307,7 @@ mod tests {
 
         let refusal = domain_refusal(&result);
         assert_eq!(refusal["statusCode"], 422);
-        // The LAST refusal — `handle` replays the whole rehydrated
+        // The last refusal — `handle` replays the whole rehydrated
         // history, so everything before this call's own step already
         // succeeded once.
         assert_eq!(
@@ -1392,7 +1389,7 @@ mod tests {
     }
 
     // The one identity strategy this host genuinely cannot run: it
-    // delegates to the domain's own identity_assignment ADAPTER, Ruby
+    // delegates to the domain's own identity_assignment adapter, Ruby
     // code this crate has no runtime for. Refusing names the reason;
     // skipping silently would dispatch without the field and surface
     // as a confusing "absent argument" from the kernel.
@@ -1495,7 +1492,7 @@ mod tests {
 
     #[test]
     fn a_precondition_says_nothing_about_a_reference_the_caller_left_out() {
-        // A missing REQUIRED reference is the command's own validation
+        // A missing required reference is the command's own validation
         // to refuse, in the domain's own words — not this check's.
         let rule = json!({"field": "proposal_id", "state": "accepted"});
 
@@ -1592,7 +1589,7 @@ mod tests {
         assert_eq!(saved["statusCode"], 200, "{saved}");
         let stored = body(&saved);
 
-        // THE RESPONSE IS THE RELOADED CONFIG, not the submitted one —
+        // The response is the reloaded config, not the submitted one —
         // app.rb returns `json(PresentationConfig.load)` after a save.
         assert_eq!(stored["states"]["Event"]["open"]["tone"], "good");
         assert_eq!(stored["states"]["Event"]["open"]["attention"], json!(true));
@@ -1610,12 +1607,12 @@ mod tests {
         assert_eq!(stored["collections"]["Event"]["field_formats"], json!({"capacity": "percent"}));
         assert_eq!(stored["overview"]["stats"][0]["where"], json!({"state": "open"}));
 
-        // …and a FRESH read agrees with the save's own answer, which is
+        // …and a fresh read agrees with the save's own answer, which is
         // what proves the rows are really in the kernel's own store and
         // not just in the response this call happened to build.
         assert_eq!(presentation::load(&client, &wasm, &lineage).await.expect("a config"), stored);
 
-        // SAVING AGAIN IS SAFE — every present field is re-dispatched,
+        // **Saving again is safe** — every present field is re-dispatched,
         // and a row that already exists is a `Set*`, never a second
         // `Declare` (which would refuse `AlreadyExists`).
         let again = presentation_save(&ir, &submitted.to_string(), &client, &wasm, &lineage, &invoker).await;
@@ -1649,7 +1646,7 @@ mod tests {
             "Event.open's tone \"chartreuse\" isn't one of good, warn, danger, muted, accent"
         );
 
-        // NOTHING WRITTEN — `validate` runs before the first dispatch,
+        // **Nothing written** — `validate` runs before the first dispatch,
         // which is the whole reason it is a separate pass.
         assert_eq!(
             presentation::load(&client, &wasm, &lineage).await.expect("a config"),
@@ -1680,7 +1677,7 @@ mod tests {
 
     /// The old 501, still the answer for the case it was always really
     /// about: banking's kernel carries no ConsoleSettings chapter, and
-    /// this ASKS it rather than inferring it from anything else.
+    /// this asks it rather than inferring it from anything else.
     #[tokio::test]
     async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {
         let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_no_chapter").await;
@@ -1756,7 +1753,7 @@ mod tests {
         assert_eq!(suspended["statusCode"], 200, "{suspended}");
         assert_eq!(body(&suspended)["status"], "suspended");
 
-        // The SAME command again is a real domain refusal — 422 in the
+        // The same command again is a real domain refusal — 422 in the
         // Ruby engine's envelope, carrying the kernel's own refusal
         // class, not a generic error.
         let again = command_route(
