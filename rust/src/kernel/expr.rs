@@ -468,15 +468,19 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
 }
 
 /// `Resolver#fetch`: the first path segment is checked against `attrs`
-/// (args) first, `state` (instance) second; every later segment walks a
-/// `Field::Nested` chain via `attribute_shapes::composite::step`. An
-/// `EvaluationError` in Ruby is not one of the nine real
-/// `DOMAIN_REFUSALS` — by construction, canonical text was already
-/// validated when the domain booted, so reaching this in the generated
-/// Rust means a codegen bug, not a real business refusal.
-/// `TypeMismatch` is the closest existing refusal to "this shouldn't be
-/// possible if the generator is correct," so it's what this raises,
-/// rather than inventing a tenth refusal kind Ruby doesn't have.
+/// (args) first, `state` (instance) second; every later segment walks
+/// through `attribute_shapes::composite::step` — a `Field::Nested` chain
+/// one level further in, or (`step`'s own header) Ruby's `walk_path`
+/// fallthrough to `Value::Nil` once the value in hand is already a
+/// scalar, which is what a trailing `.nil?` segment resolves through.
+/// Only the first segment can refuse outright here; a refusal from this
+/// point on means a codegen bug, not a real business refusal — canonical
+/// text was already validated when the domain booted, so an
+/// `EvaluationError` in Ruby is never one of the nine real
+/// `DOMAIN_REFUSALS`. `TypeMismatch` is the closest existing refusal to
+/// "this shouldn't be possible if the generator is correct," so it's
+/// what this raises, rather than inventing a tenth refusal kind Ruby
+/// doesn't have.
 fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
     let mut segments = path.split('.');
     let head = segments.next().unwrap();
@@ -487,7 +491,7 @@ fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
         .ok_or_else(|| eval_error(format!("cannot resolve {head:?} — no such attribute or argument")))?;
 
     for seg in segments {
-        current = composite::step(current, seg, head, path)?;
+        current = composite::step(current, seg, head)?;
     }
 
     composite::finish(current, path)
@@ -521,7 +525,7 @@ pub(crate) fn lookup_items<'a>(path: &str, ctx: &EvalContext<'a>, op: &str) -> R
         .or_else(|| ctx.instance.field(head))
         .ok_or_else(|| eval_error(format!("cannot resolve {head:?} — no such attribute or argument")))?;
     for seg in middle {
-        current = composite::step(current, seg, head, path)?;
+        current = composite::step(current, seg, head)?;
     }
     match current {
         Field::Nested(obj) => obj
@@ -541,4 +545,81 @@ fn describe_field(field: Option<Field<'_>>) -> String {
 
 pub(crate) fn eval_error(message: String) -> Refusal {
     Refusal::Fault(message)
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+
+    // Shaped like a generated value object with one required boolean
+    // attribute and one optional one — `previous_sessions`/`first_time`
+    // on lifeadelics's real `Attendee`, the exact live shape
+    // `!previous_sessions.nil?` names (`composite::step`'s own header
+    // has the full reasoning).
+    struct Attendee {
+        previous_sessions: bool,
+        first_time: Option<bool>,
+    }
+    impl Fielded for Attendee {
+        fn field(&self, name: &str) -> Option<Field<'_>> {
+            match name {
+                "previous_sessions" => Some(Field::Value(Value::Bool(self.previous_sessions))),
+                "first_time" => Some(match self.first_time {
+                    Some(b) => Field::Value(Value::Bool(b)),
+                    None => Field::Value(Value::Nil),
+                }),
+                _ => None,
+            }
+        }
+    }
+
+    fn not_nil(field: &'static str, instance: &dyn Fielded) -> Value {
+        let expr = Expr::Not(Box::new(Expr::Lookup(field)));
+        let ctx = EvalContext { args: &NoFields, instance };
+        interpret(&expr, &ctx).expect("evaluates without refusing")
+    }
+
+    #[test]
+    fn a_present_true_boolean_answers_not_nil() {
+        // `!previous_sessions.nil?` — the live crash, `previous_sessions:
+        // true`: `.nil?` is not a dedicated node in this grammar, so this
+        // is really `Lookup("previous_sessions.nil?")` negated.
+        let attendee = Attendee { previous_sessions: true, first_time: None };
+        assert_eq!(not_nil("previous_sessions.nil?", &attendee), Value::Bool(true));
+    }
+
+    #[test]
+    fn a_present_false_boolean_also_answers_not_nil() {
+        // The other half of the live crash — `previous_sessions: false`
+        // is exactly as present as `true`, and Ruby's own `walk_path`
+        // fallthrough (composite::step's header) never actually inspects
+        // the boolean's own value, only whether the head attribute
+        // resolved at all.
+        let attendee = Attendee { previous_sessions: false, first_time: None };
+        assert_eq!(not_nil("previous_sessions.nil?", &attendee), Value::Bool(true));
+    }
+
+    #[test]
+    fn a_genuinely_unset_optional_field_still_answers_not_nil() {
+        // Matches real Ruby parity, not an abstract "correct" nil check:
+        // `Resolver#walk_path` breaks to `nil` off **any** scalar (including
+        // a scalar that is itself already `nil`) before it ever inspects
+        // `.nil?`'s own segment name, so `!x.nil?` reads `true` for any
+        // head attribute that resolved at all, set or unset alike — see
+        // `composite::step`'s own header for the full Ruby trace.
+        let attendee = Attendee { previous_sessions: true, first_time: None };
+        assert_eq!(not_nil("first_time.nil?", &attendee), Value::Bool(true));
+    }
+
+    #[test]
+    fn a_genuinely_missing_head_attribute_still_refuses() {
+        // The one case this fix leaves refusing, unchanged: an
+        // undeclared attribute name in the path's own head segment is a
+        // codegen bug, never a legitimate absent value — `lookup`'s own
+        // doc comment.
+        let attendee = Attendee { previous_sessions: true, first_time: None };
+        let expr = Expr::Not(Box::new(Expr::Lookup("not_a_real_attribute.nil?")));
+        let ctx = EvalContext { args: &NoFields, instance: &attendee };
+        assert!(interpret(&expr, &ctx).is_err());
+    }
 }
