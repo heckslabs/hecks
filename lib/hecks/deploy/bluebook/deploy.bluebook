@@ -133,6 +133,111 @@ Hecks.bluebook "Deploy" do
     end
   end
 
+  # A sibling of `LambdaTarget`, not a shared shape with it — value objects
+  # are not shared across aggregates in this DSL (`Tenant`'s own
+  # `DomainName`/`Realm`/`Schema` below already make the same point), so
+  # this aggregate carries its own copies of `DomainName`/`Region`/
+  # `Database`/`Web` rather than reaching into `LambdaTarget`'s.
+  aggregate "FargateTarget" do
+    description "One domain's validated AWS Fargate deploy target — what deployed_to(\"AwsFargate\") must resolve to before bin/project_deploy generates anything from it."
+
+    identified_by :domain
+
+    attribute :domain,   DomainName
+    attribute :region,   Region
+    attribute :cpu,      Cpu
+    attribute :memory,   Memory
+    attribute :database, Database
+    attribute :web,      Web
+    attribute :port,     Port
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a domain is named") { !value.to_s.empty? }
+    end
+
+    value_object "Region" do
+      attribute :value, String
+      invariant("a region is named") { !value.to_s.empty? }
+    end
+
+    # A positive integer, nothing more — AWS's real cpu/memory
+    # combinations (256 cpu units needs 512-2048 MB of `memory`, say)
+    # are a pairing `ECS` itself enforces at deploy time; encoding that
+    # whole table here would duplicate AWS's own rules for no benefit
+    # this generator needs. This only catches a typo (zero, negative)
+    # before a single file is generated, the same floor `Memory`/`Port`
+    # below hold for their own ranges.
+    value_object "Cpu" do
+      attribute :value, Integer
+      invariant("cpu is positive") { value.positive? }
+    end
+
+    # Fargate's own valid range, not Lambda's 128-10240 MB —
+    # `LambdaTarget`'s own `Memory` value object (above) is scoped to
+    # that aggregate alone, so this is a distinct value object under the
+    # same name rather than a shared one. A plain sanity floor and
+    # ceiling, not AWS's own cpu-paired table (see `Cpu`'s own comment).
+    value_object "Memory" do
+      attribute :value, Integer
+      invariant("memory is positive") { value.positive? }
+      invariant("memory is at most 122880 MB") { value <= 122880 }
+    end
+
+    # Same shape and reasoning as `LambdaTarget`'s own `Database` —
+    # "Postgres"/"Aurora" provision this domain's own RDS instance;
+    # "Shared" borrows another already-deployed domain's instance,
+    # isolated by a native Postgres schema. See that value object's own
+    # comment for the full reasoning; it applies unchanged here.
+    value_object "Database" do
+      attribute :value, String, one_of: ["Postgres", "Aurora", "Shared"]
+    end
+
+    # Same shape and reasoning as `LambdaTarget`'s own `Web` — "Rust"
+    # means the domain's own task also serves its public web UI
+    # in-process, over the port this aggregate's own `Port` attribute
+    # declares.
+    value_object "Web" do
+      attribute :value, String, one_of: ["None", "Rust"]
+    end
+
+    # The container port the task listens on and the target group
+    # routes to — a real TCP port, not an arbitrary integer.
+    value_object "Port" do
+      attribute :value, Integer
+      invariant("a port is at least 1") { value >= 1 }
+      invariant("a port is at most 65535") { value <= 65535 }
+    end
+
+    # All seven required, for the identical reason `LambdaTarget.Declare`
+    # requires all of its own attributes — see that command's own
+    # comment on `normalize_args`/`coerce_declared_arguments`. This
+    # validates a fully-resolved target, after `bin/project_deploy`'s own
+    # defaulting (`cpu`/`memory`/`port` each fall back to a Ruby-side
+    # default before this ever dispatches), not instead of it.
+    command "Declare" do
+      goal "Validate one domain's AwsFargate deploy target before anything is generated from it"
+
+      attribute :domain,   DomainName
+      attribute :region,   Region
+      attribute :cpu,      Cpu
+      attribute :memory,   Memory
+      attribute :database, Database
+      attribute :web,      Web
+      attribute :port,     Port
+
+      sets :domain
+      sets :region
+      sets :cpu
+      sets :memory
+      sets :database
+      sets :web
+      sets :port
+
+      emits "FargateTargetDeclared"
+    end
+  end
+
   # `bin/project_tenant`'S OWN VALIDATED SHAPE — same split LambdaTarget
   # draws with `bin/project_deploy`: this aggregate validates, that
   # script GENERATES/ACTS (writes `environments/<slug>.world`, ensures

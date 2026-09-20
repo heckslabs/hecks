@@ -80,12 +80,17 @@ module Hecks
       #   chapter must declare; nil means none
       # @param emits [Symbol] the kind of artifact `self` returns: `:artifact` (the default,
       #   a single Hash or String) or `:files` (a path => contents tree)
+      # @param needs_world [Boolean] whether `self` is an export — a target that reads a
+      #   domain's `.world`/`.hecksagon` bindings, not only its declaration. `false` (the
+      #   default) for an ordinary projection; `true` refuses a `Projector.call` made with
+      #   no `world:`.
       # @return [Symbol] the registered key
-      def projects_as(key, requires: nil, declares: nil, emits: :artifact)
-        @projection_emits    = emits
-        @projection_key      = key.to_sym
-        @projection_declares = Array(declares)
-        @projection_requires = Array(requires)
+      def projects_as(key, requires: nil, declares: nil, emits: :artifact, needs_world: false)
+        @projection_emits       = emits
+        @projection_key         = key.to_sym
+        @projection_declares    = Array(declares)
+        @projection_requires    = Array(requires)
+        @projection_needs_world = needs_world
         Projector.register(@projection_key, self)
         @projection_key
       end
@@ -107,6 +112,14 @@ module Hecks
       #
       # @return [Symbol] the kind of artifact `self` returns: `:artifact` or `:files`
       def projection_emits = @projection_emits || :artifact
+
+      # Tells whether this target is an export — one that needs a domain's
+      # `.world`/`.hecksagon` bindings, passed as `Projector.call`'s `world:`,
+      # rather than only its declaration.
+      #
+      # @return [Boolean] the value given to `projects_as`' `needs_world:`, or false
+      #   before `projects_as` is called
+      def projection_needs_world? = @projection_needs_world || false
 
       # Names the capability module(s) a construct must satisfy, defaulting
       # to plain chapter-hood when `projects_as` named none.
