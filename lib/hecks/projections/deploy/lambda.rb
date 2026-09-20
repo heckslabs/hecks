@@ -841,7 +841,16 @@ module Hecks
                       # triggers that first boot; a LATER real schema evolution
                       # (era 2+) is a separate, later re-generation, not this one.
                       HECKS_DOMAIN: #{declared_domain_name}
-                      HECKS_ERA: "1"#{hecks_schema ? %(\n          HECKS_SCHEMA: #{hecks_schema}) : ""}#{rust_web ? %(\n          HECKS_IR_PATH: !Sub "/var/task/#{domain_name}.ir.json") : ""}#{rust_web && google_oauth_present ? <<~RUSTOAUTH.each_line.with_index.map { |l, i| i.zero? ? "\n          " + l : "          " + l }.join.rstrip : ""}
+                      # UNCONDITIONAL, not gated on `rust_web` — `rust/host/src/main.rs`'s
+                      # own boot sequence reads `ir::ir().ok_or(...)?` for every domain
+                      # regardless of web mode (era-lineage bookkeeping needs the IR, not
+                      # just the optional in-process web UI), so a Shared-mode domain with
+                      # no web layer still needs this sidecar path to boot at all. Previously
+                      # gated on `rust_web`, which left every such domain's Lambda crashing
+                      # on cold start — checkout.rs's own header flagged this exact
+                      # contradiction, confirmed live against Banking's committed template.
+                      HECKS_IR_PATH: !Sub "/var/task/#{domain_name}.ir.json"
+                      HECKS_ERA: "1"#{hecks_schema ? %(\n          HECKS_SCHEMA: #{hecks_schema}) : ""}#{rust_web && google_oauth_present ? <<~RUSTOAUTH.each_line.with_index.map { |l, i| i.zero? ? "\n          " + l : "          " + l }.join.rstrip : ""}
                       # NOT `{{resolve:secretsmanager:...}}` composing
                       # GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/SESSION_SECRET
                       # directly anymore -- the identical GetFunctionConfiguration
