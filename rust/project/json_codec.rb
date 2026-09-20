@@ -76,7 +76,12 @@ module RustProjection
       "v.get(#{key.inspect}).ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{message.inspect}.to_string()))?"
     end
 
-    SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64" }.freeze
+    # `TrueClass`/`FalseClass` -> `as_bool` — same addition, same reason,
+    # as `naming.rb`'s own `SCALAR` table (read that comment first): a
+    # bare boolean attribute (lifeadelics' `Attendee.news_signup` et al.)
+    # never had a JSON accessor to read one back out of a `Json::Bool`.
+    SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64",
+                             "TrueClass" => "as_bool", "FalseClass" => "as_bool" }.freeze
 
     # `Value.for_attribute` → `fields_for`'s own bare-scalar branch
     # (lib/hecks/runtime/value/coercion.rb), at codegen time instead
@@ -257,9 +262,14 @@ module RustProjection
       # non-numeric string silently became the default instead of a
       # refusal. `match` on presence FIRST, so only the "absent" arm ever
       # reaches for the default.
-      return %(match v.get(#{key.inspect}) { Some(x) => x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, 'x')})?, None => #{literal_rhs(default)} }) if default
+      if default
+        return %(match v.get(#{key.inspect}) { Some(x) => x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name,
+                                                                                                                   key, scalar_type, 'x')})?, None => #{literal_rhs(default)} })
+      end
 
-      %({ let x = #{required_field_expr(struct_name, key, scalar_type)}; x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, 'x')})? })
+      %({ let x = #{required_field_expr(struct_name, key,
+                                        scalar_type)}; x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key,
+                                                                                                                scalar_type, 'x')})? })
     end
 
     # The scalar-extraction half of `scalar_from_json_expr`, applied to an
@@ -278,6 +288,7 @@ module RustProjection
       when "String"  then "crate::kernel::Json::Str(#{rust_expr}.clone())"
       when "Integer" then "crate::kernel::Json::int(#{rust_expr})"
       when "Float"   then "crate::kernel::Json::Float(#{rust_expr})"
+      when "TrueClass", "FalseClass" then "crate::kernel::Json::Bool(#{rust_expr})"
       end
     end
 
@@ -350,14 +361,14 @@ module RustProjection
 
       declared = attributes.map { |a| a[:name].to_s }
       <<~RUST
-                let absent: Vec<&str> = [#{required.map(&:inspect).join(', ')}].into_iter().filter(|key| v.get(key).is_none()).collect();
-                if !absent.is_empty() {
-                    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                        command: #{command_name.inspect},
-                        absent: &absent,
-                        declared: &[#{declared.map(&:inspect).join(', ')}],
-                    }.render_args()));
-                }
+        let absent: Vec<&str> = [#{required.map(&:inspect).join(', ')}].into_iter().filter(|key| v.get(key).is_none()).collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                command: #{command_name.inspect},
+                absent: &absent,
+                declared: &[#{declared.map(&:inspect).join(', ')}],
+            }.render_args()));
+        }
       RUST
     end
 
@@ -383,15 +394,15 @@ module RustProjection
     def emit_unknown_argument_check(command_name, known_keys, declared_names)
       declared = declared_names.map(&:to_s)
       <<~RUST
-                let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
-                if !unknown.is_empty() {
-                    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-                    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                        command: #{command_name.inspect},
-                        unknown: &unknown,
-                        declared: &[#{declared.map(&:inspect).join(', ')}],
-                    }.render_args()));
-                }
+        let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                command: #{command_name.inspect},
+                unknown: &unknown,
+                declared: &[#{declared.map(&:inspect).join(', ')}],
+            }.render_args()));
+        }
       RUST
     end
 
@@ -460,8 +471,8 @@ module RustProjection
         mapper = list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
         array_error = json_type_error(struct_name, key, "an array")
         "match v.get(#{key.inspect}) { " \
-          "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
-          "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
+        "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
+        "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
       elsif attr[:list]
         mapper = list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
         "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
@@ -471,9 +482,13 @@ module RustProjection
         # `Some(Json::Null) | None` — an optional argument offered as
         # null is the same absence as an omitted key (`for_attribute`'s
         # own nil passthrough for an `optional:` attribute, coercion.rb).
-        "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}) }"
+        "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{scalar_from_json_value_expr(
+          struct_name, key, scalar, 'x'
+        )}) }"
       elsif attr[:optional]
-        "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{composite_from_json_expr(attr, value_objects_by_name, 'x')}) }"
+        "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{composite_from_json_expr(
+          attr, value_objects_by_name, 'x'
+        )}) }"
       elsif scalar
         scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
       elsif absent_argument_check
@@ -536,8 +551,13 @@ module RustProjection
     # way to `emit_from_json_flat` too — there is no aggregate-command
     # call site that skips it.
     def emit_argument_gates(struct_name, command_name, attributes, unknown_argument_allowlist)
-      unknown = unknown_argument_allowlist ? unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, false) : ""
-      absent  = emit_absent_argument_check(command_name, attributes)
+      unknown = if unknown_argument_allowlist
+                  unknown_and_absent_argument_checks(command_name, attributes,
+                                                     unknown_argument_allowlist, false)
+                else
+                  ""
+                end
+      absent = emit_absent_argument_check(command_name, attributes)
 
       [
         "impl #{struct_name} {",
@@ -574,7 +594,8 @@ module RustProjection
         end
       end
 
-      unknown_check = unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, absent_argument_check)
+      unknown_check = unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist,
+                                                         absent_argument_check)
 
       emit_from_json_skeleton(struct_name, field_exprs, unknown_check, shorthand_fields: interleave_checks ? idents : nil)
     end
@@ -615,9 +636,9 @@ module RustProjection
     def emit_object_shape_check(struct_name)
       message = "#{struct_name} expects an object"
       <<~RUST
-                if !matches!(v, crate::kernel::Json::Object(_)) {
-                    return Err(crate::kernel::Refusal::TypeMismatch(format!("#{message}, got {}", v.inspect())));
-                }
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("#{message}, got {}", v.inspect())));
+        }
       RUST
     end
 
@@ -645,9 +666,9 @@ module RustProjection
       # Trailing "\n" — see `emit_to_json_flat`'s own comment on why.
       "#{Exemplar.render(
         'from_json_flat',
-        'TmplFlatType2' => struct_name,
+        'TmplFlatType2'                                                => struct_name,
         "let _tmpl_unknown_check_placeholder = ();\n        Ok(Self {" => "#{preamble}        Ok(Self {",
-        'tmpl_ident: tmpl_rhs_placeholder(),' => field_block
+        'tmpl_ident: tmpl_rhs_placeholder(),'                          => field_block
       )}\n"
     end
 
@@ -679,7 +700,8 @@ module RustProjection
     # `to_json_flat_sparse` for the full argument, including why the
     # filter is safe (no required field's own conversion ever produces
     # `Json::Null`).
-    def emit_to_json_flat(struct_name, attributes, value_objects_by_name, optional: false, extra_fields: [], aggregate: nil, sparse: false)
+    def emit_to_json_flat(struct_name, attributes, value_objects_by_name, optional: false, extra_fields: [], aggregate: nil,
+                          sparse: false)
       field_exprs = attributes.map do |attr|
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
@@ -701,7 +723,8 @@ module RustProjection
         # aggregate's own `tags` is `optional: false`, the command's own
         # `tags:` argument is `optional: true`). `list_attr_creation_
         # optional?` (mutations.rb) is the record-level equivalent check.
-        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
+        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name],
+                                                                                        value_objects_by_name)
         field_optional = optional || attr[:optional]
         # A RECORD's own list field (`aggregate` present) is Option-
         # wrapped ONLY per `list_attr_creation_optional?` — the exact
@@ -735,7 +758,9 @@ module RustProjection
           end
         Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => value_expr)
       end
-      field_exprs += extra_fields.map { |key, expr| Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => expr) }
+      field_exprs += extra_fields.map do |key, expr|
+        Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => expr)
+      end
       field_block = field_exprs.map { |f| "        #{f}" }.join("\n")
 
       # Trailing "\n" — restores the OLD heredoc's own implicit one
@@ -744,11 +769,11 @@ module RustProjection
       # return value directly, not through `f.puts` (which wouldn't care
       # either way).
       rendered = if sparse
-                   Exemplar.render("to_json_flat_sparse", "TmplFlatType3" => struct_name,
-                                                           "tmpl_to_json_field_block_sparse()" => field_block)
+                   Exemplar.render("to_json_flat_sparse", "TmplFlatType3"                     => struct_name,
+                                                          "tmpl_to_json_field_block_sparse()" => field_block)
                  else
-                   Exemplar.render("to_json_flat", "TmplFlatType2" => struct_name,
-                                                    "tmpl_to_json_field_block()" => field_block)
+                   Exemplar.render("to_json_flat", "TmplFlatType2"              => struct_name,
+                                                   "tmpl_to_json_field_block()" => field_block)
                  end
       "#{rendered}\n"
     end
@@ -785,7 +810,8 @@ module RustProjection
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
         scalar = effective_scalar_type(attr[:type])
-        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
+        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name],
+                                                                                        value_objects_by_name)
         list_is_optional = aggregate ? record_optional_list : attr[:optional]
         field_optional = optional || attr[:optional]
 
@@ -831,7 +857,7 @@ module RustProjection
       extra_field_exprs = extra_fields.map do |key, _serialize_expr, deserialize_rhs|
         ident = rust_ident_field(key)
         rhs = deserialize_rhs || "v.require(#{key.inspect}, #{struct_name.inspect})?.as_str()" \
-          ".ok_or_else(|| #{json_type_error(struct_name, key, 'a string')})?.to_string()"
+                                 ".ok_or_else(|| #{json_type_error(struct_name, key, 'a string')})?.to_string()"
         Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
       end
 
@@ -882,15 +908,15 @@ module RustProjection
       Exemplar.assemble(
         "closed_set_codec",
         {
-          "TmplKind" => name,
-          '"tmpl_field_name"' => field_name.inspect,
-          '"tmpl_closed_set_type"' => type_name.inspect,
+          "TmplKind"                     => name,
+          '"tmpl_field_name"'            => field_name.inspect,
+          '"tmpl_closed_set_type"'       => type_name.inspect,
           '["tmpl_closed_set_member_a"]' => admitted,
-          '"tmpl_null_field_message"' => null_message.inspect,
+          '"tmpl_null_field_message"'    => null_message.inspect
         },
         slots: {
           "closed_set_codec:TO_JSON_ARM"   => Exemplar.render_each("closed_set_codec:TO_JSON_ARM", row_subs),
-          "closed_set_codec:FROM_JSON_ARM" => Exemplar.render_each("closed_set_codec:FROM_JSON_ARM", row_subs),
+          "closed_set_codec:FROM_JSON_ARM" => Exemplar.render_each("closed_set_codec:FROM_JSON_ARM", row_subs)
         }
       )
     end
@@ -919,6 +945,7 @@ module RustProjection
           when "String"  then "crate::kernel::Json::Str(self.#{ident}.to_string())"
           when "Integer" then "crate::kernel::Json::int(self.#{ident})"
           when "Float"   then "crate::kernel::Json::Float(self.#{ident})"
+          when "TrueClass", "FalseClass" then "crate::kernel::Json::Bool(self.#{ident})"
           end
         Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => value_expr)
       end
@@ -931,16 +958,16 @@ module RustProjection
         Exemplar.render(
           "closed_set_table_from_json_condition",
           '"tmpl_field_name"' => key.inspect,
-          "tmpl_accessor_fn" => "crate::kernel::Json::#{accessor}",
-          "tmpl_field" => ident
+          "tmpl_accessor_fn"  => "crate::kernel::Json::#{accessor}",
+          "tmpl_field"        => ident
         )
       end
 
       Exemplar.render(
         "closed_set_table_codec",
-        "TmplTableRow" => name,
+        "TmplTableRow"                => name,
         "tmpl_to_json_fields_block()" => to_json_fields_block,
-        "TMPL_TABLE" => const_name,
+        "TMPL_TABLE"                  => const_name,
         "tmpl_from_json_conditions()" => match_conditions.join(" && ")
       )
     end
@@ -1022,7 +1049,9 @@ module RustProjection
       # check enforced) independently, before the outer `extract_id`
       # text's own two OTHER `tmpl_id_coercion` occurrences (`by_id_key`/
       # `by_reference_key`) ever get their turn.
-      tier1_subs = aggregate[:identified_by].each_with_index.map { |path, i| { '"tmpl_path"' => path.inspect, "c0" => "c#{i}", "tmpl_id_coercion" => coercion } }
+      tier1_subs = aggregate[:identified_by].each_with_index.map do |path, i|
+        { '"tmpl_path"' => path.inspect, "c0" => "c#{i}", "tmpl_id_coercion" => coercion }
+      end
       tier1_join =
         if aggregate[:identified_by].size == 1
           "c0"
@@ -1035,14 +1064,14 @@ module RustProjection
       Exemplar.compose(
         "extract_id",
         {
-          "TmplExtractIdType" => name,
-          "tmpl_extract_id_name" => method_name,
-          "tmpl_id_coercion" => coercion,
-          '"tmpl_reference_key"' => reference_key.inspect,
+          "TmplExtractIdType"             => name,
+          "tmpl_extract_id_name"          => method_name,
+          "tmpl_id_coercion"              => coercion,
+          '"tmpl_reference_key"'          => reference_key.inspect,
           "tmpl_tier1_join_placeholder()" => tier1_join,
-          '"tmpl_error_text"' => "#{name}: no identity found (tried #{tried})".inspect,
+          '"tmpl_error_text"'             => "#{name}: no identity found (tried #{tried})".inspect
         },
-        field_id: "extract_id:TIER1_LINE",
+        field_id:        "extract_id:TIER1_LINE",
         field_subs_list: tier1_subs
       )
     end
@@ -1073,10 +1102,10 @@ module RustProjection
       Exemplar.compose(
         "extract_wants",
         {
-          "TmplExtractWantsType" => name,
-          "tmpl_wants_join_placeholder()" => wants_join,
+          "TmplExtractWantsType"          => name,
+          "tmpl_wants_join_placeholder()" => wants_join
         },
-        field_id: "extract_wants:TIER1_LINE",
+        field_id:        "extract_wants:TIER1_LINE",
         field_subs_list: tier1_subs
       )
     end
