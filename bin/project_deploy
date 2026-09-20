@@ -198,13 +198,12 @@ target_key =
     MSG
   end
 
-# `Lambda`/`Fargate` raise `ArgumentError` for the same conflicts this
-# script used to `abort` on directly (both `web "Rust"` and a
-# `lambda_handler.rb`, `database "Shared"` with no `owner`, and
-# `deploy.bluebook`'s own `LambdaTarget`/`FargateTarget.Declare`
-# refusals) — caught here so the message still reaches stderr and the
-# exit code still reflects failure, the same contract this script has
-# always held to.
+# `Lambda`/`Fargate` raise `ArgumentError` for a domain's own deploy
+# conflicts (both `web "Rust"` and a `lambda_handler.rb`, `database
+# "Shared"` with no `owner`, and `deploy.bluebook`'s own
+# `LambdaTarget`/`FargateTarget.Declare` refusals) — caught here so the
+# message still reaches stderr and the exit code still reflects
+# failure, the contract this script holds to throughout.
 begin
   artifact = Hecks::Projector.call(
     target_key,

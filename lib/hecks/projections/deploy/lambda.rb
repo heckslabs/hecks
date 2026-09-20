@@ -10,7 +10,16 @@ module Hecks
       # `deployed_to("AwsLambda")` `.world` settings, not only its
       # declaration, because a running system has to know how it is wired.
       #
-      # Generates the SAM template and build Makefile for `rust/host` (the
+      # `bin/project_deploy` finds and boots the domain's own chapter and
+      # its `.world`/`.hecksagon` bindings, calls this through
+      # `Projector.call(:aws_lambda, bluebook:, options:, world:)`, and
+      # writes the returned tree — see that script for the CLI-facing parts
+      # (ARGV parsing, `--tenant`/`--schema`, finding the `.world` file) this
+      # target never needs to know about.
+      #
+      # ## What this generates
+      #
+      # The SAM template and build Makefile for `rust/host` (the
       # wasmtime+Postgres Lambda entry point) from a domain's own `.world`
       # file, the same way `bin/project_wasm` generates the `.wasm` artifact
       # from the domain's own `.bluebook` — no hand-authored deployment
@@ -29,13 +38,6 @@ module Hecks
       # own `ManageMasterUserPassword` plus a CloudFormation dynamic
       # reference compose `DATABASE_URL` at deploy time). `PackageType:
       # Zip`, `Runtime: provided.al2023` — no container, no Docker, no ECR.
-      #
-      # `bin/project_deploy` finds and boots the domain's own chapter and
-      # its `.world`/`.hecksagon` bindings, calls this through
-      # `Projector.call(:aws_lambda, bluebook:, options:, world:)`, and
-      # writes the returned tree — see that script for the CLI-facing parts
-      # (ARGV parsing, `--tenant`/`--schema`, finding the `.world` file) this
-      # target never needs to know about.
       #
       # `Shared` (`lib/hecks/projections/deploy/shared.rb`) carries the parts
       # of this generator `Fargate` needs too — VPC/subnet/security-group
@@ -1628,11 +1630,12 @@ bastion_yaml = shared ? nil : Shared.bastion_yaml(
 
           # `deploy:`'s own `sam deploy` call — `google_oauth_present` and
           # `shared` are collected together here rather than spelled as an
-          # if/elsif/else, the same bug `Parameters:` above is fixed for (#347):
-          # the two are independent facts about a domain, not alternatives, and
-          # lifeadelics is both — an elsif shape silently dropped the Owning*
-          # overrides whenever OAuth was also present, caught live the first time a Shared-mode domain with
-          # real Google OAuth actually ran `make deploy`: `sam deploy` refused
+          # if/elsif/else, the same shape `Parameters:` above holds to: the
+          # two are independent facts about a domain, not alternatives, and
+          # lifeadelics is both — an elsif shape would silently drop the
+          # Owning* overrides whenever OAuth is also present. Caught live
+          # the first time a Shared-mode domain with real Google OAuth
+          # actually ran `make deploy`: `sam deploy` refused
           # with "Parameters: [OwningVpcId, ...] must have values" because
           # nothing had ever passed them. WebRedirectBaseUrl stays a conditional
           # override (empty on a genuine first deploy, before the Function Url

@@ -13,7 +13,7 @@ module Hecks
       # helpers the two real targets call with the facts they have already
       # resolved (`db_id`, `aurora`, `google_oauth_present`, and so on).
       #
-      # Every `*_table` method here answers the SAME `key`/`var`/`name`
+      # Every `*_table` method here answers the same `key`/`var`/`name`
       # strings regardless of which target built them — `stack_outputs`'
       # own `"FunctionSecurityGroupId"` key, in particular, is what a
       # Shared-mode domain looks up from its owner's stack (`bin/project_deploy`'s
@@ -44,7 +44,7 @@ module Hecks
         # @param secret_intrinsic [String] the rendered `!Ref`/`!GetAtt` expression for
         #   this domain's own database secret
         # @param compute_security_group_ref [String] the `!Ref` expression for the
-        #   compute resource's own security group (a Lambda function's, an ECS
+        #   compute resource's own security group (a Lambda function's, an `ECS`
         #   service's) — reused by a Shared-mode domain elsewhere to attach its own
         #   compute to this domain's VPC without minting a security group of its own
         # @param google_oauth_present [Boolean] whether this domain's own NAT
@@ -181,8 +181,8 @@ module Hecks
         # `<<~` heredoc expects to reindent as it splices this in.
         #
         # `compute_logical_id`'s own security group carries no inbound rule
-        # at all — neither a Lambda function nor a Fargate task/ALB target
-        # group receives traffic over this VPC-attached ENI directly, only
+        # at all — neither a Lambda function nor a Fargate task/`ALB` target
+        # group receives traffic over this VPC-attached `ENI` directly, only
         # egress to the database (and, when `google_oauth_present`, to the
         # internet for a real OAuth token exchange).
         #
@@ -196,7 +196,7 @@ module Hecks
         # @param compute_logical_id [String] the compute resource's own logical id,
         #   naming its security group and egress rules
         # @param compute_description [String] the compute security group's own
-        #   `GroupDescription` text — what actually terminates the ENI this ingress
+        #   `GroupDescription` text — what actually terminates the `ENI` this ingress
         #   pairs with
         # @return [String] the rendered CloudFormation Resources, flush-left
         def vpc_and_database_yaml(db_id:, db_name:, infra_name:, aurora:, google_oauth_present:, compute_logical_id:, compute_description:)
