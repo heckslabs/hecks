@@ -42,7 +42,12 @@ begin
   Hecks.with_registry(registry) do
     loading.load_library
     loading.load_project(loading.shared_root(nil, directory))
-    loading.load_domain(directory)
+    # Same opt-in as `bin/scaffold_translation`'s own fix (read that
+    # comment first): `load_domain` already supports an environment
+    # overlay, this tool just never asked it for one, so a domain
+    # whose `persisted_by` binds live only in `bluebook/environments/
+    # *.hecksagon` (lifeadelics) got "no persisted_by bind" here too.
+    loading.load_domain(directory, environment: ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
   end
 rescue Hecks::Bluebook::DSL::Malformed => e
   abort "REFUSED at load: #{e.message}"
@@ -58,10 +63,14 @@ capable =
   rescue StandardError
     false
   end
+
 abort "the audit reads a lineage journal; #{bluebook.name} is bound to #{adapter_name}, not PostgresEra" unless capable
 
 manager = Hecks::Adapters::PostgresEra::LineageManager
 settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
+# Same `HECKS_SCHEMA` addition as `bin/scaffold_translation`'s own fix —
+# read that comment first.
+settings = settings.merge(schema: ENV["HECKS_SCHEMA"]) if ENV["HECKS_SCHEMA"]
 db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
 lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
 lineage.ensure_base!
