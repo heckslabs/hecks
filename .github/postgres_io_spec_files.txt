@@ -19,6 +19,7 @@ spec/ports/persistence_contract_spec.rb
 spec/ports/persistence_legacy_decode_spec.rb
 spec/project_deploy_bug_fixes_spec.rb
 spec/project_deploy_contract_spec.rb
+spec/project_deploy_fargate_spec.rb
 spec/project_deploy_rename_schema_spec.rb
 spec/project_deploy_shared_rust_oauth_spec.rb
 spec/project_deploy_tenant_spec.rb
