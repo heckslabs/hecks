@@ -141,4 +141,74 @@ Hecks.bluebook "Compliance" do
       emits BoxSurrenderReviewEscalated
     end
   end
+
+  # A THIRD SHAPE, NOT A UNION OF THE OTHER TWO — the same restraint the
+  # header above holds Banking's own two events to. `Privacy::Marking`'s
+  # own `Marked` event carries `domain`/`attribute_path`, matching
+  # neither `AccountFrozen` (`number`) nor `BoxSurrendered`
+  # (`branch_code`/`box_number`), so this gets its own aggregate rather
+  # than an artificial union.
+  #
+  # REACHED VIA `translates`, NOT a `policy` this bluebook declares —
+  # which foreign domain's event a consumer conforms to is a wiring
+  # decision (see `HecksagonBuilder#translates`'s own header), so the
+  # reaction lives in whichever `.hecksagon` attaches both Privacy and
+  # Compliance, not here.
+  aggregate "PrivacyReview" do
+    description "The compliance review a newly marked sensitive field gets, opened the moment Privacy::Marking.Mark already happened."
+
+    attribute :domain,         Domain
+    attribute :attribute_path, AttributePath
+
+    identified_by :domain, :attribute_path
+
+    value_object "Domain" do
+      attribute :value, String
+      invariant("a review names the domain whose attribute was marked") { !value.to_s.empty? }
+    end
+
+    value_object "AttributePath" do
+      attribute :value, String
+      invariant("a review names the attribute that was marked") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Clear"    => "cleared",   from: "open"
+      transition "Escalate" => "escalated", from: "open"
+    end
+
+    # SYSTEM-TRIGGERED, matching only `Privacy::Marking`'s own identity
+    # fields — the `translates` block that reacts to `Marked` forwards
+    # just `domain`/`attribute_path`, the same restraint
+    # `AccountFreezeReview.Open`/`BoxSurrenderReview.Open` already hold
+    # themselves to above; `category`/`role_required` stay on the
+    # marking itself, not duplicated here.
+    command "Open" do
+      role "System"
+      goal "Register that a newly marked sensitive field needs compliance review"
+
+      sets :domain
+      sets :attribute_path
+
+      emits PrivacyReviewOpened
+    end
+
+    command "Clear" do
+      role "Compliance officer"
+      goal "Confirm the marking was warranted, or resolve it, with nothing further to escalate"
+
+      reference_to PrivacyReview
+
+      emits PrivacyReviewCleared
+    end
+
+    command "Escalate" do
+      role "Compliance officer"
+      goal "Send a genuine finding on to whatever handles it next"
+
+      reference_to PrivacyReview
+
+      emits PrivacyReviewEscalated
+    end
+  end
 end
