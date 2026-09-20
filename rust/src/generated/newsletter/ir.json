@@ -1,0 +1,1292 @@
+{
+  "ir_version": 1,
+  "name": "Newsletter",
+  "version": null,
+  "vision": "Who is subscribed, what was sent, and whether it was opened, is one queryable, historical fact — not a generic form capture with no lifecycle and no way of ever sending anything.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Delivery",
+      "description": "One send attempt of one issue to one subscriber — whether it went out, and the first time it was opened or clicked.",
+      "identified_by": [
+        "delivery_id.value"
+      ],
+      "attributes": [
+        {
+          "name": "delivery_id",
+          "type": "DeliveryId",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "issue_slug",
+          "type": "IssueSlugRef",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "subscriber_email",
+          "type": "SubscriberEmailRef",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "message_id",
+          "type": "ResendMessageId",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "opened_at",
+          "type": "Timestamp",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "clicked_at",
+          "type": "Timestamp",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "DeliveryId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a delivery has an id",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "IssueSlugRef",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a delivery names the issue it was for",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "SubscriberEmailRef",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a delivery names the subscriber it was for",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ResendMessageId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Timestamp",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Record",
+          "role": null,
+          "goal": "Record that this issue was handed to Resend for this subscriber",
+          "references": null,
+          "attributes": [
+            {
+              "name": "delivery_id",
+              "type": "DeliveryId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "issue_slug",
+              "type": "IssueSlugRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "subscriber_email",
+              "type": "SubscriberEmailRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "message_id",
+              "type": "ResendMessageId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "delivery_id",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "delivery_id"
+              }
+            },
+            {
+              "target": "issue_slug",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "issue_slug"
+              }
+            },
+            {
+              "target": "subscriber_email",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "subscriber_email"
+              }
+            },
+            {
+              "target": "message_id",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "message_id"
+              }
+            }
+          ],
+          "emits": [
+            "DeliveryRecorded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "RecordOpen",
+          "role": null,
+          "goal": "Record the first time this delivery was opened",
+          "references": "Delivery",
+          "attributes": [
+            {
+              "name": "occurred_at",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "not already recorded as opened",
+              "canonical": "opened_at.unset?",
+              "ast": {
+                "op": "assignment",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "opened_at"
+                  ]
+                },
+                "negated": true
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "opened_at",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "occurred_at"
+              }
+            }
+          ],
+          "emits": [
+            "DeliveryOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "RecordClick",
+          "role": null,
+          "goal": "Record the first time a link in this delivery was clicked",
+          "references": "Delivery",
+          "attributes": [
+            {
+              "name": "occurred_at",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "not already recorded as clicked",
+              "canonical": "clicked_at.unset?",
+              "ast": {
+                "op": "assignment",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "clicked_at"
+                  ]
+                },
+                "negated": true
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "clicked_at",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "occurred_at"
+              }
+            }
+          ],
+          "emits": [
+            "DeliveryClicked"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [
+        {
+          "name": "Listing",
+          "description": "Every delivery, by id.",
+          "attributes": [],
+          "wheres": [],
+          "order_by": {
+            "field": "delivery_id.value",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "ForIssue",
+          "description": "Every delivery attempted for one issue.",
+          "attributes": [
+            {
+              "name": "issue_slug",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "issue_slug",
+              "op": "eq",
+              "value": ":issue_slug"
+            }
+          ],
+          "order_by": {
+            "field": "delivery_id.value",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+        {
+          "name": "ResendTracking",
+          "operations": [
+            {
+              "name": "Opened",
+              "attributes": [
+                {
+                  "name": "occurred_at",
+                  "type": "Timestamp",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+                "EmailOpened"
+              ],
+              "to": "Delivery"
+            },
+            {
+              "name": "Clicked",
+              "attributes": [
+                {
+                  "name": "occurred_at",
+                  "type": "Timestamp",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+                "EmailClicked"
+              ],
+              "to": "Delivery"
+            }
+          ]
+        }
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Issue",
+      "description": "One newsletter issue — drafted, edited, and eventually sent to every confirmed subscriber.",
+      "identified_by": [
+        "slug.value"
+      ],
+      "attributes": [
+        {
+          "name": "slug",
+          "type": "IssueSlug",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "subject",
+          "type": "IssueSubject",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "body",
+          "type": "IssueBody",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "sent_at",
+          "type": "Timestamp",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "IssueSlug",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an issue has a slug",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "IssueSubject",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an issue has a subject",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "IssueBody",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an issue has a body",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Timestamp",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Draft",
+          "role": null,
+          "goal": "Start a new issue",
+          "references": null,
+          "attributes": [
+            {
+              "name": "slug",
+              "type": "IssueSlug",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "subject",
+              "type": "IssueSubject",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "body",
+              "type": "IssueBody",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "slug",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "slug"
+              }
+            },
+            {
+              "target": "subject",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "subject"
+              }
+            },
+            {
+              "target": "body",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "body"
+              }
+            }
+          ],
+          "emits": [
+            "IssueDrafted"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Edit",
+          "role": null,
+          "goal": "Revise a draft issue's subject or body — never a sent one",
+          "references": "Issue",
+          "attributes": [
+            {
+              "name": "subject",
+              "type": "IssueSubject",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "body",
+              "type": "IssueBody",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a draft issue can be edited",
+              "canonical": "status == \"draft\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "draft"
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "subject",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "subject"
+              }
+            },
+            {
+              "target": "body",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "body"
+              }
+            }
+          ],
+          "emits": [
+            "IssueEdited"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Send",
+          "role": null,
+          "goal": "Mark this issue sent — fan-out to confirmed subscribers happens outside this command",
+          "references": "Issue",
+          "attributes": [
+            {
+              "name": "sent_at",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only a draft issue can be sent",
+              "canonical": "status == \"draft\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "draft"
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "sent_at",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "sent_at"
+              }
+            }
+          ],
+          "emits": [
+            "IssueSent"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "status",
+        "default": "draft",
+        "transitions": [
+          {
+            "command": "Send",
+            "to_state": "sent",
+            "from_state": "draft"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Listing",
+          "description": "Every issue, most recently drafted first.",
+          "attributes": [],
+          "wheres": [],
+          "order_by": {
+            "field": "slug.value",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Sent",
+          "description": "Every issue that has gone out.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"sent\""
+            }
+          ],
+          "order_by": {
+            "field": "slug.value",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Drafts",
+          "description": "Every issue still being written.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"draft\""
+            }
+          ],
+          "order_by": {
+            "field": "slug.value",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Subscriber",
+      "description": "One email address's relationship to the newsletter — asked in, confirmed, or opted back out.",
+      "identified_by": [
+        "email.value"
+      ],
+      "attributes": [
+        {
+          "name": "email",
+          "type": "SubscriberEmail",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "SubscriberEmail",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a subscriber has an email",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Subscribe",
+          "role": null,
+          "goal": "Ask to receive the newsletter, unconfirmed until Confirm",
+          "references": null,
+          "attributes": [
+            {
+              "name": "email",
+              "type": "SubscriberEmail",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "email",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "email"
+              }
+            }
+          ],
+          "emits": [
+            "SubscriberSubscribed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Confirm",
+          "role": null,
+          "goal": "Confirm a pending subscription — the double opt-in step",
+          "references": "Subscriber",
+          "attributes": [],
+          "givens": [
+            {
+              "description": "only a pending subscriber can be confirmed",
+              "canonical": "status == \"pending\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "pending"
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "SubscriberConfirmed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Unsubscribe",
+          "role": null,
+          "goal": "Opt out — no further mail, regardless of whether this subscriber ever confirmed",
+          "references": "Subscriber",
+          "attributes": [],
+          "givens": [
+            {
+              "description": "only a pending or confirmed subscriber can unsubscribe",
+              "canonical": "status == \"pending\" || status == \"confirmed\"",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "status"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "pending"
+                  }
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "status"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "confirmed"
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "SubscriberUnsubscribed"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "status",
+        "default": "pending",
+        "transitions": [
+          {
+            "command": "Confirm",
+            "to_state": "confirmed",
+            "from_state": "pending"
+          },
+          {
+            "command": "Unsubscribe",
+            "to_state": "unsubscribed",
+            "from_state": "pending"
+          },
+          {
+            "command": "Unsubscribe",
+            "to_state": "unsubscribed",
+            "from_state": "confirmed"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Listing",
+          "description": "Every subscriber, alphabetically by email.",
+          "attributes": [],
+          "wheres": [],
+          "order_by": {
+            "field": "email.value",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Confirmed",
+          "description": "Every subscriber currently eligible to receive an issue.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"confirmed\""
+            }
+          ],
+          "order_by": {
+            "field": "email.value",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Pending",
+          "description": "Every subscriber who has asked in but not yet confirmed.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"pending\""
+            }
+          ],
+          "order_by": {
+            "field": "email.value",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [
+    {
+      "name": "OnEmailOpened",
+      "on_event": "EmailOpened",
+      "trigger_command": "Delivery.RecordOpen",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [],
+      "where_ast": null
+    },
+    {
+      "name": "OnEmailClicked",
+      "on_event": "EmailClicked",
+      "trigger_command": "Delivery.RecordClick",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [],
+  "attaches_to": [],
+  "provides": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

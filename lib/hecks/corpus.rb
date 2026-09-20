@@ -271,6 +271,39 @@ module Hecks
                                     "checks it as bluebook_language, and there is no directory to fuzz"),
       "embryonaut" => Elsewhere.new(:external, "~/Projects/embryonautfoundersapp", "embryonaut",
                                     "an external product's domain — its bluebook, regeneration and parity are owed " \
+                                    "by its own repo; here bin/rust_coverage checks only the committed snapshot"),
+      # Lifeadelics — same external-product shape as "embryonaut" above,
+      # first generated 2026-09-19 fixing a live era-shape-drift outage.
+      # Its own hecksagon is named "Domain" (not "Lifeadelics" — the
+      # chapter name lifeadelics's own bluebook happens to declare), so
+      # the generated module and Cargo feature are "domain", read off
+      # `metadata.rs`'s own stamp the same way `generated_source` reads
+      # any other module's.
+      #
+      # Not listed here (a known, open gap — see spec/corpus_rust_spec.rb's
+      # own failures on this branch): lifeadelics's domain also attaches
+      # `accounts`/`newsletter`/`payments` (its own vendored
+      # embryonaut_bluebooks packages) and `Privacy` (an in-repo framework
+      # chapter, lib/hecks/framework/bluebook/privacy.bluebook, never
+      # before attached by any Rust-facing domain). Each is generated as
+      # a side-effect module the same way an in-repo vendored/framework
+      # chapter is, but the existing `rust_side_chapters` machinery only
+      # ever looks for the attaching domain among `rust_domains` — an
+      # in-repo directory. An external attacher like lifeadelics is
+      # invisible to it, on both ends: `rust_vendored_chapters`/
+      # `rust_framework_chapters` can't attribute the generated module to
+      # it, and spec/corpus_rust_spec.rb's own "attaches ... through some
+      # Rust domain's hecksagon" checks can't find its hecksagon to
+      # confirm the attachment either. Fixing this for real means
+      # deciding how an external `:external` domain's own side-effect
+      # chapters get modeled — the same open design question as whether
+      # `bin/rust_coverage`'s "committed snapshot only" treatment of
+      # `embryonaut` should extend to what it attaches, if anything ever
+      # does. Left open rather than forced through: RUST_ELSEWHERE is for
+      # actual Cargo features (this test suite's own equality checks
+      # depend on that), and none of these three exist as one.
+      "domain"     => Elsewhere.new(:external, "~/Projects/lifeadelics", "domain",
+                                    "an external product's domain — its bluebook, regeneration and parity are owed " \
                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot")
     }.freeze
 

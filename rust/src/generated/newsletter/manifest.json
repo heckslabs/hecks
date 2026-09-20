@@ -1,0 +1,144 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Newsletter::Delivery",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Delivery.Record",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Delivery.RecordOpen",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Delivery.RecordClick",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "port_operation",
+    "id": "Newsletter::Delivery.ResendTracking.Opened",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "port_operation",
+    "id": "Newsletter::Delivery.ResendTracking.Clicked",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Newsletter::Issue",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Issue.Draft",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Issue.Edit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Issue.Send",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Newsletter::Subscriber",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Subscriber.Subscribe",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Subscriber.Confirm",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Newsletter::Subscriber.Unsubscribe",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Delivery.Listing",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "no_wheres",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Delivery.ForIssue",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Issue.Listing",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "no_wheres",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Issue.Sent",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Issue.Drafts",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Subscriber.Listing",
+    "generated": false,
+    "gap_class": "per_instance",
+    "construct": "no_wheres",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Subscriber.Confirmed",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Newsletter::Subscriber.Pending",
+    "generated": true
+  },
+  {
+    "kind": "policy",
+    "id": "Newsletter::OnEmailOpened",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Newsletter::OnEmailClicked",
+    "generated": true,
+    "routed": true
+  }
+]
