@@ -23,12 +23,14 @@ and the repository is the tool:
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-bin/console          # boots the pizzas example — try it first
+bin/console          # boots the pizzas example this guide walks through
 ```
 
-Postgres is optional — everything here boots against the in-memory
-adapter. Postgres becomes necessary once schema evolution matters; see
-[Schema evolution](schema-evolution.md).
+`examples/pizzas` wires `PostgresEra`, so this needs a reachable local
+Postgres. If one isn't running yet, use `bin/console examples/banking`
+instead — it boots against the in-memory adapter, no server needed. See
+[Schema evolution](schema-evolution.md) for when Postgres earns its
+place.
 
 ## The first declaration
 
