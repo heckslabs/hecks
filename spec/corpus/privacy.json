@@ -11,7 +11,7 @@
         "domain": { "value": "Lifeadelics::Registration" },
         "attribute_path": { "value": "attendee.medications" },
         "category": { "value": "phi" },
-        "role_required": { "value": "Privacy officer" }
+        "readable_by": { "value": "Privacy officer" }
       }
     },
     {

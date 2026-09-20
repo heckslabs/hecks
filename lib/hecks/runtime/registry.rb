@@ -225,11 +225,12 @@ module Hecks
       #   `item` last
       def add_translation(item) = @translations << item
 
-      # Declares one attribute of one domain's own aggregate sensitive — called from
-      # `AggregateDoor#mark_sensitive`/`BindingProxy#mark_sensitive`, themselves called
-      # only from a `.hecksagon` file being `Kernel.load`ed, same timing (and same
-      # thread-safety argument, above) as `add_bluebook`/`add_port`. Recorded, not
-      # dispatched: `Runtime::Loader.boot`'s own `seed_privacy_markings!` turns each
+      # Declares one attribute of one domain's own aggregate sensitive — called from a
+      # terminal `has_<category>(readable_by:)` on a `Bluebook::DSL::AttributePath`
+      # (reached by chaining off a bare `Domain::Aggregate` inside a `.hecksagon` file
+      # being `Kernel.load`ed, or off an already-installed `AggregateDoor`), same timing
+      # (and same thread-safety argument, above) as `add_bluebook`/`add_port`. Recorded,
+      # not dispatched: `Runtime::Loader.boot`'s own `seed_privacy_markings!` turns each
       # entry into a real `Privacy::Marking.Mark` once a dispatcher exists.
       #
       # @param domain [String] the marked attribute's own aggregate FQN, e.g.
@@ -237,11 +238,11 @@ module Hecks
       # @param attribute_path [String] the dotted path within that aggregate, e.g.
       #   `"attendee.medications"`
       # @param category [String] the marking's own sensitivity category, e.g. `"phi"`
-      # @param role_required [String] the Governance role a read must hold, unredacted
+      # @param readable_by [String] the Governance role a read must hold, unredacted
       # @return [void]
-      def add_pending_privacy_marking(domain:, attribute_path:, category:, role_required:)
+      def add_pending_privacy_marking(domain:, attribute_path:, category:, readable_by:)
         @pending_privacy_markings << { domain: domain, attribute_path: attribute_path,
-                                        category: category, role_required: role_required }
+                                        category: category, readable_by: readable_by }
       end
       # rubocop:enable Hecks/ThreadSharedIvarMutation
 

@@ -137,7 +137,7 @@ module Hecks
 
       # One field's value, with any Privacy::Marking-flagged leaf masked
       # out unless the ambient caller holds a live Governance grant of
-      # the marking's own `role_required` — the read-side half of the
+      # the marking's own `readable_by` — the read-side half of the
       # Privacy framework member (lib/hecks/framework/bluebook/
       # privacy.bluebook): a marking's presence is what makes a read
       # redacted, not a separate flag this class carries itself.
@@ -164,7 +164,7 @@ module Hecks
 
         rows.each do |row|
           path = row[:attribute_path][:value].to_s
-          next if authorized_for?(row[:role_required][:value].to_s)
+          next if authorized_for?(row[:readable_by][:value].to_s)
 
           segments = path.split(".", 2)
           if segments.size == 1
@@ -195,7 +195,7 @@ module Hecks
       # with no authorization provider attached, never the weak fallback a command's own
       # role check allows (see `redacted`'s own header for why).
       #
-      # @param role [String] the marking's own `role_required`
+      # @param role [String] the marking's own `readable_by`
       # @return [Boolean] true only for an identified caller holding a live grant
       def authorized_for?(role)
         caller = Runtime::Caller.current
