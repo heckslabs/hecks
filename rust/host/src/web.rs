@@ -1322,6 +1322,52 @@ async fn checkout_route(
     }
 }
 
+// Whatever shape a consuming domain's own `Attendee` value object
+// declares — this crate's own checkout glue is shared, generic
+// dispatch code (hardcoded rather than IR-driven, this module's own
+// "checkout glue" header), not specific to any one domain's Attendee
+// fields. Lifeadelics's own Attendee grew, over a real redesign, from
+// a bare `{name, email}` to eight required fields (first_name,
+// last_name, email, phone, previous_sessions, first_time, how_heard,
+// aim) plus three optional ones — `registrations_route` used to
+// hardcode exactly the OLD two-field shape, which silently broke every
+// real registration the moment that redesign shipped (confirmed live:
+// every attempt failed "Attendee does not declare name"). Forwarding
+// the caller's own submitted fields through verbatim, whatever they
+// are, means this route never needs to know or hardcode any one
+// domain's Attendee shape again — each domain's own generated
+// given/invariant checks are still the real validation, exactly as
+// they already were for `event_slug`/`registration_id` above.
+// `event_slug`/`return_to` are the only two fields definitely NOT part
+// of any Attendee (routing metadata this function itself consumes),
+// so those are the only ones stripped.
+fn attendee_from(body: &Value) -> Value {
+    let mut attendee = body.clone();
+    if let Some(object) = attendee.as_object_mut() {
+        object.remove("event_slug");
+        object.remove("return_to");
+    }
+    attendee
+}
+
+// Payments::Payment's own `Client` value object is NOT part of this
+// redesign — payment.bluebook's own `Client` still only ever wants a
+// single `name` + `email` (checked live: unaffected by lifeadelics's
+// Attendee split) — so a caller sending the OLD flat `name` (the
+// CheckoutFixture test double, and any future simple-shape domain)
+// keeps working completely unchanged, and a caller sending the NEW
+// `first_name`/`last_name` split (lifeadelics today) gets a real
+// display name composed from both, rather than this route needing to
+// pick one shape and hardcode it.
+fn display_name_from(body: &Value) -> Option<String> {
+    if let Some(name) = body.get("name").and_then(|v| v.as_str()) {
+        return Some(name.to_string());
+    }
+    let first = body.get("first_name").and_then(|v| v.as_str())?;
+    let last = body.get("last_name").and_then(|v| v.as_str())?;
+    Some(format!("{first} {last}"))
+}
+
 // **The site driving in** — http_server.rb's own `POST /registrations`.
 // Payment first, then Registration, sharing one reference minted here
 // (lifeadelics.bluebook's own Registration comment has the full
@@ -1349,8 +1395,15 @@ async fn registrations_route(
     let Some(event_slug) = body.get("event_slug").and_then(|v| v.as_str()) else {
         return respond(400, "application/json", &json!({"error": "missing event_slug"}).to_string());
     };
-    let Some(name) = body.get("name").and_then(|v| v.as_str()) else {
-        return respond(400, "application/json", &json!({"error": "missing name"}).to_string());
+    // Cheap early exits before ever dispatching Payment.Initiate — the
+    // real, complete Attendee validation still happens downstream, in
+    // Registration.Request's own given/invariant checks, whatever this
+    // domain's Attendee actually requires; these two are just the
+    // fields THIS route itself needs before that (a display name for
+    // Payment's own Client, an email address for both Client and
+    // Attendee).
+    let Some(name) = display_name_from(&body) else {
+        return respond(400, "application/json", &json!({"error": "missing name (or first_name and last_name)"}).to_string());
     };
     let Some(email) = body.get("email").and_then(|v| v.as_str()) else {
         return respond(400, "application/json", &json!({"error": "missing email"}).to_string());
@@ -1390,7 +1443,7 @@ async fn registrations_route(
     let request_args = json!({
         "event_slug": event_slug,
         "registration_id": {"value": reference},
-        "attendee": {"name": name, "email": email},
+        "attendee": attendee_from(&body),
     });
     let request_verb = format!("{}::Registration.Request", config.domain);
     let outcome = match dispatch::handle(client, wasm_path, &request_verb, request_args, None, config, invoker).await {
@@ -2238,6 +2291,69 @@ mod tests {
         assert!(!checkout_enabled(Some("Banking"), "CheckoutFixture"));
     }
 
+    // ---- attendee_from / display_name_from: the Attendee-redesign fix —
+    // registrations_route no longer hardcodes {name, email}, it forwards
+    // whatever the caller actually submitted (this comment block's own
+    // header on registrations_route has the full "found live" story).
+
+    #[test]
+    fn attendee_from_strips_only_routing_metadata_not_attendee_fields() {
+        let body = json!({
+            "event_slug": "yoga-aug",
+            "return_to": "/yoga-aug",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "email": "ada@example.com",
+            "phone": "555-0100",
+            "previous_sessions": false,
+            "first_time": true,
+            "how_heard": "a friend",
+            "aim": "flexibility",
+        });
+
+        let attendee = attendee_from(&body);
+
+        assert_eq!(attendee.get("event_slug"), None, "routing metadata must not leak into Attendee");
+        assert_eq!(attendee.get("return_to"), None, "routing metadata must not leak into Attendee");
+        assert_eq!(attendee["first_name"], "Ada");
+        assert_eq!(attendee["last_name"], "Lovelace");
+        assert_eq!(attendee["email"], "ada@example.com");
+        assert_eq!(attendee["phone"], "555-0100");
+        assert_eq!(attendee["previous_sessions"], false);
+        assert_eq!(attendee["first_time"], true);
+        assert_eq!(attendee["how_heard"], "a friend");
+        assert_eq!(attendee["aim"], "flexibility");
+    }
+
+    #[test]
+    fn attendee_from_forwards_the_old_flat_shape_unchanged_for_backward_compatibility() {
+        // The exact shape CheckoutFixture's own tests (below) and any
+        // future simple-Attendee domain still send — must round-trip
+        // byte-for-byte, or this fix would be a breaking change instead
+        // of an additive one.
+        let body = json!({"event_slug": "happy-event", "name": "Ada Lovelace", "email": "ada@example.com"});
+        assert_eq!(attendee_from(&body), json!({"name": "Ada Lovelace", "email": "ada@example.com"}));
+    }
+
+    #[test]
+    fn display_name_from_prefers_a_flat_name_field_when_present() {
+        let body = json!({"name": "Ada Lovelace", "first_name": "should be ignored", "last_name": "should be ignored"});
+        assert_eq!(display_name_from(&body), Some("Ada Lovelace".to_string()));
+    }
+
+    #[test]
+    fn display_name_from_composes_first_and_last_name_when_no_flat_name_exists() {
+        let body = json!({"first_name": "Ada", "last_name": "Lovelace"});
+        assert_eq!(display_name_from(&body), Some("Ada Lovelace".to_string()));
+    }
+
+    #[test]
+    fn display_name_from_is_none_when_neither_shape_is_present() {
+        assert_eq!(display_name_from(&json!({"email": "ada@example.com"})), None);
+        assert_eq!(display_name_from(&json!({"first_name": "Ada"})), None, "last_name alone is missing");
+        assert_eq!(display_name_from(&json!({"last_name": "Lovelace"})), None, "first_name alone is missing");
+    }
+
     #[test]
     fn a_real_stripe_deploy_refuses_the_mock_webhook_secret_fallback() {
         assert!(validate_stripe_webhook_secret("stripe", "").is_err());
@@ -2356,6 +2472,58 @@ mod tests {
         let response = registrations_route(r#"{"event_slug":"yoga-aug"}"#, "", "mock_stripe", "http://localhost:4321", &client, &checkout_wasm_path(), &checkout_config(1), &lambda_client::NeverInvoker).await;
         assert_eq!(response["statusCode"], 400);
         assert!(response["body"].as_str().unwrap().contains("missing name"));
+    }
+
+    // The exact real-world case that broke live for lifeadelics: a
+    // caller submits the NEW `first_name`/`last_name` shape (no flat
+    // `name` at all) against a domain whose Attendee still only
+    // declares the OLD `name` field (CheckoutFixture, a stable, pinned
+    // fixture this crate never redesigns). `display_name_from` still
+    // composes a real name for Payment's own Client (proving Payment.
+    // Initiate succeeds), and `attendee_from` forwards `first_name`/
+    // `last_name` through UNCHANGED rather than silently coercing them
+    // into `name` — so Registration.Request correctly refuses on
+    // CheckoutFixture's own real Attendee invariant, the same shape of
+    // refusal lifeadelics's own real Attendee produced live. Proves
+    // both pieces of the fix without needing a second wasm fixture.
+    #[tokio::test]
+    async fn registrations_route_forwards_a_new_shaped_attendee_verbatim_even_against_an_old_shaped_fixture() {
+        let client = scratch_db("hecks_host_web_test_registrations_new_shape").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
+
+        schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
+
+        let body = json!({
+            "event_slug": "happy-event",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "email": "ada@example.com",
+        })
+        .to_string();
+        let response = registrations_route(&body, "", "mock_stripe", "http://localhost:4321", &client, &wasm_path, &config, &lambda_client::NeverInvoker).await;
+
+        // Registration.Request refuses (CheckoutFixture's Attendee has
+        // no first_name/last_name) — but that's AFTER Payment.Initiate
+        // already ran, proving display_name_from really did compose
+        // "Ada Lovelace" and Payment accepted it.
+        assert_eq!(response["statusCode"], 422, "{response:?}");
+        assert!(
+            response["body"].as_str().unwrap().contains("name"),
+            "should surface CheckoutFixture's own real Attendee refusal, not a generic error: {response:?}"
+        );
+
+        let read = dispatch::read(&client, &wasm_path).await.unwrap();
+        let instances = read["instances"].as_object().unwrap();
+        assert!(
+            instances.keys().any(|k| k.starts_with("Payments::Payment#")),
+            "Payment.Initiate should have committed for real using the composed display name: {instances:?}"
+        );
+        assert!(
+            instances.keys().all(|k| !k.starts_with("CheckoutFixture::Registration#")),
+            "Registration.Request must never have committed: {instances:?}"
+        );
     }
 
     #[tokio::test]
