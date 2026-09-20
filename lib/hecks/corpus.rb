@@ -280,32 +280,80 @@ module Hecks
       # `metadata.rs`'s own stamp the same way `generated_source` reads
       # any other module's.
       #
-      # Not listed here (a known, open gap — see spec/corpus_rust_spec.rb's
-      # own failures on this branch): lifeadelics's domain also attaches
-      # `accounts`/`newsletter`/`payments` (its own vendored
-      # embryonaut_bluebooks packages) and `Privacy` (an in-repo framework
-      # chapter, lib/hecks/framework/bluebook/privacy.bluebook, never
-      # before attached by any Rust-facing domain). Each is generated as
-      # a side-effect module the same way an in-repo vendored/framework
-      # chapter is, but the existing `rust_side_chapters` machinery only
-      # ever looks for the attaching domain among `rust_domains` — an
-      # in-repo directory. An external attacher like lifeadelics is
-      # invisible to it, on both ends: `rust_vendored_chapters`/
-      # `rust_framework_chapters` can't attribute the generated module to
-      # it, and spec/corpus_rust_spec.rb's own "attaches ... through some
-      # Rust domain's hecksagon" checks can't find its hecksagon to
-      # confirm the attachment either. Fixing this for real means
-      # deciding how an external `:external` domain's own side-effect
-      # chapters get modeled — the same open design question as whether
-      # `bin/rust_coverage`'s "committed snapshot only" treatment of
-      # `embryonaut` should extend to what it attaches, if anything ever
-      # does. Left open rather than forced through: RUST_ELSEWHERE is for
-      # actual Cargo features (this test suite's own equality checks
-      # depend on that), and none of these three exist as one.
+      # Lifeadelics's domain also attaches `accounts`/`newsletter`/
+      # `payments` (its own vendored embryonaut_bluebooks packages, see
+      # RUST_EXTERNAL_VENDORED_CHAPTERS below) and `Privacy` (an in-repo
+      # framework chapter, lib/hecks/framework/bluebook/privacy.bluebook,
+      # generated into Rust for the first time by any domain here).
+      # `rust_side_chapters` only ever looks for the attaching domain
+      # among `rust_domains` — an in-repo directory — so it can attribute
+      # neither module to lifeadelics on its own; `rust_attachment_
+      # hecksagon_text`, below, reads every `:external` domain's own
+      # hecksagon files too, the same way it reads an in-repo domain's,
+      # so `Privacy`'s own bucket membership (already correct — it is a
+      # real in-repo framework member with no merged.rs) can still be
+      # proven attached.
       "domain"     => Elsewhere.new(:external, "~/Projects/lifeadelics", "domain",
                                     "an external product's domain — its bluebook, regeneration and parity are owed " \
                                     "by its own repo; here bin/rust_coverage checks only the committed snapshot")
     }.freeze
+
+    # Vendored embryonaut_bluebooks packages attached only by an external
+    # RUST_ELSEWHERE domain — `members(:vendored)` can't find them
+    # itself; that glob only reaches `examples/*/vendor/
+    # embryonaut_bluebooks/*`, never an external checkout. Declared once,
+    # by hand, the same manual-commit contract "embryonaut" itself
+    # already carries: stem => the RUST_ELSEWHERE feature that attaches
+    # it. spec/corpus_rust_spec.rb checks each is really attached, the
+    # same as an in-repo vendored chapter (see
+    # `rust_external_vendored_domain_dir`, below).
+    RUST_EXTERNAL_VENDORED_CHAPTERS = {
+      "accounts"   => "domain",
+      "newsletter" => "domain",
+      "payments"   => "domain"
+    }.freeze
+
+    # Every external vendored chapter's own stem.
+    #
+    # @return [Array<String>] stems declared in RUST_EXTERNAL_VENDORED_CHAPTERS
+    def rust_external_vendored_chapters
+      RUST_EXTERNAL_VENDORED_CHAPTERS.keys
+    end
+
+    # Where an external vendored chapter's own bluebook lives — somewhere
+    # under `<destination>/**/vendor/embryonaut_bluebooks/<stem>`, the
+    # same layout `EmbryonautBluebook.load!` resolves for an in-repo
+    # vendored member, one level further out. Globbed rather than joined
+    # directly: `RUST_ELSEWHERE`'s own `destination` names the external
+    # product's checkout root, not necessarily the exact directory its
+    # own bluebook lives under (confirmed live against lifeadelics's own
+    # checkout: `~/Projects/lifeadelics/domain/vendor/
+    # embryonaut_bluebooks/accounts/bluebook`, one level below
+    # `~/Projects/lifeadelics` itself).
+    #
+    # @param stem [String] an external vendored chapter's stem
+    # @return [String, nil] the vendored member's own directory, or nil when none is found
+    def rust_external_vendored_domain_dir(stem)
+      feature = RUST_EXTERNAL_VENDORED_CHAPTERS.fetch(stem)
+      destination = File.expand_path(RUST_ELSEWHERE.fetch(feature).destination)
+      Dir.glob(File.join(destination, "**", "vendor", "embryonaut_bluebooks", stem)).first
+    end
+
+    # Every place a Rust-facing domain's own `uses_framework`/
+    # `uses_embryonaut_bluebook` attachment could be declared — every
+    # in-repo Rust domain's own hecksagon files, plus each `:external`
+    # RUST_ELSEWHERE domain's own (its `destination`, expanded, is a
+    # real checkout on this machine, read the same way an in-repo
+    # domain's own hecksagon files already are).
+    #
+    # @param root [String] repository root to search under
+    # @return [String] every reachable hecksagon file's own text, joined by newlines
+    def rust_attachment_hecksagon_text(root: ROOT)
+      in_repo = rust_domains(root: root).flat_map { |domain| Dir.glob(File.join(domain.dir, "**", "*.hecksagon")) }
+      external = RUST_ELSEWHERE.values.select { |route| route.check == :external }
+                               .flat_map { |route| Dir.glob(File.join(File.expand_path(route.destination), "**", "*.hecksagon")) }
+      (in_repo + external).map { |path| File.read(path) }.join("\n")
+    end
 
     # **Shrink-only**. A generated module `bin/rust_coverage` still reports a
     # gap for. `bin/corpus --rust-coverage` requires each of these to
