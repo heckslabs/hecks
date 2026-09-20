@@ -216,7 +216,7 @@ jobs:
       # second worker doing the same.
       - name: "rspec: Rust conformance + numeric coercion + pipeline parity (serial — shared-file mutation)"
         run: |
-          bundle exec rspec --tag io \
+          bundle exec rspec --tag io --profile 15 \
             spec/project_rust_pipeline_spec.rb \
             spec/rust_conformance_spec.rb \
             spec/rust_conformance_fuzz_spec.rb \
