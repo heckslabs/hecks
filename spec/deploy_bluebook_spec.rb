@@ -103,6 +103,74 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       .to raise_error(Hecks::Runtime::InvariantViolation)
   end
 
+  def declare_fargate(overrides = {})
+    args = {
+      domain:   { value: "Banking" },
+      region:   { value: "us-east-1" },
+      cpu:      { value: 256 },
+      memory:   { value: 512 },
+      database: { value: "Postgres" },
+      web:      { value: "None" },
+      port:     { value: 8080 }
+    }.merge(overrides)
+    dispatcher.dispatch_flat("Deploy::FargateTarget.Declare", **args)
+  end
+
+  it "accepts a fully-specified AwsFargate target" do
+    result = declare_fargate
+    state = result.instance.state
+    expect(state[:domain].value).to eq("Banking")
+    expect(state[:region].value).to eq("us-east-1")
+    expect(state[:cpu].value).to eq(256)
+    expect(state[:memory].value).to eq(512)
+    expect(state[:port].value).to eq(8080)
+  end
+
+  it "refuses an empty region for AwsFargate" do
+    expect { declare_fargate(region: { value: "" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /Region invariant violated — a region is named/)
+  end
+
+  it "refuses a non-positive cpu" do
+    expect { declare_fargate(cpu: { value: 0 }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /cpu is positive/)
+  end
+
+  it "refuses a non-positive memory" do
+    expect { declare_fargate(memory: { value: 0 }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /memory is positive/)
+  end
+
+  it "refuses memory above Fargate's own ceiling" do
+    expect { declare_fargate(memory: { value: 999_999 }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /memory is at most 122880 MB/)
+  end
+
+  it "refuses a database outside {Postgres, Aurora, Shared} for AwsFargate" do
+    expect { declare_fargate(database: { value: "MySQL" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation)
+  end
+
+  it "accepts \"Shared\" for database on AwsFargate" do
+    result = declare_fargate(database: { value: "Shared" })
+    expect(result.instance.state[:database].value).to eq("Shared")
+  end
+
+  it "refuses a web value outside {None, Rust} for AwsFargate" do
+    expect { declare_fargate(web: { value: "Ruby" }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation)
+  end
+
+  it "refuses a port below 1" do
+    expect { declare_fargate(port: { value: 0 }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /a port is at least 1/)
+  end
+
+  it "refuses a port above 65535" do
+    expect { declare_fargate(port: { value: 70_000 }) }
+      .to raise_error(Hecks::Runtime::InvariantViolation, /a port is at most 65535/)
+  end
+
   # **The end-to-end proof** — bin/project_deploy itself dispatches into
   # this domain, not a parallel hand-rolled check that happens to agree
   # with it today and silently drifts tomorrow.
