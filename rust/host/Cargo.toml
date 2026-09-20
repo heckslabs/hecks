@@ -27,7 +27,24 @@ path = "src/main.rs"
 wasmtime = "47.0.3"
 wasmtime-wasi = "47.0.3"
 lambda_runtime = "0.13"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }
+# HECKS_SERVE_MODE=1 (server.rs) — a long-lived HTTP server for AWS
+# Fargate, alongside the Lambda custom-runtime path above; needed so a
+# domain deployed via `deployed_to("AwsFargate")` (fargate.rb) can
+# actually answer the HTTP the generated ALB/target group already
+# expects. Pure Rust (hyper + tower underneath, both already
+# TLS-agnostic here — the ALB terminates HTTP, this crate never opens a
+# listening TLS socket of its own), the same no-C-toolchain discipline
+# every other dependency in this file already holds to. default-features
+# = false + an explicit, minimal feature list — "http1" (plain HTTP/1.1,
+# all an ALB-fronted container needs; no h2/gRPC caller exists),
+# "tokio" (the `axum::serve` runtime integration this crate's own
+# `#[tokio::main]` needs), "json" (a thin `axum::Json` response wrapper
+# over `serde_json`, already a dependency either way) — deliberately
+# without axum's own "query"/"form"/"matched-path"/"original-uri"/
+# "macros" features, none of which server.rs's own single-fallback-route
+# handler uses.
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
 # RDS Postgres requires TLS by default (confirmed live: "no pg_hba.conf
 # entry ... no encryption" refusing a plain NoTls connection). Pure
