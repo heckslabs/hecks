@@ -51,7 +51,7 @@ module Hecks
       # @param subject_id [String] the data subject to erase
       # @return [Boolean] true when a live key was found and shredded by this call; false
       #   when no `SubjectKey` record exists for this subject, or it was already shredded
-      def shred!(dispatcher, domain:, subject_id:)
+      def shred!(dispatcher, domain:, subject_id:) # rubocop:disable Naming/PredicateMethod
         record = dispatcher.query("Privacy::SubjectKey.ForSubject", domain: domain, subject_id: subject_id).first
         return false unless record
         return false if record[:status].to_s == "shredded"
