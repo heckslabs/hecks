@@ -1669,7 +1669,12 @@ pub(crate) fn percent_decode(s: &str) -> String {
 
 const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-fn base64_decode(input: &str) -> Vec<u8> {
+// pub(crate) — server.rs's own Function-URL-shaped response translation
+// (`statusCode`/`headers`/`body`/`isBase64Encoded`, the exact shape
+// this module's own `respond`/`redirect` produce) decodes the same way
+// a real Lambda Function URL invocation would, rather than carrying a
+// second copy of this decoder.
+pub(crate) fn base64_decode(input: &str) -> Vec<u8> {
     let mut table = [255u8; 256];
     for (i, &c) in B64.iter().enumerate() {
         table[c as usize] = i as u8;
